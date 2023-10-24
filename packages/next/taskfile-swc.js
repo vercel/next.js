@@ -100,15 +100,6 @@ module.exports = function (task) {
             keepImportAttributes,
             emitAssertForImportAttributes: keepImportAttributes,
           },
-          baseUrl: __dirname,
-          paths: {
-            'react-dom/server.edge': [
-              './compiled/react-dom-experimental/server.edge',
-            ],
-            'react-dom/static.edge': [
-              './compiled/react-dom-experimental/static.edge',
-            ],
-          },
           transform: {
             react: {
               pragma: 'React.createElement',

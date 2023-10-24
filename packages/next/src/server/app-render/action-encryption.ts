@@ -23,9 +23,6 @@ import {
   stringToUint8Array,
 } from './action-encryption-utils'
 
-const PAYLOAD_PREFIX = 'next:'
-const SALT_PREFIX = '__next_action__'
-
 async function decodeActionBoundArg(actionId: string, arg: string) {
   const key = await getActionEncryptionKey()
   if (typeof key === 'undefined') {
@@ -34,19 +31,23 @@ async function decodeActionBoundArg(actionId: string, arg: string) {
     )
   }
 
-  // Get the payload and iv from the arg. 18 bytes * 8/6 = 24 chars in base64.
-  const ivPrefix = arg.slice(0, 24)
-  const payload = arg.slice(24)
+  // Get the iv (16 bytes) and the payload from the arg.
+  const originalPayload = atob(arg)
+  const ivValue = originalPayload.slice(0, 16)
+  const payload = originalPayload.slice(16)
   if (payload === undefined) {
     throw new Error('Invalid Server Action payload.')
   }
 
-  const decoded = await decrypt(
-    key,
-    SALT_PREFIX + ivPrefix + actionId,
-    stringToUint8Array(atob(payload))
+  const decrypted = arrayBufferToString(
+    await decrypt(key, stringToUint8Array(ivValue), stringToUint8Array(payload))
   )
-  return arrayBufferToString(decoded)
+
+  if (!decrypted.startsWith(actionId)) {
+    throw new Error('Invalid Server Action payload: failed to decrypt.')
+  }
+
+  return decrypted.slice(actionId.length)
 }
 
 async function encodeActionBoundArg(actionId: string, arg: string) {
@@ -57,17 +58,18 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
     )
   }
 
-  // Get some random bytes for iv.
-  const randomBytes = new Uint8Array(18)
+  // Get 16 random bytes as iv.
+  const randomBytes = new Uint8Array(16)
   crypto.getRandomValues(randomBytes)
-  const ivPrefix = btoa(arrayBufferToString(randomBytes.buffer))
+  const ivValue = arrayBufferToString(randomBytes.buffer)
 
-  const encoded = await encrypt(
+  const encrypted = await encrypt(
     key,
-    SALT_PREFIX + ivPrefix + actionId,
-    stringToUint8Array(arg)
+    randomBytes,
+    stringToUint8Array(actionId + arg)
   )
-  return ivPrefix + btoa(arrayBufferToString(encoded))
+
+  return btoa(ivValue + arrayBufferToString(encrypted))
 }
 
 // Encrypts the action's bound args into a string.
@@ -82,27 +84,18 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   // Encrypt the serialized string with the action id as the salt.
   // Add a prefix to later ensure that the payload is correctly decrypted, similar
   // to a checksum.
-  const encryped = await encodeActionBoundArg(
-    actionId,
-    PAYLOAD_PREFIX + serialized
-  )
+  const encrypted = await encodeActionBoundArg(actionId, serialized)
 
-  return encryped
+  return encrypted
 }
 
 // Decrypts the action's bound args from the encrypted string.
 export async function decryptActionBoundArgs(
   actionId: string,
-  encryped: Promise<string>
+  encrypted: Promise<string>
 ) {
   // Decrypt the serialized string with the action id as the salt.
-  let decryped = await decodeActionBoundArg(actionId, await encryped)
-
-  if (!decryped.startsWith(PAYLOAD_PREFIX)) {
-    throw new Error('Invalid Server Action payload: failed to decrypt.')
-  } else {
-    decryped = decryped.slice(PAYLOAD_PREFIX.length)
-  }
+  const decryped = await decodeActionBoundArg(actionId, await encrypted)
 
   // Using Flight to deserialize the args from the string.
   const deserialized = await createFromReadableStream(
