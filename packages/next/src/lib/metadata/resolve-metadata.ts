@@ -224,7 +224,8 @@ function merge({
       case 'category':
       case 'classification':
       case 'referrer':
-
+      case 'viewport':
+      case 'colorScheme':
       case 'formatDetection':
       case 'manifest':
         // @ts-ignore TODO: support inferring
@@ -236,9 +237,6 @@ function merge({
       case 'metadataBase':
         target.metadataBase = metadataBase
         break
-      // screen metadata
-      case 'viewport':
-      case 'colorScheme':
       case 'themeColor': {
         target.themeColor = resolveThemeColor(source.themeColor)
         break
