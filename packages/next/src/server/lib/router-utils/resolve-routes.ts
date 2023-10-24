@@ -29,6 +29,7 @@ import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-p
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { NextDataPathnameNormalizer } from '../../future/normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../future/normalizers/request/base-path'
+import { PostponedPathnameNormalizer } from '../../future/normalizers/request/postponed'
 
 import { addRequestMeta } from '../../request-meta'
 import {
@@ -295,6 +296,9 @@ export function getResolveRoutes(
     const normalizers = {
       basePath: new BasePathPathnameNormalizer(config.basePath),
       data: new NextDataPathnameNormalizer(fsChecker.buildId),
+      postponed: new PostponedPathnameNormalizer(
+        config.experimental.ppr === true
+      ),
     }
 
     async function handleRoute(
@@ -372,10 +376,19 @@ export function getResolveRoutes(
               normalized = normalizers.basePath.normalize(normalized, true)
             }
 
+            let updated = false
             if (normalizers.data.match(normalized)) {
+              updated = true
               parsedUrl.query.__nextDataReq = '1'
               normalized = normalizers.data.normalize(normalized, true)
+            } else if (normalizers.postponed.match(normalized)) {
+              updated = true
+              normalized = normalizers.postponed.normalize(normalized, true)
+            }
 
+            // If we updated the pathname, and it had a base path, re-add the
+            // base path.
+            if (updated) {
               if (hadBasePath) {
                 normalized = path.posix.join(config.basePath, normalized)
               }
