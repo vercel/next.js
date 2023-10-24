@@ -1,4 +1,5 @@
 import { DynamicServerError } from './hooks-server-context'
+import { maybePostpone } from './maybe-postpone'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
 class StaticGenBailoutError extends Error {
@@ -25,45 +26,38 @@ export const staticGenerationBailout: StaticGenerationBailout = (
   opts
 ) => {
   const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+  if (!staticGenerationStore) return false
 
-  if (staticGenerationStore?.forceStatic) {
+  if (staticGenerationStore.forceStatic) {
     return true
   }
 
-  if (staticGenerationStore?.dynamicShouldError) {
+  if (staticGenerationStore.dynamicShouldError) {
     throw new StaticGenBailoutError(
       formatErrorMessage(reason, { ...opts, dynamic: opts?.dynamic ?? 'error' })
     )
   }
 
-  if (staticGenerationStore && !staticGenerationStore?.experimental.ppr) {
-    staticGenerationStore.revalidate = 0
+  const message = formatErrorMessage(reason, {
+    ...opts,
+    // this error should be caught by Next to bail out of static generation
+    // in case it's uncaught, this link provides some additional context as to why
+    link: 'https://nextjs.org/docs/messages/dynamic-server-error',
+  })
 
-    if (!opts?.dynamic) {
-      // we can statically prefetch pages that opt into dynamic,
-      // but not things like headers/cookies
-      staticGenerationStore.staticPrefetchBailout = true
-    }
+  maybePostpone(staticGenerationStore, message)
+
+  // As this is a bailout, we don't want to revalidate, so set the revalidate
+  // to 0.
+  staticGenerationStore.revalidate = 0
+
+  if (!opts?.dynamic) {
+    // we can statically prefetch pages that opt into dynamic,
+    // but not things like headers/cookies
+    staticGenerationStore.staticPrefetchBailout = true
   }
 
-  if (staticGenerationStore?.isStaticGeneration) {
-    const message = formatErrorMessage(reason, {
-      ...opts,
-      // this error should be caught by Next to bail out of static generation
-      // in case it's uncaught, this link provides some additional context as to why
-      link: 'https://nextjs.org/docs/messages/dynamic-server-error',
-    })
-
-    if (staticGenerationStore?.experimental.ppr) {
-      const React = require('react') as typeof import('react')
-
-      // App Route's cannot be postponed, so we only postpone if it's a page.
-      if (typeof React.unstable_postpone === 'function') {
-        // This throws a postpone error similar to the below error.
-        React.unstable_postpone(message)
-      }
-    }
-
+  if (staticGenerationStore.isStaticGeneration) {
     const err = new DynamicServerError(message)
     staticGenerationStore.dynamicUsageDescription = reason
     staticGenerationStore.dynamicUsageStack = err.stack
