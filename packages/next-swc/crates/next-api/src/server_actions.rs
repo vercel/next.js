@@ -49,27 +49,10 @@ pub(crate) async fn create_server_actions_manifest(
     runtime: NextRuntime,
     asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    enable_server_actions: Vc<bool>,
 ) -> Result<(
     Option<Vc<Box<dyn EvaluatableAsset>>>,
     Vc<Box<dyn OutputAsset>>,
 )> {
-    // If actions aren't enabled, then there's no need to scan the module graph. We
-    // still need to generate an empty manifest so that the TS side can merge
-    // the manifest later on.
-    if !*enable_server_actions.await? {
-        let manifest = build_manifest(
-            node_root,
-            pathname,
-            page_name,
-            runtime,
-            ModuleActionMap::empty(),
-            Default::default(),
-        )
-        .await?;
-        return Ok((None, manifest));
-    }
-
     let actions = get_actions(Vc::upcast(entry));
     let loader = build_server_actions_loader(node_root, page_name, actions, asset_context).await?;
     let Some(evaluable) = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader).await?
