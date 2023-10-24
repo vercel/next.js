@@ -8,6 +8,8 @@ import Header from '@/components/Header'
 export const dynamic = 'force-dynamic'
 
 const canInitSupabaseClient = () => {
+  // This function is just for the interactive tutorial.
+  // Feel free to remove it once you have Supabase connected.
   try {
     createClient()
     return true
@@ -17,6 +19,8 @@ const canInitSupabaseClient = () => {
 }
 
 export default async function Index() {
+  // This variable is just for the interactive tutorial.
+  // Feel free to remove it once you have Supabase connected.
   const isSupabaseConnected = canInitSupabaseClient()
 
   return (
