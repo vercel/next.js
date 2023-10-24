@@ -656,43 +656,46 @@ impl Task {
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Option<TaskExecutionSpec> {
-        let aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
+        let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let future;
-        let remove_job;
-        let mut state = self.full_state_mut();
-        match state.state_type {
-            Done { .. } | InProgress { .. } | InProgressDirty { .. } => {
-                // should not start in this state
-                return None;
+        {
+            let remove_job;
+            let mut state = self.full_state_mut();
+            match state.state_type {
+                Done { .. } | InProgress { .. } | InProgressDirty { .. } => {
+                    // should not start in this state
+                    return None;
+                }
+                Scheduled { ref mut event } => {
+                    let event: Event = event.take();
+                    let outdated_children = take(&mut state.children);
+                    remove_job = Some(
+                        state
+                            .aggregation_leaf
+                            .remove_children_job(&aggregation_context, outdated_children),
+                    );
+                    let outdated_collectibles = take(&mut state.collectibles);
+                    state.state_type = InProgress {
+                        event,
+                        count_as_finished: false,
+                        outdated_collectibles,
+                    };
+                    state.stats.increment_executions();
+                }
+                Dirty { .. } => {
+                    let state_type = Task::state_string(&state);
+                    panic!(
+                        "{:?} execution started in unexpected state {}",
+                        self, state_type
+                    )
+                }
+            };
+            future = self.make_execution_future(state, backend, turbo_tasks);
+            if let Some(remove_job) = remove_job {
+                remove_job();
             }
-            Scheduled { ref mut event } => {
-                let event: Event = event.take();
-                let outdated_children = take(&mut state.children);
-                remove_job = Some(
-                    state
-                        .aggregation_leaf
-                        .remove_children_job(&aggregation_context, outdated_children),
-                );
-                let outdated_collectibles = take(&mut state.collectibles);
-                state.state_type = InProgress {
-                    event,
-                    count_as_finished: false,
-                    outdated_collectibles,
-                };
-                state.stats.increment_executions();
-            }
-            Dirty { .. } => {
-                let state_type = Task::state_string(&state);
-                panic!(
-                    "{:?} execution started in unexpected state {}",
-                    self, state_type
-                )
-            }
-        };
-        future = self.make_execution_future(state, backend, turbo_tasks);
-        if let Some(remove_job) = remove_job {
-            remove_job();
         }
+        aggregation_context.apply_queued_updates();
         Some(TaskExecutionSpec { future })
     }
 
