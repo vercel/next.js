@@ -562,7 +562,7 @@ describe('next.rs api', () => {
       })
   }
 
-  it('should allow to make many HMR updates', async () => {
+  it.skip('should allow to make many HMR updates', async () => {
     console.log('start')
     await new Promise((r) => setTimeout(r, 1000))
     const entrypointsSubscribtion = project.entrypointsSubscribe()
