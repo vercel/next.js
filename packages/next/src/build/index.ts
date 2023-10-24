@@ -1057,7 +1057,7 @@ export default async function build(
         })
 
         const [duration] = process.hrtime(turboNextBuildStart)
-        return { duration, buildTraceContext: null }
+        return { duration, buildTraceContext: undefined }
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined

@@ -128,7 +128,7 @@ async function webpackBuildWithWorker(
 export function webpackBuild(
   withWorker: boolean,
   compilerNames?: typeof ORDERED_COMPILER_NAMES
-) {
+): ReturnType<typeof webpackBuildWithWorker> {
   if (withWorker) {
     debug('using separate compiler workers')
     return webpackBuildWithWorker(compilerNames)
