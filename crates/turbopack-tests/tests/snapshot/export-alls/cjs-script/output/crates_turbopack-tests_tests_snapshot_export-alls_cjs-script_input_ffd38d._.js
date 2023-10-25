@@ -9,6 +9,7 @@ module.exports = {
 
 }.call(this) }),
 "[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-script/input/mod.js [test] (ecmascript)": (({ r: __turbopack_require__, f: __turbopack_require_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_dynamic__, g: global, __dirname, k: __turbopack_refresh__ }) => (() => {
+"use strict";
 
 __turbopack_esm__({});
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$script$2f$input$2f$exported$2e$cjs__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-script/input/exported.cjs [test] (ecmascript)");
