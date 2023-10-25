@@ -835,9 +835,7 @@ impl AppEndpoint {
                 )
                 .await?;
                 server_assets.push(manifest);
-                if let Some(loader) = loader {
-                    evaluatable_assets.push(loader);
-                }
+                evaluatable_assets.push(loader);
 
                 let files = chunking_context.evaluated_chunk_group(
                     app_entry.rsc_entry.ident(),
@@ -986,9 +984,7 @@ impl AppEndpoint {
                 )
                 .await?;
                 server_assets.push(manifest);
-                if let Some(loader) = loader {
-                    evaluatable_assets.push(loader);
-                }
+                evaluatable_assets.push(loader);
 
                 let rsc_chunk = this
                     .app_project

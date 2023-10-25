@@ -50,10 +50,7 @@ pub(crate) async fn create_server_actions_manifest(
     runtime: NextRuntime,
     asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-) -> Result<(
-    Option<Vc<Box<dyn EvaluatableAsset>>>,
-    Vc<Box<dyn OutputAsset>>,
-)> {
+) -> Result<(Vc<Box<dyn EvaluatableAsset>>, Vc<Box<dyn OutputAsset>>)> {
     let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
     let loader = build_server_actions_loader(node_root, page_name, actions, asset_context).await?;
     let Some(evaluable) = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader).await?
@@ -67,7 +64,7 @@ pub(crate) async fn create_server_actions_manifest(
         .to_string();
     let manifest =
         build_manifest(node_root, pathname, page_name, runtime, actions, loader_id).await?;
-    Ok((Some(evaluable), manifest))
+    Ok((evaluable, manifest))
 }
 
 /// Builds the "action loader" entry point, which reexports every found action
