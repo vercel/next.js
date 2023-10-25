@@ -32,6 +32,7 @@ export interface ErrorBoundaryProps {
   children?: React.ReactNode
   errorComponent: ErrorComponent
   errorStyles?: React.ReactNode | undefined
+  errorScripts?: React.ReactNode | undefined
 }
 
 interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
@@ -106,6 +107,7 @@ export class ErrorBoundaryHandler extends React.Component<
         <>
           <HandleISRError error={this.state.error} />
           {this.props.errorStyles}
+          {this.props.errorScripts}
           <this.props.errorComponent
             error={this.state.error}
             reset={this.reset}
@@ -158,6 +160,7 @@ export default GlobalError
 export function ErrorBoundary({
   errorComponent,
   errorStyles,
+  errorScripts,
   children,
 }: ErrorBoundaryProps & { children: React.ReactNode }): JSX.Element {
   const pathname = usePathname()
@@ -167,6 +170,7 @@ export function ErrorBoundary({
         pathname={pathname}
         errorComponent={errorComponent}
         errorStyles={errorStyles}
+        errorScripts={errorScripts}
       >
         {children}
       </ErrorBoundaryHandler>
