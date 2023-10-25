@@ -1,3 +1,4 @@
+import { maybePostpone } from '../../../client/components/maybe-postpone'
 import type {
   StaticGenerationStore,
   StaticGenerationAsyncStorage,
@@ -30,13 +31,14 @@ export function unstable_cache<T extends Callback>(
       staticGenerationAsyncStorage?.getStore()
 
     if (store && typeof options.revalidate === 'number') {
-      // Only set revalidate if it is lower than the previously set value
-      if (
-        typeof store.revalidate !== 'number' ||
-        (typeof store.revalidate === 'number' &&
-          store.revalidate > options.revalidate)
-      ) {
-        store.revalidate = options.revalidate
+      if (options.revalidate === 0) {
+        maybePostpone(store, 'revalidate: 0')
+        store.revalidate = 0
+      } else if (typeof store.revalidate === 'number') {
+        // Only set revalidate if it is lower than the previously set value
+        if (store.revalidate > options.revalidate) {
+          store.revalidate = options.revalidate
+        }
       }
     }
 
