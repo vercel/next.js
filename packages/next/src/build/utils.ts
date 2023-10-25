@@ -337,6 +337,9 @@ export interface PageInfo {
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
   runtime: ServerRuntime
+  hasEmptyPrelude?: boolean
+  hasPostponed?: boolean
+  isDynamicAppRoute?: boolean
 }
 
 export async function printTreeView(
@@ -450,18 +453,28 @@ export async function printTreeView(
         (pageInfo?.pageDuration || 0) +
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
-      const symbol =
-        item === '/_app' || item === '/_app.server'
-          ? ' '
-          : isEdgeRuntime(pageInfo?.runtime)
-          ? 'ℇ'
-          : pageInfo?.isPPR
-          ? '◐'
-          : pageInfo?.isStatic
-          ? '○'
-          : pageInfo?.isSSG
-          ? '●'
-          : 'λ'
+      let symbol: string
+
+      if (item === '/_app' || item === '/_app.server') {
+        symbol = ' '
+      } else if (isEdgeRuntime(pageInfo?.runtime)) {
+        symbol = 'ℇ'
+      } else if (pageInfo?.isPPR) {
+        // If the page has an empty prelude, then it's equivalent to a static page.
+        if (pageInfo?.hasEmptyPrelude) {
+          symbol = 'λ'
+        } else if (!pageInfo?.hasPostponed && !pageInfo.isDynamicAppRoute) {
+          symbol = '○'
+        } else {
+          symbol = '◐'
+        }
+      } else if (pageInfo?.isStatic) {
+        symbol = '○'
+      } else if (pageInfo?.isSSG) {
+        symbol = '●'
+      } else {
+        symbol = 'λ'
+      }
 
       usedSymbols.add(symbol)
 
@@ -667,27 +680,10 @@ export async function printTreeView(
   print(
     textTable(
       [
-        usedSymbols.has('◐') && [
-          '◐',
-          '(Partially Pre-Rendered)',
-          'static parts of the page were pre-rendered and the dynamic parts will be streamed',
-        ],
-        usedSymbols.has('ℇ') && [
-          'ℇ',
-          '(Streaming)',
-          `server-side renders with streaming (uses React 18 SSR streaming or Server Components)`,
-        ],
-        usedSymbols.has('λ') && [
-          'λ',
-          '(Server)',
-          `server-side renders at runtime (uses ${cyan(
-            'getInitialProps'
-          )} or ${cyan('getServerSideProps')})`,
-        ],
         usedSymbols.has('○') && [
           '○',
           '(Static)',
-          'automatically rendered as static HTML (uses no initial props)',
+          'automatically rendered as static HTML',
         ],
         usedSymbols.has('●') && [
           '●',
@@ -702,6 +698,21 @@ export async function printTreeView(
           `incremental static regeneration (uses revalidate in ${cyan(
             'getStaticProps'
           )})`,
+        ],
+        usedSymbols.has('◐') && [
+          '◐',
+          '(Partially Pre-Rendered)',
+          'static parts of the page were pre-rendered and the dynamic parts will be streamed',
+        ],
+        usedSymbols.has('λ') && [
+          'λ',
+          '(Dynamic)',
+          `server-side renders using Node.js`,
+        ],
+        usedSymbols.has('ℇ') && [
+          'ℇ',
+          '(Edge Runtime)',
+          `server-side renders using the Edge Runtime`,
         ],
       ].filter((x) => x) as [string, string, string][],
       {
