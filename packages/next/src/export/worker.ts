@@ -360,5 +360,7 @@ export default async function exportPage(
     revalidate: result.revalidate,
     metadata: result.metadata,
     ssgNotFound: result.ssgNotFound,
+    hasEmptyPrelude: result.hasEmptyPrelude,
+    hasPostponed: result.hasPostponed,
   }
 }

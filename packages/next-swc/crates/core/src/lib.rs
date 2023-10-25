@@ -47,8 +47,7 @@ use turbopack_binding::swc::{
             SyntaxContext,
         },
         ecma::{
-            ast::EsVersion, atoms::JsWord, parser::parse_file_as_module,
-            transforms::base::pass::noop, visit::Fold,
+            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
         },
     },
     custom_transform::modularize_imports,
@@ -94,10 +93,7 @@ pub struct TransformOptions {
     pub is_development: bool,
 
     #[serde(default)]
-    pub is_server: bool,
-
-    #[serde(default)]
-    pub bundle_target: JsWord,
+    pub is_server_compiler: bool,
 
     #[serde(default)]
     pub server_components: Option<react_server_components::Config>,
@@ -198,7 +194,6 @@ where
                     config.clone(),
                     comments.clone(),
                     opts.app_dir.clone(),
-                    opts.bundle_target.clone()
                 )),
             _ => Either::Right(noop()),
         },
@@ -230,7 +225,7 @@ where
         amp_attributes::amp_attributes(),
         next_dynamic(
             opts.is_development,
-            opts.is_server,
+            opts.is_server_compiler,
             match &opts.server_components {
                 Some(config) if config.truthy() => match config {
                     // Always enable the Server Components mode for both
