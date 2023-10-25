@@ -584,11 +584,17 @@ export interface Endpoint {
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
   /**
-   * Listen to changes to the endpoint.
-   * After changed() has been awaited it will listen to changes.
+   * Listen to client-side changes to the endpoint.
+   * After clientChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  changed(): Promise<AsyncIterableIterator<TurbopackResult<ServerClientChange>>>
+  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+  /**
+   * Listen to server-side changes to the endpoint.
+   * After serverChanged() has been awaited it will listen to changes.
+   * The async iterator will yield for each change.
+   */
+  serverChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
 }
 
 interface EndpointConfig {
@@ -963,17 +969,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
       )
     }
 
-    async changed(): Promise<
-      AsyncIterableIterator<TurbopackResult<ServerClientChange>>
-    > {
-      const serverSubscription = subscribe<TurbopackResult>(
-        false,
-        async (callback) =>
-          binding.endpointServerChangedSubscribe(
-            await this._nativeEndpoint,
-            callback
-          )
-      )
+    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
       const clientSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
@@ -982,49 +978,21 @@ function bindingToApi(binding: any, _wasm: boolean) {
             callback
           )
       )
+      await clientSubscription.next()
+      return clientSubscription
+    }
 
-      // The subscriptions will always emit once, which is the initial
-      // computation. This is not a change, so swallow it.
-      await Promise.all([serverSubscription.next(), clientSubscription.next()])
-
-      return (async function* () {
-        try {
-          while (true) {
-            const [server, client] = await race([
-              serverSubscription.next(),
-              clientSubscription.next(),
-            ])
-
-            const done = server?.done || client?.done
-            if (done) {
-              break
-            }
-
-            if (server && client) {
-              yield {
-                issues: server.value.issues.concat(client.value.issues),
-                diagnostics: server.value.diagnostics.concat(
-                  client.value.diagnostics
-                ),
-                type: ServerClientChangeType.Both,
-              }
-            } else if (server) {
-              yield {
-                ...server.value,
-                type: ServerClientChangeType.Server,
-              }
-            } else {
-              yield {
-                ...client!.value,
-                type: ServerClientChangeType.Client,
-              }
-            }
-          }
-        } finally {
-          serverSubscription.return?.()
-          clientSubscription.return?.()
-        }
-      })()
+    async serverChanged(): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
+      const serverSubscription = subscribe<TurbopackResult>(
+        false,
+        async (callback) =>
+          binding.endpointServerChangedSubscribe(
+            await this._nativeEndpoint,
+            callback
+          )
+      )
+      await serverSubscription.next()
+      return serverSubscription
     }
   }
 
