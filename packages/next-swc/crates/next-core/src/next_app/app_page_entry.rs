@@ -161,8 +161,7 @@ async fn wrap_edge_page(
         .experimental
         .server_actions
         .as_ref()
-        .and_then(|sa| sa.body_size_limit.as_ref())
-        .unwrap_or(&next_config.experimental);
+        .and_then(|sa| sa.body_size_limit.as_ref());
 
     let sri_enabled = !dev
         && next_config
