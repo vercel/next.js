@@ -683,14 +683,12 @@ export async function printTreeView(
         usedSymbols.has('○') && [
           '○',
           '(Static)',
-          'automatically rendered as static HTML',
+          'pre-rendered at static HTML',
         ],
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
-          `automatically generated as static HTML + JSON (uses ${cyan(
-            'getStaticProps'
-          )})`,
+          `pre-rendered as static HTML (uses ${cyan('getStaticProps')})`,
         ],
         usedSymbols.has('ISR') && [
           '',
@@ -702,17 +700,17 @@ export async function printTreeView(
         usedSymbols.has('◐') && [
           '◐',
           '(Partially Pre-Rendered)',
-          'static parts of the page were pre-rendered and the dynamic parts will be streamed',
+          'pre-rendered as static HTML with dynamic server-streamed content',
         ],
         usedSymbols.has('λ') && [
           'λ',
           '(Dynamic)',
-          `server-side renders using Node.js`,
+          `server-rendered on demand using Node.js`,
         ],
         usedSymbols.has('ℇ') && [
           'ℇ',
           '(Edge Runtime)',
-          `server-side renders using the Edge Runtime`,
+          `server-rendered on demand using the Edge Runtime`,
         ],
       ].filter((x) => x) as [string, string, string][],
       {
