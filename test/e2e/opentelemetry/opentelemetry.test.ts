@@ -71,7 +71,8 @@ createNextDescribe(
       await cleanTraces()
     })
 
-    describe('app router', () => {
+    // turbopack does not support experimental.instrumentationHook
+    ;(process.env.TURBOPACK ? describe.skip : describe)('app router', () => {
       it('should handle RSC with fetch', async () => {
         await next.fetch('/app/param/rsc-fetch')
 
@@ -198,7 +199,8 @@ createNextDescribe(
       })
     })
 
-    describe('pages', () => {
+    // turbopack does not support experimental.instrumentationHook
+    ;(process.env.TURBOPACK ? describe.skip : describe)('pages', () => {
       it('should handle getServerSideProps', async () => {
         await next.fetch('/pages/param/getServerSideProps')
 

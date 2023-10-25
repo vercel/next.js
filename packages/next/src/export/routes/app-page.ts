@@ -2,6 +2,7 @@ import type { ExportRouteResult, FileWriter } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
 import type { OutgoingHttpHeaders } from 'http'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
+import type { RouteMetadata } from './types'
 
 import type {
   MockedRequest,
@@ -105,6 +106,7 @@ export async function exportAppPage(
     const { metadata } = result
     const flightData = metadata.pageData
     const revalidate = metadata.revalidate ?? false
+    const postponed = metadata.postponed
 
     if (revalidate === 0) {
       if (isDynamicError) {
@@ -158,11 +160,11 @@ export async function exportAppPage(
     )
 
     // Writing the request metadata to a file.
-    const meta = { headers }
+    const meta: RouteMetadata = { status: undefined, headers, postponed }
     await fileWriter(
       ExportedAppPageFiles.META,
       htmlFilepath.replace(/\.html$/, '.meta'),
-      JSON.stringify(meta)
+      JSON.stringify(meta, null, 2)
     )
 
     // Writing the RSC payload to a file.
