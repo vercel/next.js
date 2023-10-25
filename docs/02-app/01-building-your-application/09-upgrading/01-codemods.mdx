@@ -48,6 +48,41 @@ Transform into:
 import { ImageResponse } from 'next/og'
 ```
 
+#### Use `viewport` export
+
+#### `metadata-to-viewport-export`
+
+```bash filename="Terminal"
+npx @next/codemod@latest metadata-to-viewport-export .
+```
+
+This codemod migrates certain viewport metadata to `viewport` export.
+
+For example:
+
+```js
+export const metadata = {
+  title: 'My App',
+  themeColor: 'dark',
+  viewport: {
+    width: 1,
+  },
+}
+```
+
+Transforms into:
+
+```js
+export const metadata = {
+  title: 'My App',
+}
+
+export const viewport = {
+  width: 1,
+  themeColor: 'dark',
+}
+```
+
 ### 13.2
 
 #### Use Built-in Font
