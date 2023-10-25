@@ -746,6 +746,15 @@ export async function exportAppImpl(
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata
       }
+
+      if (typeof result.hasEmptyPrelude !== 'undefined') {
+        info.hasEmptyPrelude = result.hasEmptyPrelude
+      }
+
+      if (typeof result.hasPostponed !== 'undefined') {
+        info.hasPostponed = result.hasPostponed
+      }
+
       collector.byPath.set(path, info)
 
       // Update not found.
