@@ -501,6 +501,8 @@ async fn add_app_page(
                 unreachable!("Entrypoint::AppPage was already matched");
             };
 
+            // next.js does some weird stuff when looking up routes so we have to emit the
+            // correct path (shortest segments, but alphabetically the last).
             if page.len() < stored_page.len()
                 || (page.len() == stored_page.len() && page.to_string() > stored_page.to_string())
             {
@@ -633,6 +635,7 @@ fn directory_tree_to_entrypoints(
     )
 }
 
+/// creates the loader tree for a specific route (pathname / [AppPath])
 #[turbo_tasks::function]
 async fn directory_tree_to_loader_tree(
     app_dir: Vc<FileSystemPath>,
