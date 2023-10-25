@@ -40,6 +40,8 @@ use turbopack_binding::{
     },
 };
 
+const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
+
 #[turbo_tasks::value]
 pub struct AppEntries {
     /// All app entries.
@@ -139,8 +141,6 @@ pub async fn get_app_entries(
     );
 
     transitions.insert("next-ssr".to_string(), Vc::upcast(ssr_transition));
-
-    const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
 
     transitions.insert(
         ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
