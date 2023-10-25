@@ -9,7 +9,7 @@ export async function flatReaddir(dir: string, includes: RegExp[]) {
     let shouldOmit =
       part.isDirectory() || !includes.some((include) => include.test(part.name))
 
-    if (part.isSymbolicLink()) {
+    if (!shouldOmit && part.isSymbolicLink()) {
       const stats = await fs.stat(join(dir, part.name))
       shouldOmit = stats.isDirectory()
     }
