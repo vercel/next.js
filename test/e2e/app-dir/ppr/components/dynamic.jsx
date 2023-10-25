@@ -12,10 +12,7 @@ export function Dynamic({ fallback, catchErrors }) {
       try {
         signedIn = cookies().has('session') ? true : false
         active = cookies().has('delay') ? true : false
-      } catch (err) {
-        console.log('Error in dynamic component')
-        throw new Error('Something went wrong')
-      }
+      } catch (err) {}
     } else {
       signedIn = cookies().has('session') ? true : false
       active = cookies().has('delay') ? true : false

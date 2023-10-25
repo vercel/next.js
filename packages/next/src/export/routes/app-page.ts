@@ -194,6 +194,6 @@ export async function exportAppPage(
       throw err
     }
 
-    return { revalidate: 0 }
+    return { revalidate: 0, hasEmptyPrelude: true }
   }
 }

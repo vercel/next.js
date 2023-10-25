@@ -61,7 +61,7 @@ import { validateURL } from './validate-url'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
-import { warn } from '../../build/output/log'
+import { warn, error } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
@@ -1000,26 +1000,28 @@ async function renderToHTMLOrFlightImpl(
   if (staticGenerationStore.isStaticGeneration) {
     const htmlResult = await renderResult.toUnchunkedString(true)
 
+    if (postponeErrors.length > 0) {
+      renderOpts.hasPostponeErrors = true
+    }
+
     if (
-      staticGenerationStore.triggeredPostpone &&
-      !renderOpts.postponed &&
-      postponeErrors.length > 0
+      renderOpts.ppr &&
+      staticGenerationStore.postponeWasTriggered &&
+      !extraRenderResultMeta.postponed
     ) {
+      warn('')
       warn(
-        `There was an error that occurred while attempting to prerender ${urlPathname}. Learn more: https://nextjs.org/docs/messages/ppr-postpone-error`
+        `${urlPathname} opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.`
       )
 
-      warn('The following errors were captured:')
-      for (let i = 1; i <= postponeErrors.length; i++) {
+      if (postponeErrors.length > 0) {
         warn(
-          `═════════════════( ${i} of ${postponeErrors.length} )══════════════════════`
+          'The following errors were re-thrown, and might help find the location of the try/catch that triggered this.'
         )
-        warn(postponeErrors[i - 1])
+        for (let i = 1; i <= postponeErrors.length; i++) {
+          error(`${postponeErrors[i - 1]?.stack?.split('\n').join('\n ')}`)
+        }
       }
-
-      warn('═════════════════════════════════════════════════')
-
-      renderOpts.hasPostponeErrors = true
     }
     // if we encountered any unexpected errors during build
     // we fail the prerendering phase and the build

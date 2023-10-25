@@ -19,7 +19,7 @@ export function maybePostpone(
   if (typeof React.unstable_postpone !== 'function') return
 
   // Keep track of if the postpone API has been called.
-  staticGenerationStore.triggeredPostpone = true
+  staticGenerationStore.postponeWasTriggered = true
 
   React.unstable_postpone(reason)
 }
