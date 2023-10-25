@@ -201,7 +201,7 @@ export async function loadBindings(): Promise<Binding> {
       attempts = attempts.concat(a)
     }
 
-    logLoadFailure(attempts, true)
+    logLoadFailure(attempts)
   })
   return pendingBindings
 }
