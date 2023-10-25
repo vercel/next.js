@@ -5,7 +5,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextStart }) => {
+  ({ next, isNextStart, isNextDev }) => {
     function runTests() {
       it('should render routes marked with restriction marks without errors', async () => {
         const routes = [
@@ -75,7 +75,7 @@ createNextDescribe(
         await next.patchFile(
           middlewareFile,
           middlewareContent
-            .replace("import 'server-only'", "// import 'server-only'")
+            // .replace("import 'server-only'", "// import 'server-only'")
             .replace("// import './lib/mixed-lib'", "import './lib/mixed-lib'")
         )
 
@@ -95,7 +95,11 @@ createNextDescribe(
         await next.patchFile(middlewareFile, middlewareContent)
         // await next.patchFile(pagesApiFile, pagesApiContent)
       })
-      runTests()
+
+      it('should error when import client-only in middleware', async () => {
+        const { status } = await next.fetch('/')
+        expect(status).toBe(500)
+      })
     })
     describe('with server-only in server targets', () => {
       runTests()
