@@ -4,7 +4,6 @@ import type {
   Route,
   TurbopackResult,
   WrittenEndpoint,
-  ServerClientChange,
   Issue,
   Project,
 } from '../../../build/swc'
@@ -27,7 +26,7 @@ import type {
 } from '../../dev/hot-reloader-types'
 
 import ws from 'next/dist/compiled/ws'
-import { ServerClientChangeType, createDefineEnv } from '../../../build/swc'
+import { createDefineEnv } from '../../../build/swc'
 import fs from 'fs'
 import url from 'url'
 import path from 'path'
