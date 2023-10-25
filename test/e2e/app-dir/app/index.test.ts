@@ -401,7 +401,7 @@ createNextDescribe(
       it('should serve polyfills for browsers that do not support modules', async () => {
         const html = await next.render('/dashboard/index')
         expect(html).toMatch(
-          /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" noModule="">/
+          /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" crossorigin="" noModule="">/
         )
       })
     }
