@@ -100,7 +100,6 @@ fn react_server_components_server_graph_errors(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                String::from("server").into(),
             )
         },
         &input,
@@ -127,7 +126,6 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                String::from("client").into(),
             )
         },
         &input,
@@ -213,7 +211,6 @@ fn react_server_actions_client_errors(input: PathBuf) {
                     ),
                     tr.comments.as_ref().clone(),
                     None,
-                    String::from("client").into(),
                 ),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
