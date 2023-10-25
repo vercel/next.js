@@ -24,12 +24,7 @@ To define the viewport options, export a `viewport` object from a `layout.js` or
 import { Viewport } from 'next'
 
 export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  interactiveWidget: 'resizes-visual',
-  colorScheme: 'dark',
-  themeColor: { color: 'cyan', media: '(prefers-color-scheme: dark)' },
+  themeColor: 'black',
 }
 
 export default function Page() {}
@@ -48,7 +43,7 @@ export default function Page() {}
 `generateViewport` should return a [`Viewport` object](#metadata-fields) containing one or more viewport fields.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-export async function generateViewport({ params }) {
+export function generateViewport({ params }) {
   return {
     themeColor: '...',
   }
@@ -56,7 +51,7 @@ export async function generateViewport({ params }) {
 ```
 
 ```jsx filename="layout.js | page.js" switcher
-export async function generateViewport({ params }) {
+export function generateViewport({ params }) {
   return {
     themeColor: '...',
   }
@@ -66,7 +61,7 @@ export async function generateViewport({ params }) {
 > **Good to know**:
 >
 > - If the viewport doesn't depend on runtime information, it should be defined using the static [`viewport` object](#the-viewport-object) rather than `generateMetadata`.
-> - `fetch` requests are automatically [memoized](/docs/app/building-your-application/caching#request-memoization) for the same data across all `generate`-prefixed functions, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/caching#request-memoization) if `fetch` is unavailable.
+> - Marking `generateViewport` as `async` is not yet supported. If you still require this functionality, continue using the previous `generateMetadata` option. We will be adding support for `async` in an upcoming minor release.
 
 ## Viewport Fields
 
@@ -162,17 +157,6 @@ export function generateViewport(): Viewport {
   return {
     themeColor: 'black',
   }
-}
-```
-
-#### Async function
-
-```tsx
-import type { Viewport } from 'next'
-
-export async function generateViewport(): Viewport {
-  const themeColor = await getThemeColor()
-  return { themeColor }
 }
 ```
 
