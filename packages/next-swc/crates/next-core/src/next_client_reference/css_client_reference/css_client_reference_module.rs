@@ -77,6 +77,8 @@ impl ProcessCss for CssClientReferenceModule {
             bail!("CSS client reference client module must be CSS processable");
         };
 
+        dbg!("imp.get_css_with_placeholder");
+
         Ok(imp.get_css_with_placeholder())
     }
 
@@ -89,6 +91,8 @@ impl ProcessCss for CssClientReferenceModule {
         else {
             bail!("CSS client reference client module must be CSS processable");
         };
+
+        dbg!("imp.finalize_css");
 
         Ok(imp.finalize_css(chunking_context))
     }
