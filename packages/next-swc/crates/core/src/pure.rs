@@ -1,5 +1,5 @@
 use turbopack_binding::swc::core::{
-    common::{comments::Comments, errors::HANDLER, util::take::Take, Spanned, DUMMY_SP},
+    common::{comments::Comments, errors::HANDLER, util::take::Take, Span, Spanned, DUMMY_SP},
     ecma::{
         ast::{CallExpr, Callee, EmptyStmt, Expr, Module, ModuleDecl, ModuleItem, Stmt},
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
@@ -8,7 +8,7 @@ use turbopack_binding::swc::core::{
 
 use crate::import_analyzer::ImportMap;
 
-pub fn pure_magic<C>(comments: C) -> impl VisitMut + Fold
+pub fn pure_magic<C>(comments: C) -> impl Fold
 where
     C: Comments,
 {
@@ -58,7 +58,12 @@ where
 
             *e = *args[0].expr.take();
 
-            self.comments.add_pure_comment(e.span().lo);
+            let mut lo = e.span().lo;
+            if lo.is_dummy() {
+                lo = Span::dummy_with_cmt().lo;
+            }
+
+            self.comments.add_pure_comment(lo);
         }
     }
 

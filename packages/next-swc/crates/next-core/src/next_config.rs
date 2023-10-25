@@ -743,10 +743,13 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn enable_server_actions(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?.experimental.server_actions.unwrap_or(false),
-        ))
+    pub async fn enable_ppr(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.experimental.ppr.unwrap_or(false)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn enable_taint(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.experimental.taint.unwrap_or(false)))
     }
 }
 

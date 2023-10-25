@@ -92,11 +92,12 @@ pub async fn get_next_client_import_map(
             );
         }
         ClientContextType::App { app_dir } => {
-            let react_flavor = if *next_config.enable_server_actions().await? {
-                "-experimental"
-            } else {
-                ""
-            };
+            let react_flavor =
+                if *next_config.enable_ppr().await? || *next_config.enable_taint().await? {
+                    "-experimental"
+                } else {
+                    ""
+                };
 
             import_map.insert_exact_alias(
                 "react",
@@ -117,6 +118,27 @@ pub async fn get_next_client_import_map(
                 request_to_import_mapping(
                     app_dir,
                     &format!("next/dist/compiled/react-dom{react_flavor}"),
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react-dom/static",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/compiled/react-dom-experimental/static",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react-dom/static.edge",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/compiled/react-dom-experimental/static.edge",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react-dom/static.browser",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/compiled/react-dom-experimental/static.browser",
                 ),
             );
             import_map.insert_wildcard_alias(
@@ -276,27 +298,6 @@ pub async fn get_next_server_import_map(
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
-            import_map.insert_exact_alias(
-                "private-next-rsc-action-proxy",
-                request_to_import_mapping(
-                    project_path,
-                    "next/dist/build/webpack/loaders/next-flight-loader/action-proxy",
-                ),
-            );
-            import_map.insert_exact_alias(
-                "private-next-rsc-action-client-wrapper",
-                request_to_import_mapping(
-                    project_path,
-                    "next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper",
-                ),
-            );
-            import_map.insert_exact_alias(
-                "private-next-rsc-action-validate",
-                request_to_import_mapping(
-                    project_path,
-                    "next/dist/build/webpack/loaders/next-flight-loader/action-validate",
-                ),
-            );
             import_map.insert_exact_alias(
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
@@ -557,9 +558,7 @@ async fn insert_next_server_special_aliases(
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
     match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::AppSSR { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
             insert_exact_alias_map(
                 import_map,
                 project_path,
@@ -574,6 +573,7 @@ async fn insert_next_server_special_aliases(
         // TODO: should include `ServerContextType::PagesApi` routes, but that type doesn't exist.
         ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
+        | ServerContextType::AppSSR { .. }
         | ServerContextType::Middleware => {
             insert_exact_alias_map(
                 import_map,
@@ -605,10 +605,7 @@ async fn insert_next_server_special_aliases(
 
     import_map.insert_exact_alias(
         "@vercel/og",
-        external_if_node(
-            project_path,
-            "next/dist/server/web/spec-extension/image-response",
-        ),
+        external_if_node(project_path, "next/dist/server/og/image-response"),
     );
 
     Ok(())
@@ -621,8 +618,9 @@ async fn rsc_aliases(
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    let server_actions = *next_config.enable_server_actions().await?;
-    let react_channel = if server_actions { "-experimental" } else { "" };
+    let ppr = *next_config.enable_ppr().await?;
+    let taint = *next_config.enable_taint().await?;
+    let react_channel = if ppr || taint { "-experimental" } else { "" };
 
     let mut alias = indexmap! {
         "react" => format!("next/dist/compiled/react{react_channel}"),
@@ -630,6 +628,9 @@ async fn rsc_aliases(
         "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
         "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
         "react-dom/client" => format!("next/dist/compiled/react-dom{react_channel}/client"),
+        "react-dom/static" => format!("next/dist/compiled/react-dom-experimental/static"),
+        "react-dom/static.edge" => format!("next/dist/compiled/react-dom-experimental/static.edge"),
+        "react-dom/static.browser" => format!("next/dist/compiled/react-dom-experimental/static.browser"),
         "react-dom/server" => format!("next/dist/compiled/react-dom{react_channel}/server"),
         "react-dom/server.edge" => format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
         "react-dom/server.browser" => format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
@@ -800,6 +801,35 @@ async fn insert_next_shared_aliases(
     import_map.insert_exact_alias(
         "setimmediate",
         request_to_import_mapping(project_path, "next/dist/compiled/setimmediate"),
+    );
+
+    import_map.insert_exact_alias(
+        "private-next-rsc-action-proxy",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/build/webpack/loaders/next-flight-loader/action-proxy",
+        ),
+    );
+    import_map.insert_exact_alias(
+        "private-next-rsc-action-client-wrapper",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper",
+        ),
+    );
+    import_map.insert_exact_alias(
+        "private-next-rsc-action-validate",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/build/webpack/loaders/next-flight-loader/action-validate",
+        ),
+    );
+    import_map.insert_exact_alias(
+        "private-next-rsc-action-encryption",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/server/app-render/action-encryption",
+        ),
     );
 
     insert_turbopack_dev_alias(import_map);

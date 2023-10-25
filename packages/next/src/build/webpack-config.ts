@@ -390,7 +390,6 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         cwd: dir,
         development: dev,
-        hasServerComponents: hasAppDir,
         hasReactRefresh: dev && isClient,
         hasJsxRuntime: true,
       },
@@ -398,12 +397,7 @@ export default async function getBaseWebpackConfig(
   }
 
   let swcTraceProfilingInitialized = false
-  const getSwcLoader = (
-    extraOptions: Partial<SWCLoaderOptions> & {
-      bundleTarget: SWCLoaderOptions['bundleTarget']
-      isServerLayer: SWCLoaderOptions['isServerLayer']
-    }
-  ) => {
+  const getSwcLoader = (extraOptions: Partial<SWCLoaderOptions>) => {
     if (
       config?.experimental?.swcTraceProfiling &&
       !swcTraceProfilingInitialized
@@ -426,7 +420,6 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         appDir,
         hasReactRefresh: dev && isClient,
-        hasServerComponents: true,
         nextConfig: config,
         jsConfig,
         supportedBrowsers,
@@ -438,28 +431,38 @@ export default async function getBaseWebpackConfig(
 
   const defaultLoaders = {
     babel: useSWCLoader
-      ? getSwcLoader({ bundleTarget: 'client', isServerLayer: false })
+      ? getSwcLoader({
+          serverComponents: true,
+          isReactServerLayer: false,
+        })
       : getBabelLoader(),
   }
 
   const swcLoaderForServerLayer = hasAppDir
     ? useSWCLoader
-      ? [getSwcLoader({ isServerLayer: true, bundleTarget: 'server' })]
+      ? [
+          getSwcLoader({
+            isReactServerLayer: true,
+            serverComponents: true,
+          }),
+        ]
       : // When using Babel, we will have to add the SWC loader
         // as an additional pass to handle RSC correctly.
         // This will cause some performance overhead but
         // acceptable as Babel will not be recommended.
         [
-          getSwcLoader({ isServerLayer: true, bundleTarget: 'server' }),
+          getSwcLoader({
+            isReactServerLayer: true,
+            serverComponents: true,
+          }),
           getBabelLoader(),
         ]
     : []
 
   const swcLoaderForMiddlewareLayer = useSWCLoader
     ? getSwcLoader({
-        isServerLayer: false,
-        hasServerComponents: false,
-        bundleTarget: 'default',
+        serverComponents: false,
+        isReactServerLayer: false,
       })
     : // When using Babel, we will have to use SWC to do the optimization
       // for middleware to tree shake the unused default optimized imports like "next/server".
@@ -467,9 +470,8 @@ export default async function getBaseWebpackConfig(
       // acceptable as Babel will not be recommended.
       [
         getSwcLoader({
-          isServerLayer: false,
-          hasServerComponents: false,
-          bundleTarget: 'default',
+          serverComponents: false,
+          isReactServerLayer: false,
         }),
         getBabelLoader(),
       ]
@@ -492,9 +494,8 @@ export default async function getBaseWebpackConfig(
       ? useSWCLoader
         ? [
             getSwcLoader({
-              hasServerComponents: hasAppDir,
-              isServerLayer: false,
-              bundleTarget: 'client',
+              isReactServerLayer: false,
+              serverComponents: true,
             }),
           ]
         : // When using Babel, we will have to add the SWC loader
@@ -503,8 +504,8 @@ export default async function getBaseWebpackConfig(
           // acceptable as Babel will not be recommended.
           [
             getSwcLoader({
-              isServerLayer: false,
-              bundleTarget: 'client',
+              isReactServerLayer: false,
+              serverComponents: false,
             }),
             getBabelLoader(),
           ]
@@ -517,9 +518,8 @@ export default async function getBaseWebpackConfig(
   const loaderForAPIRoutes =
     hasAppDir && useSWCLoader
       ? getSwcLoader({
-          isServerLayer: false,
-          bundleTarget: 'default',
-          hasServerComponents: false,
+          serverComponents: false,
+          isReactServerLayer: false,
         })
       : defaultLoaders.babel
 
@@ -1671,12 +1671,11 @@ export default async function getBaseWebpackConfig(
         ? (() => {
             // Even though require.cache is server only we have to clear assets from both compilations
             // This is because the client compilation generates the build manifest that's used on the server side
-            const {
-              NextJsRequireCacheHotReloader,
-            } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
-            const devPlugins = [
+            const { NextJsRequireCacheHotReloader } =
+              require('./webpack/plugins/nextjs-require-cache-hot-reloader') as typeof import('./webpack/plugins/nextjs-require-cache-hot-reloader')
+            const devPlugins: any[] = [
               new NextJsRequireCacheHotReloader({
-                hasServerComponents: hasAppDir,
+                serverComponents: hasAppDir,
               }),
             ]
 
