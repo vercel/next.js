@@ -28,7 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 import type { NextConfig } from '../../../../types'
 import { isWasm, transform } from '../../swc'
-import { type BundleType, getLoaderSWCOptions } from '../../swc/options'
+import { getLoaderSWCOptions } from '../../swc/options'
 import path, { isAbsolute } from 'path'
 
 export interface SWCLoaderOptions {

@@ -5,8 +5,6 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 
-export type BundleType = 'client' | 'server' | 'default'
-
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 

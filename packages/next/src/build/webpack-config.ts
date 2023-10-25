@@ -431,7 +431,10 @@ export default async function getBaseWebpackConfig(
 
   const defaultLoaders = {
     babel: useSWCLoader
-      ? getSwcLoader({ isReactServerLayer: false })
+      ? getSwcLoader({
+          serverComponents: true,
+          isReactServerLayer: false,
+        })
       : getBabelLoader(),
   }
 
@@ -492,7 +495,7 @@ export default async function getBaseWebpackConfig(
         ? [
             getSwcLoader({
               isReactServerLayer: false,
-              serverComponents: hasAppDir,
+              serverComponents: true,
             }),
           ]
         : // When using Babel, we will have to add the SWC loader
