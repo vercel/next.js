@@ -29,7 +29,7 @@ use turbopack_binding::{
         ecmascript::{
             chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
             parse::ParseResult,
-            EcmascriptModuleAsset, EcmascriptModuleAssetType,
+            EcmascriptModuleAsset,
         },
     },
 };
@@ -267,10 +267,12 @@ async fn parse_actions_filter_map(
     })
 }
 
+type LayerModuleActionMap = IndexMap<(ActionLayer, Vc<Box<dyn Module>>), Vc<ActionMap>>;
+
 /// A mapping of every module which exports a Server Action, with the hashed id
 /// and exported name of each found action.
 #[turbo_tasks::value(transparent)]
-struct ModuleActionMap(IndexMap<(ActionLayer, Vc<Box<dyn Module>>), Vc<ActionMap>>);
+struct ModuleActionMap(LayerModuleActionMap);
 
 #[turbo_tasks::value_impl]
 impl ModuleActionMap {
