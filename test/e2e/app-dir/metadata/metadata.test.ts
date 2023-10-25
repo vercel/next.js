@@ -932,6 +932,16 @@ createNextDescribe(
       })
     }
 
+    describe('viewport', () => {
+      it('should support dynamic viewport export', async () => {
+        const browser = await next.browser('/viewport')
+        const matchMultiDom = createMultiDomMatcher(browser)
+        await matchMultiDom('meta', 'name', 'content', {
+          'theme-color': '#000',
+        })
+      })
+    })
+
     describe('react cache', () => {
       it('should have same title and page value on initial load', async () => {
         const browser = await next.browser('/cache-deduping')
