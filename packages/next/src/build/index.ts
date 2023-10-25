@@ -162,13 +162,18 @@ interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
 }
 
+interface ExperimentalPPRInfo {
+  experimentalPPR: boolean | undefined
+}
+
 interface DataRouteRouteInfo {
   dataRoute: string | null
 }
 
 export interface SsgRoute
   extends ExperimentalBypassForInfo,
-    DataRouteRouteInfo {
+    DataRouteRouteInfo,
+    ExperimentalPPRInfo {
   initialRevalidateSeconds: Revalidate
   srcRoute: string | null
   initialStatus?: number
@@ -177,7 +182,8 @@ export interface SsgRoute
 
 export interface DynamicSsgRoute
   extends ExperimentalBypassForInfo,
-    DataRouteRouteInfo {
+    DataRouteRouteInfo,
+    ExperimentalPPRInfo {
   routeRegex: string
   fallback: string | null | false
   dataRouteRegex: string | null
@@ -2236,6 +2242,11 @@ export default async function build(
 
             const isRouteHandler = isAppRouteRoute(originalAppPath)
 
+            // When this is an app page and PPR is enabled, the route supports
+            // partial pre-rendering.
+            const experimentalPPR =
+              !isRouteHandler && config.experimental.ppr === true
+
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
             // to enable server actions on static routes
             const bypassFor: RouteHas[] = [
@@ -2303,6 +2314,7 @@ export default async function build(
 
                 finalPrerenderRoutes[route] = {
                   ...routeMeta,
+                  experimentalPPR,
                   experimentalBypassFor: bypassFor,
                   initialRevalidateSeconds: revalidate,
                   srcRoute: page,
@@ -2332,6 +2344,7 @@ export default async function build(
               // TODO: create a separate manifest to allow enforcing
               // dynamicParams for non-static paths?
               finalDynamicRoutes[page] = {
+                experimentalPPR,
                 experimentalBypassFor: bypassFor,
                 routeRegex: normalizeRouteRegex(
                   getNamedRouteRegex(page, false).re.source
@@ -2566,6 +2579,7 @@ export default async function build(
                       initialRevalidateSeconds:
                         exportResult.byPath.get(localePage)?.revalidate ??
                         false,
+                      experimentalPPR: undefined,
                       srcRoute: null,
                       dataRoute: path.posix.join(
                         '/_next/data',
@@ -2578,6 +2592,7 @@ export default async function build(
                   finalPrerenderRoutes[page] = {
                     initialRevalidateSeconds:
                       exportResult.byPath.get(page)?.revalidate ?? false,
+                    experimentalPPR: undefined,
                     srcRoute: null,
                     dataRoute: path.posix.join(
                       '/_next/data',
@@ -2645,6 +2660,7 @@ export default async function build(
 
                   finalPrerenderRoutes[route] = {
                     initialRevalidateSeconds,
+                    experimentalPPR: undefined,
                     srcRoute: page,
                     dataRoute: path.posix.join(
                       '/_next/data',
@@ -2729,6 +2745,7 @@ export default async function build(
             routeRegex: normalizeRouteRegex(
               getNamedRouteRegex(tbdRoute, false).re.source
             ),
+            experimentalPPR: undefined,
             dataRoute,
             fallback: ssgBlockingFallbackPages.has(tbdRoute)
               ? null
@@ -2743,7 +2760,7 @@ export default async function build(
             ),
           }
         })
-        const prerenderManifest: PrerenderManifest = {
+        const prerenderManifest: Readonly<PrerenderManifest> = {
           version: 4,
           routes: finalPrerenderRoutes,
           dynamicRoutes: finalDynamicRoutes,
@@ -2774,7 +2791,7 @@ export default async function build(
           locales: config.i18n?.locales || [],
         })
       } else {
-        const prerenderManifest: PrerenderManifest = {
+        const prerenderManifest: Readonly<PrerenderManifest> = {
           version: 4,
           routes: {},
           dynamicRoutes: {},

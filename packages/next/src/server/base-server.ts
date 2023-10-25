@@ -597,12 +597,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       req.url = formatUrl(parsed)
     }
 
+    // If we've already read the postponed body, then we don't need to do so
+    // again.
+    let postponed = getRequestMeta(req, 'postponed') ?? ''
+    if (postponed) return
+
     // Read the body in chunks. If it errors here it's because the chunks
     // being decoded are not strings.
-    let postponed = ''
+    const body: Array<Buffer> = []
     for await (const chunk of req.body) {
-      postponed += chunk
+      body.push(chunk)
     }
+
+    // Decode the body as a string.
+    postponed = Buffer.concat(body).toString('utf8')
 
     addRequestMeta(req, 'postponed', postponed)
   }
@@ -1409,9 +1417,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
    * @internal - this method is internal to Next.js and should not be used directly by end-users
    */
   public getRequestHandlerWithMetadata(meta: RequestMeta): BaseRequestHandler {
+    const handler = this.getRequestHandler()
     return (req, res, parsedUrl) => {
       setRequestMeta(req, meta)
-      return this.handleRequest(req, res, parsedUrl)
+      return handler(req, res, parsedUrl)
     }
   }
 

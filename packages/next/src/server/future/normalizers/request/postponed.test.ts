@@ -65,5 +65,10 @@ describe('PostponedPathnameNormalizer', () => {
         )
       }
     })
+
+    it('should normalize `/index` to `/`', () => {
+      const normalizer = new PostponedPathnameNormalizer(true)
+      expect(normalizer.normalize('/_next/postponed/index', true)).toBe('/')
+    })
   })
 })
