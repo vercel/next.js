@@ -1,5 +1,5 @@
 module.exports = {
   experimental: {
-    useDeploymentId: true,
+    useDeploymentId: !!process.env.USE_DEPLOYMENT_ID,
   },
 }
