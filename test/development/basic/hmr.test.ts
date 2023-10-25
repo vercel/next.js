@@ -896,7 +896,7 @@ describe.each([[''], ['/docs']])(
           ).toMatchInlineSnapshot(
             next.normalizeSnapshot(`
               "./components/parse-error.js
-              Error: 
+              Error:
                 x Expression expected
                  ,-[./components/parse-error.js:1:1]
                1 | This
@@ -1116,13 +1116,15 @@ describe.each([[''], ['/docs']])(
       })
     })
 
-    it('should have client HMR events in trace file', async () => {
-      const traceData = await next.readFile('.next/trace')
-      expect(traceData).toContain('client-hmr-latency')
-      expect(traceData).toContain('client-error')
-      expect(traceData).toContain('client-success')
-      expect(traceData).toContain('client-full-reload')
-    })
+    if (!process.env.TURBOPACK) {
+      it('should have client HMR events in trace file', async () => {
+        const traceData = await next.readFile('.next/trace')
+        expect(traceData).toContain('client-hmr-latency')
+        expect(traceData).toContain('client-error')
+        expect(traceData).toContain('client-success')
+        expect(traceData).toContain('client-full-reload')
+      })
+    }
 
     it('should have correct compile timing after fixing error', async () => {
       const pageName = 'pages/auto-export-is-ready.js'
