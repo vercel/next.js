@@ -6,14 +6,22 @@ description: Upgrade your Next.js Application from Version 11 to Version 12.
 To upgrade to version 12, run the following command:
 
 ```bash filename="Terminal"
-npm install next@12
-
-yarn add next@12
-
-pnpm update next@12
-
-bun add next@12
+npm i next@12 react@17 react-dom@17 eslint-config-next@12
 ```
+
+```bash filename="Terminal"
+yarn add next@12 react@17 react-dom@17 eslint-config-next@12
+```
+
+```bash filename="Terminal"
+pnpm up next@12 react@17 react-dom@17 eslint-config-next@12
+```
+
+```bash filename="Terminal"
+bun add next@12 react@17 react-dom@17 eslint-config-next@12
+```
+
+> **Good to know:** If you are using TypeScript, ensure you also upgrade `@types/react` and `@types/react-dom` to their corresponding versions.
 
 ### Upgrading to 12.2
 

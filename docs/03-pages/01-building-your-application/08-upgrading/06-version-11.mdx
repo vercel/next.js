@@ -6,10 +6,22 @@ description: Upgrade your Next.js Application from Version 10 to Version 11.
 To upgrade to version 11, run the following command:
 
 ```bash filename="Terminal"
-npm install next@11
-
-yarn add next@11
+npm i next@11 react@17 react-dom@17
 ```
+
+```bash filename="Terminal"
+yarn add next@11 react@17 react-dom@17
+```
+
+```bash filename="Terminal"
+pnpm up next@11 react@17 react-dom@17
+```
+
+```bash filename="Terminal"
+bun add next@11 react@17 react-dom@17
+```
+
+> **Good to know:** If you are using TypeScript, ensure you also upgrade `@types/react` and `@types/react-dom` to their corresponding versions.
 
 ### Webpack 5
 
