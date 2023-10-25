@@ -206,6 +206,9 @@ pub struct ClientReferenceManifest {
     /// Mapping of server component path to required CSS client chunks.
     #[serde(rename = "entryCSSFiles")]
     pub entry_css_files: HashMap<String, Vec<String>>,
+    /// Mapping of server component path to required JS client chunks.
+    #[serde(rename = "entryJSFiles")]
+    pub entry_js_files: HashMap<String, Vec<String>>,
 }
 
 #[derive(Serialize, Default, Debug)]

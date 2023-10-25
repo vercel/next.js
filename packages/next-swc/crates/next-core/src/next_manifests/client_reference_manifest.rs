@@ -74,6 +74,11 @@ impl ClientReferenceManifest {
                     .entry(server_component_name.clone_value())
                     .or_default();
 
+                let entry_js_files = entry_manifest
+                    .entry_js_files
+                    .entry(server_component_name.clone_value())
+                    .or_default();
+
                 match app_client_reference_ty {
                     ClientReferenceType::CssClientReference(_) => {
                         entry_css_files.extend(
@@ -88,9 +93,22 @@ impl ClientReferenceManifest {
                                 })
                                 .map(ToString::to_string),
                         );
+                        entry_js_files.extend(
+                            client_chunks_paths
+                                .iter()
+                                .filter_map(|chunk_path| {
+                                    if chunk_path.extension_ref() != Some("css") {
+                                        client_relative_path.get_path_to(chunk_path)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .map(ToString::to_string),
+                        );
                     }
 
                     ClientReferenceType::EcmascriptClientReference(_) => {
+                        // TODO should this be removed? does it make sense?
                         entry_css_files.extend(
                             client_chunks_paths
                                 .iter()
