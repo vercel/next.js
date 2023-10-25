@@ -1,6 +1,6 @@
 'use client'
 // TODO: Evaluate import 'client only'
-import React from 'react'
+import React, { useEffect } from 'react'
 import Script from 'next/script'
 
 declare global {
@@ -31,6 +31,13 @@ export function GoogleTagManager(props: GTMParams) {
   const gtmAuth = auth ? `&gtm_auth=${auth}` : ''
   const gtmPreview = preview ? `&gtm_preview=${preview}&gtm_cookies_win=x` : ''
 
+  useEffect(() => {
+    // Useful for feature detection and measurement
+    performance.mark('next-third-parties', {
+      type: 'gtm',
+    })
+  }, [])
+
   return (
     <>
       <Script
@@ -46,6 +53,7 @@ export function GoogleTagManager(props: GTMParams) {
       />
       <Script
         id="_next-gtm"
+        data-ntpc="GTM"
         src={`https://www.googletagmanager.com/gtm.js?id=${gtmId}${gtmLayer}${gtmAuth}${gtmPreview}`}
       />
     </>

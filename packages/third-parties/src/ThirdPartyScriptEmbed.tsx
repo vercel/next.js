@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react'
 
 export type ScriptEmbed = {
@@ -15,6 +17,13 @@ export default function ThirdPartyScriptEmbed({
   children,
   dataNtpc = '',
 }: ScriptEmbed) {
+  useEffect(() => {
+    // Useful for feature detection and measurement
+    performance.mark('next-third-parties', {
+      type: dataNtpc,
+    })
+  }, [dataNtpc])
+
   return (
     <>
       {/* insert script children */}
