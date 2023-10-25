@@ -198,6 +198,8 @@ async fn get_actions(
             let module = if layer == ActionLayer::Rsc {
                 module
             } else {
+                // The ActionBrowser layer's module is in the Client context, and we need to
+                // bring it into the RSC context.
                 let source = VirtualSource::new(
                     module.ident().path().join("action.js".to_string()),
                     module.content(),

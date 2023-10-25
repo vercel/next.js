@@ -73,6 +73,8 @@ pub async fn get_app_client_references_chunks(
     Ok(Vc::cell(app_client_references_chunks))
 }
 
+/// Crawls all modules emitted in the client transition, returning a list of all
+/// client JS modules.
 #[turbo_tasks::function]
 pub async fn get_app_server_reference_modules(
     app_client_reference_types: Vc<ClientReferenceTypes>,

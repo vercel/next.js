@@ -39,7 +39,7 @@ pub async fn get_next_server_transforms_rules(
             (false, Some(pages_dir))
         }
         ServerContextType::AppSSR { .. } => {
-            // Yah, this is SSR, but for some reason that's not "Server".
+            // Yah, this is SSR, but this is still treated as a Client transform layer.
             rules.push(get_server_actions_transform_rule(ActionsTransform::Client));
             (false, None)
         }
