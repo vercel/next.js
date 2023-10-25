@@ -902,7 +902,7 @@ describe.each([[''], ['/docs']])(
           ).toMatchInlineSnapshot(
             next.normalizeSnapshot(`
               "./components/parse-error.js
-              Error:
+              Error: 
                 x Expression expected
                  ,-[./components/parse-error.js:1:1]
                1 | This
