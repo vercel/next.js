@@ -520,45 +520,51 @@ describe.each([[''], ['/docs']])(
         }
       })
 
-      it('should show the error on all pages', async () => {
-        const aboutPage = join('pages', 'hmr', 'about2.js')
-        const aboutContent = await next.readFile(aboutPage)
-        let browser
-        try {
-          await renderViaHTTP(next.url, basePath + '/hmr/about2')
+      if (!process.env.TURBOPACK) {
+        // Turbopack doesn't have this restriction
+        it('should show the error on all pages', async () => {
+          const aboutPage = join('pages', 'hmr', 'about2.js')
+          const aboutContent = await next.readFile(aboutPage)
+          let browser
+          try {
+            await renderViaHTTP(next.url, basePath + '/hmr/about2')
 
-          await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
+            await next.patchFile(
+              aboutPage,
+              aboutContent.replace('</div>', 'div')
+            )
 
-          // Ensure dev server has time to break:
-          await new Promise((resolve) => setTimeout(resolve, 2000))
+            // Ensure dev server has time to break:
+            await new Promise((resolve) => setTimeout(resolve, 2000))
 
-          browser = await webdriver(next.url, basePath + '/hmr/contact')
+            browser = await webdriver(next.url, basePath + '/hmr/contact')
 
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
+            expect(await hasRedbox(browser, true)).toBe(true)
+            expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
-          await next.patchFile(aboutPage, aboutContent)
+            await next.patchFile(aboutPage, aboutContent)
 
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the contact page/
-          )
-        } catch (err) {
-          await next.patchFile(aboutPage, aboutContent)
-          if (browser) {
             await check(
               () => getBrowserBodyText(browser),
               /This is the contact page/
             )
-          }
+          } catch (err) {
+            await next.patchFile(aboutPage, aboutContent)
+            if (browser) {
+              await check(
+                () => getBrowserBodyText(browser),
+                /This is the contact page/
+              )
+            }
 
-          throw err
-        } finally {
-          if (browser) {
-            await browser.close()
+            throw err
+          } finally {
+            if (browser) {
+              await browser.close()
+            }
           }
-        }
-      })
+        })
+      }
 
       it('should detect runtime errors on the module scope', async () => {
         let browser
