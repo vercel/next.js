@@ -2868,8 +2868,7 @@ dependencies = [
 [[package]]
 name = "lightningcss"
 version = "1.0.0-alpha.49"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06476660ee1e593a2672e4a342a1289708fd9936dcdf3e74433ad078145e9e3d"
+source = "git+https://github.com/kdy1/lightningcss.git?branch=derive-unsafe#67b54837359da576b94c6cb8a73837fa6b41605a"
 dependencies = [
  "ahash 0.7.6",
  "bitflags 2.4.0",
@@ -2894,8 +2893,7 @@ dependencies = [
 [[package]]
 name = "lightningcss-derive"
 version = "1.0.0-alpha.42"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f02a09f0b79d31f1ee13ea55e2f7021037c6b72e0a3ab6c1cb0e9bd7ac8a295"
+source = "git+https://github.com/kdy1/lightningcss.git?branch=derive-unsafe#67b54837359da576b94c6cb8a73837fa6b41605a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3826,8 +3824,7 @@ checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
 [[package]]
 name = "parcel_selectors"
 version = "0.26.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f000cdd23df6cebe999cf2b02a3bf40d55758f74883d7fd43a33690565618c8"
+source = "git+https://github.com/kdy1/lightningcss.git?branch=derive-unsafe#67b54837359da576b94c6cb8a73837fa6b41605a"
 dependencies = [
  "bitflags 2.4.0",
  "cssparser",
@@ -5533,8 +5530,7 @@ dependencies = [
 [[package]]
 name = "static-self"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2978fa810a31711d7162d0bb843df1f36d84e393e335ce31ec2c485b2464c44"
+source = "git+https://github.com/kdy1/lightningcss.git?branch=derive-unsafe#67b54837359da576b94c6cb8a73837fa6b41605a"
 dependencies = [
  "smallvec",
  "static-self-derive",
@@ -5543,8 +5539,7 @@ dependencies = [
 [[package]]
 name = "static-self-derive"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc53c080b79432d9babd26457df68fb4b002cc7d2ce36a1a5195091cf9fecc14"
+source = "git+https://github.com/kdy1/lightningcss.git?branch=derive-unsafe#67b54837359da576b94c6cb8a73837fa6b41605a"
 dependencies = [
  "proc-macro2",
  "quote",
