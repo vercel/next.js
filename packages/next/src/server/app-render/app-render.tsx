@@ -469,7 +469,7 @@ async function renderToHTMLOrFlightImpl(
     _source: 'serverComponentsRenderer',
     dev,
     isNextExport,
-    postponeErrors: postponeErrors,
+    postponeErrors: renderOpts.ppr ? postponeErrors : undefined,
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
     skipLogging: renderOpts.ppr,
@@ -490,7 +490,6 @@ async function renderToHTMLOrFlightImpl(
     capturedErrors,
     allCapturedErrors,
     skipLogging: renderOpts.ppr,
-    postponeErrors,
   })
 
   patchFetch(ComponentMod)
@@ -1000,7 +999,7 @@ async function renderToHTMLOrFlightImpl(
   if (staticGenerationStore.isStaticGeneration) {
     const htmlResult = await renderResult.toUnchunkedString(true)
 
-    if (postponeErrors.length > 0) {
+    if (renderOpts.ppr && postponeErrors.length > 0) {
       renderOpts.hasPostponeErrors = true
     }
 
@@ -1018,8 +1017,8 @@ async function renderToHTMLOrFlightImpl(
         warn(
           'The following errors were re-thrown, and might help find the location of the try/catch that triggered this.'
         )
-        for (let i = 1; i <= postponeErrors.length; i++) {
-          error(`${postponeErrors[i - 1]?.stack?.split('\n').join('\n ')}`)
+        for (let i = 0; i < postponeErrors.length; i++) {
+          error(`${postponeErrors[i].stack?.split('\n').join('\n ')}`)
         }
       }
     }
