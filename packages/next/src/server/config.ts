@@ -528,6 +528,11 @@ function assignDefaults(
     result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
+  // can't use this one without the other
+  if (result.experimental?.useDeploymentIdServerActions) {
+    result.experimental.useDeploymentId = true
+  }
+
   // use the closest lockfile as tracing root
   if (!result.experimental?.outputFileTracingRoot) {
     let rootDir = findRootDir(dir)
