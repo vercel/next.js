@@ -8,7 +8,9 @@ import {
   File,
   nextBuild,
   nextStart,
+  check,
 } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 const appDir = join(__dirname, '..')
 const configFile = new File(join(appDir, '/next.config.js'))
@@ -107,8 +109,8 @@ describe('Config Experimental Warning', () => {
     `)
 
     const stdout = await collectStdoutFromDev(appDir)
-    expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
-    expect(stdout).not.toMatch(' · workerThreads')
+    expect(stdout).not.toContain(' - Experiments (use at your own risk):')
+    expect(stdout).not.toContain(' · workerThreads')
   })
 
   it('should show warning with config from object with experimental and multiple keys', async () => {
@@ -122,9 +124,9 @@ describe('Config Experimental Warning', () => {
     `)
 
     const stdout = await collectStdoutFromDev(appDir)
-    expect(stdout).toMatch(' - Experiments (use at your own risk):')
-    expect(stdout).toMatch(' · workerThreads')
-    expect(stdout).toMatch(' · scrollRestoration')
+    expect(stdout).toContain(' - Experiments (use at your own risk):')
+    expect(stdout).toContain(' · workerThreads')
+    expect(stdout).toContain(' · scrollRestoration')
   })
 
   it('should not show next app info in next start', async () => {
@@ -167,5 +169,37 @@ describe('Config Experimental Warning', () => {
     expect(stdout).toMatch(' · workerThreads')
     expect(stdout).toMatch(' · scrollRestoration')
     expect(stdout).toMatch(' · instrumentationHook')
+  })
+
+  it('should show unrecognized experimental features in warning but not in start log experiments section', async () => {
+    configFile.write(`
+      module.exports = {
+        experimental: {
+          appDir: true
+        }
+      }
+    `)
+
+    await collectStdoutFromBuild(appDir)
+    const port = await findPort()
+    let stdout = ''
+    let stderr = ''
+    app = await nextStart(appDir, port, {
+      onStdout(msg) {
+        stdout += msg
+      },
+      onStderr(msg) {
+        stderr += msg
+      },
+    })
+
+    await check(() => {
+      const cliOutput = stripAnsi(stdout)
+      const cliOutputErr = stripAnsi(stderr)
+      expect(cliOutput).not.toContain(' - Experiments (use at your own risk):')
+      expect(cliOutputErr).toContain(
+        `Unrecognized key(s) in object: 'appDir' at "experimental"`
+      )
+    })
   })
 })
