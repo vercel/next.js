@@ -31,14 +31,19 @@ export function unstable_cache<T extends Callback>(
       staticGenerationAsyncStorage?.getStore()
 
     if (store && typeof options.revalidate === 'number') {
+      // Revalidate 0 is a special case, it means opt-out of static generation.
       if (options.revalidate === 0) {
         maybePostpone(store, 'revalidate: 0')
+        // Set during dynamic rendering
         store.revalidate = 0
+        // If revalidate was already set in the store before we should check if the new value is lower, set it to the lowest of the two.
       } else if (typeof store.revalidate === 'number') {
-        // Only set revalidate if it is lower than the previously set value
         if (store.revalidate > options.revalidate) {
           store.revalidate = options.revalidate
         }
+        // All other cases we set the value from the option.
+      } else {
+        store.revalidate = options.revalidate
       }
     }
 
