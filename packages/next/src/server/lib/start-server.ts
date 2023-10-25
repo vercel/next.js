@@ -235,6 +235,22 @@ export async function startServer(
       // expose the main port to render workers
       process.env.PORT = port + ''
 
+      // Only load env and config in dev to for logging purposes
+      let envInfo: string[] | undefined
+      let expFeatureInfo: string[] | undefined
+      if (isDev) {
+        const startServerInfo = await getStartServerInfo(dir)
+        envInfo = startServerInfo.envInfo
+        expFeatureInfo = startServerInfo.expFeatureInfo
+      }
+      logStartInfo({
+        networkUrl,
+        appUrl,
+        envInfo,
+        expFeatureInfo,
+        maxExperimentalFeatures: 3,
+      })
+
       try {
         const cleanup = (code: number | null) => {
           debug('start-server process cleanup')
@@ -275,29 +291,14 @@ export async function startServer(
             'next-start-end'
           ).duration
 
+        handlersReady()
         const formatDurationText =
           startServerProcessDuration > 2000
             ? `${Math.round(startServerProcessDuration / 100) / 10}s`
             : `${Math.round(startServerProcessDuration)}ms`
 
-        handlersReady()
+        Log.event(`Ready in ${formatDurationText}`)
 
-        // Only load env and config in dev to for logging purposes
-        let envInfo: string[] | undefined
-        let expFeatureInfo: string[] | undefined
-        if (isDev) {
-          const startServerInfo = await getStartServerInfo(dir)
-          envInfo = startServerInfo.envInfo
-          expFeatureInfo = startServerInfo.expFeatureInfo
-        }
-        logStartInfo({
-          networkUrl,
-          appUrl,
-          envInfo,
-          expFeatureInfo,
-          formatDurationText,
-          maxExperimentalFeatures: 3,
-        })
         if (process.env.TURBOPACK) {
           await validateTurboNextConfig({
             ...serverOptions,

@@ -262,7 +262,7 @@ export async function validateTurboNextConfig({
     Log.error('Unexpected error occurred while checking config', e)
   }
 
-  let feedbackMessage = `Learn more about Next.js and Turbopack: ${underline(
+  const feedbackMessage = `Learn more about Next.js and Turbopack: ${underline(
     'https://nextjs.link/with-turbopack'
   )}\n`
 
@@ -319,8 +319,6 @@ If you cannot make the changes above, but still want to try out\nNext.js with Tu
 
     process.exit(1)
   }
-
-  Log.info(feedbackMessage)
 
   return rawNextConfig
 }

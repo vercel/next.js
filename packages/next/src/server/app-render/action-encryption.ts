@@ -31,12 +31,23 @@ async function decodeActionBoundArg(actionId: string, arg: string) {
     )
   }
 
-  const decoded = await decrypt(
-    key,
-    '__next_action__' + actionId,
-    stringToUint8Array(atob(arg))
+  // Get the iv (16 bytes) and the payload from the arg.
+  const originalPayload = atob(arg)
+  const ivValue = originalPayload.slice(0, 16)
+  const payload = originalPayload.slice(16)
+  if (payload === undefined) {
+    throw new Error('Invalid Server Action payload.')
+  }
+
+  const decrypted = arrayBufferToString(
+    await decrypt(key, stringToUint8Array(ivValue), stringToUint8Array(payload))
   )
-  return arrayBufferToString(decoded)
+
+  if (!decrypted.startsWith(actionId)) {
+    throw new Error('Invalid Server Action payload: failed to decrypt.')
+  }
+
+  return decrypted.slice(actionId.length)
 }
 
 async function encodeActionBoundArg(actionId: string, arg: string) {
@@ -47,12 +58,18 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
     )
   }
 
-  const encoded = await encrypt(
+  // Get 16 random bytes as iv.
+  const randomBytes = new Uint8Array(16)
+  crypto.getRandomValues(randomBytes)
+  const ivValue = arrayBufferToString(randomBytes.buffer)
+
+  const encrypted = await encrypt(
     key,
-    '__next_action__' + actionId,
-    stringToUint8Array(arg)
+    randomBytes,
+    stringToUint8Array(actionId + arg)
   )
-  return btoa(arrayBufferToString(encoded))
+
+  return btoa(ivValue + arrayBufferToString(encrypted))
 }
 
 // Encrypts the action's bound args into a string.
@@ -65,18 +82,20 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   )
 
   // Encrypt the serialized string with the action id as the salt.
-  const encryped = await encodeActionBoundArg(actionId, serialized)
+  // Add a prefix to later ensure that the payload is correctly decrypted, similar
+  // to a checksum.
+  const encrypted = await encodeActionBoundArg(actionId, serialized)
 
-  return encryped
+  return encrypted
 }
 
 // Decrypts the action's bound args from the encrypted string.
 export async function decryptActionBoundArgs(
   actionId: string,
-  encryped: Promise<string>
+  encrypted: Promise<string>
 ) {
   // Decrypt the serialized string with the action id as the salt.
-  const decryped = await decodeActionBoundArg(actionId, await encryped)
+  const decryped = await decodeActionBoundArg(actionId, await encrypted)
 
   // Using Flight to deserialize the args from the string.
   const deserialized = await createFromReadableStream(

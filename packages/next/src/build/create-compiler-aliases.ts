@@ -19,45 +19,44 @@ import {
 } from './webpack-config'
 import { WEBPACK_LAYERS } from '../lib/constants'
 
+interface CompilerAliases {
+  [alias: string]: string | string[]
+}
+
 export function createWebpackAliases({
-  dev,
-  pageExtensions,
+  isClient,
   isEdgeServer,
+  isNodeServer,
+  dev,
   config,
   pagesDir,
   appDir,
   dir,
-  distDir,
-  isClient,
   reactProductionProfiling,
-  isNodeServer,
-  clientResolveRewrites,
   hasRewrites,
 }: {
-  dev: boolean
-  pageExtensions: string[]
+  isClient: boolean
   isEdgeServer: boolean
+  isNodeServer: boolean
+  dev: boolean
   config: NextConfigComplete
   pagesDir: string | undefined
   appDir: string | undefined
   dir: string
-  distDir: string
-  isClient: boolean
   reactProductionProfiling: boolean
-  isNodeServer: boolean
-  clientResolveRewrites: string
   hasRewrites: boolean
-}):
-  | {
-      alias: string | false | string[]
-      name: string
-      onlyModule?: boolean | undefined
-    }[]
-  | { [index: string]: string | false | string[] }
-  | undefined {
-  const customAppAliases: { [key: string]: string[] } = {}
-  const customDocumentAliases: { [key: string]: string[] } = {}
+}): CompilerAliases {
+  const distDir = path.join(dir, config.distDir)
+  const pageExtensions = config.pageExtensions
+  const clientResolveRewrites = require.resolve(
+    '../shared/lib/router/utils/resolve-rewrites'
+  )
+  const customAppAliases: CompilerAliases = {}
+  const customDocumentAliases: CompilerAliases = {}
 
+  // tell webpack where to look for _app and _document
+  // using aliases to allow falling back to the default
+  // version when removed or not present
   if (dev) {
     const nextDistPath = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
@@ -211,9 +210,9 @@ export function createWebpackAliases({
   }
 }
 
-export function createServerOnlyClientOnlyAliases(isServer: boolean): {
-  [aliasPath: string]: string
-} {
+export function createServerOnlyClientOnlyAliases(
+  isServer: boolean
+): CompilerAliases {
   return isServer
     ? {
         'server-only$': 'next/dist/compiled/server-only/empty',
@@ -235,13 +234,16 @@ export function createServerOnlyClientOnlyAliases(isServer: boolean): {
 
 export function createRSCAliases(
   bundledReactChannel: string,
-  opts: {
+  {
+    layer,
+    isEdgeServer,
+    reactProductionProfiling,
+  }: {
     layer: WebpackLayerName
     isEdgeServer: boolean
     reactProductionProfiling: boolean
-    reactServerCondition?: boolean
   }
-) {
+): CompilerAliases {
   let alias: Record<string, string> = {
     react$: `next/dist/compiled/react${bundledReactChannel}`,
     'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
@@ -249,37 +251,43 @@ export function createRSCAliases(
     'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
     'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
+    'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
+    'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
+    'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
     'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
     'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
     'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
+    // optimisations to ignore the legacy build of react-dom/server
+    './cjs/react-dom-server-legacy.browser.production.min.js': `next/dist/build/noop-react-dom-server-legacy`,
+    './cjs/react-dom-server-legacy.browser.development.js': `next/dist/build/noop-react-dom-server-legacy`,
   }
 
-  if (!opts.isEdgeServer) {
-    if (opts.layer === WEBPACK_LAYERS.serverSideRendering) {
+  if (!isEdgeServer) {
+    if (layer === WEBPACK_LAYERS.serverSideRendering) {
       alias = Object.assign(alias, {
-        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-runtime`,
-        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-dev-runtime`,
-        react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
-        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
-        'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-client-edge`,
+        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-dev-runtime`,
+        react$: `next/dist/server/future/route-modules/app-page/vendored/${layer}/react`,
+        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-dom`,
+        'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-client-edge`,
       })
-    } else if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
+    } else if (layer === WEBPACK_LAYERS.reactServerComponents) {
       alias = Object.assign(alias, {
-        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-runtime`,
-        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-jsx-dev-runtime`,
-        react$: `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react`,
-        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-dom`,
-        'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-edge`,
-        'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${opts.layer}/react-server-dom-webpack-server-node`,
+        'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-runtime`,
+        'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-dev-runtime`,
+        react$: `next/dist/server/future/route-modules/app-page/vendored/${layer}/react`,
+        'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-dom`,
+        'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-edge`,
+        'react-server-dom-webpack/server.node$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-node`,
       })
     }
   }
 
-  if (opts.isEdgeServer) {
-    if (opts.layer === WEBPACK_LAYERS.reactServerComponents) {
+  if (isEdgeServer) {
+    if (layer === WEBPACK_LAYERS.reactServerComponents) {
       alias[
         'react$'
       ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
@@ -291,7 +299,7 @@ export function createRSCAliases(
     ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
   }
 
-  if (opts.reactProductionProfiling) {
+  if (reactProductionProfiling) {
     alias[
       'react-dom$'
     ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
@@ -306,7 +314,7 @@ export function createRSCAliases(
 
 // Insert aliases for Next.js stubs of fetch, object-assign, and url
 // Keep in sync with insert_optimized_module_aliases in import_map.rs
-export function getOptimizedModuleAliases(): { [pkg: string]: string } {
+export function getOptimizedModuleAliases(): CompilerAliases {
   return {
     unfetch: require.resolve('next/dist/build/polyfills/fetch/index.js'),
     'isomorphic-unfetch': require.resolve(
@@ -335,7 +343,7 @@ export function getOptimizedModuleAliases(): { [pkg: string]: string } {
 }
 
 // Alias these modules to be resolved with "module" if possible.
-function getBarrelOptimizationAliases(packages: string[]) {
+function getBarrelOptimizationAliases(packages: string[]): CompilerAliases {
   const aliases: { [pkg: string]: string } = {}
   const mainFields = ['module', 'main']
 
@@ -358,12 +366,12 @@ function getBarrelOptimizationAliases(packages: string[]) {
 
   return aliases
 }
-function getReactProfilingInProduction() {
+function getReactProfilingInProduction(): CompilerAliases {
   return {
     'react-dom$': 'react-dom/profiling',
   }
 }
-export function createServerComponentsNoopAliases() {
+export function createServerComponentsNoopAliases(): CompilerAliases {
   return {
     [require.resolve('next/head')]: require.resolve(
       'next/dist/client/components/noop-head'

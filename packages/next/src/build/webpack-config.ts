@@ -601,13 +601,6 @@ export default async function getBaseWebpackConfig(
       } satisfies ClientEntries)
     : undefined
 
-  // tell webpack where to look for _app and _document
-  // using aliases to allow falling back to the default
-  // version when removed or not present
-  const clientResolveRewrites = require.resolve(
-    '../shared/lib/router/utils/resolve-rewrites'
-  )
-
   const resolveConfig: webpack.Configuration['resolve'] = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -619,18 +612,15 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: createWebpackAliases({
-      dev,
-      pageExtensions,
+      isClient,
       isEdgeServer,
+      isNodeServer,
+      dev,
       config,
       pagesDir,
       appDir,
       dir,
-      distDir,
-      isClient,
       reactProductionProfiling,
-      isNodeServer,
-      clientResolveRewrites,
       hasRewrites,
     }),
     ...(isClient || isEdgeServer
@@ -1303,7 +1293,6 @@ export default async function getBaseWebpackConfig(
                   // react to the direct file path, not the package name. In that case the condition
                   // will be ignored completely.
                   alias: createRSCAliases(bundledReactChannel, {
-                    reactServerCondition: true,
                     // No server components profiling
                     reactProductionProfiling,
                     layer: WEBPACK_LAYERS.reactServerComponents,
@@ -1364,7 +1353,6 @@ export default async function getBaseWebpackConfig(
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
                       alias: createRSCAliases(bundledReactChannel, {
-                        reactServerCondition: true,
                         reactProductionProfiling,
                         layer: WEBPACK_LAYERS.reactServerComponents,
                         isEdgeServer,
@@ -1376,7 +1364,6 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     resolve: {
                       alias: createRSCAliases(bundledReactChannel, {
-                        reactServerCondition: false,
                         reactProductionProfiling,
                         layer: WEBPACK_LAYERS.serverSideRendering,
                         isEdgeServer,
@@ -1390,12 +1377,7 @@ export default async function getBaseWebpackConfig(
                 issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 resolve: {
                   alias: createRSCAliases(bundledReactChannel, {
-                    // Only alias server rendering stub in client SSR layer.
-                    // reactSharedSubset: false,
-                    // reactDomServerRenderingStub: false,
-                    reactServerCondition: false,
                     reactProductionProfiling,
-                    // browser: isClient,
                     layer: WEBPACK_LAYERS.appPagesBrowser,
                     isEdgeServer,
                   }),
