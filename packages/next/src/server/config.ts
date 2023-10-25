@@ -418,6 +418,16 @@ function assignDefaults(
     silent
   )
 
+  if (result.swcMinify === false) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'swcMinify',
+      'Disabling SWC Minifer will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
+      silent
+    )
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',
