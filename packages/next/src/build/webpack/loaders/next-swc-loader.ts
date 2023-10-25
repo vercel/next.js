@@ -69,7 +69,6 @@ async function loaderTransform(
     swcCacheDir,
     serverComponents,
     isReactServerLayer,
-    // bundleTarget,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
@@ -93,7 +92,6 @@ async function loaderTransform(
     relativeFilePathFromRoot,
     serverComponents,
     isReactServerLayer,
-    // bundleTarget,
   })
 
   const programmaticOptions = {

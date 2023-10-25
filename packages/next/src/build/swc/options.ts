@@ -45,8 +45,7 @@ function getBaseSWCOptions({
   swcCacheDir,
   serverComponents,
   isReactServerLayer,
-}: // bundleTarget,
-{
+}: {
   filename: string
   jest?: boolean
   development: boolean
@@ -57,7 +56,6 @@ function getBaseSWCOptions({
   swcPlugins: ExperimentalConfig['swcPlugins']
   resolvedBaseUrl?: string
   jsConfig: any
-  // bundleTarget: BundleType
   swcCacheDir?: string
   serverComponents?: boolean
   isReactServerLayer?: boolean
@@ -263,6 +261,7 @@ export function getJestSWCOptions({
   jsConfig: any
   resolvedBaseUrl?: string
   pagesDir?: string
+  serverComponents?: boolean
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
@@ -274,8 +273,11 @@ export function getJestSWCOptions({
     swcPlugins,
     compilerOptions,
     jsConfig,
-    isReactServerLayer: false,
     resolvedBaseUrl,
+    // Don't apply server layer transformations for Jest
+    isReactServerLayer: false,
+    // Disable server / client graph assertions for Jest
+    serverComponents: false,
   })
 
   const isNextDist = nextDistPath.test(filename)
