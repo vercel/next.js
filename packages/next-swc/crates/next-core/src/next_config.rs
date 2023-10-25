@@ -515,7 +515,7 @@ pub struct SubResourceIntegrity {
 #[serde(rename_all = "camelCase")]
 pub struct ServerActions {
     /// Allows adjusting body parser size limit for server actions.
-    pub body_parser_size_limit: Option<SizeLimit>,
+    pub body_size_limit: Option<SizeLimit>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
