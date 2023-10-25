@@ -132,3 +132,8 @@ url = "2.2.2"
 urlencoding = "2.1.2"
 webbrowser = "0.8.7"
 dhat = { version = "0.3.2" }
+
+
+[patch.crates-io]
+lightningcss = { git = "https://github.com/kdy1/lightningcss.git", branch = "derive-unsafe"}
+parcel_selectors = { git = "https://github.com/kdy1/lightningcss.git", branch = "derive-unsafe" }
