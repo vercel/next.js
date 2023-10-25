@@ -99,7 +99,7 @@ export function getDefineEnv({
       config.experimental.useDeploymentIdServerActions
     ),
     'process.env.NEXT_DEPLOYMENT_ID': JSON.stringify(
-      config.experimental.deploymentId || 'false'
+      config.experimental.deploymentId || false
     ),
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX':
       JSON.stringify(fetchCacheKeyPrefix),
