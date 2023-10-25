@@ -374,6 +374,8 @@ export default async function build(
             silent: false,
           })
         )
+
+      process.env.NEXT_DEPLOYMENT_ID = config.experimental.deploymentId || ''
       NextBuildContext.config = config
 
       let configOutDir = 'out'
