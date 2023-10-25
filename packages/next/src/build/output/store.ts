@@ -8,7 +8,7 @@ import {
 } from '../swc'
 import * as Log from './log'
 
-const MAX_DURATION = 3 * 1000
+const MAX_LOG_SKIP_DURATION = 500 // 500ms
 
 export type OutputState =
   | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
@@ -70,7 +70,7 @@ store.subscribe((state) => {
           // Only log compiling if compiled is not finished in 3 seconds
           loadingLogTimer = setTimeout(() => {
             Log.wait(`Compiling ${trigger} ...`)
-          }, MAX_DURATION)
+          }, MAX_LOG_SKIP_DURATION)
         }
       }
     }

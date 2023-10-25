@@ -163,10 +163,6 @@ export interface ExperimentalConfig {
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
   deploymentId?: string
-  logging?: {
-    level?: 'verbose'
-    fullUrl?: boolean
-  }
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -281,7 +277,6 @@ export interface ExperimentalConfig {
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
-   * This option requires `appDir` to be enabled first.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
    */
   typedRoutes?: boolean
@@ -661,6 +656,12 @@ export interface NextConfig extends Record<string, any> {
       skipDefaultConversion?: boolean
     }
   >
+
+  logging?: {
+    fetches?: {
+      fullUrl?: boolean
+    }
+  }
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.

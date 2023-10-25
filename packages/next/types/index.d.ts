@@ -37,7 +37,11 @@ export type {
   Metadata,
   MetadataRoute,
   ResolvedMetadata,
-  ResolvingMetadata, // @ts-ignore This path is generated at build time and conflicts otherwise
+  ResolvingMetadata,
+  Viewport,
+  ResolvingViewport,
+  ResolvedViewport,
+  // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/lib/metadata/types/metadata-interface'
 
 /**

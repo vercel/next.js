@@ -9,6 +9,7 @@ use next_core::{
     get_edge_resolve_options_context,
     mode::NextMode,
     next_app::{
+        app_client_references_chunks::get_app_server_reference_modules,
         get_app_client_references_chunks, get_app_client_shared_chunks, get_app_page_entry,
         get_app_route_entry, metadata::route::get_app_metadata_route_entry, AppEntry, AppPage,
     },
@@ -242,12 +243,16 @@ impl AppProject {
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
                 Vc::upcast(NextEcmascriptClientReferenceTransition::new(
                     self.client_transition(),
-                    self.ssr_transition(),
+                    self.edge_ssr_transition(),
                 )),
             ),
             (
                 "next-dynamic".to_string(),
                 Vc::upcast(NextDynamicTransition::new(self.client_transition())),
+            ),
+            (
+                "next-ssr".to_string(),
+                Vc::upcast(self.edge_ssr_transition()),
             ),
         ]
         .into_iter()
@@ -297,12 +302,34 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    async fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+        let this = self.await?;
+        Ok(get_edge_resolve_options_context(
+            self.project().project_path(),
+            Value::new(self.ssr_ty()),
+            this.mode,
+            self.project().next_config(),
+            self.project().execution_context(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     fn ssr_transition(self: Vc<Self>) -> Vc<ContextTransition> {
         ContextTransition::new(
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
             Vc::cell("ssr".to_string()),
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn edge_ssr_transition(self: Vc<Self>) -> Vc<ContextTransition> {
+        ContextTransition::new(
+            self.project().edge_compile_time_info(),
+            self.ssr_module_options_context(),
+            self.edge_ssr_resolve_options_context(),
+            Vc::cell("edge_ssr".to_string()),
         )
     }
 
@@ -460,6 +487,7 @@ impl AppEndpoint {
             loader_tree,
             self.page.clone(),
             self.app_project.project().project_path(),
+            self.app_project.project().next_config(),
         )
     }
 
@@ -519,6 +547,8 @@ impl AppEndpoint {
 
         let mut server_assets = vec![];
         let mut client_assets = vec![];
+        // assets to add to the middleware manifest (to be loaded in the edge runtime).
+        let mut middleware_assets = vec![];
 
         let app_entry = app_entry.await?;
 
@@ -579,11 +609,20 @@ impl AppEndpoint {
             .entry(Vc::upcast(app_entry.rsc_entry))
             .await?;
 
+        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
+
         if ssr_and_client {
+            let ssr_chunking_context = match runtime {
+                NextRuntime::NodeJs => {
+                    Vc::upcast(this.app_project.project().server_chunking_context())
+                }
+                NextRuntime::Edge => this.app_project.project().edge_chunking_context(),
+            };
+
             let client_references_chunks = get_app_client_references_chunks(
                 client_reference_types,
                 this.app_project.project().client_chunking_context(),
-                this.app_project.project().server_chunking_context(),
+                ssr_chunking_context,
             );
             let client_references_chunks_ref = client_references_chunks.await?;
 
@@ -655,13 +694,31 @@ impl AppEndpoint {
                 client_references,
                 client_references_chunks,
                 this.app_project.project().client_chunking_context(),
-                Vc::upcast(this.app_project.project().server_chunking_context()),
+                ssr_chunking_context,
                 this.app_project
                     .project()
                     .next_config()
                     .computed_asset_prefix(),
+                runtime,
             );
             server_assets.push(entry_manifest);
+
+            if runtime == NextRuntime::Edge {
+                middleware_assets.push(entry_manifest);
+
+                // as the edge runtime doesn't support chunk loading we need to add all client
+                // references to the middleware manifest so they get loaded during runtime
+                // initialization
+                let client_references_chunks = &*client_references_chunks.await?;
+
+                for (ty, chunks) in client_references_chunks {
+                    if matches!(ty, ClientReferenceType::EcmascriptClientReference(..)) {
+                        let ssr_chunks = &*chunks.ssr_chunks.await?;
+
+                        middleware_assets.extend(ssr_chunks);
+                    }
+                }
+            }
         }
 
         fn create_app_paths_manifest(
@@ -767,23 +824,18 @@ impl AppEndpoint {
                 evaluatable_assets.push(evaluatable);
 
                 let (loader, manifest) = create_server_actions_manifest(
-                    app_entry.rsc_entry,
+                    Vc::upcast(app_entry.rsc_entry),
+                    get_app_server_reference_modules(client_reference_types),
                     node_root,
                     &app_entry.pathname,
                     &app_entry.original_name,
                     NextRuntime::Edge,
                     Vc::upcast(this.app_project.edge_rsc_module_context()),
                     Vc::upcast(chunking_context),
-                    this.app_project
-                        .project()
-                        .next_config()
-                        .enable_server_actions(),
                 )
                 .await?;
                 server_assets.push(manifest);
-                if let Some(loader) = loader {
-                    evaluatable_assets.push(loader);
-                }
+                evaluatable_assets.push(loader);
 
                 let files = chunking_context.evaluated_chunk_group(
                     app_entry.rsc_entry.ident(),
@@ -791,8 +843,38 @@ impl AppEndpoint {
                 );
                 server_assets.extend(files.await?.iter().copied());
 
+                // the next-edge-ssr-loader templates expect the manifests to be stored in
+                // global variables defined in these files
+                //
+                // they are created in `setup-dev-bundler.ts`
+                let mut file_paths_from_root = vec![
+                    "server/server-reference-manifest.js".to_string(),
+                    "server/middleware-build-manifest.js".to_string(),
+                    "server/middleware-react-loadable-manifest.js".to_string(),
+                    "server/next-font-manifest.js".to_string(),
+                ];
+
                 let node_root_value = node_root.await?;
-                let files_paths_from_root = files
+
+                let middleware_paths_from_root = middleware_assets
+                    .iter()
+                    .map({
+                        let node_root_value = node_root_value.clone();
+                        move |&file| {
+                            let node_root_value = node_root_value.clone();
+                            async move {
+                                Ok(node_root_value
+                                    .get_path_to(&*file.ident().path().await?)
+                                    .map(|path| path.to_string()))
+                            }
+                        }
+                    })
+                    .try_flat_join()
+                    .await?;
+
+                file_paths_from_root.extend(middleware_paths_from_root);
+
+                let rsc_paths_from_root = files
                     .await?
                     .iter()
                     .map(move |&file| {
@@ -806,21 +888,9 @@ impl AppEndpoint {
                     .try_flat_join()
                     .await?;
 
-                let server_path_value = server_path.await?;
-                let files_paths_from_server = files
-                    .await?
-                    .iter()
-                    .map(move |&file| {
-                        let server_path_value = server_path_value.clone();
-                        async move {
-                            Ok(server_path_value
-                                .get_path_to(&*file.ident().path().await?)
-                                .map(|path| path.to_string()))
-                        }
-                    })
-                    .try_flat_join()
-                    .await?;
-                let base_file = files_paths_from_server[0].to_string();
+                file_paths_from_root.extend(rsc_paths_from_root);
+
+                let entry_file = "app-edge-has-no-entrypoint".to_string();
 
                 // create middleware manifest
                 // TODO(alexkirsz) This should be shared with next build.
@@ -831,7 +901,7 @@ impl AppEndpoint {
                     ..Default::default()
                 };
                 let edge_function_definition = EdgeFunctionDefinition {
-                    files: files_paths_from_root,
+                    files: file_paths_from_root,
                     name: app_entry.pathname.to_string(),
                     page: app_entry.original_name.clone(),
                     regions: app_entry
@@ -870,7 +940,7 @@ impl AppEndpoint {
                     ty,
                     &app_entry.pathname,
                     &app_entry.original_name,
-                    base_file,
+                    entry_file,
                 )?;
                 server_assets.push(app_paths_manifest_output);
 
@@ -903,23 +973,18 @@ impl AppEndpoint {
                     this.app_project.rsc_runtime_entries().await?.clone_value();
 
                 let (loader, manifest) = create_server_actions_manifest(
-                    app_entry.rsc_entry,
+                    Vc::upcast(app_entry.rsc_entry),
+                    get_app_server_reference_modules(client_reference_types),
                     node_root,
                     &app_entry.pathname,
                     &app_entry.original_name,
                     NextRuntime::NodeJs,
                     Vc::upcast(this.app_project.rsc_module_context()),
                     Vc::upcast(this.app_project.project().server_chunking_context()),
-                    this.app_project
-                        .project()
-                        .next_config()
-                        .enable_server_actions(),
                 )
                 .await?;
                 server_assets.push(manifest);
-                if let Some(loader) = loader {
-                    evaluatable_assets.push(loader);
-                }
+                evaluatable_assets.push(loader);
 
                 let rsc_chunk = this
                     .app_project
