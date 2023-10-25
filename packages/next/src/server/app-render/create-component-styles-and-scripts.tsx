@@ -60,11 +60,9 @@ export async function createComponentStylesAndScripts({
     : null
 
   const scripts = jsHrefs
-    ? jsHrefs.map((href, index) => {
-        const fullSrc = `${ctx.assetPrefix}/_next/${href}`
-
-        return <script src={fullSrc} async={true} />
-      })
+    ? jsHrefs.map((href) => (
+        <script src={`${ctx.assetPrefix}/_next/${href}`} async={true} />
+      ))
     : null
 
   const Comp = interopDefault(await getComponent())
