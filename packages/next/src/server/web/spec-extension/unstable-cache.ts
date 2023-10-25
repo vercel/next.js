@@ -29,6 +29,17 @@ export function unstable_cache<T extends Callback>(
     const store: undefined | StaticGenerationStore =
       staticGenerationAsyncStorage?.getStore()
 
+    if (store && typeof options.revalidate === 'number') {
+      // Only set revalidate if it is lower than the previously set value
+      if (
+        typeof store.revalidate !== 'number' ||
+        (typeof store.revalidate === 'number' &&
+          store.revalidate > options.revalidate)
+      ) {
+        store.revalidate = options.revalidate
+      }
+    }
+
     const incrementalCache:
       | import('../../lib/incremental-cache').IncrementalCache
       | undefined =
