@@ -49,7 +49,7 @@ import * as entry from '${relativePath}.js'
 ${
   options.type === 'route'
     ? `import type { NextRequest } from 'next/server.js'`
-    : `import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface.js'`
+    : `import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
 type TEntry = typeof import('${relativePath}.js')
@@ -76,6 +76,8 @@ checkFields<Diff<{
       : `
   metadata?: any
   generateMetadata?: Function
+  viewport?: any
+  generateViewport?: Function
   `
   }
 }, TEntry, ''>>()
@@ -140,6 +142,14 @@ if ('generateMetadata' in entry) {
     options.type === 'page' ? 'PageProps' : 'LayoutProps'
   }, FirstArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
   checkFields<Diff<ResolvingMetadata, SecondArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
+}
+
+// Check the arguments and return type of the generateViewport function
+if ('generateViewport' in entry) {
+  checkFields<Diff<${
+    options.type === 'page' ? 'PageProps' : 'LayoutProps'
+  }, FirstArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
+  checkFields<Diff<ResolvingViewport, SecondArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
 }
 `
 }

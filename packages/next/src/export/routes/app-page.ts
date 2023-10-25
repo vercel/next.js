@@ -160,7 +160,12 @@ export async function exportAppPage(
     )
 
     // Writing the request metadata to a file.
-    const meta: RouteMetadata = { status: undefined, headers, postponed }
+    const meta: RouteMetadata = {
+      status: undefined,
+      headers,
+      postponed,
+    }
+
     await fileWriter(
       ExportedAppPageFiles.META,
       htmlFilepath.replace(/\.html$/, '.meta'),
@@ -177,6 +182,8 @@ export async function exportAppPage(
     return {
       // Only include the metadata if the environment has next support.
       metadata: hasNextSupport ? meta : undefined,
+      hasEmptyPrelude: Boolean(postponed) && html === '',
+      hasPostponed: Boolean(postponed),
       revalidate,
     }
   } catch (err: any) {

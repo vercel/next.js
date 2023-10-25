@@ -1821,6 +1821,7 @@ export default async function build(
                   runtime: pageRuntime,
                   pageDuration: undefined,
                   ssgPageDurations: undefined,
+                  hasEmptyPrelude: undefined,
                 })
               })
             })
@@ -2251,7 +2252,15 @@ export default async function build(
               const {
                 revalidate = appConfig.revalidate ?? false,
                 metadata = {},
+                hasEmptyPrelude,
+                hasPostponed,
               } = exportResult.byPath.get(route) ?? {}
+
+              pageInfos.set(route, {
+                ...(pageInfos.get(route) as PageInfo),
+                hasPostponed,
+                hasEmptyPrelude,
+              })
 
               if (revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route)
@@ -2312,6 +2321,11 @@ export default async function build(
             if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
               const normalizedRoute = normalizePagePath(page)
               const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+
+              pageInfos.set(page, {
+                ...(pageInfos.get(page) as PageInfo),
+                isDynamicAppRoute: true,
+              })
 
               // TODO: create a separate manifest to allow enforcing
               // dynamicParams for non-static paths?
