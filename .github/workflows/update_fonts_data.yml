@@ -13,6 +13,7 @@ env:
 jobs:
   create-pull-request:
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'vercel'
     steps:
       - name: Checkout
         uses: actions/checkout@v3

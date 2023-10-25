@@ -4,7 +4,7 @@ export const prefixes = {
   wait: white(bold('○')),
   error: red(bold('⨯')),
   warn: yellow(bold('⚠')),
-  ready: bold('▲'), // no color
+  ready: '▲', // no color
   info: white(bold(' ')),
   event: green(bold('✓')),
   trace: magenta(bold('»')),
