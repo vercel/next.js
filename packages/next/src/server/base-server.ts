@@ -2572,7 +2572,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Coerce the revalidate parameter from the render.
     let revalidate: Revalidate | undefined
+
+    // If this is a resume request, or the request has postponed, ensure that
+    // we don't cache this response.
     if (
+      resumed?.postponed ||
+      (cachedData?.kind === 'PAGE' && cachedData.postponed)
+    ) {
+      revalidate = 0
+    } else if (
       typeof cacheEntry.revalidate !== 'undefined' &&
       (!this.renderOpts.dev || (hasServerProps && !isDataReq))
     ) {
