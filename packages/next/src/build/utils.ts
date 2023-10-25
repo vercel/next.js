@@ -680,15 +680,11 @@ export async function printTreeView(
   print(
     textTable(
       [
-        usedSymbols.has('○') && [
-          '○',
-          '(Static)',
-          'pre-rendered as static HTML',
-        ],
+        usedSymbols.has('○') && ['○', '(Static)', 'prerendered as static HTML'],
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
-          `pre-rendered as static HTML (uses ${cyan('getStaticProps')})`,
+          `prerendered as static HTML (uses ${cyan('getStaticProps')})`,
         ],
         usedSymbols.has('ISR') && [
           '',
@@ -699,8 +695,8 @@ export async function printTreeView(
         ],
         usedSymbols.has('◐') && [
           '◐',
-          '(Partially Pre-Rendered)',
-          'pre-rendered as static HTML with dynamic server-streamed content',
+          '(Partial Prerender)',
+          'prerendered as static HTML with dynamic server-streamed content',
         ],
         usedSymbols.has('λ') && [
           'λ',
