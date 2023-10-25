@@ -85,7 +85,7 @@ pub async fn get_app_server_reference_modules(
                 Ok(match client_reference_ty {
                     ClientReferenceType::EcmascriptClientReference(ecmascript_client_reference) => {
                         let ecmascript_client_reference_ref = ecmascript_client_reference.await?;
-                        Some(Vc::upcast(ecmascript_client_reference_ref.ssr_module))
+                        Some(Vc::upcast(ecmascript_client_reference_ref.client_module))
                     }
                     _ => None,
                 })

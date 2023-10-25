@@ -16,20 +16,20 @@ use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            asset::AssetContent,
+            asset::{Asset, AssetContent},
             chunk::{ChunkItemExt, ChunkableModule, EvaluatableAsset},
             context::AssetContext,
             module::Module,
             output::OutputAsset,
             reference::primary_referenced_modules,
-            reference_type::ReferenceType,
+            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
             virtual_output::VirtualOutputAsset,
             virtual_source::VirtualSource,
         },
         ecmascript::{
             chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
             parse::ParseResult,
-            EcmascriptModuleAsset,
+            EcmascriptModuleAsset, EcmascriptModuleAssetType,
         },
     },
 };
@@ -54,7 +54,7 @@ pub(crate) async fn create_server_actions_manifest(
     Option<Vc<Box<dyn EvaluatableAsset>>>,
     Vc<Box<dyn OutputAsset>>,
 )> {
-    let actions = get_actions(rsc_entry, server_reference_modules);
+    let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
     let loader = build_server_actions_loader(node_root, page_name, actions, asset_context).await?;
     let Some(evaluable) = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader).await?
     else {
@@ -173,6 +173,7 @@ async fn build_manifest(
 async fn get_actions(
     rsc_entry: Vc<Box<dyn Module>>,
     server_reference_modules: Vc<Vec<Vc<Box<dyn Module>>>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<ModuleActionMap>> {
     let mut all_actions = NonDeterministic::new()
         .skip_duplicates()
@@ -193,6 +194,23 @@ async fn get_actions(
         .try_flat_join()
         .await?
         .into_iter()
+        .map(|((layer, module), actions)| {
+            let module = if layer == ActionLayer::Rsc {
+                module
+            } else {
+                let source = VirtualSource::new(
+                    module.ident().path().join("action.js".to_string()),
+                    module.content(),
+                );
+                asset_context.process(
+                    Vc::upcast(source),
+                    Value::new(ReferenceType::EcmaScriptModules(
+                        EcmaScriptModulesReferenceSubType::Undefined,
+                    )),
+                )
+            };
+            ((layer, module), actions)
+        })
         .collect::<IndexMap<_, _>>();
 
     all_actions.sort_keys();

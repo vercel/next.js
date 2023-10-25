@@ -18,9 +18,7 @@ use turbopack_binding::{
             resolve::{parse::Request, pattern::Pattern},
         },
         ecmascript::TransformPlugin,
-        ecmascript_plugin::transform::directives::{
-            client::ClientDirectiveTransformer, server::ServerDirectiveTransformer,
-        },
+        ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
         node::execution_context::ExecutionContext,
         turbopack::{
             condition::ContextCondition,
@@ -244,7 +242,6 @@ pub async fn get_server_module_options_context(
     ty: Value<ServerContextType>,
     mode: NextMode,
     next_config: Vc<NextConfig>,
-    server_transition_name: Option<Vc<String>>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value(), mode).await?;
     let internal_custom_rules = get_next_server_internal_transforms_rules(ty.into_value()).await?;
@@ -292,8 +289,6 @@ pub async fn get_server_module_options_context(
     let styled_components_transform_plugin =
         *get_styled_components_transform_plugin(next_config).await?;
     let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin().await?;
-    let server_directive_transform_plugin = server_transition_name
-        .map(|name| Vc::cell(Box::new(ServerDirectiveTransformer::new(name)) as _));
 
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
@@ -392,7 +387,6 @@ pub async fn get_server_module_options_context(
             let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
                 styled_components_transform_plugin,
                 styled_jsx_transform_plugin,
-                server_directive_transform_plugin,
             ]
             .into_iter()
             .flatten()
@@ -466,13 +460,11 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
             ..
         } => {
-            let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
-                styled_components_transform_plugin,
-                server_directive_transform_plugin,
-            ]
-            .into_iter()
-            .flatten()
-            .collect();
+            let mut base_source_transforms: Vec<Vc<TransformPlugin>> =
+                vec![styled_components_transform_plugin]
+                    .into_iter()
+                    .flatten()
+                    .collect();
 
             if let Some(ecmascript_client_reference_transition_name) =
                 ecmascript_client_reference_transition_name

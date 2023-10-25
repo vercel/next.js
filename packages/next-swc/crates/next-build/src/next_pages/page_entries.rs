@@ -86,7 +86,6 @@ pub async fn get_page_entries(
         client_ty,
         mode,
         next_config,
-        None,
     );
 
     let client_resolve_options_context = get_client_resolve_options_context(
@@ -143,7 +142,6 @@ pub async fn get_page_entries(
         ssr_ty,
         mode,
         next_config,
-        None,
     );
 
     let ssr_module_context = Vc::upcast(ModuleAssetContext::new(

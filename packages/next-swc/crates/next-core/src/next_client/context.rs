@@ -18,7 +18,6 @@ use turbopack_binding::{
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
         ecmascript::chunk::EcmascriptChunkingContext,
-        ecmascript_plugin::transform::directives::server::ServerDirectiveTransformer,
         node::execution_context::ExecutionContext,
         turbopack::{
             condition::ContextCondition,
@@ -181,7 +180,6 @@ pub async fn get_client_module_options_context(
     ty: Value<ClientContextType>,
     mode: NextMode,
     next_config: Vc<NextConfig>,
-    server_transition_name: Option<Vc<String>>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let custom_rules = get_next_client_transforms_rules(next_config, ty.into_value(), mode).await?;
     let resolve_options_context =
@@ -245,8 +243,6 @@ pub async fn get_client_module_options_context(
         *get_emotion_transform_plugin(next_config).await?,
         *get_styled_components_transform_plugin(next_config).await?,
         *get_styled_jsx_transform_plugin().await?,
-        server_transition_name
-            .map(|name| Vc::cell(Box::new(ServerDirectiveTransformer::new(name)) as _)),
     ]
     .into_iter()
     .flatten()
