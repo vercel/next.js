@@ -683,7 +683,7 @@ export async function printTreeView(
         usedSymbols.has('○') && [
           '○',
           '(Static)',
-          'pre-rendered at static HTML',
+          'pre-rendered as static HTML',
         ],
         usedSymbols.has('●') && [
           '●',
