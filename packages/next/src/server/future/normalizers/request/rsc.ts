@@ -1,3 +1,4 @@
+import { RSC_SUFFIX } from '../../../../lib/constants'
 import type { Normalizer } from '../normalizer'
 
 export class RSCPathnameNormalizer implements Normalizer {
@@ -8,7 +9,7 @@ export class RSCPathnameNormalizer implements Normalizer {
     if (!this.hasAppDir) return false
 
     // If the pathname doesn't end in `.rsc`, we don't match.
-    if (!pathname.endsWith('.rsc')) return false
+    if (!pathname.endsWith(RSC_SUFFIX)) return false
 
     return true
   }

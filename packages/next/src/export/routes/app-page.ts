@@ -9,12 +9,16 @@ import type {
   MockedResponse,
 } from '../../server/lib/mock-request'
 import {
-  RSC,
+  RSC_HEADER,
   NEXT_URL,
-  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_PREFETCH_HEADER,
 } from '../../client/components/app-router-headers'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
-import { NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
+import {
+  NEXT_CACHE_TAGS_HEADER,
+  RSC_PREFETCH_SUFFIX,
+  RSC_SUFFIX,
+} from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
 
@@ -25,7 +29,7 @@ export const enum ExportedAppPageFiles {
   POSTPONED = 'POSTPONED',
 }
 
-export async function generatePrefetchRsc(
+async function generatePrefetchRsc(
   req: MockedRequest,
   path: string,
   res: MockedResponse,
@@ -34,9 +38,17 @@ export async function generatePrefetchRsc(
   renderOpts: RenderOpts,
   fileWriter: FileWriter
 ) {
-  req.headers[RSC.toLowerCase()] = '1'
+  // When we're in PPR, the RSC payload is emitted as the prefetch payload, so
+  // attempting to generate a prefetch RSC is an error.
+  if (renderOpts.experimental.ppr) {
+    throw new Error(
+      'Invariant: explicit prefetch RSC cannot be generated with PPR enabled'
+    )
+  }
+
+  req.headers[RSC_HEADER.toLowerCase()] = '1'
   req.headers[NEXT_URL.toLowerCase()] = path
-  req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] = '1'
+  req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
 
   renderOpts.supportsDynamicHTML = true
   renderOpts.isPrefetch = true
@@ -56,7 +68,7 @@ export async function generatePrefetchRsc(
 
   await fileWriter(
     ExportedAppPageFiles.FLIGHT,
-    htmlFilepath.replace(/\.html$/, '.prefetch.rsc'),
+    htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
     prefetchRscData
   )
 }
@@ -115,6 +127,17 @@ export async function exportAppPage(
         )
       }
 
+      // We gate the static generation bailout to only happen if PPR is not
+      // enabled. If this condition is true this is an error.
+      if (
+        renderOpts.experimental.ppr &&
+        (renderOpts as any).store.staticPrefetchBailout
+      ) {
+        throw new Error(
+          'Invariant: static prefetch has bailed out with PPR enabled'
+        )
+      }
+
       if (!(renderOpts as any).store.staticPrefetchBailout) {
         await generatePrefetchRsc(
           req,
@@ -144,6 +167,21 @@ export async function exportAppPage(
       }
 
       return { revalidate: 0 }
+    } else if (renderOpts.experimental.ppr) {
+      // If PPR is enabled, we should emit the flight data as the prefetch
+      // payload.
+      await fileWriter(
+        ExportedAppPageFiles.FLIGHT,
+        htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
+        flightData
+      )
+    } else {
+      // Writing the RSC payload to a file if we don't have PPR enabled.
+      await fileWriter(
+        ExportedAppPageFiles.FLIGHT,
+        htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
+        flightData
+      )
     }
 
     let headers: OutgoingHttpHeaders | undefined
@@ -170,13 +208,6 @@ export async function exportAppPage(
       ExportedAppPageFiles.META,
       htmlFilepath.replace(/\.html$/, '.meta'),
       JSON.stringify(meta, null, 2)
-    )
-
-    // Writing the RSC payload to a file.
-    await fileWriter(
-      ExportedAppPageFiles.FLIGHT,
-      htmlFilepath.replace(/\.html$/, '.rsc'),
-      flightData
     )
 
     return {
