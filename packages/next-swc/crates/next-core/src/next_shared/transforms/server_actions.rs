@@ -44,7 +44,7 @@ impl CustomTransformer for NextServerActions {
             // types a distinct Action hash ID.
             &FileName::Real(format!("{}_{:?}", ctx.file_path_str, self.transform).into()),
             Config {
-                is_server: matches!(self.transform, ActionsTransform::Server),
+                is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
                 enabled: true,
             },
             ctx.comments.clone(),
