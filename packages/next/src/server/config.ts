@@ -23,6 +23,7 @@ import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 
 import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
+import { hasNextSupport } from '../telemetry/ci-info'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -257,20 +258,23 @@ function assignDefaults(
         'Specified "i18n" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-i18n'
       )
     }
-    if (result.rewrites) {
-      throw new Error(
-        'Specified "rewrites" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
-      )
-    }
-    if (result.redirects) {
-      throw new Error(
-        'Specified "redirects" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
-      )
-    }
-    if (result.headers) {
-      throw new Error(
-        'Specified "headers" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
-      )
+
+    if (!hasNextSupport) {
+      if (result.rewrites) {
+        Log.warn(
+          'Specified "rewrites" will not automatically work with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
+        )
+      }
+      if (result.redirects) {
+        Log.warn(
+          'Specified "redirects" will not automatically work with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
+        )
+      }
+      if (result.headers) {
+        Log.warn(
+          'Specified "headers" will not automatically work with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
+        )
+      }
     }
   }
 

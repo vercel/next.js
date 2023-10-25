@@ -40,9 +40,11 @@ struct NextServerActions {
 impl CustomTransformer for NextServerActions {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let mut actions = server_actions(
-            &FileName::Real(ctx.file_path_str.into()),
+            // The same action can be imported by both server and client, and we need to give both
+            // types a distinct Action hash ID.
+            &FileName::Real(format!("{}_{:?}", ctx.file_path_str, self.transform).into()),
             Config {
-                is_server: matches!(self.transform, ActionsTransform::Server),
+                is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
                 enabled: true,
             },
             ctx.comments.clone(),

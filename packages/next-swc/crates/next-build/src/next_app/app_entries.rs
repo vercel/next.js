@@ -20,6 +20,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
+    util::NextRuntime,
 };
 use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
@@ -38,6 +39,8 @@ use turbopack_binding::{
         turbopack::{transition::ContextTransition, ModuleAssetContext},
     },
 };
+
+const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
 
 #[turbo_tasks::value]
 pub struct AppEntries {
@@ -137,7 +140,7 @@ pub async fn get_app_entries(
         Vc::cell("ssr".to_string()),
     );
 
-    const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
+    transitions.insert("next-ssr".to_string(), Vc::upcast(ssr_transition));
 
     transitions.insert(
         ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
@@ -191,15 +194,16 @@ pub async fn get_app_entries(
             Ok(match entrypoint {
                 Entrypoint::AppPage { page, loader_tree } => get_app_page_entry(
                     rsc_context,
-                    // TODO add edge support
+                    // TODO(WEB-1824): add edge support
                     rsc_context,
                     *loader_tree,
                     page.clone(),
                     project_root,
+                    next_config,
                 ),
                 Entrypoint::AppRoute { page, path } => get_app_route_entry(
                     rsc_context,
-                    // TODO add edge support
+                    // TODO(WEB-1824): add edge support
                     rsc_context,
                     Vc::upcast(FileSource::new(*path)),
                     page.clone(),
@@ -207,7 +211,7 @@ pub async fn get_app_entries(
                 ),
                 Entrypoint::AppMetadata { page, metadata } => get_app_metadata_route_entry(
                     rsc_context,
-                    // TODO add edge support
+                    // TODO(WEB-1824): add edge support
                     rsc_context,
                     project_root,
                     page.clone(),
@@ -260,6 +264,7 @@ pub async fn compute_app_entries_chunks(
     build_manifest: &mut BuildManifest,
     app_paths_manifest: &mut AppPathsManifest,
     all_chunks: &mut Vec<Vc<Box<dyn OutputAsset>>>,
+    runtime: NextRuntime,
 ) -> Result<()> {
     let client_relative_path_ref = client_relative_path.await?;
 
@@ -356,6 +361,7 @@ pub async fn compute_app_entries_chunks(
             client_chunking_context,
             ssr_chunking_context,
             next_config.computed_asset_prefix(),
+            runtime,
         );
 
         all_chunks.push(entry_manifest);

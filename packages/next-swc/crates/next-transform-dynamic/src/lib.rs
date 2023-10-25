@@ -26,16 +26,16 @@ use swc_core::{
 /// with current loadable manifest, which causes hydration errors.
 pub fn next_dynamic(
     is_development: bool,
-    is_server: bool,
-    is_server_components: bool,
+    is_server_compiler: bool,
+    is_react_server_layer: bool,
     mode: NextDynamicMode,
     filename: FileName,
     pages_dir: Option<PathBuf>,
 ) -> impl Fold {
     NextDynamicPatcher {
         is_development,
-        is_server,
-        is_server_components,
+        is_server_compiler,
+        is_react_server_layer,
         pages_dir,
         filename,
         dynamic_bindings: vec![],
@@ -79,8 +79,8 @@ pub enum NextDynamicMode {
 #[derive(Debug)]
 struct NextDynamicPatcher {
     is_development: bool,
-    is_server: bool,
-    is_server_components: bool,
+    is_server_compiler: bool,
+    is_react_server_layer: bool,
     pages_dir: Option<PathBuf>,
     filename: FileName,
     dynamic_bindings: Vec<Id>,
@@ -228,7 +228,7 @@ impl Fold for NextDynamicPatcher {
                         span: DUMMY_SP,
                         props: match &mut self.state {
                             NextDynamicPatcherState::Webpack => {
-                                if self.is_development || self.is_server {
+                                if self.is_development || self.is_server_compiler {
                                     module_id_options(quote!(
                                         "$left + $right" as Expr,
                                         left: Expr = format!(
@@ -249,7 +249,7 @@ impl Fold for NextDynamicPatcher {
                                 let id_ident =
                                     private_ident!(dynamically_imported_specifier_span, "id");
 
-                                match (self.is_development, self.is_server) {
+                                match (self.is_development, self.is_server_compiler) {
                                     (true, true) => {
                                         let chunks_ident = private_ident!(
                                             dynamically_imported_specifier_span,
@@ -383,8 +383,8 @@ impl Fold for NextDynamicPatcher {
                     // React.lazy implementation.
                     if has_ssr_false
                         && !has_suspense
-                        && self.is_server
-                        && !self.is_server_components
+                        && self.is_server_compiler
+                        && !self.is_react_server_layer
                     {
                         expr.args[0] = Lit::Null(Null { span: DUMMY_SP }).as_arg();
                     }
