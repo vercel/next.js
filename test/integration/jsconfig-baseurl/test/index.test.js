@@ -56,7 +56,9 @@ describe('TypeScript Features', () => {
 
       const found = await check(
         () => stripAnsi(output),
-        /Module not found: Can't resolve 'components\/worldd'/,
+        process.env.TURBOPACK
+          ? /unable to resolve module "@c\/worldd"/
+          : /Module not found: Can't resolve '@c\/worldd'/,
         false
       )
       await fs.writeFile(basicPage, contents)
