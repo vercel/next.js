@@ -126,6 +126,7 @@ import { clearModuleContext } from '../render-server'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import type { LoadableManifest } from '../../load-components'
+import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -736,12 +737,12 @@ async function startWatcher(opts: SetupOpts) {
       return manifest
     }
 
-    function mergeActionManifests(manifests: Iterable<ActionManifest>) {
+    async function mergeActionManifests(manifests: Iterable<ActionManifest>) {
       type ActionEntries = ActionManifest['edge' | 'node']
       const manifest: ActionManifest = {
         node: {},
         edge: {},
-        encryptionKey: '',
+        encryptionKey: await generateRandomActionKeyRaw(true),
       }
 
       function mergeActionIds(
@@ -761,7 +762,6 @@ async function startWatcher(opts: SetupOpts) {
       for (const m of manifests) {
         mergeActionIds(manifest.node, m.node)
         mergeActionIds(manifest.edge, m.edge)
-        manifest.encryptionKey = m.encryptionKey
       }
 
       return manifest
@@ -909,7 +909,9 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     async function writeActionManifest(): Promise<void> {
-      const actionManifest = mergeActionManifests(actionManifests.values())
+      const actionManifest = await mergeActionManifests(
+        actionManifests.values()
+      )
       const actionManifestJsonPath = path.join(
         distDir,
         'server',
