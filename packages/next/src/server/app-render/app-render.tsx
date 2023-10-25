@@ -460,13 +460,16 @@ async function renderToHTMLOrFlightImpl(
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
+  const postponeErrors: Error[] = []
   const isNextExport = !!renderOpts.nextExport
   const serverComponentsErrorHandler = createErrorHandler({
     _source: 'serverComponentsRenderer',
     dev,
     isNextExport,
+    postponeErrors: postponeErrors,
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
+    skipLogging: renderOpts.ppr,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
     _source: 'flightDataRenderer',
@@ -474,6 +477,7 @@ async function renderToHTMLOrFlightImpl(
     isNextExport,
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
+    skipLogging: renderOpts.ppr,
   })
   const htmlRendererErrorHandler = createErrorHandler({
     _source: 'htmlRenderer',
@@ -482,6 +486,8 @@ async function renderToHTMLOrFlightImpl(
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
     allCapturedErrors,
+    skipLogging: renderOpts.ppr,
+    postponeErrors,
   })
 
   patchFetch(ComponentMod)
@@ -775,15 +781,6 @@ async function renderToHTMLOrFlightImpl(
           throw err
         }
 
-        // If there was a postponed error that escaped, it means that there was
-        // a postpone called without a wrapped suspense component.
-        if (err.$$typeof === Symbol.for('react.postpone')) {
-          // Ensure that we force the revalidation time to zero.
-          staticGenerationStore.revalidate = 0
-
-          throw err
-        }
-
         if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
           warn(
             `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
@@ -1000,6 +997,27 @@ async function renderToHTMLOrFlightImpl(
   if (staticGenerationStore.isStaticGeneration) {
     const htmlResult = await renderResult.toUnchunkedString(true)
 
+    if (
+      staticGenerationStore.triggeredPostpone &&
+      !renderOpts.postponed &&
+      postponeErrors.length > 0
+    ) {
+      warn(
+        `There was an error that occurred while attempting to prerender ${urlPathname}. Learn more: https://nextjs.org/docs/messages/ppr-postpone-error`
+      )
+
+      warn('The following errors were captured:')
+      for (let i = 1; i <= postponeErrors.length; i++) {
+        warn(
+          `═════════════════( ${i} of ${postponeErrors.length} )══════════════════════`
+        )
+        warn(postponeErrors[i - 1])
+      }
+
+      warn('═════════════════════════════════════════════════')
+
+      renderOpts.hasPostponeErrors = true
+    }
     // if we encountered any unexpected errors during build
     // we fail the prerendering phase and the build
     if (capturedErrors.length > 0) {

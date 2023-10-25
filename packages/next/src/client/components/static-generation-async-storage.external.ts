@@ -27,6 +27,7 @@ export interface StaticGenerationStore {
   forceStatic?: boolean
   dynamicShouldError?: boolean
   pendingRevalidates?: Promise<any>[]
+  triggeredPostpone: boolean
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string

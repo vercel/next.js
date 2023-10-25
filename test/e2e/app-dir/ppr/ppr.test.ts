@@ -7,6 +7,22 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next, isNextDev }) => {
+    it("should log a warning when `unstable_postpone` is called but there's no postpone state", async () => {
+      // check for the special warning that'll occur when postpone is caught in user-code
+      expect(next.cliOutput).toContain(
+        'There was an error that occurred while attempting to prerender /suspense/node/cookies-error'
+      )
+      // two pages have errors, so check both of them
+      expect(next.cliOutput).toContain(
+        'There was an error that occurred while attempting to prerender /suspense/node/fetch-error'
+      )
+
+      // ensure the original errors are still retained
+      expect(next.cliOutput).toContain('Error: Something went wrong')
+      expect(next.cliOutput).toContain('Error: You are not signed in')
+      expect(next.cliOutput).toContain('Error: Fetch failed')
+      expect(next.cliOutput).not.toContain('Error occurred prerendering page')
+    })
     describe.each([
       { pathname: '/suspense/node' },
       { pathname: '/suspense/node/nested/1' },
