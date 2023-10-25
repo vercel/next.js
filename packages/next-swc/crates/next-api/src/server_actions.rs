@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{io::Write, iter::once};
 
 use anyhow::{bail, Result};
 use indexmap::IndexMap;
@@ -16,13 +16,13 @@ use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
-            asset::AssetContent,
+            asset::{Asset, AssetContent},
             chunk::{ChunkItemExt, ChunkableModule, EvaluatableAsset},
             context::AssetContext,
             module::Module,
             output::OutputAsset,
             reference::primary_referenced_modules,
-            reference_type::ReferenceType,
+            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
             virtual_output::VirtualOutputAsset,
             virtual_source::VirtualSource,
         },
@@ -42,18 +42,16 @@ use turbopack_binding::{
 /// If Server Actions are not enabled, this returns an empty manifest and a None
 /// loader.
 pub(crate) async fn create_server_actions_manifest(
-    entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    rsc_entry: Vc<Box<dyn Module>>,
+    server_reference_modules: Vc<Vec<Vc<Box<dyn Module>>>>,
     node_root: Vc<FileSystemPath>,
     pathname: &str,
     page_name: &str,
     runtime: NextRuntime,
     asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-) -> Result<(
-    Option<Vc<Box<dyn EvaluatableAsset>>>,
-    Vc<Box<dyn OutputAsset>>,
-)> {
-    let actions = get_actions(Vc::upcast(entry));
+) -> Result<(Vc<Box<dyn EvaluatableAsset>>, Vc<Box<dyn OutputAsset>>)> {
+    let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
     let loader = build_server_actions_loader(node_root, page_name, actions, asset_context).await?;
     let Some(evaluable) = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader).await?
     else {
@@ -66,7 +64,7 @@ pub(crate) async fn create_server_actions_manifest(
         .to_string();
     let manifest =
         build_manifest(node_root, pathname, page_name, runtime, actions, loader_id).await?;
-    Ok((Some(evaluable), manifest))
+    Ok((evaluable, manifest))
 }
 
 /// Builds the "action loader" entry point, which reexports every found action
@@ -101,7 +99,7 @@ async fn build_server_actions_loader(
                 ",
             )?;
         }
-        import_map.insert(module_name, *module);
+        import_map.insert(module_name, module.1);
     }
     write!(contents, "}});")?;
 
@@ -147,17 +145,15 @@ async fn build_manifest(
         NextRuntime::NodeJs => &mut manifest.node,
     };
 
-    for value in actions_value.values() {
-        let value = value.await?;
-        for hash in value.keys() {
+    for ((layer, _), action_map) in actions_value {
+        let action_map = action_map.await?;
+        for hash in action_map.keys() {
             let entry = mapping.entry(hash.clone()).or_default();
             entry.workers.insert(
                 format!("app{page_name}"),
                 ActionManifestWorkerEntry::String(loader_id_value.clone_value()),
             );
-            entry
-                .layer
-                .insert(format!("app{page_name}"), ActionLayer::Rsc);
+            entry.layer.insert(format!("app{page_name}"), *layer);
         }
     }
 
@@ -171,10 +167,22 @@ async fn build_manifest(
 /// comment which identifies server actions. Every found server action will be
 /// returned along with the module which exports that action.
 #[turbo_tasks::function]
-async fn get_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<ModuleActionMap>> {
+async fn get_actions(
+    rsc_entry: Vc<Box<dyn Module>>,
+    server_reference_modules: Vc<Vec<Vc<Box<dyn Module>>>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
+) -> Result<Vc<ModuleActionMap>> {
     let mut all_actions = NonDeterministic::new()
         .skip_duplicates()
-        .visit([module], get_referenced_modules)
+        .visit(
+            once((ActionLayer::Rsc, rsc_entry)).chain(
+                server_reference_modules
+                    .await?
+                    .iter()
+                    .map(|m| (ActionLayer::ActionBrowser, *m)),
+            ),
+            get_referenced_modules,
+        )
         .await
         .completed()?
         .into_inner()
@@ -183,6 +191,25 @@ async fn get_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<ModuleActionMap>>
         .try_flat_join()
         .await?
         .into_iter()
+        .map(|((layer, module), actions)| {
+            let module = if layer == ActionLayer::Rsc {
+                module
+            } else {
+                // The ActionBrowser layer's module is in the Client context, and we need to
+                // bring it into the RSC context.
+                let source = VirtualSource::new(
+                    module.ident().path().join("action.js".to_string()),
+                    module.content(),
+                );
+                asset_context.process(
+                    Vc::upcast(source),
+                    Value::new(ReferenceType::EcmaScriptModules(
+                        EcmaScriptModulesReferenceSubType::Undefined,
+                    )),
+                )
+            };
+            ((layer, module), actions)
+        })
         .collect::<IndexMap<_, _>>();
 
     all_actions.sort_keys();
@@ -192,11 +219,11 @@ async fn get_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<ModuleActionMap>>
 /// Our graph traversal visitor, which finds the primary modules directly
 /// referenced by [parent].
 async fn get_referenced_modules(
-    parent: Vc<Box<dyn Module>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn Module>>> + Send> {
-    primary_referenced_modules(parent)
+    (layer, module): (ActionLayer, Vc<Box<dyn Module>>),
+) -> Result<impl Iterator<Item = (ActionLayer, Vc<Box<dyn Module>>)> + Send> {
+    primary_referenced_modules(module)
         .await
-        .map(|modules| modules.clone_value().into_iter())
+        .map(|modules| modules.clone_value().into_iter().map(move |m| (layer, m)))
 }
 
 /// Inspects the comments inside [module] looking for the magic actions comment.
@@ -231,19 +258,21 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
 /// Converts our cached [parsed_actions] call into a data type suitable for
 /// collecting into a flat-mapped [IndexMap].
 async fn parse_actions_filter_map(
-    module: Vc<Box<dyn Module>>,
-) -> Result<Option<(Vc<Box<dyn Module>>, Vc<ActionMap>)>> {
+    (layer, module): (ActionLayer, Vc<Box<dyn Module>>),
+) -> Result<Option<((ActionLayer, Vc<Box<dyn Module>>), Vc<ActionMap>)>> {
     parse_actions(module).await.map(|option_action_map| {
         option_action_map
             .clone_value()
-            .map(|action_map| (module, action_map))
+            .map(|action_map| ((layer, module), action_map))
     })
 }
+
+type LayerModuleActionMap = IndexMap<(ActionLayer, Vc<Box<dyn Module>>), Vc<ActionMap>>;
 
 /// A mapping of every module which exports a Server Action, with the hashed id
 /// and exported name of each found action.
 #[turbo_tasks::value(transparent)]
-struct ModuleActionMap(IndexMap<Vc<Box<dyn Module>>, Vc<ActionMap>>);
+struct ModuleActionMap(LayerModuleActionMap);
 
 #[turbo_tasks::value_impl]
 impl ModuleActionMap {

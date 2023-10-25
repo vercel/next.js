@@ -1084,8 +1084,9 @@ export function getEnabledExperimentalFeatures(
       userNextConfigExperimental
     ) as (keyof ExperimentalConfig)[]) {
       if (
+        featureName in defaultConfig.experimental &&
         userNextConfigExperimental[featureName] !==
-        defaultConfig.experimental[featureName]
+          defaultConfig.experimental[featureName]
       ) {
         enabledExperiments.push(featureName)
       }
