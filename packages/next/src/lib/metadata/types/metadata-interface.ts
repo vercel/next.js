@@ -172,7 +172,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="viewport" content="width=device-width, initial-scale=1" />
    * ```
    */
-  viewport?: null | ViewportLayout
+  viewport?: null | string | ViewportLayout
 
   /**
    * The creator of the document.
@@ -487,7 +487,7 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   /**
    * @deprecated
    */
-  viewport: null | ViewportLayout
+  viewport: null | string
   creator: null | string
   publisher: null | string
 
