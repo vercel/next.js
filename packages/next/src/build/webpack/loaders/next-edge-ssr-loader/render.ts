@@ -54,9 +54,8 @@ export function getRender({
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
   clientReferenceManifest?: ClientReferenceManifest
-  serverActionsManifest: any
+  serverActionsManifest?: any
   serverActionsBodySizeLimit?: SizeLimit
-  appServerMod: any
   config: NextConfigComplete
   buildId: string
   nextFontManifest: NextFontManifest

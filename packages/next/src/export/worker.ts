@@ -7,7 +7,6 @@ import type {
   WorkerRenderOpts,
 } from './types'
 
-import '../server/node-polyfill-web-streams'
 import '../server/node-environment'
 
 process.env.NEXT_IS_EXPORT_WORKER = 'true'
@@ -65,9 +64,6 @@ async function exportPageImpl(
     trailingSlash,
   } = input
 
-  if (input.renderOpts.deploymentId) {
-    process.env.NEXT_DEPLOYMENT_ID = input.renderOpts.deploymentId
-  }
   if (enableExperimentalReact) {
     process.env.__NEXT_EXPERIMENTAL_REACT = 'true'
   }
@@ -173,7 +169,7 @@ async function exportPageImpl(
           dl.defaultLocale === locale || dl.locales?.includes(locale || '')
       )
     ) {
-      addRequestMeta(req, '__nextIsLocaleDomain', true)
+      addRequestMeta(req, 'isLocaleDomain', true)
     }
 
     envConfig.setConfig({
@@ -361,5 +357,7 @@ export default async function exportPage(
     revalidate: result.revalidate,
     metadata: result.metadata,
     ssgNotFound: result.ssgNotFound,
+    hasEmptyPrelude: result.hasEmptyPrelude,
+    hasPostponed: result.hasPostponed,
   }
 }

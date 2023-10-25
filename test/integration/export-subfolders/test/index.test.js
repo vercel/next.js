@@ -1,11 +1,10 @@
 /* eslint-env jest */
 
-import { promises } from 'fs'
+import { access, readFile } from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { nextBuild, nextExport } from 'next-test-utils'
+import { nextBuild } from 'next-test-utils'
 
-const { access, readFile } = promises
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 
@@ -13,7 +12,6 @@ describe('Export config#exportTrailingSlash set to false', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
-      await nextExport(appDir, { outdir })
     })
 
     it('should export pages as [filename].html instead of [filename]/index.html', async () => {

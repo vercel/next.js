@@ -163,10 +163,6 @@ export interface ExperimentalConfig {
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
   deploymentId?: string
-  logging?: {
-    level?: 'verbose'
-    fullUrl?: boolean
-  }
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -281,7 +277,6 @@ export interface ExperimentalConfig {
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
-   * This option requires `appDir` to be enabled first.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
    */
   typedRoutes?: boolean
@@ -297,15 +292,15 @@ export interface ExperimentalConfig {
   instrumentationHook?: boolean
 
   /**
-   * Enables server actions. Using this feature will enable the `react@experimental` for the `app` directory.
-   * @see https://nextjs.org/docs/app/api-reference/functions/server-actions
-   */
-  serverActions?: boolean
-
-  /**
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   ppr?: boolean
+
+  /**
+   * Enables experimental taint APIs in React.
+   * Using this feature will enable the `react@experimental` for the `app` directory.
+   */
+  taint?: boolean
 
   /**
    * Allows adjusting body parser size limit for server actions.
@@ -661,6 +656,12 @@ export interface NextConfig extends Record<string, any> {
       skipDefaultConversion?: boolean
     }
   >
+
+  logging?: {
+    fetches?: {
+      fullUrl?: boolean
+    }
+  }
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
