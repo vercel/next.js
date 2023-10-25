@@ -502,7 +502,7 @@ async fn add_app_page(
             };
 
             if page.len() < stored_page.len()
-                || (page.len() == stored_page.len() && page.to_string() < stored_page.to_string())
+                || (page.len() == stored_page.len() && page.to_string() > stored_page.to_string())
             {
                 *stored_page = page;
             }
