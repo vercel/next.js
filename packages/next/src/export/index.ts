@@ -489,7 +489,7 @@ export async function exportAppImpl(
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     serverComponents: options.hasAppDir,
     serverActionsBodySizeLimit:
-      nextConfig.experimental.serverActionsBodySizeLimit,
+      nextConfig.experimental.serverActions?.bodySizeLimit,
     nextFontManifest: require(join(
       distDir,
       'server',

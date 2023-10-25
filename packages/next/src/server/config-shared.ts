@@ -306,10 +306,12 @@ export interface ExperimentalConfig {
    */
   taint?: boolean
 
-  /**
-   * Allows adjusting body parser size limit for server actions.
-   */
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    /**
+     * Allows adjusting body parser size limit for server actions.
+     */
+    bodySizeLimit?: SizeLimit
+  }
 
   /**
    * enables the minification of server code.

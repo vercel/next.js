@@ -2091,7 +2091,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               isRevalidate: isSSG,
               originalPathname: components.ComponentMod.originalPathname,
               serverActionsBodySizeLimit:
-                this.nextConfig.experimental.serverActionsBodySizeLimit,
+                this.nextConfig.experimental.serverActions?.bodySizeLimit,
             }
           : {}),
         isDataReq,
