@@ -83,6 +83,8 @@ export default function Layout(props) {
 
 > **Good to know**: The `children` prop is an implicit slot that does not need to be mapped to a folder. This means `app/page.js` is equivalent to `app/@children/page.js`.
 
+> **Note**: To use parallel routes, you have to enable [`typedRoutes`](/docs/app/api-reference/next-config-js/typedRoutes) in `next.config.js`.
+
 ## Unmatched Routes
 
 By default, the content rendered within a slot will match the current URL.
