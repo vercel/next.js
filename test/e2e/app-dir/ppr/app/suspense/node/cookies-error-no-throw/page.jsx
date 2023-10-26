@@ -7,7 +7,7 @@ export default async function Page() {
       <h2>Dynamic Component Catching Errors</h2>
       <p>
         This shows the dynamic component that reads cookies but wraps the read
-        in a try/catch.
+        in a try/catch. This test does not re-throw the caught error.
       </p>
       <div id="container">
         <Suspense fallback={<div>Loading...</div>}>
