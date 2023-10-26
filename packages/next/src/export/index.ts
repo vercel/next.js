@@ -898,8 +898,16 @@ export default async function exportApp(
 }
 
 process.on('unhandledRejection', (err) => {
+  // if it's a postpone error, it'll be handled later
+  // when the postponed promise is awaited.
   if (isPostpone(err)) {
     return
   }
-  throw err
+  console.error(err)
+})
+
+process.on('rejectionHandled', () => {
+  // It is ok to await a Promise late in Next.js as it allows for better
+  // prefetching patterns to avoid waterfalls. We ignore loggining these.
+  // We should've already errored in anyway unhandledRejection.
 })
