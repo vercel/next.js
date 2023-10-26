@@ -865,6 +865,7 @@ impl AppEndpoint {
                             async move {
                                 Ok(node_root_value
                                     .get_path_to(&*file.ident().path().await?)
+                                    .filter(|path| path.ends_with(".js"))
                                     .map(|path| path.to_string()))
                             }
                         }
@@ -882,6 +883,7 @@ impl AppEndpoint {
                         async move {
                             Ok(node_root_value
                                 .get_path_to(&*file.ident().path().await?)
+                                .filter(|path| path.ends_with(".js"))
                                 .map(|path| path.to_string()))
                         }
                     })

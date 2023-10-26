@@ -306,10 +306,12 @@ export interface ExperimentalConfig {
    */
   taint?: boolean
 
-  /**
-   * Allows adjusting body parser size limit for server actions.
-   */
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    /**
+     * Allows adjusting body parser size limit for server actions.
+     */
+    bodySizeLimit?: SizeLimit
+  }
 
   /**
    * enables the minification of server code.
@@ -580,6 +582,8 @@ export interface NextConfig extends Record<string, any> {
    * that are needed for deploying a production version of your application.
    *
    * @see [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
+   * @deprecated will be enabled by default and removed in Next.js 15
+   *
    */
   outputFileTracing?: boolean
 
@@ -600,6 +604,7 @@ export interface NextConfig extends Record<string, any> {
 
   /**
    * Use [SWC compiler](https://swc.rs) to minify the generated JavaScript
+   * @deprecated will be enabled by default and removed in Next.js 15
    *
    * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
    */

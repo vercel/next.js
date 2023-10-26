@@ -137,7 +137,6 @@ export interface RenderOptsPartial {
   isPrefetch?: boolean
   ppr: boolean
   postponed?: string
-  hasPostponeErrors?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
