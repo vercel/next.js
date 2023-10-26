@@ -252,7 +252,7 @@ function assignDefaults(
 
   const result = { ...defaultConfig, ...config }
 
-  if (result.experimental?.ppr && !process.env.__NEXT_VERSION.includes('canary')) {
+  if (result.experimental?.ppr && !process.env.__NEXT_VERSION!.includes('canary')) {
     Log.warn(
       `The experimental.ppr feature is present in your current version but we recommend using the latest canary version for the best experience.`
     )
