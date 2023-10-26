@@ -3189,9 +3189,11 @@
       "app dir - hooks from pages should have the correct hooks",
       "app dir - hooks useDraftMode should genenerate rand when draft mode enabled",
       "app dir - hooks useDraftMode should use initial rand when draft mode be disabled",
+      "app dir - hooks useRouter should allow access to the router"
+    ],
+    "failed": [
       "app dir - hooks usePathname should have the canonical url pathname on rewrite",
       "app dir - hooks usePathname should have the correct pathname",
-      "app dir - hooks useRouter should allow access to the router",
       "app dir - hooks useSearchParams should have the canonical url search params on rewrite",
       "app dir - hooks useSearchParams should have the correct search params",
       "app dir - hooks useSelectedLayoutSegment should have the correct layout segment at /hooks/use-selected-layout-segment/first",
@@ -3206,7 +3208,6 @@
       "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/rewritten-middleware",
       "app dir - hooks useSelectedLayoutSegments should return an empty array in pages"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13511,6 +13512,7 @@
   "test/integration/react-streaming/test/index.test.js": {
     "passed": [
       "streaming dev dev should not stream to crawlers or google pagerender bot",
+      "streaming dev dev should render 500 error correctly",
       "streaming dev dev should render fallback if error raised from suspense during streaming",
       "streaming dev dev should support streaming for fizz response"
     ],
@@ -13521,7 +13523,7 @@
       "production mode streaming prod prod should render fallback if error raised from suspense during streaming",
       "production mode streaming prod prod should support streaming for fizz response"
     ],
-    "flakey": ["streaming dev dev should render 500 error correctly"],
+    "flakey": [],
     "runtimeError": false
   },
   "test/integration/read-only-source-hmr/test/index.test.js": {
