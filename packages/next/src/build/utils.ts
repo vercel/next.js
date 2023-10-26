@@ -461,9 +461,9 @@ export async function printTreeView(
         symbol = 'ℇ'
       } else if (pageInfo?.isPPR) {
         // If the page has an empty prelude, then it's equivalent to a static page.
-        if (pageInfo?.hasEmptyPrelude) {
+        if (pageInfo?.hasEmptyPrelude || pageInfo.isDynamicAppRoute) {
           symbol = 'λ'
-        } else if (!pageInfo?.hasPostponed && !pageInfo.isDynamicAppRoute) {
+        } else if (!pageInfo?.hasPostponed) {
           symbol = '○'
         } else {
           symbol = '◐'
