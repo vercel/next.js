@@ -59,7 +59,7 @@ pub(super) async fn build_font_face_definitions(
             }}
         "#,
             *scoped_font_family.await?,
-            &font.path.replace("/index.ts/", "/"),
+            &font.path,
             ext_to_format(&font.ext)?,
             options.display,
             &font
