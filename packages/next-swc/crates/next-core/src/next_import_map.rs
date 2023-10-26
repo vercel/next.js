@@ -708,6 +708,7 @@ async fn insert_optimized_module_aliases(
             "object.assign/polyfill" => "next/dist/build/polyfills/object.assign/polyfill.js".to_string(),
             "object.assign/shim" => "next/dist/build/polyfills/object.assign/shim.js".to_string(),
             "url" => "next/dist/compiled/native-url".to_string(),
+            "node:url" => "next/dist/compiled/native-url".to_string(),
         },
     );
     Ok(())
