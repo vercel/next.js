@@ -64,9 +64,6 @@ async function exportPageImpl(
     trailingSlash,
   } = input
 
-  if (input.renderOpts.deploymentId) {
-    process.env.NEXT_DEPLOYMENT_ID = input.renderOpts.deploymentId
-  }
   if (enableExperimentalReact) {
     process.env.__NEXT_EXPERIMENTAL_REACT = 'true'
   }
@@ -360,5 +357,7 @@ export default async function exportPage(
     revalidate: result.revalidate,
     metadata: result.metadata,
     ssgNotFound: result.ssgNotFound,
+    hasEmptyPrelude: result.hasEmptyPrelude,
+    hasPostponed: result.hasPostponed,
   }
 }

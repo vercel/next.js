@@ -4,7 +4,6 @@ import type {
   Route,
   TurbopackResult,
   WrittenEndpoint,
-  ServerClientChange,
   Issue,
   Project,
 } from '../../../build/swc'
@@ -27,7 +26,7 @@ import type {
 } from '../../dev/hot-reloader-types'
 
 import ws from 'next/dist/compiled/ws'
-import { ServerClientChangeType, createDefineEnv } from '../../../build/swc'
+import { createDefineEnv } from '../../../build/swc'
 import fs from 'fs'
 import url from 'url'
 import path from 'path'
@@ -484,14 +483,10 @@ async function startWatcher(opts: SetupOpts) {
       }
 
       hotReloader.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
         hash: String(++hmrHash),
         errors: [...errors.values()],
         warnings: [],
-        versionInfo: {
-          installed: '0.0.0',
-          staleness: 'unknown',
-        },
       })
       hmrBuilding = false
 
@@ -638,32 +633,39 @@ async function startWatcher(opts: SetupOpts) {
 
     async function changeSubscription(
       page: string,
+      type: 'client' | 'server',
+      includeIssues: boolean,
       endpoint: Endpoint | undefined,
       makePayload: (
         page: string,
-        change: TurbopackResult<ServerClientChange>
+        change: TurbopackResult
       ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
     ) {
-      if (!endpoint || changeSubscriptions.has(page)) return
+      const key = `${page} (${type})`
+      if (!endpoint || changeSubscriptions.has(key)) return
 
-      const changedPromise = endpoint.changed()
-      changeSubscriptions.set(page, changedPromise)
+      const changedPromise = endpoint[`${type}Changed`](includeIssues)
+      changeSubscriptions.set(key, changedPromise)
       const changed = await changedPromise
 
       for await (const change of changed) {
-        processIssues(page, page, change)
+        processIssues(key, page, change)
         const payload = await makePayload(page, change)
-        if (payload) sendHmr('endpoint-change', page, payload)
+        if (payload) sendHmr('endpoint-change', key, payload)
       }
     }
 
-    async function clearChangeSubscription(page: string) {
-      const subscription = await changeSubscriptions.get(page)
+    async function clearChangeSubscription(
+      page: string,
+      type: 'server' | 'client'
+    ) {
+      const key = `${page} (${type})`
+      const subscription = await changeSubscriptions.get(key)
       if (subscription) {
         subscription.return?.()
-        changeSubscriptions.delete(page)
+        changeSubscriptions.delete(key)
       }
-      issues.delete(page)
+      issues.delete(key)
     }
 
     function mergeBuildManifests(manifests: Iterable<BuildManifest>) {
@@ -1072,7 +1074,7 @@ async function startWatcher(opts: SetupOpts) {
           // unnecessary during the first serve)
           if (prevMiddleware === true && !middleware) {
             // Went from middleware to no middleware
-            await clearChangeSubscription('middleware')
+            await clearChangeSubscription('middleware', 'server')
             sendHmr('entrypoint-change', 'middleware', {
               event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
@@ -1101,19 +1103,28 @@ async function startWatcher(opts: SetupOpts) {
             }
             await processMiddleware()
 
-            changeSubscription('middleware', middleware.endpoint, async () => {
-              const finishBuilding = startBuilding('middleware', true)
-              await processMiddleware()
-              await propagateServerField(
-                'actualMiddlewareFile',
-                serverFields.actualMiddlewareFile
-              )
-              await propagateServerField('middleware', serverFields.middleware)
-              await writeMiddlewareManifest()
+            changeSubscription(
+              'middleware',
+              'server',
+              false,
+              middleware.endpoint,
+              async () => {
+                const finishBuilding = startBuilding('middleware', true)
+                await processMiddleware()
+                await propagateServerField(
+                  'actualMiddlewareFile',
+                  serverFields.actualMiddlewareFile
+                )
+                await propagateServerField(
+                  'middleware',
+                  serverFields.middleware
+                )
+                await writeMiddlewareManifest()
 
-              finishBuilding()
-              return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
-            })
+                finishBuilding()
+                return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
+              }
+            )
             prevMiddleware = true
           } else {
             middlewareManifests.delete('middleware')
@@ -1222,6 +1233,7 @@ async function startWatcher(opts: SetupOpts) {
               case 'client-reload-page': // { clientId }
               case 'client-removed-page': // { page }
               case 'client-full-reload': // { stackTrace, hadRuntimeError }
+              case 'client-added-page':
                 // TODO
                 break
 
@@ -1314,9 +1326,15 @@ async function startWatcher(opts: SetupOpts) {
                 '_document',
                 await globalEntries.document.writeToDisk()
               )
-              changeSubscription('_document', globalEntries.document, () => {
-                return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-              })
+              changeSubscription(
+                '_document',
+                'server',
+                false,
+                globalEntries.document,
+                () => {
+                  return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+                }
+              )
               processIssues('_document', '_document', writtenEndpoint)
             }
             await loadPagesManifest('_document')
@@ -1390,68 +1408,85 @@ async function startWatcher(opts: SetupOpts) {
               }
 
               finishBuilding = startBuilding(buildingKey)
-              if (globalEntries.app) {
-                const writtenEndpoint = await processResult(
-                  '_app',
-                  await globalEntries.app.writeToDisk()
-                )
-                processIssues('_app', '_app', writtenEndpoint)
-              }
-              await loadBuildManifest('_app')
-              await loadPagesManifest('_app')
-
-              if (globalEntries.document) {
-                const writtenEndpoint = await processResult(
-                  '_document',
-                  await globalEntries.document.writeToDisk()
-                )
-
-                changeSubscription('_document', globalEntries.document, () => {
-                  return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-                })
-                processIssues('_document', '_document', writtenEndpoint)
-              }
-              await loadPagesManifest('_document')
-
-              const writtenEndpoint = await processResult(
-                page,
-                await route.htmlEndpoint.writeToDisk()
-              )
-
-              changeSubscription(
-                page,
-                route.dataEndpoint,
-                (pageName, change) => {
-                  switch (change.type) {
-                    case ServerClientChangeType.Server:
-                    case ServerClientChangeType.Both:
-                      return {
-                        event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
-                        pages: [pageName],
-                      }
-                    default:
-                  }
+              try {
+                if (globalEntries.app) {
+                  const writtenEndpoint = await processResult(
+                    '_app',
+                    await globalEntries.app.writeToDisk()
+                  )
+                  processIssues('_app', '_app', writtenEndpoint)
                 }
-              )
+                await loadBuildManifest('_app')
+                await loadPagesManifest('_app')
 
-              const type = writtenEndpoint?.type
+                if (globalEntries.document) {
+                  const writtenEndpoint = await processResult(
+                    '_document',
+                    await globalEntries.document.writeToDisk()
+                  )
 
-              await loadBuildManifest(page)
-              await loadPagesManifest(page)
-              if (type === 'edge') {
-                await loadMiddlewareManifest(page, 'pages')
-              } else {
-                middlewareManifests.delete(page)
+                  changeSubscription(
+                    '_document',
+                    'server',
+                    false,
+                    globalEntries.document,
+                    () => {
+                      return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+                    }
+                  )
+                  processIssues('_document', '_document', writtenEndpoint)
+                }
+                await loadPagesManifest('_document')
+
+                const writtenEndpoint = await processResult(
+                  page,
+                  await route.htmlEndpoint.writeToDisk()
+                )
+
+                const type = writtenEndpoint?.type
+
+                await loadBuildManifest(page)
+                await loadPagesManifest(page)
+                if (type === 'edge') {
+                  await loadMiddlewareManifest(page, 'pages')
+                } else {
+                  middlewareManifests.delete(page)
+                }
+                await loadLoadableManifest(page, 'pages')
+
+                await writeBuildManifest(opts.fsChecker.rewrites)
+                await writeFallbackBuildManifest()
+                await writePagesManifest()
+                await writeMiddlewareManifest()
+                await writeLoadableManifest()
+
+                processIssues(page, page, writtenEndpoint)
+              } finally {
+                changeSubscription(
+                  page,
+                  'server',
+                  false,
+                  route.dataEndpoint,
+                  (pageName) => {
+                    console.log('server change', pageName)
+                    return {
+                      event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
+                      pages: [pageName],
+                    }
+                  }
+                )
+                changeSubscription(
+                  page,
+                  'client',
+                  false,
+                  route.htmlEndpoint,
+                  () => {
+                    return {
+                      event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
+                    }
+                  }
+                )
               }
-              await loadLoadableManifest(page, 'pages')
-
-              await writeBuildManifest(opts.fsChecker.rewrites)
-              await writeFallbackBuildManifest()
-              await writePagesManifest()
-              await writeMiddlewareManifest()
-              await writeLoadableManifest()
-
-              processIssues(page, page, writtenEndpoint)
 
               break
             }
@@ -1491,22 +1526,25 @@ async function startWatcher(opts: SetupOpts) {
                 await route.htmlEndpoint.writeToDisk()
               )
 
-              changeSubscription(page, route.rscEndpoint, (_page, change) => {
-                if (change.issues.some((issue) => issue.severity === 'error')) {
-                  // Ignore any updates that has errors
-                  // There will be another update without errors eventually
-                  return
+              changeSubscription(
+                page,
+                'server',
+                true,
+                route.rscEndpoint,
+                (_page, change) => {
+                  if (
+                    change.issues.some((issue) => issue.severity === 'error')
+                  ) {
+                    // Ignore any updates that has errors
+                    // There will be another update without errors eventually
+                    return
+                  }
+                  return {
+                    action:
+                      HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+                  }
                 }
-                switch (change.type) {
-                  case ServerClientChangeType.Server:
-                  case ServerClientChangeType.Both:
-                    return {
-                      action:
-                        HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-                    }
-                  default:
-                }
-              })
+              )
 
               const type = writtenEndpoint?.type
 
