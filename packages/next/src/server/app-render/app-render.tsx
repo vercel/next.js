@@ -61,7 +61,7 @@ import { validateURL } from './validate-url'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
-import { warn } from '../../build/output/log'
+import { warn, error } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
@@ -463,13 +463,16 @@ async function renderToHTMLOrFlightImpl(
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
+  const postponeErrors: Error[] = []
   const isNextExport = !!renderOpts.nextExport
   const serverComponentsErrorHandler = createErrorHandler({
     _source: 'serverComponentsRenderer',
     dev,
     isNextExport,
+    postponeErrors: renderOpts.ppr ? postponeErrors : undefined,
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
+    skipLogging: renderOpts.ppr,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
     _source: 'flightDataRenderer',
@@ -477,6 +480,7 @@ async function renderToHTMLOrFlightImpl(
     isNextExport,
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
+    skipLogging: renderOpts.ppr,
   })
   const htmlRendererErrorHandler = createErrorHandler({
     _source: 'htmlRenderer',
@@ -485,6 +489,7 @@ async function renderToHTMLOrFlightImpl(
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
     allCapturedErrors,
+    skipLogging: renderOpts.ppr,
   })
 
   patchFetch(ComponentMod)
@@ -778,15 +783,6 @@ async function renderToHTMLOrFlightImpl(
           throw err
         }
 
-        // If there was a postponed error that escaped, it means that there was
-        // a postpone called without a wrapped suspense component.
-        if (err.$$typeof === Symbol.for('react.postpone')) {
-          // Ensure that we force the revalidation time to zero.
-          staticGenerationStore.revalidate = 0
-
-          throw err
-        }
-
         if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
           warn(
             `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
@@ -1003,6 +999,29 @@ async function renderToHTMLOrFlightImpl(
   if (staticGenerationStore.isStaticGeneration) {
     const htmlResult = await renderResult.toUnchunkedString(true)
 
+    if (renderOpts.ppr && postponeErrors.length > 0) {
+      renderOpts.hasPostponeErrors = true
+    }
+
+    if (
+      renderOpts.ppr &&
+      staticGenerationStore.postponeWasTriggered &&
+      !extraRenderResultMeta.postponed
+    ) {
+      warn('')
+      warn(
+        `${urlPathname} opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.`
+      )
+
+      if (postponeErrors.length > 0) {
+        warn(
+          'The following errors were re-thrown, and might help find the location of the try/catch that triggered this.'
+        )
+        for (let i = 0; i < postponeErrors.length; i++) {
+          error(`${postponeErrors[i].stack?.split('\n').join('\n ')}`)
+        }
+      }
+    }
     // if we encountered any unexpected errors during build
     // we fail the prerendering phase and the build
     if (capturedErrors.length > 0) {

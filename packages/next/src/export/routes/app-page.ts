@@ -187,10 +187,13 @@ export async function exportAppPage(
       revalidate,
     }
   } catch (err: any) {
-    if (!isDynamicUsageError(err)) {
+    // if the error isn't a special dynamic usage error (caught by Next)
+    // we also do not throw the error if it occurred while attempting a postpone
+    // since those will be captured and logged during build/ISR
+    if (!isDynamicUsageError(err) && !renderOpts.hasPostponeErrors) {
       throw err
     }
 
-    return { revalidate: 0 }
+    return { revalidate: 0, hasEmptyPrelude: true }
   }
 }
