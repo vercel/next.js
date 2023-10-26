@@ -6,7 +6,6 @@ import type {
 } from 'http'
 import type { WebNextRequest } from '../base-http/web'
 import type { SizeLimit } from '../../../types'
-import type { ApiError } from '../api-utils'
 
 import {
   ACTION,
@@ -37,15 +36,6 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
 import type { AppRenderContext, GenerateFlight } from './app-render'
-
-function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { Readable } = require('stream') as typeof import('stream')
-    return Readable.toWeb(nodeReadable) as ReadableStream
-  } else {
-    throw new Error('Invalid runtime')
-  }
-}
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -390,13 +380,28 @@ export async function handleAction({
 
             bound = await decodeReplyFromBusboy(bb, serverModuleMap)
           } else {
+            // Convert the Node.js readable stream to a Web Stream.
+            const readableStream = new ReadableStream({
+              start(controller) {
+                req.on('data', (chunk) => {
+                  controller.enqueue(new Uint8Array(chunk))
+                })
+                req.on('end', () => {
+                  controller.close()
+                })
+                req.on('error', (err) => {
+                  controller.error(err)
+                })
+              },
+            })
+
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
             const fakeRequest = new Request('http://localhost', {
               method: 'POST',
               // @ts-expect-error
               headers: { 'Content-Type': contentType },
-              body: nodeToWebReadableStream(req),
+              body: readableStream,
               duplex: 'half',
             })
             const formData = await fakeRequest.formData()
@@ -408,21 +413,25 @@ export async function handleAction({
             return
           }
         } else {
-          const { parseBody } =
-            require('../api-utils/node/parse-body') as typeof import('../api-utils/node/parse-body')
+          const chunks = []
 
-          let actionData
-          try {
-            actionData =
-              (await parseBody(req, serverActionsBodySizeLimit ?? '1mb')) || ''
-          } catch (e: any) {
-            if (e && (e as ApiError).statusCode === 413) {
-              // Exceeded the size limit
-              e.message =
-                e.message +
-                '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
-            }
-            throw e
+          for await (const chunk of req) {
+            chunks.push(Buffer.from(chunk))
+          }
+
+          const actionData = Buffer.concat(chunks).toString('utf-8')
+
+          const limit = require('next/dist/compiled/bytes').parse(
+            serverActionsBodySizeLimit ?? '1mb'
+          )
+
+          if (actionData.length > limit) {
+            const { ApiError } = require('../api-utils')
+            throw new ApiError(
+              413,
+              `Body exceeded ${serverActionsBodySizeLimit} limit.
+To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation`
+            )
           }
 
           if (isURLEncodedAction) {

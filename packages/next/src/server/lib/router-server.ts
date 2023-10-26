@@ -24,6 +24,7 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import setupCompression from 'next/dist/compiled/compression'
 import { NoFallbackError } from '../base-server'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
+import { isPostpone } from './router-utils/is-postpone'
 
 import {
   PHASE_PRODUCTION_SERVER,
@@ -150,6 +151,11 @@ export async function initialize(opts: {
     type: 'uncaughtException' | 'unhandledRejection',
     err: Error | undefined
   ) => {
+    if (isPostpone(err)) {
+      // React postpones that are unhandled might end up logged here but they're
+      // not really errors. They're just part of rendering.
+      return
+    }
     await developmentBundler?.logErrorWithOriginalStack(err, type)
   }
 

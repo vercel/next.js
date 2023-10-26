@@ -22,6 +22,7 @@ import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
+import { isPostpone } from './router-utils/is-postpone'
 
 const debug = setupDebug('next:start-server')
 
@@ -258,6 +259,12 @@ export async function startServer(
           process.exit(code ?? 0)
         }
         const exception = (err: Error) => {
+          if (isPostpone(err)) {
+            // React postpones that are unhandled might end up logged here but they're
+            // not really errors. They're just part of rendering.
+            return
+          }
+
           // This is the render worker, we keep the process alive
           console.error(err)
         }
@@ -265,6 +272,11 @@ export async function startServer(
         // callback value is signal string, exit with 0
         process.on('SIGINT', () => cleanup(0))
         process.on('SIGTERM', () => cleanup(0))
+        process.on('rejectionHandled', () => {
+          // It is ok to await a Promise late in Next.js as it allows for better
+          // prefetching patterns to avoid waterfalls. We ignore loggining these.
+          // We should've already errored in anyway unhandledRejection.
+        })
         process.on('uncaughtException', exception)
         process.on('unhandledRejection', exception)
 

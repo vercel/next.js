@@ -277,13 +277,16 @@ export interface ExperimentalConfig {
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
-   * This option requires `appDir` to be enabled first.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
    */
   typedRoutes?: boolean
 
   /**
-   * This option is to enable running the Webpack build in a worker thread.
+   * Run the Webpack build in a separate process to optimize memory usage during build.
+   * Valid values are:
+   * - `false`: Disable the Webpack build worker
+   * - `true`: Enable the Webpack build worker
+   * - `undefined`: Enable the Webpack build worker only if the webpack config is not customized
    */
   webpackBuildWorker?: boolean
 
@@ -772,6 +775,7 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
+    webpackBuildWorker: undefined,
   },
 }
 

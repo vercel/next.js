@@ -65,7 +65,7 @@ export default function nextJest(options: { dir?: string } = {}) {
       let resolvedBaseUrl
       let isEsmProject = false
       let pagesDir: string | undefined
-      let hasServerComponents: boolean | undefined
+      let serverComponents: boolean | undefined
 
       if (options.dir) {
         const resolvedDir = resolve(options.dir)
@@ -74,7 +74,7 @@ export default function nextJest(options: { dir?: string } = {}) {
 
         nextConfig = await getConfig(resolvedDir)
         const findPagesDirResult = findPagesDir(resolvedDir)
-        hasServerComponents = !!findPagesDirResult.appDir
+        serverComponents = !!findPagesDirResult.appDir
         pagesDir = findPagesDirResult.pagesDir
         setUpEnv(resolvedDir)
         // TODO: revisit when bug in SWC is fixed that strips `.css`
@@ -103,7 +103,7 @@ export default function nextJest(options: { dir?: string } = {}) {
         compilerOptions: nextConfig?.compiler,
         jsConfig,
         resolvedBaseUrl,
-        hasServerComponents,
+        serverComponents,
         isEsmProject,
         pagesDir,
       }

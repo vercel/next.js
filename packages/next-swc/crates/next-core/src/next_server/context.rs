@@ -248,7 +248,7 @@ pub async fn get_server_module_options_context(
 
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
-    let enable_postcss_transform = Some(PostCssTransformOptions {
+    let postcss_transform_options = Some(PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
         ..Default::default()
     });
@@ -351,6 +351,8 @@ pub async fn get_server_module_options_context(
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
+                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
+                enable_postcss_transform: postcss_transform_options.clone(),
                 ..module_options_context.clone()
             };
 
@@ -363,8 +365,8 @@ pub async fn get_server_module_options_context(
 
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_postcss_transform,
                 enable_webpack_loaders,
+                enable_postcss_transform: postcss_transform_options,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -416,6 +418,8 @@ pub async fn get_server_module_options_context(
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
+                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
+                enable_postcss_transform: postcss_transform_options.clone(),
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -424,10 +428,20 @@ pub async fn get_server_module_options_context(
                 ..module_options_context.clone()
             };
 
+            // Get the jsx transform options for the `client` side.
+            // This matches to the behavior of existing webpack config, if issuer layer is
+            // ssr or pages-browser (client bundle for the browser)
+            // applies client specific swc transforms.
+            //
+            // This enables correct emotion transform and other hydration between server and
+            // client bundles. ref: https://github.com/vercel/next.js/blob/4bbf9b6c70d2aa4237defe2bebfa790cdb7e334e/packages/next/src/build/webpack-config.ts#L1421-L1426
+            let jsx_runtime_options =
+                get_jsx_transform_options(project_path, mode, None, false, next_config);
+
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_postcss_transform,
                 enable_webpack_loaders,
+                enable_postcss_transform: postcss_transform_options,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -488,6 +502,8 @@ pub async fn get_server_module_options_context(
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
+                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
+                enable_postcss_transform: postcss_transform_options.clone(),
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -497,8 +513,8 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_postcss_transform,
                 enable_webpack_loaders,
+                enable_postcss_transform: postcss_transform_options,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -528,8 +544,8 @@ pub async fn get_server_module_options_context(
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
-                enable_postcss_transform,
                 enable_webpack_loaders,
+                enable_postcss_transform: postcss_transform_options,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -577,8 +593,8 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_postcss_transform,
                 enable_webpack_loaders,
+                enable_postcss_transform: postcss_transform_options,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
