@@ -160,6 +160,9 @@ impl ClientReferenceManifest {
                         .iter()
                         .filter_map(|chunk_path| client_relative_path.get_path_to(chunk_path))
                         .map(ToString::to_string)
+                        // It's possible that a chunk also emits CSS files, that will
+                        // be handled separatedly.
+                        .filter(|path| path.ends_with(".js"))
                         .collect::<Vec<_>>();
 
                     let ssr_chunks_paths = ssr_chunks
