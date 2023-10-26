@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-b8e47d988-20231023';
+var ReactVersion = '18.3.0-experimental-a9985529f-20231025';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 

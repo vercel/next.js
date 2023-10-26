@@ -277,7 +277,6 @@ export interface ExperimentalConfig {
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
-   * This option requires `appDir` to be enabled first.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
    */
   typedRoutes?: boolean
