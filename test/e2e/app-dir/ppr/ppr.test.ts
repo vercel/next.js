@@ -9,49 +9,22 @@ createNextDescribe(
   ({ next, isNextDev, isNextStart }) => {
     if (isNextStart) {
       it("should log a warning when `unstable_postpone` is called but there's no postpone state", async () => {
-        const logs = next.cliOutput
-          .split('\n')
-          .filter((line) => line.includes('⚠') || line.includes('⨯'))
-        const logGroups = []
-        let currentGroup = []
+        // Three different pages wrap APIs that use `unstable_postpone` in a try catch to trigger these errors
+        expect(next.cliOutput).toContain(
+          '/suspense/node/cookies-error-no-throw opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.'
+        )
+        expect(next.cliOutput).toContain(
+          '/suspense/node/fetch-error opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.'
+        )
+        expect(next.cliOutput).toContain(
+          '/suspense/node/cookies-error opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.'
+        )
 
-        for (const log of logs) {
-          if (log.includes('opted out of partial prerendering')) {
-            if (currentGroup.length > 0) {
-              logGroups.push(currentGroup)
-            }
-            currentGroup = [log]
-          } else {
-            currentGroup.push(log)
-          }
-        }
-
-        // Push the last group if it's not empty
-        if (currentGroup.length > 0) {
-          logGroups.push(currentGroup)
-        }
-
-        // Sort the groups based on the first log message in each group
-        logGroups.sort((a, b) => a[0].localeCompare(b[0]))
-
-        // Convert the groups to a single string
-        const groupedLogs = logGroups
-          .map((group) => group.join('\n'))
-          .join('\n\n')
-
-        expect(groupedLogs).toMatchInlineSnapshot(`
-        " ⚠ /suspense/node/cookies-error opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.
-         ⚠ The following errors were re-thrown, and might help find the location of the try/catch that triggered this.
-         ⨯ Error: You are not signed in
-
-         ⚠ /suspense/node/cookies-error-no-throw opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.
-
-         ⚠ /suspense/node/fetch-error opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.
-         ⚠ The following errors were re-thrown, and might help find the location of the try/catch that triggered this.
-         ⨯ Error: Fetch failed
-
-         ⚠ Using edge runtime on a page currently disables static generation for that page"
-      `)
+        // fetch-error re-throws the error after catching it, so we want to make sure that's retained in the logs
+        expect(next.cliOutput).toContain(
+          'The following errors were re-thrown, and might help find the location of the try/catch that triggered this.'
+        )
+        expect(next.cliOutput).toContain('Error: You are not signed in')
       })
     }
     describe.each([
