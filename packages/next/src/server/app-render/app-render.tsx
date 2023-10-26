@@ -72,6 +72,8 @@ import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './action-encryption-utils'
 import { createStaticRenderer } from './static/static-renderer'
+import { isPostpone } from '../lib/router-utils/is-postpone'
+import { isDynamicUsageError } from './is-dynamic-usage-error'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -999,33 +1001,24 @@ async function renderToHTMLOrFlightImpl(
   if (staticGenerationStore.isStaticGeneration) {
     const htmlResult = await renderResult.toUnchunkedString(true)
 
-    if (renderOpts.ppr && postponeErrors.length > 0) {
-      renderOpts.hasPostponeErrors = true
-    }
-
     if (
       renderOpts.ppr &&
       staticGenerationStore.postponeWasTriggered &&
       !extraRenderResultMeta.postponed
     ) {
-      warn('')
-      warn(
-        `${urlPathname} opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.`
+      throw new Error(
+        `Postpone signal was caught while rendering ${urlPathname}. These errors should not be caught during static generation. Learn more: https://nextjs.org/docs/messages/ppr-postpone-errors`
       )
-
-      if (postponeErrors.length > 0) {
-        warn(
-          'The following errors were re-thrown, and might help find the location of the try/catch that triggered this.'
-        )
-        for (let i = 0; i < postponeErrors.length; i++) {
-          error(`${postponeErrors[i].stack?.split('\n').join('\n ')}`)
-        }
-      }
     }
-    // if we encountered any unexpected errors during build
-    // we fail the prerendering phase and the build
-    if (capturedErrors.length > 0) {
-      throw capturedErrors[0]
+
+    for (const err of capturedErrors) {
+      if (!isDynamicUsageError(err) && !isPostpone(err)) {
+        throw err
+      }
+
+      if (isDynamicUsageError(err)) {
+        staticGenerationStore.revalidate = 0
+      }
     }
 
     if (staticGenerationStore.forceStatic === false) {

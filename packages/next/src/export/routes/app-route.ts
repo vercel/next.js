@@ -16,7 +16,7 @@ import type {
   MockedRequest,
   MockedResponse,
 } from '../../server/lib/mock-request'
-import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
+import { isDynamicUsageError } from '../../server/app-render/is-dynamic-usage-error'
 import { SERVER_DIRECTORY } from '../../shared/lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 

@@ -9,7 +9,7 @@ export default async function Page() {
       <h2>Dynamic Component Catching Errors</h2>
       <p>
         This shows the dynamic component that reads cookies but wraps the read
-        in a try/catch. This test re-throws the error that is caught.
+        in a try/catch.
       </p>
       <div id="container">
         <Suspense fallback={<Dynamic fallback />}>
@@ -27,8 +27,6 @@ export default async function Page() {
 async function Foobar() {
   try {
     cookies()
-  } catch (err) {
-    throw new Error('You are not signed in')
-  }
+  } catch (err) {}
   return null
 }

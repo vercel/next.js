@@ -12,16 +12,13 @@ export default async function Page() {
 
   try {
     await getData()
-  } catch (err) {
-    throw new Error('Fetch failed')
-  }
+  } catch (err) {}
 
   return (
     <>
       <h2>Dynamic Component Catching Errors</h2>
       <p>
-        This shows the dynamic component that reads cookies but wraps the read
-        in a try/catch.
+        This shows the dynamic component that wraps a data fetch in a try/catch
       </p>
       <div id="container">
         <Suspense fallback={<Dynamic fallback />}>
