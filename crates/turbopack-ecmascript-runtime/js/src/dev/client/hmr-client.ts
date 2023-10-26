@@ -30,14 +30,12 @@ export function connect({
       default:
         if (Array.isArray(msg.data)) {
           for (let i = 0; i < msg.data.length; i++) {
-            handleSocketMessage(
-              msg.data[i] as ServerMessage,
-              i !== msg.data.length - 1
-            );
+            handleSocketMessage(msg.data[i] as ServerMessage);
           }
         } else {
           handleSocketMessage(msg.data as ServerMessage);
         }
+        applyAggregatedUpdates();
         break;
     }
   });
@@ -103,60 +101,31 @@ function handleSocketConnected(sendMessage: SendMessage) {
 }
 
 // we aggregate all pending updates until the issues are resolved
-const chunkListsWithPendingUpdates: Map<
-  ResourceKey,
-  { update: ChunkListUpdate; resource: ResourceIdentifier }
-> = new Map();
+const chunkListsWithPendingUpdates: Map<ResourceKey, PartialServerMessage> =
+  new Map();
 
-function aggregateUpdates(
-  msg: ServerMessage,
-  aggregate: boolean
-): ServerMessage {
+function aggregateUpdates(msg: PartialServerMessage) {
   const key = resourceKey(msg.resource);
   let aggregated = chunkListsWithPendingUpdates.get(key);
 
-  if (msg.type === "issues" && aggregated != null) {
-    if (!aggregate) {
-      chunkListsWithPendingUpdates.delete(key);
-    }
-
-    return {
-      ...msg,
-      type: "partial",
-      instruction: aggregated.update,
-    };
-  }
-
-  if (msg.type !== "partial") return msg;
-
-  if (aggregated == null) {
-    if (aggregate) {
-      chunkListsWithPendingUpdates.set(key, {
-        resource: msg.resource,
-        update: msg.instruction,
-      });
-    }
-
-    return msg;
-  }
-
-  aggregated = {
-    resource: msg.resource,
-    update: mergeChunkListUpdates(aggregated.update, msg.instruction),
-  };
-
-  if (aggregate) {
-    chunkListsWithPendingUpdates.set(key, aggregated);
+  if (aggregated) {
+    aggregated.instruction = mergeChunkListUpdates(
+      aggregated.instruction,
+      msg.instruction
+    );
   } else {
-    // Once we receive a partial update with no critical issues, we can stop aggregating updates.
-    // The aggregated update will be applied.
-    chunkListsWithPendingUpdates.delete(key);
+    chunkListsWithPendingUpdates.set(key, msg);
   }
+}
 
-  return {
-    ...msg,
-    instruction: aggregated.update,
-  };
+function applyAggregatedUpdates() {
+  if (chunkListsWithPendingUpdates.size === 0) return;
+  hooks.beforeRefresh();
+  for (const msg of chunkListsWithPendingUpdates.values()) {
+    triggerUpdate(msg);
+  }
+  chunkListsWithPendingUpdates.clear();
+  finalizeUpdate();
 }
 
 function mergeChunkListUpdates(
@@ -508,33 +477,37 @@ export function setHooks(newHooks: typeof hooks) {
   Object.assign(hooks, newHooks);
 }
 
-function handleSocketMessage(msg: ServerMessage, aggregate: boolean = false) {
+function handleSocketMessage(msg: ServerMessage) {
   sortIssues(msg.issues);
 
-  const hasCriticalIssues = handleIssues(msg);
+  handleIssues(msg);
 
-  // TODO(WEB-582) Disable update aggregation for now.
-  // if(hasCriticalIssues) {
-  //   aggregate = true;
-  // }
-  const aggregatedMsg = aggregateUpdates(msg, aggregate);
-
-  if (aggregate) return;
-
-  const runHooks = chunkListsWithPendingUpdates.size === 0;
-
-  if (aggregatedMsg.type !== "issues") {
-    if (runHooks) hooks.beforeRefresh();
-    triggerUpdate(aggregatedMsg);
-    if (runHooks) hooks.refresh();
+  switch (msg.type) {
+    case "issues":
+      // issues are already handled
+      break;
+    case "partial":
+      // aggregate updates
+      aggregateUpdates(msg);
+      break;
+    default:
+      // run single update
+      const runHooks = chunkListsWithPendingUpdates.size === 0;
+      if (runHooks) hooks.beforeRefresh();
+      triggerUpdate(msg);
+      if (runHooks) finalizeUpdate();
+      break;
   }
+}
 
-  if (runHooks) hooks.buildOk();
+function finalizeUpdate() {
+  hooks.refresh();
+  hooks.buildOk();
 
   // This is used by the Next.js integration test suite to notify it when HMR
   // updates have been completed.
   // TODO: Only run this in test environments (gate by `process.env.__NEXT_TEST_MODE`)
-  if (aggregatedMsg.type !== "issues" && globalThis.__NEXT_HMR_CB) {
+  if (globalThis.__NEXT_HMR_CB) {
     globalThis.__NEXT_HMR_CB();
     globalThis.__NEXT_HMR_CB = null;
   }
