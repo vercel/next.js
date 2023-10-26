@@ -418,7 +418,7 @@ export function getEdgeServerEntry(opts: {
       JSON.stringify(opts.middlewareConfig || {})
     ).toString('base64'),
     serverActionsBodySizeLimit:
-      opts.config.experimental.serverActionsBodySizeLimit,
+      opts.config.experimental.serverActions?.bodySizeLimit,
   }
 
   return {

@@ -24,6 +24,7 @@ import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../telemetry/ci-info'
+import { version } from 'next/package.json'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -252,6 +253,12 @@ function assignDefaults(
 
   const result = { ...defaultConfig, ...config }
 
+  if (result.experimental?.ppr && !version.includes('canary')) {
+    Log.warn(
+      `The experimental.ppr feature is present in your current version but we recommend using the latest canary version for the best experience.`
+    )
+  }
+
   if (result.output === 'export') {
     if (result.i18n) {
       throw new Error(
@@ -428,6 +435,16 @@ function assignDefaults(
     )
   }
 
+  if (result.outputFileTracing === false) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'outputFileTracing',
+      'Disabling outputFileTracing will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
+      silent
+    )
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',
@@ -473,9 +490,11 @@ function assignDefaults(
     result.output = 'standalone'
   }
 
-  if (typeof result.experimental?.serverActionsBodySizeLimit !== 'undefined') {
+  if (
+    typeof result.experimental?.serverActions?.bodySizeLimit !== 'undefined'
+  ) {
     const value = parseInt(
-      result.experimental.serverActionsBodySizeLimit.toString()
+      result.experimental.serverActions?.bodySizeLimit.toString()
     )
     if (isNaN(value) || value < 1) {
       throw new Error(

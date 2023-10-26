@@ -573,7 +573,6 @@ async fn insert_next_server_special_aliases(
         // TODO: should include `ServerContextType::PagesApi` routes, but that type doesn't exist.
         ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
-        | ServerContextType::AppSSR { .. }
         | ServerContextType::Middleware => {
             insert_exact_alias_map(
                 import_map,
@@ -583,6 +582,18 @@ async fn insert_next_server_special_aliases(
                     "client-only" => "next/dist/compiled/client-only/error".to_string(),
                     "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
                     "next/dist/compiled/client-only" => "next/dist/compiled/client-only/error".to_string(),
+                },
+            );
+        }
+        ServerContextType::AppSSR { .. } => {
+            insert_exact_alias_map(
+                import_map,
+                project_path,
+                indexmap! {
+                    "server-only" => "next/dist/compiled/server-only/index".to_string(),
+                    "client-only" => "next/dist/compiled/client-only/index".to_string(),
+                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
+                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
                 },
             );
         }
