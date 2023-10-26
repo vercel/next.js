@@ -514,6 +514,7 @@ async function startWatcher(opts: SetupOpts) {
         hmrBuilding = true
       }
       hmrPayloads.set(`${key}:${id}`, payload)
+      hmrEventHappend = true
       sendHmrDebounce()
     }
 
@@ -526,6 +527,7 @@ async function startWatcher(opts: SetupOpts) {
         hmrBuilding = true
       }
       turbopackUpdates.push(payload)
+      hmrEventHappend = true
       sendHmrDebounce()
     }
 
@@ -1174,6 +1176,21 @@ async function startWatcher(opts: SetupOpts) {
     await writeActionManifest()
     await writeFontManifest()
     await writeLoadableManifest()
+
+    let hmrEventHappend = false
+    if (process.env.NEXT_HMR_TIMING) {
+      ;(async (proj: Project) => {
+        for await (const updateInfo of proj.updateInfoSubscribe()) {
+          if (hmrEventHappend) {
+            const time = updateInfo.duration
+            const timeMessage =
+              time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
+            Log.event(`Compiled in ${timeMessage}`)
+            hmrEventHappend = false
+          }
+        }
+      })(project)
+    }
 
     const overlayMiddleware = getOverlayMiddleware(project)
     const turbopackHotReloader: NextJsHotReloaderInterface = {
