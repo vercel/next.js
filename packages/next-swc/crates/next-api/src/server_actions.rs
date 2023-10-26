@@ -10,7 +10,7 @@ use next_core::{
 use next_swc::server_actions::parse_server_actions;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
-    TryFlatJoinIterExt, Value, ValueToString, Vc,
+    TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
@@ -22,14 +22,16 @@ use turbopack_binding::{
             module::Module,
             output::OutputAsset,
             reference::primary_referenced_modules,
-            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+            reference_type::{
+                EcmaScriptModulesReferenceSubType, ReferenceType, TypeScriptReferenceSubType,
+            },
             virtual_output::VirtualOutputAsset,
             virtual_source::VirtualSource,
         },
         ecmascript::{
             chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
             parse::ParseResult,
-            EcmascriptModuleAsset,
+            EcmascriptModuleAsset, EcmascriptModuleAssetType,
         },
     },
 };
@@ -103,7 +105,7 @@ async fn build_server_actions_loader(
     }
     write!(contents, "}});")?;
 
-    let output_path = node_root.join(format!("server/app{page_name}/actions.js"));
+    let output_path = node_root.join(format!("server/app{page_name}/actions.ts"));
     let file = File::from(contents.build());
     let source = VirtualSource::new(output_path, AssetContent::file(file.into()));
     let module = asset_context.process(
@@ -163,6 +165,11 @@ async fn build_manifest(
     )))
 }
 
+#[turbo_tasks::function]
+fn action_modifier() -> Vc<String> {
+    Vc::cell("action".to_string())
+}
+
 /// Traverses the entire module graph starting from [module], looking for magic
 /// comment which identifies server actions. Every found server action will be
 /// returned along with the module which exports that action.
@@ -191,25 +198,36 @@ async fn get_actions(
         .try_flat_join()
         .await?
         .into_iter()
-        .map(|((layer, module), actions)| {
+        .map(|((layer, module), actions)| async move {
             let module = if layer == ActionLayer::Rsc {
                 module
             } else {
                 // The ActionBrowser layer's module is in the Client context, and we need to
                 // bring it into the RSC context.
-                let source = VirtualSource::new(
-                    module.ident().path().join("action.js".to_string()),
+                let source = VirtualSource::new_with_ident(
+                    module.ident().with_modifier(action_modifier()),
                     module.content(),
                 );
-                asset_context.process(
-                    Vc::upcast(source),
-                    Value::new(ReferenceType::EcmaScriptModules(
-                        EcmaScriptModulesReferenceSubType::Undefined,
-                    )),
-                )
+                let ty = if let Some(module) =
+                    Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
+                {
+                    if module.await?.ty == EcmascriptModuleAssetType::Ecmascript {
+                        ReferenceType::EcmaScriptModules(
+                            EcmaScriptModulesReferenceSubType::Undefined,
+                        )
+                    } else {
+                        ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
+                    }
+                } else {
+                    ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
+                };
+                asset_context.process(Vc::upcast(source), Value::new(ty))
             };
-            ((layer, module), actions)
+            Ok(((layer, module), actions))
         })
+        .try_join()
+        .await?
+        .into_iter()
         .collect::<IndexMap<_, _>>();
 
     all_actions.sort_keys();
@@ -240,10 +258,8 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
         comments, program, ..
     } = &*ecmascript_asset.parse().await?
     else {
-        bail!(
-            "failed to parse action module '{id}'",
-            id = module.ident().to_string().await?
-        );
+        // The file might be be parse-able, but this is reported separately.
+        return Ok(OptionActionMap::none());
     };
 
     let Some(actions) = parse_server_actions(program, comments.clone()) else {

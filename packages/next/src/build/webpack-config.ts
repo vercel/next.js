@@ -380,7 +380,8 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
-  const getBabelLoader = () => {
+  const babelLoader = (function getBabelLoader() {
+    if (useSWCLoader) return undefined
     return {
       loader: require.resolve('./babel/loader/index'),
       options: {
@@ -394,7 +395,7 @@ export default async function getBaseWebpackConfig(
         hasJsxRuntime: true,
       },
     }
-  }
+  })()
 
   let swcTraceProfilingInitialized = false
   const getSwcLoader = (extraOptions: Partial<SWCLoaderOptions>) => {
@@ -429,52 +430,37 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  const swcServerLayerLoader = getSwcLoader({
+    serverComponents: true,
+    isReactServerLayer: true,
+  })
+  const swcClientLayerLoader = getSwcLoader({
+    serverComponents: true,
+    isReactServerLayer: false,
+  })
+
   const defaultLoaders = {
-    babel: useSWCLoader
-      ? getSwcLoader({
-          serverComponents: true,
-          isReactServerLayer: false,
-        })
-      : getBabelLoader(),
+    babel: useSWCLoader ? swcClientLayerLoader : babelLoader!,
   }
 
   const swcLoaderForServerLayer = hasAppDir
-    ? useSWCLoader
-      ? [
-          getSwcLoader({
-            isReactServerLayer: true,
-            serverComponents: true,
-          }),
-        ]
-      : // When using Babel, we will have to add the SWC loader
+    ? [
+        // When using Babel, we will have to add the SWC loader
         // as an additional pass to handle RSC correctly.
         // This will cause some performance overhead but
         // acceptable as Babel will not be recommended.
-        [
-          getSwcLoader({
-            isReactServerLayer: true,
-            serverComponents: true,
-          }),
-          getBabelLoader(),
-        ]
+        swcServerLayerLoader,
+        babelLoader,
+      ].filter(Boolean)
     : []
 
   const swcLoaderForMiddlewareLayer = useSWCLoader
-    ? getSwcLoader({
-        serverComponents: false,
-        isReactServerLayer: false,
-      })
+    ? swcServerLayerLoader
     : // When using Babel, we will have to use SWC to do the optimization
       // for middleware to tree shake the unused default optimized imports like "next/server".
       // This will cause some performance overhead but
       // acceptable as Babel will not be recommended.
-      [
-        getSwcLoader({
-          serverComponents: false,
-          isReactServerLayer: false,
-        }),
-        getBabelLoader(),
-      ]
+      [swcServerLayerLoader, babelLoader]
 
   // client components layers: SSR + browser
   const swcLoaderForClientLayer = [
@@ -491,24 +477,14 @@ export default async function getBaseWebpackConfig(
       loader: 'next-flight-client-module-loader',
     },
     ...(hasAppDir
-      ? useSWCLoader
-        ? [
-            getSwcLoader({
-              isReactServerLayer: false,
-              serverComponents: true,
-            }),
-          ]
-        : // When using Babel, we will have to add the SWC loader
+      ? [
+          // When using Babel, we will have to add the SWC loader
           // as an additional pass to handle RSC correctly.
           // This will cause some performance overhead but
           // acceptable as Babel will not be recommended.
-          [
-            getSwcLoader({
-              isReactServerLayer: false,
-              serverComponents: false,
-            }),
-            getBabelLoader(),
-          ]
+          swcClientLayerLoader,
+          babelLoader,
+        ].filter(Boolean)
       : []),
   ]
 

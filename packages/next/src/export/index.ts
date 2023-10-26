@@ -54,6 +54,7 @@ import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
+import { isPostpone } from '../server/lib/router-utils/is-postpone'
 
 function divideSegments(number: number, segments: number): number[] {
   const result = []
@@ -746,6 +747,15 @@ export async function exportAppImpl(
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata
       }
+
+      if (typeof result.hasEmptyPrelude !== 'undefined') {
+        info.hasEmptyPrelude = result.hasEmptyPrelude
+      }
+
+      if (typeof result.hasPostponed !== 'undefined') {
+        info.hasPostponed = result.hasPostponed
+      }
+
       collector.byPath.set(path, info)
 
       // Update not found.
@@ -886,3 +896,18 @@ export default async function exportApp(
     return await exportAppImpl(dir, options, nextExportSpan)
   })
 }
+
+process.on('unhandledRejection', (err) => {
+  // if it's a postpone error, it'll be handled later
+  // when the postponed promise is awaited.
+  if (isPostpone(err)) {
+    return
+  }
+  console.error(err)
+})
+
+process.on('rejectionHandled', () => {
+  // It is ok to await a Promise late in Next.js as it allows for better
+  // prefetching patterns to avoid waterfalls. We ignore loggining these.
+  // We should've already errored in anyway unhandledRejection.
+})

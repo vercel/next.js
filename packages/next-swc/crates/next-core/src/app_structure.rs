@@ -128,9 +128,7 @@ pub async fn get_metadata_route_name(meta: MetadataItem) -> Result<Vc<String>> {
             };
 
             match stem.as_str() {
-                "robots" => Vc::cell("robots.txt".to_string()),
                 "manifest" => Vc::cell("manifest.webmanifest".to_string()),
-                "sitemap" => Vc::cell("sitemap.xml".to_string()),
                 _ => Vc::cell(stem.clone()),
             }
         }

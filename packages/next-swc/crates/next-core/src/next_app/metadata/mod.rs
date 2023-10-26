@@ -317,7 +317,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
     // /<metadata-route>/route.ts. If it's a metadata file route, we need to
     // append /[id]/route to the page.
     if !route.ends_with("/route") {
-        let is_static_metadata_file = is_static_metadata_route_file(&route);
+        let is_static_metadata_file = is_static_metadata_route_file(&page.to_string());
         let (base_name, ext) = split_extension(&route);
 
         let is_static_route = route.starts_with("/robots")
