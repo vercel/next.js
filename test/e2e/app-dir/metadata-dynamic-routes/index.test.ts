@@ -8,7 +8,7 @@ const CACHE_HEADERS = {
   REVALIDATE: 'public, max-age=0, must-revalidate',
 }
 
-const hashRegex = /\?\w+$/
+const hashRegex = /\?\w+/
 
 createNextDescribe(
   'app dir - metadata dynamic routes',
@@ -160,12 +160,12 @@ createNextDescribe(
         // slug is id param from generateImageMetadata
         expect(iconUrls).toMatchObject([
           {
-            href: '/dynamic/big/icon-48jo90/small',
+            href: '/dynamic/big/icon-ahg52g/small',
             sizes: '48x48',
             type: 'image/png',
           },
           {
-            href: '/dynamic/big/icon-48jo90/medium',
+            href: '/dynamic/big/icon-ahg52g/medium',
             sizes: '72x72',
             type: 'image/png',
           },
@@ -183,12 +183,12 @@ createNextDescribe(
         // slug is index by default
         expect(appleTouchIconUrls).toEqual([
           {
-            href: '/dynamic/big/apple-icon-48jo90/0',
+            href: '/dynamic/big/apple-icon-ahg52g/0',
             sizes: '48x48',
             type: 'image/png',
           },
           {
-            href: '/dynamic/big/apple-icon-48jo90/1',
+            href: '/dynamic/big/apple-icon-ahg52g/1',
             sizes: '64x64',
             type: 'image/png',
           },
@@ -524,8 +524,8 @@ createNextDescribe(
           // dynamic
           '/gsp/sitemap/[__metadata_id__]/route':
             'app/gsp/sitemap/[__metadata_id__]/route.js',
-          '/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route':
-            'app/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route.js',
+          '/(group)/dynamic/[size]/apple-icon-ahg52g/[[...__metadata_id__]]/route':
+            'app/(group)/dynamic/[size]/apple-icon-ahg52g/[[...__metadata_id__]]/route.js',
         })
       })
 
