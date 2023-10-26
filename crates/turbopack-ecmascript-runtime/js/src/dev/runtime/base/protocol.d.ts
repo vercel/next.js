@@ -2,6 +2,12 @@
  * Definitions for the protocol that is used to communicate between the
  * Turbopack runtime and the Turbopack server for issue reporting and HMR.
  */
+type PartialServerMessage = {
+  resource: ResourceIdentifier;
+  issues: Issue[];
+  type: "partial";
+  instruction: PartialUpdate;
+};
 
 type ServerMessage = {
   resource: ResourceIdentifier;
@@ -13,10 +19,7 @@ type ServerMessage = {
   | {
       type: "notFound";
     }
-  | {
-      type: "partial";
-      instruction: PartialUpdate;
-    }
+  | PartialServerMessage
   | {
       type: "issues";
     }
