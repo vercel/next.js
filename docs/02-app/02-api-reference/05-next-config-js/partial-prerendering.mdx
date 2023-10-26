@@ -1,11 +1,11 @@
 ---
-title: ppr (experimental)
-description: Enable Partial Prerendering (PPR) in Next.js 14.
+title: Partial Prerendering
+description: Learn how to enable Partial Prerendering (experimental) in Next.js 14.
 ---
 
-Experimental support for Partial Prerendering (PPR). PPR is available in Next.js 14 and allows static portions of a route to be pre-generated and served from the cache with dynamic holes streamed in a single HTTP request.
+Partial Prerendering allows static portions of a route to be prerendered and served from the cache with dynamic holes streamed in, all in a single HTTP request.
 
-You can enable PPR in your Next.js project by setting the experimental `ppr` flag:
+You can enable Partial Prerendering by setting the experimental `ppr` flag:
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
@@ -18,4 +18,4 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-Learn more about PPR in the [Next.js learn course](/learn/dashboard-app/partial-prerendering).
+Learn more about Partial Prerendering in the [Next.js Learn course](/learn/dashboard-app/partial-prerendering).
