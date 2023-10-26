@@ -54,6 +54,7 @@ import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
+import { isPostpone } from '../server/lib/router-utils/is-postpone'
 
 function divideSegments(number: number, segments: number): number[] {
   const result = []
@@ -895,3 +896,10 @@ export default async function exportApp(
     return await exportAppImpl(dir, options, nextExportSpan)
   })
 }
+
+process.on('unhandledRejection', (err) => {
+  if (isPostpone(err)) {
+    return
+  }
+  throw err
+})
