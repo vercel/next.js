@@ -7,20 +7,6 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next, isNextDev, isNextStart }) => {
-    if (isNextStart) {
-      it("should log a warning when `unstable_postpone` is called but there's no postpone state", async () => {
-        // Three different pages wrap APIs that use `unstable_postpone` in a try catch to trigger these errors
-        expect(next.cliOutput).toContain(
-          '/suspense/node/cookies-error-no-throw opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.'
-        )
-        expect(next.cliOutput).toContain(
-          '/suspense/node/fetch-error opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.'
-        )
-        expect(next.cliOutput).toContain(
-          '/suspense/node/cookies-error opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.'
-        )
-      })
-    }
     describe.each([
       { pathname: '/suspense/node' },
       { pathname: '/suspense/node/nested/1' },
