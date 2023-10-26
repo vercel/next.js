@@ -3,11 +3,7 @@ title: ppr (experimental)
 description: Enable Partial Prerendering (PPR) in Next.js 14.
 ---
 
-{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
-
-<AppOnly>
-
-Experimental support for Partial Prerendering (PPR). PPR is available in Next.js 14 and allows static portions of a page to be pre-generated and served from the cache with dynamic holes streamed in a single HTTP request.
+Experimental support for Partial Prerendering (PPR). PPR is available in Next.js 14 and allows static portions of a route to be pre-generated and served from the cache with dynamic holes streamed in a single HTTP request.
 
 You can enable PPR in your Next.js project by setting the experimental `ppr` flag:
 
@@ -22,4 +18,4 @@ const nextConfig = {
 module.exports = nextConfig;
 ```
 
-</AppOnly>
+Learn more about PPR in the [Next.js learn course](/learn/dashboard-app/partial-prerendering).
