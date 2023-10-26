@@ -24,6 +24,7 @@ declare const sriEnabled: boolean
 declare const isServerComponent: boolean
 declare const dev: boolean
 declare const serverActionsBodySizeLimit: any
+declare const allowedForwardedHosts: any
 declare const nextConfig: NextConfigComplete
 // INJECT:sriEnabled
 // INJECT:isServerComponent
@@ -61,6 +62,7 @@ const render = getRender({
   serverActionsBodySizeLimit: isServerComponent
     ? serverActionsBodySizeLimit
     : undefined,
+  allowedForwardedHosts: isServerComponent ? allowedForwardedHosts : undefined,
   subresourceIntegrityManifest,
   config: nextConfig,
   buildId: 'VAR_BUILD_ID',

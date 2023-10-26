@@ -274,6 +274,7 @@ export type RenderOptsPartial = {
   runtime?: ServerRuntime
   serverComponents?: boolean
   serverActionsBodySizeLimit?: SizeLimit
+  allowedForwardedHosts?: string[]
   customServer?: boolean
   crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   images: ImageConfigComplete

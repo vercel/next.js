@@ -35,6 +35,7 @@ export function getRender({
   subresourceIntegrityManifest,
   serverActionsManifest,
   serverActionsBodySizeLimit,
+  allowedForwardedHosts,
   config,
   buildId,
   nextFontManifest,
@@ -56,6 +57,7 @@ export function getRender({
   clientReferenceManifest?: ClientReferenceManifest
   serverActionsManifest?: any
   serverActionsBodySizeLimit?: SizeLimit
+  allowedForwardedHosts?: string[]
   config: NextConfigComplete
   buildId: string
   nextFontManifest: NextFontManifest
@@ -88,6 +90,7 @@ export function getRender({
         disableOptimizedLoading: true,
         serverActionsManifest,
         serverActionsBodySizeLimit,
+        allowedForwardedHosts,
         nextFontManifest,
       },
       renderToHTML,

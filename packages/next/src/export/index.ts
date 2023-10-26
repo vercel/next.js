@@ -490,6 +490,8 @@ export async function exportAppImpl(
     serverComponents: options.hasAppDir,
     serverActionsBodySizeLimit:
       nextConfig.experimental.serverActions?.bodySizeLimit,
+    allowedForwardedHosts:
+      nextConfig.experimental.serverActions?.allowedForwardedHosts,
     nextFontManifest: require(join(
       distDir,
       'server',

@@ -245,6 +245,7 @@ type BaseRenderOpts = {
   isBot?: boolean
   clientReferenceManifest?: ClientReferenceManifest
   serverActionsBodySizeLimit?: SizeLimit
+  allowedForwardedHosts?: string[]
   serverActionsManifest?: any
   nextFontManifest?: NextFontManifest
   renderServerComponentData?: boolean
@@ -2092,6 +2093,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               originalPathname: components.ComponentMod.originalPathname,
               serverActionsBodySizeLimit:
                 this.nextConfig.experimental.serverActions?.bodySizeLimit,
+              allowedForwardedHosts:
+                this.nextConfig.experimental.serverActions
+                  ?.allowedForwardedHosts,
             }
           : {}),
         isDataReq,

@@ -27,6 +27,7 @@ export type EdgeSSRLoaderQuery = {
   preferredRegion: string | string[] | undefined
   middlewareConfig: string
   serverActionsBodySizeLimit?: SizeLimit
+  allowedForwardedHosts?: string[]
 }
 
 /*
@@ -76,6 +77,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       preferredRegion,
       middlewareConfig: middlewareConfigBase64,
       serverActionsBodySizeLimit,
+      allowedForwardedHosts,
     } = this.getOptions()
 
     const middlewareConfig: MiddlewareConfig = JSON.parse(
@@ -152,6 +154,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
             typeof serverActionsBodySizeLimit === 'undefined'
               ? 'undefined'
               : JSON.stringify(serverActionsBodySizeLimit),
+          allowedForwardedHosts: JSON.stringify(allowedForwardedHosts),
         },
         {
           incrementalCacheHandler: incrementalCacheHandlerPath ?? null,

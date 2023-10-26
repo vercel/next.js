@@ -419,6 +419,8 @@ export function getEdgeServerEntry(opts: {
     ).toString('base64'),
     serverActionsBodySizeLimit:
       opts.config.experimental.serverActions?.bodySizeLimit,
+    allowedForwardedHosts:
+      opts.config.experimental.serverActions?.allowedForwardedHosts,
   }
 
   return {

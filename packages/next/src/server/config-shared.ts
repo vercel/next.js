@@ -311,6 +311,13 @@ export interface ExperimentalConfig {
      * Allows adjusting body parser size limit for server actions.
      */
     bodySizeLimit?: SizeLimit
+
+    /**
+     * Allowed domains that can bypass CSRF check.
+     * @example
+     * ["my-reverse-proxy.com"]
+     */
+    allowedForwardedHosts?: string[]
   }
 
   /**

@@ -218,6 +218,7 @@ export async function handleAction({
   requestStore,
   serverActionsBodySizeLimit,
   ctx,
+  allowedForwardedHosts = [],
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -234,6 +235,7 @@ export async function handleAction({
   requestStore: RequestStore
   serverActionsBodySizeLimit?: SizeLimit
   ctx: AppRenderContext
+  allowedForwardedHosts?: string[]
 }): Promise<
   | undefined
   | {
@@ -277,32 +279,38 @@ export async function handleAction({
       'Missing `origin` header from a forwarded Server Actions request.'
     )
   } else if (!host || originHostname !== host) {
-    // This is an attack. We should not proceed the action.
-    console.error(
-      '`x-forwarded-host` and `host` headers do not match `origin` header from a forwarded Server Actions request. Aborting the action.'
-    )
+    // If the customer sets a list of allowed hosts, we'll allow the request.
+    // These can be their reverse proxies or other safe hosts.
+    if (typeof host === 'string' && allowedForwardedHosts.includes(host)) {
+      // Ignore it
+    } else {
+      // This is an attack. We should not proceed the action.
+      console.error(
+        '`x-forwarded-host` and `host` headers do not match `origin` header from a forwarded Server Actions request. Aborting the action.'
+      )
 
-    const error = new Error('Invalid Server Actions request.')
+      const error = new Error('Invalid Server Actions request.')
 
-    if (isFetchAction) {
-      res.statusCode = 500
-      await Promise.all(staticGenerationStore.pendingRevalidates || [])
-      const promise = Promise.reject(error)
-      try {
-        await promise
-      } catch {}
+      if (isFetchAction) {
+        res.statusCode = 500
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        const promise = Promise.reject(error)
+        try {
+          await promise
+        } catch {}
 
-      return {
-        type: 'done',
-        result: await generateFlight(ctx, {
-          actionResult: promise,
-          // if the page was not revalidated, we can skip the rendering the flight tree
-          skipFlight: !staticGenerationStore.pathWasRevalidated,
-        }),
+        return {
+          type: 'done',
+          result: await generateFlight(ctx, {
+            actionResult: promise,
+            // if the page was not revalidated, we can skip the rendering the flight tree
+            skipFlight: !staticGenerationStore.pathWasRevalidated,
+          }),
+        }
       }
-    }
 
-    throw error
+      throw error
+    }
   }
 
   // ensure we avoid caching server actions unexpectedly
