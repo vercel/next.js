@@ -491,7 +491,13 @@ export default async function getBaseWebpackConfig(
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
   // be performed.
-  const loaderForAPIRoutes = [swcServerLayerLoader, babelLoader].filter(Boolean)
+  const loaderForAPIRoutes =
+    hasAppDir && useSWCLoader
+      ? getSwcLoader({
+          serverComponents: false,
+          isReactServerLayer: false,
+        })
+      : defaultLoaders.babel
 
   const pageExtensions = config.pageExtensions
 
