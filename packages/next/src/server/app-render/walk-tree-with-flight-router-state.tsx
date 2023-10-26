@@ -10,7 +10,7 @@ import {
   matchSegment,
 } from '../../client/components/match-segments'
 import type { LoaderTree } from '../lib/app-dir-module'
-import { getCssInlinedLinkTags } from './get-css-inlined-link-tags'
+import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
 import {
   addSearchParamsIfPageSegment,
@@ -35,6 +35,7 @@ export async function walkTreeWithFlightRouterState({
   parentRendered,
   rscPayloadHead,
   injectedCSS,
+  injectedJS,
   injectedFontPreloadTags,
   rootLayoutIncluded,
   asNotFound,
@@ -49,6 +50,7 @@ export async function walkTreeWithFlightRouterState({
   parentRendered?: boolean
   rscPayloadHead: React.ReactNode
   injectedCSS: Set<string>
+  injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   rootLayoutIncluded: boolean
   asNotFound?: boolean
@@ -145,6 +147,7 @@ export async function walkTreeWithFlightRouterState({
                   parentParams: currentParams,
                   firstItem: isFirst,
                   injectedCSS,
+                  injectedJS,
                   injectedFontPreloadTags,
                   // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
                   rootLayoutIncluded,
@@ -160,16 +163,17 @@ export async function walkTreeWithFlightRouterState({
           : (() => {
               const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
 
-              const styles = getLayerAssets({
+              const layerAssets = getLayerAssets({
                 ctx,
                 layoutOrPagePath,
                 injectedCSS: new Set(injectedCSS),
+                injectedJS: new Set(injectedJS),
                 injectedFontPreloadTags: new Set(injectedFontPreloadTags),
               })
 
               return (
                 <>
-                  {styles}
+                  {layerAssets}
                   {rscPayloadHead}
                 </>
               )
@@ -183,14 +187,16 @@ export async function walkTreeWithFlightRouterState({
   // the result consistent.
   const layoutPath = layout?.[1]
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
+  const injectedJSWithCurrentLayout = new Set(injectedJS)
   const injectedFontPreloadTagsWithCurrentLayout = new Set(
     injectedFontPreloadTags
   )
   if (layoutPath) {
-    getCssInlinedLinkTags(
+    getLinkAndScriptTags(
       ctx.clientReferenceManifest,
       layoutPath,
       injectedCSSWithCurrentLayout,
+      injectedJSWithCurrentLayout,
       true
     )
     getPreloadableFonts(
@@ -224,6 +230,7 @@ export async function walkTreeWithFlightRouterState({
           isFirst: false,
           rscPayloadHead,
           injectedCSS: injectedCSSWithCurrentLayout,
+          injectedJS: injectedJSWithCurrentLayout,
           injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
           rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           asNotFound,
