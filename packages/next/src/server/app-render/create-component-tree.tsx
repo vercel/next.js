@@ -195,7 +195,10 @@ export async function createComponentTree({
     }
   }
 
-  if (staticGenerationStore?.dynamicUsageErr) {
+  if (
+    staticGenerationStore?.dynamicUsageErr &&
+    !staticGenerationStore.experimental.ppr
+  ) {
     throw staticGenerationStore.dynamicUsageErr
   }
 
