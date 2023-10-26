@@ -2561,6 +2561,8 @@ const runTests = (isDev = false) => {
           varyHeader:
             'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
           prefetchHeader: 'Next-Router-Prefetch',
+          prefetchSuffix: '.prefetch.rsc',
+          suffix: '.rsc',
         },
       })
     })
