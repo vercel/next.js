@@ -4,7 +4,7 @@ title: Understanding the postpone error triggered during static generation
 
 ## Why This Error Occurred
 
-When Partial Prerendering (PPR) is enabled, using APIs that opt into Dynamic Rendering like `cookies`, `headers`, or `fetch` (such as with `cache: 'no-store'` or `revalidate: 0`) will cause Next.js to throw a special indicator to know which part of the page cannot be statically generated. If you catch this error, Next.js will not be able to leverage this performance optimization and will force static rendering.
+When Partial Prerendering (PPR) is enabled, using APIs that opt into Dynamic Rendering like `cookies`, `headers`, or `fetch` (such as with `cache: 'no-store'` or `revalidate: 0`) will cause Next.js to throw a special error to know which part of the page cannot be statically generated. If you catch this error, Next.js will not be able to recognize that dynamic content was used and will only be able to statically render the page, opting you out of partial prerendering and lead to potentially undefined behavior.
 
 ## Possible Ways to Fix It
 
