@@ -366,6 +366,7 @@ async function startWatcher(opts: SetupOpts) {
     const serverPathState = new Map<string, string>()
 
     async function processResult(
+      id: string,
       result: TurbopackResult<WrittenEndpoint>
     ): Promise<TurbopackResult<WrittenEndpoint>> {
       // Figure out if the server files have changed
@@ -373,10 +374,23 @@ async function startWatcher(opts: SetupOpts) {
       for (const { path: p, contentHash } of result.serverPaths) {
         // We ignore source maps
         if (p.endsWith('.map')) continue
-        const previousHash = serverPathState.get(p)
-        if (previousHash !== contentHash) {
+        let key = `${id}:${p}`
+        const localHash = serverPathState.get(key)
+        const globaHash = serverPathState.get(p)
+        if (
+          (localHash && localHash !== contentHash) ||
+          (globaHash && globaHash !== contentHash)
+        ) {
           hasChange = true
+          serverPathState.set(key, contentHash)
           serverPathState.set(p, contentHash)
+        } else {
+          if (!localHash) {
+            serverPathState.set(key, contentHash)
+          }
+          if (!globaHash) {
+            serverPathState.set(p, contentHash)
+          }
         }
       }
 
@@ -1075,6 +1089,7 @@ async function startWatcher(opts: SetupOpts) {
           if (middleware) {
             const processMiddleware = async () => {
               const writtenEndpoint = await processResult(
+                'middleware',
                 await middleware.endpoint.writeToDisk()
               )
               processIssues('middleware', 'middleware', writtenEndpoint)
@@ -1315,6 +1330,7 @@ async function startWatcher(opts: SetupOpts) {
           try {
             if (globalEntries.app) {
               const writtenEndpoint = await processResult(
+                '_app',
                 await globalEntries.app.writeToDisk()
               )
               processIssues('_app', '_app', writtenEndpoint)
@@ -1324,6 +1340,7 @@ async function startWatcher(opts: SetupOpts) {
 
             if (globalEntries.document) {
               const writtenEndpoint = await processResult(
+                '_document',
                 await globalEntries.document.writeToDisk()
               )
               changeSubscription(
@@ -1341,6 +1358,7 @@ async function startWatcher(opts: SetupOpts) {
 
             if (globalEntries.error) {
               const writtenEndpoint = await processResult(
+                '_error',
                 await globalEntries.error.writeToDisk()
               )
               processIssues(page, page, writtenEndpoint)
@@ -1410,6 +1428,7 @@ async function startWatcher(opts: SetupOpts) {
               try {
                 if (globalEntries.app) {
                   const writtenEndpoint = await processResult(
+                    '_app',
                     await globalEntries.app.writeToDisk()
                   )
                   processIssues('_app', '_app', writtenEndpoint)
@@ -1419,6 +1438,7 @@ async function startWatcher(opts: SetupOpts) {
 
                 if (globalEntries.document) {
                   const writtenEndpoint = await processResult(
+                    '_document',
                     await globalEntries.document.writeToDisk()
                   )
 
@@ -1436,6 +1456,7 @@ async function startWatcher(opts: SetupOpts) {
                 await loadPagesManifest('_document')
 
                 const writtenEndpoint = await processResult(
+                  page,
                   await route.htmlEndpoint.writeToDisk()
                 )
 
@@ -1493,6 +1514,7 @@ async function startWatcher(opts: SetupOpts) {
 
               finishBuilding = startBuilding(buildingKey)
               const writtenEndpoint = await processResult(
+                page,
                 await route.endpoint.writeToDisk()
               )
 
@@ -1517,6 +1539,7 @@ async function startWatcher(opts: SetupOpts) {
             case 'app-page': {
               finishBuilding = startBuilding(buildingKey)
               const writtenEndpoint = await processResult(
+                page,
                 await route.htmlEndpoint.writeToDisk()
               )
 
@@ -1567,6 +1590,7 @@ async function startWatcher(opts: SetupOpts) {
             case 'app-route': {
               finishBuilding = startBuilding(buildingKey)
               const writtenEndpoint = await processResult(
+                page,
                 await route.endpoint.writeToDisk()
               )
 
