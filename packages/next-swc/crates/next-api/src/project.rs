@@ -812,7 +812,7 @@ impl Project {
     #[turbo_tasks::function]
     pub fn server_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
         let path = self.node_root();
-        any_output_changed(roots, path)
+        any_output_changed(roots, path, true)
     }
 
     /// Completion when client side changes are detected in output assets
@@ -820,7 +820,7 @@ impl Project {
     #[turbo_tasks::function]
     pub fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
         let path = self.client_root();
-        any_output_changed(roots, path)
+        any_output_changed(roots, path, false)
     }
 }
 
@@ -828,6 +828,7 @@ impl Project {
 async fn any_output_changed(
     roots: Vc<OutputAssets>,
     path: Vc<FileSystemPath>,
+    server: bool,
 ) -> Result<Vc<Completion>> {
     let path = &path.await?;
     let completions = AdjacencyMap::new()
@@ -839,7 +840,10 @@ async fn any_output_changed(
         .into_reverse_topological()
         .map(|m| async move {
             let asset_path = m.ident().path().await?;
-            if !asset_path.path.ends_with(".map") && asset_path.is_inside_ref(path) {
+            if !asset_path.path.ends_with(".map")
+                && (!server || !asset_path.path.ends_with(".css"))
+                && asset_path.is_inside_ref(path)
+            {
                 Ok(Some(content_changed(Vc::upcast(m))))
             } else {
                 Ok(None)

@@ -299,27 +299,6 @@ pub async fn get_next_server_import_map(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
             import_map.insert_exact_alias(
-                "private-next-rsc-action-proxy",
-                request_to_import_mapping(
-                    project_path,
-                    "next/dist/build/webpack/loaders/next-flight-loader/action-proxy",
-                ),
-            );
-            import_map.insert_exact_alias(
-                "private-next-rsc-action-client-wrapper",
-                request_to_import_mapping(
-                    project_path,
-                    "next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper",
-                ),
-            );
-            import_map.insert_exact_alias(
-                "private-next-rsc-action-validate",
-                request_to_import_mapping(
-                    project_path,
-                    "next/dist/build/webpack/loaders/next-flight-loader/action-validate",
-                ),
-            );
-            import_map.insert_exact_alias(
                 "next/head",
                 request_to_import_mapping(project_path, "next/dist/client/components/noop-head"),
             );
@@ -579,9 +558,7 @@ async fn insert_next_server_special_aliases(
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
     match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::AppSSR { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
             insert_exact_alias_map(
                 import_map,
                 project_path,
@@ -608,6 +585,18 @@ async fn insert_next_server_special_aliases(
                 },
             );
         }
+        ServerContextType::AppSSR { .. } => {
+            insert_exact_alias_map(
+                import_map,
+                project_path,
+                indexmap! {
+                    "server-only" => "next/dist/compiled/server-only/index".to_string(),
+                    "client-only" => "next/dist/compiled/client-only/index".to_string(),
+                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
+                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+                },
+            );
+        }
     }
 
     // Potential the bundle introduced into middleware and api can be poisoned by
@@ -627,10 +616,7 @@ async fn insert_next_server_special_aliases(
 
     import_map.insert_exact_alias(
         "@vercel/og",
-        external_if_node(
-            project_path,
-            "next/dist/server/web/spec-extension/image-response",
-        ),
+        external_if_node(project_path, "next/dist/server/og/image-response"),
     );
 
     Ok(())
@@ -733,6 +719,7 @@ async fn insert_optimized_module_aliases(
             "object.assign/polyfill" => "next/dist/build/polyfills/object.assign/polyfill.js".to_string(),
             "object.assign/shim" => "next/dist/build/polyfills/object.assign/shim.js".to_string(),
             "url" => "next/dist/compiled/native-url".to_string(),
+            "node:url" => "next/dist/compiled/native-url".to_string(),
         },
     );
     Ok(())
@@ -826,6 +813,35 @@ async fn insert_next_shared_aliases(
     import_map.insert_exact_alias(
         "setimmediate",
         request_to_import_mapping(project_path, "next/dist/compiled/setimmediate"),
+    );
+
+    import_map.insert_exact_alias(
+        "private-next-rsc-action-proxy",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/build/webpack/loaders/next-flight-loader/action-proxy",
+        ),
+    );
+    import_map.insert_exact_alias(
+        "private-next-rsc-action-client-wrapper",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper",
+        ),
+    );
+    import_map.insert_exact_alias(
+        "private-next-rsc-action-validate",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/build/webpack/loaders/next-flight-loader/action-validate",
+        ),
+    );
+    import_map.insert_exact_alias(
+        "private-next-rsc-action-encryption",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/server/app-render/action-encryption",
+        ),
     );
 
     insert_turbopack_dev_alias(import_map);
