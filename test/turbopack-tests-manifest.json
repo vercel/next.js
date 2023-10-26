@@ -2211,7 +2211,6 @@
       "app-dir action handling fetch actions should revalidate when cookies.set is called",
       "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
       "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
-      "app-dir action handling should bundle external libraries if they are on the action layer",
       "app-dir action handling should handle basic actions correctly",
       "app-dir action handling should not block navigation events while a server action is in flight",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
@@ -2223,14 +2222,16 @@
       "app-dir action handling should support headers in client imported actions",
       "app-dir action handling should support hoc auth wrappers",
       "app-dir action handling should support importing actions in client components",
-      "app-dir action handling should support importing the same action module instance in both server and action layers",
       "app-dir action handling should support next/dynamic with ssr: false",
       "app-dir action handling should support notFound",
       "app-dir action handling should support notFound (javascript disabled)",
       "app-dir action handling should support setting cookies in route handlers with the correct overrides",
       "app-dir action handling should support uploading files"
     ],
-    "failed": [],
+    "failed": [
+      "app-dir action handling should support importing the same action module instance in both server and action layers",
+      "app-dir action handling should bundle external libraries if they are on the action layer"
+    ],
     "pending": [
       "app-dir action handling fetch actions should handle revalidateTag + redirect"
     ],
