@@ -13,6 +13,7 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   RELOAD_PAGE = 'reloadPage',
   SERVER_COMPONENT_CHANGES = 'serverComponentChanges',
   MIDDLEWARE_CHANGES = 'middlewareChanges',
+  CLIENT_CHANGES = 'clientChanges',
   SERVER_ONLY_CHANGES = 'serverOnlyChanges',
   SYNC = 'sync',
   BUILT = 'built',
@@ -78,6 +79,10 @@ interface MiddlewareChangesAction {
   event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES
 }
 
+interface ClientChangesAction {
+  event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES
+}
+
 interface ServerOnlyChangesAction {
   event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
   pages: ReadonlyArray<string>
@@ -107,6 +112,7 @@ export type HMR_ACTION_TYPES =
   | RemovedPageAction
   | ReloadPageAction
   | ServerComponentChangesAction
+  | ClientChangesAction
   | MiddlewareChangesAction
   | ServerOnlyChangesAction
   | DevPagesManifestUpdateAction

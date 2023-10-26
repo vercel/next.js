@@ -471,10 +471,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.nextFontManifest = this.getNextFontManifest()
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      if (this.nextConfig.experimental.deploymentId) {
-        process.env.NEXT_DEPLOYMENT_ID =
-          this.nextConfig.experimental.deploymentId
-      }
+      process.env.NEXT_DEPLOYMENT_ID =
+        this.nextConfig.experimental.deploymentId || ''
     }
 
     this.renderOpts = {
@@ -2093,7 +2091,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               isRevalidate: isSSG,
               originalPathname: components.ComponentMod.originalPathname,
               serverActionsBodySizeLimit:
-                this.nextConfig.experimental.serverActionsBodySizeLimit,
+                this.nextConfig.experimental.serverActions?.bodySizeLimit,
             }
           : {}),
         isDataReq,
