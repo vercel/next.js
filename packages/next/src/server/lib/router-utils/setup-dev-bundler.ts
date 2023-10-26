@@ -634,6 +634,7 @@ async function startWatcher(opts: SetupOpts) {
     async function changeSubscription(
       page: string,
       type: 'client' | 'server',
+      includeIssues: boolean,
       endpoint: Endpoint | undefined,
       makePayload: (
         page: string,
@@ -643,7 +644,7 @@ async function startWatcher(opts: SetupOpts) {
       const key = `${page} (${type})`
       if (!endpoint || changeSubscriptions.has(key)) return
 
-      const changedPromise = endpoint[`${type}Changed`]()
+      const changedPromise = endpoint[`${type}Changed`](includeIssues)
       changeSubscriptions.set(key, changedPromise)
       const changed = await changedPromise
 
@@ -1105,6 +1106,7 @@ async function startWatcher(opts: SetupOpts) {
             changeSubscription(
               'middleware',
               'server',
+              false,
               middleware.endpoint,
               async () => {
                 const finishBuilding = startBuilding('middleware', true)
@@ -1327,6 +1329,7 @@ async function startWatcher(opts: SetupOpts) {
               changeSubscription(
                 '_document',
                 'server',
+                false,
                 globalEntries.document,
                 () => {
                   return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
@@ -1425,6 +1428,7 @@ async function startWatcher(opts: SetupOpts) {
                   changeSubscription(
                     '_document',
                     'server',
+                    false,
                     globalEntries.document,
                     () => {
                       return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
@@ -1461,19 +1465,27 @@ async function startWatcher(opts: SetupOpts) {
                 changeSubscription(
                   page,
                   'server',
+                  false,
                   route.dataEndpoint,
                   (pageName) => {
+                    console.log('server change', pageName)
                     return {
                       event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
                       pages: [pageName],
                     }
                   }
                 )
-                changeSubscription(page, 'client', route.htmlEndpoint, () => {
-                  return {
-                    event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
+                changeSubscription(
+                  page,
+                  'client',
+                  false,
+                  route.htmlEndpoint,
+                  () => {
+                    return {
+                      event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
+                    }
                   }
-                })
+                )
               }
 
               break
@@ -1517,6 +1529,7 @@ async function startWatcher(opts: SetupOpts) {
               changeSubscription(
                 page,
                 'server',
+                true,
                 route.rscEndpoint,
                 (_page, change) => {
                   if (

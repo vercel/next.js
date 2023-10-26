@@ -585,7 +585,9 @@ export interface Endpoint {
    * After serverChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  serverChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+  serverChanged(
+    includeIssues: boolean
+  ): Promise<AsyncIterableIterator<TurbopackResult>>
 }
 
 interface EndpointConfig {
@@ -947,12 +949,15 @@ function bindingToApi(binding: any, _wasm: boolean) {
       return clientSubscription
     }
 
-    async serverChanged(): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
+    async serverChanged(
+      includeIssues: boolean
+    ): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
       const serverSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
           binding.endpointServerChangedSubscribe(
             await this._nativeEndpoint,
+            includeIssues,
             callback
           )
       )
