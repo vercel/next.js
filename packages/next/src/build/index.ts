@@ -1059,16 +1059,30 @@ export default async function build(
         })
 
         const [duration] = process.hrtime(turboNextBuildStart)
-        return { duration, buildTraceContext: null }
+        return { duration, buildTraceContext: undefined }
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
+      // if the option is set, we respect it, otherwise we check if the user
+      // has a custom webpack config and disable the build worker by default.
+      const useBuildWorker =
+        config.experimental.webpackBuildWorker || !config.webpack
+
+      if (
+        config.webpack &&
+        config.experimental.webpackBuildWorker === undefined
+      ) {
+        Log.warn(
+          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
+        )
+      }
+
       if (!isGenerate) {
-        if (isCompile && config.experimental.webpackBuildWorker) {
+        if (isCompile && useBuildWorker) {
           let durationInSeconds = 0
 
-          await webpackBuild(['server']).then((res) => {
+          await webpackBuild(true, ['server']).then((res) => {
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
             const buildTraceWorker = new Worker(
@@ -1097,11 +1111,11 @@ export default async function build(
               })
           })
 
-          await webpackBuild(['edge-server']).then((res) => {
+          await webpackBuild(true, ['edge-server']).then((res) => {
             durationInSeconds += res.duration
           })
 
-          await webpackBuild(['client']).then((res) => {
+          await webpackBuild(true, ['client']).then((res) => {
             durationInSeconds += res.duration
           })
 
@@ -1117,7 +1131,7 @@ export default async function build(
         } else {
           const { duration: webpackBuildDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
-            : await webpackBuild()
+            : await webpackBuild(false)
 
           buildTraceContext = rest.buildTraceContext
 
