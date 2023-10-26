@@ -677,10 +677,14 @@ async fn directory_tree_to_loader_tree(
         tree.segment = "children".to_string();
     }
 
+    let mut has_page = false;
+
     if let Some(page) = (app_path == for_app_path)
         .then_some(components.page)
         .flatten()
     {
+        has_page = true;
+
         // When resolving metadata with corresponding module
         // (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/lib/metadata/resolve-metadata.ts#L340)
         // layout takes precedence over page (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/server/lib/app-dir-module.ts#L22)
@@ -742,8 +746,15 @@ async fn directory_tree_to_loader_tree(
         }
 
         if let Some(subtree) = subtree {
-            let key = parallel_route_key.unwrap_or("children").to_string();
-            tree.parallel_routes.insert(key, subtree);
+            if let Some(key) = parallel_route_key {
+                tree.parallel_routes.insert(key.to_string(), subtree);
+                continue;
+            }
+
+            // TODO: detect duplicate page in group segment
+            if !has_page {
+                tree.parallel_routes.insert("children".to_string(), subtree);
+            }
         } else if let Some(key) = parallel_route_key {
             bail!(
                 "missing page or default for parallel route `{}` (page: {})",
