@@ -486,10 +486,6 @@ async fn add_app_page(
                 conflict("page", existing_page);
             }
 
-            if *existing_page == page {
-                return Ok(());
-            }
-
             let Entrypoint::AppPage {
                 page: stored_page, ..
             } = e.get_mut()
