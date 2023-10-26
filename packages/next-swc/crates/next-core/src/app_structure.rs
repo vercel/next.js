@@ -443,17 +443,13 @@ fn conflict_issue(
         format!("{} and {}", a, b)
     };
 
-    let message = format!(
-        "Conflicting {} at {}: {a} at {value_a} and {b} at {value_b}",
-        item_names,
-        e.key(),
-    );
-
-    println!("[app structure]: {}", &message);
-
     DirectoryTreeIssue {
         app_dir,
-        message: Vc::cell(message),
+        message: Vc::cell(format!(
+            "Conflicting {} at {}: {a} at {value_a} and {b} at {value_b}",
+            item_names,
+            e.key(),
+        )),
         severity: IssueSeverity::Error.cell(),
     }
     .cell()
