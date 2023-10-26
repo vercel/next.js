@@ -454,12 +454,13 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean)
     : []
 
-  const swcLoaderForMiddlewareLayer =
-    // When using Babel, we will have to use SWC to do the optimization
-    // for middleware to tree shake the unused default optimized imports like "next/server".
-    // This will cause some performance overhead but
-    // acceptable as Babel will not be recommended.
-    [swcServerLayerLoader, babelLoader].filter(Boolean)
+  const swcLoaderForMiddlewareLayer = useSWCLoader
+    ? swcServerLayerLoader
+    : // When using Babel, we will have to use SWC to do the optimization
+      // for middleware to tree shake the unused default optimized imports like "next/server".
+      // This will cause some performance overhead but
+      // acceptable as Babel will not be recommended.
+      [swcServerLayerLoader, babelLoader]
 
   // client components layers: SSR + browser
   const swcLoaderForClientLayer = [
@@ -487,9 +488,16 @@ export default async function getBaseWebpackConfig(
       : []),
   ]
 
-  // Loader for API routes will also apply react-server export condition for bundling,
-  // and the API checks for server side only APIs.
-  const loaderForAPIRoutes = [swcServerLayerLoader, babelLoader].filter(Boolean)
+  // Loader for API routes needs to be differently configured as it shouldn't
+  // have RSC transpiler enabled, so syntax checks such as invalid imports won't
+  // be performed.
+  const loaderForAPIRoutes =
+    hasAppDir && useSWCLoader
+      ? getSwcLoader({
+          serverComponents: false,
+          isReactServerLayer: false,
+        })
+      : defaultLoaders.babel
 
   const pageExtensions = config.pageExtensions
 
