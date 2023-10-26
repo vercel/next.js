@@ -25,7 +25,7 @@ let devOutput
           const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
           const errors = stderr
             .split('\n')
-            .filter((line) => line && !line.trim().startsWith('⚠️'))
+            .filter((line: string) => line && !line.trim().startsWith('⚠'))
           expect(errors).toEqual([])
           expect(code).toBe(0)
         })

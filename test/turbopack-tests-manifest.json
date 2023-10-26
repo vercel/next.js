@@ -2192,7 +2192,12 @@
   },
   "test/e2e/app-dir/actions/app-action.test.ts": {
     "passed": [
+      "app-dir action handling Edge SSR should allow cookie and header async storages",
+      "app-dir action handling Edge SSR should handle basic actions correctly",
       "app-dir action handling Edge SSR should handle redirect to a relative URL in a single pass",
+      "app-dir action handling Edge SSR should handle regular redirects",
+      "app-dir action handling Edge SSR should handle unicode search params",
+      "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
       "app-dir action handling HMR should support updating the action",
       "app-dir action handling encryption should send encrypted values from the closed over closure",
       "app-dir action handling fetch actions should handle a fetch action initiated from a static page",
@@ -2224,13 +2229,8 @@
       "app-dir action handling should support uploading files"
     ],
     "failed": [
-      "app-dir action handling Edge SSR should allow cookie and header async storages",
-      "app-dir action handling Edge SSR should handle basic actions correctly",
-      "app-dir action handling Edge SSR should handle regular redirects",
-      "app-dir action handling Edge SSR should handle unicode search params",
-      "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
-      "app-dir action handling should bundle external libraries if they are on the action layer",
-      "app-dir action handling should support importing the same action module instance in both server and action layers"
+      "app-dir action handling should support importing the same action module instance in both server and action layers",
+      "app-dir action handling should bundle external libraries if they are on the action layer"
     ],
     "pending": [
       "app-dir action handling fetch actions should handle revalidateTag + redirect"
