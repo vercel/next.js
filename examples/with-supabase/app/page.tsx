@@ -4,19 +4,20 @@ import { createClient } from '@/utils/supabase/server'
 import ConnectSupabaseSteps from '@/components/ConnectSupabaseSteps'
 import SignUpUserSteps from '@/components/SignUpUserSteps'
 import Header from '@/components/Header'
-
-export const dynamic = 'force-dynamic'
-
-const canInitSupabaseClient = () => {
-  try {
-    createClient()
-    return true
-  } catch (e) {
-    return false
-  }
-}
+import { cookies } from 'next/headers'
 
 export default async function Index() {
+  const cookieStore = cookies()
+
+  const canInitSupabaseClient = () => {
+    try {
+      createClient(cookieStore)
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
   const isSupabaseConnected = canInitSupabaseClient()
 
   return (
