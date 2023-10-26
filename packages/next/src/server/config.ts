@@ -428,6 +428,16 @@ function assignDefaults(
     )
   }
 
+  if (result.outputFileTracing === false) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'outputFileTracing',
+      'Disabling outputFileTracing will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
+      silent
+    )
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',
