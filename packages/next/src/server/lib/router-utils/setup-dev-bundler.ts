@@ -1394,16 +1394,16 @@ async function startWatcher(opts: SetupOpts) {
                 if (globalEntries.app) {
                   const writtenEndpoint = await processResult(
                     await globalEntries.app.writeToDisk()
-                )
-                processIssues('_app', '_app', writtenEndpoint)
-              }
-              await loadBuildManifest('_app')
-              await loadPagesManifest('_app')
+                  )
+                  processIssues('_app', '_app', writtenEndpoint)
+                }
+                await loadBuildManifest('_app')
+                await loadPagesManifest('_app')
 
                 if (globalEntries.document) {
                   const writtenEndpoint = await processResult(
                     await globalEntries.document.writeToDisk()
-                )
+                  )
 
                   changeSubscription(
                     '_document',
@@ -1420,7 +1420,7 @@ async function startWatcher(opts: SetupOpts) {
 
                 const writtenEndpoint = await processResult(
                   await route.htmlEndpoint.writeToDisk()
-              )
+                )
 
                 const type = writtenEndpoint?.type
 
