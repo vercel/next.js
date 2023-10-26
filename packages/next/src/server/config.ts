@@ -255,7 +255,7 @@ function assignDefaults(
 
   if (result.experimental?.ppr && !version.includes('canary')) {
     Log.warn(
-      `experimental.ppr is only supported on canary, please update to continue`
+      `The experimental.ppr feature is present in your current version but we recommend using the latest canary version for the best experience.`
     )
   }
 
