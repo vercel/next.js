@@ -39,10 +39,7 @@ export async function middleware(request: NextRequest) {
           },
           remove(name, options) {
             // If the cookie is removed, update the cookies for the request and response
-            request.cookies.delete({
-              name,
-              ...options,
-            })
+            request.cookies.delete(name)
             response = NextResponse.next({
               request: {
                 headers: request.headers,
