@@ -95,17 +95,14 @@ async fn build_server_actions_loader(
         for (hash_id, name) in &*actions_map.await? {
             writedoc!(
                 contents,
-                "
-                \x20 '{hash_id}': (...args) => import('{module_name}')
-                    .then(mod => (0, mod['{name}'])(...args)),\n
-                ",
+                "  '{hash_id}': (...args) => (0, require('{module_name}')['{name}'])(...args),",
             )?;
         }
         import_map.insert(module_name, module.1);
     }
     write!(contents, "}});")?;
 
-    let output_path = node_root.join(format!("server/app{page_name}/actions.ts"));
+    let output_path = node_root.join(format!("server/app{page_name}/actions.js"));
     let file = File::from(contents.build());
     let source = VirtualSource::new(output_path, AssetContent::file(file.into()));
     let module = asset_context.process(
