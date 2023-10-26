@@ -418,6 +418,16 @@ function assignDefaults(
     silent
   )
 
+  if (result.swcMinify === false) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'swcMinify',
+      'Disabling SWC Minifer will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
+      silent
+    )
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',
@@ -516,6 +526,11 @@ function assignDefaults(
       result.experimental = {}
     }
     result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  }
+
+  // can't use this one without the other
+  if (result.experimental?.useDeploymentIdServerActions) {
+    result.experimental.useDeploymentId = true
   }
 
   // use the closest lockfile as tracing root
