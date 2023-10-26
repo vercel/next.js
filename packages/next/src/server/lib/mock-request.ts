@@ -367,6 +367,11 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     this.headers.delete(name)
   }
 
+  public flushHeaders(): void {
+    // This is a no-op because we don't actually have a socket to flush the
+    // headers to.
+  }
+
   // The following methods are not implemented as they are not used in the
   // Next.js codebase.
 
@@ -423,10 +428,6 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
   }
 
   public addTrailers(): void {
-    throw new Error('Method not implemented.')
-  }
-
-  public flushHeaders(): void {
     throw new Error('Method not implemented.')
   }
 }

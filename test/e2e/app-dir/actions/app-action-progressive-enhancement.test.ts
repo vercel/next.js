@@ -24,7 +24,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=FormData&hidden-info=hi')
+      }, '/header?name=test&constructor=_FormData&hidden-info=hi')
     })
 
     it('should support actions from client without JS', async () => {
@@ -39,7 +39,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=FormData&hidden-info=hi')
+      }, '/header?name=test&constructor=_FormData&hidden-info=hi')
     })
   }
 )

@@ -1,10 +1,11 @@
 use anyhow::Result;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+};
 use turbopack_binding::turbopack::{
-    build::BuildChunkingContext,
-    core::{chunk::ChunkingContextExt, output::OutputAssets},
+    core::{chunk::ChunkingContextExt, module::Module, output::OutputAssets},
     ecmascript::chunk::EcmascriptChunkingContext,
 };
 
@@ -32,7 +33,7 @@ pub struct ClientReferencesChunks(IndexMap<ClientReferenceType, ClientReferenceC
 pub async fn get_app_client_references_chunks(
     app_client_reference_types: Vc<ClientReferenceTypes>,
     client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ssr_chunking_context: Vc<BuildChunkingContext>,
+    ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
 ) -> Result<Vc<ClientReferencesChunks>> {
     let app_client_references_chunks: IndexMap<_, _> = app_client_reference_types
         .await?
@@ -70,4 +71,28 @@ pub async fn get_app_client_references_chunks(
         .collect();
 
     Ok(Vc::cell(app_client_references_chunks))
+}
+
+/// Crawls all modules emitted in the client transition, returning a list of all
+/// client JS modules.
+#[turbo_tasks::function]
+pub async fn get_app_server_reference_modules(
+    app_client_reference_types: Vc<ClientReferenceTypes>,
+) -> Result<Vc<Vec<Vc<Box<dyn Module>>>>> {
+    Ok(Vc::cell(
+        app_client_reference_types
+            .await?
+            .iter()
+            .map(|client_reference_ty| async move {
+                Ok(match client_reference_ty {
+                    ClientReferenceType::EcmascriptClientReference(ecmascript_client_reference) => {
+                        let ecmascript_client_reference_ref = ecmascript_client_reference.await?;
+                        Some(Vc::upcast(ecmascript_client_reference_ref.client_module))
+                    }
+                    _ => None,
+                })
+            })
+            .try_flat_join()
+            .await?,
+    ))
 }

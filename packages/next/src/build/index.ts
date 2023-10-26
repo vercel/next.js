@@ -4,11 +4,8 @@ import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
-import type {
-  ExportAppOptions,
-  ExportAppWorker,
-  ExportPageInput,
-} from '../export/types'
+import type { ExportAppOptions, ExportAppWorker } from '../export/types'
+import type { Revalidate } from '../server/lib/revalidate'
 
 import '../lib/setup-exception-listeners'
 
@@ -157,6 +154,7 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
+import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -169,7 +167,7 @@ interface DataRouteRouteInfo {
 export interface SsgRoute
   extends ExperimentalBypassForInfo,
     DataRouteRouteInfo {
-  initialRevalidateSeconds: number | false
+  initialRevalidateSeconds: Revalidate
   srcRoute: string | null
   initialStatus?: number
   initialHeaders?: Record<string, string>
@@ -376,6 +374,8 @@ export default async function build(
             silent: false,
           })
         )
+
+      process.env.NEXT_DEPLOYMENT_ID = config.experimental.deploymentId || ''
       NextBuildContext.config = config
 
       let configOutDir = 'out'
@@ -504,6 +504,14 @@ export default async function build(
           return this
         },
       } as any
+
+      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir)
+      logStartInfo({
+        networkUrl: null,
+        appUrl: null,
+        envInfo,
+        expFeatureInfo,
+      })
 
       if (!isGenerate) {
         buildSpinner = createSpinner('Creating an optimized production build')
@@ -1036,6 +1044,7 @@ export default async function build(
           root,
           distDir: config.distDir,
           defineEnv: createDefineEnv({
+            isTurbopack: turboNextBuild,
             allowedRevalidateHeaderKeys:
               config.experimental.allowedRevalidateHeaderKeys,
             clientRouterFilters: NextBuildContext.clientRouterFilters,
@@ -1050,16 +1059,30 @@ export default async function build(
         })
 
         const [duration] = process.hrtime(turboNextBuildStart)
-        return { duration, buildTraceContext: null }
+        return { duration, buildTraceContext: undefined }
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
+      // if the option is set, we respect it, otherwise we check if the user
+      // has a custom webpack config and disable the build worker by default.
+      const useBuildWorker =
+        config.experimental.webpackBuildWorker || !config.webpack
+
+      if (
+        config.webpack &&
+        config.experimental.webpackBuildWorker === undefined
+      ) {
+        Log.warn(
+          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
+        )
+      }
+
       if (!isGenerate) {
-        if (isCompile && config.experimental.webpackBuildWorker) {
+        if (isCompile && useBuildWorker) {
           let durationInSeconds = 0
 
-          await webpackBuild(['server']).then((res) => {
+          await webpackBuild(true, ['server']).then((res) => {
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
             const buildTraceWorker = new Worker(
@@ -1088,11 +1111,11 @@ export default async function build(
               })
           })
 
-          await webpackBuild(['edge-server']).then((res) => {
+          await webpackBuild(true, ['edge-server']).then((res) => {
             durationInSeconds += res.duration
           })
 
-          await webpackBuild(['client']).then((res) => {
+          await webpackBuild(true, ['client']).then((res) => {
             durationInSeconds += res.duration
           })
 
@@ -1108,7 +1131,7 @@ export default async function build(
         } else {
           const { duration: webpackBuildDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
-            : await webpackBuild()
+            : await webpackBuild(false)
 
           buildTraceContext = rest.buildTraceContext
 
@@ -1208,17 +1231,9 @@ export default async function build(
       ) {
         let infoPrinted = false
 
-        return Worker.create<
-          Pick<
-            typeof import('./worker'),
-            | 'hasCustomGetInitialProps'
-            | 'isPageStatic'
-            | 'getDefinedNamedExports'
-            | 'exportPage'
-          >,
-          [ExportPageInput]
-        >(staticWorkerPath, {
+        return new Worker(staticWorkerPath, {
           timeout: timeout * 1000,
+          logger: Log,
           onRestart: (method, [arg], attempts) => {
             if (method === 'exportPage') {
               const pagePath = arg.path
@@ -1264,7 +1279,14 @@ export default async function build(
             'getDefinedNamedExports',
             'exportPage',
           ],
-        })
+        }) as Worker &
+          Pick<
+            typeof import('./worker'),
+            | 'hasCustomGetInitialProps'
+            | 'isPageStatic'
+            | 'getDefinedNamedExports'
+            | 'exportPage'
+          >
       }
 
       let CacheHandler: any
@@ -1366,6 +1388,7 @@ export default async function build(
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
+              ppr: config.experimental.ppr === true,
             })
         )
 
@@ -1453,7 +1476,7 @@ export default async function build(
               })
               return checkPageSpan.traceAsyncFn(async () => {
                 const actualPage = normalizePagePath(page)
-                const [selfSize, allSize] = await getJsPageSizeInKb(
+                const [size, totalSize] = await getJsPageSizeInKb(
                   pageType,
                   actualPage,
                   distDir,
@@ -1463,7 +1486,8 @@ export default async function build(
                   computedManifestData
                 )
 
-                let isSsg = false
+                let isPPR = false
+                let isSSG = false
                 let isStatic = false
                 let isServerComponent = false
                 let isHybridAmp = false
@@ -1573,6 +1597,7 @@ export default async function build(
                             maxMemoryCacheSize:
                               config.experimental.isrMemoryCacheSize,
                             nextConfigOutput: config.output,
+                            ppr: config.experimental.ppr === true,
                           })
                         }
                       )
@@ -1582,12 +1607,24 @@ export default async function build(
                         // TODO-APP: handle prerendering with edge
                         if (isEdgeRuntime(pageRuntime)) {
                           isStatic = false
-                          isSsg = false
+                          isSSG = false
 
                           Log.warnOnce(
                             `Using edge runtime on a page currently disables static generation for that page`
                           )
                         } else {
+                          // If this route can be partially pre-rendered, then
+                          // mark it as such and mark it that it can be
+                          // generated server-side.
+                          if (workerResult.isPPR) {
+                            isPPR = workerResult.isPPR
+                            isSSG = true
+                            isStatic = true
+
+                            appStaticPaths.set(originalAppPath, [])
+                            appStaticPathsEncoded.set(originalAppPath, [])
+                          }
+
                           if (
                             workerResult.encodedPrerenderRoutes &&
                             workerResult.prerenderRoutes
@@ -1601,7 +1638,7 @@ export default async function build(
                               workerResult.encodedPrerenderRoutes
                             )
                             ssgPageRoutes = workerResult.prerenderRoutes
-                            isSsg = true
+                            isSSG = true
                           }
 
                           const appConfig = workerResult.appConfig || {}
@@ -1688,7 +1725,7 @@ export default async function build(
 
                         if (workerResult.hasStaticProps) {
                           ssgPages.add(page)
-                          isSsg = true
+                          isSSG = true
 
                           if (
                             workerResult.prerenderRoutes &&
@@ -1723,7 +1760,7 @@ export default async function build(
                           // This is a static server component page that doesn't have
                           // gSP or gSSP. We still treat it as a SSG page.
                           ssgPages.add(page)
-                          isSsg = true
+                          isSSG = true
                         }
 
                         if (hasPages404 && page === '/404') {
@@ -1766,7 +1803,7 @@ export default async function build(
                   }
 
                   if (pageType === 'app') {
-                    if (isSsg || isStatic) {
+                    if (isSSG || isStatic) {
                       staticAppPagesCount++
                     } else {
                       serverAppPagesCount++
@@ -1775,16 +1812,18 @@ export default async function build(
                 }
 
                 pageInfos.set(page, {
-                  size: selfSize,
-                  totalSize: allSize,
-                  static: isStatic,
-                  isSsg,
+                  size,
+                  totalSize,
+                  isStatic,
+                  isSSG,
+                  isPPR,
                   isHybridAmp,
                   ssgPageRoutes,
                   initialRevalidateSeconds: false,
                   runtime: pageRuntime,
                   pageDuration: undefined,
                   ssgPageDurations: undefined,
+                  hasEmptyPrelude: undefined,
                 })
               })
             })
@@ -2142,7 +2181,6 @@ export default async function build(
           }
 
           const exportOptions: ExportAppOptions = {
-            isInvokedFromCli: false,
             nextConfig: exportConfig,
             hasAppDir,
             silent: false,
@@ -2186,14 +2224,13 @@ export default async function build(
               appConfig.revalidate === 0 ||
               exportResult.byPath.get(page)?.revalidate === 0
 
-            // TODO: (wyattjoh) maybe change behavior for postpone?
-            if (hasDynamicData && pageInfos.get(page)?.static) {
+            if (hasDynamicData && pageInfos.get(page)?.isStatic) {
               // if the page was marked as being static, but it contains dynamic data
               // (ie, in the case of a static generation bailout), then it should be marked dynamic
               pageInfos.set(page, {
                 ...(pageInfos.get(page) as PageInfo),
-                static: false,
-                isSsg: false,
+                isStatic: false,
+                isSSG: false,
               })
             }
 
@@ -2217,7 +2254,15 @@ export default async function build(
               const {
                 revalidate = appConfig.revalidate ?? false,
                 metadata = {},
+                hasEmptyPrelude,
+                hasPostponed,
               } = exportResult.byPath.get(route) ?? {}
+
+              pageInfos.set(route, {
+                ...(pageInfos.get(route) as PageInfo),
+                hasPostponed,
+                hasEmptyPrelude,
+              })
 
               if (revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route)
@@ -2269,8 +2314,8 @@ export default async function build(
                 // used dynamic data
                 pageInfos.set(route, {
                   ...(pageInfos.get(route) as PageInfo),
-                  isSsg: false,
-                  static: false,
+                  isSSG: false,
+                  isStatic: false,
                 })
               }
             })
@@ -2278,6 +2323,11 @@ export default async function build(
             if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
               const normalizedRoute = normalizePagePath(page)
               const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+
+              pageInfos.set(page, {
+                ...(pageInfos.get(page) as PageInfo),
+                isDynamicAppRoute: true,
+              })
 
               // TODO: create a separate manifest to allow enforcing
               // dynamicParams for non-static paths?
@@ -2828,7 +2878,6 @@ export default async function build(
         )
 
         const options: ExportAppOptions = {
-          isInvokedFromCli: false,
           buildExport: false,
           nextConfig: config,
           hasAppDir,

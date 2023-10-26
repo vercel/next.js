@@ -249,7 +249,7 @@ const config = {
   getQuickInfoAtPosition(fileName: string, position: number) {
     const ts = getTs()
 
-    let overriden: tsModule.QuickInfo | undefined
+    let overridden: tsModule.QuickInfo | undefined
     visitEntryConfig(fileName, position, (entryConfig, declaration) => {
       if (!API_DOCS[entryConfig]) return
 
@@ -274,7 +274,7 @@ const config = {
           : !!API_DOCS[entryConfig].options?.[key]
 
         if (isValid) {
-          overriden = {
+          overridden = {
             kind: ts.ScriptElementKind.enumElement,
             kindModifiers: ts.ScriptElementKindModifier.none,
             textSpan: {
@@ -295,7 +295,7 @@ const config = {
           }
         } else {
           // Wrong value, display the docs link
-          overriden = {
+          overridden = {
             kind: ts.ScriptElementKind.enumElement,
             kindModifiers: ts.ScriptElementKindModifier.none,
             textSpan: {
@@ -308,7 +308,7 @@ const config = {
         }
       } else {
         // Hovers the name of the config
-        overriden = {
+        overridden = {
           kind: ts.ScriptElementKind.enumElement,
           kindModifiers: ts.ScriptElementKindModifier.none,
           textSpan: {
@@ -326,7 +326,7 @@ const config = {
         }
       }
     })
-    return overriden
+    return overridden
   },
 
   // Show details on the side when auto completing.

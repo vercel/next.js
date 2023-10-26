@@ -66,6 +66,7 @@
     "napi",
     "nextjs",
     "opentelemetry",
+    "prerendered",
     "Threadsafe",
     "Turbopack",
     "zipkin"

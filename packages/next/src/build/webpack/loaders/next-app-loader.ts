@@ -6,7 +6,7 @@ import path from 'path'
 import { stringify } from 'querystring'
 import { bold } from '../../../lib/picocolors'
 import { getModuleBuildInfo } from './get-module-build-info'
-import { verifyRootLayout } from '../../../lib/verifyRootLayout'
+import { verifyRootLayout } from '../../../lib/verify-root-layout'
 import * as Log from '../../output/log'
 import { APP_DIR_ALIAS, WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import {
@@ -178,7 +178,7 @@ async function createTreeCodeFromPath(
   rootLayout: string | undefined
   globalError: string | undefined
 }> {
-  const splittedPath = pagePath.split(/[\\/]/)
+  const splittedPath = pagePath.split(/[\\/]/, 1)
   const isNotFoundRoute = page === '/_not-found'
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]

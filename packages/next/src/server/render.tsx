@@ -37,6 +37,9 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 import type { PagesModule } from './future/route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
+import type { Revalidate } from './lib/revalidate'
+import type { COMPILER_NAMES } from '../shared/lib/constants'
+
 import React from 'react'
 import ReactDOMServer from 'react-dom/server.browser'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
@@ -49,9 +52,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
-  CACHE_ONE_YEAR,
 } from '../lib/constants'
-import type { COMPILER_NAMES } from '../shared/lib/constants'
 import {
   NEXT_BUILTIN_DOCUMENT,
   SERVER_PROPS_ID,
@@ -103,7 +104,7 @@ import {
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
-import { setRevalidateHeaders } from './send-payload'
+import { formatRevalidate } from './lib/revalidate'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -112,7 +113,6 @@ let postProcessHTML: typeof import('./post-process').postProcessHTML
 const DOCTYPE = '<!DOCTYPE html>'
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
-  require('./node-polyfill-web-streams')
   tryGetPreviewData =
     require('./api-utils/node/try-get-preview-data').tryGetPreviewData
   warn = require('../build/output/log').warn
@@ -509,11 +509,7 @@ export async function renderToHTMLImpl(
   // ensure we set cache header so it's not rendered on-demand
   // every request
   if (isAutoExport && !dev && isExperimentalCompile) {
-    setRevalidateHeaders(res, {
-      revalidate: CACHE_ONE_YEAR,
-      private: false,
-      stateful: false,
-    })
+    res.setHeader('Cache-Control', formatRevalidate(false))
     isAutoExport = false
   }
 
@@ -659,7 +655,7 @@ export async function renderToHTMLImpl(
     renderOpts.defaultLocale,
     renderOpts.domainLocales,
     isPreview,
-    getRequestMeta(req, '__nextIsLocaleDomain')
+    getRequestMeta(req, 'isLocaleDomain')
   )
 
   const appRouter = adaptForAppRouterInstance(router)
@@ -820,7 +816,7 @@ export async function renderToHTMLImpl(
   }
 
   if (isSSG && !isFallback) {
-    let data: UnwrapPromise<ReturnType<GetStaticProps>>
+    let data: Readonly<UnwrapPromise<ReturnType<GetStaticProps>>>
 
     try {
       data = await getTracer().trace(
@@ -931,6 +927,7 @@ export async function renderToHTMLImpl(
       )
     }
 
+    let revalidate: Revalidate
     if ('revalidate' in data) {
       if (data.revalidate && renderOpts.nextConfigOutput === 'export') {
         throw new Error(
@@ -951,24 +948,28 @@ export async function renderToHTMLImpl(
               `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
               `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
           )
-        } else if (data.revalidate > 31536000) {
-          // if it's greater than a year for some reason error
-          console.warn(
-            `Warning: A page's revalidate option was set to more than a year for ${req.url}. This may have been done in error.` +
-              `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
-          )
+        } else {
+          if (data.revalidate > 31536000) {
+            // if it's greater than a year for some reason error
+            console.warn(
+              `Warning: A page's revalidate option was set to more than a year for ${req.url}. This may have been done in error.` +
+                `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
+            )
+          }
+
+          revalidate = data.revalidate
         }
       } else if (data.revalidate === true) {
         // When enabled, revalidate after 1 second. This value is optimal for
         // the most up-to-date page possible, but without a 1-to-1
         // request-refresh ratio.
-        data.revalidate = 1
+        revalidate = 1
       } else if (
         data.revalidate === false ||
         typeof data.revalidate === 'undefined'
       ) {
         // By default, we never revalidate.
-        data.revalidate = false
+        revalidate = false
       } else {
         throw new Error(
           `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers and strings cannot be used. Received '${JSON.stringify(
@@ -978,7 +979,7 @@ export async function renderToHTMLImpl(
       }
     } else {
       // By default, we never revalidate.
-      ;(data as any).revalidate = false
+      revalidate = false
     }
 
     props.pageProps = Object.assign(
@@ -988,8 +989,7 @@ export async function renderToHTMLImpl(
     )
 
     // pass up revalidate and props for export
-    renderResultMeta.revalidate =
-      'revalidate' in data ? data.revalidate : undefined
+    renderResultMeta.revalidate = revalidate
     renderResultMeta.pageData = props
 
     // this must come after revalidate is added to renderResultMeta
@@ -1327,18 +1327,17 @@ export async function renderToHTMLImpl(
     const createBodyResult = getTracer().wrap(
       RenderSpan.createBodyResult,
       (initialStream: ReactReadableStream, suffix?: string) => {
-        // this must be called inside bodyResult so appWrappers is
-        // up to date when `wrapApp` is called
-        const getServerInsertedHTML = async (): Promise<string> => {
-          return renderToString(styledJsxInsertedHTML())
-        }
-
         return continueFizzStream(initialStream, {
           suffix,
           inlinedDataStream: serverComponentsInlinedTransformStream?.readable,
           generateStaticHTML: true,
-          getServerInsertedHTML,
+          // this must be called inside bodyResult so appWrappers is
+          // up to date when `wrapApp` is called
+          getServerInsertedHTML: () => {
+            return renderToString(styledJsxInsertedHTML())
+          },
           serverInsertedHTMLToHead: false,
+          validateRootLayout: undefined,
         })
       }
     )
@@ -1471,7 +1470,7 @@ export async function renderToHTMLImpl(
     docComponentsRendered,
     dangerousAsPath: router.asPath,
     canonicalBase:
-      !renderOpts.ampPath && getRequestMeta(req, '__nextStrippedLocale')
+      !renderOpts.ampPath && getRequestMeta(req, 'didStripLocale')
         ? `${renderOpts.canonicalBase || ''}/${renderOpts.locale}`
         : renderOpts.canonicalBase,
     ampPath,
@@ -1540,7 +1539,8 @@ export async function renderToHTMLImpl(
   }
 
   const [renderTargetPrefix, renderTargetSuffix] = documentHTML.split(
-    '<next-js-internal-body-render-target></next-js-internal-body-render-target>'
+    '<next-js-internal-body-render-target></next-js-internal-body-render-target>',
+    2
   )
 
   let prefix = ''
@@ -1552,16 +1552,18 @@ export async function renderToHTMLImpl(
     prefix += '<!-- __NEXT_DATA__ -->'
   }
 
-  const streams = [
-    streamFromString(prefix),
-    await documentResult.bodyResult(renderTargetSuffix),
-  ]
+  const content = await streamToString(
+    chainStreams(
+      streamFromString(prefix),
+      await documentResult.bodyResult(renderTargetSuffix)
+    )
+  )
 
-  const postOptimize = (html: string) =>
-    postProcessHTML(pathname, html, renderOpts, { inAmpMode, hybridAmp })
+  const optimizedHtml = await postProcessHTML(pathname, content, renderOpts, {
+    inAmpMode,
+    hybridAmp,
+  })
 
-  const html = await streamToString(chainStreams(streams))
-  const optimizedHtml = await postOptimize(html)
   return new RenderResult(optimizedHtml, renderResultMeta)
 }
 

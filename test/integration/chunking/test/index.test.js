@@ -22,7 +22,8 @@ const existsChunkNamed = (name) => {
   return chunks.some((chunk) => new RegExp(name).test(chunk))
 }
 
-describe('Chunking', () => {
+// Skipped as it uses webpack internals / stats.json.
+;(process.env.TURBOPACK ? describe.skip : describe)('Chunking', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       try {

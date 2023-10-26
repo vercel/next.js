@@ -36,7 +36,9 @@ pub async fn get_middleware_module(
         project_root,
         indexmap! {
             "VAR_USERLAND" => INNER.to_string(),
+            "VAR_DEFINITION_PAGE" => "/middleware".to_string(),
         },
+        indexmap! {},
         indexmap! {},
     )
     .await?;
