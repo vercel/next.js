@@ -2742,9 +2742,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // testing. It's used to verify that we're actually serving a postponed
       // request so we can trust the cache headers.
       if (
-        isAppPrefetch &&
         cachedData.postponed &&
-        (isDataReq || process.env.__NEXT_TEST_MODE)
+        (isAppPrefetch || isDataReq || process.env.__NEXT_TEST_MODE)
       ) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
