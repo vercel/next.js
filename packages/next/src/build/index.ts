@@ -1694,6 +1694,7 @@ export default async function build(
                               appStaticPaths.set(originalAppPath, [])
                               appStaticPathsEncoded.set(originalAppPath, [])
                               isStatic = true
+                              isPPR = false
                             }
                           }
 

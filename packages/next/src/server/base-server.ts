@@ -569,12 +569,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         parsedUrl.pathname,
         true
       )
+
+      // Mark the request as a router prefetch request.
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
+      addRequestMeta(req, 'isRSCRequest', true)
+      addRequestMeta(req, 'isPrefetchRSCRequest', true)
     } else if (this.normalizers.rsc.match(parsedUrl.pathname)) {
       matched = true
       parsedUrl.pathname = this.normalizers.rsc.normalize(
         parsedUrl.pathname,
         true
       )
+      addRequestMeta(req, 'isRSCRequest', true)
     }
 
     // If we didn't match, return.
@@ -980,8 +986,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             'http://localhost'
           )
 
-          if (this.normalizers.rsc.match(matchedPath)) {
+          if (this.normalizers.prefetchRSC.match(matchedPath)) {
+            matchedPath = this.normalizers.prefetchRSC.normalize(
+              matchedPath,
+              true
+            )
+            addRequestMeta(req, 'isRSCRequest', true)
+            addRequestMeta(req, 'isPrefetchRSCRequest', true)
+          } else if (this.normalizers.rsc.match(matchedPath)) {
             matchedPath = this.normalizers.rsc.normalize(matchedPath, true)
+            addRequestMeta(req, 'isRSCRequest', true)
           } else if (this.normalizers.postponed.match(matchedPath)) {
             matchedPath = this.normalizers.postponed.normalize(
               matchedPath,
@@ -1806,7 +1820,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
      * prefetch request.
      */
     const isAppPrefetch =
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1' ||
+      getRequestMeta(req, 'isPrefetchRSCRequest')
 
     // when we are handling a middleware prefetch and it doesn't
     // resolve to a static data route we bail early to avoid
@@ -1849,7 +1864,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
-    const isFlightRequest = Boolean(req.headers[RSC_HEADER.toLowerCase()])
+    const isFlightRequest =
+      Boolean(req.headers[RSC_HEADER.toLowerCase()]) ||
+      getRequestMeta(req, 'isRSCRequest')
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
@@ -1957,18 +1974,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     }
 
+    // If the request metadata is marked as a RSC request,
+    if (
+      getRequestMeta(req, 'isRSCRequest') ||
+      getRequestMeta(req, 'isPrefetchRSCRequest')
+    ) {
+      isDataReq = true
+    }
+
     if (isAppPath) {
       res.setHeader('vary', RSC_VARY_HEADER)
 
       // We don't clear RSC headers in development since SSG doesn't apply
       // These headers are cleared for SSG as we need to always generate the
       // full RSC response for ISR.
-      if (
-        !this.renderOpts.dev &&
-        !isPreviewMode &&
-        isSSG &&
-        req.headers[RSC_HEADER.toLowerCase()]
-      ) {
+      if (!this.renderOpts.dev && !isPreviewMode && isSSG && isFlightRequest) {
         if (!this.minimalMode) {
           isDataReq = true
         }
@@ -2112,7 +2132,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const doRender: Renderer = async (postponed) => {
       // In development, we always want to generate dynamic HTML.
       const supportsDynamicHTML =
-        (!isDataReq && opts.dev) || !(isSSG || hasStaticPaths) || !!postponed
+        ((!isDataReq && opts.dev) ||
+          !(isSSG || hasStaticPaths) ||
+          !!postponed) &&
+        // We don't support dynamic HTML for prefetch requests.
+        !isAppPrefetch
 
       let headers: OutgoingHttpHeaders | undefined
 
@@ -2594,6 +2618,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // minimal mode, do not cache.
     if (
       resumed?.postponed ||
+      (this.minimalMode && isFlightRequest && !isAppPrefetch) ||
       (cachedData?.kind === 'PAGE' && cachedData.postponed && !this.minimalMode)
     ) {
       revalidate = 0
@@ -2716,7 +2741,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // Mark that the request did postpone if this is a data request or we're
       // testing. It's used to verify that we're actually serving a postponed
       // request so we can trust the cache headers.
-      if (cachedData.postponed && (isDataReq || process.env.__NEXT_TEST_MODE)) {
+      if (
+        isAppPrefetch &&
+        cachedData.postponed &&
+        (isDataReq || process.env.__NEXT_TEST_MODE)
+      ) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
@@ -2736,6 +2765,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           if (!result.value.pageData) {
             throw new Error('Invariant: Expected pageData to be present')
+          }
+
+          if (result.value.postponed) {
+            throw new Error('Invariant: Expected postponed to be undefined')
           }
 
           return {
@@ -2760,7 +2793,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // If there's no postponed state, we should just serve the HTML. This
       // should also be the case for a resume request because it's completed
       // as a server render (rather than a static render).
-      if (!cachedData.postponed) {
+      if (!cachedData.postponed || this.minimalMode) {
         return {
           type: 'html',
           body,
