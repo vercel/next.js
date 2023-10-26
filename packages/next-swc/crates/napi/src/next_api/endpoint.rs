@@ -114,6 +114,7 @@ pub async fn endpoint_write_to_disk(
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_server_changed_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+    issues: bool,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
     let turbo_tasks = endpoint.turbo_tasks().clone();
@@ -123,16 +124,21 @@ pub fn endpoint_server_changed_subscribe(
         func,
         move || async move {
             let changed = endpoint.server_changed();
-            // We don't capture issues and diagonistics here since we don't want to be
-            // notified when they change
             changed.strongly_consistent().await?;
-            Ok(())
+            if issues {
+                let issues = get_issues(changed).await?;
+                let diags = get_diagnostics(changed).await?;
+                Ok((issues, diags))
+            } else {
+                Ok((vec![], vec![]))
+            }
         },
-        |_| {
+        |ctx| {
+            let (issues, diags) = ctx.value;
             Ok(vec![TurbopackResult {
                 result: (),
-                issues: vec![],
-                diagnostics: vec![],
+                issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
             }])
         },
     )
