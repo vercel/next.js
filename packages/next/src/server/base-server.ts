@@ -471,10 +471,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.nextFontManifest = this.getNextFontManifest()
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      if (this.nextConfig.experimental.deploymentId) {
-        process.env.NEXT_DEPLOYMENT_ID =
-          this.nextConfig.experimental.deploymentId
-      }
+      process.env.NEXT_DEPLOYMENT_ID =
+        this.nextConfig.experimental.deploymentId || ''
     }
 
     this.renderOpts = {
@@ -2666,7 +2664,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       if (isDataReq) {
-        // If this isn't a prefetch and this isn't a resume request, we  want to
+        // If this isn't a prefetch and this isn't a resume request, we want to
         // respond with the dynamic flight data. In the case that this is a
         // resume request the page data will already be dynamic.
         if (!isAppPrefetch && !resumed) {

@@ -37,15 +37,6 @@ import {
 } from '../../lib/constants'
 import type { AppRenderContext, GenerateFlight } from './app-render'
 
-function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { Readable } = require('stream') as typeof import('stream')
-    return Readable.toWeb(nodeReadable) as ReadableStream
-  } else {
-    throw new Error('Invalid runtime')
-  }
-}
-
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
   const formData = new FormData()
@@ -389,13 +380,28 @@ export async function handleAction({
 
             bound = await decodeReplyFromBusboy(bb, serverModuleMap)
           } else {
+            // Convert the Node.js readable stream to a Web Stream.
+            const readableStream = new ReadableStream({
+              start(controller) {
+                req.on('data', (chunk) => {
+                  controller.enqueue(new Uint8Array(chunk))
+                })
+                req.on('end', () => {
+                  controller.close()
+                })
+                req.on('error', (err) => {
+                  controller.error(err)
+                })
+              },
+            })
+
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
             const fakeRequest = new Request('http://localhost', {
               method: 'POST',
               // @ts-expect-error
               headers: { 'Content-Type': contentType },
-              body: nodeToWebReadableStream(req),
+              body: readableStream,
               duplex: 'half',
             })
             const formData = await fakeRequest.formData()
