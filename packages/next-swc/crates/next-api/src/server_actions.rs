@@ -194,8 +194,7 @@ async fn get_actions(
     // Actions can be imported by both Client and RSC layers, in which case we need
     // to use the RSC layer's module. We do that by merging the hashes (which match
     // in both layers) and preferring the RSC layer's action.
-    let mut all_actions: IndexMap<String, (ActionLayer, String, Vc<Box<dyn Module>>)> =
-        IndexMap::new();
+    let mut all_actions: HashToLayerNameModule = IndexMap::new();
     for ((layer, module), actions_map) in actions.iter() {
         let module = if *layer == ActionLayer::Rsc {
             *module
