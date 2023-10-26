@@ -580,6 +580,8 @@ export class IncrementalCache implements IncrementalCacheType {
           ),
           srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
           initialRevalidateSeconds: ctx.revalidate,
+          // Pages routes do not have a prefetch data route.
+          prefetchDataRoute: undefined,
         }
       }
       await this.cacheHandler?.set(pathname, data, ctx)
