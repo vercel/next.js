@@ -2192,7 +2192,12 @@
   },
   "test/e2e/app-dir/actions/app-action.test.ts": {
     "passed": [
+      "app-dir action handling Edge SSR should allow cookie and header async storages",
+      "app-dir action handling Edge SSR should handle basic actions correctly",
       "app-dir action handling Edge SSR should handle redirect to a relative URL in a single pass",
+      "app-dir action handling Edge SSR should handle regular redirects",
+      "app-dir action handling Edge SSR should handle unicode search params",
+      "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
       "app-dir action handling HMR should support updating the action",
       "app-dir action handling encryption should send encrypted values from the closed over closure",
       "app-dir action handling fetch actions should handle a fetch action initiated from a static page",
@@ -2224,13 +2229,8 @@
       "app-dir action handling should support uploading files"
     ],
     "failed": [
-      "app-dir action handling Edge SSR should allow cookie and header async storages",
-      "app-dir action handling Edge SSR should handle basic actions correctly",
-      "app-dir action handling Edge SSR should handle regular redirects",
-      "app-dir action handling Edge SSR should handle unicode search params",
-      "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
-      "app-dir action handling should bundle external libraries if they are on the action layer",
-      "app-dir action handling should support importing the same action module instance in both server and action layers"
+      "app-dir action handling should support importing the same action module instance in both server and action layers",
+      "app-dir action handling should bundle external libraries if they are on the action layer"
     ],
     "pending": [
       "app-dir action handling fetch actions should handle revalidateTag + redirect"
@@ -3618,40 +3618,40 @@
   "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
     "passed": [
       "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
+      "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
+      "parallel-routes-and-interception parallel routes should match parallel routes in route groups",
       "parallel-routes-and-interception parallel routes should match parallel routes",
+      "parallel-routes-and-interception parallel routes should navigate with a link with prefetch=false",
+      "parallel-routes-and-interception parallel routes should only scroll to the parallel route that was navigated to",
       "parallel-routes-and-interception parallel routes should render nested parallel routes",
+      "parallel-routes-and-interception parallel routes should support layout files in parallel routes",
+      "parallel-routes-and-interception parallel routes should support nested parallel routes",
+      "parallel-routes-and-interception parallel routes should support parallel route tab bars",
+      "parallel-routes-and-interception parallel routes should support parallel routes with no page component",
+      "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
       "parallel-routes-and-interception route intercepting should re-render the layout on the server when it had a default child route",
-      "parallel-routes-and-interception route intercepting should render intercepted route",
+      "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
+      "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
       "parallel-routes-and-interception route intercepting should render intercepted route from a nested route",
+      "parallel-routes-and-interception route intercepting should render intercepted route",
+      "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
       "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites",
       "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
     ],
     "failed": [
-      "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
-      "parallel-routes-and-interception parallel routes should match parallel routes in route groups",
-      "parallel-routes-and-interception parallel routes should navigate with a link with prefetch=false",
-      "parallel-routes-and-interception parallel routes should only scroll to the parallel route that was navigated to",
-      "parallel-routes-and-interception parallel routes should support layout files in parallel routes",
-      "parallel-routes-and-interception parallel routes should support nested parallel routes",
-      "parallel-routes-and-interception parallel routes should support parallel route tab bars",
-      "parallel-routes-and-interception parallel routes should support parallel routes with no page component",
-      "parallel-routes-and-interception parallel routes should throw a 404 when no matching parallel route is found",
-      "parallel-routes-and-interception parallel routes should throw an error when a route groups causes a conflict with a parallel segment",
-      "parallel-routes-and-interception route intercepting should render an intercepted route at the top level from a nested path",
-      "parallel-routes-and-interception route intercepting should render an intercepted route from a slot",
-      "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes"
+      "parallel-routes-and-interception parallel routes should throw an error when a route groups causes a conflict with a parallel segment"
     ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/parallel-routes-not-found/parallel-routes-not-found.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "parallel-routes-and-interception should not render the @children slot when the @slot is not found"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
