@@ -546,11 +546,12 @@ async function renderToHTMLOrFlightImpl(
   /**
    * Router state provided from the client-side router. Used to handle rendering from the common layout down.
    */
-  let providedFlightRouterState = isFlight
-    ? parseAndValidateFlightRouterState(
-        req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-      )
-    : undefined
+  let providedFlightRouterState =
+    isFlight && (!isPrefetch || !renderOpts.experimental.ppr)
+      ? parseAndValidateFlightRouterState(
+          req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+        )
+      : undefined
 
   /**
    * The metadata items array created in next-app-loader with all relevant information

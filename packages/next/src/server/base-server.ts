@@ -2136,7 +2136,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           !(isSSG || hasStaticPaths) ||
           !!postponed) &&
         // We don't support dynamic HTML for prefetch requests.
-        !isAppPrefetch
+        (!isAppPrefetch || !this.renderOpts.experimental.ppr)
 
       let headers: OutgoingHttpHeaders | undefined
 
