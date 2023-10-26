@@ -1492,7 +1492,7 @@ function runTests({ dev }) {
         rsc: {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
-          disPostponeHeader: 'x-nextjs-postponed',
+          didPostponeHeader: 'x-nextjs-postponed',
           varyHeader:
             'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
           prefetchHeader: 'Next-Router-Prefetch',
