@@ -184,7 +184,7 @@ async fn wrap_edge_page(
             "nextConfig" => serde_json::to_string(next_config)?,
             "isServerComponent" => serde_json::Value::Bool(is_server_component).to_string(),
             "dev" => serde_json::Value::Bool(dev).to_string(),
-            "serverActionsBodySizeLimit" => serde_json::to_string(server_actions_body_size_limit)?
+            "serverActionsBodySizeLimit" => serde_json::to_string(&server_actions_body_size_limit)?
         },
         indexmap! {
             "incrementalCacheHandler" => None,
