@@ -64,7 +64,7 @@ import { revalidatePath } from 'next/cache'
 revalidatePath('/', 'layout')
 ```
 
-This will revalidate the entire Data Cache on the next page visit.
+This will purge the Client-side Router Cache, and revalidate the Data Cache on the next page visit.
 
 ### Server Action
 
