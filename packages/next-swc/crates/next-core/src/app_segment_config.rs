@@ -211,6 +211,16 @@ pub async fn parse_segment_config_from_source(
 ) -> Result<Vc<NextSegmentConfig>> {
     let path = source.ident().path().await?;
 
+    // Don't try parsing if it's not a javascript file, otherwise it will emit an
+    // issue causing the build to "fail".
+    if !(path.path.ends_with(".js")
+        || path.path.ends_with(".jsx")
+        || path.path.ends_with(".ts")
+        || path.path.ends_with(".tsx"))
+    {
+        return Ok(Default::default());
+    }
+
     let result = &*parse(
         source,
         turbo_tasks::Value::new(
