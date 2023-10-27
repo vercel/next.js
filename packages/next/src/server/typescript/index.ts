@@ -163,8 +163,8 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         if (metadataInfo) return metadataInfo
       }
 
-      const overriden = entryConfig.getQuickInfoAtPosition(fileName, position)
-      if (overriden) return overriden
+      const overridden = entryConfig.getQuickInfoAtPosition(fileName, position)
+      if (overridden) return overridden
 
       return prior
     }

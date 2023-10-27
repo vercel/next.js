@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "13.5.6-canary.3",
+  "version": "14.0.1-canary.0",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -47,6 +47,8 @@
     "jest.d.ts",
     "amp.js",
     "amp.d.ts",
+    "og.js",
+    "og.d.ts",
     "index.d.ts",
     "types/index.d.ts",
     "types/global.d.ts",
@@ -90,7 +92,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "13.5.6-canary.3",
+    "@next/env": "14.0.1-canary.0",
     "@swc/helpers": "0.5.2",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001406",
@@ -135,7 +137,7 @@
     "@babel/traverse": "7.22.5",
     "@babel/types": "7.22.5",
     "@capsizecss/metrics": "1.1.0",
-    "@edge-runtime/cookies": "4.0.1",
+    "@edge-runtime/cookies": "4.0.2",
     "@edge-runtime/ponyfill": "2.4.1",
     "@edge-runtime/primitives": "4.0.2",
     "@hapi/accept": "5.0.2",
@@ -144,11 +146,11 @@
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/cli": "2.16.2",
     "@napi-rs/triples": "1.1.0",
-    "@next/polyfill-module": "13.5.6-canary.3",
-    "@next/polyfill-nomodule": "13.5.6-canary.3",
-    "@next/react-dev-overlay": "13.5.6-canary.3",
-    "@next/react-refresh-utils": "13.5.6-canary.3",
-    "@next/swc": "13.5.6-canary.3",
+    "@next/polyfill-module": "14.0.1-canary.0",
+    "@next/polyfill-nomodule": "14.0.1-canary.0",
+    "@next/react-dev-overlay": "14.0.1-canary.0",
+    "@next/react-refresh-utils": "14.0.1-canary.0",
+    "@next/swc": "14.0.1-canary.0",
     "@opentelemetry/api": "1.4.1",
     "@playwright/test": "^1.35.1",
     "@taskr/clear": "1.1.0",
@@ -191,7 +193,7 @@
     "@types/ws": "8.2.0",
     "@vercel/ncc": "0.34.0",
     "@vercel/nft": "0.22.6",
-    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231017.3",
+    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231026.5",
     "acorn": "8.5.0",
     "amphtml-validator": "1.0.35",
     "anser": "1.4.9",
@@ -302,7 +304,6 @@
     "timers-browserify": "2.0.12",
     "tty-browserify": "0.0.1",
     "ua-parser-js": "1.0.35",
-    "undici": "5.26.3",
     "unistore": "3.4.1",
     "util": "0.12.4",
     "uuid": "8.3.2",
@@ -316,6 +317,6 @@
     "zod": "3.22.3"
   },
   "engines": {
-    "node": ">=18.18.2"
+    "node": ">=18.17.0"
   }
 }

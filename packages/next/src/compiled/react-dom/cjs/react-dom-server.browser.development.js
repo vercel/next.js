@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-canary-09fbee89d-20231013';
+var ReactVersion = '18.3.0-canary-8c8ee9ee6-20231026';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -338,7 +338,7 @@ function testStringCoercion(value) {
 function checkAttributeStringCoercion(value, attributeName) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided `%s` attribute is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', attributeName, typeName(value));
+      error('The provided `%s` attribute is an unsupported type %s.' + ' This value must be coerced to a string before using it here.', attributeName, typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -347,7 +347,7 @@ function checkAttributeStringCoercion(value, attributeName) {
 function checkCSSPropertyStringCoercion(value, propName) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided `%s` CSS property is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', propName, typeName(value));
+      error('The provided `%s` CSS property is an unsupported type %s.' + ' This value must be coerced to a string before using it here.', propName, typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -356,7 +356,7 @@ function checkCSSPropertyStringCoercion(value, propName) {
 function checkHtmlStringCoercion(value) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided HTML markup uses a value of unsupported type %s.' + ' This value must be coerced to a string before before using it here.', typeName(value));
+      error('The provided HTML markup uses a value of unsupported type %s.' + ' This value must be coerced to a string before using it here.', typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -1982,7 +1982,7 @@ function createResumableState(identifierPrefix, externalRuntimeConfig) {
     moduleUnknownResources: {},
     moduleScriptResources: {}
   };
-} // Constants for the insertion mode we're currently writing in. We don't encode all HTML5 insertion
+}
 // modes. We only include the variants as they matter for the sake of our purposes.
 // We don't actually provide the namespace therefore we use constants instead of the string.
 
@@ -3596,7 +3596,7 @@ function pushStyleImpl(target, props) {
   }
 
   pushInnerHTML(target, innerHTML, children);
-  target.push(endTag1, stringToChunk('style'), endTag2);
+  target.push(endChunkForTag('style'));
   return null;
 }
 
@@ -3818,7 +3818,7 @@ function pushTitleImpl(target, props) {
   }
 
   pushInnerHTML(target, innerHTML, children);
-  target.push(endTag1, stringToChunk('title'), endTag2);
+  target.push(endChunkForTag('title'));
   return null;
 }
 
@@ -3961,7 +3961,7 @@ function pushScriptImpl(target, props) {
     target.push(stringToChunk(encodeHTMLTextNode(children)));
   }
 
-  target.push(endTag1, stringToChunk('script'), endTag2);
+  target.push(endChunkForTag('script'));
   return null;
 }
 
@@ -4287,8 +4287,19 @@ function pushStartInstance(target, type, props, resumableState, renderState, for
 
   return pushStartGenericElement(target, props, type);
 }
-var endTag1 = stringToPrecomputedChunk('</');
-var endTag2 = stringToPrecomputedChunk('>');
+var endTagCache = new Map();
+
+function endChunkForTag(tag) {
+  var chunk = endTagCache.get(tag);
+
+  if (chunk === undefined) {
+    chunk = stringToPrecomputedChunk('</' + tag + '>');
+    endTagCache.set(tag, chunk);
+  }
+
+  return chunk;
+}
+
 function pushEndInstance(target, type, props, resumableState, formatContext) {
   switch (type) {
     // When float is on we expect title and script tags to always be pushed in
@@ -4345,7 +4356,7 @@ function pushEndInstance(target, type, props, resumableState, formatContext) {
       break;
   }
 
-  target.push(endTag1, stringToChunk(type), endTag2);
+  target.push(endChunkForTag(type));
 }
 
 function writeBootstrap(destination, renderState) {
@@ -5134,9 +5145,7 @@ function writePreamble(destination, resumableState, renderState, willFlushAllSeg
     // if the main content contained the </head> it would also have provided a
     // <head>. This means that all the content inside <html> is either <body> or
     // invalid HTML
-    writeChunk(destination, endTag1);
-    writeChunk(destination, stringToChunk('head'));
-    writeChunk(destination, endTag2);
+    writeChunk(destination, endChunkForTag('head'));
   }
 } // We don't bother reporting backpressure at the moment because we expect to
 // flush the entire preamble in a single pass. This probably should be modified
@@ -5193,15 +5202,11 @@ function writeHoistables(destination, resumableState, renderState) {
 }
 function writePostamble(destination, resumableState) {
   if (resumableState.hasBody) {
-    writeChunk(destination, endTag1);
-    writeChunk(destination, stringToChunk('body'));
-    writeChunk(destination, endTag2);
+    writeChunk(destination, endChunkForTag('body'));
   }
 
   if (resumableState.hasHtml) {
-    writeChunk(destination, endTag1);
-    writeChunk(destination, stringToChunk('html'));
-    writeChunk(destination, endTag2);
+    writeChunk(destination, endChunkForTag('html'));
   }
 }
 var arrayFirstOpenBracket = stringToPrecomputedChunk('[');
@@ -10523,7 +10528,7 @@ function retryReplayTask(request, task) {
     // component suspends again, the thenable state will be restored.
     var prevThenableState = task.thenableState;
     task.thenableState = null;
-    renderNodeDestructive(request, task, prevThenableState, task.node, -1);
+    renderNodeDestructive(request, task, prevThenableState, task.node, task.childIndex);
 
     if (task.replay.pendingTasks === 1 && task.replay.nodes.length > 0) {
       throw new Error("Couldn't find all resumable slots by key/index during replaying. " + "The tree doesn't match so React will fallback to client rendering.");
@@ -10882,7 +10887,10 @@ function flushCompletedQueues(request, destination) {
     var completedRootSegment = request.completedRootSegment;
 
     if (completedRootSegment !== null) {
-      if (request.pendingRootTasks === 0) {
+      if (completedRootSegment.status === POSTPONED) {
+        // We postponed the root, so we write nothing.
+        return;
+      } else if (request.pendingRootTasks === 0) {
         if (enableFloat) {
           writePreamble(destination, request.resumableState, request.renderState, request.allPendingTasks === 0 && request.trackedPostpones === null);
         }
@@ -10995,7 +11003,10 @@ function flushCompletedQueues(request, destination) {
         } // We're done.
 
 
-        close(destination);
+        close(destination); // We need to stop flowing now because we do not want any async contexts which might call
+        // float methods to initiate any flushes after this point
+
+        stopFlowing(request);
       } else {
       completeWriting(destination);
     }
@@ -11017,10 +11028,17 @@ function enqueueFlush(request) {
   request.pingedTasks.length === 0 && // If there is no destination there is nothing we can flush to. A flush will
   // happen when we start flowing again
   request.destination !== null) {
-    var destination = request.destination;
     request.flushScheduled = true;
     scheduleWork(function () {
-      return flushCompletedQueues(request, destination);
+      // We need to existence check destination again here because it might go away
+      // in between the enqueueFlush call and the work execution
+      var destination = request.destination;
+
+      if (destination) {
+        flushCompletedQueues(request, destination);
+      } else {
+        request.flushScheduled = false;
+      }
     });
   }
 }
@@ -11104,7 +11122,7 @@ function renderToReadableStream(children, options) {
         },
         cancel: function (reason) {
           stopFlowing(request);
-          abort(request);
+          abort(request, reason);
         }
       }, // $FlowFixMe[prop-missing] size() methods are not allowed on byte streams.
       {
