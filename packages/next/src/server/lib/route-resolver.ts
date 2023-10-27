@@ -3,7 +3,6 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { RenderServer } from './router-server'
 
 import '../require-hook'
-import '../node-polyfill-fetch'
 
 import url from 'url'
 import path from 'path'
@@ -236,7 +235,7 @@ export async function makeResolver(
         res,
         parsedUrl,
         undefined,
-        getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream(),
+        getRequestMeta(req, 'clonableBody')?.cloneBodyStream(),
         nextConfig.experimental.proxyTimeout
       )
       return
