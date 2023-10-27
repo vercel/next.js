@@ -69,7 +69,11 @@ async function makeRequestWithInvalidContentType() {
 const startServer = async (optEnv = {}, opts) => {
   const scriptPath = join(appDir, 'server.js')
   context.appPort = appPort = await getPort()
-  const env = Object.assign({ ...process.env }, { PORT: `${appPort}` }, optEnv)
+  const env = Object.assign(
+    { ...process.env },
+    { PORT: `${appPort}`, CUSTOM_SERVER: 'true' },
+    optEnv
+  )
 
   server = await initNextServerScript(
     scriptPath,

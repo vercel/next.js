@@ -13,7 +13,7 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: pages/two.js:9
+#: pages/two.js:8
 msgid "Back home"
 msgstr "Back home"
 
@@ -21,7 +21,7 @@ msgstr "Back home"
 msgid "English"
 msgstr "English"
 
-#: pages/index.js:9
+#: pages/index.js:8
 msgid "Go to page 2"
 msgstr "Go to page 2"
 

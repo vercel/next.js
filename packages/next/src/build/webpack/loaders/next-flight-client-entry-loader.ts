@@ -11,7 +11,7 @@ export type NextFlightClientEntryLoaderOptions = {
   server: boolean | 'true' | 'false'
 }
 
-export default async function transformSource(this: any): Promise<string> {
+export default function transformSource(this: any) {
   let { modules, server }: NextFlightClientEntryLoaderOptions =
     this.getOptions()
   const isServer = server === 'true'
@@ -22,26 +22,18 @@ export default async function transformSource(this: any): Promise<string> {
 
   const requests = modules as string[]
   const code = requests
-    // Filter out css files on the server
+    // Filter out CSS files in the SSR compilation
     .filter((request) => (isServer ? !regexCSS.test(request) : true))
-    .map((request) =>
-      regexCSS.test(request)
-        ? `(() => import(/* webpackMode: "lazy" */ ${JSON.stringify(request)}))`
-        : `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
+    .map(
+      (request) =>
+        `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
     )
     .join(';\n')
 
   const buildInfo = getModuleBuildInfo(this._module)
-  const resolve = this.getResolve()
-
-  // Resolve to absolute resource url for flight manifest to collect and use to determine client components
-  const resolvedRequests = await Promise.all(
-    requests.map(async (r) => await resolve(this.rootContext, r))
-  )
 
   buildInfo.rsc = {
     type: RSC_MODULE_TYPES.client,
-    requests: resolvedRequests,
   }
 
   return code

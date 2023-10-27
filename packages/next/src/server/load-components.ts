@@ -3,22 +3,29 @@ import type {
   DocumentType,
   NextComponentType,
 } from '../shared/lib/utils'
+import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type {
   PageConfig,
   GetStaticPaths,
   GetServerSideProps,
   GetStaticProps,
 } from 'next/types'
+import type { RouteModule } from './future/route-modules/route-module'
+import type { BuildManifest } from './get-page-files'
+
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
-  FLIGHT_MANIFEST,
+  CLIENT_REFERENCE_MANIFEST,
+  SERVER_REFERENCE_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
-import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
-
+import { getTracer } from './lib/trace/tracer'
+import { LoadComponentsSpan } from './lib/trace/constants'
+import { loadManifest } from './load-manifest'
+import { wait } from '../lib/wait'
 export type ManifestItem = {
   id: number | string
   files: string[]
@@ -26,65 +33,81 @@ export type ManifestItem = {
 
 export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
-export type LoadComponentsReturnType = {
+/**
+ * A manifest entry type for the react-loadable-manifest.json.
+ *
+ * The whole manifest.json is a type of `Record<pathName, LoadableManifest>`
+ * where pathName is a string-based key points to the path of the page contains
+ * each dynamic imports.
+ */
+export interface LoadableManifest {
+  [k: string]: { id: string | number; files: string[] }
+}
+
+export type LoadComponentsReturnType<NextModule = any> = {
   Component: NextComponentType
   pageConfig: PageConfig
   buildManifest: BuildManifest
   subresourceIntegrityManifest?: Record<string, string>
   reactLoadableManifest: ReactLoadableManifest
-  serverComponentManifest?: any
+  clientReferenceManifest?: ClientReferenceManifest
+  serverActionsManifest?: any
   Document: DocumentType
   App: AppType
   getStaticProps?: GetStaticProps
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
-  ComponentMod: any
+  ComponentMod: NextModule
+  routeModule?: RouteModule
   isAppPath?: boolean
-  pathname: string
+  page: string
 }
 
-export async function loadDefaultErrorComponents(distDir: string) {
-  const Document = interopDefault(require('next/dist/pages/_document'))
-  const AppMod = require('next/dist/pages/_app')
-  const App = interopDefault(AppMod)
-  const ComponentMod = require('next/dist/pages/_error')
-  const Component = interopDefault(ComponentMod)
+/**
+ * Load manifest file with retries, defaults to 3 attempts.
+ */
+export async function loadManifestWithRetries<T>(
+  manifestPath: string,
+  attempts = 3
+): Promise<T> {
+  while (true) {
+    try {
+      return loadManifest(manifestPath)
+    } catch (err) {
+      attempts--
+      if (attempts <= 0) throw err
 
-  return {
-    App,
-    Document,
-    Component,
-    pageConfig: {},
-    buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
-    reactLoadableManifest: {},
-    ComponentMod,
-    pathname: '/_error',
-  }
-}
-
-async function loadManifest<T>(manifestPath: string, attempts = 1): Promise<T> {
-  try {
-    return require(manifestPath)
-  } catch (err) {
-    if (attempts >= 3) {
-      throw err
+      await wait(100)
     }
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    return loadManifest(manifestPath, attempts + 1)
   }
 }
 
-export async function loadComponents({
+async function loadClientReferenceManifest(
+  manifestPath: string,
+  entryName: string
+): Promise<ClientReferenceManifest | undefined> {
+  process.env.NEXT_MINIMAL
+    ? // @ts-ignore
+      __non_webpack_require__(manifestPath)
+    : require(manifestPath)
+  try {
+    return (globalThis as any).__RSC_MANIFEST[
+      entryName
+    ] as ClientReferenceManifest
+  } catch (err) {
+    return undefined
+  }
+}
+
+async function loadComponentsImpl<N = any>({
   distDir,
-  pathname,
-  hasServerComponents,
+  page,
   isAppPath,
 }: {
   distDir: string
-  pathname: string
-  hasServerComponents: boolean
+  page: string
   isAppPath: boolean
-}): Promise<LoadComponentsReturnType> {
+}): Promise<LoadComponentsReturnType<N>> {
   let DocumentMod = {}
   let AppMod = {}
   if (!isAppPath) {
@@ -94,25 +117,48 @@ export async function loadComponents({
     ])
   }
   const ComponentMod = await Promise.resolve().then(() =>
-    requirePage(pathname, distDir, isAppPath)
+    requirePage(page, distDir, isAppPath)
   )
 
-  const [buildManifest, reactLoadableManifest, serverComponentManifest] =
-    await Promise.all([
-      loadManifest<BuildManifest>(join(distDir, BUILD_MANIFEST)),
-      loadManifest<ReactLoadableManifest>(
-        join(distDir, REACT_LOADABLE_MANIFEST)
-      ),
-      hasServerComponents
-        ? loadManifest(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
-        : null,
-    ])
+  // Make sure to avoid loading the manifest for Route Handlers
+  const hasClientManifest =
+    isAppPath &&
+    (page.endsWith('/page') || page === '/not-found' || page === '/_not-found')
+
+  const [
+    buildManifest,
+    reactLoadableManifest,
+    clientReferenceManifest,
+    serverActionsManifest,
+  ] = await Promise.all([
+    loadManifestWithRetries<BuildManifest>(join(distDir, BUILD_MANIFEST)),
+    loadManifestWithRetries<ReactLoadableManifest>(
+      join(distDir, REACT_LOADABLE_MANIFEST)
+    ),
+    hasClientManifest
+      ? loadClientReferenceManifest(
+          join(
+            distDir,
+            'server',
+            'app',
+            page.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
+          ),
+          page.replace(/%5F/g, '_')
+        )
+      : undefined,
+    isAppPath
+      ? loadManifestWithRetries(
+          join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json')
+        ).catch(() => null)
+      : null,
+  ])
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)
   const App = interopDefault(AppMod)
 
-  const { getServerSideProps, getStaticProps, getStaticPaths } = ComponentMod
+  const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
+    ComponentMod
 
   return {
     App,
@@ -125,8 +171,15 @@ export async function loadComponents({
     getServerSideProps,
     getStaticProps,
     getStaticPaths,
-    serverComponentManifest,
+    clientReferenceManifest,
+    serverActionsManifest,
     isAppPath,
-    pathname,
+    page,
+    routeModule,
   }
 }
+
+export const loadComponents = getTracer().wrap(
+  LoadComponentsSpan.loadComponents,
+  loadComponentsImpl
+)

@@ -14,7 +14,7 @@ import { normalizePathSep } from './normalize-path-sep'
 export function removePagePathTail(
   pagePath: string,
   options: {
-    extensions: string[]
+    extensions: ReadonlyArray<string>
     keepIndex?: boolean
   }
 ) {

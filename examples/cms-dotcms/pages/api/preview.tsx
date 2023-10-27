@@ -15,8 +15,8 @@ export default async function preview(req, res) {
     return res.status(401).json({ message: 'Invalid slug' })
   }
 
-  // Enable Preview Mode by setting the cookies
-  res.setPreviewData({})
+  // Enable Draft Mode by setting the cookie
+  res.setDraftMode({ enable: true })
 
   // Redirect to the path from the fetched post
   const url = `/posts/${post.post.urlTitle}`

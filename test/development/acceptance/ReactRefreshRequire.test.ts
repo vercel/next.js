@@ -1,18 +1,13 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { sandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import path from 'path'
 
 describe('ReactRefreshRequire', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {},
-      skipStart: true,
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    skipStart: true,
   })
-  afterAll(() => next.destroy())
 
   // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L989-L1048
   test('re-runs accepted modules', async () => {

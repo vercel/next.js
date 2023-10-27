@@ -1,0 +1,8 @@
+
+  x The "use server" directive must be at the top of the function body.
+    ,-[input.js:9:1]
+  9 |   // prettier-ignore
+ 10 |   'use server'
+    :   ^^^^^^^^^^^^
+ 11 | }
+    `----

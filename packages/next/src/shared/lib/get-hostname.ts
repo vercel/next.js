@@ -1,3 +1,5 @@
+import type { OutgoingHttpHeaders } from 'http'
+
 /**
  * Takes an object with a hostname property (like a parsed URL) and some
  * headers that may contain Host and returns the preferred hostname.
@@ -6,9 +8,16 @@
  */
 export function getHostname(
   parsed: { hostname?: string | null },
-  headers?: { [key: string]: string | string[] | undefined }
-) {
-  return ((!Array.isArray(headers?.host) && headers?.host) || parsed.hostname)
-    ?.split(':')[0]
-    .toLowerCase()
+  headers?: OutgoingHttpHeaders
+): string | undefined {
+  // Get the hostname from the headers if it exists, otherwise use the parsed
+  // hostname.
+  let hostname: string
+  if (headers?.host && !Array.isArray(headers.host)) {
+    hostname = headers.host.toString().split(':', 1)[0]
+  } else if (parsed.hostname) {
+    hostname = parsed.hostname
+  } else return
+
+  return hostname.toLowerCase()
 }

@@ -1,13 +1,27 @@
-import type { NodeHeaders } from './types'
+import type { OutgoingHttpHeaders } from 'http'
 
-export function fromNodeHeaders(object: NodeHeaders): Headers {
+/**
+ * Converts a Node.js IncomingHttpHeaders object to a Headers object. Any
+ * headers with multiple values will be joined with a comma and space. Any
+ * headers that have an undefined value will be ignored and others will be
+ * coerced to strings.
+ *
+ * @param nodeHeaders the headers object to convert
+ * @returns the converted headers object
+ */
+export function fromNodeOutgoingHttpHeaders(
+  nodeHeaders: OutgoingHttpHeaders
+): Headers {
   const headers = new Headers()
-  for (let [key, value] of Object.entries(object)) {
+  for (let [key, value] of Object.entries(nodeHeaders)) {
     const values = Array.isArray(value) ? value : [value]
     for (let v of values) {
-      if (v !== undefined) {
-        headers.append(key, v)
+      if (typeof v === 'undefined') continue
+      if (typeof v === 'number') {
+        v = v.toString()
       }
+
+      headers.append(key, v)
     }
   }
   return headers
@@ -89,17 +103,32 @@ export function splitCookiesString(cookiesString: string) {
   return cookiesStrings
 }
 
-export function toNodeHeaders(headers?: Headers): NodeHeaders {
-  const result: NodeHeaders = {}
+/**
+ * Converts a Headers object to a Node.js OutgoingHttpHeaders object. This is
+ * required to support the set-cookie header, which may have multiple values.
+ *
+ * @param headers the headers object to convert
+ * @returns the converted headers object
+ */
+export function toNodeOutgoingHttpHeaders(
+  headers: Headers
+): OutgoingHttpHeaders {
+  const nodeHeaders: OutgoingHttpHeaders = {}
+  const cookies: string[] = []
   if (headers) {
     for (const [key, value] of headers.entries()) {
-      result[key] = value
       if (key.toLowerCase() === 'set-cookie') {
-        result[key] = splitCookiesString(value)
+        // We may have gotten a comma joined string of cookies, or multiple
+        // set-cookie headers. We need to merge them into one header array
+        // to represent all the cookies.
+        cookies.push(...splitCookiesString(value))
+        nodeHeaders[key] = cookies.length === 1 ? cookies[0] : cookies
+      } else {
+        nodeHeaders[key] = value
       }
     }
   }
-  return result
+  return nodeHeaders
 }
 
 /**

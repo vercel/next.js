@@ -89,6 +89,21 @@ const runTests = () => {
       slug: 'second',
     })
   })
+
+  it('should behave properly when accessing the dynamic param directly', async () => {
+    const res = await fetchViaHTTP(appPort, '/[slug]', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect($('#another').text()).toBe('another')
+    expect(JSON.parse($('#query').text())).toEqual({
+      path: ['[slug]'],
+    })
+  })
 }
 
 describe('fallback: false rewrite', () => {
@@ -102,8 +117,7 @@ describe('fallback: false rewrite', () => {
 
     runTests()
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir, [])

@@ -20,7 +20,7 @@ Page.getInitialProps = async ({ AppTree }) => {
 
   if (typeof window !== 'undefined') {
     const el = document.createElement('div')
-    document.querySelector('body').appendChild(el)
+    document.querySelector('body')?.appendChild(el)
     render(toRender, el)
     html = el.innerHTML
     el.remove()

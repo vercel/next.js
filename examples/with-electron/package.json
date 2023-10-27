@@ -5,7 +5,7 @@
   "scripts": {
     "clean": "rimraf dist renderer/.next renderer/out",
     "start": "electron .",
-    "build": "next build renderer && next export renderer",
+    "build": "next build renderer",
     "pack-app": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder"
   },

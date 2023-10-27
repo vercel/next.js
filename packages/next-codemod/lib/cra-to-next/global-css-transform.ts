@@ -1,5 +1,5 @@
 import nodePath from 'path'
-import { API, FileInfo, Options } from 'jscodeshift'
+import type { API, FileInfo, Options } from 'jscodeshift'
 
 export const globalCssContext = {
   cssImports: new Set<string>(),
@@ -12,7 +12,7 @@ export default function transformer(
   api: API,
   options: Options
 ) {
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
   const root = j(file.source)
   let hasModifications = false
 

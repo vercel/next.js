@@ -1,4 +1,4 @@
-import { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin'
+import type { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin'
 import type { SWC_TARGET_TRIPLE } from '../../build/webpack/plugins/telemetry-plugin'
 
 const REGEXP_DIRECTORY_DUNDER =
@@ -150,6 +150,8 @@ export type EventBuildFeatureUsage = {
     | 'next/dynamic'
     | '@next/font/google'
     | '@next/font/local'
+    | 'next/font/google'
+    | 'next/font/local'
     | 'experimental/optimizeCss'
     | 'experimental/nextScriptWorkers'
     | 'optimizeFonts'

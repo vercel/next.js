@@ -1,21 +1,23 @@
-import { use } from 'react';
-import { fetchCategoryBySlug, PageProps } from '@/lib/getCategories';
-import { SkeletonCard } from '@/ui/SkeletonCard';
+import { getCategory } from '#/app/api/categories/getCategories'
+import { SkeletonCard } from '#/ui/skeleton-card'
 
-export default function Page({ params }: PageProps) {
-  const category = use(fetchCategoryBySlug(params.categorySlug));
-  if (!category) return null;
+export default async function Page({
+  params,
+}: {
+  params: { categorySlug: string }
+}) {
+  const category = await getCategory({ slug: params.categorySlug })
   return (
     <div className="space-y-4">
-      <div className="text-xl font-medium text-zinc-500">
+      <h1 className="text-xl font-medium text-gray-400/80">
         All {category.name}
-      </div>
+      </h1>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {Array.from({ length: 9 }).map((_, i) => (
           <SkeletonCard key={i} />
         ))}
       </div>
     </div>
-  );
+  )
 }

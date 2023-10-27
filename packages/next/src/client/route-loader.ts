@@ -3,6 +3,7 @@ import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
 import { __unsafeCreateTrustedScriptURL } from './trusted-types'
 import { requestIdleCallback } from './request-idle-callback'
+import { getDeploymentIdQueryOrEmptyString } from '../build/deployment-id'
 
 // 3.8s was arbitrarily chosen as it's what https://web.dev/interactive
 // considers as "Good" time-to-interactive. We must assume something went
@@ -16,6 +17,12 @@ declare global {
     __BUILD_MANIFEST_CB?: Function
     __MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
     __MIDDLEWARE_MANIFEST_CB?: Function
+    __PRERENDER_MANIFEST?: string
+    __REACT_LOADABLE_MANIFEST?: any
+    __RSC_MANIFEST?: any
+    __RSC_SERVER_MANIFEST?: any
+    __NEXT_FONT_MANIFEST?: any
+    __SUBRESOURCE_INTEGRITY_MANIFEST?: string
   }
 }
 
@@ -45,12 +52,12 @@ interface Future<V> {
   resolve: (entrypoint: V) => void
   future: Promise<V>
 }
-function withFuture<T>(
+function withFuture<T extends object>(
   key: string,
   map: Map<string, Future<T> | T>,
   generator?: () => Promise<T>
 ): Promise<T> {
-  let entry: Future<T> | T | undefined = map.get(key)
+  let entry = map.get(key)
   if (entry) {
     if ('future' in entry) {
       return entry.future
@@ -105,6 +112,10 @@ function hasPrefetch(link?: HTMLLinkElement): boolean {
 }
 
 const canPrefetch: boolean = hasPrefetch()
+
+const getAssetQueryString = () => {
+  return getDeploymentIdQueryOrEmptyString()
+}
 
 function prefetchViaDom(
   href: string,
@@ -246,7 +257,8 @@ function getFilesForRoute(
     const scriptUrl =
       assetPrefix +
       '/_next/static/chunks/pages' +
-      encodeURI(getAssetPathFromRoute(route, '.js'))
+      encodeURI(getAssetPathFromRoute(route, '.js')) +
+      getAssetQueryString()
     return Promise.resolve({
       scripts: [__unsafeCreateTrustedScriptURL(scriptUrl)],
       // Styles are handled by `style-loader` in development:
@@ -263,8 +275,10 @@ function getFilesForRoute(
     return {
       scripts: allFiles
         .filter((v) => v.endsWith('.js'))
-        .map((v) => __unsafeCreateTrustedScriptURL(v)),
-      css: allFiles.filter((v) => v.endsWith('.css')),
+        .map((v) => __unsafeCreateTrustedScriptURL(v) + getAssetQueryString()),
+      css: allFiles
+        .filter((v) => v.endsWith('.css'))
+        .map((v) => v + getAssetQueryString()),
     }
   })
 }

@@ -1,8 +1,9 @@
-import type { IncomingHttpHeaders } from 'http'
+import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { I18NConfig } from '../config-shared'
 
 import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
-import { getCookieParser, NextApiRequestCookies } from '../api-utils'
+import type { NextApiRequestCookies } from '../api-utils'
+import { getCookieParser } from '../api-utils/get-cookie-parser'
 
 export interface BaseNextRequestConfig {
   basePath: string | undefined
@@ -10,13 +11,22 @@ export interface BaseNextRequestConfig {
   trailingSlash?: boolean | undefined
 }
 
+export type FetchMetrics = Array<{
+  url: string
+  idx: number
+  end: number
+  start: number
+  method: string
+  status: number
+  cacheReason: string
+  cacheStatus: 'hit' | 'miss' | 'skip'
+}>
+
 export abstract class BaseNextRequest<Body = any> {
   protected _cookies: NextApiRequestCookies | undefined
   public abstract headers: IncomingHttpHeaders
 
   constructor(public method: string, public url: string, public body: Body) {}
-
-  abstract parseBody(limit: string | number): Promise<any>
 
   // Utils implemented using the abstract methods above
 
@@ -39,6 +49,11 @@ export abstract class BaseNextResponse<Destination = any> {
   abstract setHeader(name: string, value: string | string[]): this
 
   /**
+   * Removes a header
+   */
+  abstract removeHeader(name: string): this
+
+  /**
    * Appends value for the given header name
    */
   abstract appendHeader(name: string, value: string): this
@@ -54,6 +69,8 @@ export abstract class BaseNextResponse<Destination = any> {
    * Get vaues for a header concatenated using `,` or undefined if no value is present
    */
   abstract getHeader(name: string): string | undefined
+
+  abstract getHeaders(): OutgoingHttpHeaders
 
   abstract body(value: string): this
 

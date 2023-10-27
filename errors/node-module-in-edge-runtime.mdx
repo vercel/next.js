@@ -1,0 +1,21 @@
+---
+title: Using Node.js Modules in Edge Runtime
+---
+
+## Why This Error Occurred
+
+The code in your [Middleware](/docs/pages/building-your-application/routing/middleware) or your [Edge API Routes](/docs/pages/building-your-application/routing/api-routes) is using a feature from Node.js runtime.
+
+However, the Edge Runtime does not support [Node.js APIs and globals](/docs/pages/api-reference/edge#unsupported-apis).
+
+## Possible Ways to Fix It
+
+When running Next.js locally with `next dev`, your application will show in the console, and in your browser, which file is importing and using an unsupported module. This module must be avoided: either by not importing it, or by replacing it with a polyfill.
+
+For example, you might replace the Node.js `crypto` module with the [Web Crypto API](https://developer.mozilla.org/docs/Web/API/Web_Crypto_API).
+
+## Useful Links
+
+- [Edge Runtime Supported APIs](/docs/pages/api-reference/edge)
+- [Next.js Middleware](/docs/pages/building-your-application/routing/middleware)
+- [JWT Example](https://vercel.com/templates/next.js/jwt-authentication)

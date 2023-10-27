@@ -12,7 +12,7 @@ The login cookie is `httpOnly`, meaning it can only be accessed by the API, and 
 
 Once you have access to [the environment variables you'll need](#configuration), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-magic&project-name=with-magic&repository-name=with-magic&env=NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY,MAGIC_SECRET_KEY,TOKEN_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Magic&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-magic%23configuration)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-magic&project-name=with-magic&repository-name=with-magic&env=NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY,MAGIC_SECRET_KEY,TOKEN_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Magic&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-magic%23configuration)
 
 ## How to use
 
@@ -72,4 +72,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-magic&project-name=with-magic&repository-name=with-magic&env=NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY,MAGIC_SECRET_KEY,TOKEN_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Magic&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-magic%23configuration)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-magic&project-name=with-magic&repository-name=with-magic&env=NEXT_PUBLIC_MAGIC_PUBLISHABLE_KEY,MAGIC_SECRET_KEY,TOKEN_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Magic&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-magic%23configuration)

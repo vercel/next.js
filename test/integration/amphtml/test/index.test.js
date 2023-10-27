@@ -16,6 +16,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import stripAnsi from 'strip-ansi'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -24,7 +25,7 @@ let app
 const context = {}
 
 describe('AMP Usage', () => {
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     let output = ''
 
     beforeAll(async () => {
@@ -36,7 +37,8 @@ describe('AMP Usage', () => {
         stdout: true,
         stderr: true,
       })
-      output = result.stdout + result.stderr
+
+      output = stripAnsi(result.stdout + result.stderr)
 
       appPort = context.appPort = await findPort()
       app = await nextStart(appDir, context.appPort)
@@ -538,8 +540,7 @@ describe('AMP Usage', () => {
     })
 
     it('should not contain missing files warning', async () => {
-      expect(output).toContain('compiled client and server successfully')
-      expect(output).toContain('compiling /only-amp')
+      expect(output).toContain('Compiled /only-amp')
       expect(output).not.toContain('Could not find files for')
     })
   })

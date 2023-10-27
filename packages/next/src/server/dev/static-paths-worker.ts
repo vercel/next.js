@@ -1,30 +1,28 @@
 import type { NextConfigComplete } from '../config-shared'
 
-import '../node-polyfill-fetch'
+import '../require-hook'
+import '../node-environment'
+
 import {
   buildAppStaticPaths,
   buildStaticPaths,
   collectGenerateParams,
 } from '../../build/utils'
+import type { GenerateParams } from '../../build/utils'
 import { loadComponents } from '../load-components'
-import { setHttpClientAndAgentOptions } from '../config'
-import {
-  loadRequireHook,
-  overrideBuiltInReactPackages,
-} from '../../build/webpack/require-hook'
+import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
+import type { IncrementalCache } from '../lib/incremental-cache'
+import * as serverHooks from '../../client/components/hooks-server-context'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 
-type RuntimeConfig = any
+const { AppRouteRouteModule } =
+  require('../future/route-modules/app-route/module.compiled') as typeof import('../future/route-modules/app-route/module')
 
-loadRequireHook()
-if (process.env.NEXT_PREBUNDLED_REACT) {
-  overrideBuiltInReactPackages()
+type RuntimeConfig = {
+  configFileName: string
+  publicRuntimeConfig: { [key: string]: any }
+  serverRuntimeConfig: { [key: string]: any }
 }
-
-let workerWasUsed = false
-
-// expose AsyncLocalStorage on globalThis for react usage
-const { AsyncLocalStorage } = require('async_hooks')
-;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break
@@ -34,44 +32,47 @@ export async function loadStaticPaths({
   pathname,
   config,
   httpAgentOptions,
-  enableUndici,
   locales,
   defaultLocale,
   isAppPath,
-  originalAppPath,
+  page,
+  isrFlushToDisk,
+  fetchCacheKeyPrefix,
+  maxMemoryCacheSize,
+  requestHeaders,
+  incrementalCacheHandlerPath,
+  ppr,
 }: {
   distDir: string
   pathname: string
   config: RuntimeConfig
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  enableUndici: NextConfigComplete['enableUndici']
   locales?: string[]
   defaultLocale?: string
-  isAppPath?: boolean
-  originalAppPath?: string
+  isAppPath: boolean
+  page: string
+  isrFlushToDisk?: boolean
+  fetchCacheKeyPrefix?: string
+  maxMemoryCacheSize?: number
+  requestHeaders: IncrementalCache['requestHeaders']
+  incrementalCacheHandlerPath?: string
+  ppr: boolean
 }): Promise<{
   paths?: string[]
   encodedPaths?: string[]
   fallback?: boolean | 'blocking'
 }> {
-  // we only want to use each worker once to prevent any invalid
-  // caches
-  if (workerWasUsed) {
-    process.exit(1)
-  }
-
   // update work memory runtime-config
-  require('../../shared/lib/runtime-config').setConfig(config)
+  require('../../shared/lib/runtime-config.external').setConfig(config)
   setHttpClientAndAgentOptions({
     httpAgentOptions,
-    experimental: { enableUndici },
   })
 
   const components = await loadComponents({
     distDir,
-    pathname: originalAppPath || pathname,
-    hasServerComponents: false,
-    isAppPath: !!isAppPath,
+    // In `pages/`, the page is the same as the pathname.
+    page: page || pathname,
+    isAppPath,
   })
 
   if (!components.getStaticPaths && !isAppPath) {
@@ -81,20 +82,41 @@ export async function loadStaticPaths({
       `Invariant: failed to load page with getStaticPaths for ${pathname}`
     )
   }
-  workerWasUsed = true
 
   if (isAppPath) {
-    const generateParams = await collectGenerateParams(
-      components.ComponentMod.tree
-    )
-    return buildAppStaticPaths({
+    const { routeModule } = components
+    const generateParams: GenerateParams =
+      routeModule && AppRouteRouteModule.is(routeModule)
+        ? [
+            {
+              config: {
+                revalidate: routeModule.userland.revalidate,
+                dynamic: routeModule.userland.dynamic,
+                dynamicParams: routeModule.userland.dynamicParams,
+              },
+              generateStaticParams: routeModule.userland.generateStaticParams,
+              segmentPath: pathname,
+            },
+          ]
+        : await collectGenerateParams(components.ComponentMod.tree)
+
+    return await buildAppStaticPaths({
       page: pathname,
       generateParams,
       configFileName: config.configFileName,
+      distDir,
+      requestHeaders,
+      incrementalCacheHandlerPath,
+      serverHooks,
+      staticGenerationAsyncStorage,
+      isrFlushToDisk,
+      fetchCacheKeyPrefix,
+      maxMemoryCacheSize,
+      ppr,
     })
   }
 
-  return buildStaticPaths({
+  return await buildStaticPaths({
     page: pathname,
     getStaticPaths: components.getStaticPaths,
     configFileName: config.configFileName,

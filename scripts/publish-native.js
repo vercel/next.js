@@ -70,68 +70,64 @@ const cwd = process.cwd()
         } finally {
           publishSema.release()
         }
-        // lerna publish in next step will fail if git status is not clean
-        await execa(
-          `git`,
-          [
-            'update-index',
-            '--skip-worktree',
-            `${path.join(nativePackagesDir, platform, 'package.json')}`,
-          ],
-          { stdio: 'inherit' }
-        )
       })
     )
 
     // Update name/version of wasm packages and publish
-    let wasmDir = path.join(cwd, 'packages/next-swc/crates/wasm')
+    // const pkgDirectory = 'packages/next-swc/crates/wasm'
+    // let wasmDir = path.join(cwd, pkgDirectory)
 
-    await Promise.all(
-      ['web', 'nodejs'].map(async (wasmTarget) => {
-        await publishSema.acquire()
+    // await Promise.all(
+    //   ['web', 'nodejs'].map(async (wasmTarget) => {
+    //     await publishSema.acquire()
 
-        let wasmPkg = JSON.parse(
-          await readFile(path.join(wasmDir, `pkg-${wasmTarget}/package.json`))
-        )
-        wasmPkg.name = `@next/swc-wasm-${wasmTarget}`
-        wasmPkg.version = version
+    //     let wasmPkg = JSON.parse(
+    //       await readFile(path.join(wasmDir, `pkg-${wasmTarget}/package.json`))
+    //     )
+    //     wasmPkg.name = `@next/swc-wasm-${wasmTarget}`
+    //     wasmPkg.version = version
+    //     wasmPkg.repository = {
+    //       type: 'git',
+    //       url: 'https://github.com/vercel/next.js',
+    //       directory: pkgDirectory,
+    //     }
 
-        await writeFile(
-          path.join(wasmDir, `pkg-${wasmTarget}/package.json`),
-          JSON.stringify(wasmPkg, null, 2)
-        )
+    //     await writeFile(
+    //       path.join(wasmDir, `pkg-${wasmTarget}/package.json`),
+    //       JSON.stringify(wasmPkg, null, 2)
+    //     )
 
-        try {
-          await execa(
-            `npm`,
-            [
-              'publish',
-              `${path.join(wasmDir, `pkg-${wasmTarget}`)}`,
-              '--access',
-              'public',
-              ...(version.includes('canary') ? ['--tag', 'canary'] : []),
-            ],
-            { stdio: 'inherit' }
-          )
-        } catch (err) {
-          // don't block publishing other versions on single platform error
-          console.error(`Failed to publish`, wasmTarget, err)
+    //     try {
+    //       await execa(
+    //         `npm`,
+    //         [
+    //           'publish',
+    //           `${path.join(wasmDir, `pkg-${wasmTarget}`)}`,
+    //           '--access',
+    //           'public',
+    //           ...(version.includes('canary') ? ['--tag', 'canary'] : []),
+    //         ],
+    //         { stdio: 'inherit' }
+    //       )
+    //     } catch (err) {
+    //       // don't block publishing other versions on single platform error
+    //       console.error(`Failed to publish`, wasmTarget, err)
 
-          if (
-            err.message &&
-            err.message.includes(
-              'You cannot publish over the previously published versions'
-            )
-          ) {
-            console.error('Ignoring already published error', wasmTarget)
-          } else {
-            // throw err
-          }
-        } finally {
-          publishSema.release()
-        }
-      })
-    )
+    //       if (
+    //         err.message &&
+    //         err.message.includes(
+    //           'You cannot publish over the previously published versions'
+    //         )
+    //       ) {
+    //         console.error('Ignoring already published error', wasmTarget)
+    //       } else {
+    //         // throw err
+    //       }
+    //     } finally {
+    //       publishSema.release()
+    //     }
+    //   })
+    // )
 
     // Update optional dependencies versions
     let nextPkg = JSON.parse(
@@ -145,14 +141,6 @@ const cwd = process.cwd()
     await writeFile(
       path.join(path.join(cwd, 'packages/next/package.json')),
       JSON.stringify(nextPkg, null, 2)
-    )
-    // lerna publish in next step will fail if git status is not clean
-    await execa(
-      'git',
-      ['update-index', '--skip-worktree', 'packages/next/package.json'],
-      {
-        stdio: 'inherit',
-      }
     )
   } catch (err) {
     console.error(err)

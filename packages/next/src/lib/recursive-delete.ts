@@ -1,4 +1,5 @@
-import { Dirent, promises } from 'fs'
+import type { Dirent } from 'fs'
+import { promises } from 'fs'
 import { join, isAbsolute, dirname } from 'path'
 import isError from './is-error'
 
@@ -73,7 +74,7 @@ export async function recursiveDelete(
               : join(dirname(absolutePath), linkPath)
           )
           isDirectory = stats.isDirectory()
-        } catch (_) {}
+        } catch {}
       }
 
       const pp = join(previousPath, part.name)

@@ -21,6 +21,14 @@ const Page = () => {
         height="400"
       ></Image>
       <Image
+        priority
+        id="basic-image-with-referrerpolicy"
+        referrerPolicy="no-referrer"
+        src="/test.png"
+        width="400"
+        height="400"
+      ></Image>
+      <Image
         loading="eager"
         id="load-eager"
         src="/test.png"

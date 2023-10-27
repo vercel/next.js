@@ -1,3 +1,10 @@
+import type {
+  NextConfig,
+  ExperimentalConfig,
+  EmotionConfig,
+  StyledComponentsConfig,
+} from '../../server/config-shared'
+
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
@@ -28,13 +35,29 @@ function getBaseSWCOptions({
   development,
   hasReactRefresh,
   globalWindow,
-  nextConfig,
+  modularizeImports,
+  swcPlugins,
+  compilerOptions,
   resolvedBaseUrl,
   jsConfig,
   swcCacheDir,
-  isServerLayer,
-  hasServerComponents,
-}: any) {
+  serverComponents,
+  isReactServerLayer,
+}: {
+  filename: string
+  jest?: boolean
+  development: boolean
+  hasReactRefresh: boolean
+  globalWindow: boolean
+  modularizeImports?: NextConfig['modularizeImports']
+  compilerOptions: NextConfig['compiler']
+  swcPlugins: ExperimentalConfig['swcPlugins']
+  resolvedBaseUrl?: string
+  jsConfig: any
+  swcCacheDir?: string
+  serverComponents?: boolean
+  isReactServerLayer?: boolean
+}) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
@@ -46,7 +69,7 @@ function getBaseSWCOptions({
   const useDefineForClassFields = Boolean(
     jsConfig?.compilerOptions?.useDefineForClassFields
   )
-  const plugins = (nextConfig?.experimental?.swcPlugins ?? [])
+  const plugins = (swcPlugins ?? [])
     .filter(Array.isArray)
     .map(([name, options]: any) => [require.resolve(name), options])
 
@@ -61,7 +84,8 @@ function getBaseSWCOptions({
       externalHelpers: !process.versions.pnp && !jest,
       parser: parserConfig,
       experimental: {
-        keepImportAssertions: true,
+        keepImportAttributes: true,
+        emitAssertForImportAttributes: true,
         plugins,
         cacheRoot: swcCacheDir,
       },
@@ -80,7 +104,9 @@ function getBaseSWCOptions({
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
-            (nextConfig?.compiler?.emotion ? '@emotion/react' : 'react'),
+            (compilerOptions?.emotion && !isReactServerLayer
+              ? '@emotion/react'
+              : 'react'),
           runtime: 'automatic',
           pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
@@ -109,47 +135,88 @@ function getBaseSWCOptions({
       },
     },
     sourceMaps: jest ? 'inline' : undefined,
-    removeConsole: nextConfig?.compiler?.removeConsole,
+    removeConsole: compilerOptions?.removeConsole,
     // disable "reactRemoveProperties" when "jest" is true
     // otherwise the setting from next.config.js will be used
     reactRemoveProperties: jest
       ? false
-      : nextConfig?.compiler?.reactRemoveProperties,
-    modularizeImports: nextConfig?.modularizeImports,
-    relay: nextConfig?.compiler?.relay,
-    // Always transform styled-jsx and error when `client-only` condition is triggered
-    styledJsx: true,
-    // Disable css-in-js libs (without client-only integration) transform on server layer for server components
-    ...(!isServerLayer && {
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      emotion: getEmotionOptions(nextConfig, development),
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      styledComponents: getStyledComponentsOptions(nextConfig, development),
-    }),
-    serverComponents: hasServerComponents
-      ? { isServer: !!isServerLayer }
+      : compilerOptions?.reactRemoveProperties,
+    // Map the k-v map to an array of pairs.
+    modularizeImports: modularizeImports
+      ? Object.fromEntries(
+          Object.entries(modularizeImports).map(([mod, config]) => [
+            mod,
+            {
+              ...config,
+              transform:
+                typeof config.transform === 'string'
+                  ? config.transform
+                  : Object.entries(config.transform).map(([key, value]) => [
+                      key,
+                      value,
+                    ]),
+            },
+          ])
+        )
       : undefined,
+    relay: compilerOptions?.relay,
+    // Always transform styled-jsx and error when `client-only` condition is triggered
+    styledJsx: {},
+    // Disable css-in-js libs (without client-only integration) transform on server layer for server components
+    ...(!isReactServerLayer && {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+      emotion: getEmotionOptions(compilerOptions?.emotion, development),
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+      styledComponents: getStyledComponentsOptions(
+        compilerOptions?.styledComponents,
+        development
+      ),
+    }),
+    serverComponents:
+      serverComponents && !jest
+        ? {
+            isReactServerLayer: !!isReactServerLayer,
+          }
+        : undefined,
+    serverActions:
+      serverComponents && !jest
+        ? {
+            // always enable server actions
+            // TODO: remove this option
+            enabled: true,
+            isReactServerLayer: !!isReactServerLayer,
+          }
+        : undefined,
   }
 }
 
-function getStyledComponentsOptions(nextConfig: any, development: any) {
-  let styledComponentsOptions = nextConfig?.compiler?.styledComponents
-  if (!styledComponentsOptions) {
+function getStyledComponentsOptions(
+  styledComponentsConfig: undefined | boolean | StyledComponentsConfig,
+  development: any
+) {
+  if (!styledComponentsConfig) {
     return null
-  }
-
-  return {
-    ...styledComponentsOptions,
-    displayName: styledComponentsOptions.displayName ?? Boolean(development),
+  } else if (typeof styledComponentsConfig === 'object') {
+    return {
+      ...styledComponentsConfig,
+      displayName: styledComponentsConfig.displayName ?? Boolean(development),
+    }
+  } else {
+    return {
+      displayName: Boolean(development),
+    }
   }
 }
 
-function getEmotionOptions(nextConfig: any, development: any) {
-  if (!nextConfig?.compiler?.emotion) {
+function getEmotionOptions(
+  emotionConfig: undefined | boolean | EmotionConfig,
+  development: boolean
+) {
+  if (!emotionConfig) {
     return null
   }
-  let autoLabel = false
-  switch (nextConfig?.compiler?.emotion?.autoLabel) {
+  let autoLabel = !!development
+  switch (typeof emotionConfig === 'object' && emotionConfig.autoLabel) {
     case 'never':
       autoLabel = false
       break
@@ -158,17 +225,17 @@ function getEmotionOptions(nextConfig: any, development: any) {
       break
     case 'dev-only':
     default:
-      autoLabel = !!development
       break
   }
   return {
     enabled: true,
     autoLabel,
-    importMap: nextConfig?.compiler?.emotion?.importMap,
-    labelFormat: nextConfig?.compiler?.emotion?.labelFormat,
-    sourcemap: development
-      ? nextConfig?.compiler?.emotion?.sourceMap ?? true
-      : false,
+    sourcemap: development,
+    ...(typeof emotionConfig === 'object' && {
+      importMap: emotionConfig.importMap,
+      labelFormat: emotionConfig.labelFormat,
+      sourcemap: development && emotionConfig.sourceMap,
+    }),
   }
 }
 
@@ -176,23 +243,39 @@ export function getJestSWCOptions({
   isServer,
   filename,
   esm,
-  nextConfig,
+  modularizeImports,
+  swcPlugins,
+  compilerOptions,
   jsConfig,
+  resolvedBaseUrl,
   pagesDir,
-  hasServerComponents,
-}: // This is not passed yet as "paths" resolving needs a test first
-// resolvedBaseUrl,
-any) {
+}: {
+  isServer: boolean
+  filename: string
+  esm: boolean
+  modularizeImports?: NextConfig['modularizeImports']
+  swcPlugins: ExperimentalConfig['swcPlugins']
+  compilerOptions: NextConfig['compiler']
+  jsConfig: any
+  resolvedBaseUrl?: string
+  pagesDir?: string
+  serverComponents?: boolean
+}) {
   let baseOptions = getBaseSWCOptions({
     filename,
     jest: true,
     development: false,
     hasReactRefresh: false,
     globalWindow: !isServer,
-    nextConfig,
+    modularizeImports,
+    swcPlugins,
+    compilerOptions,
     jsConfig,
-    hasServerComponents,
-    // resolvedBaseUrl,
+    resolvedBaseUrl,
+    // Don't apply server layer transformations for Jest
+    isReactServerLayer: false,
+    // Disable server / client graph assertions for Jest
+    serverComponents: false,
   })
 
   const isNextDist = nextDistPath.test(filename)
@@ -222,36 +305,90 @@ export function getLoaderSWCOptions({
   appDir,
   isPageFile,
   hasReactRefresh,
-  nextConfig,
+  modularizeImports,
+  optimizeServerReact,
+  optimizePackageImports,
+  swcPlugins,
+  compilerOptions,
   jsConfig,
   supportedBrowsers,
   swcCacheDir,
   relativeFilePathFromRoot,
-  hasServerComponents,
-  isServerLayer,
+  serverComponents,
+  isReactServerLayer,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
-any) {
+{
+  filename: string
+  development: boolean
+  isServer: boolean
+  pagesDir?: string
+  appDir?: string
+  isPageFile: boolean
+  hasReactRefresh: boolean
+  optimizeServerReact?: boolean
+  modularizeImports: NextConfig['modularizeImports']
+  optimizePackageImports?: NonNullable<
+    NextConfig['experimental']
+  >['optimizePackageImports']
+  swcPlugins: ExperimentalConfig['swcPlugins']
+  compilerOptions: NextConfig['compiler']
+  jsConfig: any
+  supportedBrowsers: string[] | undefined
+  swcCacheDir: string
+  relativeFilePathFromRoot: string
+  serverComponents?: boolean
+  isReactServerLayer?: boolean
+}) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
     development,
     globalWindow: !isServer,
     hasReactRefresh,
-    nextConfig,
+    modularizeImports,
+    swcPlugins,
+    compilerOptions,
     jsConfig,
     // resolvedBaseUrl,
     swcCacheDir,
-    relativeFilePathFromRoot,
-    hasServerComponents,
-    isServerLayer,
+    isReactServerLayer,
+    serverComponents,
   })
+  baseOptions.fontLoaders = {
+    fontLoaders: [
+      'next/font/local',
+      'next/font/google',
 
-  if (nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot) {
-    baseOptions.fontLoaders = {
-      fontLoaders: nextConfig.experimental.fontLoaders.map(
-        ({ loader }: any) => loader
-      ),
-      relativeFilePathFromRoot,
+      // TODO: remove this in the next major version
+      '@next/font/local',
+      '@next/font/google',
+    ],
+    relativeFilePathFromRoot,
+  }
+  baseOptions.cjsRequireOptimizer = {
+    packages: {
+      'next/server': {
+        transforms: {
+          NextRequest: 'next/dist/server/web/spec-extension/request',
+          NextResponse: 'next/dist/server/web/spec-extension/response',
+          ImageResponse: 'next/dist/server/web/spec-extension/image-response',
+          userAgentFromString: 'next/dist/server/web/spec-extension/user-agent',
+          userAgent: 'next/dist/server/web/spec-extension/user-agent',
+        },
+      },
+    },
+  }
+
+  if (optimizeServerReact && isServer && !development) {
+    baseOptions.optimizeServerReact = {
+      optimize_use_state: true,
+    }
+  }
+
+  // Modularize import optimization for barrel files
+  if (optimizePackageImports) {
+    baseOptions.autoModularizeImports = {
+      packages: optimizePackageImports,
     }
   }
 
@@ -264,7 +401,7 @@ any) {
       disableNextSsg: true,
       disablePageConfig: true,
       isDevelopment: development,
-      isServer,
+      isServerCompiler: isServer,
       pagesDir,
       appDir,
       isPageFile,
@@ -276,9 +413,7 @@ any) {
       },
     }
   } else {
-    // Matches default @babel/preset-env behavior
-    baseOptions.jsc.target = 'es5'
-    return {
+    const options = {
       ...baseOptions,
       // Ensure Next.js internals are output as commonjs modules
       ...(isNextDist
@@ -290,7 +425,7 @@ any) {
         : {}),
       disableNextSsg: !isPageFile,
       isDevelopment: development,
-      isServer,
+      isServerCompiler: isServer,
       pagesDir,
       appDir,
       isPageFile,
@@ -302,5 +437,10 @@ any) {
           }
         : {}),
     }
+    if (!options.env) {
+      // Matches default @babel/preset-env behavior
+      options.jsc.target = 'es5'
+    }
+    return options
   }
 }

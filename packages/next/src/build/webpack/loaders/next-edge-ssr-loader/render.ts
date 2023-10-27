@@ -1,9 +1,11 @@
-import type { NextConfig } from '../../../../server/config-shared'
+import type { NextConfigComplete } from '../../../../server/config-shared'
 
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
-import type { FontLoaderManifest } from '../../plugins/font-loader-manifest-plugin'
+import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
+import type { NextFontManifest } from '../../plugins/next-font-manifest-plugin'
+import type { NextFetchEvent } from '../../../../server/web/spec-extension/fetch-event'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -11,6 +13,10 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
+import type { PrerenderManifest } from '../../..'
+import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
+import type { SizeLimit } from '../../../../../types'
+import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
 
 export function getRender({
   dev,
@@ -22,15 +28,17 @@ export function getRender({
   pagesType,
   Document,
   buildManifest,
+  prerenderManifest,
   reactLoadableManifest,
-  appRenderToHTML,
-  pagesRenderToHTML,
-  serverComponentManifest,
+  renderToHTML,
+  clientReferenceManifest,
   subresourceIntegrityManifest,
-  serverCSSManifest,
+  serverActionsManifest,
+  serverActionsBodySizeLimit,
   config,
   buildId,
-  fontLoaderManifest,
+  nextFontManifest,
+  incrementalCacheHandler,
 }: {
   pagesType: 'app' | 'pages' | 'root'
   dev: boolean
@@ -39,18 +47,19 @@ export function getRender({
   pageMod: any
   errorMod: any
   error500Mod: any
-  appRenderToHTML: any
-  pagesRenderToHTML: any
+  renderToHTML?: any
   Document: DocumentType
   buildManifest: BuildManifest
+  prerenderManifest: PrerenderManifest
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
-  serverComponentManifest: any
-  serverCSSManifest: any
-  appServerMod: any
-  config: NextConfig
+  clientReferenceManifest?: ClientReferenceManifest
+  serverActionsManifest?: any
+  serverActionsBodySizeLimit?: SizeLimit
+  config: NextConfigComplete
   buildId: string
-  fontLoaderManifest: FontLoaderManifest
+  nextFontManifest: NextFontManifest
+  incrementalCacheHandler?: any
 }) {
   const isAppPath = pagesType === 'app'
   const baseLoadComponentResult = {
@@ -58,9 +67,9 @@ export function getRender({
     buildManifest,
     reactLoadableManifest,
     subresourceIntegrityManifest,
-    fontLoaderManifest,
     Document,
     App: appMod?.default as AppType,
+    clientReferenceManifest,
   }
 
   const server = new WebServer({
@@ -69,20 +78,22 @@ export function getRender({
     minimalMode: true,
     webServerConfig: {
       page,
+      pathname: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
+      prerenderManifest,
       extendRenderOpts: {
         buildId,
         runtime: SERVER_RUNTIME.experimentalEdge,
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
-        serverComponentManifest,
-        serverCSSManifest,
+        serverActionsManifest,
+        serverActionsBodySizeLimit,
+        nextFontManifest,
       },
-      appRenderToHTML,
-      pagesRenderToHTML,
-      loadComponent: async (pathname) => {
-        if (isAppPath) return null
-        if (pathname === page) {
+      renderToHTML,
+      incrementalCacheHandler,
+      loadComponent: async (inputPage) => {
+        if (inputPage === page) {
           return {
             ...baseLoadComponentResult,
             Component: pageMod.default,
@@ -91,12 +102,14 @@ export function getRender({
             getServerSideProps: pageMod.getServerSideProps,
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
-            pathname,
+            isAppPath: !!pageMod.__next_app__,
+            page: inputPage,
+            routeModule: pageMod.routeModule,
           }
         }
 
         // If there is a custom 500 page, we need to handle it separately.
-        if (pathname === '/500' && error500Mod) {
+        if (inputPage === '/500' && error500Mod) {
           return {
             ...baseLoadComponentResult,
             Component: error500Mod.default,
@@ -105,11 +118,12 @@ export function getRender({
             getServerSideProps: error500Mod.getServerSideProps,
             getStaticPaths: error500Mod.getStaticPaths,
             ComponentMod: error500Mod,
-            pathname,
+            page: inputPage,
+            routeModule: error500Mod.routeModule,
           }
         }
 
-        if (pathname === '/_error') {
+        if (inputPage === '/_error') {
           return {
             ...baseLoadComponentResult,
             Component: errorMod.default,
@@ -118,7 +132,8 @@ export function getRender({
             getServerSideProps: errorMod.getServerSideProps,
             getStaticPaths: errorMod.getStaticPaths,
             ComponentMod: errorMod,
-            pathname,
+            page: inputPage,
+            routeModule: errorMod.routeModule,
           }
         }
 
@@ -126,12 +141,26 @@ export function getRender({
       },
     },
   })
-  const requestHandler = server.getRequestHandler()
 
-  return async function render(request: Request) {
+  const handler = server.getRequestHandler()
+
+  return async function render(request: Request, event: NextFetchEvent) {
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()
-    requestHandler(extendedReq, extendedRes)
-    return await extendedRes.toResponse()
+
+    handler(extendedReq, extendedRes)
+    const result = await extendedRes.toResponse()
+
+    if (event && event.waitUntil) {
+      const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
+      if (waitUntilPromise) {
+        event.waitUntil(waitUntilPromise)
+      }
+    }
+
+    // fetchMetrics is attached to the web request that going through the server,
+    // wait for the handler result is ready and attach it back to the original request.
+    ;(request as any).fetchMetrics = extendedReq.fetchMetrics
+    return result
   }
 }

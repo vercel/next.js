@@ -51,14 +51,17 @@ export type ItunesApp = {
 }
 
 // Viewport meta structure
-// https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag
+// https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag
 // intentionally leaving out user-scalable, use a string if you want that behavior
-export type Viewport = {
+export type ViewportLayout = {
   width?: string | number
   height?: string | number
   initialScale?: number
   minimumScale?: number
   maximumScale?: number
+  userScalable?: boolean
+  viewportFit?: 'auto' | 'cover' | 'contain'
+  interactiveWidget?: 'resizes-visual' | 'resizes-content' | 'overlays-content'
 }
 
 // Apple Web App

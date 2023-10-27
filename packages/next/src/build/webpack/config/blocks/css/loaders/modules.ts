@@ -1,5 +1,5 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { ConfigurationContext } from '../../../utils'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
@@ -17,6 +17,7 @@ export function getCssModuleLoader(
     loaders.push(
       getClientStyleLoader({
         hasAppDir: ctx.hasAppDir,
+        isAppDir: ctx.isAppDir,
         isDevelopment: ctx.isDevelopment,
         assetPrefix: ctx.assetPrefix,
       })

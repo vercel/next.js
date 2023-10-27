@@ -8,6 +8,12 @@ const styles = css`
     align-items: center;
     justify-content: space-between;
   }
+  [data-nextjs-dialog-left-right] > nav {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    margin-right: var(--size-gap);
+  }
   [data-nextjs-dialog-left-right] > nav > button {
     display: inline-flex;
     align-items: center;

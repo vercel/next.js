@@ -5,4 +5,4 @@ export default function Page() {
   return <p>Node!</p>
 }
 
-export const runtime = 'experimental-edge'
+export const runtime = 'edge'

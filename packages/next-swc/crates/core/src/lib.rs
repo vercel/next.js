@@ -26,48 +26,53 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
+// TODO(alexkirsz) Remove once the diagnostic is fixed.
+#![allow(rustc::untranslatable_diagnostic_trivial)]
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
 #![feature(box_patterns)]
 
+use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
+
 use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
+use next_transform_dynamic::{next_dynamic, NextDynamicMode};
+use next_transform_font::next_font_loaders;
 use serde::Deserialize;
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::{path::PathBuf, sync::Arc};
-
-use next_binding::swc::core::{
-    base::config::ModuleConfig,
-    common::{chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap},
-    ecma::ast::EsVersion,
-    ecma::parser::parse_file_as_module,
-    ecma::transforms::base::pass::noop,
-    ecma::visit::Fold,
+use turbopack_binding::swc::{
+    core::{
+        common::{
+            chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
+            SyntaxContext,
+        },
+        ecma::{
+            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
+        },
+    },
+    custom_transform::modularize_imports,
 };
 
 pub mod amp_attributes;
 mod auto_cjs;
+pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
-pub mod next_dynamic;
-pub mod next_font_loaders;
+mod import_analyzer;
+pub mod named_import_transform;
 pub mod next_ssg;
+pub mod optimize_barrel;
+pub mod optimize_server_react;
 pub mod page_config;
-pub mod react_remove_properties;
+pub mod pure;
 pub mod react_server_components;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod relay;
-pub mod remove_console;
 pub mod server_actions;
 pub mod shake_exports;
-mod top_level_binding_collector;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransformOptions {
     #[serde(flatten)]
-    pub swc: next_binding::swc::core::base::config::Options,
+    pub swc: turbopack_binding::swc::core::base::config::Options,
 
     #[serde(default)]
     pub disable_next_ssg: bool,
@@ -88,16 +93,17 @@ pub struct TransformOptions {
     pub is_development: bool,
 
     #[serde(default)]
-    pub is_server: bool,
+    pub is_server_compiler: bool,
 
     #[serde(default)]
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
-    pub styled_jsx: bool,
+    pub styled_jsx: Option<turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config>,
 
     #[serde(default)]
-    pub styled_components: Option<next_binding::swc::custom_transform::styled_components::Config>,
+    pub styled_components:
+        Option<turbopack_binding::swc::custom_transform::styled_components::Config>,
 
     #[serde(default)]
     pub remove_console: Option<remove_console::Config>,
@@ -107,7 +113,7 @@ pub struct TransformOptions {
 
     #[serde(default)]
     #[cfg(not(target_arch = "wasm32"))]
-    pub relay: Option<relay::Config>,
+    pub relay: Option<turbopack_binding::swc::custom_transform::relay::Config>,
 
     #[allow(unused)]
     #[serde(default)]
@@ -119,16 +125,28 @@ pub struct TransformOptions {
     pub shake_exports: Option<shake_exports::Config>,
 
     #[serde(default)]
-    pub emotion: Option<next_binding::swc::custom_transform::emotion::EmotionOptions>,
+    pub emotion: Option<turbopack_binding::swc::custom_transform::emotion::EmotionOptions>,
 
     #[serde(default)]
-    pub modularize_imports: Option<next_binding::swc::custom_transform::modularize_imports::Config>,
+    pub modularize_imports: Option<modularize_imports::Config>,
 
     #[serde(default)]
-    pub font_loaders: Option<next_font_loaders::Config>,
+    pub auto_modularize_imports: Option<named_import_transform::Config>,
+
+    #[serde(default)]
+    pub optimize_barrel_exports: Option<optimize_barrel::Config>,
+
+    #[serde(default)]
+    pub font_loaders: Option<next_transform_font::Config>,
 
     #[serde(default)]
     pub server_actions: Option<server_actions::Config>,
+
+    #[serde(default)]
+    pub cjs_require_optimizer: Option<cjs_optimizer::Config>,
+
+    #[serde(default)]
+    pub optimize_server_react: Option<optimize_server_react::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -137,6 +155,7 @@ pub fn custom_before_pass<'a, C: Comments + 'a>(
     opts: &'a TransformOptions,
     comments: C,
     eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
+    unresolved_mark: Mark,
 ) -> impl Fold + 'a
 where
     C: Clone,
@@ -147,14 +166,23 @@ where
     #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
         if let Some(config) = &opts.relay {
-            Either::Left(relay::relay(
+            Either::Left(turbopack_binding::swc::custom_transform::relay::relay(
                 config,
                 file.name.clone(),
+                std::env::current_dir().unwrap(),
                 opts.pages_dir.clone(),
+                None,
             ))
         } else {
             Either::Right(noop())
         }
+    };
+
+    let modularize_imports_config = match &opts.modularize_imports {
+        Some(config) => config.clone(),
+        None => modularize_imports::Config {
+            packages: std::collections::HashMap::new(),
+        },
     };
 
     chain!(
@@ -165,15 +193,16 @@ where
                     file.name.clone(),
                     config.clone(),
                     comments.clone(),
-                    opts.app_dir.clone()
+                    opts.app_dir.clone(),
                 )),
             _ => Either::Right(noop()),
         },
-        if opts.styled_jsx {
+        if let Some(config) = opts.styled_jsx {
             Either::Left(
-                next_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
+                turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
                     cm.clone(),
                     file.name.clone(),
+                    config,
                 ),
             )
         } else {
@@ -181,7 +210,7 @@ where
         },
         match &opts.styled_components {
             Some(config) => Either::Left(
-                next_binding::swc::custom_transform::styled_components::styled_components(
+                turbopack_binding::swc::custom_transform::styled_components::styled_components(
                     file.name.clone(),
                     file.src_hash,
                     config.clone(),
@@ -194,16 +223,19 @@ where
             !opts.disable_next_ssg
         ),
         amp_attributes::amp_attributes(),
-        next_dynamic::next_dynamic(
+        next_dynamic(
             opts.is_development,
-            opts.is_server,
+            opts.is_server_compiler,
             match &opts.server_components {
                 Some(config) if config.truthy() => match config {
-                    react_server_components::Config::WithOptions(x) => x.is_server,
+                    // Always enable the Server Components mode for both
+                    // server and client layers.
+                    react_server_components::Config::WithOptions(_) => true,
                     _ => false,
                 },
                 _ => false,
             },
+            NextDynamicMode::Webpack,
             file.name.clone(),
             opts.pages_dir.clone()
         ),
@@ -214,17 +246,32 @@ where
         relay_plugin,
         match &opts.remove_console {
             Some(config) if config.truthy() =>
-                Either::Left(remove_console::remove_console(config.clone())),
+                Either::Left(remove_console::remove_console(
+                    config.clone(),
+                    SyntaxContext::empty().apply_mark(unresolved_mark)
+                )),
             _ => Either::Right(noop()),
         },
         match &opts.react_remove_properties {
             Some(config) if config.truthy() =>
-                Either::Left(react_remove_properties::remove_properties(config.clone())),
+                Either::Left(react_remove_properties::react_remove_properties(config.clone())),
             _ => Either::Right(noop()),
         },
         match &opts.shake_exports {
             Some(config) => Either::Left(shake_exports::shake_exports(config.clone())),
             None => Either::Right(noop()),
+        },
+        match &opts.auto_modularize_imports {
+            Some(config) => Either::Left(named_import_transform::named_import_transform(config.clone())),
+            None => Either::Right(noop()),
+        },
+        match &opts.optimize_barrel_exports {
+            Some(config) => Either::Left(optimize_barrel::optimize_barrel(config.clone())),
+            _ => Either::Right(noop()),
+        },
+        match &opts.optimize_server_react {
+            Some(config) => Either::Left(optimize_server_react::optimize_server_react(config.clone())),
+            _ => Either::Right(noop()),
         },
         opts.emotion
             .as_ref()
@@ -235,9 +282,10 @@ where
                 if let FileName::Real(path) = &file.name {
                     path.to_str().map(|_| {
                         Either::Left(
-                            next_binding::swc::custom_transform::emotion::EmotionTransformer::new(
+                            turbopack_binding::swc::custom_transform::emotion::EmotionTransformer::new(
                                 config.clone(),
                                 path,
+                                file.src_hash as u32,
                                 cm,
                                 comments.clone(),
                             ),
@@ -248,26 +296,28 @@ where
                 }
             })
             .unwrap_or_else(|| Either::Right(noop())),
-        match &opts.modularize_imports {
-            Some(config) => Either::Left(
-                next_binding::swc::custom_transform::modularize_imports::modularize_imports(
-                    config.clone()
-                )
-            ),
-            None => Either::Right(noop()),
-        },
+        modularize_imports::modularize_imports(
+            modularize_imports_config
+        ),
         match &opts.font_loaders {
-            Some(config) => Either::Left(next_font_loaders::next_font_loaders(config.clone())),
+            Some(config) => Either::Left(next_font_loaders(config.clone())),
             None => Either::Right(noop()),
         },
         match &opts.server_actions {
             Some(config) => Either::Left(server_actions::server_actions(
                 &file.name,
                 config.clone(),
-                comments,
+                comments.clone(),
             )),
             None => Either::Right(noop()),
         },
+        match &opts.cjs_require_optimizer {
+            Some(config) => {
+                Either::Left(cjs_optimizer::cjs_optimizer(config.clone(), SyntaxContext::empty().apply_mark(unresolved_mark)))
+            },
+            None => Either::Right(noop()),
+        },
+        pure::pure_magic(comments),
     )
 }
 
@@ -287,7 +337,9 @@ impl TransformOptions {
             };
 
         if should_enable_commonjs {
-            self.swc.config.module = Some(ModuleConfig::CommonJs(Default::default()));
+            self.swc.config.module = Some(
+                serde_json::from_str(r#"{ "type": "commonjs", "ignoreDynamic": true }"#).unwrap(),
+            );
         }
 
         self

@@ -38,7 +38,7 @@ const Post = (props: PostProps) => {
             <article>
               <Head>
                 <title>
-                  {post.title} | Next.js Blog Example with {CMS_NAME}
+                  {`${post.title} | Next.js Blog Example with ${CMS_NAME}`}
                 </title>
                 <meta
                   property="og:image"

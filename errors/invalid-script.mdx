@@ -1,0 +1,40 @@
+---
+title: Invalid Script
+---
+
+## Why This Error Occurred
+
+Somewhere in your application, you are using the `next/script` component without including an inline script or `src` attribute.
+
+## Possible Ways to Fix It
+
+Look for any usage of the `next/script` component and make sure that `src` is provided or an inline script is used.
+
+**Compatible `src` attribute**
+
+```jsx
+<Script src="https://example.com/analytics.js" />
+```
+
+**Compatible inline script with curly braces**
+
+```jsx
+<Script id="show-banner">
+  {`document.getElementById('banner').classList.remove('hidden')`}
+</Script>
+```
+
+**Compatible inline script with `dangerouslySetInnerHtml`**
+
+```jsx
+<Script
+  id="show-banner"
+  dangerouslySetInnerHTML={{
+    __html: `document.getElementById('banner').classList.remove('hidden')`,
+  }}
+/>
+```
+
+## Useful Links
+
+- [Script Component in Documentation](/docs/pages/building-your-application/optimizing/scripts)

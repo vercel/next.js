@@ -122,11 +122,9 @@ function isReactRefreshBoundary(moduleExports: unknown): boolean {
 }
 
 function shouldInvalidateReactRefreshBoundary(
-  prevExports: unknown,
-  nextExports: unknown
+  prevSignature: unknown[],
+  nextSignature: unknown[]
 ): boolean {
-  var prevSignature = getRefreshBoundarySignature(prevExports)
-  var nextSignature = getRefreshBoundarySignature(nextExports)
   if (prevSignature.length !== nextSignature.length) {
     return true
   }

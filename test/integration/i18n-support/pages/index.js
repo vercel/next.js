@@ -60,6 +60,9 @@ export default function Page(props) {
       <Link href="/api/post/asdf" id="to-api-post">
         to /api/post/[slug]
       </Link>
+      <Link href="https://nextjs.org/" id="to-external">
+        to https://nextjs.org/
+      </Link>
       <br />
     </>
   )

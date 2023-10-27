@@ -7,7 +7,8 @@
     "esModuleInterop": true,
     "moduleResolution": "node",
     "jsx": "react",
-    "stripInternal": true
+    "stripInternal": true,
+    "verbatimModuleSyntax": true
   },
   "exclude": [
     "dist",
@@ -16,6 +17,9 @@
     "image-types/global.d.ts",
     "compat/*.d.ts",
     "legacy/*.d.ts",
-    "types/compiled.d.ts"
+    "types/compiled.d.ts",
+    "navigation-types/*.d.ts",
+    "navigation-types/compat/*.d.ts",
+    "experimental/**/*.d.ts"
   ]
 }

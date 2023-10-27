@@ -1,7 +1,8 @@
 import React from 'react'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
-import { CacheStates, CacheNode } from '../../../shared/lib/app-router-context'
-import { FlightData } from '../../../server/app-render'
+import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { FlightData } from '../../../server/app-render/types'
 
 const getFlightData = (): FlightData => {
   return [
@@ -78,7 +79,7 @@ describe('fillCacheWithNewSubtreeData', () => {
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
 
-    fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath)
+    fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath, false)
 
     const expectedCache: CacheNode = {
       data: null,

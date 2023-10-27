@@ -1,5 +1,5 @@
 import React from 'react'
-import { AmpStateContext } from './amp-context'
+import { AmpStateContext } from './amp-context.shared-runtime'
 import { isInAmpMode } from './amp-mode'
 
 export function useAmp(): boolean {

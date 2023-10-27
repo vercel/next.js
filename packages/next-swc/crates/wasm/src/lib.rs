@@ -1,12 +1,14 @@
+use std::sync::Arc;
+
 use anyhow::{Context, Error};
 use js_sys::JsString;
 use next_swc::{custom_before_pass, TransformOptions};
-use std::sync::Arc;
-use wasm_bindgen::{prelude::*, JsCast};
-use wasm_bindgen_futures::future_to_promise;
-
-use next_binding::swc::core::{
-    base::{config::JsMinifyOptions, config::ParseOptions, try_with_handler, Compiler},
+use swc_core::common::Mark;
+use turbopack_binding::swc::core::{
+    base::{
+        config::{JsMinifyOptions, ParseOptions},
+        try_with_handler, Compiler,
+    },
     common::{
         comments::{Comments, SingleThreadedComments},
         errors::ColorConfig,
@@ -14,6 +16,8 @@ use next_binding::swc::core::{
     },
     ecma::transforms::base::pass::noop,
 };
+use wasm_bindgen::{prelude::*, JsCast};
+use wasm_bindgen_futures::future_to_promise;
 
 pub mod mdx;
 
@@ -31,7 +35,7 @@ pub fn minify_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
 
     let value = try_with_handler(
         c.cm.clone(),
-        next_binding::swc::core::base::HandlerOpts {
+        turbopack_binding::swc::core::base::HandlerOpts {
             color: ColorConfig::Never,
             skip_filename: false,
         },
@@ -63,17 +67,20 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
     console_error_panic_hook::set_once();
 
     let c = compiler();
-    let opts: TransformOptions = serde_wasm_bindgen::from_value(opts)?;
+    let mut opts: TransformOptions = serde_wasm_bindgen::from_value(opts)?;
 
     let s = s.dyn_into::<js_sys::JsString>();
     let out = try_with_handler(
         c.cm.clone(),
-        next_binding::swc::core::base::HandlerOpts {
+        turbopack_binding::swc::core::base::HandlerOpts {
             color: ColorConfig::Never,
             skip_filename: false,
         },
         |handler| {
             GLOBALS.set(&Default::default(), || {
+                let unresolved_mark = Mark::new();
+                opts.swc.unresolved_mark = Some(unresolved_mark);
+
                 let out = match s {
                     Ok(s) => {
                         let fm = c.cm.new_source_file(
@@ -100,6 +107,7 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
                                     &opts,
                                     comments.clone(),
                                     Default::default(),
+                                    unresolved_mark,
                                 )
                             },
                             |_| noop(),
@@ -133,14 +141,14 @@ pub fn transform(s: JsValue, opts: JsValue) -> js_sys::Promise {
 pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
     console_error_panic_hook::set_once();
 
-    let c = next_binding::swc::core::base::Compiler::new(Arc::new(SourceMap::new(
+    let c = turbopack_binding::swc::core::base::Compiler::new(Arc::new(SourceMap::new(
         FilePathMapping::empty(),
     )));
     let opts: ParseOptions = serde_wasm_bindgen::from_value(opts)?;
 
     try_with_handler(
         c.cm.clone(),
-        next_binding::swc::core::base::HandlerOpts {
+        turbopack_binding::swc::core::base::HandlerOpts {
             ..Default::default()
         },
         |handler| {

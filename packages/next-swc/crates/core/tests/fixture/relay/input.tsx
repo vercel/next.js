@@ -25,12 +25,12 @@ const variableMutation = graphql`
 `
 
 commitMutation(
-    environment,
-    graphql`
-      query InputUsedInFunctionCallMutation {
-        someMutation
-      }
-    `
+  environment,
+  graphql`
+    query InputUsedInFunctionCallMutation {
+      someMutation
+    }
+  `
 )
 
 function SomeMutationComponent() {

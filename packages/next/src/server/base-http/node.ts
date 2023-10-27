@@ -1,12 +1,14 @@
 import type { ServerResponse, IncomingMessage } from 'http'
 import type { Writable, Readable } from 'stream'
-import type { SizeLimit } from 'next/types'
 
-import { NextApiRequestCookies, SYMBOL_CLEARED_COOKIES } from '../api-utils'
-import { parseBody } from '../api-utils/node'
-import { NEXT_REQUEST_META, RequestMeta } from '../request-meta'
+import { SYMBOL_CLEARED_COOKIES } from '../api-utils'
+import type { NextApiRequestCookies } from '../api-utils'
+
+import { NEXT_REQUEST_META } from '../request-meta'
+import type { RequestMeta } from '../request-meta'
 
 import { BaseNextRequest, BaseNextResponse } from './index'
+import type { OutgoingHttpHeaders } from 'node:http'
 
 type Req = IncomingMessage & {
   [NEXT_REQUEST_META]?: RequestMeta
@@ -16,7 +18,7 @@ type Req = IncomingMessage & {
 export class NodeNextRequest extends BaseNextRequest<Readable> {
   public headers = this._req.headers;
 
-  [NEXT_REQUEST_META]: RequestMeta = {}
+  [NEXT_REQUEST_META]: RequestMeta = this._req[NEXT_REQUEST_META] || {}
 
   get originalRequest() {
     // Need to mimic these changes to the original req object for places where we use it:
@@ -33,10 +35,6 @@ export class NodeNextRequest extends BaseNextRequest<Readable> {
 
   constructor(private _req: Req) {
     super(_req.method!.toUpperCase(), _req.url!, _req)
-  }
-
-  async parseBody(limit: SizeLimit): Promise<any> {
-    return parseBody(this._req, limit)
   }
 }
 
@@ -84,6 +82,11 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
     return this
   }
 
+  removeHeader(name: string): this {
+    this._res.removeHeader(name)
+    return this
+  }
+
   getHeaderValues(name: string): string[] | undefined {
     const values = this._res.getHeader(name)
 
@@ -101,6 +104,10 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
   getHeader(name: string): string | undefined {
     const values = this.getHeaderValues(name)
     return Array.isArray(values) ? values.join(',') : undefined
+  }
+
+  getHeaders(): OutgoingHttpHeaders {
+    return this._res.getHeaders()
   }
 
   appendHeader(name: string, value: string): this {

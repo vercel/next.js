@@ -19,7 +19,7 @@ let app
 let proxyServer: http.Server
 let cancelCount = 0
 describe('react-virtualized wrapping next/legacy/image', () => {
-  describe('production', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
       await nextBuild(appDir)

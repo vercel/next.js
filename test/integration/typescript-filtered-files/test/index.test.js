@@ -5,11 +5,13 @@ import { join } from 'path'
 
 const appDir = join(__dirname, '..')
 describe('TypeScript filtered files', () => {
-  it('should fail to build the app with a file named con*test*.js', async () => {
-    const output = await nextBuild(appDir, [], { stdout: true, stderr: true })
-    expect(output.stdout).not.toMatch(/Compiled successfully/)
-    expect(output.code).toBe(1)
-    expect(output.stderr).toMatch(/Failed to compile/)
-    expect(output.stderr).toMatch(/is not assignable to type 'boolean'/)
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    it('should fail to build the app with a file named con*test*.js', async () => {
+      const output = await nextBuild(appDir, [], { stdout: true, stderr: true })
+      expect(output.stdout).not.toMatch(/Compiled successfully/)
+      expect(output.code).toBe(1)
+      expect(output.stderr).toMatch(/Failed to compile/)
+      expect(output.stderr).toMatch(/is not assignable to type 'boolean'/)
+    })
   })
 })

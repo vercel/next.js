@@ -31,7 +31,7 @@ const WEBPACK_BREAKING_CHANGE_POLYFILLS =
   '\n\nBREAKING CHANGE: webpack < 5 used to include polyfills for node.js core modules by default.'
 
 function isLikelyASyntaxError(message: string) {
-  return stripAnsi(message).indexOf(friendlySyntaxErrorLabel) !== -1
+  return stripAnsi(message).includes(friendlySyntaxErrorLabel)
 }
 
 let hadMissingSassError = false
@@ -48,7 +48,7 @@ function formatMessage(
       message.moduleTrace &&
       message.moduleTrace.filter(
         (trace: any) =>
-          !/next-(middleware|client-pages|edge-function)-loader\.js/.test(
+          !/next-(middleware|client-pages|route|edge-function)-loader\.js/.test(
             trace.originName
           )
       )
@@ -184,13 +184,31 @@ function formatMessage(
 export default function formatWebpackMessages(json: any, verbose?: boolean) {
   const formattedErrors = json.errors.map((message: any) => {
     const isUnknownNextFontError = message.message.includes(
-      'An error occured in `@next/font`.'
+      'An error occured in `next/font`.'
     )
     return formatMessage(message, isUnknownNextFontError || verbose)
   })
   const formattedWarnings = json.warnings.map((message: any) => {
     return formatMessage(message, verbose)
   })
+
+  // Reorder errors to put the most relevant ones first.
+  let reactServerComponentsError = -1
+
+  for (let i = 0; i < formattedErrors.length; i++) {
+    const error = formattedErrors[i]
+    if (error.includes('ReactServerComponentsError')) {
+      reactServerComponentsError = i
+      break
+    }
+  }
+
+  // Move the reactServerComponentsError to the top if it exists
+  if (reactServerComponentsError !== -1) {
+    const error = formattedErrors.splice(reactServerComponentsError, 1)
+    formattedErrors.unshift(error[0])
+  }
+
   const result = {
     ...json,
     errors: formattedErrors,

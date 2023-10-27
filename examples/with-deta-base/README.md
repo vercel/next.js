@@ -6,7 +6,7 @@ An example using [Deta Base](https://docs.deta.sh/docs/base/about) in a Next.js 
 
 Once you have access to [the environment variables you'll need](#step-2-setting-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-deta-base&project-name=with-deta-base&repository-name=with-deta-base&env=DETA_PROJECT_KEY&envDescription=The%20Deta%20Project%20Key%2C%20found%20in%20the%20Deta%20dashboard&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-deta-base%23configuration)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-deta-base&project-name=with-deta-base&repository-name=with-deta-base&env=DETA_PROJECT_KEY&envDescription=The%20Deta%20Project%20Key%2C%20found%20in%20the%20Deta%20dashboard&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-deta-base%23configuration)
 
 ## How to use
 
@@ -76,4 +76,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-deta-base&project-name=with-deta-base&repository-name=with-deta-base&env=DETA_PROJECT_KEY&envDescription=The%20Deta%20Project%20Key%2C%20found%20in%20the%20Deta%20dashboard&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-deta-base%23configuration)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-deta-base&project-name=with-deta-base&repository-name=with-deta-base&env=DETA_PROJECT_KEY&envDescription=The%20Deta%20Project%20Key%2C%20found%20in%20the%20Deta%20dashboard&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-deta-base%23configuration)

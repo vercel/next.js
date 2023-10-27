@@ -1,0 +1,42 @@
+---
+title: '`next/image` changed in version 13'
+---
+
+## Why This Error Occurred
+
+Starting in Next.js 13, the `next/image` component has undergone some major changes.
+
+Compared to the legacy component, the new `next/image` component has the following changes:
+
+- Removes `<span>` wrapper around `<img>` in favor of [native computed aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes)
+- Adds support for canonical `style` prop
+  - Removes `layout` prop in favor of `style` or `className`
+  - Removes `objectFit` prop in favor of `style` or `className`
+  - Removes `objectPosition` prop in favor of `style` or `className`
+- Removes `IntersectionObserver` implementation in favor of [native lazy loading](https://caniuse.com/loading-lazy-attr)
+  - Removes `lazyBoundary` prop since there is no native equivalent
+  - Removes `lazyRoot` prop since there is no native equivalent
+- Removes `loader` config in favor of [`loader`](/docs/app/api-reference/components/image#loader) prop
+- Changed `alt` prop from optional to required
+
+## Possible Ways to Fix It
+
+Run the [next-image-to-legacy-image](/docs/pages/building-your-application/upgrading/codemods#next-image-to-legacy-image) codemod to automatically change `next/image` imports to `next/legacy/image`, for example:
+
+```
+npx @next/codemod next-image-to-legacy-image .
+```
+
+After running this codemod, you can optionally upgrade `next/legacy/image` to the new `next/image` with another codemod, for example:
+
+```
+npx @next/codemod next-image-experimental .
+```
+
+Please note this second codemod is experimental and only covers static usage (such as `<Image src={img} layout="responsive" />`) but not dynamic usage (such as `<Image {...props} />`).
+
+## Useful Links
+
+- [Next.js 13 Blog Post](/blog/next-13)
+- [`next/image` Documentation](/docs/pages/api-reference/components/image)
+- [`next/legacy/image` Documentation](/docs/pages/api-reference/components/image-legacy)
