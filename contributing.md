@@ -29,5 +29,6 @@ To contribute to [our examples](./examples), please see
 - [Building](./contributing/core/building.md)
 - [Testing](./contributing/core/testing.md)
 - [Adding Error Links](./contributing/core/adding-error-links.md)
+- [Adding a new feature](./contributing/core/adding-features.md)
 - [Developing Using Local App](./contributing/core/developing-using-local-app.md)
 <!-- - [Using the VS Code Debugger](./contributing/core/vscode-debugger.md) -->

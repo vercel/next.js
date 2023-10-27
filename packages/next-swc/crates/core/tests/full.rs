@@ -1,22 +1,25 @@
-use next_binding::swc::{
+use std::path::{Path, PathBuf};
+
+use next_swc::{custom_before_pass, TransformOptions};
+use serde::de::DeserializeOwned;
+use turbopack_binding::swc::{
     core::{
         base::Compiler,
-        common::comments::SingleThreadedComments,
-        ecma::parser::{Syntax, TsConfig},
-        ecma::transforms::base::pass::noop,
+        common::{comments::SingleThreadedComments, Mark},
+        ecma::{
+            parser::{Syntax, TsConfig},
+            transforms::base::pass::noop,
+        },
     },
     testing::{NormalizedOutput, Tester},
 };
-use next_swc::{custom_before_pass, TransformOptions};
-use serde::de::DeserializeOwned;
-use std::path::{Path, PathBuf};
 
-#[next_binding::swc::testing::fixture("tests/full/**/input.js")]
+#[turbopack_binding::swc::testing::fixture("tests/full/**/input.js")]
 fn full(input: PathBuf) {
     test(&input, true);
 }
 
-#[next_binding::swc::testing::fixture("tests/loader/**/input.js")]
+#[turbopack_binding::swc::testing::fixture("tests/loader/**/input.js")]
 fn loader(input: PathBuf) {
     test(&input, false);
 }
@@ -31,14 +34,16 @@ fn test(input: &Path, minify: bool) {
             let fm = cm.load_file(input).expect("failed to load file");
 
             let options = TransformOptions {
-                swc: next_binding::swc::core::base::config::Options {
+                swc: turbopack_binding::swc::core::base::config::Options {
                     swcrc: true,
                     output_path: Some(output.clone()),
 
-                    config: next_binding::swc::core::base::config::Config {
-                        is_module: next_binding::swc::core::base::config::IsModule::Bool(true),
+                    config: turbopack_binding::swc::core::base::config::Config {
+                        is_module: Some(
+                            turbopack_binding::swc::core::base::config::IsModule::Bool(true),
+                        ),
 
-                        jsc: next_binding::swc::core::base::config::JscConfig {
+                        jsc: turbopack_binding::swc::core::base::config::JscConfig {
                             minify: if minify {
                                 Some(assert_json("{ \"compress\": true, \"mangle\": true }"))
                             } else {
@@ -59,10 +64,10 @@ fn test(input: &Path, minify: bool) {
                 pages_dir: None,
                 is_page_file: false,
                 is_development: true,
-                is_server: false,
+                is_server_compiler: false,
                 server_components: None,
                 styled_components: Some(assert_json("{}")),
-                styled_jsx: true,
+                styled_jsx: Some(assert_json("{}")),
                 remove_console: None,
                 react_remove_properties: None,
                 relay: None,
@@ -72,9 +77,15 @@ fn test(input: &Path, minify: bool) {
                 font_loaders: None,
                 app_dir: None,
                 server_actions: None,
+                cjs_require_optimizer: None,
+                auto_modularize_imports: None,
+                optimize_barrel_exports: None,
+                optimize_server_react: None,
             };
 
-            let options = options.patch(&fm);
+            let unresolved_mark = Mark::new();
+            let mut options = options.patch(&fm);
+            options.swc.unresolved_mark = Some(unresolved_mark);
 
             let comments = SingleThreadedComments::default();
             match c.process_js_with_custom_pass(
@@ -90,6 +101,7 @@ fn test(input: &Path, minify: bool) {
                         &options,
                         comments.clone(),
                         Default::default(),
+                        unresolved_mark,
                     )
                 },
                 |_| noop(),

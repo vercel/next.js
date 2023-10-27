@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { shouldRunTurboDevTest } from '../../../lib/next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -19,16 +20,17 @@ createNextDescribe(
   {
     files: __dirname,
     dependencies: {
-      '@next/font': 'canary',
       react: 'latest',
       'react-dom': 'latest',
-      swr: '2.0.0-rc.0',
+      swr: 'latest',
     },
     packageJson: {
       scripts: {
         setup: `cp -r ./node_modules_bak/* ./node_modules`,
         build: 'yarn setup && next build',
-        dev: 'yarn setup && next dev',
+        dev: `yarn setup && next ${
+          shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
+        }`,
         start: 'next start',
       },
     },
@@ -45,6 +47,7 @@ createNextDescribe(
         expect(result).toContain('Server subpath: subpath.default')
         expect(result).toContain('Client: index.default')
         expect(result).toContain('Client subpath: subpath.default')
+        expect(result).toContain('opt-out-react-version: 18.2.0')
       })
     })
 
@@ -89,24 +92,23 @@ createNextDescribe(
     })
 
     it('should resolve 3rd party package exports based on the react-server condition', async () => {
-      await next
-        .fetch('/react-server/3rd-party-package')
-        .then(async (response) => {
-          const result = await resolveStreamResponse(response)
+      const $ = await next.render$('/react-server/3rd-party-package')
 
-          // Package should be resolved based on the react-server condition,
-          // as well as package's internal & external dependencies.
-          expect(result).toContain(
-            'Server: index.react-server:react.subset:dep.server'
-          )
-          expect(result).toContain(
-            'Client: index.default:react.full:dep.default'
-          )
+      const result = $('body').text()
 
-          // Subpath exports should be resolved based on the condition too.
-          expect(result).toContain('Server subpath: subpath.react-server')
-          expect(result).toContain('Client subpath: subpath.default')
-        })
+      // Package should be resolved based on the react-server condition,
+      // as well as package's internal & external dependencies.
+      expect(result).toContain(
+        'Server: index.react-server:react.subset:dep.server'
+      )
+      expect(result).toContain('Client: index.default:react.full:dep.default')
+
+      // Subpath exports should be resolved based on the condition too.
+      expect(result).toContain('Server subpath: subpath.react-server')
+      expect(result).toContain('Client subpath: subpath.default')
+
+      // Prefer `module` field for isomorphic packages.
+      expect($('#main-field').text()).toContain('server-module-field:module')
     })
 
     it('should correctly collect global css imports and mark them as side effects', async () => {
@@ -143,7 +145,7 @@ createNextDescribe(
       ).toBe('rgb(255, 0, 0)')
     })
 
-    it('should handle external @next/font', async () => {
+    it('should handle external next/font', async () => {
       const browser = await next.browser('/font')
 
       expect(
@@ -160,6 +162,12 @@ createNextDescribe(
         const v1 = html.match(/App React Version: ([^<]+)</)[1]
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
+
+        // Should work with both esm and cjs imports
+        expect(html).toContain(
+          'CJS-ESM Compat package: cjs-esm-compat/index.mjs'
+        )
+        expect(html).toContain('CJS package: cjs-lib')
       })
 
       it('should use the same react in server app', async () => {
@@ -168,6 +176,26 @@ createNextDescribe(
         const v1 = html.match(/App React Version: ([^<]+)</)[1]
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
+
+        // Should work with both esm and cjs imports
+        expect(html).toContain(
+          'CJS-ESM Compat package: cjs-esm-compat/index.mjs'
+        )
+        expect(html).toContain('CJS package: cjs-lib')
+      })
+
+      it('should use the same react in edge server app', async () => {
+        const html = await next.render('/esm/edge-server')
+
+        const v1 = html.match(/App React Version: ([^<]+)</)[1]
+        const v2 = html.match(/External React Version: ([^<]+)</)[1]
+        expect(v1).toBe(v2)
+
+        // Should work with both esm and cjs imports
+        expect(html).toContain(
+          'CJS-ESM Compat package: cjs-esm-compat/index.mjs'
+        )
+        expect(html).toContain('CJS package: cjs-lib')
       })
 
       it('should use the same react in pages', async () => {
@@ -177,6 +205,29 @@ createNextDescribe(
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
       })
+    })
+
+    it('should export client module references in esm', async () => {
+      const html = await next.render('/esm-client-ref')
+      expect(html).toContain('hello')
+    })
+
+    it('should support exporting multiple star re-exports', async () => {
+      const html = await next.render('/wildcard')
+      expect(html).toContain('Foo')
+    })
+
+    it('should have proper tree-shaking for known modules in CJS', async () => {
+      const html = await next.render('/test-middleware')
+      expect(html).toContain('it works')
+
+      const middlewareBundle = await next.readFile('.next/server/middleware.js')
+      expect(middlewareBundle).not.toContain('image-response')
+    })
+
+    it('should use the same async storages if imported directly', async () => {
+      const html = await next.render('/async-storage')
+      expect(html).toContain('success')
     })
   }
 )

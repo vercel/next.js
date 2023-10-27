@@ -9,6 +9,7 @@ const nextjsRouteAnnouncerStyles: React.CSSProperties = {
   overflow: 'hidden',
   padding: 0,
   position: 'absolute',
+  top: 0,
   width: '1px',
 
   // https://medium.com/@jessebeach/beware-smushed-off-screen-accessible-text-5952a4c2cbfe

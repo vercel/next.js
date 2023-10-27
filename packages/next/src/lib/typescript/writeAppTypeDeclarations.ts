@@ -2,10 +2,17 @@ import os from 'os'
 import path from 'path'
 import { promises as fs } from 'fs'
 
-export async function writeAppTypeDeclarations(
-  baseDir: string,
+export async function writeAppTypeDeclarations({
+  baseDir,
+  imageImportsEnabled,
+  hasPagesDir,
+  isAppDirEnabled,
+}: {
+  baseDir: string
   imageImportsEnabled: boolean
-): Promise<void> {
+  hasPagesDir: boolean
+  isAppDirEnabled: boolean
+}): Promise<void> {
   // Reference `next` types
   const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
 
@@ -25,19 +32,37 @@ export async function writeAppTypeDeclarations(
         eol = '\n'
       }
     }
-  } catch (err) {}
+  } catch {}
 
-  const content =
-    '/// <reference types="next" />' +
-    eol +
-    (imageImportsEnabled
-      ? '/// <reference types="next/image-types/global" />' + eol
-      : '') +
-    eol +
-    '// NOTE: This file should not be edited' +
-    eol +
-    '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
-    eol
+  /**
+   * "Triple-slash directives" used to create typings files for Next.js projects
+   * using Typescript .
+   *
+   * @see https://www.typescriptlang.org/docs/handbook/triple-slash-directives.html
+   */
+  const directives: string[] = [
+    // Include the core Next.js typings.
+    '/// <reference types="next" />',
+  ]
+
+  if (imageImportsEnabled) {
+    directives.push('/// <reference types="next/image-types/global" />')
+  }
+
+  if (isAppDirEnabled && hasPagesDir) {
+    directives.push(
+      '/// <reference types="next/navigation-types/compat/navigation" />'
+    )
+  }
+
+  // Push the notice in.
+  directives.push(
+    '',
+    '// NOTE: This file should not be edited',
+    '// see https://nextjs.org/docs/basic-features/typescript for more information.'
+  )
+
+  const content = directives.join(eol) + eol
 
   // Avoids an un-necessary write on read-only fs
   if (currentContent === content) {

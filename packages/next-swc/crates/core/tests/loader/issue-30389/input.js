@@ -1,1 +1,1 @@
-const test = my_array?.[0] ?? [];
+const test = my_array?.[0] ?? []

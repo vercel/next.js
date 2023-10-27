@@ -14,3 +14,4 @@ export default function SlowPage(props) {
 }
 
 export const runtime = 'experimental-edge'
+export const preferredRegion = 'global'

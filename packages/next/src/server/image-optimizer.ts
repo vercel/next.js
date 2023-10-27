@@ -1,28 +1,33 @@
-import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import { createHash } from 'crypto'
 import { promises } from 'fs'
+import { cpus } from 'os'
+import type { IncomingMessage, ServerResponse } from 'http'
+import { mediaType } from 'next/dist/compiled/@hapi/accept'
+import contentDisposition from 'next/dist/compiled/content-disposition'
 import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
 import imageSizeOf from 'next/dist/compiled/image-size'
-import { IncomingMessage, ServerResponse } from 'http'
 import isAnimated from 'next/dist/compiled/is-animated'
-import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
-import nodeUrl, { UrlWithParsedQuery } from 'url'
-import { NextConfigComplete } from './config-shared'
-import {
-  processBuffer,
-  decodeBuffer,
-  Operation,
-  getMetadata,
-} from './lib/squoosh/main'
+import nodeUrl, { type UrlWithParsedQuery } from 'url'
+
+import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
+import type { ImageConfigComplete } from '../shared/lib/image-config'
+import { hasMatch } from '../shared/lib/match-remote-pattern'
+import type { NextConfigComplete } from './config-shared'
+import { createRequestResponseMocks } from './lib/mock-request'
+// Do not import anything other than types from this module
+// because it will throw an error when using `outputFileTracing`
+// as `jest-worker` is ignored in file tracing. Use `await import`
+// or `require` instead.
+import type { Operation } from './lib/squoosh/main'
+import type { NextUrlWithParsedQuery } from './request-meta'
+import type {
+  IncrementalCacheEntry,
+  IncrementalCacheValue,
+} from './response-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
-import chalk from 'next/dist/compiled/chalk'
-import { NextUrlWithParsedQuery } from './request-meta'
-import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
-import { mockRequest } from './lib/mock-request'
-import { hasMatch } from '../shared/lib/match-remote-pattern'
-import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
+import * as Log from '../build/output/log'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -32,21 +37,24 @@ const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
+const ICO = 'image/x-icon'
 const CACHE_VERSION = 3
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-let sharp:
-  | ((
-      input?: string | Buffer,
-      options?: import('sharp').SharpOptions
-    ) => import('sharp').Sharp)
-  | undefined
+let sharp: typeof import('sharp') | undefined
 
 try {
   sharp = require(process.env.NEXT_SHARP_PATH || 'sharp')
+  if (sharp && sharp.concurrency() > 1) {
+    // Reducing concurrency should reduce the memory usage too.
+    // We more aggressively reduce in dev but also reduce in prod.
+    // https://sharp.pixelplumbing.com/api-utility#concurrency
+    const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
+    sharp.concurrency(Math.floor(Math.max(cpus().length / divisor, 1)))
+  }
 } catch (e) {
   // Sharp not present on the server, Squoosh fallback will be used
 }
@@ -91,15 +99,8 @@ async function writeToCacheDir(
 ) {
   const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
 
-  // Added in: v14.14.0 https://nodejs.org/api/fs.html#fspromisesrmpath-options
-  // attempt cleaning up existing stale cache
-  if ((promises as any).rm) {
-    await (promises as any)
-      .rm(dir, { force: true, recursive: true })
-      .catch(() => {})
-  } else {
-    await promises.rmdir(dir, { recursive: true }).catch(() => {})
-  }
+  await promises.rm(dir, { recursive: true, force: true }).catch(() => {})
+
   await promises.mkdir(dir, { recursive: true })
   await promises.writeFile(filename, buffer)
 }
@@ -140,6 +141,9 @@ export function detectContentType(buffer: Buffer) {
   ) {
     return AVIF
   }
+  if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
+    return ICO
+  }
   return null
 }
 
@@ -164,6 +168,12 @@ export class ImageOptimizerCache {
     const remotePatterns = nextConfig.images?.remotePatterns || []
     const { url, w, q } = query
     let href: string
+
+    if (domains.length > 0) {
+      Log.warnOnce(
+        'The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.'
+      )
+    }
 
     if (!url) {
       return { errorMessage: '"url" parameter is required' }
@@ -290,7 +300,7 @@ export class ImageOptimizerCache {
       const now = Date.now()
 
       for (const file of files) {
-        const [maxAgeSt, expireAtSt, etag, extension] = file.split('.')
+        const [maxAgeSt, expireAtSt, etag, extension] = file.split('.', 4)
         const buffer = await promises.readFile(join(cacheDir, file))
         const expireAt = Number(expireAtSt)
         const maxAge = Number(maxAgeSt)
@@ -317,7 +327,11 @@ export class ImageOptimizerCache {
   async set(
     cacheKey: string,
     value: IncrementalCacheValue | null,
-    revalidate?: number | false
+    {
+      revalidate,
+    }: {
+      revalidate?: number | false
+    }
   ) {
     if (value?.kind !== 'IMAGE') {
       throw new Error('invariant attempted to set non-image to image-cache')
@@ -340,7 +354,7 @@ export class ImageOptimizerCache {
         value.etag
       )
     } catch (err) {
-      console.error(`Failed to write image to cache ${cacheKey}`, err)
+      Log.error(`Failed to write image to cache ${cacheKey}`, err)
     }
   }
 }
@@ -365,7 +379,7 @@ function parseCacheControl(str: string | null): Map<string, string> {
     return map
   }
   for (let directive of str.split(',')) {
-    let [key, value] = directive.trim().split('=')
+    let [key, value] = directive.trim().split('=', 2)
     key = key.toLowerCase()
     if (value) {
       value = value.toLowerCase()
@@ -403,7 +417,7 @@ export async function optimizeImage({
   quality: number
   width: number
   height?: number
-  nextConfigOutput?: 'standalone'
+  nextConfigOutput?: 'standalone' | 'export'
 }): Promise<Buffer> {
   let optimizedBuffer = buffer
   if (sharp) {
@@ -430,9 +444,8 @@ export async function optimizeImage({
           chromaSubsampling: '4:2:0', // same as webp
         })
       } else {
-        console.warn(
-          chalk.yellow.bold('Warning: ') +
-            `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version.\n` +
+        Log.warnOnce(
+          `Your installed version of the 'sharp' package does not support AVIF images. Run 'npm i sharp@latest' to upgrade to the latest version.\n` +
             'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
         )
         transformer.webp({ quality })
@@ -442,25 +455,22 @@ export async function optimizeImage({
     } else if (contentType === PNG) {
       transformer.png({ quality })
     } else if (contentType === JPEG) {
-      transformer.jpeg({ quality })
+      transformer.jpeg({ quality, progressive: true })
     }
 
     optimizedBuffer = await transformer.toBuffer()
     // End sharp transformation logic
   } else {
-    if (showSharpMissingWarning && nextConfigOutput) {
-      // TODO: should we ensure squoosh also works even though we don't
-      // recommend it be used in production and this is a production feature
-      console.error(
+    if (showSharpMissingWarning && nextConfigOutput === 'standalone') {
+      Log.error(
         `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly. Read more at: https://nextjs.org/docs/messages/sharp-missing-in-production`
       )
-      throw new ImageError(500, 'internal server error')
+      throw new ImageError(500, 'Internal Server Error')
     }
     // Show sharp warning in production once
     if (showSharpMissingWarning) {
-      console.warn(
-        chalk.yellow.bold('Warning: ') +
-          `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for Image Optimization.\n` +
+      Log.warnOnce(
+        `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'npm i sharp', and Next.js will use it automatically for Image Optimization.\n` +
           'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
       )
       showSharpMissingWarning = false
@@ -489,6 +499,9 @@ export async function optimizeImage({
       operations.push({ type: 'resize', width })
     }
 
+    const { processBuffer } =
+      require('./lib/squoosh/main') as typeof import('./lib/squoosh/main')
+
     if (contentType === AVIF) {
       optimizedBuffer = await processBuffer(buffer, operations, 'avif', quality)
     } else if (contentType === WEBP) {
@@ -516,7 +529,7 @@ export async function imageOptimizer(
   ) => Promise<void>
 ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
   let upstreamBuffer: Buffer
-  let upstreamType: string | null
+  let upstreamType: string | null | undefined
   let maxAge: number
   const { isAbsolute, href, width, mimeType, quality } = paramsResult
 
@@ -524,11 +537,7 @@ export async function imageOptimizer(
     const upstreamRes = await fetch(href)
 
     if (!upstreamRes.ok) {
-      console.error(
-        'upstream image response failed for',
-        href,
-        upstreamRes.status
-      )
+      Log.error('upstream image response failed for', href, upstreamRes.status)
       throw new ImageError(
         upstreamRes.status,
         '"url" parameter is valid but upstream response is invalid'
@@ -542,30 +551,32 @@ export async function imageOptimizer(
     maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
   } else {
     try {
-      const {
-        resBuffers,
-        req: mockReq,
-        res: mockRes,
-        streamPromise: isStreamFinished,
-      } = mockRequest(href, _req.headers, _req.method || 'GET', _req.connection)
+      const mocked = createRequestResponseMocks({
+        url: href,
+        method: _req.method || 'GET',
+        headers: _req.headers,
+        socket: _req.socket,
+      })
 
-      await handleRequest(mockReq, mockRes, nodeUrl.parse(href, true))
-      await isStreamFinished
+      await handleRequest(mocked.req, mocked.res, nodeUrl.parse(href, true))
+      await mocked.res.hasStreamed
 
-      if (!mockRes.statusCode) {
-        console.error('image response failed for', href, mockRes.statusCode)
+      if (!mocked.res.statusCode) {
+        Log.error('image response failed for', href, mocked.res.statusCode)
         throw new ImageError(
-          mockRes.statusCode,
+          mocked.res.statusCode,
           '"url" parameter is valid but internal response is invalid'
         )
       }
 
-      upstreamBuffer = Buffer.concat(resBuffers)
+      upstreamBuffer = Buffer.concat(mocked.res.buffers)
       upstreamType =
-        detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type')
-      maxAge = getMaxAge(mockRes.getHeader('Cache-Control'))
+        detectContentType(upstreamBuffer) ||
+        mocked.res.getHeader('Content-Type')
+      const cacheControl = mocked.res.getHeader('Cache-Control')
+      maxAge = cacheControl ? getMaxAge(cacheControl) : 0
     } catch (err) {
-      console.error('upstream image response failed for', href, err)
+      Log.error('upstream image response failed for', href, err)
       throw new ImageError(
         500,
         '"url" parameter is valid but upstream response is invalid'
@@ -573,17 +584,21 @@ export async function imageOptimizer(
     }
   }
 
-  if (upstreamType === SVG && !nextConfig.images.dangerouslyAllowSVG) {
-    console.error(
-      `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
-    )
-    throw new ImageError(
-      400,
-      '"url" parameter is valid but image type is not allowed'
-    )
-  }
-
   if (upstreamType) {
+    upstreamType = upstreamType.toLowerCase().trim()
+
+    if (
+      upstreamType.startsWith('image/svg') &&
+      !nextConfig.images.dangerouslyAllowSVG
+    ) {
+      Log.error(
+        `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
+      )
+      throw new ImageError(
+        400,
+        '"url" parameter is valid but image type is not allowed'
+      )
+    }
     const vector = VECTOR_TYPES.includes(upstreamType)
     const animate =
       ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
@@ -591,8 +606,8 @@ export async function imageOptimizer(
     if (vector || animate) {
       return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
     }
-    if (!upstreamType.startsWith('image/')) {
-      console.error(
+    if (!upstreamType.startsWith('image/') || upstreamType.includes(',')) {
+      Log.error(
         "The requested resource isn't a valid image for",
         href,
         'received',
@@ -626,6 +641,8 @@ export async function imageOptimizer(
     })
     if (optimizedBuffer) {
       if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
+        const { getMetadata } =
+          require('./lib/squoosh/main') as typeof import('./lib/squoosh/main')
         // During `next dev`, we don't want to generate blur placeholders with webpack
         // because it can delay starting the dev server. Instead, `next-image-loader.js`
         // will inline a special url to lazily generate the blur placeholder at request time.
@@ -668,14 +685,14 @@ export async function imageOptimizer(
 function getFileNameWithExtension(
   url: string,
   contentType: string | null
-): string | void {
-  const [urlWithoutQueryParams] = url.split('?')
+): string {
+  const [urlWithoutQueryParams] = url.split('?', 1)
   const fileNameWithExtension = urlWithoutQueryParams.split('/').pop()
   if (!contentType || !fileNameWithExtension) {
-    return
+    return 'image.bin'
   }
 
-  const [fileName] = fileNameWithExtension.split('.')
+  const [fileName] = fileNameWithExtension.split('.', 1)
   const extension = getExtension(contentType)
   return `${fileName}.${extension}`
 }
@@ -688,7 +705,7 @@ function setResponseHeaders(
   contentType: string | null,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string,
+  imagesConfig: ImageConfigComplete,
   maxAge: number,
   isDev: boolean
 ) {
@@ -708,16 +725,12 @@ function setResponseHeaders(
   }
 
   const fileName = getFileNameWithExtension(url, contentType)
-  if (fileName) {
-    res.setHeader(
-      'Content-Disposition',
-      contentDisposition(fileName, { type: 'inline' })
-    )
-  }
+  res.setHeader(
+    'Content-Disposition',
+    contentDisposition(fileName, { type: imagesConfig.contentDispositionType })
+  )
 
-  if (contentSecurityPolicy) {
-    res.setHeader('Content-Security-Policy', contentSecurityPolicy)
-  }
+  res.setHeader('Content-Security-Policy', imagesConfig.contentSecurityPolicy)
   res.setHeader('X-Nextjs-Cache', xCache)
 
   return { finished: false }
@@ -731,7 +744,7 @@ export function sendResponse(
   buffer: Buffer,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string,
+  imagesConfig: ImageConfigComplete,
   maxAge: number,
   isDev: boolean
 ) {
@@ -745,7 +758,7 @@ export function sendResponse(
     contentType,
     isStatic,
     xCache,
-    contentSecurityPolicy,
+    imagesConfig,
     maxAge,
     isDev
   )
@@ -771,6 +784,8 @@ export async function getImageSize(
       const { width, height } = await transformer.metadata()
       return { width, height }
     } else {
+      const { decodeBuffer } =
+        require('./lib/squoosh/main') as typeof import('./lib/squoosh/main')
       const { width, height } = await decodeBuffer(buffer)
       return { width, height }
     }
@@ -778,17 +793,4 @@ export async function getImageSize(
 
   const { width, height } = imageSizeOf(buffer)
   return { width, height }
-}
-
-export class Deferred<T> {
-  promise: Promise<T>
-  resolve!: (value: T) => void
-  reject!: (error?: Error) => void
-
-  constructor() {
-    this.promise = new Promise((resolve, reject) => {
-      this.resolve = resolve
-      this.reject = reject
-    })
-  }
 }

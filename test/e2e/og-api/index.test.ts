@@ -22,9 +22,26 @@ describe('og-api', () => {
     expect(html).toContain('hello world')
   })
 
-  it('should work', async () => {
+  it('should work in pages/api', async () => {
     const res = await fetchViaHTTP(next.url, '/api/og')
     expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/png')
+    const body = await res.blob()
+    expect(body.size).toBeGreaterThan(0)
+  })
+
+  it('should work in app route', async () => {
+    const res = await fetchViaHTTP(next.url, '/og')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/png')
+    const body = await res.blob()
+    expect(body.size).toBeGreaterThan(0)
+  })
+
+  it('should work in app route in node runtime', async () => {
+    const res = await fetchViaHTTP(next.url, '/og-node')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/png')
     const body = await res.blob()
     expect(body.size).toBeGreaterThan(0)
   })
@@ -43,6 +60,16 @@ describe('og-api', () => {
           join(next.testDir, '.next/standalone/.next/server/edge-chunks')
         )
       ).toBe(true)
+    })
+  }
+
+  if ((global as any).isNextDev) {
+    it('should throw error when returning a response object in pages/api in node runtime', async () => {
+      const res = await fetchViaHTTP(next.url, '/api/og-wrong-runtime')
+      expect(res.status).toBe(500)
+      expect(await res.text()).toContain(
+        `API route returned a Response object in the Node.js runtime, this is not supported.`
+      )
     })
   }
 })

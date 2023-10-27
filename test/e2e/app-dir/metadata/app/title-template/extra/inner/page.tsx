@@ -7,9 +7,9 @@ export default function Page() {
         to /
       </Link>
       <br />
-      <Link href="/basic" id="to-basic">
+      {/* <Link href="/basic" id="to-basic">
         to /basic
-      </Link>
+      </Link> */}
     </>
   )
 }

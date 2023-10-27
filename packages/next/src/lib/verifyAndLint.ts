@@ -1,9 +1,9 @@
-import chalk from 'next/dist/compiled/chalk'
+import { red } from './picocolors'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { ESLINT_DEFAULT_DIRS } from './constants'
-import { Telemetry } from '../telemetry/storage'
+import type { Telemetry } from '../telemetry/storage'
 import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from './compile-error'
 import isError from './is-error'
@@ -12,14 +12,12 @@ export async function verifyAndLint(
   dir: string,
   cacheLocation: string,
   configLintDirs: string[] | undefined,
-  numWorkers: number | undefined,
   enableWorkerThreads: boolean | undefined,
-  telemetry: Telemetry,
-  hasAppDir: boolean
+  telemetry: Telemetry
 ): Promise<void> {
   try {
     const lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
-      numWorkers,
+      numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,
     }) as Worker & {
@@ -39,17 +37,12 @@ export async function verifyAndLint(
       []
     )
 
-    const lintResults = await lintWorkers.runLintCheck(
-      dir,
-      lintDirs,
-      hasAppDir,
-      {
-        lintDuringBuild: true,
-        eslintOptions: {
-          cacheLocation,
-        },
-      }
-    )
+    const lintResults = await lintWorkers.runLintCheck(dir, lintDirs, {
+      lintDuringBuild: true,
+      eslintOptions: {
+        cacheLocation,
+      },
+    })
     const lintOutput =
       typeof lintResults === 'string' ? lintResults : lintResults?.output
 
@@ -75,7 +68,7 @@ export async function verifyAndLint(
   } catch (err) {
     if (isError(err)) {
       if (err.type === 'CompileError' || err instanceof CompileError) {
-        console.error(chalk.red('\nFailed to compile.'))
+        console.error(red('\nFailed to compile.'))
         console.error(err.message)
         process.exit(1)
       } else if (err.type === 'FatalError') {

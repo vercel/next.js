@@ -1,9 +1,10 @@
 import path from 'path'
 
+import type tsModule from 'typescript/lib/tsserverlibrary'
 type TypeScript = typeof import('typescript/lib/tsserverlibrary')
 
 let ts: TypeScript
-let info: ts.server.PluginCreateInfo
+let info: tsModule.server.PluginCreateInfo
 let appDirRegExp: RegExp
 
 export function log(message: string) {
@@ -13,7 +14,7 @@ export function log(message: string) {
 // This function has to be called initially.
 export function init(opts: {
   ts: TypeScript
-  info: ts.server.PluginCreateInfo
+  info: tsModule.server.PluginCreateInfo
 }) {
   ts = opts.ts
   info = opts.info
@@ -44,14 +45,14 @@ export function removeStringQuotes(str: string): string {
   return str.replace(/^['"`]|['"`]$/g, '')
 }
 
-export const isPositionInsideNode = (position: number, node: ts.Node) => {
+export const isPositionInsideNode = (position: number, node: tsModule.Node) => {
   const start = node.getFullStart()
   return start <= position && position <= node.getFullWidth() + start
 }
 
 export const isDefaultFunctionExport = (
-  node: ts.Node
-): node is ts.FunctionDeclaration => {
+  node: tsModule.Node
+): node is tsModule.FunctionDeclaration => {
   if (ts.isFunctionDeclaration(node)) {
     let hasExportKeyword = false
     let hasDefaultKeyword = false
@@ -74,6 +75,9 @@ export const isDefaultFunctionExport = (
   return false
 }
 
+export const isInsideApp = (filePath: string) => {
+  return appDirRegExp.test(filePath)
+}
 export const isAppEntryFile = (filePath: string) => {
   return (
     appDirRegExp.test(filePath) &&

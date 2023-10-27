@@ -9,6 +9,7 @@ if (typeof EventSource !== "function") {
 }
 
 var urlBase = decodeURIComponent(__resourceQuery.slice(1));
+/** @type {EventSource | undefined} */
 var activeEventSource;
 var activeKeys = new Map();
 var errorHandlers = new Set();
@@ -19,6 +20,10 @@ var updateEventSource = function updateEventSource() {
 		activeEventSource = new EventSource(
 			urlBase + Array.from(activeKeys.keys()).join("@")
 		);
+		/**
+		 * @this {EventSource}
+		 * @param {Event & { message?: string, filename?: string, lineno?: number, colno?: number, error?: Error }} event event
+		 */
 		activeEventSource.onerror = function (event) {
 			errorHandlers.forEach(function (onError) {
 				onError(
@@ -42,6 +47,10 @@ var updateEventSource = function updateEventSource() {
 	}
 };
 
+/**
+ * @param {{ data: string, onError: (err: Error) => void, active: boolean, module: module }} options options
+ * @returns {() => void} function to destroy response
+ */
 exports.keepAlive = function (options) {
 	var data = options.data;
 	var onError = options.onError;

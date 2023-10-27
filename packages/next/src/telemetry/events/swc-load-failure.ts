@@ -1,5 +1,5 @@
 import { traceGlobals } from '../../trace/shared'
-import { Telemetry } from '../storage'
+import type { Telemetry } from '../storage'
 // @ts-ignore JSON
 import { version as nextVersion, optionalDependencies } from 'next/package.json'
 
@@ -14,6 +14,7 @@ export type EventSwcLoadFailure = {
     wasm?: 'enabled' | 'fallback' | 'failed'
     glibcVersion?: string
     installedSwcPackages?: string
+    nativeBindingsErrorCode?: string
   }
 }
 
@@ -30,7 +31,7 @@ export async function eventSwcLoadFailure(
   try {
     // @ts-ignore
     glibcVersion = process.report?.getReport().header.glibcVersionRuntime
-  } catch (_) {}
+  } catch {}
 
   try {
     const pkgNames = Object.keys(optionalDependencies || {}).filter((pkg) =>
@@ -42,13 +43,13 @@ export async function eventSwcLoadFailure(
       try {
         const { version } = require(`${pkg}/package.json`)
         installedPkgs.push(`${pkg}@${version}`)
-      } catch (_) {}
+      } catch {}
     }
 
     if (installedPkgs.length > 0) {
       installedSwcPackages = installedPkgs.sort().join(',')
     }
-  } catch (_) {}
+  } catch {}
 
   telemetry.record({
     eventName: EVENT_PLUGIN_PRESENT,
@@ -60,6 +61,7 @@ export async function eventSwcLoadFailure(
       platform: process.platform,
       nodeVersion: process.versions.node,
       wasm: event?.wasm,
+      nativeBindingsErrorCode: event?.nativeBindingsErrorCode,
     },
   })
   // ensure this event is flushed before process exits

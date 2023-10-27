@@ -6,7 +6,7 @@ This example shows the most basic idea behind Next.js, and it's running on nativ
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example-esm) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/hello-world-esm)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world-esm&project-name=hello-world-esm&repository-name=hello-world-esm)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world-esm&project-name=hello-world-esm&repository-name=hello-world-esm)
 
 ## How to use
 

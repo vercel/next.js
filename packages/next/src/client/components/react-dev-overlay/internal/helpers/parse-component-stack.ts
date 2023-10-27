@@ -18,7 +18,7 @@ export function parseComponentStack(
       const webpackFile = match[3]
 
       // Stop parsing the component stack if we reach a Next.js component
-      if (webpackFile?.includes('next/dist/client/components/')) {
+      if (webpackFile?.includes('next/dist')) {
         break
       }
 
@@ -26,7 +26,7 @@ export function parseComponentStack(
         /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
         ''
       )
-      const [file, lineNumber, column] = modulePath?.split(':') ?? []
+      const [file, lineNumber, column] = modulePath?.split(':', 3) ?? []
 
       componentStackFrames.push({
         component,

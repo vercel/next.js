@@ -1,18 +1,12 @@
 #!/usr/bin/env node
+performance.mark('next-start')
+import '../server/require-hook'
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { commands } from '../lib/commands'
-;['react', 'react-dom'].forEach((dependency) => {
-  try {
-    // When 'npm link' is used it checks the clone location. Not the project.
-    require.resolve(dependency)
-  } catch (err) {
-    console.warn(
-      `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
-    )
-  }
-})
+import { commandArgs } from '../lib/command-args'
+import { getValidatedArgs } from '../lib/get-validated-args'
 
 const defaultCommand = 'dev'
 const args = arg(
@@ -62,6 +56,11 @@ if (!foundCommand && args['--help']) {
 }
 
 const command = foundCommand ? args._[0] : defaultCommand
+
+if (['experimental-compile', 'experimental-generate'].includes(command)) {
+  args._.push('--build-mode', command)
+}
+
 const forwardedArgs = foundCommand ? args._.slice(1) : args._
 
 if (args['--inspect'])
@@ -95,35 +94,36 @@ if (process.env.NODE_ENV) {
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-// x-ref: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505
-if (process.versions.pnp === '3') {
-  const nodeVersionParts = process.versions.node
-    .split('.')
-    .map((v) => Number(v))
-
-  if (
-    nodeVersionParts[0] < 16 ||
-    (nodeVersionParts[0] === 16 && nodeVersionParts[1] < 14)
-  ) {
-    log.warn(
-      'Node.js 16.14+ is required for Yarn PnP 3.20+. More info: https://github.com/vercel/next.js/pull/34688#issuecomment-1047994505'
-    )
-  }
-}
-
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
 // Allow the graceful termination to be manually configurable
 if (!process.env.NEXT_MANUAL_SIG_HANDLE && command !== 'dev') {
   process.on('SIGTERM', () => process.exit(0))
   process.on('SIGINT', () => process.exit(0))
 }
+async function main() {
+  const currentArgsSpec = commandArgs[command]()
+  const validatedArgs = getValidatedArgs(currentArgsSpec, forwardedArgs)
 
-commands[command]()
-  .then((exec) => exec(forwardedArgs))
-  .then(() => {
-    if (command === 'build') {
-      // ensure process exits after build completes so open handles/connections
-      // don't cause process to hang
-      process.exit(0)
+  for (const dependency of ['react', 'react-dom']) {
+    try {
+      // When 'npm link' is used it checks the clone location. Not the project.
+      require.resolve(dependency)
+    } catch (err) {
+      console.warn(
+        `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
+      )
     }
-  })
+  }
+
+  await commands[command]()
+    .then((exec) => exec(validatedArgs))
+    .then(() => {
+      if (command === 'build' || command === 'experimental-compile') {
+        // ensure process exits after build completes so open handles/connections
+        // don't cause process to hang
+        process.exit(0)
+      }
+    })
+}
+
+main()

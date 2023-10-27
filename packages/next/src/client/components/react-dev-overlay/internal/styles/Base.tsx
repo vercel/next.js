@@ -60,25 +60,6 @@ export function Base() {
           font-weight: 500;
           line-height: 1.5;
         }
-
-        h1 {
-          font-size: 40px;
-        }
-        h2 {
-          font-size: 32px;
-        }
-        h3 {
-          font-size: 28px;
-        }
-        h4 {
-          font-size: 24px;
-        }
-        h5 {
-          font-size: 20px;
-        }
-        h6 {
-          font-size: 16px;
-        }
       `}
     </style>
   )

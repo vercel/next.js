@@ -1,18 +1,20 @@
-import chalk from 'next/dist/compiled/chalk'
+import { bold, red, yellow } from '../../lib/picocolors'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
-import { OutputState, store as consoleStore } from './store'
+import { store as consoleStore } from './store'
+import type { OutputState } from './store'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import { CompilerNameValues, COMPILER_NAMES } from '../../shared/lib/constants'
+import { COMPILER_NAMES } from '../../shared/lib/constants'
+import type { CompilerNameValues } from '../../shared/lib/constants'
 
 export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
   consoleStore.setState({ appUrl, bindAddr })
 }
 
 type CompilerDiagnostics = {
-  modules: number
+  totalModulesCount: number
   errors: string[] | null
   warnings: string[] | null
 }
@@ -42,15 +44,15 @@ type BuildStatusStore = {
 }
 
 export function formatAmpMessages(amp: AmpPageStatus) {
-  let output = chalk.bold('Amp Validation') + '\n\n'
+  let output = bold('Amp Validation') + '\n\n'
   let messages: string[][] = []
 
-  const chalkError = chalk.red('error')
+  const chalkError = red('error')
   function ampError(page: string, error: AmpStatus) {
     messages.push([page, chalkError, error.message, error.specUrl || ''])
   }
 
-  const chalkWarn = chalk.yellow('warn')
+  const chalkWarn = yellow('warn')
   function ampWarn(page: string, warn: AmpStatus) {
     messages.push([page, chalkWarn, warn.message, warn.specUrl || ''])
   }
@@ -95,7 +97,14 @@ export function formatAmpMessages(amp: AmpPageStatus) {
   return output
 }
 
-const buildStore = createStore<BuildStatusStore>()
+const buildStore = createStore<BuildStatusStore>({
+  // @ts-expect-error initial value
+  client: {},
+  // @ts-expect-error initial value
+  server: {},
+  // @ts-expect-error initial value
+  edgeServer: {},
+})
 let buildWasDone = false
 let clientWasLoading = true
 let serverWasLoading = true
@@ -111,6 +120,7 @@ buildStore.subscribe((state) => {
       {
         bootstrap: false,
         appUrl: appUrl!,
+        // If it takes more than 3 seconds to compile, mark it as loading status
         loading: true,
         trigger,
       } as OutputState,
@@ -131,14 +141,10 @@ buildStore.subscribe((state) => {
     appUrl: appUrl!,
     loading: false,
     typeChecking: false,
-    partial:
-      clientWasLoading && (serverWasLoading || edgeServerWasLoading)
-        ? 'client and server'
-        : undefined,
-    modules:
-      (clientWasLoading ? client.modules : 0) +
-      (serverWasLoading ? server.modules : 0) +
-      (edgeServerWasLoading ? edgeServer?.modules || 0 : 0),
+    totalModulesCount:
+      (clientWasLoading ? client.totalModulesCount : 0) +
+      (serverWasLoading ? server.totalModulesCount : 0) +
+      (edgeServerWasLoading ? edgeServer?.totalModulesCount || 0 : 0),
     hasEdgeServer: !!edgeServer,
   }
   if (client.errors && clientWasLoading) {
@@ -250,7 +256,7 @@ export function watchCompilers(
 
       onEvent({
         loading: false,
-        modules: stats.compilation.modules.size,
+        totalModulesCount: stats.compilation.modules.size,
         errors: hasErrors ? errors : null,
         warnings: hasWarnings ? warnings : null,
       })
@@ -261,7 +267,8 @@ export function watchCompilers(
     if (
       !status.loading &&
       !buildStore.getState().server.loading &&
-      !buildStore.getState().edgeServer.loading
+      !buildStore.getState().edgeServer.loading &&
+      status.totalModulesCount > 0
     ) {
       buildStore.setState({
         client: status,
@@ -277,7 +284,8 @@ export function watchCompilers(
     if (
       !status.loading &&
       !buildStore.getState().client.loading &&
-      !buildStore.getState().edgeServer.loading
+      !buildStore.getState().edgeServer.loading &&
+      status.totalModulesCount > 0
     ) {
       buildStore.setState({
         server: status,
@@ -293,7 +301,8 @@ export function watchCompilers(
     if (
       !status.loading &&
       !buildStore.getState().client.loading &&
-      !buildStore.getState().server.loading
+      !buildStore.getState().server.loading &&
+      status.totalModulesCount > 0
     ) {
       buildStore.setState({
         edgeServer: status,

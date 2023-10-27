@@ -3,7 +3,7 @@ import mitt from 'next/dist/shared/lib/mitt'
 
 describe('mitt', () => {
   describe('With listeners', () => {
-    it('should listen to a event', () => {
+    it('should listen to an event', () => {
       return new Promise((resolve) => {
         const ev = mitt()
         ev.on('sample', resolve)

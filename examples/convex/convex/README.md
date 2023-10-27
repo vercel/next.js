@@ -5,67 +5,80 @@ https://docs.convex.dev/using/writing-convex-functions for more.
 
 A query function that takes two arguments looks like:
 
-```typescript
-// myQueryFunction.ts
+```javascript
+// functions.js
 import { query } from './_generated/server'
+import { v } from 'convex/values'
 
-export default query(async ({ db }, first: number, second: string) => {
-  // Validate arguments here.
-  if (typeof first !== 'number' || first < 0) {
-    throw new Error('First argument is not a non-negative number.')
-  }
-  if (typeof second !== 'string' || second.length > 1000) {
-    throw new Error('Second argument is not a string of length 1000 or less.')
-  }
+export const myQueryFunction = query({
+  // Validators for arguments.
+  args: {
+    first: v.number(),
+    second: v.string(),
+  },
 
-  // Query the database as many times as you need here.
-  // See https://docs.convex.dev/using/database-queries to learn how to write queries.
-  const documents = await db.query('tablename').collect()
+  // Function implementation.
+  hander: async ({ db }, { first, second }) => {
+    // Read the database as many times as you need here.
+    // See https://docs.convex.dev/database/reading-data.
+    const documents = await db.query('tablename').collect()
 
-  // Write arbitrary JavaScript here: filter, aggregate, build derived data,
-  // remove non-public properties, or create new objects.
-  return documents
+    // Write arbitrary JavaScript here: filter, aggregate, build derived data,
+    // remove non-public properties, or create new objects.
+    return documents
+  },
 })
 ```
 
 Using this query function in a React component looks like:
 
-```typescript
-const data = useQuery('myQueryFunction', 10, 'hello')
+```javascript
+const data = useQuery(api.functions.myQueryFunction, {
+  first: 10,
+  second: 'hello',
+})
 ```
 
 A mutation function looks like:
 
-```typescript
-// myMutationFunction.ts
+```javascript
+// functions.js
 import { mutation } from './_generated/server'
+import { v } from 'convex/values'
 
-export default mutation(async ({ db }, first: string, second: string) => {
-  // Validate arguments here.
-  if (typeof first !== 'string' || typeof second !== 'string') {
-    throw new Error('Both arguments must be strings')
-  }
+export const myMutationFunction = mutation({
+  // Validators for arguments.
+  args: {
+    first: v.string(),
+    second: v.string(),
+  },
 
-  // Insert or modify documents in the database here.
-  // Mutations can also read from the database like queries.
-  const message = { body: first, author: second }
-  const id = await db.insert('messages', message)
+  // Function implementation.
+  hander: async ({ db }, { first, second }) => {
+    // Insert or modify documents in the database here.
+    // Mutations can also read from the database like queries.
+    // See https://docs.convex.dev/database/writing-data.
+    const message = { body: first, author: second }
+    const id = await db.insert('messages', message)
 
-  // Optionally, return a value from your mutation.
-  return await db.get(id)
+    // Optionally, return a value from your mutation.
+    return await db.get(id)
+  },
 })
 ```
 
 Using this mutation function in a React component looks like:
 
-```typescript
-const mutation = useMutation('myMutationFunction')
+```javascript
+const mutation = useMutation(api.functions.myMutationFunction)
 function handleButtonPress() {
   // fire and forget, the most common way to use mutations
-  mutation('Hello!', 'me')
+  mutation({ first: 'Hello!', second: 'me' })
   // OR
   // use the result once the mutation has completed
-  mutation('Hello!', 'me').then((result) => console.log(result))
+  mutation({ first: 'Hello!', second: 'me' }).then((result) =>
+    console.log(result)
+  )
 }
 ```
 

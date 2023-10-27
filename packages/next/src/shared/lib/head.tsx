@@ -2,8 +2,8 @@
 
 import React, { useContext } from 'react'
 import Effect from './side-effect'
-import { AmpStateContext } from './amp-context'
-import { HeadManagerContext } from './head-manager-context'
+import { AmpStateContext } from './amp-context.shared-runtime'
+import { HeadManagerContext } from './head-manager-context.shared-runtime'
 import { isInAmpMode } from './amp-mode'
 import { warnOnce } from './utils/warn-once'
 
@@ -30,7 +30,9 @@ function onlyReactElement(
   // Adds support for React.Fragment
   if (child.type === React.Fragment) {
     return list.concat(
+      // @ts-expect-error @types/react does not remove fragments but this could also return ReactPortal[]
       React.Children.toArray(child.props.children).reduce(
+        // @ts-expect-error @types/react does not remove fragments but this could also return ReactPortal[]
         (
           fragmentList: Array<React.ReactElement<any>>,
           fragmentChild: React.ReactChild

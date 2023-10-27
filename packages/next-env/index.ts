@@ -10,21 +10,42 @@ export type LoadedEnvFiles = Array<{
   contents: string
 }>
 
-let initialEnv: Env | undefined = undefined
+export let initialEnv: Env | undefined = undefined
 let combinedEnv: Env | undefined = undefined
 let cachedLoadedEnvFiles: LoadedEnvFiles = []
 let previousLoadedEnvFiles: LoadedEnvFiles = []
+
+export function updateInitialEnv(newEnv: Env) {
+  Object.assign(initialEnv || {}, newEnv)
+}
 
 type Log = {
   info: (...args: any[]) => void
   error: (...args: any[]) => void
 }
 
+function replaceProcessEnv(sourceEnv: Env) {
+  Object.keys(process.env).forEach((key) => {
+    // Allow mutating internal Next.js env variables after the server has initiated.
+    // This is necessary for dynamic things like the IPC server port.
+    if (!key.startsWith('__NEXT_PRIVATE')) {
+      if (sourceEnv[key] === undefined || sourceEnv[key] === '') {
+        delete process.env[key]
+      }
+    }
+  })
+
+  Object.entries(sourceEnv).forEach(([key, value]) => {
+    process.env[key] = value
+  })
+}
+
 export function processEnv(
   loadedEnvFiles: LoadedEnvFiles,
   dir?: string,
   log: Log = console,
-  forceReload = false
+  forceReload = false,
+  onReload?: (envFilePath: string) => void
 ) {
   if (!initialEnv) {
     initialEnv = Object.assign({}, process.env)
@@ -36,8 +57,7 @@ export function processEnv(
   ) {
     return process.env as Env
   }
-  // flag that we processed the environment values in case a serverless
-  // function is re-used or we are running in `next start` mode
+  // flag that we processed the environment values already.
   process.env.__NEXT_PROCESSED_ENV = 'true'
 
   const origEnv = Object.assign({}, initialEnv)
@@ -57,7 +77,7 @@ export function processEnv(
             item.contents === envFile.contents && item.path === envFile.path
         )
       ) {
-        log.info(`Loaded env from ${path.join(dir || '', envFile.path)}`)
+        onReload?.(envFile.path)
       }
 
       for (const key of Object.keys(result.parsed || {})) {
@@ -65,6 +85,8 @@ export function processEnv(
           typeof parsed[key] === 'undefined' &&
           typeof origEnv[key] === 'undefined'
         ) {
+          // We're being imprecise in the type system - assume parsed[key] can be undefined
+          // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
           parsed[key] = result.parsed?.[key]!
         }
       }
@@ -78,11 +100,18 @@ export function processEnv(
   return Object.assign(process.env, parsed)
 }
 
+export function resetEnv() {
+  if (initialEnv) {
+    replaceProcessEnv(initialEnv)
+  }
+}
+
 export function loadEnvConfig(
   dir: string,
   dev?: boolean,
   log: Log = console,
-  forceReload = false
+  forceReload = false,
+  onReload?: (envFilePath: string) => void
 ): {
   combinedEnv: Env
   loadedEnvFiles: LoadedEnvFiles
@@ -94,7 +123,7 @@ export function loadEnvConfig(
   if (combinedEnv && !forceReload) {
     return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
   }
-  process.env = Object.assign({}, initialEnv)
+  replaceProcessEnv(initialEnv)
   previousLoadedEnvFiles = cachedLoadedEnvFiles
   cachedLoadedEnvFiles = []
 
@@ -133,6 +162,12 @@ export function loadEnvConfig(
       }
     }
   }
-  combinedEnv = processEnv(cachedLoadedEnvFiles, dir, log, forceReload)
+  combinedEnv = processEnv(
+    cachedLoadedEnvFiles,
+    dir,
+    log,
+    forceReload,
+    onReload
+  )
   return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 }

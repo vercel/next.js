@@ -1,0 +1,54 @@
+---
+title: Re-exporting all exports from a page is disallowed
+---
+
+## Why This Error Occurred
+
+The following export can potentially break Next.js' compilation of pages:
+
+```jsx filename="pages/example.js"
+export * from '...'
+```
+
+This is because Node.js code may be leaked to the browser build, causing an error. For example, the following two pages:
+
+```jsx filename="pages/example-a.js"
+import fs from 'fs'
+
+export default function A() {
+  return <main />
+}
+
+export function getStaticProps() {
+  fs
+  return { props: {} }
+}
+```
+
+```jsx filename="pages/example-b.js"
+export * from './example-a'
+```
+
+Would cause the following error:
+
+```txt
+Module not found: Can't resolve 'fs' in './pages/example-b.js'
+```
+
+## Possible Ways to Fix It
+
+Update your page to re-export the default component only:
+
+```jsx filename="pages/example-a.js"
+export { default } from './example-b'
+```
+
+If the other page uses `getServerSideProps` or `getStaticProps`, you can re-export those individually too:
+
+```jsx filename="pages/example-a.js"
+export { default, getServerSideProps } from './example-b'
+// or
+export { default, getStaticProps } from './example-b'
+// or
+export { default, getStaticProps, getStaticPaths } from './example-b/[dynamic]'
+```

@@ -1,10 +1,6 @@
 import * as React from 'react'
-import {
-  TYPE_UNHANDLED_ERROR,
-  TYPE_UNHANDLED_REJECTION,
-  UnhandledError,
-  UnhandledRejection,
-} from '../bus'
+import type { UnhandledError, UnhandledRejection } from '../bus'
+import { TYPE_UNHANDLED_ERROR, TYPE_UNHANDLED_REJECTION } from '../bus'
 import {
   Dialog,
   DialogBody,
@@ -14,7 +10,8 @@ import {
 import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
-import { getErrorByType, ReadyRuntimeError } from '../helpers/getErrorByType'
+import type { ReadyRuntimeError } from '../helpers/getErrorByType'
+import { getErrorByType } from '../helpers/getErrorByType'
 import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
@@ -329,11 +326,12 @@ export const styles = css`
     color: var(--color-ansi-red);
   }
 
-  .nextjs-container-errors-body > h5:not(:first-child) {
+  .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
   }
-  .nextjs-container-errors-body > h5 {
+  .nextjs-container-errors-body > h2 {
     margin-bottom: var(--size-gap);
+    font-size: var(--size-font-big);
   }
 
   .nextjs-toast-errors-parent {

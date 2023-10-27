@@ -1,36 +1,15 @@
 #!/usr/bin/env node
-
-import arg from 'next/dist/compiled/arg/index.js'
+import '../server/lib/cpu-profile'
 import { startServer } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
-import * as Log from '../build/output/log'
-import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
-import { CliCommand } from '../lib/commands'
-import { isIPv6 } from 'net'
+import type { CliCommand } from '../lib/commands'
+import {
+  getReservedPortExplanation,
+  isPortIsReserved,
+} from '../lib/helpers/get-reserved-port'
 
-const nextStart: CliCommand = (argv) => {
-  const validArgs: arg.Spec = {
-    // Types
-    '--help': Boolean,
-    '--port': Number,
-    '--hostname': String,
-    '--keepAliveTimeout': Number,
-
-    // Aliases
-    '-h': '--help',
-    '-p': '--port',
-    '-H': '--hostname',
-  }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+const nextStart: CliCommand = async (args) => {
   if (args['--help']) {
     console.log(`
       Description
@@ -44,17 +23,23 @@ const nextStart: CliCommand = (argv) => {
       If no directory is provided, the current directory will be used.
 
       Options
-        --port, -p      A port number on which to start the application
-        --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
+        --port, -p          A port number on which to start the application
+        --hostname, -H      Hostname on which to start the application (default: 0.0.0.0)
         --keepAliveTimeout  Max milliseconds to wait before closing inactive connections
-        --help, -h      Displays this message
+        --help, -h          Displays this message
     `)
     process.exit(0)
   }
 
   const dir = getProjectDir(args._[0])
-  const host = args['--hostname'] || '0.0.0.0'
+  const host = args['--hostname']
   const port = getPort(args)
+
+  if (isPortIsReserved(port)) {
+    printAndExit(getReservedPortExplanation(port), 1)
+  }
+
+  const isExperimentalTestProxy = args['--experimental-test-proxy']
 
   const keepAliveTimeoutArg: number | undefined = args['--keepAliveTimeout']
   if (
@@ -73,22 +58,14 @@ const nextStart: CliCommand = (argv) => {
     ? Math.ceil(keepAliveTimeoutArg)
     : undefined
 
-  startServer({
+  await startServer({
     dir,
+    isDev: false,
+    isExperimentalTestProxy,
     hostname: host,
     port,
     keepAliveTimeout,
   })
-    .then(async (app) => {
-      const appUrl = `http://${app.hostname}:${app.port}`
-      const hostname = isIPv6(host) ? `[${host}]` : host
-      Log.ready(`started server on ${hostname}:${app.port}, url: ${appUrl}`)
-      await app.prepare()
-    })
-    .catch((err) => {
-      console.error(err)
-      process.exit(1)
-    })
 }
 
 export { nextStart }

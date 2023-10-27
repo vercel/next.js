@@ -12,8 +12,9 @@
     "jsx": "react",
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
+    "module": "Node16",
     "moduleResolution": "Node16"
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "types/local.d.ts"],
   "exclude": ["node_modules"]
 }

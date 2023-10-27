@@ -1,5 +1,8 @@
 import React from 'react'
-import type { FlightData, FlightRouterState } from '../../../server/app-render'
+import type {
+  FlightData,
+  FlightRouterState,
+} from '../../../server/app-render/types'
 import { shouldHardNavigate } from './should-hard-navigate'
 
 describe('shouldHardNavigate', () => {

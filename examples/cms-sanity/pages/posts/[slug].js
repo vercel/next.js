@@ -1,75 +1,21 @@
-import Head from 'next/head'
-import { useRouter } from 'next/router'
-import ErrorPage from 'next/error'
-import Container from '../../components/container'
-import PostBody from '../../components/post-body'
-import MoreStories from '../../components/more-stories'
-import Header from '../../components/header'
-import PostHeader from '../../components/post-header'
-import SectionSeparator from '../../components/section-separator'
-import Layout from '../../components/layout'
-import PostTitle from '../../components/post-title'
-import { CMS_NAME } from '../../lib/constants'
+import { lazy } from 'react'
+import { PreviewSuspense } from 'next-sanity/preview'
 import { postQuery, postSlugsQuery } from '../../lib/queries'
-import { urlForImage, usePreviewSubscription } from '../../lib/sanity'
-import { sanityClient, getClient, overlayDrafts } from '../../lib/sanity.server'
+import { getClient, overlayDrafts, sanityClient } from '../../lib/sanity.server'
+import Post from '../../components/post'
 
-export default function Post({ data = {}, preview }) {
-  const router = useRouter()
+const PostPreview = lazy(() => import('../../components/post-preview'))
 
-  const slug = data?.post?.slug
-  const {
-    data: { post, morePosts },
-  } = usePreviewSubscription(postQuery, {
-    params: { slug },
-    initialData: data,
-    enabled: preview && slug,
-  })
-
-  if (!router.isFallback && !slug) {
-    return <ErrorPage statusCode={404} />
+export default function PostPage({ preview, data }) {
+  if (preview) {
+    return (
+      <PreviewSuspense fallback="Loading...">
+        <PostPreview data={data} />
+      </PreviewSuspense>
+    )
   }
 
-  return (
-    <Layout preview={preview}>
-      <Container>
-        <Header />
-        {router.isFallback ? (
-          <PostTitle>Loading…</PostTitle>
-        ) : (
-          <>
-            <article>
-              <Head>
-                <title>
-                  {post.title} | Next.js Blog Example with {CMS_NAME}
-                </title>
-                {post.coverImage?.asset?._ref && (
-                  <meta
-                    key="ogImage"
-                    property="og:image"
-                    content={urlForImage(post.coverImage)
-                      .width(1200)
-                      .height(627)
-                      .fit('crop')
-                      .url()}
-                  />
-                )}
-              </Head>
-              <PostHeader
-                title={post.title}
-                coverImage={post.coverImage}
-                date={post.date}
-                author={post.author}
-              />
-              <PostBody content={post.content} />
-            </article>
-            <SectionSeparator />
-            {morePosts.length > 0 && <MoreStories posts={morePosts} />}
-          </>
-        )}
-      </Container>
-    </Layout>
-  )
+  return <Post data={data} />
 }
 
 export async function getStaticProps({ params, preview = false }) {

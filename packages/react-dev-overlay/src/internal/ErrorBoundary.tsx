@@ -1,6 +1,7 @@
 import React from 'react'
 
 type ErrorBoundaryProps = {
+  children?: React.ReactNode
   onError: (error: Error, componentStack: string | null) => void
   globalOverlay?: boolean
   isMounted?: boolean

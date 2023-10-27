@@ -41,8 +41,8 @@ export async function runTypeCheck(
   const requiredConfig = getRequiredConfiguration(ts)
 
   const options = {
-    ...effectiveConfiguration.options,
     ...requiredConfig,
+    ...effectiveConfiguration.options,
     declarationMap: false,
     emitDeclarationOnly: false,
     noEmit: true,
@@ -96,25 +96,40 @@ export async function runTypeCheck(
       (d) => d.category === DiagnosticCategory.Error && Boolean(d.file)
     ) ?? allDiagnostics.find((d) => d.category === DiagnosticCategory.Error)
 
+  // In test mode, we want to check all diagnostics, not just the first one.
+  if (process.env.__NEXT_TEST_MODE) {
+    if (firstError) {
+      const allErrors = allDiagnostics
+        .filter((d) => d.category === DiagnosticCategory.Error)
+        .map(
+          (d) =>
+            '[Test Mode] ' +
+            getFormattedDiagnostic(ts, baseDir, distDir, d, isAppDirEnabled)
+        )
+
+      console.error(
+        '\n\n===== TS errors =====\n\n' +
+          allErrors.join('\n\n') +
+          '\n\n===== TS errors =====\n\n'
+      )
+
+      // Make sure all stdout is flushed before we exit.
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+  }
+
   if (firstError) {
     throw new CompileError(
-      await getFormattedDiagnostic(
-        ts,
-        baseDir,
-        distDir,
-        firstError,
-        isAppDirEnabled
-      )
+      getFormattedDiagnostic(ts, baseDir, distDir, firstError, isAppDirEnabled)
     )
   }
 
-  const warnings = await Promise.all(
-    allDiagnostics
-      .filter((d) => d.category === DiagnosticCategory.Warning)
-      .map((d) =>
-        getFormattedDiagnostic(ts, baseDir, distDir, d, isAppDirEnabled)
-      )
-  )
+  const warnings = allDiagnostics
+    .filter((d) => d.category === DiagnosticCategory.Warning)
+    .map((d) =>
+      getFormattedDiagnostic(ts, baseDir, distDir, d, isAppDirEnabled)
+    )
+
   return {
     hasWarnings: true,
     warnings,

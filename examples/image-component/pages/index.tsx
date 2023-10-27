@@ -51,6 +51,9 @@ const Index = () => (
           <Link href="/color">Color placeholder</Link>
         </li>
         <li>
+          <Link href="/theme">Light/Dark mode theme detection</Link>
+        </li>
+        <li>
           <Link href="/background">Text on background image</Link>
         </li>
       </ul>

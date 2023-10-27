@@ -10,6 +10,6 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "styletron-engine-atomic": "1.4.6",
-    "styletron-react": "5.2.7"
+    "styletron-react": "6.1.0"
   }
 }

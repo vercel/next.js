@@ -1,6 +1,6 @@
 import { graphql, useRelayEnvironment, QueryRenderer } from 'react-relay'
 
-import type { pagesQueryResponse } from '../types/pagesQuery.graphql'
+import type { pagesQueryResponse } from '@/types/pagesQuery.graphql'
 
 function Component() {
   const env = useRelayEnvironment()

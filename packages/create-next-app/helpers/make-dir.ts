@@ -3,6 +3,6 @@ import fs from 'fs'
 export function makeDir(
   root: string,
   options = { recursive: true }
-): Promise<void> {
+): Promise<string | undefined> {
   return fs.promises.mkdir(root, options)
 }

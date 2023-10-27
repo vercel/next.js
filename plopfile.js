@@ -9,7 +9,7 @@ module.exports = function (plop) {
         type: 'confirm',
         name: 'appDir',
         message: 'Is this test for the app directory?',
-        default: false,
+        default: true,
       },
       {
         type: 'input',

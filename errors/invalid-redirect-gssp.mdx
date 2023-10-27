@@ -1,0 +1,34 @@
+---
+title: 'Invalid Redirect `getStaticProps` / `getServerSideProps`'
+---
+
+## Why This Error Occurred
+
+The `redirect` value returned from your `getStaticProps` or `getServerSideProps` function had invalid values.
+
+## Possible Ways to Fix It
+
+Make sure you return the proper values for the `redirect` value.
+
+```js filename="pages/blog/[slug].js"
+export const getStaticProps = ({ params }) => {
+  if (params.slug === 'deleted-post') {
+    return {
+      redirect: {
+        permanent: true, // or false
+        destination: '/some-location',
+      },
+    }
+  }
+
+  return {
+    props: {},
+  }
+}
+
+export default function Page(props) {}
+```
+
+## Useful Links
+
+- [Data Fetching Documentation](/docs/pages/building-your-application/data-fetching/get-static-props)

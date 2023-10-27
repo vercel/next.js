@@ -19,6 +19,12 @@ export async function middleware(request) {
     })
   }
 
+  if (url.pathname.includes('/middleware-external-rewrite-body')) {
+    return NextResponse.rewrite(
+      'https://next-data-api-endpoint.vercel.app/api/echo-body'
+    )
+  }
+
   if (url.pathname.includes('/rewrite-to-static')) {
     request.nextUrl.pathname = '/static-ssg/post-1'
     return NextResponse.rewrite(request.nextUrl)

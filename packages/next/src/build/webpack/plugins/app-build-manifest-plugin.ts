@@ -1,10 +1,8 @@
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   APP_BUILD_MANIFEST,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
-  CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
-  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
 import { getEntrypointFiles } from './build-manifest-plugin'
 import getAppRouteFromEntrypoint from '../../../server/get-app-route-from-entrypoint'
@@ -57,13 +55,6 @@ export class AppBuildManifestPlugin {
       pages: {},
     }
 
-    const systemEntrypoints = new Set<string>([
-      CLIENT_STATIC_FILES_RUNTIME_MAIN,
-      CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-      CLIENT_STATIC_FILES_RUNTIME_AMP,
-      CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
-    ])
-
     const mainFiles = new Set(
       getEntrypointFiles(
         compilation.entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN_APP)
@@ -75,7 +66,7 @@ export class AppBuildManifestPlugin {
         continue
       }
 
-      if (systemEntrypoints.has(entrypoint.name)) {
+      if (SYSTEM_ENTRYPOINTS.has(entrypoint.name)) {
         continue
       }
 
@@ -85,7 +76,6 @@ export class AppBuildManifestPlugin {
       }
 
       const filesForPage = getEntrypointFiles(entrypoint)
-
       manifest.pages[pagePath] = [...new Set([...mainFiles, ...filesForPage])]
     }
 

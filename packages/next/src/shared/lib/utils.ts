@@ -1,4 +1,4 @@
-import type { HtmlProps } from './html-context'
+import type { HtmlProps } from './html-context.shared-runtime'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
 import type { Env } from '@next/env'
@@ -6,19 +6,20 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
-import { COMPILER_NAMES } from './constants'
+import type { COMPILER_NAMES } from './constants'
+import type fs from 'fs'
 
 export type NextComponentType<
-  C extends BaseContext = NextPageContext,
-  IP = {},
-  P = {}
-> = ComponentType<P> & {
+  Context extends BaseContext = NextPageContext,
+  InitialProps = {},
+  Props = {}
+> = ComponentType<Props> & {
   /**
    * Used for initial page load data population. Data returned from `getInitialProps` is serialized when server rendered.
    * Make sure to return plain `Object` without using `Date`, `Map`, `Set`.
-   * @param ctx Context of `page`
+   * @param context Context of `page`
    */
-  getInitialProps?(context: C): IP | Promise<IP>
+  getInitialProps?(context: Context): InitialProps | Promise<InitialProps>
 }
 
 export type DocumentType = NextComponentType<
@@ -50,7 +51,7 @@ export type NextWebVitalsMetric = {
 } & (
   | {
       label: 'web-vital'
-      name: typeof WEB_VITALS[number]
+      name: (typeof WEB_VITALS)[number]
     }
   | {
       label: 'custom'
@@ -94,6 +95,7 @@ export type NEXT_DATA = {
   nextExport?: boolean
   autoExport?: boolean
   isFallback?: boolean
+  isExperimentalCompile?: boolean
   dynamicIds?: (string | number)[]
   err?: Error & {
     statusCode?: number
@@ -159,23 +161,23 @@ export interface NextPageContext {
   AppTree: AppTreeType
 }
 
-export type AppContextType<R extends NextRouter = NextRouter> = {
+export type AppContextType<Router extends NextRouter = NextRouter> = {
   Component: NextComponentType<NextPageContext>
   AppTree: AppTreeType
   ctx: NextPageContext
-  router: R
+  router: Router
 }
 
-export type AppInitialProps<P = any> = {
-  pageProps: P
+export type AppInitialProps<PageProps = any> = {
+  pageProps: PageProps
 }
 
 export type AppPropsType<
-  R extends NextRouter = NextRouter,
-  P = {}
-> = AppInitialProps<P> & {
+  Router extends NextRouter = NextRouter,
+  PageProps = {}
+> = AppInitialProps<PageProps> & {
   Component: NextComponentType<NextPageContext, any, any>
-  router: R
+  router: Router
   __N_SSG?: boolean
   __N_SSP?: boolean
 }
@@ -215,6 +217,8 @@ export interface NextApiRequest extends IncomingMessage {
 
   env: Env
 
+  draftMode?: boolean
+
   preview?: boolean
   /**
    * Preview data set on the request, if any
@@ -230,18 +234,23 @@ type Send<T> = (body: T) => void
 /**
  * Next `API` route response
  */
-export type NextApiResponse<T = any> = ServerResponse & {
+export type NextApiResponse<Data = any> = ServerResponse & {
   /**
    * Send data `any` data in response
    */
-  send: Send<T>
+  send: Send<Data>
   /**
    * Send data `json` data in response
    */
-  json: Send<T>
-  status: (statusCode: number) => NextApiResponse<T>
-  redirect(url: string): NextApiResponse<T>
-  redirect(status: number, url: string): NextApiResponse<T>
+  json: Send<Data>
+  status: (statusCode: number) => NextApiResponse<Data>
+  redirect(url: string): NextApiResponse<Data>
+  redirect(status: number, url: string): NextApiResponse<Data>
+
+  /**
+   * Set draft mode
+   */
+  setDraftMode: (options: { enable: boolean }) => NextApiResponse<Data>
 
   /**
    * Set preview data for Next.js' prerender mode
@@ -262,13 +271,20 @@ export type NextApiResponse<T = any> = ServerResponse & {
        */
       path?: string
     }
-  ) => NextApiResponse<T>
+  ) => NextApiResponse<Data>
 
   /**
    * Clear preview data for Next.js' prerender mode
    */
-  clearPreviewData: (options?: { path?: string }) => NextApiResponse<T>
+  clearPreviewData: (options?: { path?: string }) => NextApiResponse<Data>
 
+  /**
+   * Revalidate a specific page and regenerate it using On-Demand Incremental
+   * Static Regeneration.
+   * The path should be an actual path, not a rewritten path. E.g. for
+   * "/blog/[slug]" this should be "/blog/post-1".
+   * @link https://nextjs.org/docs/basic-features/data-fetching/incremental-static-regeneration#on-demand-revalidation
+   */
   revalidate: (
     urlPath: string,
     opts?: {
@@ -410,6 +426,7 @@ export class PageNotFoundError extends Error {
   constructor(page: string) {
     super()
     this.code = 'ENOENT'
+    this.name = 'PageNotFoundError'
     this.message = `Cannot find module for page: ${page}`
   }
 }
@@ -431,9 +448,13 @@ export class MiddlewareNotFoundError extends Error {
 }
 
 export interface CacheFs {
-  readFile(f: string): Promise<string>
-  readFileSync(f: string): string
+  readFile: typeof fs.promises.readFile
+  readFileSync: typeof fs.readFileSync
   writeFile(f: string, d: any): Promise<void>
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>
+}
+
+export function stringifyError(error: Error) {
+  return JSON.stringify({ message: error.message, stack: error.stack })
 }

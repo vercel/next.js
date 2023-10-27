@@ -1,6 +1,1 @@
-module.exports = {
-  experimental: {
-    appDir: true,
-    fontLoaders: [],
-  },
-}
+module.exports = {}

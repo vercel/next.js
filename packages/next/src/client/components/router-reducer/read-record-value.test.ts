@@ -23,6 +23,6 @@ describe('readRecordValue', () => {
       }
     })()
     expect(result.status).toBe('rejected')
-    expect(result.value).toBe('failed')
+    expect(result.reason).toBe('failed')
   })
 })

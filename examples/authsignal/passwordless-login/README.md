@@ -10,7 +10,7 @@ A live version of this example can be found [here](https://authsignal-next-passw
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/authsignal-passwordless&project-name=authsignal-passwordless&repository-name=authsignal-passwordless)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/authsignal-passwordless&project-name=authsignal-passwordless&repository-name=authsignal-passwordless)
 
 ## How to use
 

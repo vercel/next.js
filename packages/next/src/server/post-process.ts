@@ -182,7 +182,17 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
 async function postProcessHTML(
   pathname: string,
   content: string,
-  renderOpts: RenderOpts,
+  renderOpts: Pick<
+    RenderOpts,
+    | 'ampOptimizerConfig'
+    | 'ampValidator'
+    | 'ampSkipValidation'
+    | 'optimizeFonts'
+    | 'fontManifest'
+    | 'optimizeCss'
+    | 'distDir'
+    | 'assetPrefix'
+  >,
   { inAmpMode, hybridAmp }: { inAmpMode: boolean; hybridAmp: boolean }
 ) {
   const postProcessors: Array<PostProcessorFunction> = [
@@ -199,16 +209,18 @@ async function postProcessHTML(
       : null,
     process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeFonts
       ? async (html: string) => {
-          const getFontDefinition = (url: string): string => {
-            if (renderOpts.fontManifest) {
-              const { getFontDefinitionFromManifest } =
-                require('./font-utils') as typeof import('./font-utils')
-              return getFontDefinitionFromManifest!(
-                url,
-                renderOpts.fontManifest
-              )
+          const getFontDefinition = (url: string) => {
+            if (!renderOpts.fontManifest) {
+              return ''
             }
-            return ''
+            return (
+              renderOpts.fontManifest.find((font) => {
+                if (font && font.url === url) {
+                  return true
+                }
+                return false
+              })?.content || ''
+            )
           }
           return await processHTML(
             html,
