@@ -30,6 +30,7 @@ declare const nextConfig: NextConfigComplete
 // INJECT:isServerComponent
 // INJECT:dev
 // INJECT:serverActionsBodySizeLimit
+// INJECT:allowedForwardedHosts
 // INJECT:nextConfig
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
