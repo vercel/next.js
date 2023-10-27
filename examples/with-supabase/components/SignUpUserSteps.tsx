@@ -17,11 +17,11 @@ values
 
 const server = `
 import { createClient } from '@/utils/supabase/server'
-
-export const dynamic = 'force-dynamic'
+import { cookies } from 'next/headers'
 
 export default async function Page() {
-  const supabase = createClient()
+  const cookieStore = cookies()
+  const supabase = createClient(cookieStore)
   const { data: notes } = await supabase.from('notes').select()
 
   return <pre>{JSON.stringify(notes, null, 2)}</pre>
