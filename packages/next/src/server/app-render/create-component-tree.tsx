@@ -8,7 +8,7 @@ import { preloadComponent } from './preload-component'
 import { addSearchParamsIfPageSegment } from './create-flight-router-state-from-loader-tree'
 import { parseLoaderTree } from './parse-loader-tree'
 import type { CreateSegmentPath, AppRenderContext } from './app-render'
-import { createComponentAndStyles } from './create-component-and-styles'
+import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 
@@ -23,6 +23,7 @@ export async function createComponentTree({
   firstItem,
   rootLayoutIncluded,
   injectedCSS,
+  injectedJS,
   injectedFontPreloadTags,
   asNotFound,
   metadataOutlet,
@@ -34,6 +35,7 @@ export async function createComponentTree({
   rootLayoutIncluded: boolean
   firstItem?: boolean
   injectedCSS: Set<string>
+  injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   asNotFound?: boolean
   metadataOutlet?: React.ReactNode
@@ -66,41 +68,46 @@ export async function createComponentTree({
   const { layout, template, error, loading, 'not-found': notFound } = components
 
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
+  const injectedJSWithCurrentLayout = new Set(injectedJS)
   const injectedFontPreloadTagsWithCurrentLayout = new Set(
     injectedFontPreloadTags
   )
 
-  const styles = getLayerAssets({
+  const layerAssets = getLayerAssets({
     ctx,
     layoutOrPagePath,
     injectedCSS: injectedCSSWithCurrentLayout,
+    injectedJS: injectedJSWithCurrentLayout,
     injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
   })
 
-  const [Template, templateStyles] = template
-    ? await createComponentAndStyles({
+  const [Template, templateStyles, templateScripts] = template
+    ? await createComponentStylesAndScripts({
         ctx,
         filePath: template[1],
         getComponent: template[0],
         injectedCSS: injectedCSSWithCurrentLayout,
+        injectedJS: injectedJSWithCurrentLayout,
       })
     : [React.Fragment]
 
-  const [ErrorComponent, errorStyles] = error
-    ? await createComponentAndStyles({
+  const [ErrorComponent, errorStyles, errorScripts] = error
+    ? await createComponentStylesAndScripts({
         ctx,
         filePath: error[1],
         getComponent: error[0],
         injectedCSS: injectedCSSWithCurrentLayout,
+        injectedJS: injectedJSWithCurrentLayout,
       })
     : []
 
-  const [Loading, loadingStyles] = loading
-    ? await createComponentAndStyles({
+  const [Loading, loadingStyles, loadingScripts] = loading
+    ? await createComponentStylesAndScripts({
         ctx,
         filePath: loading[1],
         getComponent: loading[0],
         injectedCSS: injectedCSSWithCurrentLayout,
+        injectedJS: injectedJSWithCurrentLayout,
       })
     : []
 
@@ -119,11 +126,12 @@ export async function createComponentTree({
     rootLayoutIncluded || rootLayoutAtThisLevel
 
   const [NotFound, notFoundStyles] = notFound
-    ? await createComponentAndStyles({
+    ? await createComponentStylesAndScripts({
         ctx,
         filePath: notFound[1],
         getComponent: notFound[0],
         injectedCSS: injectedCSSWithCurrentLayout,
+        injectedJS: injectedJSWithCurrentLayout,
       })
     : []
 
@@ -187,7 +195,10 @@ export async function createComponentTree({
     }
   }
 
-  if (staticGenerationStore?.dynamicUsageErr) {
+  if (
+    staticGenerationStore?.dynamicUsageErr &&
+    !staticGenerationStore.experimental.ppr
+  ) {
     throw staticGenerationStore.dynamicUsageErr
   }
 
@@ -210,7 +221,7 @@ export async function createComponentTree({
         <NotFoundBoundary
           notFound={
             <>
-              {styles}
+              {layerAssets}
               <RootLayoutComponent>
                 {notFoundStyles}
                 <NotFoundComponent />
@@ -302,16 +313,19 @@ export async function createComponentTree({
               segmentPath={createSegmentPath(currentSegmentPath)}
               loading={Loading ? <Loading /> : undefined}
               loadingStyles={loadingStyles}
+              loadingScripts={loadingScripts}
               // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
               hasLoading={Boolean(Loading)}
               error={ErrorComponent}
               errorStyles={errorStyles}
+              errorScripts={errorScripts}
               template={
                 <Template>
                   <RenderFromTemplateContext />
                 </Template>
               }
               templateStyles={templateStyles}
+              templateScripts={templateScripts}
               notFound={notFoundComponent}
               notFoundStyles={notFoundStyles}
               childProp={currentChildProp}
@@ -345,6 +359,7 @@ export async function createComponentTree({
               parentParams: currentParams,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
               injectedCSS: injectedCSSWithCurrentLayout,
+              injectedJS: injectedJSWithCurrentLayout,
               injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
               asNotFound,
               metadataOutlet,
@@ -378,7 +393,7 @@ export async function createComponentTree({
   if (!Component) {
     return {
       Component: () => <>{parallelRouteComponents.children}</>,
-      styles,
+      styles: layerAssets,
     }
   }
 
@@ -461,6 +476,6 @@ export async function createComponentTree({
         </>
       )
     },
-    styles,
+    styles: layerAssets,
   }
 }

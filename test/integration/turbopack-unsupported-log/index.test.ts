@@ -1,4 +1,10 @@
-import { findPort, killApp, launchApp, renderViaHTTP } from 'next-test-utils'
+import {
+  check,
+  findPort,
+  killApp,
+  launchApp,
+  renderViaHTTP,
+} from 'next-test-utils'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -19,13 +25,11 @@ describe('turbopack unsupported features log', () => {
       })
 
       try {
-        expect(output).toContain(
-          'Thank you for trying Next.js v13 with Turbopack!'
-        )
+        expect(await renderViaHTTP(appPort, '/')).toContain('hello world')
+        expect(output).toContain('(turbo)')
         expect(output).not.toContain(
           'You are using configuration and/or tools that are not yet'
         )
-        expect(await renderViaHTTP(appPort, '/')).toContain('hello world')
       } finally {
         await killApp(app).catch(() => {})
       }
@@ -46,9 +50,7 @@ describe('turbopack unsupported features log', () => {
       })
 
       try {
-        expect(output).toContain(
-          'Thank you for trying Next.js v13 with Turbopack!'
-        )
+        expect(output).toContain('(turbo)')
         expect(output).not.toContain(
           'You are using configuration and/or tools that are not yet'
         )
@@ -81,12 +83,13 @@ describe('turbopack unsupported features log', () => {
       })
 
       try {
-        expect(output).toContain(
-          'Thank you for trying Next.js v13 with Turbopack!'
-        )
-        expect(output).toContain(
-          'You are using configuration and/or tools that are not yet'
-        )
+        await check(() => {
+          expect(output).toContain('(turbo)')
+          expect(output).toContain(
+            'You are using configuration and/or tools that are not yet'
+          )
+          return 'success'
+        }, /success/)
       } finally {
         await killApp(app).catch(() => {})
         await fs.remove(nextConfigPath)

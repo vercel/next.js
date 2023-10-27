@@ -8,6 +8,7 @@ use next_swc::{
     optimize_barrel::optimize_barrel,
     optimize_server_react::optimize_server_react,
     page_config::page_config_test,
+    pure::pure_magic,
     react_server_components::server_components,
     server_actions::{
         server_actions, {self},
@@ -284,11 +285,12 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: true },
+                    next_swc::react_server_components::Options {
+                        is_react_server_layer: true,
+                    },
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                String::from("default").into(),
             )
         },
         &input,
@@ -306,11 +308,12 @@ fn react_server_components_no_checks_server_graph_fixture(input: PathBuf) {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: true },
+                    next_swc::react_server_components::Options {
+                        is_react_server_layer: true,
+                    },
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                String::from("default").into(),
             )
         },
         &input,
@@ -328,11 +331,12 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: false },
+                    next_swc::react_server_components::Options {
+                        is_react_server_layer: false,
+                    },
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                String::from("default").into(),
             )
         },
         &input,
@@ -350,11 +354,12 @@ fn react_server_components_no_checks_client_graph_fixture(input: PathBuf) {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: false },
+                    next_swc::react_server_components::Options {
+                        is_react_server_layer: false,
+                    },
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                String::from("default").into(),
             )
         },
         &input,
@@ -391,7 +396,7 @@ fn server_actions_server_fixture(input: PathBuf) {
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
-                        is_server: true,
+                        is_react_server_layer: true,
                         enabled: true
                     },
                     _tr.comments.as_ref().clone(),
@@ -415,7 +420,7 @@ fn server_actions_client_fixture(input: PathBuf) {
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
-                        is_server: false,
+                        is_react_server_layer: false,
                         enabled: true
                     },
                     _tr.comments.as_ref().clone(),
@@ -570,4 +575,24 @@ where
     T: DeserializeOwned,
 {
     serde_json::from_str(s).expect("failed to deserialize")
+}
+
+#[fixture("tests/fixture/pure/**/input.js")]
+fn pure(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                pure_magic(tr.comments.clone())
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
 }

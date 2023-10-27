@@ -23,6 +23,8 @@ import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 
 import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
+import { hasNextSupport } from '../telemetry/ci-info'
+import { version } from 'next/package.json'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -251,26 +253,35 @@ function assignDefaults(
 
   const result = { ...defaultConfig, ...config }
 
+  if (result.experimental?.ppr && !version.includes('canary')) {
+    Log.warn(
+      `The experimental.ppr feature is present in your current version but we recommend using the latest canary version for the best experience.`
+    )
+  }
+
   if (result.output === 'export') {
     if (result.i18n) {
       throw new Error(
         'Specified "i18n" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-i18n'
       )
     }
-    if (result.rewrites) {
-      throw new Error(
-        'Specified "rewrites" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
-      )
-    }
-    if (result.redirects) {
-      throw new Error(
-        'Specified "redirects" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
-      )
-    }
-    if (result.headers) {
-      throw new Error(
-        'Specified "headers" cannot be used with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
-      )
+
+    if (!hasNextSupport) {
+      if (result.rewrites) {
+        Log.warn(
+          'Specified "rewrites" will not automatically work with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
+        )
+      }
+      if (result.redirects) {
+        Log.warn(
+          'Specified "redirects" will not automatically work with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
+        )
+      }
+      if (result.headers) {
+        Log.warn(
+          'Specified "headers" will not automatically work with "output: export". See more info here: https://nextjs.org/docs/messages/export-no-custom-routes'
+        )
+      }
     }
   }
 
@@ -406,20 +417,34 @@ function assignDefaults(
     }
   }
 
-  // TODO: Remove this warning in Next.js 14
+  // TODO: Remove this warning in Next.js 15
   warnOptionHasBeenDeprecated(
     result,
-    'experimental.appDir',
-    'App router is available by default now, `experimental.appDir` option can be safely removed.',
+    'experimental.serverActions',
+    'Server Actions are available by default now, `experimental.serverActions` option can be safely removed.',
     silent
   )
-  // TODO: Remove this warning in Next.js 14
-  warnOptionHasBeenDeprecated(
-    result,
-    'experimental.runtime',
-    'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.',
-    silent
-  )
+
+  if (result.swcMinify === false) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'swcMinify',
+      'Disabling SWC Minifer will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
+      silent
+    )
+  }
+
+  if (result.outputFileTracing === false) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'outputFileTracing',
+      'Disabling outputFileTracing will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
+      silent
+    )
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',
@@ -465,9 +490,11 @@ function assignDefaults(
     result.output = 'standalone'
   }
 
-  if (typeof result.experimental?.serverActionsBodySizeLimit !== 'undefined') {
+  if (
+    typeof result.experimental?.serverActions?.bodySizeLimit !== 'undefined'
+  ) {
     const value = parseInt(
-      result.experimental.serverActionsBodySizeLimit.toString()
+      result.experimental.serverActions?.bodySizeLimit.toString()
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
@@ -518,6 +545,11 @@ function assignDefaults(
       result.experimental = {}
     }
     result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+  }
+
+  // can't use this one without the other
+  if (result.experimental?.useDeploymentIdServerActions) {
+    result.experimental.useDeploymentId = true
   }
 
   // use the closest lockfile as tracing root
@@ -1086,8 +1118,9 @@ export function getEnabledExperimentalFeatures(
       userNextConfigExperimental
     ) as (keyof ExperimentalConfig)[]) {
       if (
+        featureName in defaultConfig.experimental &&
         userNextConfigExperimental[featureName] !==
-        defaultConfig.experimental[featureName]
+          defaultConfig.experimental[featureName]
       ) {
         enabledExperiments.push(featureName)
       }
