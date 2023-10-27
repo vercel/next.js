@@ -61,7 +61,7 @@ import { validateURL } from './validate-url'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
-import { warn } from '../../build/output/log'
+import { error } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
@@ -788,10 +788,11 @@ async function renderToHTMLOrFlightImpl(
         }
 
         if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
-          warn(
+          err(
             `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
             pagePath
           )
+          throw err
         }
 
         if (isNotFoundError(err)) {
