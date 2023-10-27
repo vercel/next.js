@@ -50,8 +50,8 @@ createNextDescribe(
         expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
 
         expect(text).toMatchInlineSnapshot(`
-          "<?xml version=\\"1.0\\" encoding=\\"UTF-8\\"?>
-          <urlset xmlns=\\"http://www.sitemaps.org/schemas/sitemap/0.9\\">
+          "<?xml version="1.0" encoding="UTF-8"?>
+          <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
           <url>
           <loc>https://example.com</loc>
           <lastmod>2021-01-01</lastmod>
@@ -152,7 +152,7 @@ createNextDescribe(
           .toArray()
           .map((el) => {
             return {
-              href: $(el).attr('href').split('?')[0],
+              href: $(el).attr('href').split('?', 1)[0],
               sizes: $(el).attr('sizes'),
               type: $(el).attr('type'),
             }
@@ -175,7 +175,7 @@ createNextDescribe(
           .toArray()
           .map((el) => {
             return {
-              href: $(el).attr('href').split('?')[0],
+              href: $(el).attr('href').split('?', 1)[0],
               sizes: $(el).attr('sizes'),
               type: $(el).attr('type'),
             }
@@ -415,7 +415,7 @@ createNextDescribe(
       it('should error when id is missing in generateImageMetadata', async () => {
         const iconFilePath = 'app/metadata-base/unset/icon.tsx'
         const contentMissingIdProperty = `
-        import { ImageResponse } from 'next/server'
+        import { ImageResponse } from 'next/og'
         export async function generateImageMetadata() {
           return [
             {

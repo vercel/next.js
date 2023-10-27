@@ -114,7 +114,7 @@ export class NextDevInstance extends NextInstance {
             msg.includes('started server on') &&
             msg.includes('url:')
           ) {
-            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
+            this._url = msg.split('url: ').pop().split(/\s/, 1)[0].trim()
             resolveServer()
           }
         }

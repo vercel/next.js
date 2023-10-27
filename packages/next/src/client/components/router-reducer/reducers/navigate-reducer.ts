@@ -249,7 +249,7 @@ export function navigateReducer(
   prefetchQueue.bump(data!)
 
   // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
-  const [flightData, canonicalUrlOverride] = readRecordValue(data!)
+  const [flightData, canonicalUrlOverride, postponed] = readRecordValue(data!)
 
   // we only want to mark this once
   if (!prefetchValues.lastUsedTime) {
@@ -300,13 +300,17 @@ export function navigateReducer(
         return handleExternalUrl(state, mutable, href, pendingPush)
       }
 
-      let applied = applyFlightData(
-        currentCache,
-        cache,
-        flightDataPath,
-        prefetchValues.kind === 'auto' &&
-          prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
-      )
+      // TODO-APP: If the prefetch was postponed, we don't want to apply it
+      // until we land router changes to handle the postponed case.
+      let applied = postponed
+        ? false
+        : applyFlightData(
+            currentCache,
+            cache,
+            flightDataPath,
+            prefetchValues.kind === 'auto' &&
+              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
+          )
 
       if (
         !applied &&
