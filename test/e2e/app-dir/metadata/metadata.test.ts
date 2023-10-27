@@ -140,6 +140,15 @@ createNextDescribe(
         )
       })
 
+      it('should support viewport export', async () => {
+        const browser = await next.browser('/viewport/export')
+        await checkMetaNameContentPair(
+          browser,
+          'viewport',
+          'width=device-width, initial-scale=1, maximum-scale=1'
+        )
+      })
+
       it('should support apple related tags `itunes` and `appWebApp`', async () => {
         const browser = await next.browser('/apple')
         await checkMetaNameContentPair(
