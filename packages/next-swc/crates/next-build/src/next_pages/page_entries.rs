@@ -161,6 +161,7 @@ pub async fn get_page_entries(
         pages_structure,
         project_root,
         next_router_root,
+        next_config,
     )
     .await?;
 
@@ -178,6 +179,7 @@ async fn get_page_entries_for_root_directory(
     pages_structure: Vc<PagesStructure>,
     project_root: Vc<FileSystemPath>,
     next_router_root: Vc<FileSystemPath>,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vec<Vc<PageEntry>>> {
     let PagesStructure {
         app,
@@ -200,6 +202,7 @@ async fn get_page_entries_for_root_directory(
         app.next_router_path,
         app.original_path,
         PathType::PagesPage,
+        next_config,
     ));
 
     // This only makes sense on the server.
@@ -213,6 +216,7 @@ async fn get_page_entries_for_root_directory(
         document.next_router_path,
         document.original_path,
         PathType::PagesPage,
+        next_config,
     ));
 
     // This only makes sense on both the client and the server, but they should map
@@ -227,6 +231,7 @@ async fn get_page_entries_for_root_directory(
         error.next_router_path,
         error.original_path,
         PathType::PagesPage,
+        next_config,
     ));
 
     if let Some(api) = api {
@@ -238,6 +243,7 @@ async fn get_page_entries_for_root_directory(
             next_router_root,
             &mut entries,
             PathType::PagesApi,
+            next_config,
         )
         .await?;
     }
@@ -251,6 +257,7 @@ async fn get_page_entries_for_root_directory(
             next_router_root,
             &mut entries,
             PathType::PagesPage,
+            next_config,
         )
         .await?;
     }
@@ -267,6 +274,7 @@ async fn get_page_entries_for_directory(
     next_router_root: Vc<FileSystemPath>,
     entries: &mut Vec<Vc<PageEntry>>,
     path_type: PathType,
+    next_config: Vc<NextConfig>,
 ) -> Result<()> {
     let PagesDirectoryStructure {
         ref items,
@@ -289,6 +297,7 @@ async fn get_page_entries_for_directory(
             next_router_path,
             original_path,
             path_type,
+            next_config,
         ));
     }
 
@@ -301,6 +310,7 @@ async fn get_page_entries_for_directory(
             next_router_root,
             entries,
             path_type,
+            next_config,
         )
         .await?;
     }
@@ -329,6 +339,7 @@ async fn get_page_entry_for_file(
     next_router_path: Vc<FileSystemPath>,
     next_original_path: Vc<FileSystemPath>,
     path_type: PathType,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vc<PageEntry>> {
     let reference_type = Value::new(ReferenceType::Entry(match path_type {
         PathType::PagesPage => EntryReferenceSubType::Page,
@@ -347,6 +358,7 @@ async fn get_page_entry_for_file(
         source,
         Vc::cell(original_name),
         NextRuntime::NodeJs,
+        next_config,
     );
 
     let client_module = create_page_loader_entry_module(client_module_context, source, pathname);

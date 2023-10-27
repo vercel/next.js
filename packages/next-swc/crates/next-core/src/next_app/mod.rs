@@ -296,6 +296,16 @@ impl AppPath {
             )
         })
     }
+
+    pub fn contains(&self, other: &AppPath) -> bool {
+        for (i, segment) in other.0.iter().enumerate() {
+            if self.0.get(i) != Some(segment) {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 impl Deref for AppPath {

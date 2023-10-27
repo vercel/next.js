@@ -11,18 +11,15 @@ use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
-        context::AssetContext,
         file_source::FileSource,
         ident::AssetIdent,
         issue::{Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource},
-        module::Module,
-        reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
         source::Source,
     },
     ecmascript::{
         analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
-        parse::ParseResult,
-        EcmascriptModuleAsset,
+        parse::{parse, ParseResult},
+        EcmascriptInputTransforms, EcmascriptModuleAssetType,
     },
 };
 
@@ -210,20 +207,38 @@ impl Issue for NextSegmentConfigParsingIssue {
 
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_source(
-    module: Vc<Box<dyn Module>>,
     source: Vc<Box<dyn Source>>,
 ) -> Result<Vc<NextSegmentConfig>> {
-    let Some(ecmascript_asset) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
-    else {
+    let path = source.ident().path().await?;
+
+    // Don't try parsing if it's not a javascript file, otherwise it will emit an
+    // issue causing the build to "fail".
+    if !(path.path.ends_with(".js")
+        || path.path.ends_with(".jsx")
+        || path.path.ends_with(".ts")
+        || path.path.ends_with(".tsx"))
+    {
         return Ok(Default::default());
-    };
+    }
+
+    let result = &*parse(
+        source,
+        turbo_tasks::Value::new(
+            if path.path.ends_with(".ts") || path.path.ends_with(".tsx") {
+                EcmascriptModuleAssetType::Typescript
+            } else {
+                EcmascriptModuleAssetType::Ecmascript
+            },
+        ),
+        EcmascriptInputTransforms::empty(),
+    )
+    .await?;
 
     let ParseResult::Ok {
         program: Program::Module(module_ast),
         eval_context,
         ..
-    } = &*ecmascript_asset.parse().await?
+    } = result
     else {
         return Ok(Default::default());
     };
@@ -245,7 +260,7 @@ pub async fn parse_segment_config_from_source(
             };
 
             if let Some(init) = decl.init.as_ref() {
-                parse_config_value(module, source, &mut config, ident, init, eval_context);
+                parse_config_value(source, &mut config, ident, init, eval_context);
             }
         }
     }
@@ -258,7 +273,6 @@ fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
 }
 
 fn parse_config_value(
-    module: Vc<Box<dyn Module>>,
     source: Vc<Box<dyn Source>>,
     config: &mut NextSegmentConfig,
     ident: &Ident,
@@ -269,7 +283,7 @@ fn parse_config_value(
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
         NextSegmentConfigParsingIssue {
-            ident: module.ident(),
+            ident: source.ident(),
             detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
             source: issue_source(source, span),
         }
@@ -397,7 +411,6 @@ fn parse_config_value(
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: Vc<LoaderTree>,
-    context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let loader_tree = loader_tree.await?;
     let components = loader_tree.components.await?;
@@ -406,7 +419,7 @@ pub async fn parse_segment_config_from_loader_tree(
         .parallel_routes
         .values()
         .copied()
-        .map(|tree| parse_segment_config_from_loader_tree(tree, context))
+        .map(parse_segment_config_from_loader_tree)
         .try_join()
         .await?;
     for tree in parallel_configs {
@@ -417,18 +430,8 @@ pub async fn parse_segment_config_from_loader_tree(
         .flatten()
     {
         let source = Vc::upcast(FileSource::new(component));
-        config.apply_parent_config(
-            &*parse_segment_config_from_source(
-                context.process(
-                    source,
-                    turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
-                        EcmaScriptModulesReferenceSubType::Undefined,
-                    )),
-                ),
-                source,
-            )
-            .await?,
-        );
+        config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
+
     Ok(config.cell())
 }

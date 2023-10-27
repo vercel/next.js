@@ -73,6 +73,8 @@ export type ExportRouteResult =
         headers?: OutgoingHttpHeaders
       }
       ssgNotFound?: boolean
+      hasEmptyPrelude?: boolean
+      hasPostponed?: boolean
     }
   | {
       error: boolean
@@ -95,7 +97,6 @@ export type ExportWorker = (
 
 export interface ExportAppOptions {
   outdir: string
-  isInvokedFromCli: boolean
   hasAppDir: boolean
   silent?: boolean
   threads?: number
@@ -136,6 +137,14 @@ export type ExportAppResult = {
        * The metadata for the page.
        */
       metadata?: { status?: number; headers?: OutgoingHttpHeaders }
+      /**
+       * If the page has an empty prelude when using PPR.
+       */
+      hasEmptyPrelude?: boolean
+      /**
+       * If the page has postponed when using PPR.
+       */
+      hasPostponed?: boolean
     }
   >
 

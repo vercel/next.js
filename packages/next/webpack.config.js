@@ -32,6 +32,9 @@ function makeAppAliases(reactChannel = '') {
     'react-dom/server$': `next/dist/compiled/react-dom${reactChannel}/server`,
     'react-dom/server.edge$': `next/dist/compiled/react-dom${reactChannel}/server.edge`,
     'react-dom/server.browser$': `next/dist/compiled/react-dom${reactChannel}/server.browser`,
+    'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
+    'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
+    'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
     'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client`,
     'react-server-dom-turbopack/client.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.edge`,
     'react-server-dom-turbopack/server.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.edge`,
@@ -169,6 +172,9 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
         'process.env.NODE_ENV': JSON.stringify(
           dev ? 'development' : 'production'
         ),
+        'process.env.__NEXT_EXPERIMENTAL_REACT': JSON.stringify(
+          experimental ? true : false
+        ),
         'process.env.NEXT_RUNTIME': JSON.stringify('nodejs'),
         ...(!dev ? { 'process.env.TURBOPACK': JSON.stringify(turbo) } : {}),
       }),
@@ -181,6 +187,19 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
             bundleType
           ),
           openAnalyzer: false,
+          ...(process.env.CI
+            ? {
+                analyzerMode: 'static',
+                reportFilename: path.join(
+                  __dirname,
+                  `dist/compiled/next-server/report.${dev ? 'dev' : 'prod'}-${
+                    turbo ? 'turbo' : 'webpack'
+                  }-${
+                    experimental ? 'experimental' : 'stable'
+                  }-${bundleType}.html`
+                ),
+              }
+            : {}),
         }),
     ].filter(Boolean),
     stats: {
@@ -197,7 +216,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     module: {
       rules: [
         {
-          include: /[\\/]react-server.node/,
+          include: /[\\/]react-server\.node/,
           layer: 'react-server',
         },
         {
