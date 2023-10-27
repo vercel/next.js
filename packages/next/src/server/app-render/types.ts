@@ -1,9 +1,10 @@
 import type { LoadComponentsReturnType } from '../load-components'
 import type { ServerRuntime, SizeLimit } from '../../../types'
-import { NextConfigComplete } from '../../server/config-shared'
+import type { NextConfigComplete } from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
+import type { AppPageModule } from '../future/route-modules/app-page/module'
 
 import s from 'next/dist/compiled/superstruct'
 
@@ -110,6 +111,7 @@ export interface RenderOptsPartial {
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
+  enableTainting?: boolean
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
   nextFontManifest?: NextFontManifest
@@ -133,6 +135,9 @@ export interface RenderOptsPartial {
   serverActionsBodySizeLimit?: SizeLimit
   params?: ParsedUrlQuery
   isPrefetch?: boolean
+  ppr: boolean
+  postponed?: string
 }
 
-export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
+export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
+  RenderOptsPartial

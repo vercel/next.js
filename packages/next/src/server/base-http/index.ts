@@ -2,7 +2,7 @@ import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { I18NConfig } from '../config-shared'
 
 import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
-import { NextApiRequestCookies } from '../api-utils'
+import type { NextApiRequestCookies } from '../api-utils'
 import { getCookieParser } from '../api-utils/get-cookie-parser'
 
 export interface BaseNextRequestConfig {
@@ -27,8 +27,6 @@ export abstract class BaseNextRequest<Body = any> {
   public abstract headers: IncomingHttpHeaders
 
   constructor(public method: string, public url: string, public body: Body) {}
-
-  abstract parseBody(limit: string | number): Promise<any>
 
   // Utils implemented using the abstract methods above
 

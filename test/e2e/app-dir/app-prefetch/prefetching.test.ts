@@ -28,7 +28,7 @@ const browserConfigWithFixedTime = {
 }
 
 createNextDescribe(
-  'app dir prefetching',
+  'app dir - prefetching',
   {
     files: __dirname,
     skipDeployment: true,
@@ -57,7 +57,7 @@ createNextDescribe(
       const after = Date.now()
       const timeToComplete = after - before
 
-      expect(timeToComplete < 1000).toBe(true)
+      expect(timeToComplete).toBeLessThan(1000)
 
       expect(await browser.elementByCss('#dashboard-layout').text()).toBe(
         'Dashboard Hello World'

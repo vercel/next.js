@@ -1,15 +1,11 @@
-import {
-  CacheNode,
-  CacheStates,
-} from '../../../../shared/lib/app-router-context.shared-runtime'
+import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightSegmentPath,
 } from '../../../../server/app-render/types'
-import {
-  FetchServerResponseResult,
-  fetchServerResponse,
-} from '../fetch-server-response'
+import { fetchServerResponse } from '../fetch-server-response'
+import type { FetchServerResponseResult } from '../fetch-server-response'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'
 import { createHrefFromUrl } from '../create-href-from-url'
@@ -19,14 +15,14 @@ import { createOptimisticTree } from '../create-optimistic-tree'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { shouldHardNavigate } from '../should-hard-navigate'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import {
+import type {
   Mutable,
   NavigateAction,
-  PrefetchKind,
   ReadonlyReducerState,
   ReducerState,
   ThenableRecord,
 } from '../router-reducer-types'
+import { PrefetchKind } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import {
@@ -253,7 +249,7 @@ export function navigateReducer(
   prefetchQueue.bump(data!)
 
   // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
-  const [flightData, canonicalUrlOverride] = readRecordValue(data!)
+  const [flightData, canonicalUrlOverride, postponed] = readRecordValue(data!)
 
   // we only want to mark this once
   if (!prefetchValues.lastUsedTime) {
@@ -304,13 +300,17 @@ export function navigateReducer(
         return handleExternalUrl(state, mutable, href, pendingPush)
       }
 
-      let applied = applyFlightData(
-        currentCache,
-        cache,
-        flightDataPath,
-        prefetchValues.kind === 'auto' &&
-          prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
-      )
+      // TODO-APP: If the prefetch was postponed, we don't want to apply it
+      // until we land router changes to handle the postponed case.
+      let applied = postponed
+        ? false
+        : applyFlightData(
+            currentCache,
+            cache,
+            flightDataPath,
+            prefetchValues.kind === 'auto' &&
+              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
+          )
 
       if (
         !applied &&

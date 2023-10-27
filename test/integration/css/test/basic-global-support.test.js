@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import 'flat-map-polyfill'
 import { readdir, readFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
@@ -230,7 +229,7 @@ describe('CSS URL via `file-loader`', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "dark.svg",
           "dark2.svg",
           "light.svg",
@@ -278,7 +277,7 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "dark.svg",
           "dark2.svg",
           "light.svg",
@@ -326,7 +325,7 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "dark.svg",
           "dark2.svg",
           "light.svg",

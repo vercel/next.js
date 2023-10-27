@@ -7,7 +7,6 @@ use std::{
 use anyhow::{Context, Result};
 use dunce::canonicalize;
 use next_core::{
-    app_structure::find_app_dir_if_enabled,
     mode::NextMode,
     next_app::get_app_client_references_chunks,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
@@ -21,12 +20,13 @@ use next_core::{
     },
     next_server::{get_server_chunking_context, get_server_compile_time_info},
     url_node::get_sorted_routes,
+    util::NextRuntime,
     {self},
 };
 use serde::Serialize;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, TransientInstance, TryJoinIterExt, ValueToString, Vc,
+    Completion, Completions, TransientInstance, TryJoinIterExt, Vc,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{rebase, DiskFileSystem, FileContent, FileSystem, FileSystemPath},
@@ -34,7 +34,6 @@ use turbopack_binding::{
         cli_utils::issue::{ConsoleUi, LogOptions},
         core::{
             asset::Asset,
-            chunk::ChunkingContext,
             environment::ServerAddr,
             issue::{handle_issues, IssueReporter, IssueSeverity},
             output::{OutputAsset, OutputAssets},
@@ -130,18 +129,17 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
 
     let execution_context =
         ExecutionContext::new(project_root, node_execution_chunking_context, env);
-    let next_config = load_next_config(execution_context.with_layer("next_config".to_string()));
+    let next_config = load_next_config(execution_context);
 
     let mode = NextMode::Build;
-    let app_dir = find_app_dir_if_enabled(project_root);
-    let client_compile_time_info = get_client_compile_time_info(
-        mode,
-        browserslist_query,
-        node_root.to_string(),
-        next_config,
-        app_dir,
-    );
-    let server_compile_time_info = get_server_compile_time_info(mode, env, ServerAddr::empty());
+
+    let client_define_env = Vc::cell(options.define_env.client.iter().cloned().collect());
+    let client_compile_time_info =
+        get_client_compile_time_info(browserslist_query, client_define_env);
+
+    let server_define_env = Vc::cell(options.define_env.nodejs.iter().cloned().collect());
+    let server_compile_time_info =
+        get_server_compile_time_info(env, ServerAddr::empty(), server_define_env);
 
     // TODO(alexkirsz) Pages should build their own routes, outside of a FS.
     let next_router_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
@@ -150,7 +148,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         next_router_root,
         project_root,
         execution_context,
-        env,
         client_compile_time_info,
         server_compile_time_info,
         next_config,
@@ -159,7 +156,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let app_entries = get_app_entries(
         project_root,
         execution_context,
-        env,
         client_compile_time_info,
         server_compile_time_info,
         next_config,
@@ -277,11 +273,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         next_config.computed_asset_prefix(),
         server_compile_time_info.environment(),
     );
-    // TODO(alexkirsz) This should be the same chunking context. The layer should
-    // be applied on the AssetContext level instead.
-    let rsc_chunking_context = server_chunking_context.with_layer("rsc".to_string());
-    let ssr_chunking_context = server_chunking_context.with_layer("ssr".to_string());
-
     let mut all_chunks = vec![];
 
     let mut build_manifest: BuildManifest = Default::default();
@@ -296,7 +287,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     compute_page_entries_chunks(
         &page_entries,
         client_chunking_context,
-        ssr_chunking_context,
+        server_chunking_context,
         node_root,
         &pages_manifest_dir_path,
         &client_relative_path_ref,
@@ -320,7 +311,8 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     let app_client_references_chunks = get_app_client_references_chunks(
         app_client_reference_tys,
         client_chunking_context,
-        ssr_chunking_context,
+        // TODO(WEB-1824): add edge support
+        Vc::upcast(server_chunking_context),
     );
     let app_client_references_chunks_ref = app_client_references_chunks.await?;
 
@@ -335,12 +327,13 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     // TODO(alexkirsz) Do some of that in parallel with the above.
 
     compute_app_entries_chunks(
+        next_config,
         &app_entries,
         app_client_references,
         app_client_references_chunks,
-        rsc_chunking_context,
+        server_chunking_context,
         client_chunking_context,
-        Vc::upcast(ssr_chunking_context),
+        Vc::upcast(server_chunking_context),
         node_root,
         client_relative_path,
         &app_paths_manifest_dir_path,
@@ -348,6 +341,8 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         &mut build_manifest,
         &mut app_paths_manifest,
         &mut all_chunks,
+        // TODO(WEB-1824): add edge support
+        NextRuntime::NodeJs,
     )
     .await?;
 

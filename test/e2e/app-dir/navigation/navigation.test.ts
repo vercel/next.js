@@ -54,6 +54,54 @@ createNextDescribe(
             : JSON.stringify(requests)
         }, 'success')
       })
+
+      describe('useParams identity between renders', () => {
+        async function runTests(page: string) {
+          const browser = await next.browser(page)
+
+          await check(
+            async () => JSON.stringify(await browser.log()),
+            /params changed/
+          )
+
+          let outputIndex = (await browser.log()).length
+
+          await browser.elementById('rerender-button').click()
+          await browser.elementById('rerender-button').click()
+          await browser.elementById('rerender-button').click()
+
+          await check(async () => {
+            return browser.elementById('rerender-button').text()
+          }, 'Re-Render 3')
+
+          await check(async () => {
+            const logs = await browser.log()
+            return JSON.stringify(logs.slice(outputIndex)).includes(
+              'params changed'
+            )
+              ? 'fail'
+              : 'success'
+          }, 'success')
+
+          outputIndex = (await browser.log()).length
+
+          await browser.elementById('change-params-button').click()
+
+          await check(
+            async () =>
+              JSON.stringify((await browser.log()).slice(outputIndex)),
+            /params changed/
+          )
+        }
+
+        it('should be stable in app', async () => {
+          await runTests('/search-params/foo')
+        })
+
+        it('should be stable in pages', async () => {
+          await runTests('/search-params-pages/foo')
+        })
+      })
     })
 
     describe('hash', () => {
@@ -496,6 +544,15 @@ createNextDescribe(
           .click()
           .waitForElementByCss('#link-to-app')
         expect(await browser.url()).toBe(next.url + '/some')
+      })
+
+      it('should not omit the hash while navigating from app to pages', async () => {
+        const browser = await next.browser('/hash-link-to-pages-router')
+        await browser
+          .elementByCss('#link-to-pages-router')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        await check(() => browser.url(), next.url + '/some#non-existent')
       })
 
       if (!isNextDev) {
