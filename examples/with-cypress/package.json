@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "@types/node": "18.0.6",
-    "@types/react": "18.0.15",
+    "@types/react": "18.2.8",
     "@types/react-dom": "18.0.6",
     "cypress": "12.3.0",
     "start-server-and-test": "1.15.2",
