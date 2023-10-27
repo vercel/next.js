@@ -23,8 +23,9 @@ export default function YouTubeEmbed(props: YouTubeEmbedTypes) {
       html={html}
       dataNtpc="YouTubeEmbed"
     >
-      {scripts?.map((script) => (
+      {scripts?.map((script, index) => (
         <Script
+          key={index}
           src={script.url}
           strategy={scriptStrategy[script.strategy] as ScriptProps['strategy']}
           stylesheets={stylesheets}
