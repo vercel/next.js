@@ -4,12 +4,15 @@ import Code from '@/components/Code'
 
 const create = `
 create table notes (
-  id uuid default gen_random_uuid() primary key,
+  id serial primary key,
   title text
 );
 
 insert into notes(title)
-values('Today I connected Next.js to Supabase. It was awesome!');
+values
+  ('Today I created a Supabase project.'),
+  ('I added some data and queried it from Next.js.'),
+  ('It was awesome!');
 `.trim()
 
 const server = `
@@ -93,11 +96,15 @@ export default function SignUpUserSteps() {
 
       <Step title="Query Supabase data from Next.js">
         <p>
-          Create a Supabase client and query data from an Async Server
-          Component.
+          To create a Supabase client and query data from an Async Server
+          Component, create a new page.tsx file at{' '}
+          <span className="px-2 py-1 rounded-md bg-foreground/20 text-foreground/80">
+            /app/notes/page.tsx
+          </span>{' '}
+          and add the following.
         </p>
         <Code code={server} />
-        <p>Alternatively, you can use a client component.</p>
+        <p>Alternatively, you can use a Client Component.</p>
         <Code code={client} />
       </Step>
 
