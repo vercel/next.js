@@ -24,7 +24,7 @@ use turbopack_binding::swc::core::{
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
-    pub is_server: bool,
+    pub is_react_server_layer: bool,
     pub enabled: bool,
 }
 
@@ -141,7 +141,7 @@ impl<C: Comments> ServerActions<C> {
                     self.config.enabled,
                 );
 
-                if is_action_fn && !self.config.is_server {
+                if is_action_fn && !self.config.is_react_server_layer {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
@@ -1029,7 +1029,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             stmt.visit_mut_with(self);
 
-            if self.config.is_server || !self.in_action_file {
+            if self.config.is_react_server_layer || !self.in_action_file {
                 new.push(stmt);
                 new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
                 new.append(&mut self.extra_items);
@@ -1041,7 +1041,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // If it's compiled in the client layer, each export field needs to be
             // wrapped by a reference creation call.
             let create_ref_ident = private_ident!("createServerReference");
-            if !self.config.is_server {
+            if !self.config.is_react_server_layer {
                 // import { createServerReference } from
                 // 'private-next-rsc-action-client-wrapper'
                 // createServerReference("action_id")
@@ -1066,7 +1066,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             for (id, export_name) in self.exported_idents.iter() {
                 let ident = Ident::new(id.0.clone(), DUMMY_SP.with_ctxt(id.1));
 
-                if !self.config.is_server {
+                if !self.config.is_react_server_layer {
                     let action_id = generate_action_id(&self.file_name, export_name);
 
                     if export_name == "default" {
@@ -1123,7 +1123,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }
             }
 
-            if self.config.is_server {
+            if self.config.is_react_server_layer {
                 new.append(&mut self.extra_items);
 
                 // Ensure that the exports are valid by appending a check
@@ -1219,7 +1219,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             })));
 
             // Encryption and decryption only happens on the server layer.
-            if self.config.is_server {
+            if self.config.is_react_server_layer {
                 // import { encryptActionBoundArgs, decryptActionBoundArgs } from
                 // 'private-next-rsc-action-encryption'
                 new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {

@@ -22,6 +22,7 @@ import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
+import { isPostpone } from './router-utils/is-postpone'
 
 const debug = setupDebug('next:start-server')
 
@@ -235,6 +236,22 @@ export async function startServer(
       // expose the main port to render workers
       process.env.PORT = port + ''
 
+      // Only load env and config in dev to for logging purposes
+      let envInfo: string[] | undefined
+      let expFeatureInfo: string[] | undefined
+      if (isDev) {
+        const startServerInfo = await getStartServerInfo(dir)
+        envInfo = startServerInfo.envInfo
+        expFeatureInfo = startServerInfo.expFeatureInfo
+      }
+      logStartInfo({
+        networkUrl,
+        appUrl,
+        envInfo,
+        expFeatureInfo,
+        maxExperimentalFeatures: 3,
+      })
+
       try {
         const cleanup = (code: number | null) => {
           debug('start-server process cleanup')
@@ -242,6 +259,12 @@ export async function startServer(
           process.exit(code ?? 0)
         }
         const exception = (err: Error) => {
+          if (isPostpone(err)) {
+            // React postpones that are unhandled might end up logged here but they're
+            // not really errors. They're just part of rendering.
+            return
+          }
+
           // This is the render worker, we keep the process alive
           console.error(err)
         }
@@ -249,6 +272,11 @@ export async function startServer(
         // callback value is signal string, exit with 0
         process.on('SIGINT', () => cleanup(0))
         process.on('SIGTERM', () => cleanup(0))
+        process.on('rejectionHandled', () => {
+          // It is ok to await a Promise late in Next.js as it allows for better
+          // prefetching patterns to avoid waterfalls. We ignore loggining these.
+          // We should've already errored in anyway unhandledRejection.
+        })
         process.on('uncaughtException', exception)
         process.on('unhandledRejection', exception)
 
@@ -275,29 +303,14 @@ export async function startServer(
             'next-start-end'
           ).duration
 
+        handlersReady()
         const formatDurationText =
           startServerProcessDuration > 2000
             ? `${Math.round(startServerProcessDuration / 100) / 10}s`
             : `${Math.round(startServerProcessDuration)}ms`
 
-        handlersReady()
+        Log.event(`Ready in ${formatDurationText}`)
 
-        // Only load env and config in dev to for logging purposes
-        let envInfo: string[] | undefined
-        let expFeatureInfo: string[] | undefined
-        if (isDev) {
-          const startServerInfo = await getStartServerInfo(dir)
-          envInfo = startServerInfo.envInfo
-          expFeatureInfo = startServerInfo.expFeatureInfo
-        }
-        logStartInfo({
-          networkUrl,
-          appUrl,
-          envInfo,
-          expFeatureInfo,
-          formatDurationText,
-          maxExperimentalFeatures: 3,
-        })
         if (process.env.TURBOPACK) {
           await validateTurboNextConfig({
             ...serverOptions,

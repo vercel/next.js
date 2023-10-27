@@ -42,7 +42,7 @@ impl CustomTransformer for NextServerActions {
         let mut actions = server_actions(
             &FileName::Real(ctx.file_path_str.into()),
             Config {
-                is_server: matches!(self.transform, ActionsTransform::Server),
+                is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
                 enabled: true,
             },
             ctx.comments.clone(),
