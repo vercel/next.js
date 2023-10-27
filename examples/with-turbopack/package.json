@@ -34,7 +34,7 @@
     "@tailwindcss/typography": "0.5.9",
     "@types/ms": "0.7.31",
     "@types/node": "18.11.17",
-    "@types/react": "18.0.26",
+    "@types/react": "18.2.8",
     "@types/react-dom": "18.0.9",
     "@vercel/git-hooks": "1.0.0",
     "autoprefixer": "10.4.13",
