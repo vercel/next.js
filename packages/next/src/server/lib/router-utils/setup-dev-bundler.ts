@@ -4,7 +4,6 @@ import type {
   Route,
   TurbopackResult,
   WrittenEndpoint,
-  ServerClientChange,
   Issue,
   Project,
 } from '../../../build/swc'
@@ -27,7 +26,7 @@ import type {
 } from '../../dev/hot-reloader-types'
 
 import ws from 'next/dist/compiled/ws'
-import { ServerClientChangeType, createDefineEnv } from '../../../build/swc'
+import { createDefineEnv } from '../../../build/swc'
 import fs from 'fs'
 import url from 'url'
 import path from 'path'
@@ -80,6 +79,8 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   SERVER_REFERENCE_MANIFEST,
   REACT_LOADABLE_MANIFEST,
+  MIDDLEWARE_REACT_LOADABLE_MANIFEST,
+  MIDDLEWARE_BUILD_MANIFEST,
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
@@ -124,6 +125,7 @@ import { clearModuleContext } from '../render-server'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import type { LoadableManifest } from '../../load-components'
+import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -418,6 +420,7 @@ async function startWatcher(opts: SetupOpts) {
 
     const buildingIds = new Set()
     const readyIds = new Set()
+
     function startBuilding(id: string, forceRebuild: boolean = false) {
       if (!forceRebuild && readyIds.has(id)) {
         return () => {}
@@ -480,14 +483,10 @@ async function startWatcher(opts: SetupOpts) {
       }
 
       hotReloader.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
         hash: String(++hmrHash),
         errors: [...errors.values()],
         warnings: [],
-        versionInfo: {
-          installed: '0.0.0',
-          staleness: 'unknown',
-        },
       })
       hmrBuilding = false
 
@@ -515,6 +514,7 @@ async function startWatcher(opts: SetupOpts) {
         hmrBuilding = true
       }
       hmrPayloads.set(`${key}:${id}`, payload)
+      hmrEventHappend = true
       sendHmrDebounce()
     }
 
@@ -527,6 +527,7 @@ async function startWatcher(opts: SetupOpts) {
         hmrBuilding = true
       }
       turbopackUpdates.push(payload)
+      hmrEventHappend = true
       sendHmrDebounce()
     }
 
@@ -634,32 +635,39 @@ async function startWatcher(opts: SetupOpts) {
 
     async function changeSubscription(
       page: string,
+      type: 'client' | 'server',
+      includeIssues: boolean,
       endpoint: Endpoint | undefined,
       makePayload: (
         page: string,
-        change: TurbopackResult<ServerClientChange>
+        change: TurbopackResult
       ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
     ) {
-      if (!endpoint || changeSubscriptions.has(page)) return
+      const key = `${page} (${type})`
+      if (!endpoint || changeSubscriptions.has(key)) return
 
-      const changedPromise = endpoint.changed()
-      changeSubscriptions.set(page, changedPromise)
+      const changedPromise = endpoint[`${type}Changed`](includeIssues)
+      changeSubscriptions.set(key, changedPromise)
       const changed = await changedPromise
 
       for await (const change of changed) {
-        processIssues(page, page, change)
+        processIssues(key, page, change)
         const payload = await makePayload(page, change)
-        if (payload) sendHmr('endpoint-change', page, payload)
+        if (payload) sendHmr('endpoint-change', key, payload)
       }
     }
 
-    async function clearChangeSubscription(page: string) {
-      const subscription = await changeSubscriptions.get(page)
+    async function clearChangeSubscription(
+      page: string,
+      type: 'server' | 'client'
+    ) {
+      const key = `${page} (${type})`
+      const subscription = await changeSubscriptions.get(key)
       if (subscription) {
         subscription.return?.()
-        changeSubscriptions.delete(page)
+        changeSubscriptions.delete(key)
       }
-      issues.delete(page)
+      issues.delete(key)
     }
 
     function mergeBuildManifests(manifests: Iterable<BuildManifest>) {
@@ -733,12 +741,12 @@ async function startWatcher(opts: SetupOpts) {
       return manifest
     }
 
-    function mergeActionManifests(manifests: Iterable<ActionManifest>) {
+    async function mergeActionManifests(manifests: Iterable<ActionManifest>) {
       type ActionEntries = ActionManifest['edge' | 'node']
       const manifest: ActionManifest = {
         node: {},
         edge: {},
-        encryptionKey: '',
+        encryptionKey: await generateRandomActionKeyRaw(true),
       }
 
       function mergeActionIds(
@@ -758,7 +766,6 @@ async function startWatcher(opts: SetupOpts) {
       for (const m of manifests) {
         mergeActionIds(manifest.node, m.node)
         mergeActionIds(manifest.edge, m.edge)
-        manifest.encryptionKey = m.encryptionKey
       }
 
       return manifest
@@ -795,10 +802,20 @@ async function startWatcher(opts: SetupOpts) {
     ): Promise<void> {
       const buildManifest = mergeBuildManifests(buildManifests.values())
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
+      const middlewareBuildManifestPath = path.join(
+        distDir,
+        'server',
+        `${MIDDLEWARE_BUILD_MANIFEST}.js`
+      )
       deleteCache(buildManifestPath)
+      deleteCache(middlewareBuildManifestPath)
       await writeFileAtomic(
         buildManifestPath,
         JSON.stringify(buildManifest, null, 2)
+      )
+      await writeFileAtomic(
+        middlewareBuildManifestPath,
+        `self.__BUILD_MANIFEST=${JSON.stringify(buildManifest)}`
       )
 
       const content: ClientBuildManifest = {
@@ -885,7 +902,8 @@ async function startWatcher(opts: SetupOpts) {
       )
       const middlewareManifestPath = path.join(
         distDir,
-        'server/middleware-manifest.json'
+        'server',
+        MIDDLEWARE_MANIFEST
       )
       deleteCache(middlewareManifestPath)
       await writeFileAtomic(
@@ -895,7 +913,9 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     async function writeActionManifest(): Promise<void> {
-      const actionManifest = mergeActionManifests(actionManifests.values())
+      const actionManifest = await mergeActionManifests(
+        actionManifests.values()
+      )
       const actionManifestJsonPath = path.join(
         distDir,
         'server',
@@ -920,34 +940,50 @@ async function startWatcher(opts: SetupOpts) {
     async function writeFontManifest(): Promise<void> {
       // TODO: turbopack should write the correct
       // version of this
-      const fontManifestPath = path.join(
+      const fontManifest = {
+        pages: {},
+        app: {},
+        appUsingSizeAdjust: false,
+        pagesUsingSizeAdjust: false,
+      }
+
+      const json = JSON.stringify(fontManifest, null, 2)
+      const fontManifestJsonPath = path.join(
         distDir,
         'server',
-        NEXT_FONT_MANIFEST + '.json'
+        `${NEXT_FONT_MANIFEST}.json`
       )
-      deleteCache(fontManifestPath)
+      const fontManifestJsPath = path.join(
+        distDir,
+        'server',
+        `${NEXT_FONT_MANIFEST}.js`
+      )
+      deleteCache(fontManifestJsonPath)
+      deleteCache(fontManifestJsPath)
+      await writeFileAtomic(fontManifestJsonPath, json)
       await writeFileAtomic(
-        fontManifestPath,
-        JSON.stringify(
-          {
-            pages: {},
-            app: {},
-            appUsingSizeAdjust: false,
-            pagesUsingSizeAdjust: false,
-          },
-          null,
-          2
-        )
+        fontManifestJsPath,
+        `self.__NEXT_FONT_MANIFEST=${JSON.stringify(json)}`
       )
     }
 
     async function writeLoadableManifest(): Promise<void> {
       const loadableManifest = mergeLoadableManifests(loadbleManifests.values())
       const loadableManifestPath = path.join(distDir, REACT_LOADABLE_MANIFEST)
+      const middlewareloadableManifestPath = path.join(
+        distDir,
+        'server',
+        `${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
+      )
+
+      const json = JSON.stringify(loadableManifest, null, 2)
+
       deleteCache(loadableManifestPath)
+      deleteCache(middlewareloadableManifestPath)
+      await writeFileAtomic(loadableManifestPath, json)
       await writeFileAtomic(
-        loadableManifestPath,
-        JSON.stringify(loadableManifest, null, 2)
+        middlewareloadableManifestPath,
+        `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(json)}`
       )
     }
 
@@ -1040,7 +1076,7 @@ async function startWatcher(opts: SetupOpts) {
           // unnecessary during the first serve)
           if (prevMiddleware === true && !middleware) {
             // Went from middleware to no middleware
-            await clearChangeSubscription('middleware')
+            await clearChangeSubscription('middleware', 'server')
             sendHmr('entrypoint-change', 'middleware', {
               event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
@@ -1069,19 +1105,28 @@ async function startWatcher(opts: SetupOpts) {
             }
             await processMiddleware()
 
-            changeSubscription('middleware', middleware.endpoint, async () => {
-              const finishBuilding = startBuilding('middleware', true)
-              await processMiddleware()
-              await propagateServerField(
-                'actualMiddlewareFile',
-                serverFields.actualMiddlewareFile
-              )
-              await propagateServerField('middleware', serverFields.middleware)
-              await writeMiddlewareManifest()
+            changeSubscription(
+              'middleware',
+              'server',
+              false,
+              middleware.endpoint,
+              async () => {
+                const finishBuilding = startBuilding('middleware', true)
+                await processMiddleware()
+                await propagateServerField(
+                  'actualMiddlewareFile',
+                  serverFields.actualMiddlewareFile
+                )
+                await propagateServerField(
+                  'middleware',
+                  serverFields.middleware
+                )
+                await writeMiddlewareManifest()
 
-              finishBuilding()
-              return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
-            })
+                finishBuilding()
+                return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
+              }
+            )
             prevMiddleware = true
           } else {
             middlewareManifests.delete('middleware')
@@ -1131,6 +1176,21 @@ async function startWatcher(opts: SetupOpts) {
     await writeActionManifest()
     await writeFontManifest()
     await writeLoadableManifest()
+
+    let hmrEventHappend = false
+    if (process.env.NEXT_HMR_TIMING) {
+      ;(async (proj: Project) => {
+        for await (const updateInfo of proj.updateInfoSubscribe()) {
+          if (hmrEventHappend) {
+            const time = updateInfo.duration
+            const timeMessage =
+              time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
+            Log.event(`Compiled in ${timeMessage}`)
+            hmrEventHappend = false
+          }
+        }
+      })(project)
+    }
 
     const overlayMiddleware = getOverlayMiddleware(project)
     const turbopackHotReloader: NextJsHotReloaderInterface = {
@@ -1190,6 +1250,7 @@ async function startWatcher(opts: SetupOpts) {
               case 'client-reload-page': // { clientId }
               case 'client-removed-page': // { page }
               case 'client-full-reload': // { stackTrace, hadRuntimeError }
+              case 'client-added-page':
                 // TODO
                 break
 
@@ -1282,9 +1343,15 @@ async function startWatcher(opts: SetupOpts) {
                 '_document',
                 await globalEntries.document.writeToDisk()
               )
-              changeSubscription('_document', globalEntries.document, () => {
-                return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-              })
+              changeSubscription(
+                '_document',
+                'server',
+                false,
+                globalEntries.document,
+                () => {
+                  return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+                }
+              )
               processIssues('_document', '_document', writtenEndpoint)
             }
             await loadPagesManifest('_document')
@@ -1358,68 +1425,85 @@ async function startWatcher(opts: SetupOpts) {
               }
 
               finishBuilding = startBuilding(buildingKey)
-              if (globalEntries.app) {
-                const writtenEndpoint = await processResult(
-                  '_app',
-                  await globalEntries.app.writeToDisk()
-                )
-                processIssues('_app', '_app', writtenEndpoint)
-              }
-              await loadBuildManifest('_app')
-              await loadPagesManifest('_app')
-
-              if (globalEntries.document) {
-                const writtenEndpoint = await processResult(
-                  '_document',
-                  await globalEntries.document.writeToDisk()
-                )
-
-                changeSubscription('_document', globalEntries.document, () => {
-                  return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-                })
-                processIssues('_document', '_document', writtenEndpoint)
-              }
-              await loadPagesManifest('_document')
-
-              const writtenEndpoint = await processResult(
-                page,
-                await route.htmlEndpoint.writeToDisk()
-              )
-
-              changeSubscription(
-                page,
-                route.dataEndpoint,
-                (pageName, change) => {
-                  switch (change.type) {
-                    case ServerClientChangeType.Server:
-                    case ServerClientChangeType.Both:
-                      return {
-                        event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
-                        pages: [pageName],
-                      }
-                    default:
-                  }
+              try {
+                if (globalEntries.app) {
+                  const writtenEndpoint = await processResult(
+                    '_app',
+                    await globalEntries.app.writeToDisk()
+                  )
+                  processIssues('_app', '_app', writtenEndpoint)
                 }
-              )
+                await loadBuildManifest('_app')
+                await loadPagesManifest('_app')
 
-              const type = writtenEndpoint?.type
+                if (globalEntries.document) {
+                  const writtenEndpoint = await processResult(
+                    '_document',
+                    await globalEntries.document.writeToDisk()
+                  )
 
-              await loadBuildManifest(page)
-              await loadPagesManifest(page)
-              if (type === 'edge') {
-                await loadMiddlewareManifest(page, 'pages')
-              } else {
-                middlewareManifests.delete(page)
+                  changeSubscription(
+                    '_document',
+                    'server',
+                    false,
+                    globalEntries.document,
+                    () => {
+                      return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+                    }
+                  )
+                  processIssues('_document', '_document', writtenEndpoint)
+                }
+                await loadPagesManifest('_document')
+
+                const writtenEndpoint = await processResult(
+                  page,
+                  await route.htmlEndpoint.writeToDisk()
+                )
+
+                const type = writtenEndpoint?.type
+
+                await loadBuildManifest(page)
+                await loadPagesManifest(page)
+                if (type === 'edge') {
+                  await loadMiddlewareManifest(page, 'pages')
+                } else {
+                  middlewareManifests.delete(page)
+                }
+                await loadLoadableManifest(page, 'pages')
+
+                await writeBuildManifest(opts.fsChecker.rewrites)
+                await writeFallbackBuildManifest()
+                await writePagesManifest()
+                await writeMiddlewareManifest()
+                await writeLoadableManifest()
+
+                processIssues(page, page, writtenEndpoint)
+              } finally {
+                changeSubscription(
+                  page,
+                  'server',
+                  false,
+                  route.dataEndpoint,
+                  (pageName) => {
+                    console.log('server change', pageName)
+                    return {
+                      event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
+                      pages: [pageName],
+                    }
+                  }
+                )
+                changeSubscription(
+                  page,
+                  'client',
+                  false,
+                  route.htmlEndpoint,
+                  () => {
+                    return {
+                      event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
+                    }
+                  }
+                )
               }
-              await loadLoadableManifest(page, 'pages')
-
-              await writeBuildManifest(opts.fsChecker.rewrites)
-              await writeFallbackBuildManifest()
-              await writePagesManifest()
-              await writeMiddlewareManifest()
-              await writeLoadableManifest()
-
-              processIssues(page, page, writtenEndpoint)
 
               break
             }
@@ -1459,17 +1543,33 @@ async function startWatcher(opts: SetupOpts) {
                 await route.htmlEndpoint.writeToDisk()
               )
 
-              changeSubscription(page, route.rscEndpoint, (_page, change) => {
-                switch (change.type) {
-                  case ServerClientChangeType.Server:
-                  case ServerClientChangeType.Both:
-                    return {
-                      action:
-                        HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-                    }
-                  default:
+              changeSubscription(
+                page,
+                'server',
+                true,
+                route.rscEndpoint,
+                (_page, change) => {
+                  if (
+                    change.issues.some((issue) => issue.severity === 'error')
+                  ) {
+                    // Ignore any updates that has errors
+                    // There will be another update without errors eventually
+                    return
+                  }
+                  return {
+                    action:
+                      HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+                  }
                 }
-              })
+              )
+
+              const type = writtenEndpoint?.type
+
+              if (type === 'edge') {
+                await loadMiddlewareManifest(page, 'app')
+              } else {
+                middlewareManifests.delete(page)
+              }
 
               await loadAppBuildManifest(page)
               await loadBuildManifest(page, 'app')

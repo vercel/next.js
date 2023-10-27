@@ -76,6 +76,8 @@ async function waitForPrompt(cp, rawAssertion, timeout = 3000) {
   })
 }
 
+const SEMVER_TYPES = ['patch', 'minor', 'major']
+
 async function main() {
   const args = process.argv
   const releaseType = args[args.indexOf('--release-type') + 1]
@@ -86,9 +88,9 @@ async function main() {
     console.log(`Invalid release type ${releaseType}, must be stable or canary`)
     return
   }
-  if (!isCanary && !['patch', 'minor', 'stable'].includes(semverType)) {
+  if (!isCanary && !SEMVER_TYPES.includes(semverType)) {
     console.log(
-      `Invalid semver type ${semverType}, must be one of ${semverType.join(
+      `Invalid semver type ${semverType}, must be one of ${SEMVER_TYPES.join(
         ', '
       )}`
     )
