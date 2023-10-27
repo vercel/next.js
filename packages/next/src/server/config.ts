@@ -1074,19 +1074,18 @@ export default async function loadConfig(
     return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
-    const nonJsPath = findUp.sync(
+    const notSupportedExt = findUp.sync(
       [
         `${configBaseName}.jsx`,
-        `${configBaseName}.ts`,
         `${configBaseName}.tsx`,
         `${configBaseName}.json`,
       ],
       { cwd: dir }
     )
-    if (nonJsPath?.length) {
+    if (notSupportedExt?.length) {
       throw new Error(
         `Configuring Next.js via '${basename(
-          nonJsPath
+          notSupportedExt
         )}' is not supported. Please replace the file with 'next.config.js' or 'next.config.mjs'.`
       )
     }
