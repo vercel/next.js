@@ -834,6 +834,8 @@ function assignDefaults(
       '@mui/icons-material',
       'recharts',
       'react-use',
+      "@mantine/core",
+      "@mantine/hooks",
       '@material-ui/core',
       '@material-ui/icons',
       '@tabler/icons-react',
