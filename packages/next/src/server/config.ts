@@ -25,6 +25,7 @@ import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { version } from 'next/package.json'
+import { compileConfig } from '../build/compile-config'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -945,12 +946,16 @@ export default async function loadConfig(
     ) as NextConfigComplete
   }
 
-  const path = await findUp(CONFIG_FILES, { cwd: dir })
+  let path = await findUp(CONFIG_FILES, { cwd: dir })
 
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
     let userConfigModule: any
+
+    if (configFileName === 'next.config.ts') {
+      path = compileConfig(path)
+    }
 
     try {
       const envBefore = Object.assign({}, process.env)
