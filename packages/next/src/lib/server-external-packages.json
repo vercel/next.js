@@ -30,6 +30,7 @@
   "mongoose",
   "next-mdx-remote",
   "next-seo",
+  "node-pty",
   "payload",
   "pg",
   "playwright",
