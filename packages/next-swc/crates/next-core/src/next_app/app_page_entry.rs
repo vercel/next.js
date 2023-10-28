@@ -158,7 +158,6 @@ async fn wrap_edge_page(
     //    let server_actions_body_size_limit =
     // &next_config.experimental.server_actions.body_size_limit;
     let server_actions_body_size_limit = next_config
-        .experimental
         .server_actions
         .as_ref()
         .and_then(|sa| sa.body_size_limit.as_ref());

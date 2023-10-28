@@ -41,6 +41,7 @@ const supportedTurbopackNextConfigOptions = [
   'amp',
   'devIndicators',
   'analyticsId',
+  'serverActions',
 
   // Options that are ignored as they don't affect Turbopack
   'webpack',
@@ -78,7 +79,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.logging.fullUrl',
   'experimental.scrollRestoration',
   'experimental.forceSwcTransforms',
-  'experimental.serverActions.bodySizeLimit',
+  // 'experimental.serverActions.bodySizeLimit',
   'experimental.memoryBasedWorkersCount',
   'experimental.clientRouterFilterRedirects',
   'experimental.webpackBuildWorker',

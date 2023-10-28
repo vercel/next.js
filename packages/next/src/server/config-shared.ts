@@ -306,13 +306,6 @@ export interface ExperimentalConfig {
    */
   taint?: boolean
 
-  serverActions?: {
-    /**
-     * Allows adjusting body parser size limit for server actions.
-     */
-    bodySizeLimit?: SizeLimit
-  }
-
   /**
    * enables the minification of server code.
    */
@@ -670,6 +663,13 @@ export interface NextConfig extends Record<string, any> {
     fetches?: {
       fullUrl?: boolean
     }
+  }
+
+  serverActions?: {
+    /**
+     * Allows adjusting body parser size limit for server actions.
+     */
+    bodySizeLimit?: SizeLimit
   }
 
   /**

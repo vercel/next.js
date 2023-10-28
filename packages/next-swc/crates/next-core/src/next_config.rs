@@ -94,6 +94,7 @@ pub struct NextConfig {
     pub dev_indicators: Option<DevIndicatorsConfig>,
     pub output: Option<OutputType>,
     pub analytics_id: Option<String>,
+    pub server_actions: Option<ServerActions>,
 
     ///
     #[serde(rename = "_originalRedirects")]
@@ -442,7 +443,6 @@ pub struct ExperimentalConfig {
     pub optimize_css: Option<serde_json::Value>,
     pub next_script_workers: Option<bool>,
     pub web_vitals_attribution: Option<Vec<String>>,
-    pub server_actions: Option<ServerActions>,
     pub sri: Option<SubResourceIntegrity>,
 
     // ---

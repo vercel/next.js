@@ -490,15 +490,11 @@ function assignDefaults(
     result.output = 'standalone'
   }
 
-  if (
-    typeof result.experimental?.serverActions?.bodySizeLimit !== 'undefined'
-  ) {
-    const value = parseInt(
-      result.experimental.serverActions?.bodySizeLimit.toString()
-    )
+  if (typeof result.serverActions?.bodySizeLimit !== 'undefined') {
+    const value = parseInt(result.serverActions?.bodySizeLimit.toString())
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
+        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation'
       )
     }
   }

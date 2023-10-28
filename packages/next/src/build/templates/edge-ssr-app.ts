@@ -10,6 +10,7 @@ import type { DocumentType } from '../../shared/lib/utils'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { RequestData } from '../../server/web/types'
 import type { NextConfigComplete } from '../../server/config-shared'
+import type { SizeLimit } from '../../../types'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -23,7 +24,7 @@ const error500Mod = null
 declare const sriEnabled: boolean
 declare const isServerComponent: boolean
 declare const dev: boolean
-declare const serverActionsBodySizeLimit: any
+declare const serverActionsBodySizeLimit: SizeLimit
 declare const nextConfig: NextConfigComplete
 // INJECT:sriEnabled
 // INJECT:isServerComponent
