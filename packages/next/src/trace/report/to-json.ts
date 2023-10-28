@@ -140,7 +140,10 @@ const reportToLocalHost = (event: TraceEvent) => {
     })
   }
 
-  batch.report(event)
+  batch.report({
+    ...event,
+    traceId,
+  })
 }
 
 export default {
