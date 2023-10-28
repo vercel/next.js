@@ -26,9 +26,7 @@ createNextDescribe(
         'next.config.js',
         `
       module.exports = {
-        experimental: {
-          serverActions: { bodySizeLimit: -3000 }
-        },
+        serverActions: { bodySizeLimit: -3000 }
       }
       `
       )
@@ -44,9 +42,7 @@ createNextDescribe(
         'next.config.js',
         `
       module.exports = {
-        experimental: {
-          serverActions: { bodySizeLimit: 'testmb' }
-        },
+        serverActions: { bodySizeLimit: 'testmb' }
       }
       `
       )
@@ -62,9 +58,7 @@ createNextDescribe(
         'next.config.js',
         `
       module.exports = {
-        experimental: {
-          serverActions: { bodySizeLimit: '-3000mb' }
-        },
+        serverActions: { bodySizeLimit: '-3000mb' }
       }
       `
       )
@@ -81,9 +75,7 @@ createNextDescribe(
           'next.config.js',
           `
       module.exports = {
-        experimental: {
-          serverActions: { bodySizeLimit: '1.5mb' }
-        },
+        serverActions: { bodySizeLimit: '1.5mb' }
       }
       `
         )
