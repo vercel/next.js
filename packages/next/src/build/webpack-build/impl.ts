@@ -21,15 +21,19 @@ import {
 } from '../build-context'
 import { createEntrypoints } from '../entries'
 import loadConfig from '../../server/config'
-import { getTraceEvents, trace, type SpanId } from '../../trace'
+import {
+  getTraceEvents,
+  initializeTraceState,
+  trace,
+  type TraceEvent,
+  type TraceState,
+} from '../../trace'
 import { WEBPACK_LAYERS } from '../../lib/constants'
 import { TraceEntryPointsPlugin } from '../webpack/plugins/next-trace-entrypoints-plugin'
 import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import origDebug from 'next/dist/compiled/debug'
-import type { TraceEvent, TraceState } from '../../trace/types'
-import { initializeTraceState } from '../../trace/trace'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -61,7 +65,6 @@ export async function webpackBuildImpl(
   duration: number
   pluginState: any
   buildTraceContext?: BuildTraceContext
-  debugTraceEvents?: TraceEvent[]
 }> {
   let result: CompilerResult | null = {
     warnings: [],
@@ -335,9 +338,16 @@ export async function workerMain(workerData: {
   compilerName: keyof typeof COMPILER_INDEXES
   buildContext: typeof NextBuildContext
   traceState: TraceState
-}) {
+}): Promise<
+  Awaited<ReturnType<typeof webpackBuildImpl>> & {
+    debugTraceEvents: TraceEvent[]
+  }
+> {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
+
+  // Initialize tracer state from the parent
+  initializeTraceState(workerData.traceState)
 
   // Resume plugin state
   resumePluginState(NextBuildContext.pluginState)
@@ -347,7 +357,6 @@ export async function workerMain(workerData: {
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!
   )
-  initializeTraceState(workerData.traceState)
   NextBuildContext.nextBuildSpan = trace('next-build')
 
   const result = await webpackBuildImpl(workerData.compilerName)
@@ -366,7 +375,5 @@ export async function workerMain(workerData: {
     const entryNameFilesMap = chunksTrace.entryNameFilesMap
     result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
   }
-  result.debugTraceEvents = getTraceEvents()
-  // console.log(JSON.stringify(getTraceEvents(), null, 2))
-  return result
+  return { ...result, debugTraceEvents: getTraceEvents() }
 }
