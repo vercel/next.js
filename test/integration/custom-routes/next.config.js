@@ -17,7 +17,8 @@ module.exports = {
           : []),
         {
           source: '/to-websocket',
-          destination: 'http://localhost:62765/_next/webpack-hmr?page=/about',
+          destination:
+            'http://localhost:__EXTERNAL_PORT__/_next/webpack-hmr?page=/about',
         },
         {
           source: '/websocket-to-page',
@@ -93,7 +94,7 @@ module.exports = {
         },
         {
           source: '/proxy-me/:path*',
-          destination: 'http://localhost:62765/:path*',
+          destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
         },
         {
           source: '/api-hello',
