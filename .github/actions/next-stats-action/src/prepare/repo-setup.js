@@ -190,13 +190,17 @@ module.exports = (actionInfo) => {
               }
             }
 
-            const { stdout } = await execa('pnpm', ['pack'], {
-              cwd: pkgPath,
-              env: {
-                ...process.env,
-                COREPACK_ENABLE_STRICT: '0',
-              },
-            })
+            const { stdout } = await execa(
+              'pnpm',
+              ['pack', '--pack-gzip-level=0'],
+              {
+                cwd: pkgPath,
+                env: {
+                  ...process.env,
+                  COREPACK_ENABLE_STRICT: '0',
+                },
+              }
+            )
 
             return Promise.all([
               fs.rename(path.resolve(pkgPath, stdout.trim()), packedPkgPath),
