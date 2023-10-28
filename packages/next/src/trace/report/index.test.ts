@@ -48,6 +48,7 @@ describe('Trace Reporter', () => {
       expect(traces[0].name).toEqual('test-span')
       expect(traces[0].id).toEqual(127)
       expect(traces[0].duration).toEqual(321)
+      expect(traces[0].traceId).toBeDefined()
     })
   })
 
