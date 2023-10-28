@@ -2,8 +2,8 @@
 
 This is an example of how to use [Inngest](https://inngest.com) to easily add durable work flows to your Next.js application. It keeps things simple:
 
-- bare bones examples with a single button UI that triggers an event
-- runs the Inngest dev server locally for immediate feedback
+- Bare bones examples with a single button UI that triggers an event
+- Runs the Inngest dev server locally for immediate feedback
 
 ## Deploy your own
 
