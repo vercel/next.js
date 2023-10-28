@@ -132,8 +132,11 @@ export interface RenderOptsPartial {
     rawConfig?: boolean,
     silent?: boolean
   ) => Promise<NextConfigComplete>
-  serverActionsBodySizeLimit?: SizeLimit
-  allowedForwardedHosts?: string[]
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedForwardingHosts?: string[]
+  }
+  allowedForwardingHosts?: string[]
   params?: ParsedUrlQuery
   isPrefetch?: boolean
   ppr: boolean

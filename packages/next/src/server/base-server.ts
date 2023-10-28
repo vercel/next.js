@@ -244,8 +244,10 @@ type BaseRenderOpts = {
   supportsDynamicHTML?: boolean
   isBot?: boolean
   clientReferenceManifest?: ClientReferenceManifest
-  serverActionsBodySizeLimit?: SizeLimit
-  allowedForwardedHosts?: string[]
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedForwardingHosts?: string[]
+  }
   serverActionsManifest?: any
   nextFontManifest?: NextFontManifest
   renderServerComponentData?: boolean
@@ -2091,11 +2093,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               incrementalCache,
               isRevalidate: isSSG,
               originalPathname: components.ComponentMod.originalPathname,
-              serverActionsBodySizeLimit:
-                this.nextConfig.experimental.serverActions?.bodySizeLimit,
-              allowedForwardedHosts:
-                this.nextConfig.experimental.serverActions
-                  ?.allowedForwardedHosts,
+              serverActions: this.nextConfig.experimental.serverActions,
             }
           : {}),
         isDataReq,

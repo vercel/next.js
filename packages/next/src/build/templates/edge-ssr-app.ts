@@ -23,14 +23,12 @@ const error500Mod = null
 declare const sriEnabled: boolean
 declare const isServerComponent: boolean
 declare const dev: boolean
-declare const serverActionsBodySizeLimit: any
-declare const allowedForwardedHosts: any
+declare const serverActions: any
 declare const nextConfig: NextConfigComplete
 // INJECT:sriEnabled
 // INJECT:isServerComponent
 // INJECT:dev
-// INJECT:serverActionsBodySizeLimit
-// INJECT:allowedForwardedHosts
+// INJECT:serverActions
 // INJECT:nextConfig
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
@@ -60,10 +58,7 @@ const render = getRender({
   reactLoadableManifest,
   clientReferenceManifest: isServerComponent ? rscManifest : null,
   serverActionsManifest: isServerComponent ? rscServerManifest : null,
-  serverActionsBodySizeLimit: isServerComponent
-    ? serverActionsBodySizeLimit
-    : undefined,
-  allowedForwardedHosts: isServerComponent ? allowedForwardedHosts : undefined,
+  serverActions: isServerComponent ? serverActions : undefined,
   subresourceIntegrityManifest,
   config: nextConfig,
   buildId: 'VAR_BUILD_ID',

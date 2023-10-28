@@ -317,7 +317,7 @@ export interface ExperimentalConfig {
      * @example
      * ["my-reverse-proxy.com"]
      */
-    allowedForwardedHosts?: string[]
+    allowedForwardingHosts?: string[]
   }
 
   /**

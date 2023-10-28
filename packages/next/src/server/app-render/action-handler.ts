@@ -216,9 +216,8 @@ export async function handleAction({
   generateFlight,
   staticGenerationStore,
   requestStore,
-  serverActionsBodySizeLimit,
+  serverActions,
   ctx,
-  allowedForwardedHosts = [],
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -233,9 +232,11 @@ export async function handleAction({
   generateFlight: GenerateFlight
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedForwardingHosts?: string[]
+  }
   ctx: AppRenderContext
-  allowedForwardedHosts?: string[]
 }): Promise<
   | undefined
   | {
@@ -281,7 +282,10 @@ export async function handleAction({
   } else if (!host || originHostname !== host) {
     // If the customer sets a list of allowed hosts, we'll allow the request.
     // These can be their reverse proxies or other safe hosts.
-    if (typeof host === 'string' && allowedForwardedHosts.includes(host)) {
+    if (
+      typeof host === 'string' &&
+      serverActions?.allowedForwardingHosts?.includes(host)
+    ) {
       // Ignore it
     } else {
       // This is an attack. We should not proceed the action.
@@ -429,15 +433,14 @@ export async function handleAction({
 
           const actionData = Buffer.concat(chunks).toString('utf-8')
 
-          const limit = require('next/dist/compiled/bytes').parse(
-            serverActionsBodySizeLimit ?? '1mb'
-          )
+          const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
+          const limit = require('next/dist/compiled/bytes').parse(readableLimit)
 
           if (actionData.length > limit) {
             const { ApiError } = require('../api-utils')
             throw new ApiError(
               413,
-              `Body exceeded ${serverActionsBodySizeLimit} limit.
+              `Body exceeded ${readableLimit} limit.
 To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation`
             )
           }

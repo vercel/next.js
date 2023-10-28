@@ -409,8 +409,7 @@ async function renderToHTMLOrFlightImpl(
     dev,
     nextFontManifest,
     supportsDynamicHTML,
-    serverActionsBodySizeLimit,
-    allowedForwardedHosts,
+    serverActions,
     buildId,
     appDirDevErrorLogger,
     assetPrefix = '',
@@ -956,9 +955,8 @@ async function renderToHTMLOrFlightImpl(
     generateFlight,
     staticGenerationStore: staticGenerationStore,
     requestStore: requestStore,
-    serverActionsBodySizeLimit,
+    serverActions,
     ctx,
-    allowedForwardedHosts,
   })
 
   let formState: null | any = null

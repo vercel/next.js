@@ -273,8 +273,11 @@ export type RenderOptsPartial = {
   isBot?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
-  serverActionsBodySizeLimit?: SizeLimit
-  allowedForwardedHosts?: string[]
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedForwardingHosts?: string[]
+  }
+  allowedForwardingHosts?: string[]
   customServer?: boolean
   crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   images: ImageConfigComplete

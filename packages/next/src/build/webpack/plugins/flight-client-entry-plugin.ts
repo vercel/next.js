@@ -40,7 +40,6 @@ interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
-  serverActionsBodySizeLimit?: SizeLimit
 }
 
 const PLUGIN_NAME = 'FlightClientEntryPlugin'
@@ -160,14 +159,12 @@ export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
-  serverActionsBodySizeLimit?: SizeLimit
   assetPrefix: string
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
-    this.serverActionsBodySizeLimit = options.serverActionsBodySizeLimit
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
   }
 

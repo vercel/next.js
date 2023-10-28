@@ -251,8 +251,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
         esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
-        serverActionsBodySizeLimit: zSizeLimit.optional(),
-        allowedForwardedHosts: z.array(z.string()).optional(),
+        serverActions: z
+          .object({
+            bodySizeLimit: zSizeLimit.optional(),
+            allowedForwardingHosts: z.array(z.string()).optional(),
+          })
+          .optional(),
+        allowedForwardingHosts: z.array(z.string()).optional(),
         // The original type was Record<string, any>
         extensionAlias: z.record(z.string(), z.any()).optional(),
         externalDir: z.boolean().optional(),
