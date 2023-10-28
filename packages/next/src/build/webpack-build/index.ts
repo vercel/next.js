@@ -6,7 +6,7 @@ import { Worker } from 'next/dist/compiled/jest-worker'
 import origDebug from 'next/dist/compiled/debug'
 import type { ChildProcess } from 'child_process'
 import path from 'path'
-import { exportTraceState } from '../../trace/trace'
+import { exportTraceState, recordTracesFromWorker } from '../../trace'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -86,16 +86,8 @@ async function webpackBuildWithWorker(
       compilerName,
       traceState: exportTraceState(),
     })
-    if (curResult.debugTraceEvents) {
-      for (const traceEvent of curResult.debugTraceEvents) {
-        const startTime = BigInt(traceEvent.startTime! * 1000)
-        nextBuildSpan?.manualTraceChild(
-          traceEvent.name,
-          startTime,
-          BigInt(traceEvent.startTime! * 1000 + traceEvent.duration * 1000),
-          traceEvent.tags
-        )
-      }
+    if (nextBuildSpan && curResult.debugTraceEvents) {
+      recordTracesFromWorker(nextBuildSpan, curResult.debugTraceEvents)
     }
     // destroy worker so it's not sticking around using memory
     await worker.end()
