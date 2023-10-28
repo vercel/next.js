@@ -23,9 +23,15 @@ describe('Trace Reporter', () => {
   describe('Multireporter', () => {
     it('should keep track of all the trace events', () => {
       reporter.report(TRACE_EVENT)
+      reporter.report(WEBPACK_INVALIDATED_EVENT)
       const traceEvents = reporter.getTraceEvents()
-      expect(traceEvents.length).toEqual(1)
-      expect(traceEvents[0].name).toEqual('test-span')
+      expect(traceEvents.length).toEqual(2)
+      const firstEvent = traceEvents[0]
+      expect(firstEvent.name).toEqual('test-span')
+      expect(firstEvent.id).toEqual(127)
+      const secondEvent = traceEvents[1]
+      expect(secondEvent.name).toEqual('webpack-invalidated')
+      expect(secondEvent.id).toEqual(112)
     })
   })
 
@@ -40,6 +46,8 @@ describe('Trace Reporter', () => {
       const traces = JSON.parse(await readFile(traceFilename, 'utf-8'))
       expect(traces.length).toEqual(1)
       expect(traces[0].name).toEqual('test-span')
+      expect(traces[0].id).toEqual(127)
+      expect(traces[0].duration).toEqual(321)
     })
   })
 

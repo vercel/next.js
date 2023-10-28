@@ -1,6 +1,6 @@
+import type { TraceEvent } from '../types'
 import reportToTelemetry from './to-telemetry'
 import reportToJson from './to-json'
-import type { TraceEvent } from '../types'
 import type { Reporter } from './types'
 
 class MultiReporter implements Reporter {
