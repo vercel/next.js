@@ -1,5 +1,5 @@
-import type { SpanId } from './shared'
 import { reporter } from './report'
+import type { SpanId, TraceEvent, TraceState } from './types'
 
 const NUM_OF_MICROSEC_IN_NANOSEC = BigInt('1000')
 let count = 0
@@ -66,15 +66,15 @@ export class Span {
       throw new Error(`Duration is too long to express as float64: ${duration}`)
     }
     const timestamp = this._start / NUM_OF_MICROSEC_IN_NANOSEC
-    reporter.report(
-      this.name,
-      Number(duration),
-      Number(timestamp),
-      this.id,
-      this.parentId,
-      this.attrs,
-      this.now
-    )
+    reporter.report({
+      name: this.name,
+      duration: Number(duration),
+      timestamp: Number(timestamp),
+      id: this.id,
+      parentId: this.parentId,
+      tags: this.attrs,
+      startTime: this.now,
+    })
   }
 
   traceChild(name: string, attrs?: Object) {
@@ -122,4 +122,22 @@ export const trace = (
   return new Span({ name, parentId, attrs })
 }
 
+export function recordTracesFromWorker(parentSpan: Span, events: TraceEvent[]) {
+  for (const traceEvent of events) {
+    const startTime = BigInt(traceEvent.startTime! * 1000)
+    parentSpan.manualTraceChild(
+      traceEvent.name,
+      startTime,
+      BigInt(traceEvent.startTime! * 1000 + traceEvent.duration * 1000),
+      traceEvent.tags
+    )
+  }
+}
+
 export const flushAllTraces = () => reporter.flushAll()
+export const clearTraceEvents = () => reporter.clearTraceEvents()
+export const getTraceEvents = () => reporter.getTraceEvents()
+export const exportTraceState = (): TraceState => ({ lastId: count })
+export const initializeTraceState = (state: TraceState) => {
+  count = state.lastId
+}
