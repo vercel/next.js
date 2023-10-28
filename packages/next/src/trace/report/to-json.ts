@@ -174,7 +174,7 @@ export default {
           const phase = traceGlobals.get('phase')
           // Only end writeStream when manually flushing in production
           if (phase !== PHASE_DEVELOPMENT_SERVER) {
-            writeStream.end()
+            return writeStream.end()
           }
         })
       : undefined,
