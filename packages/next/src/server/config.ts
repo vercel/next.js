@@ -494,7 +494,7 @@ function assignDefaults(
     const value = parseInt(result.serverActions?.bodySizeLimit.toString())
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation'
+        'Server Actions Size Limit must be a valid number or filesize format lager than 1mb: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation'
       )
     }
   }
