@@ -1,29 +1,34 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'fs'
+import { writeFile, readFile, mkdir } from 'fs/promises'
 import { join } from 'path'
-import { transformSync } from './swc'
+import { transform } from './swc'
 
-export function compileConfig({
+export async function compileConfig({
   configPath,
   cwd,
 }: {
   configPath: string
   cwd: string
-}): string {
-  const content = readFileSync(configPath, 'utf-8')
-  const compiledFilePath = join(cwd, '.next', 'next.config.mjs')
+}): Promise<string> {
+  const compiledConfigPath = join(cwd, '.next', 'next.config.mjs')
 
-  const compiled = transformSync(content, {
-    jsc: {
-      target: 'esnext',
-      parser: {
-        syntax: 'typescript',
+  try {
+    const config = await readFile(configPath, 'utf-8')
+    const { code } = await transform(config, {
+      jsc: {
+        target: 'esnext',
+        parser: {
+          syntax: 'typescript',
+        },
       },
-    },
-    minify: true,
-  })
+      minify: true,
+    })
 
-  mkdirSync(join(cwd, '.next'), { recursive: true })
-  writeFileSync(compiledFilePath, compiled.code)
+    await mkdir(join(cwd, '.next'), { recursive: true })
+    await writeFile(compiledConfigPath, code, 'utf-8')
 
-  return compiledFilePath
+    return compiledConfigPath
+  } catch (error) {
+    console.error(`Failed to compile next.config.ts: ${error}`)
+    throw error
+  }
 }

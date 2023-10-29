@@ -954,7 +954,7 @@ export default async function loadConfig(
     let userConfigModule: any
 
     if (configFileName === 'next.config.ts') {
-      path = compileConfig({ configPath: path as string, cwd: dir })
+      path = await compileConfig({ configPath: path as string, cwd: dir })
     }
 
     try {
