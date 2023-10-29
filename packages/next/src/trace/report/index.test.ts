@@ -20,21 +20,6 @@ const WEBPACK_INVALIDATED_EVENT = {
 }
 
 describe('Trace Reporter', () => {
-  describe('Multireporter', () => {
-    it('should keep track of all the trace events', () => {
-      reporter.report(TRACE_EVENT)
-      reporter.report(WEBPACK_INVALIDATED_EVENT)
-      const traceEvents = reporter.getTraceEvents()
-      expect(traceEvents.length).toEqual(2)
-      const firstEvent = traceEvents[0]
-      expect(firstEvent.name).toEqual('test-span')
-      expect(firstEvent.id).toEqual(127)
-      const secondEvent = traceEvents[1]
-      expect(secondEvent.name).toEqual('webpack-invalidated')
-      expect(secondEvent.id).toEqual(112)
-    })
-  })
-
   describe('JSON reporter', () => {
     it('should write the trace events to JSON file', async () => {
       const tmpDir = await mkdtemp(join(tmpdir(), 'json-reporter'))

@@ -4,7 +4,7 @@ import {
   flushAllTraces,
   getTraceEvents,
   initializeTraceState,
-  recordTracesFromWorker,
+  recordTraceEvents,
   Span,
   SpanStatus,
 } from './trace'
@@ -17,7 +17,7 @@ export {
   flushAllTraces,
   getTraceEvents,
   initializeTraceState,
-  recordTracesFromWorker,
+  recordTraceEvents,
   Span,
   setGlobal,
   SpanStatus,

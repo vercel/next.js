@@ -357,7 +357,9 @@ export async function workerMain(workerData: {
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!
   )
-  NextBuildContext.nextBuildSpan = trace('next-build')
+  NextBuildContext.nextBuildSpan = trace(
+    `worker-main-${workerData.compilerName}`
+  )
 
   const result = await webpackBuildImpl(workerData.compilerName)
   const { entriesTrace, chunksTrace } = result.buildTraceContext ?? {}
@@ -375,5 +377,6 @@ export async function workerMain(workerData: {
     const entryNameFilesMap = chunksTrace.entryNameFilesMap
     result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
   }
+  NextBuildContext.nextBuildSpan.stop()
   return { ...result, debugTraceEvents: getTraceEvents() }
 }

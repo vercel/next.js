@@ -4,7 +4,6 @@ import reportToJson from './to-json'
 import type { Reporter } from './types'
 
 class MultiReporter implements Reporter {
-  private events: TraceEvent[] = []
   private reporters: Reporter[] = []
 
   constructor(reporters: Reporter[]) {
@@ -15,16 +14,7 @@ class MultiReporter implements Reporter {
     await Promise.all(this.reporters.map((reporter) => reporter.flushAll()))
   }
 
-  getTraceEvents() {
-    return this.events
-  }
-
-  clearTraceEvents() {
-    this.events = []
-  }
-
   report(event: TraceEvent) {
-    this.events.push(event)
     this.reporters.forEach((reporter) => reporter.report(event))
   }
 }

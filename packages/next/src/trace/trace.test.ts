@@ -1,18 +1,17 @@
-import { reporter } from './report'
 import {
   clearTraceEvents,
   exportTraceState,
   getTraceEvents,
   initializeTraceState,
-  recordTracesFromWorker,
+  recordTraceEvents,
   trace,
 } from './trace'
-import type { TraceEvent, TraceState } from './types'
 
 describe('Trace', () => {
   beforeEach(() => {
     initializeTraceState({
       lastId: 0,
+      shouldSaveTraceEvents: true,
     })
     clearTraceEvents()
   })
@@ -28,9 +27,11 @@ describe('Trace', () => {
         await delayedPromise
       })
       root.stop()
-      const traceEvents = reporter.getTraceEvents()
+      const traceEvents = getTraceEvents()
       expect(traceEvents.length).toEqual(3)
     })
+
+    // TODO: Check serialized JSON format to ensure wire compatibility.
   })
 
   describe('Worker', () => {
@@ -57,6 +58,87 @@ describe('Trace', () => {
       // objects like BigInt.
       const clone = JSON.parse(JSON.stringify(traceEvents))
       expect(clone).toEqual(traceEvents)
+    })
+
+    it('correctly reports trace data from multiple workers', () => {
+      // This test simulates workers creating traces and propagating them
+      // back to the main process for recording. It doesn't use
+      // actual workers since they are more difficult to set up in tests.
+      initializeTraceState({
+        lastId: 5,
+        defaultParentSpanId: 1,
+        shouldSaveTraceEvents: true,
+      })
+      const worker1Span = trace('worker1')
+      worker1Span.traceChild('webpack-compilation1').traceFn(() => null)
+      worker1Span.stop()
+      const worker1Traces = getTraceEvents()
+      expect(worker1Traces.length).toEqual(2)
+
+      // Repeat for a second worker.
+      clearTraceEvents()
+      initializeTraceState({
+        lastId: 10,
+        defaultParentSpanId: 1,
+        shouldSaveTraceEvents: true,
+      })
+      const worker2Span = trace('worker2')
+      worker2Span.traceChild('webpack-compilation2').traceFn(() => null)
+      worker2Span.stop()
+      const worker2Traces = getTraceEvents()
+      expect(worker2Traces.length).toEqual(2)
+
+      // Now simulate the traces in the main process and record the traces
+      // from each worker.
+      clearTraceEvents()
+      initializeTraceState({
+        lastId: 0,
+        shouldSaveTraceEvents: true,
+      })
+      const root = trace('next-build')
+      root.traceChild('some-child-span').traceFn(() => null)
+      recordTraceEvents(worker1Traces)
+      expect(exportTraceState().lastId).toEqual(8)
+      recordTraceEvents(worker2Traces)
+      expect(exportTraceState().lastId).toEqual(13)
+      root.traceChild('another-child-span').traceFn(() => null)
+      root.stop()
+
+      // Check that the final output looks correct.
+      const allTraces = getTraceEvents()
+      expect(allTraces.length).toEqual(7)
+      const firstSpan = allTraces[0]
+      expect(firstSpan.name).toEqual('some-child-span')
+      expect(firstSpan.id).toEqual(2)
+      expect(firstSpan.parentId).toEqual(1)
+
+      const worker1Child = allTraces[1]
+      expect(worker1Child.name).toEqual('webpack-compilation1')
+      expect(worker1Child.id).toEqual(7)
+      expect(worker1Child.parentId).toEqual(6)
+      const worker1Root = allTraces[2]
+      expect(worker1Root.name).toEqual('worker1')
+      expect(worker1Root.id).toEqual(6)
+      expect(worker1Root.parentId).toEqual(1)
+
+      const worker2Child = allTraces[3]
+      expect(worker2Child.name).toEqual('webpack-compilation2')
+      expect(worker2Child.id).toEqual(12)
+      expect(worker2Child.parentId).toEqual(11)
+      const worker2Root = allTraces[4]
+      expect(worker2Root.name).toEqual('worker2')
+      expect(worker2Root.id).toEqual(11)
+      expect(worker2Root.parentId).toEqual(1)
+
+      const lastChildSpan = allTraces[5]
+      expect(lastChildSpan.name).toEqual('another-child-span')
+      expect(lastChildSpan.id).toEqual(14)
+      expect(lastChildSpan.parentId).toEqual(1)
+
+      const rootSpan = allTraces[6]
+      expect(rootSpan.name).toEqual('next-build')
+      expect(rootSpan.id).toEqual(1)
+      expect(rootSpan.parentId).toBeUndefined()
     })
   })
 })
