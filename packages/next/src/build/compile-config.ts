@@ -14,11 +14,12 @@ export function compileConfig({
 
   const compiled = transformSync(content, {
     jsc: {
-      target: 'es5',
+      target: 'esnext',
       parser: {
         syntax: 'typescript',
       },
     },
+    minify: true,
   })
 
   mkdirSync(join(cwd, '.next'), { recursive: true })
