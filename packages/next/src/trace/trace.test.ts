@@ -1,6 +1,11 @@
+import { mkdtemp, readFile } from 'fs/promises'
+import { join } from 'path'
+import { tmpdir } from 'os'
+import { setGlobal } from './shared'
 import {
   clearTraceEvents,
   exportTraceState,
+  flushAllTraces,
   getTraceEvents,
   initializeTraceState,
   recordTraceEvents,
@@ -18,7 +23,13 @@ describe('Trace', () => {
 
   describe('Tracer', () => {
     it('traces a block of code', async () => {
-      const root = trace('root-span')
+      const tmpDir = await mkdtemp(join(tmpdir(), 'json-reporter'))
+      setGlobal('distDir', tmpDir)
+      setGlobal('phase', 'anything')
+
+      const root = trace('root-span', undefined, {
+        'some-tag': 'some-value',
+      })
       root.traceChild('child-span').traceFn(() => null)
       await root.traceChild('async-child-span').traceAsyncFn(async () => {
         const delayedPromise = new Promise((resolve) => {
@@ -29,9 +40,47 @@ describe('Trace', () => {
       root.stop()
       const traceEvents = getTraceEvents()
       expect(traceEvents.length).toEqual(3)
-    })
+      expect(traceEvents[0].name).toEqual('child-span')
+      expect(traceEvents[1].name).toEqual('async-child-span')
+      expect(traceEvents[2].name).toEqual('root-span')
 
-    // TODO: Check serialized JSON format to ensure wire compatibility.
+      // Check that the serialized .next/trace file looks correct.
+      await flushAllTraces()
+      const traceFilename = join(tmpDir, 'trace')
+      const serializedTraces = JSON.parse(
+        await readFile(traceFilename, 'utf-8')
+      )
+      expect(serializedTraces).toMatchObject([
+        {
+          id: 2,
+          name: 'child-span',
+          parentId: 1,
+          startTime: expect.any(Number),
+          timestamp: expect.any(Number),
+          duration: expect.any(Number),
+          tags: {},
+        },
+        {
+          id: 3,
+          name: 'async-child-span',
+          parentId: 1,
+          startTime: expect.any(Number),
+          timestamp: expect.any(Number),
+          duration: expect.any(Number),
+          tags: {},
+        },
+        {
+          id: 1,
+          name: 'root-span',
+          startTime: expect.any(Number),
+          timestamp: expect.any(Number),
+          duration: expect.any(Number),
+          tags: {
+            'some-tag': 'some-value',
+          },
+        },
+      ])
+    })
   })
 
   describe('Worker', () => {
