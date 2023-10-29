@@ -357,12 +357,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             memoryLimit: z.number().int().optional(),
           })
           .optional(),
-        logging: z
-          .object({
-            level: z.literal('verbose').optional(),
-            fullUrl: z.boolean().optional(),
-          })
-          .optional(),
         serverMinification: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
         bundlePagesExternals: z.boolean().optional(),
@@ -456,6 +450,15 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         loaderFile: z.string().optional(),
         minimumCacheTTL: z.number().int().gte(0).optional(),
         path: z.string().optional(),
+      })
+      .optional(),
+    logging: z
+      .object({
+        fetches: z
+          .object({
+            fullUrl: z.boolean().optional(),
+          })
+          .optional(),
       })
       .optional(),
     modularizeImports: z
