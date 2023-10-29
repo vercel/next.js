@@ -1002,7 +1002,7 @@ export default async function loadConfig(
         const [errorMessages, shouldExit] = normalizeZodErrors(state.error)
         // ident list item
         for (const error of errorMessages) {
-          messages.push(`    ${error}`)
+          messages.push(`${error}`)
         }
 
         // error message footer
