@@ -2,6 +2,8 @@ export type SpanId = number
 
 export interface TraceState {
   lastId: number
+  defaultParentSpanId?: SpanId
+  shouldSaveTraceEvents?: boolean
 }
 
 export type TraceEvent = {
