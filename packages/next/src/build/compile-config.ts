@@ -1,13 +1,15 @@
-import { writeFile, readFile, mkdir } from 'fs/promises'
 import { join } from 'path'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { transform } from './swc'
 
 export async function compileConfig({
   configPath,
   cwd,
+  log,
 }: {
   configPath: string
   cwd: string
+  log: any
 }): Promise<string> {
   const compiledConfigPath = join(cwd, '.next', 'next.config.mjs')
 
@@ -28,7 +30,7 @@ export async function compileConfig({
 
     return compiledConfigPath
   } catch (error) {
-    console.error(`Failed to compile next.config.ts: ${error}`)
+    log.error(`Failed to compile next.config.ts`)
     throw error
   }
 }

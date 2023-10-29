@@ -954,7 +954,11 @@ export default async function loadConfig(
     let userConfigModule: any
 
     if (configFileName === 'next.config.ts') {
-      path = await compileConfig({ configPath: path as string, cwd: dir })
+      path = await compileConfig({
+        configPath: path as string,
+        cwd: dir,
+        log: curLog,
+      })
     }
 
     try {
@@ -984,6 +988,7 @@ export default async function loadConfig(
         return userConfigModule
       }
     } catch (err) {
+      // TODO: Modify docs to add cases of failing next.config.ts transformation
       curLog.error(
         `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
       )
