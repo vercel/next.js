@@ -1,3 +1,3 @@
-export default function Index() {
-  return <p className="title">Static route</p>
+export default function Home() {
+  return <h1>Hello World!</h1>
 }

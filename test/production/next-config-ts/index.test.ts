@@ -8,9 +8,10 @@ createNextDescribe(
     files: join(__dirname, './app'),
   },
   ({ next }) => {
-    it('should have built and started', async () => {
-      const response = await next.fetch('/')
-      expect(response.status).toBe(200)
+    it('should build and start successfully', async () => {
+      const browser = await next.browser('/')
+      const text = await browser.elementByCss('h1').text()
+      expect(text).toBe('Hello World!')
     })
   }
 )
