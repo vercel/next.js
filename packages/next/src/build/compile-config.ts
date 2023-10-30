@@ -2,6 +2,25 @@ import { join } from 'path'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { transform } from './swc'
 
+async function getModuleType(
+  cwd: string,
+  log: any
+): Promise<string | undefined> {
+  try {
+    const tsconfig = await import(join(cwd, 'tsconfig.json'), {
+      assert: { type: 'json' },
+    })
+
+    // We do not verify typescript setup here
+    // If missing any of the required options, we will proceed with esm
+    // If missing a tsconfig.json, we will throw an error
+    return tsconfig?.default.compilerOptions?.module?.toLowerCase()
+  } catch (error) {
+    log.error(`Failed to read tsconfig.json`)
+    throw error
+  }
+}
+
 export async function compileConfig({
   configPath,
   cwd,
@@ -11,11 +30,19 @@ export async function compileConfig({
   cwd: string
   log: any
 }): Promise<string> {
-  const compiledConfigPath = join(cwd, '.next', 'next.config.mjs')
-
   try {
     const config = await readFile(configPath, 'utf-8')
+    const module = await getModuleType(cwd, log)
+    const isCommonJS = module === 'commonjs'
+    const compiledConfigPath = join(
+      cwd,
+      '.next',
+      `next.config.${isCommonJS ? 'js' : 'mjs'}`
+    )
     const { code } = await transform(config, {
+      module: {
+        type: isCommonJS ? 'commonjs' : 'es6',
+      },
       jsc: {
         target: 'esnext',
         parser: {
