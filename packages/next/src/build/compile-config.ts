@@ -33,15 +33,10 @@ export async function compileConfig({
   try {
     const config = await readFile(configPath, 'utf-8')
     const module = await getModuleType(cwd, log)
-    const isCommonJS = module === 'commonjs'
-    const compiledConfigPath = join(
-      cwd,
-      '.next',
-      `next.config.${isCommonJS ? 'js' : 'mjs'}`
-    )
+    const compiledConfigPath = join(cwd, '.next', `next.config.mjs`)
     const { code } = await transform(config, {
       module: {
-        type: isCommonJS ? 'commonjs' : 'es6',
+        type: module === 'commonjs' ? 'commonjs' : 'es6',
       },
       jsc: {
         target: 'esnext',
