@@ -1,11 +1,14 @@
 import { join } from 'path'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { transform } from './swc'
-import type * as Log from './output/log'
+
+type Log = {
+  error: (...args: any[]) => void
+}
 
 async function getModuleType(
   cwd: string,
-  log: Pick<typeof Log, 'error'>
+  log: Log
 ): Promise<string | undefined> {
   try {
     const tsconfig = await import(join(cwd, 'tsconfig.json'), {
@@ -29,20 +32,20 @@ export async function compileConfig({
 }: {
   configPath: string
   cwd: string
-  log: Pick<typeof Log, 'error'>
+  log: Log
 }): Promise<string> {
   try {
     const config = await readFile(configPath, 'utf-8')
     const module = await getModuleType(cwd, log)
-    const isNotCommonJS = module !== 'commonjs'
+    const isCommonJS = module === 'commonjs'
     const compiledConfigPath = join(
       cwd,
       '.next',
-      `next.config.${isNotCommonJS && 'm'}js`
+      `next.config.${isCommonJS ? 'js' : 'mjs'}`
     )
     const { code } = await transform(config, {
       module: {
-        type: isNotCommonJS ? 'es6' : 'commonjs',
+        type: isCommonJS ? 'commonjs' : 'es6',
       },
       jsc: {
         target: 'esnext',

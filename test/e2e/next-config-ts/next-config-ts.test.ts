@@ -7,7 +7,7 @@ tests.forEach((test) => {
   createNextDescribe(
     test,
     {
-      files: join(__dirname, `./${test}`),
+      files: join(__dirname, test),
     },
     ({ next }) => {
       it('should build and start successfully', async () => {
