@@ -935,8 +935,8 @@ importers:
         specifier: 14.0.1-canary.4
         version: link:../next-swc
       '@opentelemetry/api':
-        specifier: 1.4.1
-        version: 1.4.1
+        specifier: 1.6.0
+        version: 1.6.0
       '@playwright/test':
         specifier: ^1.35.1
         version: 1.35.1
@@ -5628,13 +5628,18 @@ packages:
     engines: {node: '>=8.0.0'}
     dev: true
 
-  /@opentelemetry/core@1.15.2(@opentelemetry/api@1.4.1):
+  /@opentelemetry/api@1.6.0:
+    resolution: {integrity: sha512-OWlrQAnWn9577PhVgqjUvMr1pg57Bc4jv0iL4w0PRuOSRvq67rvHW9Ie/dZVMvCzhSCB+UxhcY/PmCmFj33Q+g==}
+    engines: {node: '>=8.0.0'}
+    dev: true
+
+  /@opentelemetry/core@1.15.2(@opentelemetry/api@1.6.0):
     resolution: {integrity: sha512-+gBv15ta96WqkHZaPpcDHiaz0utiiHZVfm2YOYSqFGrUaJpPkMoSuLBB58YFQGi6Rsb9EHos84X6X5+9JspmLw==}
     engines: {node: '>=14'}
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.5.0'
     dependencies:
-      '@opentelemetry/api': 1.4.1
+      '@opentelemetry/api': 1.6.0
       '@opentelemetry/semantic-conventions': 1.15.2
     dev: true
 
@@ -10193,8 +10198,8 @@ packages:
       '@datadog/native-metrics': 2.0.0
       '@datadog/pprof': 3.1.0
       '@datadog/sketches-js': 2.1.0
-      '@opentelemetry/api': 1.4.1
-      '@opentelemetry/core': 1.15.2(@opentelemetry/api@1.4.1)
+      '@opentelemetry/api': 1.6.0
+      '@opentelemetry/core': 1.15.2(@opentelemetry/api@1.6.0)
       crypto-randomuuid: 1.0.0
       diagnostics_channel: 1.1.0
       ignore: 5.2.4

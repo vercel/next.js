@@ -151,7 +151,7 @@
     "@next/react-dev-overlay": "14.0.1-canary.4",
     "@next/react-refresh-utils": "14.0.1-canary.4",
     "@next/swc": "14.0.1-canary.4",
-    "@opentelemetry/api": "1.4.1",
+    "@opentelemetry/api": "1.6.0",
     "@playwright/test": "^1.35.1",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
