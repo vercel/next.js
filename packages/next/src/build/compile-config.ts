@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'fs/promises'
 import { transform } from './swc'
 
 type Log = {
-  error: (...args: any[]) => void
+  error: (message: string) => void
 }
 
 const transformOptions = {
@@ -28,18 +28,18 @@ export async function compileConfig({
   cwd: string
   log: Log
 }): Promise<string> {
+  const compiledConfigPath = join(cwd, '.next', `next.config.js`)
+
   try {
     const config = await readFile(configPath, 'utf-8')
     const { code } = await transform(config, transformOptions)
 
-    const compiledConfigPath = join(cwd, '.next', `next.config.js`)
-
     await mkdir(join(cwd, '.next'), { recursive: true })
     await writeFile(compiledConfigPath, code, 'utf-8')
-
-    return compiledConfigPath
   } catch (error) {
     log.error(`Failed to compile next.config.ts`)
     throw error
   }
+
+  return compiledConfigPath
 }
