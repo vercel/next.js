@@ -35,10 +35,7 @@ export function stringToUint8Array(binary: string) {
   return arr
 }
 
-const encoder = new TextEncoder()
-
-export function encrypt(key: CryptoKey, salt: string, data: Uint8Array) {
-  const iv = encoder.encode(salt)
+export function encrypt(key: CryptoKey, iv: Uint8Array, data: Uint8Array) {
   return crypto.subtle.encrypt(
     {
       name: 'AES-GCM',
@@ -49,8 +46,7 @@ export function encrypt(key: CryptoKey, salt: string, data: Uint8Array) {
   )
 }
 
-export function decrypt(key: CryptoKey, salt: string, data: Uint8Array) {
-  const iv = encoder.encode(salt)
+export function decrypt(key: CryptoKey, iv: Uint8Array, data: Uint8Array) {
   return crypto.subtle.decrypt(
     {
       name: 'AES-GCM',
