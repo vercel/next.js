@@ -6,7 +6,7 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next, isNextDev, isNextStart }) => {
+  ({ next, isNextDev }) => {
     describe.each([
       { pathname: '/suspense/node' },
       { pathname: '/suspense/node/nested/1' },
