@@ -2867,8 +2867,9 @@ dependencies = [
 
 [[package]]
 name = "lightningcss"
-version = "1.0.0-alpha.49"
-source = "git+https://github.com/kdy1/lightningcss.git?branch=derive-unsafe#67b54837359da576b94c6cb8a73837fa6b41605a"
+version = "1.0.0-alpha.50"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2999490cc10a59ad8a87d731791a5d438d2d025e3f137aa7d4c23e1827985b0"
 dependencies = [
  "ahash 0.7.6",
  "bitflags 2.4.0",
@@ -2893,7 +2894,8 @@ dependencies = [
 [[package]]
 name = "lightningcss-derive"
 version = "1.0.0-alpha.42"
-source = "git+https://github.com/kdy1/lightningcss.git?branch=derive-unsafe#67b54837359da576b94c6cb8a73837fa6b41605a"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f02a09f0b79d31f1ee13ea55e2f7021037c6b72e0a3ab6c1cb0e9bd7ac8a295"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3823,8 +3825,9 @@ checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
 
 [[package]]
 name = "parcel_selectors"
-version = "0.26.3"
-source = "git+https://github.com/kdy1/lightningcss.git?branch=derive-unsafe#67b54837359da576b94c6cb8a73837fa6b41605a"
+version = "0.26.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05d74befe2d076330d9a58bf9ca2da424568724ab278adf15fb5718253133887"
 dependencies = [
  "bitflags 2.4.0",
  "cssparser",
@@ -5529,8 +5532,9 @@ dependencies = [
 
 [[package]]
 name = "static-self"
-version = "0.1.0"
-source = "git+https://github.com/kdy1/lightningcss.git?branch=derive-unsafe#67b54837359da576b94c6cb8a73837fa6b41605a"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "253e76c8c993a7b1b201b0539228b334582153cd4364292822d2c30776d469c7"
 dependencies = [
  "smallvec",
  "static-self-derive",
@@ -5538,8 +5542,9 @@ dependencies = [
 
 [[package]]
 name = "static-self-derive"
-version = "0.1.0"
-source = "git+https://github.com/kdy1/lightningcss.git?branch=derive-unsafe#67b54837359da576b94c6cb8a73837fa6b41605a"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5268c96d4b907c558a9a52d8492522d6c7b559651a5e1d8f2d551e461b9425d5"
 dependencies = [
  "proc-macro2",
  "quote",
