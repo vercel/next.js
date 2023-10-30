@@ -6,23 +6,17 @@ type Log = {
   error: (...args: any[]) => void
 }
 
-async function getModuleType(
-  cwd: string,
-  log: Log
-): Promise<string | undefined> {
-  try {
-    const tsconfig = await import(join(cwd, 'tsconfig.json'), {
-      assert: { type: 'json' },
-    })
-
-    // We do not verify typescript setup here
-    // If missing any of the required options, we will proceed as esm
-    // If missing a tsconfig.json, we will throw an error
-    return tsconfig?.default.compilerOptions?.module?.toLowerCase()
-  } catch (error) {
-    log.error(`Failed to read tsconfig.json`)
-    throw error
-  }
+const transformOptions = {
+  module: {
+    type: 'commonjs',
+  },
+  jsc: {
+    target: 'esnext',
+    parser: {
+      syntax: 'typescript',
+    },
+  },
+  minify: true,
 }
 
 export async function compileConfig({
@@ -36,25 +30,9 @@ export async function compileConfig({
 }): Promise<string> {
   try {
     const config = await readFile(configPath, 'utf-8')
-    const module = await getModuleType(cwd, log)
-    const isCommonJS = module === 'commonjs'
-    const compiledConfigPath = join(
-      cwd,
-      '.next',
-      `next.config.${isCommonJS ? 'js' : 'mjs'}`
-    )
-    const { code } = await transform(config, {
-      module: {
-        type: isCommonJS ? 'commonjs' : 'es6',
-      },
-      jsc: {
-        target: 'esnext',
-        parser: {
-          syntax: 'typescript',
-        },
-      },
-      minify: true,
-    })
+    const { code } = await transform(config, transformOptions)
+
+    const compiledConfigPath = join(cwd, '.next', `next.config.js`)
 
     await mkdir(join(cwd, '.next'), { recursive: true })
     await writeFile(compiledConfigPath, code, 'utf-8')

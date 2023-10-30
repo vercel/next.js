@@ -996,7 +996,12 @@ export default async function loadConfig(
     }
     const userConfig = await normalizeConfig(
       phase,
-      userConfigModule.default || userConfigModule
+      // SWC + ESM -> CJS + dynamic import
+      userConfigModule.default.default ||
+        // dynamic import
+        userConfigModule.default ||
+        // require
+        userConfigModule
     )
 
     if (!process.env.NEXT_MINIMAL) {
