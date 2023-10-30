@@ -33,7 +33,7 @@ import { exportPages } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
 import { isPostpone } from '../server/lib/router-utils/is-postpone'
-import { isCaughtPostponeError } from './helpers/is-caught-postpone-error'
+import { isCaughtPostponeError } from '../server/app-render/is-caught-postpone-error'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 

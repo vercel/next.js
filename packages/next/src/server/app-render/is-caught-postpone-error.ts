@@ -4,7 +4,7 @@ export class CaughtPostponeError extends Error {
   digest: typeof CAUGHT_POSTPONE_ERROR_CODE = CAUGHT_POSTPONE_ERROR_CODE
 
   constructor(type: string) {
-    super(`Postpone Error: ${type}`)
+    super(`Caught Postpone Error: ${type}`)
   }
 }
 

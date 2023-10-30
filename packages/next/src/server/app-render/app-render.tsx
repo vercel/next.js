@@ -72,7 +72,7 @@ import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './action-encryption-utils'
 import { createStaticRenderer } from './static/static-renderer'
-import { CaughtPostponeError } from '../../export/helpers/is-caught-postpone-error'
+import { CaughtPostponeError } from './is-caught-postpone-error'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -467,24 +467,26 @@ async function renderToHTMLOrFlightImpl(
   const isNextExport = !!renderOpts.nextExport
   const { staticGenerationStore, requestStore } = baseCtx
   const isStaticGeneration = staticGenerationStore.isStaticGeneration
+  // when static generation fails during PPR, we log the errors separately. We intentionally
+  // silence the error logger in this case to avoid double logging.
+  const silenceStaticGenerationErrors = renderOpts.ppr && isStaticGeneration
 
   const serverComponentsErrorHandler = createErrorHandler({
     _source: 'serverComponentsRenderer',
     dev,
     isNextExport,
-    errorLogger:
-      renderOpts.ppr && isStaticGeneration
-        ? // when static generation fails during PPR, we log the errors separately. We intentionally
-          // silence the error logger in this case to avoid double logging.
-          () => Promise.resolve()
-        : appDirDevErrorLogger,
+    errorLogger: silenceStaticGenerationErrors
+      ? () => Promise.resolve()
+      : appDirDevErrorLogger,
     capturedErrors,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
     _source: 'flightDataRenderer',
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
+    errorLogger: silenceStaticGenerationErrors
+      ? () => Promise.resolve()
+      : appDirDevErrorLogger,
     capturedErrors,
   })
   const htmlRendererErrorHandler = createErrorHandler({

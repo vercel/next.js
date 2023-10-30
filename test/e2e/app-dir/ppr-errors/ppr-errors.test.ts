@@ -28,7 +28,7 @@ describe('ppr build errors', () => {
 
       // the regular pre-render error should not be thrown as well, as we've already logged a more specific error
       expect(stderr).not.toContain(
-        'Error occurred prerendering page /re-throwing-error'
+        'Error occurred prerendering page "/re-throwing-error"'
       )
     })
   })
@@ -41,7 +41,7 @@ describe('ppr build errors', () => {
 
       // the regular pre-render error should not be thrown as well, as we've already logged a more specific error
       expect(stderr).not.toContain(
-        'Error occurred prerendering page /no-suspense-boundary'
+        'Error occurred prerendering page "/no-suspense-boundary"'
       )
     })
 
@@ -59,7 +59,7 @@ describe('ppr build errors', () => {
 
       // the regular pre-render error should not be thrown as well, as we've already logged a more specific error
       expect(stderr).not.toContain(
-        'Error occurred prerendering page /no-suspense-boundary-re-throwing-error'
+        'Error occurred prerendering page "/no-suspense-boundary-re-throwing-error"'
       )
     })
   })
