@@ -25,7 +25,7 @@ import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { version } from 'next/package.json'
-import { compileConfig } from '../build/compile-config'
+import { transpileConfig } from '../build/transpile-config'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -954,7 +954,7 @@ export default async function loadConfig(
     let userConfigModule: any
 
     if (configFileName === 'next.config.ts') {
-      path = await compileConfig({
+      path = await transpileConfig({
         configPath: path as string,
         cwd: dir,
         log: curLog,

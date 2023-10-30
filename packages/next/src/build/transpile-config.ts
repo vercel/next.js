@@ -19,7 +19,7 @@ const transformOptions = {
   minify: true,
 }
 
-export async function compileConfig({
+export async function transpileConfig({
   configPath,
   cwd,
   log,
