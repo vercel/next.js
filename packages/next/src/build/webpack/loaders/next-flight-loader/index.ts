@@ -44,7 +44,12 @@ export default function transformSource(
       // Things like `next/navigation` exports both `cookies()` and `useRouter()`
       // and we shouldn't error for that. In the future we might want to find a way
       // to only throw when it's used.
-      if (!this.resourcePath.includes('node_modules')) {
+      if (
+        !(
+          /[\\/]node_modules[\\/]/.test(this.resourcePath) ||
+          /[\\/]next[\\/]dist[\\/]/.test(this.resourcePath)
+        )
+      ) {
         this.callback(
           new Error(
             `You're importing a Client Component ("use client") from another Client Component imported Server Action file ("use server"). This is not allowed due to cyclic module graph between Server and Client.\nYou can work around it by defining and passing this Server Action from a Server Component into the Client Component via props.`

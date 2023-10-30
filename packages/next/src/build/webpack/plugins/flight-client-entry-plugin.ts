@@ -32,7 +32,6 @@ import {
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
-import type { SizeLimit } from '../../../../types'
 import semver from 'next/dist/compiled/semver'
 import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
 
