@@ -31,10 +31,6 @@ declare module 'react-server-dom-webpack/server.edge'
 declare module 'react-server-dom-webpack/server.node'
 declare module 'react-server-dom-webpack/client.edge'
 
-declare module 'react-dom/server-rendering-stub'
-declare module 'react-dom/server.browser'
-declare module 'react-dom/server.edge'
-
 declare module 'VAR_MODULE_GLOBAL_ERROR'
 declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
@@ -46,6 +42,10 @@ declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
 
 declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware' {
   export * from '@next/react-dev-overlay/dist/middleware'
+}
+
+declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack' {
+  export * from '@next/react-dev-overlay/dist/middleware-turbopack'
 }
 
 declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
@@ -66,8 +66,6 @@ declare module 'next/dist/compiled/node-html-parser' {
 declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
   export * from '@mswjs/interceptors/ClientRequest'
 }
-
-declare module 'next/dist/compiled/undici' {}
 
 declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'

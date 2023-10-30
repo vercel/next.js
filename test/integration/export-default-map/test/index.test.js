@@ -3,7 +3,7 @@
 import { promises } from 'fs'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { nextBuild, nextExport } from 'next-test-utils'
+import { nextBuild } from 'next-test-utils'
 
 const { access, readFile } = promises
 const appDir = join(__dirname, '../')
@@ -13,7 +13,6 @@ describe('Export with default map', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
-      await nextExport(appDir, { outdir })
     })
 
     it('should export with folder that has dot in name', async () => {

@@ -4,9 +4,6 @@ import os from 'os'
 import childProcess from 'child_process'
 
 import { bold, cyan, yellow } from '../lib/picocolors'
-const { fetch } = require('next/dist/compiled/undici') as {
-  fetch: typeof global.fetch
-}
 import type { CliCommand } from '../lib/commands'
 import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
