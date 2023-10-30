@@ -21,7 +21,7 @@ var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-experimental-8c8ee9ee6-20231026';
+var ReactVersion = '18.3.0-experimental-0c6348758-20231030';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
