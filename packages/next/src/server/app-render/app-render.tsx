@@ -788,7 +788,7 @@ async function renderToHTMLOrFlightImpl(
         }
 
         if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
-          err(
+          error(
             `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
             pagePath
           )
