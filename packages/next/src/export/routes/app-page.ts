@@ -16,6 +16,7 @@ import {
 import { NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
+import { isDynamicUsageError } from '../../server/app-render/is-dynamic-usage-error'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -79,35 +80,8 @@ export async function exportAppPage(
     pathname = '/404'
   }
 
-  if (isAppPrefetch) {
-    await generatePrefetchRsc(
-      req,
-      path,
-      res,
-      pathname,
-      htmlFilepath,
-      renderOpts,
-      fileWriter
-    )
-
-    return { revalidate: 0 }
-  }
-
-  const result = await lazyRenderAppPage(req, res, pathname, query, renderOpts)
-  const html = result.toUnchunkedString()
-  const { metadata } = result
-  const flightData = metadata.pageData
-  const revalidate = metadata.revalidate ?? false
-  const postponed = metadata.postponed
-
-  if (revalidate === 0) {
-    if (isDynamicError) {
-      throw new Error(
-        `Page with dynamic = "error" encountered dynamic data method on ${path}.`
-      )
-    }
-
-    if (!(renderOpts as any).store.staticPrefetchBailout) {
+  try {
+    if (isAppPrefetch) {
       await generatePrefetchRsc(
         req,
         path,
@@ -117,60 +91,107 @@ export async function exportAppPage(
         renderOpts,
         fileWriter
       )
+
+      return { revalidate: 0 }
     }
 
-    const { staticBailoutInfo = {} } = metadata
+    const result = await lazyRenderAppPage(
+      req,
+      res,
+      pathname,
+      query,
+      renderOpts
+    )
+    const html = result.toUnchunkedString()
+    const { metadata } = result
+    const flightData = metadata.pageData
+    const revalidate = metadata.revalidate ?? false
+    const postponed = metadata.postponed
 
-    if (revalidate === 0 && debugOutput && staticBailoutInfo?.description) {
-      const err = new Error(
-        `Static generation failed due to dynamic usage on ${path}, reason: ${staticBailoutInfo.description}`
-      )
-
-      // Update the stack if it was provided via the bailout info.
-      const { stack } = staticBailoutInfo
-      if (stack) {
-        err.stack = err.message + stack.substring(stack.indexOf('\n'))
+    if (revalidate === 0) {
+      if (isDynamicError) {
+        throw new Error(
+          `Page with dynamic = "error" encountered dynamic data method on ${path}.`
+        )
       }
 
-      console.warn(err)
+      if (!(renderOpts as any).store.staticPrefetchBailout) {
+        await generatePrefetchRsc(
+          req,
+          path,
+          res,
+          pathname,
+          htmlFilepath,
+          renderOpts,
+          fileWriter
+        )
+      }
+
+      const { staticBailoutInfo = {} } = metadata
+
+      if (revalidate === 0 && debugOutput && staticBailoutInfo?.description) {
+        const err = new Error(
+          `Static generation failed due to dynamic usage on ${path}, reason: ${staticBailoutInfo.description}`
+        )
+
+        // Update the stack if it was provided via the bailout info.
+        const { stack } = staticBailoutInfo
+        if (stack) {
+          err.stack = err.message + stack.substring(stack.indexOf('\n'))
+        }
+
+        console.warn(err)
+      }
+
+      return { revalidate: 0 }
+    }
+
+    let headers: OutgoingHttpHeaders | undefined
+    if (metadata.fetchTags) {
+      headers = { [NEXT_CACHE_TAGS_HEADER]: metadata.fetchTags }
+    }
+
+    // Writing static HTML to a file.
+    await fileWriter(
+      ExportedAppPageFiles.HTML,
+      htmlFilepath,
+      html ?? '',
+      'utf8'
+    )
+
+    // Writing the request metadata to a file.
+    const meta: RouteMetadata = {
+      status: undefined,
+      headers,
+      postponed,
+    }
+
+    await fileWriter(
+      ExportedAppPageFiles.META,
+      htmlFilepath.replace(/\.html$/, '.meta'),
+      JSON.stringify(meta, null, 2)
+    )
+
+    // Writing the RSC payload to a file.
+    await fileWriter(
+      ExportedAppPageFiles.FLIGHT,
+      htmlFilepath.replace(/\.html$/, '.rsc'),
+      flightData
+    )
+
+    return {
+      // Only include the metadata if the environment has next support.
+      metadata: hasNextSupport ? meta : undefined,
+      hasEmptyPrelude: Boolean(postponed) && html === '',
+      hasPostponed: Boolean(postponed),
+      revalidate,
+    }
+  } catch (err: any) {
+    if (!isDynamicUsageError(err)) {
+      // ignore
+      throw err
     }
 
     return { revalidate: 0 }
-  }
-
-  let headers: OutgoingHttpHeaders | undefined
-  if (metadata.fetchTags) {
-    headers = { [NEXT_CACHE_TAGS_HEADER]: metadata.fetchTags }
-  }
-
-  // Writing static HTML to a file.
-  await fileWriter(ExportedAppPageFiles.HTML, htmlFilepath, html ?? '', 'utf8')
-
-  // Writing the request metadata to a file.
-  const meta: RouteMetadata = {
-    status: undefined,
-    headers,
-    postponed,
-  }
-
-  await fileWriter(
-    ExportedAppPageFiles.META,
-    htmlFilepath.replace(/\.html$/, '.meta'),
-    JSON.stringify(meta, null, 2)
-  )
-
-  // Writing the RSC payload to a file.
-  await fileWriter(
-    ExportedAppPageFiles.FLIGHT,
-    htmlFilepath.replace(/\.html$/, '.rsc'),
-    flightData
-  )
-
-  return {
-    // Only include the metadata if the environment has next support.
-    metadata: hasNextSupport ? meta : undefined,
-    hasEmptyPrelude: Boolean(postponed) && html === '',
-    hasPostponed: Boolean(postponed),
-    revalidate,
   }
 }

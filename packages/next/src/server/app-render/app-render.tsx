@@ -61,7 +61,7 @@ import { validateURL } from './validate-url'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
-import { warn } from '../../build/output/log'
+import { warn, error } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
@@ -72,8 +72,7 @@ import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './action-encryption-utils'
 import { createStaticRenderer } from './static/static-renderer'
-import { isPostpone } from '../lib/router-utils/is-postpone'
-import { isDynamicUsageError } from './is-dynamic-usage-error'
+import { PostponeError } from '../../client/components/is-postpone-error'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -465,16 +464,21 @@ async function renderToHTMLOrFlightImpl(
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
-  const postponeErrors: Error[] = []
   const isNextExport = !!renderOpts.nextExport
+  const { staticGenerationStore, requestStore } = baseCtx
+  const isStaticGeneration = staticGenerationStore.isStaticGeneration
+
   const serverComponentsErrorHandler = createErrorHandler({
     _source: 'serverComponentsRenderer',
     dev,
     isNextExport,
-    postponeErrors: renderOpts.ppr ? postponeErrors : undefined,
-    errorLogger: appDirDevErrorLogger,
+    errorLogger:
+      renderOpts.ppr && isStaticGeneration
+        ? // when static generation fails during PPR, we log the errors separately. We intentionally
+          // silence the error logger in this case to avoid double logging.
+          () => Promise.resolve()
+        : appDirDevErrorLogger,
     capturedErrors,
-    skipLogging: renderOpts.ppr,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
     _source: 'flightDataRenderer',
@@ -482,7 +486,6 @@ async function renderToHTMLOrFlightImpl(
     isNextExport,
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
-    skipLogging: renderOpts.ppr,
   })
   const htmlRendererErrorHandler = createErrorHandler({
     _source: 'htmlRenderer',
@@ -491,7 +494,6 @@ async function renderToHTMLOrFlightImpl(
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
     allCapturedErrors,
-    skipLogging: renderOpts.ppr,
   })
 
   patchFetch(ComponentMod)
@@ -527,7 +529,6 @@ async function renderToHTMLOrFlightImpl(
     )
   }
 
-  const { staticGenerationStore, requestStore } = baseCtx
   const { urlPathname } = staticGenerationStore
 
   staticGenerationStore.fetchMetrics = []
@@ -560,8 +561,6 @@ async function renderToHTMLOrFlightImpl(
   } else {
     requestId = require('next/dist/compiled/nanoid').nanoid()
   }
-
-  const isStaticGeneration = staticGenerationStore.isStaticGeneration
 
   // During static generation we need to call the static generation bailout when reading searchParams
   const providedSearchParams = isStaticGeneration
@@ -1002,23 +1001,37 @@ async function renderToHTMLOrFlightImpl(
     const htmlResult = await renderResult.toUnchunkedString(true)
 
     if (
+      // if PPR is enabled
       renderOpts.ppr &&
+      // and a call to `maybePostpone` happened
       staticGenerationStore.postponeWasTriggered &&
+      // but there's no postpone state
       !extraRenderResultMeta.postponed
     ) {
-      throw new Error(
-        `Postpone signal was caught while rendering ${urlPathname}. These errors should not be caught during static generation. Learn more: https://nextjs.org/docs/messages/ppr-postpone-errors`
+      // a call to postpone was made but was caught and not detected by Next.js. We should fail the build immediately
+      // as we won't be able to generate the static part
+      warn('')
+      error(
+        `Postpone signal was caught while rendering ${urlPathname}. Check to see if you're try/catching a Next.js API such as headers / cookies, or a fetch with "no-store". Learn more: https://nextjs.org/docs/messages/ppr-postpone-errors`
+      )
+
+      if (capturedErrors.length > 0) {
+        warn(
+          'The following error was thrown during build, and may help identify the source of the issue:'
+        )
+
+        error(capturedErrors[0])
+      }
+
+      throw new PostponeError(
+        `An unexpected error occurred while prerendering ${urlPathname}. Please check the logs above for more details.`
       )
     }
 
-    for (const err of capturedErrors) {
-      if (!isDynamicUsageError(err) && !isPostpone(err)) {
-        throw err
-      }
-
-      if (isDynamicUsageError(err)) {
-        staticGenerationStore.revalidate = 0
-      }
+    // if we encountered any unexpected errors during build
+    // we fail the prerendering phase and the build
+    if (capturedErrors.length > 0) {
+      throw capturedErrors[0]
     }
 
     if (staticGenerationStore.forceStatic === false) {
