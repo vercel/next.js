@@ -17,9 +17,6 @@ if (!(globalThis as any).isNextStart) {
     {
       files: __dirname,
       skipStart: true,
-      dependencies: {
-        swr: 'latest',
-      },
     },
     ({ next }) => {
       beforeAll(async () => {
@@ -93,7 +90,6 @@ if (!(globalThis as any).isNextStart) {
             '/dashboard/hello',
             '/dashboard/project/123',
             '/catch-all/first',
-            '/gsp',
           ]) {
             const res = await fetchViaHTTP(appPort, testPath)
             expect(res.status).toBe(200)
