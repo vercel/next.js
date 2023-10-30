@@ -1401,12 +1401,11 @@ export default async function getBaseWebpackConfig(
                     use: swcLoaderForServerLayer,
                   },
                   {
-                    ...codeCondition,
+                    test: codeCondition.test,
                     issuerLayer: [
                       WEBPACK_LAYERS.appPagesBrowser,
                       WEBPACK_LAYERS.serverSideRendering,
                     ],
-                    exclude: codeCondition.exclude,
                     use: swcLoaderForClientLayer,
                     resolve: {
                       mainFields: getMainField('app', compilerType),
