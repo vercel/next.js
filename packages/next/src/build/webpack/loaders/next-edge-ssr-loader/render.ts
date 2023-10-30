@@ -57,7 +57,7 @@ export function getRender({
   serverActionsManifest?: any
   serverActions?: {
     bodySizeLimit?: SizeLimit
-    allowedForwardingHosts?: string[]
+    allowedForwardedHosts?: string[]
   }
   config: NextConfigComplete
   buildId: string

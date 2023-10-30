@@ -234,7 +234,7 @@ export async function handleAction({
   requestStore: RequestStore
   serverActions?: {
     bodySizeLimit?: SizeLimit
-    allowedForwardingHosts?: string[]
+    allowedForwardedHosts?: string[]
   }
   ctx: AppRenderContext
 }): Promise<
@@ -284,7 +284,7 @@ export async function handleAction({
     // These can be their reverse proxies or other safe hosts.
     if (
       typeof host === 'string' &&
-      serverActions?.allowedForwardingHosts?.includes(host)
+      serverActions?.allowedForwardedHosts?.includes(host)
     ) {
       // Ignore it
     } else {

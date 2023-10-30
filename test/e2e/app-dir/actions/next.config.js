@@ -6,7 +6,7 @@ module.exports = {
   },
   experimental: {
     serverActions: {
-      allowedForwardingHosts: ['safe.com'],
+      allowedForwardedHosts: ['safe.com'],
     },
   },
 }
