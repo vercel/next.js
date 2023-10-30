@@ -1,7 +1,7 @@
 import { join } from 'path'
-import { createNextDescribe } from '../../lib/e2e-utils'
+import { createNextDescribe } from 'e2e-utils'
 
-const tests = ['cjs', 'esm']
+const tests = ['cjs', 'cjs-export-assignment', 'esm', 'esm-async']
 
 tests.forEach((test) => {
   createNextDescribe(
@@ -13,7 +13,7 @@ tests.forEach((test) => {
       it('should build and start successfully', async () => {
         const browser = await next.browser('/')
         const text = await browser.elementByCss('h1').text()
-        expect(text).toBe('Hello World!')
+        expect(text).toBe('my-value')
       })
     }
   )

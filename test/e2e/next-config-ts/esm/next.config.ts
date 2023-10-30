@@ -1,5 +1,9 @@
 import type { NextConfig } from 'next'
 
-const config: NextConfig = {}
+const config: NextConfig = {
+  env: {
+    customKey: 'my-value',
+  },
+}
 
 export default config
