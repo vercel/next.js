@@ -2493,8 +2493,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           return null
         }
 
+        const resultToCache =
+          result?.value?.kind === 'PAGE' && result.value.status === 304
+            ? {
+                ...result,
+                value: {
+                  ...result.value,
+                  status: 200,
+                },
+              }
+            : result
+
         return {
-          ...result,
+          ...resultToCache,
           revalidate:
             result.revalidate !== undefined
               ? result.revalidate
