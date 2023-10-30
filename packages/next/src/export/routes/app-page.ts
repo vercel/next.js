@@ -188,7 +188,6 @@ export async function exportAppPage(
     }
   } catch (err: any) {
     if (!isDynamicUsageError(err)) {
-      // ignore
       throw err
     }
 
