@@ -6,20 +6,16 @@ import { log } from './action'
 if (typeof window !== 'undefined') {
   // hijack fetch
   const originalFetch = window.fetch
-  window.fetch = async function (url, init) {
-    console.log('fetch', url, init)
+  window.fetch = function (url, init) {
+    if (window.__override_forwarded_host && init?.method === 'POST') {
+      console.log('fetch', url, init)
 
-    if (window.__override_forwarded_host) {
       // override forwarded host
       init.headers = init.headers || {}
       init.headers['x-forwarded-host'] = window.__override_forwarded_host
     }
 
-    try {
-      return await originalFetch(url, init)
-    } catch (err) {
-      throw new Error(err.message)
-    }
+    return originalFetch(url, init)
   }
 }
 
