@@ -125,17 +125,13 @@ async function createNextInstall({
           })
         )
       }
-      let combinedDependencies = dependencies
-
-      if (!(packageJson && packageJson.nextParamateSkipLocalDeps)) {
-        combinedDependencies = {
-          next: pkgPaths.get('next'),
-          ...Object.keys(dependencies).reduce((prev, pkg) => {
-            const pkgPath = pkgPaths.get(pkg)
-            prev[pkg] = pkgPath || dependencies[pkg]
-            return prev
-          }, {}),
-        }
+      const combinedDependencies = {
+        next: pkgPaths.get('next'),
+        ...Object.keys(dependencies).reduce((prev, pkg) => {
+          const pkgPath = pkgPaths.get(pkg)
+          prev[pkg] = pkgPath || dependencies[pkg]
+          return prev
+        }, {}),
       }
 
       await fs.ensureDir(installDir)
