@@ -884,10 +884,17 @@ export default async function getBaseWebpackConfig(
           return false
         }
 
-        if (isNodeServer || isEdgeServer) {
+        if (isNodeServer) {
           return {
-            filename: `${isEdgeServer ? 'edge-chunks/' : ''}[name].js`,
+            filename: '[name].js',
             chunks: 'all',
+            minChunks: 2,
+          }
+        }
+
+        if (isEdgeServer) {
+          return {
+            filename: 'edge-chunks/[name].js',
             minChunks: 2,
           }
         }
