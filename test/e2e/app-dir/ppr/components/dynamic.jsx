@@ -2,14 +2,22 @@ import React, { use } from 'react'
 import { cookies } from 'next/headers'
 import { Delay, Login } from './state'
 
-export function Dynamic({ fallback }) {
+export function Dynamic({ fallback, catchErrors }) {
   const dynamic = fallback !== true
 
   let signedIn
   let active
   if (dynamic) {
-    signedIn = cookies().has('session') ? true : false
-    active = cookies().has('delay') ? true : false
+    if (catchErrors) {
+      try {
+        signedIn = cookies().has('session') ? true : false
+        active = cookies().has('delay') ? true : false
+      } catch (err) {}
+    } else {
+      signedIn = cookies().has('session') ? true : false
+      active = cookies().has('delay') ? true : false
+    }
+
     if (active) {
       use(new Promise((resolve) => setTimeout(resolve, 1000)))
     }

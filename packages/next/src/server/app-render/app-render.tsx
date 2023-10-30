@@ -72,6 +72,8 @@ import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './action-encryption-utils'
 import { createStaticRenderer } from './static/static-renderer'
+import { isPostpone } from '../lib/router-utils/is-postpone'
+import { isDynamicUsageError } from './is-dynamic-usage-error'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -463,13 +465,16 @@ async function renderToHTMLOrFlightImpl(
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
+  const postponeErrors: Error[] = []
   const isNextExport = !!renderOpts.nextExport
   const serverComponentsErrorHandler = createErrorHandler({
     _source: 'serverComponentsRenderer',
     dev,
     isNextExport,
+    postponeErrors: renderOpts.ppr ? postponeErrors : undefined,
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
+    skipLogging: renderOpts.ppr,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
     _source: 'flightDataRenderer',
@@ -477,6 +482,7 @@ async function renderToHTMLOrFlightImpl(
     isNextExport,
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
+    skipLogging: renderOpts.ppr,
   })
   const htmlRendererErrorHandler = createErrorHandler({
     _source: 'htmlRenderer',
@@ -485,6 +491,7 @@ async function renderToHTMLOrFlightImpl(
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
     allCapturedErrors,
+    skipLogging: renderOpts.ppr,
   })
 
   patchFetch(ComponentMod)
@@ -778,15 +785,6 @@ async function renderToHTMLOrFlightImpl(
           throw err
         }
 
-        // If there was a postponed error that escaped, it means that there was
-        // a postpone called without a wrapped suspense component.
-        if (err.$$typeof === Symbol.for('react.postpone')) {
-          // Ensure that we force the revalidation time to zero.
-          staticGenerationStore.revalidate = 0
-
-          throw err
-        }
-
         if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
           warn(
             `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
@@ -1003,10 +1001,24 @@ async function renderToHTMLOrFlightImpl(
   if (staticGenerationStore.isStaticGeneration) {
     const htmlResult = await renderResult.toUnchunkedString(true)
 
-    // if we encountered any unexpected errors during build
-    // we fail the prerendering phase and the build
-    if (capturedErrors.length > 0) {
-      throw capturedErrors[0]
+    if (
+      renderOpts.ppr &&
+      staticGenerationStore.postponeWasTriggered &&
+      !extraRenderResultMeta.postponed
+    ) {
+      throw new Error(
+        `Postpone signal was caught while rendering ${urlPathname}. These errors should not be caught during static generation. Learn more: https://nextjs.org/docs/messages/ppr-postpone-errors`
+      )
+    }
+
+    for (const err of capturedErrors) {
+      if (!isDynamicUsageError(err) && !isPostpone(err)) {
+        throw err
+      }
+
+      if (isDynamicUsageError(err)) {
+        staticGenerationStore.revalidate = 0
+      }
     }
 
     if (staticGenerationStore.forceStatic === false) {
