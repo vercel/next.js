@@ -165,8 +165,6 @@ jobs:
       - run: git checkout .
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: pnpm store path
-
       - run: pnpm install
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
