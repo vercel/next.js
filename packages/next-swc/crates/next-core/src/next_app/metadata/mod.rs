@@ -258,7 +258,7 @@ fn djb2_hash(str: &str) -> u32 {
     })
 }
 
-// this is here to mirror next.js behaviour.
+// this is here to mirror next.js behaviour (`toString(36).slice(0, 6)`)
 fn format_radix(mut x: u32, radix: u32) -> String {
     let mut result = vec![];
 
@@ -273,7 +273,8 @@ fn format_radix(mut x: u32, radix: u32) -> String {
         }
     }
 
-    result.into_iter().rev().collect()
+    result.reverse();
+    result[..6].iter().collect()
 }
 
 /// If there's special convention like (...) or @ in the page path,
