@@ -21,6 +21,10 @@ on:
         required: false
         description: 'whether to skip building native modules'
         type: string
+      uploadAnalyzerArtifacts:
+        required: false
+        description: 'whether to upload analyzer artifacts'
+        type: string
       skipForDocsOnly:
         required: false
         description: 'skip for docs only changes'
@@ -166,7 +170,7 @@ jobs:
       - run: pnpm install
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: pnpm build
+      - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - run: pnpm playwright install-deps
@@ -185,6 +189,13 @@ jobs:
         with:
           name: turbo run summary
           path: .turbo/runs
+
+      - name: Upload bundle analyzer artifacts
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
+        with:
+          name: webpack bundle analysis stats
+          path: packages/next/dist/compiled/next-server/report.*.html
 
       - name: Upload test reports artifact
         uses: actions/upload-artifact@v3

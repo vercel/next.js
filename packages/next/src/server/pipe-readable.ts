@@ -1,7 +1,5 @@
 import type { ServerResponse } from 'node:http'
 
-import './node-polyfill-web-streams'
-
 import {
   ResponseAbortedName,
   createAbortController,

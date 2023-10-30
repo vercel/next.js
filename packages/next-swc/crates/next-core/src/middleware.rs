@@ -39,6 +39,7 @@ pub async fn get_middleware_module(
             "VAR_DEFINITION_PAGE" => "/middleware".to_string(),
         },
         indexmap! {},
+        indexmap! {},
     )
     .await?;
 

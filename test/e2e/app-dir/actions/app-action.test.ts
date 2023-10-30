@@ -19,7 +19,7 @@ createNextDescribe(
       'server-only': 'latest',
     },
   },
-  ({ next, isNextDev, isNextStart, isNextDeploy }) => {
+  ({ next, isNextDev, isNextStart, isNextDeploy, isTurbopack }) => {
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
@@ -389,7 +389,24 @@ createNextDescribe(
         const pageBundle = await fs.readFile(
           join(next.testDir, '.next', 'server', 'app', 'client', 'page.js')
         )
-        expect(pageBundle.toString()).toContain('node_modules/nanoid/index.js')
+        if (isTurbopack) {
+          const chunkPaths = pageBundle
+            .toString()
+            .matchAll(/loadChunk\("([^"]*)"\)/g)
+          // @ts-ignore
+          const reads = [...chunkPaths].map(async (match) => {
+            const bundle = await fs.readFile(
+              join(next.testDir, '.next', ...match[1].split(/[\\/]/g))
+            )
+            return bundle.toString().includes('node_modules/nanoid/index.js')
+          })
+
+          expect(await Promise.all(reads)).toContain(true)
+        } else {
+          expect(pageBundle.toString()).toContain(
+            'node_modules/nanoid/index.js'
+          )
+        }
       })
     }
 
@@ -797,6 +814,14 @@ createNextDescribe(
           }, 'success')
         }
       )
+    })
+
+    describe('encryption', () => {
+      it('should send encrypted values from the closed over closure', async () => {
+        const res = await next.fetch('/encryption')
+        const html = await res.text()
+        expect(html).not.toContain('qwerty123')
+      })
     })
   }
 )
