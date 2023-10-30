@@ -1,10 +1,11 @@
 import { join } from 'path'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { transform } from './swc'
+import type * as Log from './output/log'
 
 async function getModuleType(
   cwd: string,
-  log: any
+  log: Pick<typeof Log, 'error'>
 ): Promise<string | undefined> {
   try {
     const tsconfig = await import(join(cwd, 'tsconfig.json'), {
@@ -12,7 +13,7 @@ async function getModuleType(
     })
 
     // We do not verify typescript setup here
-    // If missing any of the required options, we will proceed with esm
+    // If missing any of the required options, we will proceed as esm
     // If missing a tsconfig.json, we will throw an error
     return tsconfig?.default.compilerOptions?.module?.toLowerCase()
   } catch (error) {
@@ -28,7 +29,7 @@ export async function compileConfig({
 }: {
   configPath: string
   cwd: string
-  log: any
+  log: Pick<typeof Log, 'error'>
 }): Promise<string> {
   try {
     const config = await readFile(configPath, 'utf-8')
