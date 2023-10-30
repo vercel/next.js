@@ -99,6 +99,7 @@ enum AppRouteRouteHandlersSpan {
 
 enum ResolveMetadataSpan {
   generateMetadata = 'ResolveMetadata.generateMetadata',
+  generateViewport = 'ResolveMetadata.generateViewport',
 }
 
 type SpanTypes =
@@ -125,6 +126,7 @@ export const NextVanillaSpanAllowlist = [
   NodeSpan.runHandler,
   AppRouteRouteHandlersSpan.runHandler,
   ResolveMetadataSpan.generateMetadata,
+  ResolveMetadataSpan.generateViewport,
 ]
 
 export {
@@ -133,7 +135,6 @@ export {
   NextServerSpan,
   NextNodeServerSpan,
   StartServerSpan,
-  SpanTypes,
   RenderSpan,
   RouterSpan,
   AppRenderSpan,
@@ -141,3 +142,5 @@ export {
   AppRouteRouteHandlersSpan,
   ResolveMetadataSpan,
 }
+
+export type { SpanTypes }

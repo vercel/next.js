@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-canary-2807d781a-20230918';
+          var ReactVersion = '18.3.0-canary-0c6348758-20231030';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -36,7 +36,6 @@ var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
 var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
 var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
 var REACT_CONTEXT_TYPE = Symbol.for('react.context');
-var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
@@ -44,7 +43,6 @@ var REACT_MEMO_TYPE = Symbol.for('react.memo');
 var REACT_LAZY_TYPE = Symbol.for('react.lazy');
 var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 var REACT_CACHE_TYPE = Symbol.for('react.cache');
-var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -156,8 +154,6 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 
 var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
 
-var ContextRegistry$1 = {};
-
 var ReactSharedInternals = {
   ReactCurrentDispatcher: ReactCurrentDispatcher$1,
   ReactCurrentCache: ReactCurrentCache,
@@ -168,10 +164,6 @@ var ReactSharedInternals = {
 {
   ReactSharedInternals.ReactDebugCurrentFrame = ReactDebugCurrentFrame$1;
   ReactSharedInternals.ReactCurrentActQueue = ReactCurrentActQueue;
-}
-
-{
-  ReactSharedInternals.ContextRegistry = ContextRegistry$1;
 }
 
 // by calls to these methods by a Babel plugin.
@@ -520,7 +512,7 @@ function testStringCoercion(value) {
 function checkKeyStringCoercion(value) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided key is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', typeName(value));
+      error('The provided key is an unsupported type %s.' + ' This value must be coerced to a string before using it here.', typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -623,12 +615,6 @@ function getComponentNameFromType(type) {
           } catch (x) {
             return null;
           }
-        }
-
-      case REACT_SERVER_CONTEXT_TYPE:
-        {
-          var context2 = type;
-          return (context2.displayName || context2._globalName) + '.Provider';
         }
 
     }
@@ -1797,9 +1783,9 @@ function useTransition() {
   var dispatcher = resolveDispatcher();
   return dispatcher.useTransition();
 }
-function useDeferredValue(value) {
+function useDeferredValue(value, initialValue) {
   var dispatcher = resolveDispatcher();
-  return dispatcher.useDeferredValue(value);
+  return dispatcher.useDeferredValue(value, initialValue);
 }
 function useId() {
   var dispatcher = resolveDispatcher();
@@ -1817,6 +1803,11 @@ function useCacheRefresh() {
 function use(usable) {
   var dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
+}
+function useOptimistic(passthrough, reducer) {
+  var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
+
+  return dispatcher.useOptimistic(passthrough, reducer);
 }
 
 // Helpers to patch console.logs to avoid logging during side-effect free
@@ -2580,77 +2571,6 @@ function cloneElementWithValidation(element, props, children) {
   return newElement;
 }
 
-var ContextRegistry = ReactSharedInternals.ContextRegistry;
-function createServerContext(globalName, defaultValue) {
-
-  var wasDefined = true;
-
-  if (!ContextRegistry[globalName]) {
-    wasDefined = false;
-    var _context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: defaultValue,
-      _currentValue2: defaultValue,
-      _defaultValue: defaultValue,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    _context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: _context
-    };
-
-    {
-      var hasWarnedAboutUsingConsumer;
-      _context._currentRenderer = null;
-      _context._currentRenderer2 = null;
-      Object.defineProperties(_context, {
-        Consumer: {
-          get: function () {
-            if (!hasWarnedAboutUsingConsumer) {
-              error('Consumer pattern is not supported by ReactServerContext');
-
-              hasWarnedAboutUsingConsumer = true;
-            }
-
-            return null;
-          }
-        }
-      });
-    }
-
-    ContextRegistry[globalName] = _context;
-  }
-
-  var context = ContextRegistry[globalName];
-
-  if (context._defaultValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-    context._defaultValue = defaultValue;
-
-    if (context._currentValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      context._currentValue = defaultValue;
-    }
-
-    if (context._currentValue2 === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      context._currentValue2 = defaultValue;
-    }
-  } else if (wasDefined) {
-    throw new Error("ServerContext: " + globalName + " already defined");
-  }
-
-  return context;
-}
-
 function startTransition(scope, options) {
   var prevTransition = ReactCurrentBatchConfig.transition;
   ReactCurrentBatchConfig.transition = {};
@@ -3018,7 +2938,6 @@ exports.createContext = createContext;
 exports.createElement = createElement;
 exports.createFactory = createFactory;
 exports.createRef = createRef;
-exports.createServerContext = createServerContext;
 exports.forwardRef = forwardRef;
 exports.isValidElement = isValidElement;
 exports.lazy = lazy;
@@ -3037,6 +2956,7 @@ exports.useImperativeHandle = useImperativeHandle;
 exports.useInsertionEffect = useInsertionEffect;
 exports.useLayoutEffect = useLayoutEffect;
 exports.useMemo = useMemo;
+exports.useOptimistic = useOptimistic;
 exports.useReducer = useReducer;
 exports.useRef = useRef;
 exports.useState = useState;

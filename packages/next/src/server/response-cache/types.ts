@@ -1,5 +1,6 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
+import type { Revalidate } from '../lib/revalidate'
 
 export interface ResponseCacheBase {
   get(
@@ -37,9 +38,10 @@ interface CachedPageValue {
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   html: RenderResult
+  postponed: string | undefined
   pageData: Object
-  status?: number
-  headers?: OutgoingHttpHeaders
+  status: number | undefined
+  headers: OutgoingHttpHeaders | undefined
 }
 
 export interface CachedRouteValue {
@@ -66,8 +68,9 @@ interface IncrementalCachedPageValue {
   // the string value
   html: string
   pageData: Object
-  headers?: OutgoingHttpHeaders
-  status?: number
+  postponed: string | undefined
+  headers: OutgoingHttpHeaders | undefined
+  status: number | undefined
 }
 
 export type IncrementalCacheEntry = {
@@ -93,15 +96,19 @@ export type ResponseCacheValue =
   | CachedRouteValue
 
 export type ResponseCacheEntry = {
-  revalidate?: number | false
+  revalidate?: Revalidate
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
 }
 
+/**
+ * @param hasResolved whether the responseGenerator has resolved it's promise
+ * @param previousCacheEntry the previous cache entry if it exists or the current
+ */
 export type ResponseGenerator = (
   hasResolved: boolean,
-  cacheEntry?: IncrementalCacheItem
+  previousCacheEntry?: IncrementalCacheItem
 ) => Promise<ResponseCacheEntry | null>
 
 export type IncrementalCacheItem = {
@@ -121,6 +128,6 @@ export interface IncrementalCache {
   set: (
     key: string,
     data: IncrementalCacheValue | null,
-    ctx: { revalidate: number | false }
+    ctx: { revalidate: Revalidate }
   ) => Promise<void>
 }

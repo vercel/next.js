@@ -1,4 +1,4 @@
-import { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
+import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
 
 let source: WebSocket
 
@@ -26,11 +26,14 @@ export function sendMessage(data: string) {
   return source.send(data)
 }
 
+let reconnections = 0
+
 export function connectHMR(options: { path: string; assetPrefix: string }) {
   function init() {
     if (source) source.close()
 
     function handleOnline() {
+      reconnections = 0
       window.console.log('[HMR] connected')
     }
 
@@ -42,11 +45,21 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
       }
     }
 
+    let timer: ReturnType<typeof setTimeout>
     function handleDisconnect() {
       source.onerror = null
       source.onclose = null
       source.close()
-      init()
+      reconnections++
+      // After 25 reconnects we'll want to reload the page as it indicates the dev server is no longer running.
+      if (reconnections > 25) {
+        window.location.reload()
+        return
+      }
+
+      clearTimeout(timer)
+      // Try again after 5 seconds
+      timer = setTimeout(init, reconnections > 5 ? 5000 : 1000)
     }
 
     const { hostname, port } = location
@@ -58,7 +71,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
     }`
 
     if (assetPrefix.startsWith('http')) {
-      url = `${protocol}://${assetPrefix.split('://')[1]}`
+      url = `${protocol}://${assetPrefix.split('://', 2)[1]}`
     }
 
     source = new window.WebSocket(`${url}${options.path}`)

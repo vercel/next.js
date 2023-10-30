@@ -19,7 +19,7 @@ export default function Page() {
       </ul>
 
       <div className="flex gap-2">
-        <ExternalLink href="https://beta.nextjs.org/docs/data-fetching/fetching#static-data">
+        <ExternalLink href="https://nextjs.org/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data">
           Docs
         </ExternalLink>
         <ExternalLink href="https://github.com/vercel/app-playground/tree/main/app/ssg">

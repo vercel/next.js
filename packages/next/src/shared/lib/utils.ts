@@ -6,7 +6,8 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
-import { COMPILER_NAMES } from './constants'
+import type { COMPILER_NAMES } from './constants'
+import type fs from 'fs'
 
 export type NextComponentType<
   Context extends BaseContext = NextPageContext,
@@ -94,6 +95,7 @@ export type NEXT_DATA = {
   nextExport?: boolean
   autoExport?: boolean
   isFallback?: boolean
+  isExperimentalCompile?: boolean
   dynamicIds?: (string | number)[]
   err?: Error & {
     statusCode?: number
@@ -446,8 +448,8 @@ export class MiddlewareNotFoundError extends Error {
 }
 
 export interface CacheFs {
-  readFile(f: string): Promise<Buffer>
-  readFileSync(f: string): Buffer
+  readFile: typeof fs.promises.readFile
+  readFileSync: typeof fs.readFileSync
   writeFile(f: string, d: any): Promise<void>
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>

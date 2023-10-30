@@ -35,6 +35,11 @@ pub struct NextClientTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextClientTransition {
     #[turbo_tasks::function]
+    fn process_layer(self: Vc<Self>, _layer: Vc<String>) -> Vc<String> {
+        Vc::cell("client".to_string())
+    }
+
+    #[turbo_tasks::function]
     fn process_compile_time_info(
         &self,
         _compile_time_info: Vc<CompileTimeInfo>,

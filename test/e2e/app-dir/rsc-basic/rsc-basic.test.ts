@@ -31,25 +31,22 @@ createNextDescribe(
   },
   ({ next, isNextDev, isNextStart, isTurbopack }) => {
     if (isNextDev && !isTurbopack) {
-      // TODO: Fix this test, it no longer uses stringified JSON.
-      it.skip('should have correct client references keys in manifest', async () => {
+      it('should have correct client references keys in manifest', async () => {
         await next.render('/')
         await check(async () => {
           // Check that the client-side manifest is correct before any requests
           const clientReferenceManifest = JSON.parse(
-            JSON.parse(
-              (
-                await next.readFile(
-                  '.next/server/app/page_client-reference-manifest.js'
-                )
-              ).match(/]=(.+)$/)[1]
-            )
+            (
+              await next.readFile(
+                '.next/server/app/page_client-reference-manifest.js'
+              )
+            ).match(/]=(.+)$/)[1]
           )
           const clientModulesNames = Object.keys(
             clientReferenceManifest.clientModules
           )
           clientModulesNames.every((name) => {
-            const [, key] = name.split('#')
+            const [, key] = name.split('#', 2)
             return key === undefined || key === '' || key === 'default'
           })
 
@@ -560,15 +557,19 @@ createNextDescribe(
       ).toBe('count: 1')
     })
 
-    it('should support webpack loader rules', async () => {
-      const browser = await next.browser('/loader-rule')
+    // Skip as Turbopack doesn't support webpack loaders.
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should support webpack loader rules',
+      async () => {
+        const browser = await next.browser('/loader-rule')
 
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('#red')).color`
-        )
-      ).toBe('rgb(255, 0, 0)')
-    })
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('#red')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      }
+    )
 
     if (isNextStart) {
       it('should generate edge SSR manifests for Node.js', async () => {
@@ -594,7 +595,7 @@ createNextDescribe(
     }
 
     describe('react@experimental', () => {
-      it.each([{ flag: 'ppr' }, { flag: 'serverActions' }])(
+      it.each([{ flag: 'ppr' }, { flag: 'taint' }])(
         'should opt into the react@experimental when enabling $flag',
         async ({ flag }) => {
           await next.stop()

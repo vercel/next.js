@@ -233,7 +233,7 @@ impl VisitMut for CjsOptimizer {
                                         self.data.imports.insert(
                                             key,
                                             ImportRecord {
-                                                module_specifier: v.value.clone().into(),
+                                                module_specifier: v.value.clone(),
                                             },
                                         );
                                     }

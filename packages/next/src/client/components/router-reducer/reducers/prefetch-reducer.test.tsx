@@ -1,6 +1,16 @@
 import React from 'react'
 import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
 import type { FlightData } from '../../../../server/app-render/types'
+import type { FlightRouterState } from '../../../../server/app-render/types'
+import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import { createInitialRouterState } from '../create-initial-router-state'
+import { ACTION_PREFETCH, PrefetchKind } from '../router-reducer-types'
+import type { PrefetchAction } from '../router-reducer-types'
+import { prefetchReducer } from './prefetch-reducer'
+import { fetchServerResponse } from '../fetch-server-response'
+import { createRecordFromThenable } from '../create-record-from-thenable'
+
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [
@@ -32,20 +42,6 @@ jest.mock('../fetch-server-response', () => {
     },
   }
 })
-import { FlightRouterState } from '../../../../server/app-render/types'
-import {
-  CacheNode,
-  CacheStates,
-} from '../../../../shared/lib/app-router-context.shared-runtime'
-import { createInitialRouterState } from '../create-initial-router-state'
-import {
-  PrefetchAction,
-  ACTION_PREFETCH,
-  PrefetchKind,
-} from '../router-reducer-types'
-import { prefetchReducer } from './prefetch-reducer'
-import { fetchServerResponse } from '../fetch-server-response'
-import { createRecordFromThenable } from '../create-record-from-thenable'
 
 const getInitialRouterStateTree = (): FlightRouterState => [
   '',
