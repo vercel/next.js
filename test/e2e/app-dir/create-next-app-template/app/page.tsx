@@ -25,7 +25,7 @@ export default function Home() {
             className={styles.card}
           >
             <h2>Examples &rarr;</h2>
-            <p>Explore starter templates for Next.js</p>
+            <p>Explore the Next.js 13 playground.</p>
           </a>
 
           <a
