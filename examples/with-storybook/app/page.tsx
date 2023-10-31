@@ -80,7 +80,9 @@ export default function Home() {
           <h2 className={inter.className}>
             Templates <span>-&gt;</span>
           </h2>
-          <p className={inter.className}>Explore starter templates for Next.js.</p>
+          <p className={inter.className}>
+            Explore starter templates for Next.js.
+          </p>
         </a>
 
         <a
