@@ -1491,6 +1491,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return
     }
     const { req, res } = ctx
+    const originalStatus = res.statusCode
     const { body, type } = payload
     let { revalidate } = payload
     if (!res.sent) {
@@ -1502,13 +1503,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         revalidate = undefined
       }
 
-      return this.sendRenderResult(req, res, {
+      await this.sendRenderResult(req, res, {
         result: body,
         type,
         generateEtags,
         poweredByHeader,
         revalidate,
       })
+      res.statusCode = originalStatus
     }
   }
 
@@ -2058,13 +2060,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       })
 
     type Renderer = (
-      postponed: string | undefined,
-      previousCacheEntry:
-        | import('./response-cache/types').IncrementalCacheItem
-        | undefined
+      postponed: string | undefined
     ) => Promise<ResponseCacheEntry | null>
 
-    const doRender: Renderer = async (postponed, previousCacheEntry) => {
+    const doRender: Renderer = async (postponed) => {
       // In development, we always want to generate dynamic HTML.
       const supportsDynamicHTML =
         (!isDataReq && opts.dev) || !(isSSG || hasStaticPaths) || !!postponed
@@ -2129,7 +2128,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // Legacy render methods will return a render result that needs to be
       // served by the server.
       let result: RenderResult
-      let curStatusCode = res.statusCode
 
       if (components.routeModule?.definition.kind === RouteKind.APP_ROUTE) {
         const routeModule = components.routeModule as AppRouteRouteModule
@@ -2254,29 +2252,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
         renderOpts.nextFontManifest = this.nextFontManifest
 
-        // wrap response in a proxy to prevent mutating original
-        // response during a revalidation
-        const wrappedRes = new Proxy(
-          (res as NodeNextResponse).originalResponse ??
-            (res as WebNextResponse),
-          {
-            set(target, prop, value) {
-              if (previousCacheEntry) {
-                if (prop === 'statusCode') {
-                  curStatusCode = 200
-                }
-              } else {
-                ;(target as any)[prop] = value
-              }
-              return true
-            },
-          }
-        )
-
         // Call the built-in render method on the module.
         result = await module.render(
           (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
-          wrappedRes,
+          (res as NodeNextResponse).originalResponse ??
+            (res as WebNextResponse),
           {
             page: is404Page ? '/404' : pathname,
             params: opts.params,
@@ -2366,7 +2346,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           pageData: metadata.pageData,
           postponed: metadata.postponed,
           headers,
-          status: isAppPath ? curStatusCode : undefined,
+          status: isAppPath ? res.statusCode : undefined,
         },
         revalidate: metadata.revalidate,
       }
@@ -2499,7 +2479,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
               // We pass `undefined` as there cannot be a postponed state in
               // development.
-              const result = await doRender(undefined, previousCacheEntry)
+              const result = await doRender(undefined)
               if (!result) {
                 return null
               }
@@ -2510,7 +2490,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
         }
 
-        const result = await doRender(postponed, previousCacheEntry)
+        const result = await doRender(postponed)
         if (!result) {
           return null
         }
@@ -2694,7 +2674,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // respond with the dynamic flight data. In the case that this is a
         // resume request the page data will already be dynamic.
         if (!isAppPrefetch && !resumed) {
-          const result = await doRender(cachedData.postponed, undefined)
+          const result = await doRender(cachedData.postponed)
           if (!result) {
             return null
           }
@@ -2746,7 +2726,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // Perform the render again, but this time, provide the postponed state.
       // We don't await because we want the result to start streaming now, and
       // we've already chained the transformer's readable to the render result.
-      doRender(cachedData.postponed, undefined)
+      doRender(cachedData.postponed)
         .then(async (result) => {
           if (!result) {
             throw new Error('Invariant: expected a result to be returned')
