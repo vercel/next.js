@@ -72,7 +72,7 @@ import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './action-encryption-utils'
 import { createStaticRenderer } from './static/static-renderer'
-import { CaughtPostponeError } from './is-caught-postpone-error'
+import { MissingPostponeDataError } from './is-missing-postpone-error'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1024,7 +1024,7 @@ async function renderToHTMLOrFlightImpl(
         error(capturedErrors[0])
       }
 
-      throw new CaughtPostponeError(
+      throw new MissingPostponeDataError(
         `An unexpected error occurred while prerendering ${urlPathname}. Please check the logs above for more details.`
       )
     }
