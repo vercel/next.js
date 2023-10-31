@@ -23,7 +23,7 @@ use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
     Completion, Completions, IntoTraitRef, State, TaskInput, TraitRef, TransientInstance,
-    TryFlatJoinIterExt, Value, ValueToString, Vc,
+    TryFlatJoinIterExt, Value, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -400,15 +400,6 @@ impl Project {
     #[turbo_tasks::function]
     fn project_root_path(self: Vc<Self>) -> Vc<FileSystemPath> {
         self.project_fs().root()
-    }
-
-    /// Returns a path to dist_dir resolved from project root path as string.
-    /// Currently this is only for embedding process.env.__NEXT_DIST_DIR.
-    /// [Note] in webpack-config, it is being injected when
-    /// dev && (isClient || isEdgeServer)
-    #[turbo_tasks::function]
-    async fn dist_root_string(self: Vc<Self>) -> Result<Vc<String>> {
-        Ok(self.node_root().to_string())
     }
 
     #[turbo_tasks::function]
