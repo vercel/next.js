@@ -674,13 +674,11 @@ export function onDemandEntryHandler({
 
   async function ensurePageImpl({
     page,
-    clientOnly,
     appPaths,
     definition,
     isApp,
   }: {
     page: string
-    clientOnly: boolean
     appPaths: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
     isApp: boolean | undefined
@@ -834,7 +832,7 @@ export function onDemandEntryHandler({
       const hasNewEntry = addedValues.some((entry) => entry.newEntry)
 
       if (hasNewEntry) {
-        reportTrigger(!clientOnly && hasNewEntry ? `${route.page}` : route.page)
+        reportTrigger(route.page)
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
@@ -874,7 +872,6 @@ export function onDemandEntryHandler({
 
   type EnsurePageOptions = {
     page: string
-    clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     definition?: RouteDefinition
     isApp?: boolean
@@ -898,7 +895,6 @@ export function onDemandEntryHandler({
   return {
     async ensurePage({
       page,
-      clientOnly,
       appPaths = null,
       definition,
       isApp,
@@ -912,18 +908,14 @@ export function onDemandEntryHandler({
       // Wrap the invocation of the ensurePageImpl function in the pending
       // wrapper, which will ensure that we don't have multiple compilations
       // for the same page happening concurrently.
-      return batcher.batch(
-        { page, clientOnly, appPaths, definition, isApp },
-        async () => {
-          await ensurePageImpl({
-            page,
-            clientOnly,
-            appPaths,
-            definition,
-            isApp,
-          })
-        }
-      )
+      return batcher.batch({ page, appPaths, definition, isApp }, async () => {
+        await ensurePageImpl({
+          page,
+          appPaths,
+          definition,
+          isApp,
+        })
+      })
     },
     onHMR(client: ws, getHmrServerError: () => Error | null) {
       let bufferedHmrServerError: Error | null = null
