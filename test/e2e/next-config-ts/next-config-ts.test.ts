@@ -3,8 +3,7 @@ import { createNextDescribe } from 'e2e-utils'
 
 const tests = [
   'cjs',
-  // Type error: Export assignment cannot be used when targeting ECMAScript modules.
-  // 'cjs-export-assignment',
+  'cjs-export-assignment', // requires tsconfig.json to run
   'esm',
   'esm-async',
   'esm-export-as-default',
