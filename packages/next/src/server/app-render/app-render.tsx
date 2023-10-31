@@ -475,19 +475,17 @@ async function renderToHTMLOrFlightImpl(
     _source: 'serverComponentsRenderer',
     dev,
     isNextExport,
-    errorLogger: silenceStaticGenerationErrors
-      ? () => Promise.resolve()
-      : appDirDevErrorLogger,
+    errorLogger: appDirDevErrorLogger,
     capturedErrors,
+    silenceLogger: silenceStaticGenerationErrors,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
     _source: 'flightDataRenderer',
     dev,
     isNextExport,
-    errorLogger: silenceStaticGenerationErrors
-      ? () => Promise.resolve()
-      : appDirDevErrorLogger,
+    errorLogger: appDirDevErrorLogger,
     capturedErrors,
+    silenceLogger: silenceStaticGenerationErrors,
   })
   const htmlRendererErrorHandler = createErrorHandler({
     _source: 'htmlRenderer',
@@ -496,6 +494,7 @@ async function renderToHTMLOrFlightImpl(
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
     allCapturedErrors,
+    silenceLogger: silenceStaticGenerationErrors,
   })
 
   patchFetch(ComponentMod)
