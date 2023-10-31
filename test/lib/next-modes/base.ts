@@ -5,10 +5,7 @@ import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
-import {
-  createNextInstall,
-  setPnpmResolutionMode,
-} from '../create-next-install'
+import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/src/trace'
 import webdriver from '../next-webdriver'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
@@ -187,7 +184,6 @@ export class NextInstance {
               2
             )
           )
-          await setPnpmResolutionMode(this.testDir)
         } else {
           if (
             process.env.NEXT_TEST_STARTER &&
