@@ -16,7 +16,7 @@ export const getESLintStrictValue = async (cwd: string) => {
 
 export const getESLintPromptValues = async (cwd: string) => {
   return [
-    getESLintStrictValue(cwd),
+    await getESLintStrictValue(cwd),
     {
       title: 'Base',
       config: {
