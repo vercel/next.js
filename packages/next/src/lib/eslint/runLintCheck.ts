@@ -47,7 +47,7 @@ const requiredPackages = [
   },
 ]
 
-async function cliPrompt(): Promise<{ config?: any }> {
+async function cliPrompt(cwd: string): Promise<{ config?: any }> {
   console.log(
     bold(
       `${cyan(
@@ -61,7 +61,7 @@ async function cliPrompt(): Promise<{ config?: any }> {
       await Promise.resolve(require('next/dist/compiled/cli-select'))
     ).default
     const { value } = await cliSelect({
-      values: await getESLintPromptValues(),
+      values: await getESLintPromptValues(cwd),
       valueRenderer: (
         {
           title,
@@ -360,7 +360,7 @@ export async function runLintCheck(
         // Ask user what config they would like to start with for first time "next lint" setup
         const { config: selectedConfig } = strict
           ? await getESLintStrictValue(baseDir)
-          : await cliPrompt()
+          : await cliPrompt(baseDir)
 
         if (selectedConfig == null) {
           // Show a warning if no option is selected in prompt

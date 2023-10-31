@@ -1,6 +1,6 @@
 import findUp from 'next/dist/compiled/find-up'
 
-export const getESLintStrictValue = async (cwd?: string) => {
+export const getESLintStrictValue = async (cwd: string) => {
   const hasTSConfig = !!(await findUp('tsconfig.json'), { cwd })
 
   return {
@@ -14,7 +14,7 @@ export const getESLintStrictValue = async (cwd?: string) => {
   }
 }
 
-export const getESLintPromptValues = async (cwd?: string) => {
+export const getESLintPromptValues = async (cwd: string) => {
   return [
     getESLintStrictValue(cwd),
     {
