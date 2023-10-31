@@ -321,6 +321,45 @@ export async function handleAction({
 
   try {
     await actionAsyncStorage.run({ isAction: true }, async () => {
+      let actionModId: string
+
+      if (!actionId) {
+        console.error(`Missing Server Action ID.`)
+
+        res.statusCode = 404
+
+        return {
+          type: 'not-found',
+        }
+      }
+
+      // actions.js
+      // app/page.js
+      //   action worker1
+      //     appRender1
+
+      // app/foo/page.js
+      //   action worker2
+      //     appRender
+
+      // / -> fire action -> POST / -> appRender1 -> modId for the action file
+      // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
+
+      try {
+        actionModId = serverModuleMap[actionId].id
+      } catch (err) {
+        // When this happens, it could be a deployment skew where the action came
+        // from a different deployment. We'll just return a 404 with a message logged.
+        console.error(
+          `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.`
+        )
+
+        res.statusCode = 404
+        return {
+          type: 'not-found',
+        }
+      }
+
       if (process.env.NEXT_RUNTIME === 'edge') {
         // Use react-server-dom-webpack/server.edge
         const { decodeReply, decodeAction, decodeFormState } = ComponentMod
@@ -440,32 +479,6 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
           } else {
             bound = await decodeReply(actionData, serverModuleMap)
           }
-        }
-      }
-
-      // actions.js
-      // app/page.js
-      //   action worker1
-      //     appRender1
-
-      // app/foo/page.js
-      //   action worker2
-      //     appRender
-
-      // / -> fire action -> POST / -> appRender1 -> modId for the action file
-      // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
-
-      let actionModId: string
-      try {
-        actionModId = serverModuleMap[actionId].id
-      } catch (err) {
-        // When this happens, it could be a deployment skew where the action came
-        // from a different deployment. We'll just return a 404 with a message logged.
-        console.error(
-          `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.`
-        )
-        return {
-          type: 'not-found',
         }
       }
 

@@ -39,6 +39,37 @@ createNextDescribe(
       await check(() => browser.elementByCss('h1').text(), '3')
     })
 
+    it('should properly ignore malformed requests', async () => {
+      const res = await next.fetch('/server', {
+        method: 'POST',
+        body: 'data',
+        headers: {
+          'content-type': 'multipart/form-data',
+        },
+      })
+
+      expect(res.status).toBe(404)
+      await check(() => next.cliOutput, /Missing Server Action ID/)
+    })
+
+    it('should properly handle action IDs that cannot be found', async () => {
+      const res = await next.fetch('/server', {
+        method: 'POST',
+        body: 'data',
+        headers: {
+          'content-type': 'multipart/form-data',
+          'next-action': 'foo',
+        },
+      })
+
+      expect(res.status).toBe(404)
+
+      await check(
+        () => next.cliOutput,
+        /Failed to find Server Action "foo". This request might be from an older or newer deployment./
+      )
+    })
+
     it('should support headers and cookies', async () => {
       const browser = await next.browser('/header')
 
