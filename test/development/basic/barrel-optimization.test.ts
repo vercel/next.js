@@ -148,4 +148,9 @@ describe('optimizePackageImports', () => {
     const html = await next.render('/client')
     expect(html).toContain('this is a client component')
   })
+
+  it('should support "use client" directive in barrel file', async () => {
+    const html = await next.render('/client-boundary')
+    expect(html).toContain('<button>0</button>')
+  })
 })
