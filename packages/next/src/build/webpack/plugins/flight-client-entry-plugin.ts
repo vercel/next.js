@@ -193,7 +193,7 @@ export class FlightClientEntryPlugin {
         const modPath = mod.matchResource || mod.resourceResolveData?.path
         const modQuery = mod.resourceResolveData?.query || ''
         // query is already part of mod.resource
-        // so it's only neccessary to add it for matchResource or mod.resourceResolveData
+        // so it's only necessary to add it for matchResource or mod.resourceResolveData
         const modResource = modPath ? modPath + modQuery : mod.resource
 
         if (mod.layer !== WEBPACK_LAYERS.serverSideRendering) {

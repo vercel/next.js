@@ -400,6 +400,25 @@ pub struct LoaderTree {
     pub global_metadata: Vc<GlobalMetadata>,
 }
 
+#[turbo_tasks::value_impl]
+impl LoaderTree {
+    /// Returns true if there's a page match in this loader tree.
+    #[turbo_tasks::function]
+    pub async fn has_page(&self) -> Result<Vc<bool>> {
+        if self.segment == "__PAGE__" {
+            return Ok(Vc::cell(true));
+        }
+
+        for (_, tree) in &self.parallel_routes {
+            if *tree.has_page().await? {
+                return Ok(Vc::cell(true));
+            }
+        }
+
+        Ok(Vc::cell(false))
+    }
+}
+
 #[derive(
     Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, Debug, TaskInput,
 )]
@@ -423,6 +442,10 @@ pub struct Entrypoints(IndexMap<AppPath, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
+}
+
+fn is_group_route(name: &str) -> bool {
+    name.starts_with('(') && name.ends_with(')')
 }
 
 fn match_parallel_route(name: &str) -> Option<&str> {
@@ -677,14 +700,10 @@ async fn directory_tree_to_loader_tree(
         tree.segment = "children".to_string();
     }
 
-    let mut has_page = false;
-
     if let Some(page) = (app_path == for_app_path)
         .then_some(components.page)
         .flatten()
     {
-        has_page = true;
-
         // When resolving metadata with corresponding module
         // (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/lib/metadata/resolve-metadata.ts#L340)
         // layout takes precedence over page (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/server/lib/app-dir-module.ts#L22)
@@ -751,9 +770,26 @@ async fn directory_tree_to_loader_tree(
                 continue;
             }
 
-            // TODO: detect duplicate page in group segment
-            if !has_page {
+            // skip groups which don't have a page match.
+            if is_group_route(subdir_name) && !*subtree.has_page().await? {
+                continue;
+            }
+
+            if !tree.parallel_routes.contains_key("children") {
                 tree.parallel_routes.insert("children".to_string(), subtree);
+            } else {
+                // TODO: improve error message to have the full paths
+                DirectoryTreeIssue {
+                    app_dir,
+                    message: Vc::cell(format!(
+                        "You cannot have two parallel pages that resolve to the same path. Route \
+                         {} has multiple matches in {}",
+                        for_app_path, app_page
+                    )),
+                    severity: IssueSeverity::Error.cell(),
+                }
+                .cell()
+                .emit();
             }
         } else if let Some(key) = parallel_route_key {
             bail!(
@@ -772,7 +808,7 @@ async fn directory_tree_to_loader_tree(
                 ..Default::default()
             }
             .cell();
-        } else if components.layout.is_some() || current_level_is_parallel_route {
+        } else if current_level_is_parallel_route {
             // default fallback component
             tree.components = Components {
                 default: Some(

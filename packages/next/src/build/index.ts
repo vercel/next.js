@@ -350,6 +350,8 @@ export default async function build(
   let hasAppDir = false
   try {
     const nextBuildSpan = trace('next-build', undefined, {
+      buildMode: buildMode,
+      isTurboBuild: String(turboNextBuild),
       version: process.env.__NEXT_VERSION as string,
     })
 
@@ -1068,6 +1070,11 @@ export default async function build(
       // has a custom webpack config and disable the build worker by default.
       const useBuildWorker =
         config.experimental.webpackBuildWorker || !config.webpack
+      nextBuildSpan.setAttribute(
+        'has-custom-webpack-config',
+        String(!!config.webpack)
+      )
+      nextBuildSpan.setAttribute('use-build-worker', String(useBuildWorker))
 
       if (
         config.webpack &&
