@@ -76,7 +76,8 @@ async function runAction({
   function handleResult(nextState: AppRouterState) {
     // if we discarded this action, the state should also be discarded
     if (action.discarded) {
-      if (actionQueue.needsRefresh) {
+      // if a refresh is needed, we only want to trigger it once the action queue is empty
+      if (actionQueue.needsRefresh && actionQueue.pending === null) {
         actionQueue.needsRefresh = false
         actionQueue.dispatch(
           {
@@ -140,26 +141,24 @@ function dispatchAction(
     setState(deferredPromise)
   })
 
-  if (payload.type === ACTION_NAVIGATE && actionQueue.pending !== null) {
-    // Navigations take priority over any pending actions.
-    // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
-    actionQueue.pending.discarded = true
-
-    // if the pending action was a server action, mark the queue as needing a refresh once events are processed
-    actionQueue.needsRefresh =
-      actionQueue.pending.payload.type === ACTION_SERVER_ACTION
-
+  // Check if the queue is empty
+  if (actionQueue.pending === null) {
+    // The queue is empty, so add the action and start it immediately
     runAction({
       actionQueue,
       action: newAction,
       setState,
     })
-    return
-  }
+  } else if (payload.type === ACTION_NAVIGATE) {
+    // Navigations take priority over any pending actions.
+    // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
+    actionQueue.pending.discarded = true
 
-  // Check if the queue is empty
-  if (actionQueue.pending === null) {
-    // The queue is empty, so add the action and start it immediately
+    // if the pending action was a server action, mark the queue as needing a refresh once events are processed
+    if (actionQueue.pending.payload.type === ACTION_SERVER_ACTION) {
+      actionQueue.needsRefresh = true
+    }
+
     runAction({
       actionQueue,
       action: newAction,
