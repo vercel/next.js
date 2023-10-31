@@ -1705,10 +1705,13 @@ export default async function build(
                           }
                           appDefaultConfigs.set(originalAppPath, appConfig)
 
+                          // Only generate the app prefetch rsc if the route is
+                          // an app page.
                           if (
                             !isStatic &&
                             !isAppRouteRoute(originalAppPath) &&
-                            !isDynamicRoute(originalAppPath)
+                            !isDynamicRoute(originalAppPath) &&
+                            !isPPR
                           ) {
                             appPrefetchPaths.set(originalAppPath, page)
                           }
@@ -2114,6 +2117,7 @@ export default async function build(
                   }
                 }
               })
+
               // Append the "well-known" routes we should prerender for, e.g. blog
               // post slugs.
               additionalSsgPaths.forEach((routes, page) => {
@@ -2154,6 +2158,13 @@ export default async function build(
                   }
                 })
               })
+
+              // Ensure we don't generate explicit app prefetches while in PPR.
+              if (config.experimental.ppr && appPrefetchPaths.size > 0) {
+                throw new Error(
+                  "Invariant: explicit app prefetches shouldn't generated with PPR"
+                )
+              }
 
               for (const [originalAppPath, page] of appPrefetchPaths) {
                 defaultMap[page] = {

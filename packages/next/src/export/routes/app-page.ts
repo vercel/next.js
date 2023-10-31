@@ -114,27 +114,23 @@ export async function exportAppPage(
       query,
       renderOpts
     )
+
     const html = result.toUnchunkedString()
+
+    const {
+      metadata: { pageData, revalidate = false, postponed, fetchTags },
+    } = result
     const { metadata } = result
-    const flightData = metadata.pageData
-    const revalidate = metadata.revalidate ?? false
-    const postponed = metadata.postponed
+
+    // Ensure we don't postpone without having PPR enabled.
+    if (postponed && !renderOpts.experimental.ppr) {
+      throw new Error('Invariant: page postponed without PPR being enabled')
+    }
 
     if (revalidate === 0) {
       if (isDynamicError) {
         throw new Error(
           `Page with dynamic = "error" encountered dynamic data method on ${path}.`
-        )
-      }
-
-      // We gate the static generation bailout to only happen if PPR is not
-      // enabled. If this condition is true this is an error.
-      if (
-        renderOpts.experimental.ppr &&
-        (renderOpts as any).store.staticPrefetchBailout
-      ) {
-        throw new Error(
-          'Invariant: static prefetch has bailed out with PPR enabled'
         )
       }
 
@@ -167,26 +163,30 @@ export async function exportAppPage(
       }
 
       return { revalidate: 0 }
-    } else if (renderOpts.experimental.ppr) {
+    }
+    // If PPR is enabled, we want to emit a prefetch rsc file for the page
+    // instead of the standard rsc. This is because the standard rsc will
+    // contain the dynamic data.
+    else if (renderOpts.experimental.ppr) {
       // If PPR is enabled, we should emit the flight data as the prefetch
       // payload.
       await fileWriter(
         ExportedAppPageFiles.FLIGHT,
         htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
-        flightData
+        pageData
       )
     } else {
       // Writing the RSC payload to a file if we don't have PPR enabled.
       await fileWriter(
         ExportedAppPageFiles.FLIGHT,
         htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
-        flightData
+        pageData
       )
     }
 
     let headers: OutgoingHttpHeaders | undefined
-    if (metadata.fetchTags) {
-      headers = { [NEXT_CACHE_TAGS_HEADER]: metadata.fetchTags }
+    if (fetchTags) {
+      headers = { [NEXT_CACHE_TAGS_HEADER]: fetchTags }
     }
 
     // Writing static HTML to a file.

@@ -562,32 +562,30 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private handleRSCRequest: RouteHandler = (req, _res, parsedUrl) => {
     if (!parsedUrl.pathname) return
 
-    let matched = false
     if (this.normalizers.prefetchRSC.match(parsedUrl.pathname)) {
-      matched = true
       parsedUrl.pathname = this.normalizers.prefetchRSC.normalize(
         parsedUrl.pathname,
         true
       )
 
       // Mark the request as a router prefetch request.
+      req.headers[RSC_HEADER.toLowerCase()] = '1'
       req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
     } else if (this.normalizers.rsc.match(parsedUrl.pathname)) {
-      matched = true
       parsedUrl.pathname = this.normalizers.rsc.normalize(
         parsedUrl.pathname,
         true
       )
+
+      // Mark the request as a RSC request.
+      req.headers[RSC_HEADER.toLowerCase()] = '1'
       addRequestMeta(req, 'isRSCRequest', true)
+    } else {
+      // If we didn't match, return.
+      return
     }
-
-    // If we didn't match, return.
-    if (!matched) return
-
-    // Mark this as a data request.
-    parsedUrl.query.__nextDataReq = '1'
 
     if (req.url) {
       const parsed = parseUrl(req.url)
@@ -979,29 +977,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             parsedUrl.pathname =
               parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
           }
+
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
           let { pathname: matchedPath } = new URL(
             req.headers['x-matched-path'] as string,
             'http://localhost'
           )
-
-          if (this.normalizers.prefetchRSC.match(matchedPath)) {
-            matchedPath = this.normalizers.prefetchRSC.normalize(
-              matchedPath,
-              true
-            )
-            addRequestMeta(req, 'isRSCRequest', true)
-            addRequestMeta(req, 'isPrefetchRSCRequest', true)
-          } else if (this.normalizers.rsc.match(matchedPath)) {
-            matchedPath = this.normalizers.rsc.normalize(matchedPath, true)
-            addRequestMeta(req, 'isRSCRequest', true)
-          } else if (this.normalizers.postponed.match(matchedPath)) {
-            matchedPath = this.normalizers.postponed.normalize(
-              matchedPath,
-              true
-            )
-          }
 
           let urlPathname = new URL(req.url, 'http://localhost').pathname
 
@@ -1819,7 +1801,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
      * If true, this indicates that the request being made is for an app
      * prefetch request.
      */
-    const isAppPrefetch =
+    const isPrefetchRSCRequest =
       req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1' ||
       getRequestMeta(req, 'isPrefetchRSCRequest')
 
@@ -1864,7 +1846,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
-    const isFlightRequest =
+    const isRSCRequest =
       Boolean(req.headers[RSC_HEADER.toLowerCase()]) ||
       getRequestMeta(req, 'isRSCRequest')
 
@@ -1879,14 +1861,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     }
 
+    // If PPR is enabled, and this is a RSC request (but not a prefetch), then
+    // we can use this fact to only generate the flight data for the request
+    // because we can't cache the HTML (as it's also dynamic).
+    const isDynamicRSCRequest =
+      this.renderOpts.experimental.ppr && isRSCRequest && !isPrefetchRSCRequest
+
     // For pages we need to ensure the correct Vary header is set too, to avoid
     // caching issues when navigating between pages and app
-    if (!isAppPath && isFlightRequest) {
+    if (!isAppPath && isRSCRequest) {
       res.setHeader('vary', RSC_VARY_HEADER)
     }
 
     // we need to ensure the status code if /404 is visited directly
-    if (is404Page && !isDataReq && !isFlightRequest) {
+    if (is404Page && !isDataReq && !isRSCRequest) {
       res.statusCode = 404
     }
 
@@ -1974,21 +1962,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     }
 
-    // If the request metadata is marked as a RSC request,
-    if (
-      getRequestMeta(req, 'isRSCRequest') ||
-      getRequestMeta(req, 'isPrefetchRSCRequest')
-    ) {
-      isDataReq = true
-    }
-
     if (isAppPath) {
       res.setHeader('vary', RSC_VARY_HEADER)
 
       // We don't clear RSC headers in development since SSG doesn't apply
       // These headers are cleared for SSG as we need to always generate the
       // full RSC response for ISR.
-      if (!this.renderOpts.dev && !isPreviewMode && isSSG && isFlightRequest) {
+      if (
+        !this.renderOpts.dev &&
+        !isPreviewMode &&
+        isSSG &&
+        !isDynamicRSCRequest
+      ) {
         if (!this.minimalMode) {
           isDataReq = true
         }
@@ -2135,8 +2120,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ((!isDataReq && opts.dev) ||
           !(isSSG || hasStaticPaths) ||
           !!postponed) &&
-        // We don't support dynamic HTML for prefetch requests.
-        (!isAppPrefetch || !this.renderOpts.experimental.ppr)
+        // We don't support dynamic HTML for prefetch RSC requests when PPR is
+        // enabled.
+        !(isPrefetchRSCRequest && this.renderOpts.experimental.ppr)
 
       let headers: OutgoingHttpHeaders | undefined
 
@@ -2290,7 +2276,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             { page: pathname, params: opts.params, query, renderOpts }
           )
         } else if (isAppPageRouteModule(routeModule)) {
-          if (isAppPrefetch && process.env.NODE_ENV === 'production') {
+          if (isPrefetchRSCRequest && process.env.NODE_ENV === 'production') {
             try {
               const prefetchRsc = await this.getPrefetchRsc(resolvedUrlPathname)
               if (prefetchRsc) {
@@ -2358,22 +2344,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         metadata.revalidate === 0 &&
         !this.renderOpts.dev
       ) {
-        const staticBailoutInfo: {
-          stack?: string
-          description?: string
-        } = metadata.staticBailoutInfo || {}
+        const staticBailoutInfo = metadata.staticBailoutInfo
 
         const err = new Error(
           `Page changed from static to dynamic at runtime ${urlPathname}${
-            staticBailoutInfo.description
+            staticBailoutInfo?.description
               ? `, reason: ${staticBailoutInfo.description}`
               : ``
           }` +
             `\nsee more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`
         )
 
-        if (staticBailoutInfo.stack) {
-          const stack = staticBailoutInfo.stack as string
+        if (staticBailoutInfo?.stack) {
+          const stack = staticBailoutInfo.stack
           err.stack = err.message + stack.substring(stack.indexOf('\n'))
         }
 
@@ -2614,25 +2597,42 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // Coerce the revalidate parameter from the render.
     let revalidate: Revalidate | undefined
 
-    // If this is a resume request, or this request has postponed while not in
-    // minimal mode, do not cache.
-    if (
-      resumed?.postponed ||
-      (this.minimalMode && isFlightRequest && !isAppPrefetch) ||
-      (cachedData?.kind === 'PAGE' && cachedData.postponed && !this.minimalMode)
+    // If this is a resume request in minimal mode it is streamed with dynamic
+    // content and should not be cached.
+    if (this.minimalMode && resumed?.postponed) {
+      revalidate = 0
+    }
+
+    // If this is in minimal mode and this is a flight request that isn't a
+    // prefetch request while PPR is enabled, it cannot be cached as it contains
+    // dynamic content.
+    else if (
+      this.minimalMode &&
+      isRSCRequest &&
+      !isPrefetchRSCRequest &&
+      this.renderOpts.experimental.ppr
     ) {
       revalidate = 0
     } else if (
       typeof cacheEntry.revalidate !== 'undefined' &&
       (!this.renderOpts.dev || (hasServerProps && !isDataReq))
     ) {
+      // If this is a preview mode request, we shouldn't cache it. We also don't
+      // cache 404 pages.
       if (isPreviewMode || (is404Page && !isDataReq)) {
         revalidate = 0
-      } else if (!isSSG) {
+      }
+
+      // If this isn't SSG, then we should set change the header only if it is
+      // not set already.
+      else if (!isSSG) {
         if (!res.getHeader('Cache-Control')) {
           revalidate = 0
         }
-      } else if (typeof cacheEntry.revalidate === 'number') {
+      }
+
+      // If the cache entry has a revalidate value that's a number, use it.
+      else if (typeof cacheEntry.revalidate === 'number') {
         if (cacheEntry.revalidate < 1) {
           throw new Error(
             `Invariant: invalid Cache-Control duration provided: ${cacheEntry.revalidate} < 1`
@@ -2640,10 +2640,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
 
         revalidate = cacheEntry.revalidate
-      } else if (typeof cacheEntry.revalidate === 'boolean') {
+      }
+      // Otherwise if the revalidate value is false, then we should use the cache
+      // time of one year.
+      else if (cacheEntry.revalidate === false) {
         revalidate = CACHE_ONE_YEAR
       }
     }
+
     cacheEntry.revalidate = revalidate
 
     // If there's a callback for `onCacheEntry`, call it with the cache entry
@@ -2743,7 +2747,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // request so we can trust the cache headers.
       if (
         cachedData.postponed &&
-        (isAppPrefetch || isDataReq || process.env.__NEXT_TEST_MODE)
+        (isRSCRequest || process.env.__NEXT_TEST_MODE)
       ) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
@@ -2752,7 +2756,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // If this isn't a prefetch and this isn't a resume request, we want to
         // respond with the dynamic flight data. In the case that this is a
         // resume request the page data will already be dynamic.
-        if (!isAppPrefetch && !resumed) {
+        if (!isPrefetchRSCRequest && !resumed) {
           const result = await doRender(cachedData.postponed)
           if (!result) {
             return null
