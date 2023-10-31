@@ -273,6 +273,7 @@ async function generateFlight(
           <MetadataTree key={requestId} />
         ),
         injectedCSS: new Set(),
+        injectedJS: new Set(),
         injectedFontPreloadTags: new Set(),
         rootLayoutIncluded: false,
         asNotFound: ctx.isNotFoundPath || options?.asNotFound,
@@ -318,6 +319,7 @@ function createServerComponentsRenderer(
     preinitScripts()
     // Create full component tree from root to leaf.
     const injectedCSS = new Set<string>()
+    const injectedJS = new Set<string>()
     const injectedFontPreloadTags = new Set<string>()
     const {
       getDynamicParamFromSegment,
@@ -349,6 +351,7 @@ function createServerComponentsRenderer(
       parentParams: {},
       firstItem: true,
       injectedCSS,
+      injectedJS,
       injectedFontPreloadTags,
       rootLayoutIncluded: false,
       asNotFound: props.asNotFound,

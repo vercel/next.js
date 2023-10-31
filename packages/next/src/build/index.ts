@@ -350,6 +350,8 @@ export default async function build(
   let hasAppDir = false
   try {
     const nextBuildSpan = trace('next-build', undefined, {
+      buildMode: buildMode,
+      isTurboBuild: String(turboNextBuild),
       version: process.env.__NEXT_VERSION as string,
     })
 
@@ -374,6 +376,8 @@ export default async function build(
             silent: false,
           })
         )
+
+      process.env.NEXT_DEPLOYMENT_ID = config.experimental.deploymentId || ''
       NextBuildContext.config = config
 
       let configOutDir = 'out'
@@ -1057,16 +1061,35 @@ export default async function build(
         })
 
         const [duration] = process.hrtime(turboNextBuildStart)
-        return { duration, buildTraceContext: null }
+        return { duration, buildTraceContext: undefined }
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
+      // if the option is set, we respect it, otherwise we check if the user
+      // has a custom webpack config and disable the build worker by default.
+      const useBuildWorker =
+        config.experimental.webpackBuildWorker || !config.webpack
+      nextBuildSpan.setAttribute(
+        'has-custom-webpack-config',
+        String(!!config.webpack)
+      )
+      nextBuildSpan.setAttribute('use-build-worker', String(useBuildWorker))
+
+      if (
+        config.webpack &&
+        config.experimental.webpackBuildWorker === undefined
+      ) {
+        Log.warn(
+          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
+        )
+      }
+
       if (!isGenerate) {
-        if (isCompile && config.experimental.webpackBuildWorker) {
+        if (isCompile && useBuildWorker) {
           let durationInSeconds = 0
 
-          await webpackBuild(['server']).then((res) => {
+          await webpackBuild(true, ['server']).then((res) => {
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
             const buildTraceWorker = new Worker(
@@ -1095,11 +1118,11 @@ export default async function build(
               })
           })
 
-          await webpackBuild(['edge-server']).then((res) => {
+          await webpackBuild(true, ['edge-server']).then((res) => {
             durationInSeconds += res.duration
           })
 
-          await webpackBuild(['client']).then((res) => {
+          await webpackBuild(true, ['client']).then((res) => {
             durationInSeconds += res.duration
           })
 
@@ -1115,7 +1138,7 @@ export default async function build(
         } else {
           const { duration: webpackBuildDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
-            : await webpackBuild()
+            : await webpackBuild(false)
 
           buildTraceContext = rest.buildTraceContext
 
@@ -1604,6 +1627,9 @@ export default async function build(
                             isPPR = workerResult.isPPR
                             isSSG = true
                             isStatic = true
+
+                            appStaticPaths.set(originalAppPath, [])
+                            appStaticPathsEncoded.set(originalAppPath, [])
                           }
 
                           if (
@@ -1804,6 +1830,7 @@ export default async function build(
                   runtime: pageRuntime,
                   pageDuration: undefined,
                   ssgPageDurations: undefined,
+                  hasEmptyPrelude: undefined,
                 })
               })
             })
@@ -2234,7 +2261,15 @@ export default async function build(
               const {
                 revalidate = appConfig.revalidate ?? false,
                 metadata = {},
+                hasEmptyPrelude,
+                hasPostponed,
               } = exportResult.byPath.get(route) ?? {}
+
+              pageInfos.set(route, {
+                ...(pageInfos.get(route) as PageInfo),
+                hasPostponed,
+                hasEmptyPrelude,
+              })
 
               if (revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route)
@@ -2295,6 +2330,11 @@ export default async function build(
             if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
               const normalizedRoute = normalizePagePath(page)
               const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+
+              pageInfos.set(page, {
+                ...(pageInfos.get(page) as PageInfo),
+                isDynamicAppRoute: true,
+              })
 
               // TODO: create a separate manifest to allow enforcing
               // dynamicParams for non-static paths?

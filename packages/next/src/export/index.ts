@@ -489,7 +489,7 @@ export async function exportAppImpl(
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     serverComponents: options.hasAppDir,
     serverActionsBodySizeLimit:
-      nextConfig.experimental.serverActionsBodySizeLimit,
+      nextConfig.experimental.serverActions?.bodySizeLimit,
     nextFontManifest: require(join(
       distDir,
       'server',
@@ -746,6 +746,15 @@ export async function exportAppImpl(
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata
       }
+
+      if (typeof result.hasEmptyPrelude !== 'undefined') {
+        info.hasEmptyPrelude = result.hasEmptyPrelude
+      }
+
+      if (typeof result.hasPostponed !== 'undefined') {
+        info.hasPostponed = result.hasPostponed
+      }
+
       collector.byPath.set(path, info)
 
       // Update not found.

@@ -122,7 +122,7 @@ export interface NodeRequestHandler {
     req: IncomingMessage | BaseNextRequest,
     res: ServerResponse | BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery | undefined
-  ): Promise<void>
+  ): Promise<void> | void
 }
 
 const MiddlewareMatcherCache = new WeakMap<
@@ -180,10 +180,8 @@ export default class NextNodeServer extends BaseServer {
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-
-    if (this.nextConfig.experimental.deploymentId) {
-      process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental.deploymentId
-    }
+    process.env.NEXT_DEPLOYMENT_ID =
+      this.nextConfig.experimental.deploymentId || ''
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
@@ -1585,17 +1583,14 @@ export default class NextNodeServer extends BaseServer {
   ) => {
     const isMiddlewareInvoke = req.headers['x-middleware-invoke']
 
-    const handleFinished = (finished: boolean = false) => {
-      if (isMiddlewareInvoke && !finished) {
-        res.setHeader('x-middleware-invoke', '1')
-        res.body('').send()
-        return true
-      }
-      return finished
-    }
-
     if (!isMiddlewareInvoke) {
       return false
+    }
+
+    const handleFinished = () => {
+      res.setHeader('x-middleware-invoke', '1')
+      res.body('').send()
+      return true
     }
 
     const middleware = this.getMiddleware()
