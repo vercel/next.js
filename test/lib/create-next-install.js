@@ -37,11 +37,14 @@ async function createNextInstall({
   dirSuffix = '',
   onlyPackages = false,
   keepRepoDir = false,
+  subTmpDir = null,
 }) {
   return await parentSpan
     .traceChild('createNextInstall')
     .traceAsyncFn(async (rootSpan) => {
-      const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
+      const tmpDir = await fs.realpath(
+        process.env.NEXT_TEST_DIR || subTmpDir || os.tmpdir()
+      )
       const origRepoDir = path.join(__dirname, '../../')
       const installDir = path.join(
         tmpDir,
