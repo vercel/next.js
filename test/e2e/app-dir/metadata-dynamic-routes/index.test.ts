@@ -147,6 +147,7 @@ createNextDescribe(
       })
 
       it('should support generate multi images with generateImageMetadata', async () => {
+        const logLength = next.cliOutput.length
         const $ = await next.render$('/dynamic/big')
         const iconUrls = $('link[rel="icon"]')
           .toArray()
@@ -157,6 +158,13 @@ createNextDescribe(
               type: $(el).attr('type'),
             }
           })
+
+        const output = next.cliOutput.slice(logLength)
+        expect(output).toContain('/(group)/dynamic/[size]/icon')
+        expect(output).not.toContain('/(group)')
+        expect(output).not.toContain('[[...__metadata_id__]]')
+        expect(output).not.toContain('/route')
+
         // slug is id param from generateImageMetadata
         expect(iconUrls).toMatchObject([
           {
