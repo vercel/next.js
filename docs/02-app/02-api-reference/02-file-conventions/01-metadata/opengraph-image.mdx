@@ -90,7 +90,7 @@ Generate a route segment's shared image by creating an `opengraph-image` or `twi
 The easiest way to generate an image is to use the [ImageResponse](/docs/app/api-reference/functions/image-response) API from `next/server`.
 
 ```tsx filename="app/about/opengraph-image.tsx" switcher
-import { ImageResponse } from 'next/og'
+import { ImageResponse } from 'next/server'
 
 // Route segment config
 export const runtime = 'edge'
