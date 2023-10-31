@@ -1,10 +1,18 @@
-export function encodeText(input: string) {
-  return new TextEncoder().encode(input)
+export function createDecodeTransformStream(decoder = new TextDecoder()) {
+  return new TransformStream<Uint8Array, string>({
+    transform(chunk, controller) {
+      return controller.enqueue(decoder.decode(chunk, { stream: true }))
+    },
+    flush(controller) {
+      return controller.enqueue(decoder.decode())
+    },
+  })
 }
 
-export function decodeText(
-  input: Uint8Array | undefined,
-  textDecoder: TextDecoder
-) {
-  return textDecoder.decode(input, { stream: true })
+export function createEncodeTransformStream(encoder = new TextEncoder()) {
+  return new TransformStream<string, Uint8Array>({
+    transform(chunk, controller) {
+      return controller.enqueue(encoder.encode(chunk))
+    },
+  })
 }

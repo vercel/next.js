@@ -42,8 +42,7 @@ describe('Web Workers with webpack 5', () => {
 
     runTests()
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

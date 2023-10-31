@@ -20,14 +20,18 @@ describe('FileSystemCache', () => {
       fileURLToPath(new URL('./images/icon.png', import.meta.url))
     )
 
-    await fsCache.set('icon.png', {
-      body: binary,
-      headers: {
-        'Content-Type': 'image/png',
+    await fsCache.set(
+      'icon.png',
+      {
+        body: binary,
+        headers: {
+          'Content-Type': 'image/png',
+        },
+        status: 200,
+        kind: 'ROUTE',
       },
-      status: 200,
-      kind: 'ROUTE',
-    })
+      {}
+    )
 
     expect((await fsCache.get('icon.png')).value).toEqual({
       body: binary,

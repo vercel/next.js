@@ -1,8 +1,5 @@
 import type { IncomingHttpHeaders } from 'http'
 
-// We use `Headers` here which is provided by the polyfill.
-import '../../../node-polyfill-fetch'
-
 import { HeadersAdapter, ReadonlyHeadersError } from './headers'
 
 describe('HeadersAdapter', () => {

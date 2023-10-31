@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 import { Request } from 'playwright-chromium'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -19,7 +19,7 @@ createNextDescribe(
       'server-only': 'latest',
     },
   },
-  ({ next, isNextDev, isNextStart, isNextDeploy }) => {
+  ({ next, isNextDev, isNextStart, isNextDeploy, isTurbopack }) => {
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
@@ -45,7 +45,7 @@ createNextDescribe(
       await browser.elementByCss('#cookie').click()
       await check(async () => {
         const res = (await browser.elementByCss('h1').text()) || ''
-        const id = res.split(':')
+        const id = res.split(':', 2)
         return id[0] === id[1] && id[0] ? 'same' : 'different'
       }, 'same')
 
@@ -59,11 +59,29 @@ createNextDescribe(
       await browser.elementByCss('#setCookie').click()
       await check(async () => {
         const res = (await browser.elementByCss('h1').text()) || ''
-        const id = res.split(':')
+        const id = res.split(':', 3)
         return id[0] === id[1] && id[0] === id[2] && id[0]
           ? 'same'
           : 'different'
       }, 'same')
+    })
+
+    it('should push new route when redirecting', async () => {
+      const browser = await next.browser('/header')
+
+      await browser.elementByCss('#setCookieAndRedirect').click()
+      await check(async () => {
+        return (await browser.elementByCss('#redirected').text()) || ''
+      }, 'redirected')
+
+      // Ensure we can navigate back
+      await browser.back()
+
+      await check(async () => {
+        return (
+          (await browser.elementByCss('#setCookieAndRedirect').text()) || ''
+        )
+      }, 'setCookieAndRedirect')
     })
 
     it('should support headers in client imported actions', async () => {
@@ -116,7 +134,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=FormData&hidden-info=hi')
+      }, '/header?name=test&constructor=_FormData&hidden-info=hi')
     })
 
     it('should support .bind', async () => {
@@ -250,6 +268,73 @@ createNextDescribe(
       await check(() => browser.elementByCss('#value').text(), 'Value = 2')
     })
 
+    it('should not block navigation events while a server action is in flight', async () => {
+      let browser = await next.browser('/client')
+
+      await browser.elementByCss('#slow-inc').click()
+
+      // navigate to server
+      await browser.elementByCss('#navigate-server').click()
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/server`, true, 2)
+
+      browser = await next.browser('/server')
+
+      await browser.elementByCss('#slow-inc').click()
+
+      // navigate to client
+      await browser.elementByCss('#navigate-client').click()
+      // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
+      await check(() => browser.url(), `${next.url}/client`, true, 2)
+    })
+
+    it('should support next/dynamic with ssr: false', async () => {
+      const browser = await next.browser('/dynamic-csr')
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '0')
+
+      await browser.elementByCss('button').click()
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '1')
+    })
+
+    it('should only submit action once when resubmitting an action after navigation', async () => {
+      let requestCount = 0
+
+      const browser = await next.browser('/server', {
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            const url = new URL(request.url())
+            if (url.pathname === '/server') {
+              requestCount++
+            }
+          })
+        },
+      })
+
+      async function submitForm() {
+        await browser.elementById('name').type('foo')
+        await browser.elementById('submit').click()
+        await check(() => browser.url(), /header/)
+      }
+
+      await submitForm()
+
+      await browser.elementById('navigate-server').click()
+      await check(() => browser.url(), /server/)
+      await browser.waitForIdleNetwork()
+
+      requestCount = 0
+
+      await submitForm()
+
+      expect(requestCount).toBe(1)
+    })
+
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
@@ -304,7 +389,24 @@ createNextDescribe(
         const pageBundle = await fs.readFile(
           join(next.testDir, '.next', 'server', 'app', 'client', 'page.js')
         )
-        expect(pageBundle.toString()).toContain('node_modules/nanoid/index.js')
+        if (isTurbopack) {
+          const chunkPaths = pageBundle
+            .toString()
+            .matchAll(/loadChunk\("([^"]*)"\)/g)
+          // @ts-ignore
+          const reads = [...chunkPaths].map(async (match) => {
+            const bundle = await fs.readFile(
+              join(next.testDir, '.next', ...match[1].split(/[\\/]/g))
+            )
+            return bundle.toString().includes('node_modules/nanoid/index.js')
+          })
+
+          expect(await Promise.all(reads)).toContain(true)
+        } else {
+          expect(pageBundle.toString()).toContain(
+            'node_modules/nanoid/index.js'
+          )
+        }
       })
     }
 
@@ -351,9 +453,7 @@ createNextDescribe(
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client/edge')
 
-        await new Promise((resolve) => {
-          setTimeout(resolve, 3000)
-        })
+        await waitFor(3000)
 
         let requests = []
 
@@ -406,12 +506,21 @@ createNextDescribe(
     })
 
     describe('fetch actions', () => {
+      it('should handle a fetch action initiated from a static page', async () => {
+        const browser = await next.browser('/client-static')
+        await check(() => browser.elementByCss('#count').text(), '0')
+
+        await browser.elementByCss('#increment').click()
+        await check(() => browser.elementByCss('#count').text(), '1')
+
+        await browser.elementByCss('#increment').click()
+        await check(() => browser.elementByCss('#count').text(), '2')
+      })
+
       it('should handle redirect to a relative URL in a single pass', async () => {
         const browser = await next.browser('/client')
 
-        await new Promise((resolve) => {
-          setTimeout(resolve, 3000)
-        })
+        await waitFor(3000)
 
         let requests = []
 
@@ -670,20 +779,20 @@ createNextDescribe(
 
           await browser.elementByCss('#back').click()
 
-          switch (type) {
-            case 'tag':
-              await browser.elementByCss('#revalidate-thankyounext').click()
-              break
-            case 'path':
-              await browser.elementByCss('#revalidate-path').click()
-              break
-            default:
-              throw new Error(`Invalid type: ${type}`)
-          }
-
           // Should be different
           let revalidatedThankYouNext
           await check(async () => {
+            switch (type) {
+              case 'tag':
+                await browser.elementByCss('#revalidate-thankyounext').click()
+                break
+              case 'path':
+                await browser.elementByCss('#revalidate-path').click()
+                break
+              default:
+                throw new Error(`Invalid type: ${type}`)
+            }
+
             revalidatedThankYouNext = await browser
               .elementByCss('#thankyounext')
               .text()
@@ -705,6 +814,14 @@ createNextDescribe(
           }, 'success')
         }
       )
+    })
+
+    describe('encryption', () => {
+      it('should send encrypted values from the closed over closure', async () => {
+        const res = await next.fetch('/encryption')
+        const html = await res.text()
+        expect(html).not.toContain('qwerty123')
+      })
     })
   }
 )

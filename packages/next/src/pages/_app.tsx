@@ -11,9 +11,9 @@ import type { Router } from '../client/router'
 
 import { loadGetInitialProps } from '../shared/lib/utils'
 
-export { AppInitialProps, AppType }
+export type { AppInitialProps, AppType }
 
-export { NextWebVitalsMetric }
+export type { NextWebVitalsMetric }
 
 export type AppContext = AppContextType<Router>
 

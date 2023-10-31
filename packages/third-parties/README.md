@@ -10,13 +10,13 @@
 
 ### YouTube Embed
 
-The `YoutubeEmbed` component is used to load and display a YouTube embed. This component loads faster by using [lite-youtube-embed](https://github.com/paulirish/lite-youtube-embed) under the hood.
+The `YouTubeEmbed` component is used to load and display a YouTube embed. This component loads faster by using [lite-youtube-embed](https://github.com/paulirish/lite-youtube-embed) under the hood.
 
 ```js
-import { YoutubeEmbed } from '@next/third-parties/google'
+import { YouTubeEmbed } from '@next/third-parties/google'
 
 export default function Page() {
-  return <YoutubeEmbed videoid="ogfYd705cRs" height={400} />
+  return <YouTubeEmbed videoid="ogfYd705cRs" height={400} />
 }
 ```
 
@@ -33,8 +33,8 @@ export default function Page() {
       apiKey="XYZ"
       height={200}
       width="100%"
-      mapMode="place"
-      parameters="q=Brooklyn+Bridge,New+York,NY"
+      mode="place"
+      q="Brooklyn+Bridge,New+York,NY"
     />
   )
 }

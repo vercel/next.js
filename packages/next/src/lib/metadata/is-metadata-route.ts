@@ -114,6 +114,14 @@ export function isStaticMetadataRouteFile(appDirRelativePath: string) {
   return isMetadataRouteFile(appDirRelativePath, [], true)
 }
 
+export function isStaticMetadataRoute(page: string) {
+  return (
+    page === '/robots' ||
+    page === '/manifest' ||
+    isStaticMetadataRouteFile(page)
+  )
+}
+
 /*
  * Remove the 'app' prefix or '/route' suffix, only check the route name since they're only allowed in root app directory
  * e.g.

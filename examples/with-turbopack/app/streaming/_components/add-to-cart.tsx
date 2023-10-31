@@ -30,8 +30,8 @@ export function AddToCart({ initialCartCount }: { initialCartCount: number }) {
       // losing client-side browser or React state.
       router.refresh()
 
-      // We're working on more fine-grained data mutation and revalidation:
-      // https://beta.nextjs.org/docs/data-fetching/mutating
+      // We've done more fine-grained data mutation and revalidation:
+      // https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations
     })
   }
 

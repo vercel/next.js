@@ -1,37 +1,36 @@
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
-import type { RenderOpts } from './render'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
-import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
-import type { BaseNextRequest, BaseNextResponse } from './base-http'
-import type { UrlWithParsedQuery } from 'url'
+import type { PrerenderManifest } from '../build'
+import type {
+  LoadedRenderOpts,
+  MiddlewareRoutingItem,
+  NormalizedRouteManifest,
+  Options,
+  RouteHandler,
+} from './base-server'
+import type { Revalidate } from './lib/revalidate'
 
 import { byteLength } from './api-utils/web'
-import BaseServer, { NoFallbackError, Options } from './base-server'
+import BaseServer, { NoFallbackError } from './base-server'
 import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
 import WebResponseCache from './response-cache/web'
 import { isAPIRoute } from '../lib/is-api-route'
-import { getPathMatch } from '../shared/lib/router/utils/path-match'
-import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { IncrementalCache } from './lib/incremental-cache'
-import { PrerenderManifest } from '../build'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
-    normalizedPage: string
+    pathname: string
     pagesType: 'app' | 'pages' | 'root'
-    loadComponent: (
-      pathname: string
-    ) => Promise<LoadComponentsReturnType | null>
+    loadComponent: (page: string) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
     renderToHTML:
@@ -50,10 +49,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }
 
-  protected handleCompression() {
-    // For the web server layer, compression is automatically handled by the
-    // upstream proxy (edge runtime or node server) and we can simply skip here.
-  }
   protected getIncrementalCache({
     requestHeaders,
   }: {
@@ -71,7 +66,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
-      fetchCache: this.nextConfig.experimental.appDir,
+      fetchCache: true,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: false,
@@ -83,72 +78,41 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected getResponseCache() {
     return new WebResponseCache(this.minimalMode)
   }
-  protected getCustomRoutes() {
-    return {
-      headers: [],
-      rewrites: {
-        fallback: [],
-        afterFiles: [],
-        beforeFiles: [],
-      },
-      redirects: [],
-    }
-  }
-  protected async run(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsedUrl: UrlWithParsedQuery
-  ): Promise<void> {
-    super.run(req, res, parsedUrl)
-  }
+
   protected async hasPage(page: string) {
     return page === this.serverOptions.webServerConfig.page
   }
-  protected getPublicDir() {
-    // Public files are not handled by the web server.
-    return ''
-  }
+
   protected getBuildId() {
     return this.serverOptions.webServerConfig.extendRenderOpts.buildId
   }
-  protected loadEnvConfig() {
-    // The web server does not need to load the env config. This is done by the
-    // runtime already.
-  }
+
   protected getHasAppDir() {
     return this.serverOptions.webServerConfig.pagesType === 'app'
   }
-  protected getHasStaticDir() {
-    return false
-  }
-  protected async getFallback() {
-    return ''
-  }
-  protected getFontManifest() {
-    return undefined
-  }
+
   protected getPagesManifest() {
     return {
       // keep same theme but server path doesn't need to be accurate
       [this.serverOptions.webServerConfig
-        .normalizedPage]: `server${this.serverOptions.webServerConfig.page}.js`,
+        .pathname]: `server${this.serverOptions.webServerConfig.page}.js`,
     }
   }
+
   protected getAppPathsManifest() {
     const page = this.serverOptions.webServerConfig.page
     return {
       [this.serverOptions.webServerConfig.page]: `app${page}.js`,
     }
   }
-  protected getFilesystemPaths() {
-    return new Set<string>()
-  }
+
   protected attachRequestMeta(
     req: WebNextRequest,
     parsedUrl: NextUrlWithParsedQuery
   ) {
-    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
+    addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
   }
+
   protected getPrerenderManifest() {
     const { prerenderManifest } = this.serverOptions.webServerConfig
     if (this.renderOpts?.dev || !prerenderManifest) {
@@ -169,91 +133,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest
   }
 
-  protected async normalizeNextData(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
-    const middleware = this.getMiddleware()
-    const params = getPathMatch('/_next/data/:path*')(parsedUrl.pathname)
-
-    // Make sure to 404 for /_next/data/ itself and
-    // we also want to 404 if the buildId isn't correct
-    if (!params || !params.path || params.path[0] !== this.buildId) {
-      await this.render404(req, res, parsedUrl)
-      return {
-        finished: true,
-      }
-    }
-    // remove buildId from URL
-    params.path.shift()
-
-    const lastParam = params.path[params.path.length - 1]
-
-    // show 404 if it doesn't end with .json
-    if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
-      await this.render404(req, res, parsedUrl)
-      return {
-        finished: true,
-      }
-    }
-
-    // re-create page's pathname
-    let pathname = `/${params.path.join('/')}`
-    pathname = getRouteFromAssetPath(pathname, '.json')
-
-    // ensure trailing slash is normalized per config
-    if (middleware) {
-      if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
-        pathname += '/'
-      }
-      if (
-        !this.nextConfig.trailingSlash &&
-        pathname.length > 1 &&
-        pathname.endsWith('/')
-      ) {
-        pathname = pathname.substring(0, pathname.length - 1)
-      }
-    }
-
-    if (this.nextConfig.i18n) {
-      const { host } = req?.headers || {}
-      // remove port from host and remove port if present
-      const hostname = host?.split(':')[0].toLowerCase()
-      const localePathResult = normalizeLocalePath(
-        pathname,
-        this.nextConfig.i18n.locales
-      )
-      const domainLocale = this.i18nProvider?.detectDomainLocale(hostname)
-
-      let detectedLocale = ''
-
-      if (localePathResult.detectedLocale) {
-        pathname = localePathResult.pathname
-        detectedLocale = localePathResult.detectedLocale
-      }
-
-      parsedUrl.query.__nextLocale = detectedLocale
-      parsedUrl.query.__nextDefaultLocale =
-        domainLocale?.defaultLocale || this.nextConfig.i18n.defaultLocale
-
-      if (!detectedLocale && !middleware) {
-        parsedUrl.query.__nextLocale = parsedUrl.query.__nextDefaultLocale
-        await this.render404(req, res, parsedUrl)
-        return { finished: true }
-      }
-    }
-    parsedUrl.pathname = pathname
-    parsedUrl.query.__nextDataReq = '1'
-
-    return { finished: false }
-  }
-
-  protected async handleCatchallRenderRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
+  protected handleCatchallRenderRequest: RouteHandler = async (
+    req,
+    res,
+    parsedUrl
+  ) => {
     let { pathname, query } = parsedUrl
     if (!pathname) {
       throw new Error('pathname is undefined')
@@ -261,7 +145,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
     // interpolate query information into page for dynamic route
     // so that rewritten paths are handled properly
-    const normalizedPage = this.serverOptions.webServerConfig.normalizedPage
+    const normalizedPage = this.serverOptions.webServerConfig.pathname
 
     if (pathname !== normalizedPage) {
       pathname = normalizedPage
@@ -298,22 +182,13 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     try {
       await this.render(req, res, pathname, query, parsedUrl, true)
 
-      return {
-        finished: true,
-      }
+      return true
     } catch (err) {
       if (err instanceof NoFallbackError && bubbleNoFallback) {
-        return {
-          finished: false,
-        }
+        return false
       }
       throw err
     }
-  }
-
-  // Edge API requests are handled separately in minimal mode.
-  protected async handleApiRequest() {
-    return false
   }
 
   protected renderHTML(
@@ -321,7 +196,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     res: WebNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: RenderOpts
+    renderOpts: LoadedRenderOpts
   ): Promise<RenderResult> {
     const { renderToHTML } = this.serverOptions.webServerConfig
     if (!renderToHTML) {
@@ -355,7 +230,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       type: 'html' | 'json'
       generateEtags: boolean
       poweredByHeader: boolean
-      options?: PayloadOptions | undefined
+      revalidate: Revalidate | undefined
     }
   ): Promise<void> {
     res.setHeader('X-Edge-Runtime', '1')
@@ -377,31 +252,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       )
     }
 
+    let promise: Promise<void> | undefined
     if (options.result.isDynamic) {
-      const writer = res.transformStream.writable.getWriter()
-
-      let innerClose: undefined | (() => void)
-      const target = {
-        write: (chunk: Uint8Array) => writer.write(chunk),
-        end: () => writer.close(),
-
-        on(_event: 'close', cb: () => void) {
-          innerClose = cb
-        },
-        off(_event: 'close', _cb: () => void) {
-          innerClose = undefined
-        },
-      }
-      const onClose = () => {
-        innerClose?.()
-      }
-      // No, this cannot be replaced with `finally`, because early cancelling
-      // the stream will create a rejected promise, and finally will create an
-      // unhandled rejection.
-      writer.closed.then(onClose, onClose)
-      options.result.pipe(target)
+      promise = options.result.pipeTo(res.transformStream.writable)
     } else {
-      const payload = await options.result.toUnchunkedString()
+      const payload = options.result.toUnchunkedString()
       res.setHeader('Content-Length', String(byteLength(payload)))
       if (options.generateEtags) {
         res.setHeader('ETag', generateETag(payload))
@@ -410,25 +265,22 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
 
     res.send()
-  }
-  protected async runApi() {
-    // @TODO
-    return true
+
+    // If we have a promise, wait for it to resolve.
+    if (promise) await promise
   }
 
   protected async findPageComponents({
-    pathname,
+    page,
     query,
     params,
   }: {
-    pathname: string
+    page: string
     query: NextParsedUrlQuery
     params: Params | null
     isAppPath: boolean
   }) {
-    const result = await this.serverOptions.webServerConfig.loadComponent(
-      pathname
-    )
+    const result = await this.serverOptions.webServerConfig.loadComponent(page)
     if (!result) return null
 
     return {
@@ -438,5 +290,74 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       },
       components: result,
     }
+  }
+
+  // Below are methods that are not implemented by the web server as they are
+  // handled by the upstream proxy (edge runtime or node server).
+
+  protected async runApi() {
+    // This web server does not need to handle API requests.
+    return true
+  }
+
+  protected async handleApiRequest() {
+    // Edge API requests are handled separately in minimal mode.
+    return false
+  }
+
+  protected loadEnvConfig() {
+    // The web server does not need to load the env config. This is done by the
+    // runtime already.
+  }
+
+  protected getPublicDir() {
+    // Public files are not handled by the web server.
+    return ''
+  }
+
+  protected getHasStaticDir() {
+    return false
+  }
+
+  protected async getFallback() {
+    return ''
+  }
+
+  protected getFontManifest() {
+    return undefined
+  }
+
+  protected handleCompression() {
+    // For the web server layer, compression is automatically handled by the
+    // upstream proxy (edge runtime or node server) and we can simply skip here.
+  }
+
+  protected async handleUpgrade(): Promise<void> {
+    // The web server does not support web sockets.
+  }
+
+  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
+    // The web server does not need to handle fallback errors in production.
+    return null
+  }
+
+  protected getRoutesManifest(): NormalizedRouteManifest | undefined {
+    // The web server does not need to handle rewrite rules. This is done by the
+    // upstream proxy (edge runtime or node server).
+    return undefined
+  }
+
+  protected getMiddleware(): MiddlewareRoutingItem | undefined {
+    // The web server does not need to handle middleware. This is done by the
+    // upstream proxy (edge runtime or node server).
+    return undefined
+  }
+
+  protected getFilesystemPaths() {
+    return new Set<string>()
+  }
+
+  protected async getPrefetchRsc(): Promise<string | null> {
+    return null
   }
 }

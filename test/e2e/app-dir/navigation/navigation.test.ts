@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 import type { Request } from 'playwright-chromium'
 
 createNextDescribe(
@@ -53,6 +53,54 @@ createNextDescribe(
             ? 'success'
             : JSON.stringify(requests)
         }, 'success')
+      })
+
+      describe('useParams identity between renders', () => {
+        async function runTests(page: string) {
+          const browser = await next.browser(page)
+
+          await check(
+            async () => JSON.stringify(await browser.log()),
+            /params changed/
+          )
+
+          let outputIndex = (await browser.log()).length
+
+          await browser.elementById('rerender-button').click()
+          await browser.elementById('rerender-button').click()
+          await browser.elementById('rerender-button').click()
+
+          await check(async () => {
+            return browser.elementById('rerender-button').text()
+          }, 'Re-Render 3')
+
+          await check(async () => {
+            const logs = await browser.log()
+            return JSON.stringify(logs.slice(outputIndex)).includes(
+              'params changed'
+            )
+              ? 'fail'
+              : 'success'
+          }, 'success')
+
+          outputIndex = (await browser.log()).length
+
+          await browser.elementById('change-params-button').click()
+
+          await check(
+            async () =>
+              JSON.stringify((await browser.log()).slice(outputIndex)),
+            /params changed/
+          )
+        }
+
+        it('should be stable in app', async () => {
+          await runTests('/search-params/foo')
+        })
+
+        it('should be stable in pages', async () => {
+          await runTests('/search-params-pages/foo')
+        })
       })
     })
 
@@ -421,6 +469,12 @@ createNextDescribe(
           })
           expect(res.status).toBe(307)
         })
+        it('should respond with 308 status code if permanent flag is set', async () => {
+          const res = await next.fetch('/redirect/servercomponent-2', {
+            redirect: 'manual',
+          })
+          expect(res.status).toBe(308)
+        })
       })
     })
 
@@ -491,6 +545,42 @@ createNextDescribe(
           .waitForElementByCss('#link-to-app')
         expect(await browser.url()).toBe(next.url + '/some')
       })
+
+      it('should not omit the hash while navigating from app to pages', async () => {
+        const browser = await next.browser('/hash-link-to-pages-router')
+        await browser
+          .elementByCss('#link-to-pages-router')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        await check(() => browser.url(), next.url + '/some#non-existent')
+      })
+
+      if (!isNextDev) {
+        // this test is pretty hard to test in playwright, so most of the heavy lifting is in the page component itself
+        // it triggers a hover on a link to initiate a prefetch request every second, and so we check that
+        // it doesn't repeatedly initiate the mpa navigation request
+        it('should not continously initiate a mpa navigation to the same URL when router state changes', async () => {
+          let requestCount = 0
+          const browser = await next.browser('/mpa-nav-test', {
+            beforePageLoad(page) {
+              page.on('request', (request) => {
+                const url = new URL(request.url())
+                // skip rsc prefetches
+                if (url.pathname === '/slow-page' && !url.search) {
+                  requestCount++
+                }
+              })
+            },
+          })
+
+          await browser.waitForElementByCss('#link-to-slow-page')
+
+          // wait a few seconds since prefetches are triggered in 1s intervals in the page component
+          await waitFor(5000)
+
+          expect(requestCount).toBe(1)
+        })
+      }
     })
 
     describe('nested navigation', () => {
@@ -552,6 +642,13 @@ createNextDescribe(
       it('should emit refresh meta tag for redirect page when streaming', async () => {
         const html = await next.render('/redirect/suspense')
         expect(html).toContain(
+          '<meta http-equiv="refresh" content="1;url=/redirect/result"/>'
+        )
+      })
+
+      it('should emit refresh meta tag (permanent) for redirect page when streaming', async () => {
+        const html = await next.render('/redirect/suspense-2')
+        expect(html).toContain(
           '<meta http-equiv="refresh" content="0;url=/redirect/result"/>'
         )
       })
@@ -569,6 +666,46 @@ createNextDescribe(
         expect(next.cliOutput).not.toInclude(
           'PageNotFoundError: Cannot find module for page'
         )
+      })
+    })
+
+    describe('navigations when attaching a Proxy to `window.Promise`', () => {
+      it('should navigate without issue', async () => {
+        const browser = await next.browser('/nested-navigation')
+        await browser.eval(`window.Promise = new Proxy(window.Promise, {})`)
+
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+        const pages = [
+          ['Electronics', ['Phones', 'Tablets', 'Laptops']],
+          ['Clothing', ['Tops', 'Shorts', 'Shoes']],
+          ['Books', ['Fiction', 'Biography', 'Education']],
+          ['Shoes', []],
+        ] as const
+
+        for (const [category, subCategories] of pages) {
+          expect(
+            await browser
+              .elementByCss(
+                `a[href="/nested-navigation/${category.toLowerCase()}"]`
+              )
+              .click()
+              .waitForElementByCss(`#all-${category.toLowerCase()}`)
+              .text()
+          ).toBe(`All ${category}`)
+
+          for (const subcategory of subCategories) {
+            expect(
+              await browser
+                .elementByCss(
+                  `a[href="/nested-navigation/${category.toLowerCase()}/${subcategory.toLowerCase()}"]`
+                )
+                .click()
+                .waitForElementByCss(`#${subcategory.toLowerCase()}`)
+                .text()
+            ).toBe(`${subcategory}`)
+          }
+        }
       })
     })
   }

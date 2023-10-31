@@ -1,8 +1,8 @@
-import { Token } from 'next/dist/compiled/path-to-regexp'
+import type { Token } from 'next/dist/compiled/path-to-regexp'
 import { BloomFilter } from '../shared/lib/bloom-filter'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import { Redirect } from './load-custom-routes'
+import type { Redirect } from './load-custom-routes'
 import { tryToParsePath } from './try-to-parse-path'
 
 export function createClientRouterFilter(
@@ -47,7 +47,7 @@ export function createClientRouterFilter(
 
     try {
       tokens = tryToParsePath(source).tokens || []
-    } catch (_) {}
+    } catch {}
 
     if (tokens.every((token) => typeof token === 'string')) {
       // only include static redirects initially

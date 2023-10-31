@@ -1,5 +1,5 @@
 import type { RequestCookies } from '../cookies'
-import { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage'
+import type { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage.external'
 
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
@@ -70,7 +70,7 @@ export function appendMutableCookies(
   }
 
   // Return a new response that extends the response with
-  // the modified cookies as fallbacks. `res`' cookies
+  // the modified cookies as fallbacks. `res` cookies
   // will still take precedence.
   const resCookies = new ResponseCookies(headers)
   const returnedCookies = resCookies.getAll()

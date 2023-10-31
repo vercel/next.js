@@ -61,11 +61,14 @@ function CheckoutForm(): JSX.Element {
     }
   }
 
-  const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (e) =>
+  const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     setInput({
       ...input,
       [e.currentTarget.name]: e.currentTarget.value,
     })
+
+    elements?.update({ amount: input.customDonation * 100 })
+  }
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     try {

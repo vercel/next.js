@@ -12,6 +12,8 @@ npx create-next-app@latest
 yarn create next-app
 # or
 pnpm create next-app
+# or
+bunx create-next-app
 ```
 
 You will be asked for the name of your project, and then whether you want to

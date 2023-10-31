@@ -1,10 +1,15 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightData,
   FlightSegmentPath,
 } from '../../../server/app-render/types'
-import { fetchServerResponse } from './fetch-server-response'
+import type {
+  FulfilledThenable,
+  PendingThenable,
+  RejectedThenable,
+} from 'react'
+import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
@@ -38,10 +43,15 @@ export interface Mutable {
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
   shouldScroll?: boolean
+  globalMutable: {
+    pendingNavigatePath?: string
+    pendingMpaPath?: string
+    refresh: () => void
+  }
 }
 
 export interface ServerActionMutable extends Mutable {
-  inFlightServerAction?: Promise<any> | null
+  inFlightServerAction?: ThenableRecord<any> | null
   actionResultResolved?: boolean
 }
 
@@ -212,7 +222,7 @@ export type FocusAndScrollRef = {
 
 export type PrefetchCacheEntry = {
   treeAtTimeOfPrefetch: FlightRouterState
-  data: ReturnType<typeof fetchServerResponse> | null
+  data: ThenableRecord<FetchServerResponseResult> | null
   kind: PrefetchKind
   prefetchTime: number
   lastUsedTime: number | null
@@ -273,3 +283,8 @@ export type ReducerActions = Readonly<
   | FastRefreshAction
   | ServerActionAction
 >
+
+export type ThenableRecord<T> =
+  | PendingThenable<T>
+  | RejectedThenable<T>
+  | FulfilledThenable<T>

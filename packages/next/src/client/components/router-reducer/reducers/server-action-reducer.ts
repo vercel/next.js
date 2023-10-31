@@ -1,22 +1,30 @@
-import {
+import type {
   ActionFlightResponse,
   ActionResult,
   FlightData,
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
 import {
+  ACTION,
   NEXT_ROUTER_STATE_TREE,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromFetch } from 'react-server-dom-webpack/client'
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { encodeReply } from 'react-server-dom-webpack/client'
+// // eslint-disable-next-line import/no-extraneous-dependencies
+// import { createFromFetch } from 'react-server-dom-webpack/client'
+// // eslint-disable-next-line import/no-extraneous-dependencies
+// import { encodeReply } from 'react-server-dom-webpack/client'
+const { createFromFetch, encodeReply } = (
+  !!process.env.NEXT_RUNTIME
+    ? // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-webpack/client.edge')
+    : // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-webpack/client')
+) as typeof import('react-server-dom-webpack/client')
 
-import {
+import type {
   ReadonlyReducerState,
   ReducerState,
   ServerActionAction,
@@ -26,7 +34,7 @@ import { createHrefFromUrl } from '../create-href-from-url'
 import { handleExternalUrl } from './navigate-reducer'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import { CacheStates } from '../../../../shared/lib/app-router-context'
+import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { handleMutable } from '../handle-mutable'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 
@@ -51,7 +59,7 @@ async function fetchServerAction(
     method: 'POST',
     headers: {
       Accept: RSC_CONTENT_TYPE_HEADER,
-      'Next-Action': actionId,
+      [ACTION]: actionId,
       [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(JSON.stringify(state.tree)),
       ...(process.env.__NEXT_ACTIONS_DEPLOYMENT_ID &&
       process.env.NEXT_DEPLOYMENT_ID
@@ -88,7 +96,11 @@ async function fetchServerAction(
   }
 
   const redirectLocation = location
-    ? new URL(addBasePath(location), window.location.origin)
+    ? new URL(
+        addBasePath(location),
+        // Ensure relative redirects in Server Actions work, e.g. redirect('./somewhere-else')
+        new URL(state.canonicalUrl, window.location.href)
+      )
     : undefined
 
   let isFlightResponse =
@@ -147,8 +159,32 @@ export function serverActionReducer(
     return handleMutable(state, mutable)
   }
 
-  if (!action.mutable.inFlightServerAction) {
-    action.mutable.inFlightServerAction = createRecordFromThenable(
+  if (mutable.inFlightServerAction) {
+    // unblock if a navigation event comes through
+    // while we've suspended on an action
+    if (
+      mutable.inFlightServerAction.status !== 'fulfilled' &&
+      mutable.globalMutable.pendingNavigatePath &&
+      mutable.globalMutable.pendingNavigatePath !== href
+    ) {
+      mutable.inFlightServerAction.then(
+        () => {
+          if (mutable.actionResultResolved) return
+
+          // if the server action resolves after a navigation took place,
+          // reset ServerActionMutable values & trigger a refresh so that any stale data gets updated
+          mutable.inFlightServerAction = null
+          mutable.globalMutable.pendingNavigatePath = undefined
+          mutable.globalMutable.refresh()
+          mutable.actionResultResolved = true
+        },
+        () => {}
+      )
+
+      return state
+    }
+  } else {
+    mutable.inFlightServerAction = createRecordFromThenable(
       fetchServerAction(state, action)
     )
   }
@@ -162,8 +198,15 @@ export function serverActionReducer(
       redirectLocation,
       // revalidatedParts,
     } = readRecordValue(
-      action.mutable.inFlightServerAction!
+      mutable.inFlightServerAction!
     ) as Awaited<FetchServerActionResult>
+
+    // Make sure the redirection is a push instead of a replace.
+    // Issue: https://github.com/vercel/next.js/issues/53911
+    if (redirectLocation) {
+      state.pushRef.pendingPush = true
+      mutable.pendingPush = true
+    }
 
     mutable.previousTree = state.tree
 
@@ -266,7 +309,7 @@ export function serverActionReducer(
   } catch (e: any) {
     if (e.status === 'rejected') {
       if (!mutable.actionResultResolved) {
-        reject(e.value)
+        reject(e.reason)
         mutable.actionResultResolved = true
       }
 

@@ -1,8 +1,6 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use turbo_tasks::Vc;
-use turbopack_binding::{
-    turbo::tasks_hash::hash_xxh3_hash64, turbopack::core::resolve::pattern::QueryMap,
-};
+use turbopack_binding::turbo::tasks_hash::hash_xxh3_hash64;
 
 /// CSS properties and values for a given font variation. These are rendered as
 /// values in both the returned JavaScript object and in the referenced css
@@ -19,9 +17,8 @@ pub(crate) struct FontCssProperties {
 /// next/font. Used to uniquely identify font requests for generated filenames
 /// and scoped font family names.
 #[turbo_tasks::function]
-pub(crate) async fn get_request_hash(query_vc: Vc<QueryMap>) -> Result<Vc<u32>> {
-    let query = &*query_vc.await?;
-    let query = query.as_ref().context("Query map must be present")?;
+pub(crate) async fn get_request_hash(query_vc: Vc<String>) -> Result<Vc<u32>> {
+    let query = qstring::QString::from(&**query_vc.await?);
     let mut to_hash = vec![];
     for (k, v) in query {
         to_hash.push(k);

@@ -1,4 +1,5 @@
-import React, { ReactElement, ReactNode } from 'react'
+import React from 'react'
+import type { ReactElement, ReactNode } from 'react'
 import {
   OPTIMIZED_FONT_PROVIDERS,
   NEXT_BUILTIN_DOCUMENT,
@@ -13,14 +14,18 @@ import type {
 import type { ScriptProps } from '../client/script'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
-import { BuildManifest, getPageFiles } from '../server/get-page-files'
+import { getPageFiles } from '../server/get-page-files'
+import type { BuildManifest } from '../server/get-page-files'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import isError from '../lib/is-error'
 
-import { HtmlContext, useHtmlContext } from '../shared/lib/html-context'
-import type { HtmlProps } from '../shared/lib/html-context'
+import {
+  HtmlContext,
+  useHtmlContext,
+} from '../shared/lib/html-context.shared-runtime'
+import type { HtmlProps } from '../shared/lib/html-context.shared-runtime'
 
-export { DocumentContext, DocumentInitialProps, DocumentProps }
+export type { DocumentContext, DocumentInitialProps, DocumentProps }
 
 export type OriginProps = {
   nonce?: string

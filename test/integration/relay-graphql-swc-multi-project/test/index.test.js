@@ -60,8 +60,7 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
       runTests('Project B')
     })
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     describe('project-a', () => {
       beforeAll(async () => {
         await nextBuild(projectAAppDir, [], { cwd: projectAAppDir })

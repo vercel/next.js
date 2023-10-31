@@ -22,32 +22,6 @@ var ReactCurrentDispatcher$1 = {
 };
 
 /**
- * Keeps track of the current Cache dispatcher.
- */
-var ReactCurrentCache = {
-  current: null
-};
-
-/**
- * Keeps track of the current batch's configuration such as how long an update
- * should suspend for if it needs to.
- */
-var ReactCurrentBatchConfig = {
-  transition: null
-};
-
-var ReactCurrentActQueue = {
-  current: null,
-  // Used to reproduce behavior of `batchedUpdates` in legacy mode.
-  isBatchingLegacy: false,
-  didScheduleLegacyUpdate: false,
-  // Tracks whether something called `use` during the current batch of work.
-  // Determines whether we should yield to microtasks to unwrap already resolved
-  // promises without suspending.
-  didUsePromise: false
-};
-
-/**
  * Keeps track of the current owner.
  *
  * The current owner is the component who should own any components that are
@@ -108,22 +82,19 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 
 var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
 
-var ContextRegistry$1 = {};
+var ContextRegistry = {};
 
 var ReactSharedInternals = {
   ReactCurrentDispatcher: ReactCurrentDispatcher$1,
-  ReactCurrentCache: ReactCurrentCache,
-  ReactCurrentBatchConfig: ReactCurrentBatchConfig,
   ReactCurrentOwner: ReactCurrentOwner
 };
 
 {
   ReactSharedInternals.ReactDebugCurrentFrame = ReactDebugCurrentFrame$1;
-  ReactSharedInternals.ReactCurrentActQueue = ReactCurrentActQueue;
 }
 
 {
-  ReactSharedInternals.ContextRegistry = ContextRegistry$1;
+  ReactSharedInternals.ContextRegistry = ContextRegistry;
 }
 
 // by calls to these methods by a Babel plugin.
@@ -180,6 +151,13 @@ function printWarning(level, format, args) {
 }
 
 var assign = Object.assign;
+
+/**
+ * Keeps track of the current Cache dispatcher.
+ */
+var ReactCurrentCache = {
+  current: null
+};
 
 function createFetchCache() {
   return new Map();
@@ -304,7 +282,126 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-experimental-cb3404a0c-20230807';
+var TaintRegistryObjects$1 = new WeakMap();
+var TaintRegistryValues$1 = new Map(); // Byte lengths of all binary values we've ever seen. We don't both refcounting this.
+// We expect to see only a few lengths here such as the length of token.
+
+var TaintRegistryByteLengths$1 = new Set(); // When a value is finalized, it means that it has been removed from any global caches.
+// No future requests can get a handle on it but any ongoing requests can still have
+// a handle on it. It's still tainted until that happens.
+
+var TaintRegistryPendingRequests$1 = new Set();
+
+var ReactServerSharedInternals = {
+  ReactCurrentCache: ReactCurrentCache
+};
+
+{
+  ReactServerSharedInternals.TaintRegistryObjects = TaintRegistryObjects$1;
+  ReactServerSharedInternals.TaintRegistryValues = TaintRegistryValues$1;
+  ReactServerSharedInternals.TaintRegistryByteLengths = TaintRegistryByteLengths$1;
+  ReactServerSharedInternals.TaintRegistryPendingRequests = TaintRegistryPendingRequests$1;
+}
+
+var getPrototypeOf = Object.getPrototypeOf;
+
+// Turns a TypedArray or ArrayBuffer into a string that can be used for comparison
+// in a Map to see if the bytes are the same.
+function binaryToComparableString(view) {
+  return String.fromCharCode.apply(String, new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
+}
+
+var TaintRegistryObjects = ReactServerSharedInternals.TaintRegistryObjects,
+    TaintRegistryValues = ReactServerSharedInternals.TaintRegistryValues,
+    TaintRegistryByteLengths = ReactServerSharedInternals.TaintRegistryByteLengths,
+    TaintRegistryPendingRequests = ReactServerSharedInternals.TaintRegistryPendingRequests; // This is the shared constructor of all typed arrays.
+
+var TypedArrayConstructor = getPrototypeOf(Uint32Array.prototype).constructor;
+var defaultMessage = 'A tainted value was attempted to be serialized to a Client Component or Action closure. ' + 'This would leak it to the client.';
+
+function cleanup(entryValue) {
+  var entry = TaintRegistryValues.get(entryValue);
+
+  if (entry !== undefined) {
+    TaintRegistryPendingRequests.forEach(function (requestQueue) {
+      requestQueue.push(entryValue);
+      entry.count++;
+    });
+
+    if (entry.count === 1) {
+      TaintRegistryValues.delete(entryValue);
+    } else {
+      entry.count--;
+    }
+  }
+} // If FinalizationRegistry doesn't exist, we assume that objects life forever.
+// E.g. the whole VM is just the lifetime of a request.
+
+
+var finalizationRegistry = typeof FinalizationRegistry === 'function' ? new FinalizationRegistry(cleanup) : null;
+function taintUniqueValue(message, lifetime, value) {
+
+
+  message = '' + (message || defaultMessage);
+
+  if (lifetime === null || typeof lifetime !== 'object' && typeof lifetime !== 'function') {
+    throw new Error('To taint a value, a lifetime must be defined by passing an object that holds ' + 'the value.');
+  }
+
+  var entryValue;
+
+  if (typeof value === 'string' || typeof value === 'bigint') {
+    // Use as is.
+    entryValue = value;
+  } else if ((value instanceof TypedArrayConstructor || value instanceof DataView)) {
+    // For now, we just convert binary data to a string so that we can just use the native
+    // hashing in the Map implementation. It doesn't really matter what form the string
+    // take as long as it's the same when we look it up.
+    // We're not too worried about collisions since this should be a high entropy value.
+    TaintRegistryByteLengths.add(value.byteLength);
+    entryValue = binaryToComparableString(value);
+  } else {
+    var kind = value === null ? 'null' : typeof value;
+
+    if (kind === 'object' || kind === 'function') {
+      throw new Error('taintUniqueValue cannot taint objects or functions. Try taintObjectReference instead.');
+    }
+
+    throw new Error('Cannot taint a ' + kind + ' because the value is too general and not unique enough to block globally.');
+  }
+
+  var existingEntry = TaintRegistryValues.get(entryValue);
+
+  if (existingEntry === undefined) {
+    TaintRegistryValues.set(entryValue, {
+      message: message,
+      count: 1
+    });
+  } else {
+    existingEntry.count++;
+  }
+
+  if (finalizationRegistry !== null) {
+    finalizationRegistry.register(lifetime, entryValue);
+  }
+}
+function taintObjectReference(message, object) {
+
+
+  message = '' + (message || defaultMessage);
+
+  if (typeof object === 'string' || typeof object === 'bigint') {
+    throw new Error('Only objects or functions can be passed to taintObjectReference. Try taintUniqueValue instead.');
+  }
+
+  if (object === null || typeof object !== 'object' && typeof object !== 'function') {
+    throw new Error('Only objects or functions can be passed to taintObjectReference.');
+  }
+
+  TaintRegistryObjects.set(object, message);
+}
+
+var ReactVersion = '18.3.0-experimental-0c6348758-20231030';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -327,6 +424,7 @@ var REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
 var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 var REACT_CACHE_TYPE = Symbol.for('react.cache');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
+var REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -634,7 +732,7 @@ function testStringCoercion(value) {
 function checkKeyStringCoercion(value) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided key is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', typeName(value));
+      error('The provided key is an unsupported type %s.' + ' This value must be coerced to a string before using it here.', typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -1718,6 +1816,13 @@ function cache(fn) {
   };
 }
 
+function postpone(reason) {
+  // eslint-disable-next-line react-internal/prod-error-codes
+  var postponeInstance = new Error(reason);
+  postponeInstance.$$typeof = REACT_POSTPONE_TYPE;
+  throw postponeInstance;
+}
+
 function resolveDispatcher() {
   var dispatcher = ReactCurrentDispatcher$1.current;
 
@@ -2536,8 +2641,11 @@ function cloneElementWithValidation(element, props, children) {
   return newElement;
 }
 
-var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function createServerContext(globalName, defaultValue) {
+
+  {
+    error('Server Context is deprecated and will soon be removed. ' + 'It was never documented and we have found it not to be useful ' + 'enough to warrant the downside it imposes on all apps.');
+  }
 
   var wasDefined = true;
 
@@ -2607,6 +2715,14 @@ function createServerContext(globalName, defaultValue) {
   return context;
 }
 
+/**
+ * Keeps track of the current batch's configuration such as how long an update
+ * should suspend for if it needs to.
+ */
+var ReactCurrentBatchConfig = {
+  transition: null
+};
+
 function startTransition(scope, options) {
   var prevTransition = ReactCurrentBatchConfig.transition;
   ReactCurrentBatchConfig.transition = {};
@@ -2651,11 +2767,14 @@ exports.Profiler = REACT_PROFILER_TYPE;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
+exports.__SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactServerSharedInternals;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
 exports.createElement = createElement;
 exports.createRef = createRef;
 exports.createServerContext = createServerContext;
+exports.experimental_taintObjectReference = taintObjectReference;
+exports.experimental_taintUniqueValue = taintUniqueValue;
 exports.forwardRef = forwardRef;
 exports.isValidElement = isValidElement;
 exports.lazy = lazy;
@@ -2665,6 +2784,7 @@ exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.unstable_getCacheForType = getCacheForType;
 exports.unstable_getCacheSignal = getCacheSignal;
+exports.unstable_postpone = postpone;
 exports.use = use;
 exports.useCallback = useCallback;
 exports.useContext = useContext;

@@ -5,7 +5,6 @@ import { notFound } from 'next/navigation'
 import NotFoundTrigger from './not-found-trigger'
 
 export default function Root({ children }) {
-  // notFound()
   const [clicked, setClicked] = useState(false)
   if (clicked) {
     notFound()

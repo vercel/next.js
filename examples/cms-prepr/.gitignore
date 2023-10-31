@@ -4,6 +4,7 @@
 /node_modules
 /.pnp
 .pnp.js
+.yarn/install-state.gz
 
 # testing
 /coverage
@@ -18,6 +19,7 @@
 # misc
 .DS_Store
 *.pem
+.env
 
 # debug
 npm-debug.log*

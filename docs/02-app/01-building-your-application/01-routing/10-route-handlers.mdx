@@ -8,7 +8,7 @@ related:
     - app/api-reference/file-conventions/route
 ---
 
-Route Handlers allow you to create custom request handlers for a given route using the Web [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) APIs.
+Route Handlers allow you to create custom request handlers for a given route using the Web [Request](https://developer.mozilla.org/docs/Web/API/Request) and [Response](https://developer.mozilla.org/docs/Web/API/Response) APIs.
 
 <Image
   alt="Route.js Special File"
@@ -36,11 +36,11 @@ Route Handlers can be nested inside the `app` directory, similar to `page.js` an
 
 ### Supported HTTP Methods
 
-The following [HTTP methods](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods) are supported: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`. If an unsupported method is called, Next.js will return a `405 Method Not Allowed` response.
+The following [HTTP methods](https://developer.mozilla.org/docs/Web/HTTP/Methods) are supported: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`. If an unsupported method is called, Next.js will return a `405 Method Not Allowed` response.
 
 ### Extended `NextRequest` and `NextResponse` APIs
 
-In addition to supporting native [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response). Next.js extends them with
+In addition to supporting native [Request](https://developer.mozilla.org/docs/Web/API/Request) and [Response](https://developer.mozilla.org/docs/Web/API/Response). Next.js extends them with
 [`NextRequest`](/docs/app/api-reference/functions/next-request) and [`NextResponse`](/docs/app/api-reference/functions/next-response) to provide convenient helpers for advanced use cases.
 
 ## Behavior
@@ -50,8 +50,6 @@ In addition to supporting native [Request](https://developer.mozilla.org/en-US/d
 Route Handlers are cached by default when using the `GET` method with the `Response` object.
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     headers: {
@@ -61,13 +59,11 @@ export async function GET() {
   })
   const data = await res.json()
 
-  return NextResponse.json({ data })
+  return Response.json({ data })
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     headers: {
@@ -77,11 +73,11 @@ export async function GET() {
   })
   const data = await res.json()
 
-  return NextResponse.json({ data })
+  return Response.json({ data })
 }
 ```
 
-> **TypeScript Warning:** Although `Response.json()` is valid, native TypeScript types currently shows an error, you can use [`NextResponse.json()`](/docs/app/api-reference/functions/next-response#json) for typed responses instead.
+> **TypeScript Warning:** `Response.json()` is only valid from TypeScript 5.2. If you use a lower TypeScript version, you can use [`NextResponse.json()`](/docs/app/api-reference/functions/next-response#json) for typed responses instead.
 
 ### Opting out of caching
 
@@ -95,8 +91,6 @@ You can opt out of caching by:
 For example:
 
 ```ts filename="app/products/api/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
@@ -108,13 +102,11 @@ export async function GET(request: Request) {
   })
   const product = await res.json()
 
-  return NextResponse.json({ product })
+  return Response.json({ product })
 }
 ```
 
 ```js filename="app/products/api/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
@@ -126,15 +118,13 @@ export async function GET(request) {
   })
   const product = await res.json()
 
-  return NextResponse.json({ product })
+  return Response.json({ product })
 }
 ```
 
 Similarly, the `POST` method will cause the Route Handler to be evaluated dynamically.
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     method: 'POST',
@@ -147,13 +137,11 @@ export async function POST() {
 
   const data = await res.json()
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     method: 'POST',
@@ -166,11 +154,11 @@ export async function POST() {
 
   const data = await res.json()
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }
 ```
 
-> **Good to know**: Like API Routes, Route Handlers can be used for cases like handling form submissions. A new abstraction for [handling forms and mutations](/docs/app/building-your-application/data-fetching/server-actions) that integrates deeply with React is being worked on.
+> **Good to know**: Like API Routes, Route Handlers can be used for cases like handling form submissions. A new abstraction for [handling forms and mutations](/docs/app/building-your-application/data-fetching/forms-and-mutations) that integrates deeply with React is being worked on.
 
 ### Route Resolution
 
@@ -206,28 +194,24 @@ The following examples show how to combine Route Handlers with other Next.js API
 You can [revalidate cached data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) using the [`next.revalidate`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) option:
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     next: { revalidate: 60 }, // Revalidate every 60 seconds
   })
   const data = await res.json()
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     next: { revalidate: 60 }, // Revalidate every 60 seconds
   })
   const data = await res.json()
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }
 ```
 
@@ -245,7 +229,7 @@ Route Handlers can be used with dynamic functions from Next.js, like [`cookies`]
 
 You can read cookies with [`cookies`](/docs/app/api-reference/functions/cookies) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function.
 
-This `cookies` instance is read-only. To set cookies, you need to return a new `Response` using the [`Set-Cookie`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie) header.
+This `cookies` instance is read-only. To set cookies, you need to return a new `Response` using the [`Set-Cookie`](https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie) header.
 
 ```ts filename="app/api/route.ts" switcher
 import { cookies } from 'next/headers'
@@ -386,9 +370,31 @@ export async function GET(request, { params }) {
 | `app/items/[slug]/route.js` | `/items/b`  | `{ slug: 'b' }` |
 | `app/items/[slug]/route.js` | `/items/c`  | `{ slug: 'c' }` |
 
+### URL Query Parameters
+
+The request object passed to the Route Handler is a `NextRequest` instance, which has [some additional convenience methods](/docs/app/api-reference/functions/next-request#nexturl), including for more easily handling query parameters.
+
+```ts filename="app/api/search/route.ts" switcher
+import { type NextRequest } from 'next/server'
+
+export function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+  const query = searchParams.get('query')
+  // query is "hello" for /api/search?query=hello
+}
+```
+
+```js filename="app/api/search/route.js" switcher
+export function GET(request) {
+  const searchParams = request.nextUrl.searchParams
+  const query = searchParams.get('query')
+  // query is "hello" for /api/search?query=hello
+}
+```
+
 ### Streaming
 
-Streaming is commonly used in combination with Large Language Models (LLMs), such an OpenAI, for AI-generated content. Learn more about the [AI SDK](https://sdk.vercel.ai/docs).
+Streaming is commonly used in combination with Large Language Models (LLMs), such as OpenAI, for AI-generated content. Learn more about the [AI SDK](https://sdk.vercel.ai/docs).
 
 ```ts filename="app/api/chat/route.ts" switcher
 import { Configuration, OpenAIApi } from 'openai-edge'
@@ -465,7 +471,7 @@ export async function POST(req) {
 These abstractions use the Web APIs to create a stream. You can also use the underlying Web APIs directly.
 
 ```ts filename="app/api/route.ts" switcher
-// https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream#convert_async_iterator_to_stream
+// https://developer.mozilla.org/docs/Web/API/ReadableStream#convert_async_iterator_to_stream
 function iteratorToStream(iterator: any) {
   return new ReadableStream({
     async pull(controller) {
@@ -505,7 +511,7 @@ export async function GET() {
 ```
 
 ```js filename="app/api/route.js" switcher
-// https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream#convert_async_iterator_to_stream
+// https://developer.mozilla.org/docs/Web/API/ReadableStream#convert_async_iterator_to_stream
 function iteratorToStream(iterator) {
   return new ReadableStream({
     async pull(controller) {
@@ -549,46 +555,38 @@ export async function GET() {
 You can read the `Request` body using the standard Web API methods:
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST(request: Request) {
   const res = await request.json()
-  return NextResponse.json({ res })
+  return Response.json({ res })
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST(request) {
   const res = await request.json()
-  return NextResponse.json({ res })
+  return Response.json({ res })
 }
 ```
 
 ### Request Body FormData
 
-You can read the `FormData` using the the `request.formData()` function:
+You can read the `FormData` using the `request.formData()` function:
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST(request: Request) {
   const formData = await request.formData()
   const name = formData.get('name')
   const email = formData.get('email')
-  return NextResponse.json({ name, email })
+  return Response.json({ name, email })
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST(request) {
   const formData = await request.formData()
   const name = formData.get('name')
   const email = formData.get('email')
-  return NextResponse.json({ name, email })
+  return Response.json({ name, email })
 }
 ```
 

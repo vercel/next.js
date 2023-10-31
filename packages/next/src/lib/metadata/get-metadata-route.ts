@@ -1,4 +1,4 @@
-import { isMetadataRoute, isStaticMetadataRouteFile } from './is-metadata-route'
+import { isMetadataRoute, isStaticMetadataRoute } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { interpolateDynamicPath } from '../../server/server-utils'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -61,11 +61,11 @@ export function normalizeMetadataRoute(page: string) {
   }
   let route = page
   let suffix = ''
-  if (route === '/robots') {
+  if (page === '/robots') {
     route += '.txt'
-  } else if (route === '/manifest') {
+  } else if (page === '/manifest') {
     route += '.webmanifest'
-  } else if (route.endsWith('/sitemap')) {
+  } else if (page.endsWith('/sitemap')) {
     route += '.xml'
   } else {
     // Remove the file extension, e.g. /route-path/robots.txt -> /route-path
@@ -75,13 +75,8 @@ export function normalizeMetadataRoute(page: string) {
   // Support both /<metadata-route.ext> and custom routes /<metadata-route>/route.ts.
   // If it's a metadata file route, we need to append /[id]/route to the page.
   if (!route.endsWith('/route')) {
-    const isStaticMetadataFile = isStaticMetadataRouteFile(page)
     const { dir, name: baseName, ext } = path.parse(route)
-
-    const isStaticRoute =
-      page.startsWith('/robots') ||
-      page.startsWith('/manifest') ||
-      isStaticMetadataFile
+    const isStaticRoute = isStaticMetadataRoute(page)
 
     route = path.posix.join(
       dir,

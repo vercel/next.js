@@ -21,6 +21,10 @@ on:
         required: false
         description: 'whether to skip building native modules'
         type: string
+      uploadAnalyzerArtifacts:
+        required: false
+        description: 'whether to upload analyzer artifacts'
+        type: string
       skipForDocsOnly:
         required: false
         description: 'skip for docs only changes'
@@ -49,13 +53,16 @@ on:
         required: false
         description: 'if test trace needs uploading'
         type: string
+      rustCacheKey:
+        required: false
+        description: 'rustCacheKey to cache shared target assets'
+        type: string
 
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.10.9
-  NODE_MAINTENANCE_VERSION: 16
-  NODE_LTS_VERSION: 18.16.1
-  TEST_CONCURRENCY: 6
+  NODE_LTS_VERSION: 20.9.0
+  TEST_CONCURRENCY: 8
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
 
@@ -73,16 +80,15 @@ env:
 
 jobs:
   build:
-    timeout-minutes: 25
+    timeout-minutes: 15
     runs-on:
       - 'self-hosted'
       - 'linux'
       - 'x64'
-      - 'hosted-ci-cd:ignore'
+      - 'metal'
 
     steps:
-      - run: fnm install ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
-      - run: fnm use ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+      - run: fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: node -v
       - run: corepack enable
       - run: pwd
@@ -114,6 +120,14 @@ jobs:
 
       - run: corepack prepare --activate yarn@1.22.19 && npm i -g "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
+      - name: Cache on ${{ github.ref_name }}
+        uses: ijjk/rust-cache@turbo-cache-v1.0.7
+        if: ${{ inputs.rustCacheKey }}
+        with:
+          cache-provider: 'turbo'
+          save-if: ${{ github.ref_name == 'canary' }}
+          shared-key: ${{ inputs.rustCacheKey }}-x86_64-unknown-linux-gnu-build-${{ hashFiles('.cargo/config.toml') }}
+
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
 
@@ -137,7 +151,7 @@ jobs:
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: turbo run build-native-release --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
+      - run: turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
         if: ${{ inputs.skipNativeBuild != 'yes' && steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
       - name: Upload next-swc artifact
@@ -151,12 +165,10 @@ jobs:
       - run: git checkout .
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: pnpm store path
-
       - run: pnpm install
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: pnpm build
+      - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - run: pnpm playwright install-deps
@@ -175,6 +187,13 @@ jobs:
         with:
           name: turbo run summary
           path: .turbo/runs
+
+      - name: Upload bundle analyzer artifacts
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
+        with:
+          name: webpack bundle analysis stats
+          path: packages/next/dist/compiled/next-server/report.*.html
 
       - name: Upload test reports artifact
         uses: actions/upload-artifact@v3
@@ -200,7 +219,7 @@ jobs:
         continue-on-error: true
         run: |
           ls -al ./test
-          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0
+          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0 @aws-sdk/property-provider@3
           jrm ./nextjs-test-result-junit.xml "test/test-junit-report/**/*.xml"
           jrm ./turbopack-test-result-junit.xml "test/turbopack-test-junit-report/**/*.xml"
           # Put a separate tag for the tests with turbopack to distinguish between same test names

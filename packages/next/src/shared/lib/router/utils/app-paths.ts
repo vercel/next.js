@@ -1,4 +1,5 @@
 import { ensureLeadingSlash } from '../../page-path/ensure-leading-slash'
+import { isGroupSegment } from '../../segment'
 
 /**
  * Normalizes an app route so it represents the actual request path. Essentially
@@ -28,7 +29,7 @@ export function normalizeAppPath(route: string) {
       }
 
       // Groups are ignored.
-      if (segment[0] === '(' && segment.endsWith(')')) {
+      if (isGroupSegment(segment)) {
         return pathname
       }
 
@@ -54,12 +55,27 @@ export function normalizeAppPath(route: string) {
  * Strips the `.rsc` extension if it's in the pathname.
  * Since this function is used on full urls it checks `?` for searchParams handling.
  */
-export function normalizeRscPath(pathname: string, enabled?: boolean) {
-  return enabled
-    ? pathname.replace(
-        /\.rsc($|\?)/,
-        // $1 ensures `?` is preserved
-        '$1'
-      )
-    : pathname
+export function normalizeRscURL(url: string) {
+  return url.replace(
+    /\.rsc($|\?)/,
+    // $1 ensures `?` is preserved
+    '$1'
+  )
+}
+
+/**
+ * Strips the `/_next/postponed` prefix if it's in the pathname.
+ *
+ * @param url the url to normalize
+ */
+export function normalizePostponedURL(url: string) {
+  const parsed = new URL(url)
+  const { pathname } = parsed
+  if (pathname && pathname.startsWith('/_next/postponed')) {
+    parsed.pathname = pathname.substring('/_next/postponed'.length) || '/'
+
+    return parsed.toString()
+  }
+
+  return url
 }

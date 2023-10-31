@@ -37,6 +37,7 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
+use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
 use turbopack_binding::swc::{
@@ -56,15 +57,16 @@ pub mod amp_attributes;
 mod auto_cjs;
 pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
-pub mod next_dynamic;
+mod import_analyzer;
+pub mod named_import_transform;
 pub mod next_ssg;
+pub mod optimize_barrel;
+pub mod optimize_server_react;
 pub mod page_config;
-pub mod react_remove_properties;
+pub mod pure;
 pub mod react_server_components;
-pub mod remove_console;
 pub mod server_actions;
 pub mod shake_exports;
-mod top_level_binding_collector;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -91,13 +93,13 @@ pub struct TransformOptions {
     pub is_development: bool,
 
     #[serde(default)]
-    pub is_server: bool,
+    pub is_server_compiler: bool,
 
     #[serde(default)]
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
-    pub styled_jsx: bool,
+    pub styled_jsx: Option<turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config>,
 
     #[serde(default)]
     pub styled_components:
@@ -129,6 +131,12 @@ pub struct TransformOptions {
     pub modularize_imports: Option<modularize_imports::Config>,
 
     #[serde(default)]
+    pub auto_modularize_imports: Option<named_import_transform::Config>,
+
+    #[serde(default)]
+    pub optimize_barrel_exports: Option<optimize_barrel::Config>,
+
+    #[serde(default)]
     pub font_loaders: Option<next_transform_font::Config>,
 
     #[serde(default)]
@@ -136,6 +144,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub cjs_require_optimizer: Option<cjs_optimizer::Config>,
+
+    #[serde(default)]
+    pub optimize_server_react: Option<optimize_server_react::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -182,15 +193,16 @@ where
                     file.name.clone(),
                     config.clone(),
                     comments.clone(),
-                    opts.app_dir.clone()
+                    opts.app_dir.clone(),
                 )),
             _ => Either::Right(noop()),
         },
-        if opts.styled_jsx {
+        if let Some(config) = opts.styled_jsx {
             Either::Left(
                 turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
                     cm.clone(),
                     file.name.clone(),
+                    config,
                 ),
             )
         } else {
@@ -211,16 +223,19 @@ where
             !opts.disable_next_ssg
         ),
         amp_attributes::amp_attributes(),
-        next_dynamic::next_dynamic(
+        next_dynamic(
             opts.is_development,
-            opts.is_server,
+            opts.is_server_compiler,
             match &opts.server_components {
                 Some(config) if config.truthy() => match config {
-                    react_server_components::Config::WithOptions(x) => x.is_server,
+                    // Always enable the Server Components mode for both
+                    // server and client layers.
+                    react_server_components::Config::WithOptions(_) => true,
                     _ => false,
                 },
                 _ => false,
             },
+            NextDynamicMode::Webpack,
             file.name.clone(),
             opts.pages_dir.clone()
         ),
@@ -231,17 +246,32 @@ where
         relay_plugin,
         match &opts.remove_console {
             Some(config) if config.truthy() =>
-                Either::Left(remove_console::remove_console(config.clone())),
+                Either::Left(remove_console::remove_console(
+                    config.clone(),
+                    SyntaxContext::empty().apply_mark(unresolved_mark)
+                )),
             _ => Either::Right(noop()),
         },
         match &opts.react_remove_properties {
             Some(config) if config.truthy() =>
-                Either::Left(react_remove_properties::remove_properties(config.clone())),
+                Either::Left(react_remove_properties::react_remove_properties(config.clone())),
             _ => Either::Right(noop()),
         },
         match &opts.shake_exports {
             Some(config) => Either::Left(shake_exports::shake_exports(config.clone())),
             None => Either::Right(noop()),
+        },
+        match &opts.auto_modularize_imports {
+            Some(config) => Either::Left(named_import_transform::named_import_transform(config.clone())),
+            None => Either::Right(noop()),
+        },
+        match &opts.optimize_barrel_exports {
+            Some(config) => Either::Left(optimize_barrel::optimize_barrel(config.clone())),
+            _ => Either::Right(noop()),
+        },
+        match &opts.optimize_server_react {
+            Some(config) => Either::Left(optimize_server_react::optimize_server_react(config.clone())),
+            _ => Either::Right(noop()),
         },
         opts.emotion
             .as_ref()
@@ -277,7 +307,7 @@ where
             Some(config) => Either::Left(server_actions::server_actions(
                 &file.name,
                 config.clone(),
-                comments,
+                comments.clone(),
             )),
             None => Either::Right(noop()),
         },
@@ -287,6 +317,7 @@ where
             },
             None => Either::Right(noop()),
         },
+        pure::pure_magic(comments),
     )
 }
 

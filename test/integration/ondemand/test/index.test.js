@@ -1,11 +1,9 @@
 /* eslint-env jest */
-import WebSocket from 'ws'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import getPort from 'get-port'
 import {
   renderViaHTTP,
-  fetchViaHTTP,
   killApp,
   waitFor,
   check,
@@ -14,7 +12,6 @@ import {
   getBuildManifest,
   initNextServerScript,
 } from 'next-test-utils'
-import { assetPrefix } from '../next.config'
 
 const appDir = join(__dirname, '../')
 const context = {}
@@ -31,44 +28,13 @@ const startServer = async (optEnv = {}, opts) => {
   context.server = await initNextServerScript(scriptPath, /ready on/i, env)
 }
 
-const doPing = (page) => {
-  return new Promise((resolve) => {
-    context.ws.onmessage = (e) => {
-      console.log(e)
-
-      resolve()
-    }
-    context.ws.send(JSON.stringify({ event: 'ping', page }))
-  })
-}
-
-describe('On Demand Entries', () => {
+// Tests are skipped in Turbopack because they are not relevant to Turbopack.
+;(process.env.TURBOPACK ? describe.skip : describe)('On Demand Entries', () => {
   it('should pass', () => {})
   beforeAll(async () => {
     await startServer()
-
-    // Send an initial request to nextjs to establish an 'upgrade' listener
-    // If we send the websocket request as the first thing, it will result in 404 due to listener not set yet
-    // This is by design as the 'upgrade' listener is set during the first request run
-    await fetchViaHTTP(context.appPort, '/')
-
-    await new Promise((resolve, reject) => {
-      context.ws = new WebSocket(
-        `ws://localhost:${context.appPort}${
-          assetPrefix ? `/${assetPrefix}` : ''
-        }/_next/webpack-hmr`
-      )
-      context.ws.on('open', () => resolve())
-      context.ws.on('error', (err) => {
-        console.error(err)
-
-        context.ws.close()
-        reject()
-      })
-    })
   })
   afterAll(() => {
-    context.ws.close()
     killApp(context.server)
   })
 
@@ -76,8 +42,7 @@ describe('On Demand Entries', () => {
     // The buffer of built page uses the on-demand-entries-ping to know which pages should be
     // buffered. Therefore, we need to double each render call with a ping.
     const pageContent = await renderViaHTTP(context.appPort, '/')
-    await doPing('/')
-    expect(pageContent.includes('Index Page')).toBeTruthy()
+    expect(pageContent.includes('Index Page')).toBeTrue()
   })
 
   it('should compile pages for JSON page requests', async () => {
@@ -87,19 +52,16 @@ describe('On Demand Entries', () => {
       context.appPort,
       join('/_next', pageFile)
     )
-    expect(pageContent.includes('About Page')).toBeTruthy()
+    expect(pageContent.includes('About Page')).toBeTrue()
   })
 
   it('should dispose inactive pages', async () => {
     await renderViaHTTP(context.appPort, '/')
-    await doPing('/')
 
     // Render two pages after the index, since the server keeps at least two pages
     await renderViaHTTP(context.appPort, '/about')
-    await doPing('/about')
 
     await renderViaHTTP(context.appPort, '/third')
-    await doPing('/third')
 
     // Wait maximum of jest.setTimeout checking
     // for disposing /about

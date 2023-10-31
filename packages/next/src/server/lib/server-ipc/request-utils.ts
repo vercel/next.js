@@ -20,7 +20,10 @@ export const deserializeErr = (serializedErr: any) => {
   err.name = serializedErr.name
   ;(err as any).digest = serializedErr.digest
 
-  if (process.env.NEXT_RUNTIME !== 'edge') {
+  if (
+    process.env.NODE_ENV === 'development' &&
+    process.env.NEXT_RUNTIME !== 'edge'
+  ) {
     const { decorateServerError } =
       require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
     decorateServerError(err, serializedErr.source || 'server')
@@ -29,13 +32,13 @@ export const deserializeErr = (serializedErr: any) => {
 }
 
 export async function invokeIpcMethod({
-  hostname = '127.0.0.1',
+  fetchHostname = 'localhost',
   method,
   args,
   ipcPort,
   ipcKey,
 }: {
-  hostname?: string
+  fetchHostname?: string
   method: string
   args: any[]
   ipcPort?: string
@@ -43,7 +46,7 @@ export async function invokeIpcMethod({
 }): Promise<any> {
   if (ipcPort) {
     const res = await invokeRequest(
-      `http://${hostname}:${ipcPort}?key=${ipcKey}&method=${
+      `http://${fetchHostname}:${ipcPort}?key=${ipcKey}&method=${
         method as string
       }&args=${encodeURIComponent(JSON.stringify(args))}`,
       {

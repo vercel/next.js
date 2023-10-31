@@ -54,7 +54,7 @@ export default function Page() {
 > - A page is always the [leaf](/docs/app/building-your-application/routing#terminology) of the [route subtree](/docs/app/building-your-application/routing#terminology).
 > - `.js`, `.jsx`, or `.tsx` file extensions can be used for Pages.
 > - A `page.js` file is required to make a route segment publicly accessible.
-> - Pages are [Server Components](/docs/getting-started/react-essentials) by default but can be set to a [Client Component](/docs/getting-started/react-essentials#client-components).
+> - Pages are [Server Components](/docs/app/building-your-application/rendering/server-components) by default but can be set to a [Client Component](/docs/app/building-your-application/rendering/client-components).
 > - Pages can fetch data. View the [Data Fetching](/docs/app/building-your-application/data-fetching) section for more information.
 
 ## Layouts
@@ -109,10 +109,10 @@ export default function DashboardLayout({
 > - Any route segment can optionally define its own [Layout](#nesting-layouts). These layouts will be shared across all pages in that segment.
 > - Layouts in a route are **nested** by default. Each parent layout wraps child layouts below it using the React `children` prop.
 > - You can use [Route Groups](/docs/app/building-your-application/routing/route-groups) to opt specific route segments in and out of shared layouts.
-> - Layouts are [Server Components](/docs/getting-started/react-essentials) by default but can be set to a [Client Component](/docs/getting-started/react-essentials#client-components).
+> - Layouts are [Server Components](/docs/app/building-your-application/rendering/server-components) by default but can be set to a [Client Component](/docs/app/building-your-application/rendering/client-components).
 > - Layouts can fetch data. View the [Data Fetching](/docs/app/building-your-application/data-fetching) section for more information.
 > - Passing data between a parent layout and its children is not possible. However, you can fetch the same data in a route more than once, and React will [automatically dedupe the requests](/docs/app/building-your-application/caching#request-memoization) without affecting performance.
-> - Layouts do not have access to the current route segment(s). To access route segments, you can use [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment) or [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments) in a Client Component.
+> - Layouts do not have access to the route segments below itself. To access all route segments, you can use [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment) or [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments) in a Client Component.
 > - `.js`, `.jsx`, or `.tsx` file extensions can be used for Layouts.
 > - A `layout.js` and `page.js` file can be defined in the same folder. The layout will wrap the page.
 
@@ -150,7 +150,7 @@ export default function RootLayout({ children }) {
 > - The root layout must define `<html>` and `<body>` tags since Next.js does not automatically create them.
 > - You can use the [built-in SEO support](/docs/app/building-your-application/optimizing/metadata) to manage `<head>` HTML elements, for example, the `<title>` element.
 > - You can use [route groups](/docs/app/building-your-application/routing/route-groups) to create multiple root layouts. See an [example here](/docs/app/building-your-application/routing/route-groups#creating-multiple-root-layouts).
-> - The root layout is a [Server Component](/docs/getting-started/react-essentials) by default and **can not** be set to a [Client Component](/docs/getting-started/react-essentials#client-components).
+> - The root layout is a [Server Component](/docs/app/building-your-application/rendering/server-components) by default and **can not** be set to a [Client Component](/docs/app/building-your-application/rendering/client-components).
 
 > **Migrating from the `pages` directory:** The root layout replaces the [`_app.js`](/docs/pages/building-your-application/routing/custom-app) and [`_document.js`](/docs/pages/building-your-application/routing/custom-document) files. [View the migration guide](/docs/app/building-your-application/upgrading/app-router-migration#migrating-_documentjs-and-_appjs).
 
@@ -206,13 +206,10 @@ Templates are similar to layouts in that they wrap each child layout or page. Un
 
 There may be cases where you need those specific behaviors, and templates would be a more suitable option than layouts. For example:
 
-- Enter/exit animations using CSS or animation libraries.
 - Features that rely on `useEffect` (e.g logging page views) and `useState` (e.g a per-page feedback form).
 - To change the default framework behavior. For example, Suspense Boundaries inside layouts only show the fallback the first time the Layout is loaded and not when switching pages. For templates, the fallback is shown on each navigation.
 
-> **Recommendation:** We recommend using Layouts unless you have a specific reason to use Template.
-
-A template can be defined by exporting a default React component from a `template.js` file. The component should accept a `children` prop which will be nested segments.
+A template can be defined by exporting a default React component from a `template.js` file. The component should accept a `children` prop.
 
 <Image
   alt="template.js special file"
@@ -234,7 +231,7 @@ export default function Template({ children }) {
 }
 ```
 
-The rendered output of a route segment with a layout and a template will be as such:
+In terms of nesting, `template.js` is rendered between a layout and its children. Here's a simplified output:
 
 ```jsx filename="Output"
 <Layout>

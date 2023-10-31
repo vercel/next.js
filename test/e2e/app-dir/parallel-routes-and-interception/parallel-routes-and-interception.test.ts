@@ -1,5 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import { outdent } from 'outdent'
 
 createNextDescribe(
   'parallel-routes-and-interception',
@@ -165,27 +166,57 @@ createNextDescribe(
         await step5()
       })
 
-      // FIXME: this parallel route test is broken, shouldn't only check if html containing those strings
-      // previous they're erroring so the html is empty but those strings are still in flight response.
-      it.skip('should match parallel routes', async () => {
-        const html = await next.render('/parallel/nested')
-        expect(html).toContain('parallel/layout')
-        expect(html).toContain('parallel/@foo/nested/layout')
-        expect(html).toContain('parallel/@foo/nested/@a/page')
-        expect(html).toContain('parallel/@foo/nested/@b/page')
-        expect(html).toContain('parallel/@bar/nested/layout')
-        expect(html).toContain('parallel/@bar/nested/@a/page')
-        expect(html).toContain('parallel/@bar/nested/@b/page')
-        expect(html).toContain('parallel/nested/page')
+      it('should match parallel routes', async () => {
+        const $ = await next.render$('/parallel/nested')
+        const pageText = $('#parallel-layout').text()
+        expect(pageText).toContain('parallel/layout')
+        expect(pageText).toContain('parallel/@foo/nested/layout')
+        expect(pageText).toContain('parallel/@foo/nested/@a/page')
+        expect(pageText).toContain('parallel/@foo/nested/@b/page')
+        expect(pageText).toContain('parallel/@bar/nested/layout')
+        expect(pageText).toContain('parallel/@bar/nested/@a/page')
+        expect(pageText).toContain('parallel/@bar/nested/@b/page')
+        expect(pageText).toContain('parallel/nested/page')
       })
 
-      // FIXME: this parallel route test is broken, shouldn't only check if html containing those strings
-      // previous they're erroring so the html is empty but those strings are still in flight response.
-      it.skip('should match parallel routes in route groups', async () => {
-        const html = await next.render('/parallel/nested-2')
-        expect(html).toContain('parallel/layout')
-        expect(html).toContain('parallel/(new)/layout')
-        expect(html).toContain('parallel/(new)/@baz/nested/page')
+      it('should match parallel routes in route groups', async () => {
+        const $ = await next.render$('/parallel/nested-2')
+        const pageText = $('#parallel-layout').text()
+        expect(pageText).toContain('parallel/layout')
+        expect(pageText).toContain('parallel/(new)/layout')
+        expect(pageText).toContain('parallel/(new)/@baz/nested/page')
+      })
+
+      it('should throw an error when a route groups causes a conflict with a parallel segment', async () => {
+        await next.stop()
+        await next.patchFile(
+          'app/parallel/nested-2/page.js',
+          outdent`
+              export default function Page() {
+                return 'hello world'
+              }
+            `
+        )
+
+        if (isNextDev) {
+          await next.start()
+
+          const html = await next.render('/parallel/nested-2')
+
+          expect(html).toContain(
+            'You cannot have two parallel pages that resolve to the same path.'
+          )
+        } else {
+          await expect(next.start()).rejects.toThrow('next build failed')
+
+          await check(
+            () => next.cliOutput,
+            /You cannot have two parallel pages that resolve to the same path\. Please check \/parallel\/\(new\)\/@baz\/nested-2\/page and \/parallel\/nested-2\/page\./i
+          )
+        }
+        await next.stop()
+        await next.deleteFile('app/parallel/nested-2/page.js')
+        await next.start()
       })
 
       it('should throw a 404 when no matching parallel route is found', async () => {

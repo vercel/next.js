@@ -4,6 +4,10 @@ import { formatServerError } from '../../lib/format-server-error'
 import { isNotFoundError } from '../../client/components/not-found'
 import { isRedirectError } from '../../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
+import { isAbortError } from '../pipe-readable'
+
+export type ErrorHandler = (err: any) => string | undefined
 
 /**
  * Create error handler for renderers.
@@ -27,8 +31,8 @@ export function createErrorHandler({
   errorLogger?: (err: any) => Promise<void>
   capturedErrors: Error[]
   allCapturedErrors?: Error[]
-}) {
-  return (err: any): string => {
+}): ErrorHandler {
+  return (err) => {
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     if (
@@ -40,6 +44,9 @@ export function createErrorHandler({
     ) {
       return err.digest
     }
+
+    // If the response was closed, we don't need to log the error.
+    if (isAbortError(err)) return
 
     // Format server errors in development to add more helpful error messages
     if (dev) {
@@ -56,6 +63,16 @@ export function createErrorHandler({
         )
       )
     ) {
+      // Record exception in an active span, if available.
+      const span = getTracer().getActiveScopeSpan()
+      if (span) {
+        span.recordException(err)
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: err.message,
+        })
+      }
+
       if (errorLogger) {
         errorLogger(err).catch(() => {})
       } else {

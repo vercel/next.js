@@ -4,14 +4,14 @@ import { readRecordValue } from '../read-record-value'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import {
+import type {
   ReadonlyReducerState,
   ReducerState,
   RefreshAction,
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
-import { CacheStates } from '../../../../shared/lib/app-router-context'
+import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 
 export function refreshReducer(

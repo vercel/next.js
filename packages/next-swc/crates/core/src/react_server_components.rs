@@ -37,11 +37,11 @@ impl Config {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Options {
-    pub is_server: bool,
+    pub is_react_server_layer: bool,
 }
 
 struct ReactServerComponents<C: Comments> {
-    is_server: bool,
+    is_react_server_layer: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
@@ -65,16 +65,26 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
             self.collect_top_level_directives_and_imports(module);
         let is_cjs = contains_cjs(module);
 
-        if self.is_server {
-            if !is_client_entry {
-                self.assert_server_graph(&imports, module);
-            } else {
+        if self.is_react_server_layer {
+            if is_client_entry {
                 self.to_module_ref(module, is_cjs);
                 return;
+            } else {
+                // Only assert server graph if file's bundle target is "server", e.g.
+                // * server components pages
+                // * pages bundles on SSR layer
+                // * middleware
+                // * app/pages api routes
+                self.assert_server_graph(&imports, module);
             }
         } else {
+            // Only assert client graph if the file is not an action file,
+            // and bundle target is "client" e.g.
+            // * client components pages
+            // * pages bundles on browser layer
             if !is_action_file {
-                self.assert_client_graph(&imports, module);
+                self.assert_client_graph(&imports);
+                self.assert_invalid_api(module, true);
             }
             if is_client_entry {
                 self.prepend_comment_node(module, is_cjs);
@@ -222,6 +232,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             },
                         })
                     }
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, .. })) => {
                     match decl {
@@ -240,18 +251,21 @@ impl<C: Comments> ReactServerComponents<C> {
                         }
                         _ => {}
                     }
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
                     decl: _,
                     ..
                 })) => {
                     self.export_names.push("default".to_string());
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
                     expr: _,
                     ..
                 })) => {
                     self.export_names.push("default".to_string());
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportAll(_)) => {
                     self.export_names.push("*".to_string());
@@ -329,6 +343,10 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
+        // If the
+        if self.is_from_node_modules(&self.filepath) {
+            return;
+        }
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_server_imports.contains(&source) {
@@ -376,7 +394,10 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_server_filename(&self, module: &Module) {
-        let is_error_file = Regex::new(r"/error\.(ts|js)x?$")
+        if self.is_from_node_modules(&self.filepath) {
+            return;
+        }
+        let is_error_file = Regex::new(r"[\\/]error\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
         if is_error_file {
@@ -400,7 +421,10 @@ impl<C: Comments> ReactServerComponents<C> {
         }
     }
 
-    fn assert_client_graph(&self, imports: &[ModuleImports], module: &Module) {
+    fn assert_client_graph(&self, imports: &[ModuleImports]) {
+        if self.is_from_node_modules(&self.filepath) {
+            return;
+        }
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_client_imports.contains(&source) {
@@ -414,12 +438,13 @@ impl<C: Comments> ReactServerComponents<C> {
                 })
             }
         }
-
-        self.assert_invalid_api(module, true);
     }
 
     fn assert_invalid_api(&self, module: &Module, is_client_entry: bool) {
-        let is_layout_or_page = Regex::new(r"/(page|layout)\.(ts|js)x?$")
+        if self.is_from_node_modules(&self.filepath) {
+            return;
+        }
+        let is_layout_or_page = Regex::new(r"[\\/](page|layout)\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
 
@@ -549,6 +574,12 @@ impl<C: Comments> ReactServerComponents<C> {
             },
         );
     }
+
+    fn is_from_node_modules(&self, filepath: &str) -> bool {
+        Regex::new(r"[\\/]node_modules[\\/]")
+            .unwrap()
+            .is_match(filepath)
+    }
 }
 
 pub fn server_components<C: Comments>(
@@ -557,12 +588,12 @@ pub fn server_components<C: Comments>(
     comments: C,
     app_dir: Option<PathBuf>,
 ) -> impl Fold + VisitMut {
-    let is_server: bool = match config {
-        Config::WithOptions(x) => x.is_server,
-        _ => true,
+    let is_react_server_layer: bool = match &config {
+        Config::WithOptions(x) => x.is_react_server_layer,
+        _ => false,
     };
     as_folder(ReactServerComponents {
-        is_server,
+        is_react_server_layer,
         comments,
         filepath: filename.to_string(),
         app_dir,
@@ -578,8 +609,8 @@ pub fn server_components<C: Comments>(
             JsWord::from("findDOMNode"),
             JsWord::from("flushSync"),
             JsWord::from("unstable_batchedUpdates"),
-            JsWord::from("experimental_useFormStatus"),
-            JsWord::from("experimental_useOptimistic"),
+            JsWord::from("useFormStatus"),
+            JsWord::from("useFormState"),
         ],
         invalid_server_react_apis: vec![
             JsWord::from("Component"),
@@ -596,6 +627,7 @@ pub fn server_components<C: Comments>(
             JsWord::from("useState"),
             JsWord::from("useSyncExternalStore"),
             JsWord::from("useTransition"),
+            JsWord::from("experimental_useOptimistic"),
         ],
     })
 }

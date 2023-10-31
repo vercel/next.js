@@ -31,6 +31,21 @@ createNextDescribe(
       }
     })
 
+    it('should render default 404 with root layout for non-existent page', async () => {
+      const browser = await next.browser('/non-existent')
+      await browser.waitForElementByCss('.next-error-h1')
+      expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')
+      expect(await browser.elementByCss('html').getAttribute('class')).toBe(
+        'root-layout-html'
+      )
+
+      if (isNextDev) {
+        const cliOutput = next.cliOutput
+        expect(cliOutput).toContain('/not-found')
+        expect(cliOutput).not.toContain('/_error')
+      }
+    })
+
     it('should error on server notFound from root layout on server-side', async () => {
       const browser = await next.browser('/?root-not-found=1')
 
@@ -70,6 +85,19 @@ createNextDescribe(
       expect(await browser.elementByCss('h1').text()).toBe('404')
       expect(await browser.elementByCss('h2').text()).toBe(
         'This page could not be found.'
+      )
+    })
+
+    it('should render default not found for group routes if not found is not defined', async () => {
+      const browser = await next.browser('/group-dynamic/123')
+      expect(await browser.elementByCss('#page').text()).toBe(
+        'group-dynamic [id]'
+      )
+
+      await browser.loadPage(next.url + '/group-dynamic/404')
+      expect(await browser.elementByCss('.next-error-h1').text()).toBe('404')
+      expect(await browser.elementByCss('html').getAttribute('class')).toBe(
+        'group-root-layout'
       )
     })
   }

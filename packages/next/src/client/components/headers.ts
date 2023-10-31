@@ -4,8 +4,8 @@ import {
 } from '../../server/web/spec-extension/adapters/request-cookies'
 import { HeadersAdapter } from '../../server/web/spec-extension/adapters/headers'
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
-import { requestAsyncStorage } from './request-async-storage'
-import { actionAsyncStorage } from './action-async-storage'
+import { requestAsyncStorage } from './request-async-storage.external'
+import { actionAsyncStorage } from './action-async-storage.external'
 import { staticGenerationBailout } from './static-generation-bailout'
 import { DraftMode } from './draft-mode'
 
@@ -17,7 +17,6 @@ export function headers() {
   ) {
     return HeadersAdapter.seal(new Headers({}))
   }
-
   const requestStore = requestAsyncStorage.getStore()
   if (!requestStore) {
     throw new Error(

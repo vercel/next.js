@@ -6,7 +6,8 @@ import {
   AppleWebAppMeta,
   FormatDetectionMeta,
   ItunesMeta,
-  BasicMetadata,
+  BasicMeta,
+  ViewportMeta,
   VerificationMeta,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
@@ -16,10 +17,17 @@ import {
   AppLinksMeta,
 } from './generate/opengraph'
 import { IconsMetadata } from './generate/icons'
-import { accumulateMetadata, resolveMetadata } from './resolve-metadata'
+import { resolveMetadata } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
-import { ResolvedMetadata } from './types/metadata-interface'
-import { createDefaultMetadata } from './default-metadata'
+import type {
+  ResolvedMetadata,
+  ResolvedViewport,
+} from './types/metadata-interface'
+import {
+  createDefaultMetadata,
+  createDefaultViewport,
+} from './default-metadata'
+import { isNotFoundError } from '../../client/components/not-found'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -32,14 +40,14 @@ export function createMetadataComponents({
   pathname,
   searchParams,
   getDynamicParamFromSegment,
-  appUsingSizeAdjust,
+  appUsingSizeAdjustment,
   errorType,
 }: {
   tree: LoaderTree
   pathname: string
   searchParams: { [key: string]: any }
   getDynamicParamFromSegment: GetDynamicParamFromSegment
-  appUsingSizeAdjust: boolean
+  appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
 }): [React.ComponentType, React.ComponentType] {
   const metadataContext = {
@@ -54,30 +62,55 @@ export function createMetadataComponents({
 
   async function MetadataTree() {
     const defaultMetadata = createDefaultMetadata()
+    const defaultViewport = createDefaultViewport()
     let metadata: ResolvedMetadata | undefined = defaultMetadata
-    try {
-      const resolvedMetadata = await resolveMetadata({
+    let viewport: ResolvedViewport | undefined = defaultViewport
+    let error: any
+    const errorMetadataItem: [null, null, null] = [null, null, null]
+    const errorConvention = errorType === 'redirect' ? undefined : errorType
+
+    const [resolvedError, resolvedMetadata, resolvedViewport] =
+      await resolveMetadata({
         tree,
         parentParams: {},
         metadataItems: [],
+        errorMetadataItem,
         searchParams,
         getDynamicParamFromSegment,
-        errorConvention: errorType === 'redirect' ? undefined : errorType,
+        errorConvention,
+        metadataContext,
       })
-
-      // Skip for redirect case as for the temporary redirect case we don't need the metadata on client
-      if (errorType === 'redirect') {
-        metadata = defaultMetadata
-      } else {
-        metadata = await accumulateMetadata(resolvedMetadata, metadataContext)
-      }
+    if (!resolvedError) {
+      viewport = resolvedViewport
+      metadata = resolvedMetadata
       resolve(undefined)
-    } catch (error: any) {
+    } else {
+      error = resolvedError
+      // If the error triggers in initial metadata resolving, re-resolve with proper error type.
+      // They'll be saved for flight data, when hydrates, it will replaces the SSR'd metadata with this.
+      // for not-found error: resolve not-found metadata
+      if (!errorType && isNotFoundError(resolvedError)) {
+        const [notFoundMetadataError, notFoundMetadata, notFoundViewport] =
+          await resolveMetadata({
+            tree,
+            parentParams: {},
+            metadataItems: [],
+            errorMetadataItem,
+            searchParams,
+            getDynamicParamFromSegment,
+            errorConvention: 'not-found',
+            metadataContext,
+          })
+        viewport = notFoundViewport
+        metadata = notFoundMetadata
+        error = notFoundMetadataError || error
+      }
       resolve(error)
     }
 
     const elements = MetaFilter([
-      BasicMetadata({ metadata }),
+      ViewportMeta({ viewport: viewport }),
+      BasicMeta({ metadata }),
       AlternatesMetadata({ alternates: metadata.alternates }),
       ItunesMeta({ itunes: metadata.itunes }),
       FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
@@ -89,7 +122,7 @@ export function createMetadataComponents({
       IconsMetadata({ icons: metadata.icons }),
     ])
 
-    if (appUsingSizeAdjust) elements.push(<meta name="next-size-adjust" />)
+    if (appUsingSizeAdjustment) elements.push(<meta name="next-size-adjust" />)
 
     return (
       <>
@@ -108,6 +141,5 @@ export function createMetadataComponents({
     return null
   }
 
-  // @ts-expect-error async server components
   return [MetadataTree, MetadataOutlet]
 }

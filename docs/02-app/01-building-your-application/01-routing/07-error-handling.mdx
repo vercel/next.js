@@ -32,7 +32,7 @@ export default function Error({
   error,
   reset,
 }: {
-  error: Error
+  error: Error & { digest?: string }
   reset: () => void
 }) {
   useEffect(() => {
@@ -93,7 +93,7 @@ export default function Error({ error, reset }) {
   height="903"
 />
 
-- `error.js` automatically creates an [React Error Boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary) that **wraps** a nested child segment or `page.js` component.
+- `error.js` automatically creates a [React Error Boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary) that **wraps** a nested child segment or `page.js` component.
 - The React component exported from the `error.js` file is used as the **fallback** component.
 - If an error is thrown within the error boundary, the error is **contained**, and the fallback component is **rendered**.
 - When the fallback error component is active, layouts **above** the error boundary **maintain** their state and **remain** interactive, and the error component can display functionality to recover from the error.
@@ -111,7 +111,7 @@ export default function Error({
   error,
   reset,
 }: {
-  error: Error
+  error: Error & { digest?: string }
   reset: () => void
 }) {
   return (
@@ -153,7 +153,7 @@ For example, a nested route with two segments that both include `layout.js` and 
 The nested component hierarchy has implications for the behavior of `error.js` files across a nested route:
 
 - Errors bubble up to the nearest parent error boundary. This means an `error.js` file will handle errors for all its nested child segments. More or less granular error UI can be achieved by placing `error.js` files at different levels in the nested folders of a route.
-- An `error.js` boundary will **not** handle errors thrown in a `layout.js` component in the **same** segment because the error boundary is nested **inside** that layouts component.
+- An `error.js` boundary will **not** handle errors thrown in a `layout.js` component in the **same** segment because the error boundary is nested **inside** that layout's component.
 
 ### Handling Errors in Layouts
 
@@ -182,7 +182,7 @@ export default function GlobalError({
   error,
   reset,
 }: {
-  error: Error
+  error: Error & { digest?: string }
   reset: () => void
 }) {
   return (

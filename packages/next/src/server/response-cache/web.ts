@@ -1,3 +1,4 @@
+import { DetachedPromise } from '../../lib/detached-promise'
 import type { ResponseCacheEntry, ResponseGenerator } from './types'
 
 /**
@@ -15,7 +16,9 @@ export default class WebResponseCache {
 
   constructor(minimalMode: boolean) {
     this.pendingResponses = new Map()
-    this.minimalMode = minimalMode
+    // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
+    // because we replace this.minimalMode to true in production bundles.
+    Object.assign(this, { minimalMode })
   }
 
   public get(
@@ -39,14 +42,11 @@ export default class WebResponseCache {
       return pendingResponse
     }
 
-    let resolver: (cacheEntry: ResponseCacheEntry | null) => void = () => {}
-    let rejecter: (error: Error) => void = () => {}
-    const promise: Promise<ResponseCacheEntry | null> = new Promise(
-      (resolve, reject) => {
-        resolver = resolve
-        rejecter = reject
-      }
-    )
+    const {
+      promise,
+      resolve: resolver,
+      reject: rejecter,
+    } = new DetachedPromise<ResponseCacheEntry | null>()
     if (pendingResponseKey) {
       this.pendingResponses.set(pendingResponseKey, promise)
     }

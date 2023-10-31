@@ -2,7 +2,15 @@
 
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromFetch } from 'react-server-dom-webpack/client'
+// import { createFromFetch } from 'react-server-dom-webpack/client'
+const { createFromFetch } = (
+  !!process.env.NEXT_RUNTIME
+    ? // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-webpack/client.edge')
+    : // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-webpack/client')
+) as typeof import('react-server-dom-webpack/client')
+
 import type {
   FlightRouterState,
   FlightData,
@@ -20,10 +28,12 @@ import { urlToUrlWithoutFlightMarker } from '../app-router'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
+import { NEXT_DID_POSTPONE_HEADER } from '../../../lib/constants'
 
-type FetchServerResponseResult = [
+export type FetchServerResponseResult = [
   flightData: FlightData,
-  canonicalUrlOverride: URL | undefined
+  canonicalUrlOverride: URL | undefined,
+  postponed?: boolean
 ]
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
@@ -101,6 +111,7 @@ export async function fetchServerResponse(
     const canonicalUrl = res.redirected ? responseUrl : undefined
 
     const contentType = res.headers.get('content-type') || ''
+    const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
 
     if (process.env.NODE_ENV === 'production') {
@@ -114,6 +125,11 @@ export async function fetchServerResponse(
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
     if (!isFlightResponse || !res.ok) {
+      // in case the original URL came with a hash, preserve it before redirecting to the new URL
+      if (url.hash) {
+        responseUrl.hash = url.hash
+      }
+
       return doMpaNavigation(responseUrl.toString())
     }
 
@@ -129,10 +145,10 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
-    return [flightData, canonicalUrl]
+    return [flightData, canonicalUrl, postponed]
   } catch (err) {
     console.error(
-      'Failed to fetch RSC payload. Falling back to browser navigation.',
+      `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
       err
     )
     // If fetch fails handle it like a mpa navigation

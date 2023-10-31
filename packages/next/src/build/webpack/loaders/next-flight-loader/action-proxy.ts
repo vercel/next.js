@@ -1,6 +1,8 @@
-export default function createActionProxy(
+const SERVER_REFERENCE_TAG = Symbol.for('react.server.reference')
+
+export function createActionProxy(
   id: string,
-  bound: null | any[],
+  boundArgsFromClosure: null | any[],
   action: any,
   originalAction?: any
 ) {
@@ -30,8 +32,18 @@ export default function createActionProxy(
     return newAction
   }
 
-  action.$$typeof = Symbol.for('react.server.reference')
-  action.$$id = id
-  action.$$bound = bound
-  action.bind = bindImpl.bind(action)
+  Object.defineProperties(action, {
+    $$typeof: {
+      value: SERVER_REFERENCE_TAG,
+    },
+    $$id: {
+      value: id,
+    },
+    $$bound: {
+      value: boundArgsFromClosure,
+    },
+    bind: {
+      value: bindImpl,
+    },
+  })
 }

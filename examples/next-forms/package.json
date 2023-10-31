@@ -3,19 +3,17 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start"
   },
   "dependencies": {
+    "@types/node": "20.5.1",
+    "@types/react": "18.2.20",
+    "@types/react-dom": "18.2.7",
+    "@vercel/postgres": "0.4.1",
     "next": "latest",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
-  },
-  "devDependencies": {
-    "@types/node": "18.7.15",
-    "@types/react": "18.0.18",
-    "eslint": "8.23.0",
-    "eslint-config-next": "latest",
-    "typescript": "4.8.2"
+    "react-dom": "18.2.0",
+    "typescript": "5.1.6",
+    "zod": "^3.22.2"
   }
 }

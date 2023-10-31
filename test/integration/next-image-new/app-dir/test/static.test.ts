@@ -114,6 +114,13 @@ const runTests = (isDev) => {
     expect(img.attr('height')).toBe('233')
   })
 
+  it('should add a data URL placeholder to an image', async () => {
+    const style = $('#data-url-placeholder').attr('style')
+    expect(style).toBe(
+      `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;base64,Cjxzdmcgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImciPgogICAgICA8c3RvcCBzdG9wLWNvbG9yPSIjMzMzIiBvZmZzZXQ9IjIwJSIgLz4KICAgICAgPHN0b3Agc3RvcC1jb2xvcj0iIzIyMiIgb2Zmc2V0PSI1MCUiIC8+CiAgICAgIDxzdG9wIHN0b3AtY29sb3I9IiMzMzMiIG9mZnNldD0iNzAlIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiMzMzMiIC8+CiAgPHJlY3QgaWQ9InIiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ1cmwoI2cpIiAvPgogIDxhbmltYXRlIHhsaW5rOmhyZWY9IiNyIiBhdHRyaWJ1dGVOYW1lPSJ4IiBmcm9tPSItMjAwIiB0bz0iMjAwIiBkdXI9IjFzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIgIC8+Cjwvc3ZnPg==")`
+    )
+  })
+
   it('should add a blur placeholder a statically imported jpg', async () => {
     const style = $('#basic-static').attr('style')
     if (isDev) {
@@ -179,26 +186,28 @@ const runTests = (isDev) => {
 }
 
 describe('Build Error Tests', () => {
-  it('should throw build error when import statement is used with missing file', async () => {
-    await indexPage.replace(
-      '../../public/foo/test-rect.jpg',
-      '../../public/foo/test-rect-broken.jpg'
-    )
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    it('should throw build error when import statement is used with missing file', async () => {
+      await indexPage.replace(
+        '../../public/foo/test-rect.jpg',
+        '../../public/foo/test-rect-broken.jpg'
+      )
 
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    await indexPage.restore()
+      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+      await indexPage.restore()
 
-    expect(stderr).toContain(
-      "Module not found: Can't resolve '../../public/foo/test-rect-broken.jpg"
-    )
-    // should contain the importing module
-    expect(stderr).toContain('./app/static-img/page.js')
-    // should contain a import trace
-    expect(stderr).not.toContain('Import trace for requested module')
+      expect(stderr).toContain(
+        "Module not found: Can't resolve '../../public/foo/test-rect-broken.jpg"
+      )
+      // should contain the importing module
+      expect(stderr).toContain('./app/static-img/page.js')
+      // should contain a import trace
+      expect(stderr).not.toContain('Import trace for requested module')
+    })
   })
 })
 describe('Static Image Component Tests', () => {
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

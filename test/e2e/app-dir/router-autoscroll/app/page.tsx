@@ -19,6 +19,18 @@ export default function Page() {
           To invisible first element
         </Link>
       </div>
+
+      <div>
+        <Link href="/fixed-first-element" id="to-fixed-first-element">
+          To fixed first element
+        </Link>
+      </div>
+
+      <div>
+        <Link href="/sticky-first-element" id="to-sticky-first-element">
+          To sticky first element
+        </Link>
+      </div>
     </>
   )
 }

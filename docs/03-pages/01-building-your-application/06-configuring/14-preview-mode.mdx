@@ -90,7 +90,7 @@ Your headless CMS might allow you to include a variable in the preview URL so th
 - Check that the secret matches and that the `slug` parameter exists (if not, the request should fail).
 -
 - Call `res.setPreviewData`.
-- Then redirect the browser to the path specified by `slug`. (The following example uses a [307 redirect](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307)).
+- Then redirect the browser to the path specified by `slug`. (The following example uses a [307 redirect](https://developer.mozilla.org/docs/Web/HTTP/Status/307)).
 
 ```js
 export default async (req, res) => {
@@ -218,6 +218,8 @@ You can pass an object to `setPreviewData` and have it be available in `getStati
 ### Works with `getServerSideProps`
 
 The preview mode works on `getServerSideProps` as well. It will also be available on the `context` object containing `preview` and `previewData`.
+
+> **Good to know**: You shouldn't set the `Cache-Control` header when using Preview Mode because it cannot be bypassed. Instead, we recommend using [ISR](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration).
 
 ### Works with API Routes
 

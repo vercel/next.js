@@ -3,7 +3,7 @@ title: not-found.js
 description: API reference for the not-found.js file.
 ---
 
-The **not-found** file is used to render UI when the [`notFound`](/docs/app/api-reference/functions/not-found) function is thrown within a route segment. Along with serving a custom UI, Next.js will also return a `404` HTTP status code.
+The **not-found** file is used to render UI when the [`notFound`](/docs/app/api-reference/functions/not-found) function is thrown within a route segment. Along with serving a custom UI, Next.js will return a `200` HTTP status code for streamed responses, and `404` for non-streamed responses.
 
 ```tsx filename="app/blog/not-found.tsx" switcher
 import Link from 'next/link'

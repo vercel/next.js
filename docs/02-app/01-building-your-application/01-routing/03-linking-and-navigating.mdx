@@ -42,7 +42,7 @@ There are other optional props you can pass to `<Link>`. See the [API reference]
 
 #### Linking to Dynamic Segments
 
-When linking to [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes), you can use [template literals and interpolation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) to generate a list of links. For example, to generate a list of blog posts:
+When linking to [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes), you can use [template literals and interpolation](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Template_literals) to generate a list of links. For example, to generate a list of blog posts:
 
 ```jsx filename="app/blog/PostList.js"
 import Link from 'next/link'
@@ -64,38 +64,71 @@ export default function PostList({ posts }) {
 
 You can use [`usePathname()`](/docs/app/api-reference/functions/use-pathname) to determine if a link is active. For example, to add a class to the active link, you can check if the current `pathname` matches the `href` of the link:
 
-```jsx filename="app/ui/Navigation.js"
+```tsx filename="app/components/links.tsx" switcher
 'use client'
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 
-export function Navigation({ navLinks }) {
+export function Links() {
   const pathname = usePathname()
 
   return (
-    <>
-      {navLinks.map((link) => {
-        const isActive = pathname === link.href
-
-        return (
-          <Link
-            className={isActive ? 'text-blue' : 'text-black'}
-            href={link.href}
-            key={link.name}
-          >
-            {link.name}
+    <nav>
+      <ul>
+        <li>
+          <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+            Home
           </Link>
-        )
-      })}
-    </>
+        </li>
+        <li>
+          <Link
+            className={`link ${pathname === '/about' ? 'active' : ''}`}
+            href="/about"
+          >
+            About
+          </Link>
+        </li>
+      </ul>
+    </nav>
+  )
+}
+```
+
+```jsx filename="app/components/links.js" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+
+export function Links() {
+  const pathname = usePathname()
+
+  return (
+    <nav>
+      <ul>
+        <li>
+          <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
+            Home
+          </Link>
+        </li>
+        <li>
+          <Link
+            className={`link ${pathname === '/about' ? 'active' : ''}`}
+            href="/about"
+          >
+            About
+          </Link>
+        </li>
+      </ul>
+    </nav>
   )
 }
 ```
 
 #### Scrolling to an `id`
 
-The default behavior of `<Link>` is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.
+The default behavior of the Next.js App Router is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.
 
 If you'd like to scroll to a specific `id` on navigation, you can append your URL with a `#` hash link or just pass a hash link to the `href` prop. This is possible since `<Link>` renders to an `<a>` element.
 
@@ -104,6 +137,26 @@ If you'd like to scroll to a specific `id` on navigation, you can append your UR
 
 // Output
 <a href="/dashboard#settings">Settings</a>
+```
+
+#### Disabling scroll restoration
+
+The default behavior of the Next.js App Router is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation. If you'd like to disable this behavior, you can pass `scroll={false}` to the `<Link>` component, or `scroll: false` to `router.push()` or `router.replace()`.
+
+```jsx
+// next/link
+<Link href="/dashboard" scroll={false}>
+  Dashboard
+</Link>
+```
+
+```jsx
+// useRouter
+import { useRouter } from 'next/navigation'
+
+const router = useRouter()
+
+router.push('/dashboard', { scroll: false })
 ```
 
 ## `useRouter()` Hook
@@ -147,8 +200,8 @@ There are two ways routes are prefetched in Next.js:
 
 The`<Link>`'s prefetching behavior is different for static and dynamic routes:
 
-- [**Static Routes**](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default): `prefetch` defaults to `true`. The entire route is prefetched and cached.
-- [**Dynamic Routes**](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering): `prefetch` default to automatic. Only the shared layout down until the first `loading.js` file is prefetched and cached for `30s`. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for better visual feedback to users.
+- [**Static Routes**](/docs/app/building-your-application/rendering/server-components#static-rendering-default): `prefetch` defaults to `true`. The entire route is prefetched and cached.
+- [**Dynamic Routes**](/docs/app/building-your-application/rendering/server-components#dynamic-rendering): `prefetch` default to automatic. Only the shared layout down until the first `loading.js` file is prefetched and cached for `30s`. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for better visual feedback to users.
 
 You can disable prefetching by setting the `prefetch` prop to `false`.
 
@@ -166,11 +219,11 @@ This means on navigation, the cache is reused as much as possible, instead of ma
 
 Learn more about how the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data) works and how to configure it.
 
-#### 3. Partial Rendering
+### 3. Partial Rendering
 
 Partial rendering means only the route segments that change on navigation re-render on the client, and any shared segments are preserved.
 
-For example, when navigating between two sibling routes, `/dashboard/settings` and `/dashboard/analytics`, the `settings` and `analytics` pages will be rendered, and the shared `dashboard` layout will be preseved.
+For example, when navigating between two sibling routes, `/dashboard/settings` and `/dashboard/analytics`, the `settings` and `analytics` pages will be rendered, and the shared `dashboard` layout will be preserved.
 
 <Image
   alt="How partial rendering works"
@@ -182,10 +235,10 @@ For example, when navigating between two sibling routes, `/dashboard/settings` a
 
 Without partial rendering, each navigation would cause the full page to re-render on the server. Rendering only the segment that changes reduces the amount of data transferred and execution time, leading to improved performance.
 
-#### 4. Soft Navigation
+### 4. Soft Navigation
 
 By default, the browser performs a hard navigation between pages. This means the browser reloads the page and resets React state such as `useState` hooks in your app and browser state such as the user's scroll position or focused element. However, in Next.js, the App Router uses soft navigation. This means React only renders the segments that have changed while preserving React and browser state, and there is no full page reload.
 
-#### 5. Back and Forward Navigation
+### 5. Back and Forward Navigation
 
 By default, Next.js will maintain the scroll position for backwards and forwards navigation, and re-use route segments in the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data).

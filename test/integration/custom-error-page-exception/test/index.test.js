@@ -11,24 +11,26 @@ let app
 
 // TODO: re-enable with React 18
 describe.skip('Custom error page exception', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir, undefined, {
-      nodeArgs,
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir, undefined, {
+        nodeArgs,
+      })
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort, {
+        nodeArgs,
+      })
     })
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort, {
-      nodeArgs,
-    })
-  })
-  afterAll(() => killApp(app))
-  it('should handle errors from _error render', async () => {
-    const navSel = '#nav'
-    const browser = await webdriver(appPort, '/')
-    await browser.waitForElementByCss(navSel).elementByCss(navSel).click()
+    afterAll(() => killApp(app))
+    it('should handle errors from _error render', async () => {
+      const navSel = '#nav'
+      const browser = await webdriver(appPort, '/')
+      await browser.waitForElementByCss(navSel).elementByCss(navSel).click()
 
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /Application error: a client-side exception has occurred/
-    )
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /Application error: a client-side exception has occurred/
+      )
+    })
   })
 })
