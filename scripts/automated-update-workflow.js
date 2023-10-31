@@ -4,18 +4,28 @@ const { exec: execOriginal } = require('child_process')
 
 const exec = promisify(execOriginal)
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || ''
+const {
+  GITHUB_TOKEN = '',
+  SCRIPT = '',
+  BRANCH_NAME = 'unknown',
+  PR_TITLE = 'Automated update',
+  PR_BODY = '',
+} = process.env
 
 if (!GITHUB_TOKEN) {
   console.log('missing GITHUB_TOKEN env')
   process.exit(1)
 }
+if (!SCRIPT) {
+  console.log('missing SCRIPT env')
+  process.exit(1)
+}
 
 async function main() {
   const octokit = new Octokit({ auth: GITHUB_TOKEN })
-  const branchName = `update/fonts-data-${Date.now()}`
+  const branchName = `update/${BRANCH_NAME}-${Date.now()}`
 
-  await exec(`node scripts/update-google-fonts.js`)
+  await exec(`node ${SCRIPT}`)
 
   await exec(`git config user.name "vercel-release-bot"`)
   await exec(`git config user.email "infra+release@vercel.com"`)
@@ -52,14 +62,14 @@ async function main() {
     repo,
     head: branchName,
     base: 'canary',
-    title: `Update font data`,
-    body: `This auto-generated PR updates font data with latest available`,
+    title: PR_TITLE,
+    body: PR_BODY,
   })
 
   console.log('Created pull request', pullRequest.url)
 
-  const previousPullRequests = pullRequests.filter(({ title }) => {
-    return title.startsWith('Update font data')
+  const previousPullRequests = pullRequests.filter(({ title, user }) => {
+    return title.includes(PR_TITLE) && user.login === 'vercel-release-bot'
   })
 
   if (previousPullRequests.length) {
