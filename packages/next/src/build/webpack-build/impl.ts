@@ -21,7 +21,13 @@ import {
 } from '../build-context'
 import { createEntrypoints } from '../entries'
 import loadConfig from '../../server/config'
-import { trace } from '../../trace'
+import {
+  getTraceEvents,
+  initializeTraceState,
+  trace,
+  type TraceEvent,
+  type TraceState,
+} from '../../trace'
 import { WEBPACK_LAYERS } from '../../lib/constants'
 import { TraceEntryPointsPlugin } from '../webpack/plugins/next-trace-entrypoints-plugin'
 import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
@@ -331,9 +337,17 @@ export async function webpackBuildImpl(
 export async function workerMain(workerData: {
   compilerName: keyof typeof COMPILER_INDEXES
   buildContext: typeof NextBuildContext
-}) {
+  traceState: TraceState
+}): Promise<
+  Awaited<ReturnType<typeof webpackBuildImpl>> & {
+    debugTraceEvents: TraceEvent[]
+  }
+> {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
+
+  // Initialize tracer state from the parent
+  initializeTraceState(workerData.traceState)
 
   // Resume plugin state
   resumePluginState(NextBuildContext.pluginState)
@@ -343,7 +357,9 @@ export async function workerMain(workerData: {
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!
   )
-  NextBuildContext.nextBuildSpan = trace('next-build')
+  NextBuildContext.nextBuildSpan = trace(
+    `worker-main-${workerData.compilerName}`
+  )
 
   const result = await webpackBuildImpl(workerData.compilerName)
   const { entriesTrace, chunksTrace } = result.buildTraceContext ?? {}
@@ -361,5 +377,6 @@ export async function workerMain(workerData: {
     const entryNameFilesMap = chunksTrace.entryNameFilesMap
     result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
   }
-  return result
+  NextBuildContext.nextBuildSpan.stop()
+  return { ...result, debugTraceEvents: getTraceEvents() }
 }

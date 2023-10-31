@@ -279,8 +279,8 @@ pub async fn get_client_module_options_context(
         // we try resolve it once at the root and pass down a context to all
         // the modules.
         enable_jsx: Some(jsx_runtime_options),
-        enable_postcss_transform: postcss_transform_options,
         enable_webpack_loaders,
+        enable_postcss_transform: postcss_transform_options,
         enable_typescript_transform: Some(tsconfig),
         enable_mdx_rs,
         decorators: Some(decorators_options),
