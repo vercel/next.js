@@ -20,7 +20,10 @@ import * as Log from '../../build/output/log'
 import type { EventLintCheckCompleted } from '../../telemetry/events/build'
 import isError, { getProperError } from '../is-error'
 import { getPkgManager } from '../helpers/get-pkg-manager'
-import { getESLintPromptValues } from './getESLintPromptValues'
+import {
+  getESLintStrictValue,
+  getESLintPromptValues,
+} from './getESLintPromptValues'
 
 type Config = {
   plugins: string[]
@@ -356,9 +359,7 @@ export async function runLintCheck(
       } else {
         // Ask user what config they would like to start with for first time "next lint" setup
         const { config: selectedConfig } = strict
-          ? (await getESLintPromptValues(baseDir)).find(
-              (opt) => opt.title === 'Strict'
-            )!
+          ? await getESLintStrictValue(baseDir)
           : await cliPrompt()
 
         if (selectedConfig == null) {
