@@ -31,7 +31,7 @@ const infoLog = (...args: any[]) => {
  * Based on napi-rs's target triples, returns triples that have corresponding next-swc binaries.
  */
 export const getSupportedArchTriples: () => Record<string, any> = () => {
-  const { darwin, win32, linux } = platformArchTriples
+  const { darwin, win32, linux, freebsd, android } = platformArchTriples
 
   return {
     darwin,
@@ -48,6 +48,16 @@ export const getSupportedArchTriples: () => Record<string, any> = () => {
         (triple: { abi: string }) => triple.abi !== 'gnux32'
       ),
       arm64: linux.arm64,
+      // This target is being deprecated, however we keep it in `knownDefaultWasmFallbackTriples` for now
+      arm: linux.arm,
+    },
+    // Below targets are being deprecated, however we keep it in `knownDefaultWasmFallbackTriples` for now
+    freebsd: {
+      x64: freebsd.x64,
+    },
+    android: {
+      arm64: android.arm64,
+      arm: android.arm,
     },
   }
 }
@@ -67,7 +77,7 @@ const triples = (() => {
 
   if (rawTargetTriple) {
     Log.warn(
-      `Trying to load next-swc for target triple ${rawTargetTriple}, but this target is not supported`
+      `Trying to load next-swc for target triple ${rawTargetTriple}, but there next-swc does not have native bindings support`
     )
   } else {
     Log.warn(
@@ -96,6 +106,21 @@ function checkVersionMismatch(pkgData: any) {
     )
   }
 }
+
+// These are the platforms we'll try to load wasm bindings first,
+// only try to load native bindings if loading wasm binding somehow fails.
+// Fallback to native binding is for migration period only,
+// once we can verify loading-wasm-first won't cause visible regressions,
+// we'll not include native bindings for these platform at all.
+const knownDefaultWasmFallbackTriples = [
+  'x86_64-unknown-freebsd',
+  'aarch64-linux-android',
+  'arm-linux-androideabi',
+  'armv7-unknown-linux-gnueabihf',
+  'i686-pc-windows-msvc',
+  // WOA targets are TBD, while current userbase is small we may support it in the future
+  //'aarch64-pc-windows-msvc',
+]
 
 // The last attempt's error code returned when cjs require to native bindings fails.
 // If node.js throws an error without error code, this should be `unknown` instead of undefined.
@@ -176,6 +201,21 @@ export async function loadBindings(): Promise<Binding> {
     }
 
     let attempts: any[] = []
+    const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
+    const shouldLoadWasmFallbackFirst =
+      !disableWasmFallback &&
+      triples.some(
+        (triple: any) =>
+          !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
+      )
+
+    if (shouldLoadWasmFallbackFirst) {
+      lastNativeBindingsLoadErrorCode = 'unsupported_target'
+      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
+      if (fallbackBindings) {
+        return resolve(fallbackBindings)
+      }
+    }
 
     // Trickle down loading `fallback` bindings:
     //
@@ -184,6 +224,7 @@ export async function loadBindings(): Promise<Binding> {
     // that host system where generated package lock is not matching to the guest system running on, try to manually
     // download corresponding target triple and load it. This won't be triggered if native bindings are failed to load
     // with other reasons than `ERR_MODULE_NOT_FOUND`.
+    // - Lastly, falls back to wasm binding where possible.
     try {
       return resolve(loadNative())
     } catch (a) {
@@ -201,7 +242,15 @@ export async function loadBindings(): Promise<Binding> {
       attempts = attempts.concat(a)
     }
 
-    logLoadFailure(attempts)
+    // For these platforms we already tried to load wasm and failed, skip reattempt
+    if (!shouldLoadWasmFallbackFirst && !disableWasmFallback) {
+      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
+      if (fallbackBindings) {
+        return resolve(fallbackBindings)
+      }
+    }
+
+    logLoadFailure(attempts, true)
   })
   return pendingBindings
 }
@@ -230,8 +279,6 @@ async function tryLoadNativeWithFallback(attempts: Array<string>) {
   return undefined
 }
 
-// We may end up using this function in the future if/when we support wasm builds again
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function tryLoadWasmWithFallback(attempts: any) {
   try {
     let bindings = await loadWasm('')
@@ -284,12 +331,18 @@ function loadBindingsSync() {
     attempts = attempts.concat(a)
   }
 
+  // we can leverage the wasm bindings if they are already
+  // loaded
+  if (wasmBindings) {
+    return wasmBindings
+  }
+
   logLoadFailure(attempts)
 }
 
 let loggingLoadFailure = false
 
-function logLoadFailure(attempts: any) {
+function logLoadFailure(attempts: any, triedWasm = false) {
   // make sure we only emit the event and log the failure once
   if (loggingLoadFailure) return
   loggingLoadFailure = true
@@ -300,6 +353,7 @@ function logLoadFailure(attempts: any) {
 
   // @ts-expect-error TODO: this event has a wrong type.
   eventSwcLoadFailure({
+    wasm: triedWasm ? 'failed' : undefined,
     nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
   })
     .then(() => lockfilePatchPromise.cur || Promise.resolve())
