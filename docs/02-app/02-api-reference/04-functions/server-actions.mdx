@@ -142,7 +142,7 @@ In both cases, the form is interactive before hydration occurs. Although Server 
 
 By default, the maximum size of the request body sent to a Server Action is `1mb`, to prevent the consumption of excessive server resources in parsing large amounts of data.
 
-However, you can configure this limit using the `serverActions.bodySizeLimit` option. It can take the number of bits or any string format supported by bits, for example `1000`, `'500kb'` or `'3mb'`.
+However, you can configure this limit using the `serverActions.bodySizeLimit` option. It can take the number of bits or any string format supported by file size format, for example `1000`, `'500kb'` or `'3mb'`.
 
 ```js filename="next.config.js"
 module.exports = {
