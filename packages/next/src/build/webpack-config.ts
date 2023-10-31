@@ -892,7 +892,7 @@ export default async function getBaseWebpackConfig(
           return {
             filename: '[name].js',
             chunks: 'all',
-            minSize: 1000,
+            minChunks: 2,
           }
         }
 
