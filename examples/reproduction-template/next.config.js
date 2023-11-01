@@ -1,5 +1,5 @@
 /** @type {import("next").NextConfig} */
-const config = {
+const nextConfig = {
   reactStrictMode: true,
 }
 
