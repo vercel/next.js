@@ -35,6 +35,7 @@ type PathMap = ExportPathMap[keyof ExportPathMap]
 
 export interface ExportPageInput {
   path: string
+  dir: string
   pathMap: PathMap
   distDir: string
   outDir: string
