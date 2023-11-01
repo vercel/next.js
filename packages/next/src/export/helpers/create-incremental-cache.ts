@@ -7,12 +7,15 @@ export function createIncrementalCache(
   incrementalCacheHandlerPath: string | undefined,
   isrMemoryCacheSize: number | undefined,
   fetchCacheKeyPrefix: string | undefined,
-  distDir: string
+  distDir: string,
+  dir: string
 ) {
   // Custom cache handler overrides.
   let CacheHandler: any
   if (incrementalCacheHandlerPath) {
-    CacheHandler = require(incrementalCacheHandlerPath)
+    CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
+      ? incrementalCacheHandlerPath
+      : path.join(dir, incrementalCacheHandlerPath))
     CacheHandler = CacheHandler.default || CacheHandler
   }
 
