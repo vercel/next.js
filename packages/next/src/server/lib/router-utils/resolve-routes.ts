@@ -134,10 +134,9 @@ export function getResolveRoutes(
         statusCode: 308,
       }
     }
-
     // TODO: inherit this from higher up
     const protocol =
-      (req.socket as TLSSocket)?.encrypted ||
+      (req?.socket as TLSSocket)?.encrypted ||
       req.headers['x-forwarded-proto'] === 'https'
         ? 'https'
         : 'http'
