@@ -735,7 +735,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.0.2-canary.0
+        specifier: 14.0.2-canary.2
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -796,7 +796,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.0.2-canary.0
+        specifier: 14.0.2-canary.2
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.2
@@ -920,23 +920,23 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 14.0.2-canary.0
+        specifier: 14.0.2-canary.2
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.0.2-canary.0
+        specifier: 14.0.2-canary.2
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 14.0.2-canary.0
+        specifier: 14.0.2-canary.2
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 14.0.2-canary.0
+        specifier: 14.0.2-canary.2
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.0.2-canary.0
+        specifier: 14.0.2-canary.2
         version: link:../next-swc
       '@opentelemetry/api':
-        specifier: 1.4.1
-        version: 1.4.1
+        specifier: 1.6.0
+        version: 1.6.0
       '@playwright/test':
         specifier: ^1.35.1
         version: 1.35.1
@@ -1583,7 +1583,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.0.2-canary.0
+        specifier: 14.0.2-canary.2
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -5628,13 +5628,18 @@ packages:
     engines: {node: '>=8.0.0'}
     dev: true
 
-  /@opentelemetry/core@1.15.2(@opentelemetry/api@1.4.1):
+  /@opentelemetry/api@1.6.0:
+    resolution: {integrity: sha512-OWlrQAnWn9577PhVgqjUvMr1pg57Bc4jv0iL4w0PRuOSRvq67rvHW9Ie/dZVMvCzhSCB+UxhcY/PmCmFj33Q+g==}
+    engines: {node: '>=8.0.0'}
+    dev: true
+
+  /@opentelemetry/core@1.15.2(@opentelemetry/api@1.6.0):
     resolution: {integrity: sha512-+gBv15ta96WqkHZaPpcDHiaz0utiiHZVfm2YOYSqFGrUaJpPkMoSuLBB58YFQGi6Rsb9EHos84X6X5+9JspmLw==}
     engines: {node: '>=14'}
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.5.0'
     dependencies:
-      '@opentelemetry/api': 1.4.1
+      '@opentelemetry/api': 1.6.0
       '@opentelemetry/semantic-conventions': 1.15.2
     dev: true
 
@@ -10193,8 +10198,8 @@ packages:
       '@datadog/native-metrics': 2.0.0
       '@datadog/pprof': 3.1.0
       '@datadog/sketches-js': 2.1.0
-      '@opentelemetry/api': 1.4.1
-      '@opentelemetry/core': 1.15.2(@opentelemetry/api@1.4.1)
+      '@opentelemetry/api': 1.6.0
+      '@opentelemetry/core': 1.15.2(@opentelemetry/api@1.6.0)
       crypto-randomuuid: 1.0.0
       diagnostics_channel: 1.1.0
       ignore: 5.2.4
