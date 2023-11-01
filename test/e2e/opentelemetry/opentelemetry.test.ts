@@ -120,6 +120,7 @@ createNextDescribe(
                   {
                     "attributes": {
                       "http.method": "GET",
+                      "http.status_code": 200,
                       "http.url": "https://vercel.com/",
                       "net.peer.name": "vercel.com",
                       "next.span_name": "fetch GET https://vercel.com/",
