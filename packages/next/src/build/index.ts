@@ -1086,7 +1086,7 @@ export default async function build(
       }
 
       if (!isGenerate) {
-        if (isCompile && useBuildWorker) {
+        if ((buildMode === 'default' || isCompile) && useBuildWorker) {
           let durationInSeconds = 0
 
           await webpackBuild(true, ['server']).then((res) => {
