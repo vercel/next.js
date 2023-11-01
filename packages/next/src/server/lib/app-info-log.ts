@@ -31,7 +31,9 @@ export function logStartInfo({
   if (networkUrl) {
     Log.bootstrap(`- Network:      ${networkUrl}`)
   }
-  if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
+  if (envInfo?.length) {
+    Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
+  }
 
   if (expFeatureInfo?.length) {
     Log.bootstrap(`- Experiments (use with caution):`)
