@@ -1088,7 +1088,7 @@ export default async function build(
       }
 
       if (!isExperimentalGenerate) {
-        if (useBuildWorker) {
+        if (isExperimentalCompile) {
           let durationInSeconds = 0
 
           await webpackBuild(true, ['server']).then((res) => {
@@ -1140,7 +1140,7 @@ export default async function build(
         } else {
           const { duration: webpackBuildDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
-            : await webpackBuild(false)
+            : await webpackBuild(useBuildWorker)
 
           buildTraceContext = rest.buildTraceContext
 
