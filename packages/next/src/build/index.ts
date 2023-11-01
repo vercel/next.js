@@ -344,8 +344,8 @@ export default async function build(
   turboNextBuildRoot = null,
   buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
 ): Promise<void> {
-  const isCompile = buildMode === 'experimental-compile'
-  const isGenerate = buildMode === 'experimental-generate'
+  const isExperimentalCompile = buildMode === 'experimental-compile'
+  const isExperimentalGenerate = buildMode === 'experimental-generate'
 
   let hasAppDir = false
   try {
@@ -396,7 +396,7 @@ export default async function build(
 
       let buildId: string = ''
 
-      if (isGenerate) {
+      if (isExperimentalGenerate) {
         buildId = await fs.readFile(path.join(distDir, 'BUILD_ID'), 'utf8')
       } else {
         buildId = await nextBuildSpan
@@ -483,7 +483,8 @@ export default async function build(
       // For app directory, we run type checking after build. That's because
       // we dynamically generate types for each layout and page in the app
       // directory.
-      if (!appDir && !isCompile) await startTypeChecking(typeCheckingOptions)
+      if (!appDir && !isExperimentalCompile)
+        await startTypeChecking(typeCheckingOptions)
 
       if (appDir && 'exportPathMap' in config) {
         Log.error(
@@ -515,7 +516,7 @@ export default async function build(
         expFeatureInfo,
       })
 
-      if (!isGenerate) {
+      if (!isExperimentalGenerate) {
         buildSpinner = createSpinner('Creating an optimized production build')
       }
 
@@ -890,7 +891,7 @@ export default async function build(
         )
       }
 
-      if (config.cleanDistDir && !isGenerate) {
+      if (config.cleanDistDir && !isExperimentalGenerate) {
         await recursiveDelete(distDir, /^cache/)
       }
 
@@ -951,7 +952,7 @@ export default async function build(
                 ? path.relative(distDir, incrementalCacheHandlerPath)
                 : undefined,
 
-              isExperimentalCompile: isCompile,
+              isExperimentalCompile: isExperimentalCompile,
             },
           },
           appDir: dir,
@@ -1085,8 +1086,11 @@ export default async function build(
         )
       }
 
-      if (!isGenerate) {
-        if ((buildMode === 'default' || isCompile) && useBuildWorker) {
+      if (!isExperimentalGenerate) {
+        if (
+          (buildMode === 'default' || isExperimentalCompile) &&
+          useBuildWorker
+        ) {
           let durationInSeconds = 0
 
           await webpackBuild(true, ['server']).then((res) => {
@@ -1152,7 +1156,7 @@ export default async function build(
       }
 
       // For app directory, we run type checking after build.
-      if (appDir && !(isCompile || isGenerate)) {
+      if (appDir && !(isExperimentalCompile || isExperimentalGenerate)) {
         await startTypeChecking(typeCheckingOptions)
       }
 
@@ -1354,7 +1358,7 @@ export default async function build(
         hasSsrAmpPages,
         hasNonStaticErrorPage,
       } = await staticCheckSpan.traceAsyncFn(async () => {
-        if (isCompile) {
+        if (isExperimentalCompile) {
           return {
             customAppGetInitialProps: false,
             namedExports: [],
@@ -1555,7 +1559,7 @@ export default async function build(
                   ? 'edge'
                   : staticInfo?.runtime
 
-                if (!isCompile) {
+                if (!isExperimentalCompile) {
                   isServerComponent =
                     pageType === 'app' &&
                     staticInfo?.rsc !== RSC_MODULE_TYPES.client
@@ -1898,7 +1902,11 @@ export default async function build(
         )
       }
 
-      if (!isGenerate && config.outputFileTracing && !buildTracesPromise) {
+      if (
+        !isExperimentalGenerate &&
+        config.outputFileTracing &&
+        !buildTracesPromise
+      ) {
         buildTracesPromise = collectBuildTraces({
           dir,
           config,
@@ -2045,7 +2053,7 @@ export default async function build(
       // - getStaticProps paths
       // - experimental app is enabled
       if (
-        !isCompile &&
+        !isExperimentalCompile &&
         (combinedPages.length > 0 ||
           useStaticPages404 ||
           useDefaultStatic500 ||
