@@ -14,7 +14,6 @@ async function createNextInstall({
   installCommand = null,
   packageJson = {},
   dirSuffix = '',
-  onlyPackages = false,
   keepRepoDir = false,
 }) {
   return await parentSpan
@@ -30,10 +29,11 @@ async function createNextInstall({
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
 
-      let pkgPaths = process.env.NEXT_TEST_PKG_PATHS
+      const pkgPathsEnv = process.env.NEXT_TEST_PKG_PATHS
+      let pkgPaths
 
-      if (pkgPaths) {
-        pkgPaths = new Map(JSON.parse(pkgPaths))
+      if (pkgPathsEnv) {
+        pkgPaths = new Map(JSON.parse(pkgPathsEnv))
         require('console').log('using provided pkg paths')
       } else {
         tmpRepoDir = path.join(
@@ -104,20 +104,13 @@ async function createNextInstall({
           })
         )
       }
-      let combinedDependencies = dependencies
-
-      if (onlyPackages) {
-        return pkgPaths
-      }
-      if (!(packageJson && packageJson.nextParamateSkipLocalDeps)) {
-        combinedDependencies = {
-          next: pkgPaths.get('next'),
-          ...Object.keys(dependencies).reduce((prev, pkg) => {
-            const pkgPath = pkgPaths.get(pkg)
-            prev[pkg] = pkgPath || dependencies[pkg]
-            return prev
-          }, {}),
-        }
+      const combinedDependencies = {
+        next: pkgPaths.get('next'),
+        ...Object.keys(dependencies).reduce((prev, pkg) => {
+          const pkgPath = pkgPaths.get(pkg)
+          prev[pkg] = pkgPath || dependencies[pkg]
+          return prev
+        }, {}),
       }
 
       await fs.ensureDir(installDir)
@@ -177,14 +170,12 @@ async function createNextInstall({
       if (!keepRepoDir && tmpRepoDir) {
         await fs.remove(tmpRepoDir)
       }
-      if (keepRepoDir) {
-        return {
-          installDir,
-          pkgPaths,
-          tmpRepoDir,
-        }
+
+      return {
+        installDir,
+        pkgPaths,
+        tmpRepoDir,
       }
-      return installDir
     })
 }
 
