@@ -3554,8 +3554,9 @@ function decodeReply(body, webpackMap) {
   }
 
   var response = createResponse(webpackMap, '', body);
+  var root = getRoot(response);
   close(response);
-  return getRoot(response);
+  return root;
 }
 
 exports.createClientModuleProxy = createClientModuleProxy;
