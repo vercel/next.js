@@ -680,7 +680,11 @@ export async function printTreeView(
   print(
     textTable(
       [
-        usedSymbols.has('○') && ['○', '(Static)', 'prerendered as static HTML'],
+        usedSymbols.has('○') && [
+          '○',
+          '(Static)',
+          'prerendered as static content',
+        ],
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
