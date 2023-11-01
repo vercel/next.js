@@ -20,7 +20,7 @@ var crypto = require('crypto');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-canary-0c6348758-20231030';
+var ReactVersion = '18.3.0-canary-08a39539f-20231031';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
