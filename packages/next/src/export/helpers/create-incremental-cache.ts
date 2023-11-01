@@ -41,7 +41,7 @@ export function createIncrementalCache(
       readFile: fs.promises.readFile,
       readFileSync: fs.readFileSync,
       writeFile: (f, d) => fs.promises.writeFile(f, d),
-      mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
+      mkdir: (d) => fs.promises.mkdir(d, { recursive: true }),
       stat: (f) => fs.promises.stat(f),
     },
     serverDistDir: path.join(distDir, 'server'),
