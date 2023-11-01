@@ -1,3 +1,5 @@
+import { getNetworkHost } from '../../lib/get-network-host'
+
 if (performance.getEntriesByName('next-start').length === 0) {
   performance.mark('next-start')
 }
@@ -23,6 +25,7 @@ import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { isPostpone } from './router-utils/is-postpone'
+import { isIPv6 } from './is-ipv6'
 
 const debug = setupDebug('next:start-server')
 
@@ -221,7 +224,12 @@ export async function startServer(
 
       port = typeof addr === 'object' ? addr?.port || port : port
 
-      const networkUrl = hostname ? `http://${actualHostname}:${port}` : null
+      const networkHostname =
+        hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
+      const networkUrl = networkHostname
+        ? `http://${formatHostname(networkHostname)}:${port}`
+        : null
+
       const appUrl = `${
         selfSignedCertificate ? 'https' : 'http'
       }://${formattedHostname}:${port}`
