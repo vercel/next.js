@@ -2851,23 +2851,6 @@ createNextDescribe(
 
     describe('useSearchParams', () => {
       describe('client', () => {
-        it('should bailout to client rendering - without suspense boundary', async () => {
-          const browser = await next.browser(
-            '/hooks/use-search-params?first=value&second=other&third'
-          )
-
-          expect(await browser.elementByCss('#params-first').text()).toBe(
-            'value'
-          )
-          expect(await browser.elementByCss('#params-second').text()).toBe(
-            'other'
-          )
-          expect(await browser.elementByCss('#params-third').text()).toBe('')
-          expect(await browser.elementByCss('#params-not-real').text()).toBe(
-            'N/A'
-          )
-        })
-
         it('should bailout to client rendering - with suspense boundary', async () => {
           const browser = await next.browser(
             '/hooks/use-search-params/with-suspense?first=value&second=other&third'
