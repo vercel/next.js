@@ -516,6 +516,36 @@ describe('accumulateMetadata', () => {
           description: 'My description',
         },
       })
+
+      // Don't override if there's already a title in twitter
+      const metadataItems3: MetadataItems = [
+        [
+          {
+            title: 'My title',
+            description: 'My description',
+            twitter: {
+              title: 'My twitter title',
+              images: 'https://test.com/twitter.png',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata3 = await accumulateMetadata(metadataItems3)
+      expect(metadata3).toMatchObject({
+        openGraph: null,
+        title: {
+          absolute: 'My title',
+          template: null,
+        },
+        twitter: {
+          title: {
+            absolute: 'My twitter title',
+            template: null,
+          },
+          description: 'My description',
+        },
+      })
     })
   })
 

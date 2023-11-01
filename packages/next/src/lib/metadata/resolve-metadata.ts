@@ -528,7 +528,7 @@ function inheritFromMetadata(
   target: (WithTitle & WithDescription) | null
 ) {
   if (target) {
-    if (!hasTitle(target) && metadata.title && hasTitle(metadata)) {
+    if (!hasTitle(target) && hasTitle(metadata)) {
       target.title = metadata.title
     }
     if (!target.description && metadata.description) {
