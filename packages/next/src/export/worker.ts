@@ -45,6 +45,7 @@ async function exportPageImpl(
   fileWriter: FileWriter
 ): Promise<ExportRouteResult | undefined> {
   const {
+    dir,
     path,
     pathMap,
     distDir,
@@ -219,7 +220,8 @@ async function exportPageImpl(
             incrementalCacheHandlerPath,
             isrMemoryCacheSize,
             fetchCacheKeyPrefix,
-            distDir
+            distDir,
+            dir
           )
         : undefined
 

@@ -3952,8 +3952,9 @@ function decodeReply(body, turbopackMap) {
   }
 
   var response = createResponse(turbopackMap, '', body);
+  var root = getRoot(response);
   close(response);
-  return getRoot(response);
+  return root;
 }
 
 exports.createClientModuleProxy = createClientModuleProxy;

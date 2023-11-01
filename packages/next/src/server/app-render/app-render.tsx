@@ -409,7 +409,7 @@ async function renderToHTMLOrFlightImpl(
     dev,
     nextFontManifest,
     supportsDynamicHTML,
-    serverActionsBodySizeLimit,
+    serverActions,
     buildId,
     appDirDevErrorLogger,
     assetPrefix = '',
@@ -955,7 +955,7 @@ async function renderToHTMLOrFlightImpl(
     generateFlight,
     staticGenerationStore: staticGenerationStore,
     requestStore: requestStore,
-    serverActionsBodySizeLimit,
+    serverActions,
     ctx,
   })
 
@@ -1048,6 +1048,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   query,
   renderOpts
 ) => {
+  // TODO: this includes query string, should it?
   const pathname = validateURL(req.url)
 
   return RequestAsyncStorageWrapper.wrap(

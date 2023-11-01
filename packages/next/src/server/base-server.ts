@@ -127,6 +127,7 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { stripInternalHeaders } from './internal-utils'
 import { RSCPathnameNormalizer } from './future/normalizers/request/rsc'
 import { PostponedPathnameNormalizer } from './future/normalizers/request/postponed'
+import type { TLSSocket } from 'tls'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -244,7 +245,10 @@ type BaseRenderOpts = {
   supportsDynamicHTML?: boolean
   isBot?: boolean
   clientReferenceManifest?: ClientReferenceManifest
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedForwardedHosts?: string[]
+  }
   serverActionsManifest?: any
   nextFontManifest?: NextFontManifest
   renderServerComponentData?: boolean
@@ -894,6 +898,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
+      req.headers['x-forwarded-host'] ??= `${this.hostname}:${this.port}`
+      req.headers['x-forwarded-port'] ??= this.port?.toString()
+      const { originalRequest } = req as NodeNextRequest
+      req.headers['x-forwarded-proto'] ??= (originalRequest.socket as TLSSocket)
+        ?.encrypted
+        ? 'https'
+        : 'http'
+      req.headers['x-forwarded-for'] ??= originalRequest.socket?.remoteAddress
+
       this.attachRequestMeta(req, parsedUrl)
 
       const domainLocale = this.i18nProvider?.detectDomainLocale(
@@ -1491,6 +1504,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return
     }
     const { req, res } = ctx
+    const originalStatus = res.statusCode
     const { body, type } = payload
     let { revalidate } = payload
     if (!res.sent) {
@@ -1502,13 +1516,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         revalidate = undefined
       }
 
-      return this.sendRenderResult(req, res, {
+      await this.sendRenderResult(req, res, {
         result: body,
         type,
         generateEtags,
         poweredByHeader,
         revalidate,
       })
+      res.statusCode = originalStatus
     }
   }
 
@@ -2094,8 +2109,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               incrementalCache,
               isRevalidate: isSSG,
               originalPathname: components.ComponentMod.originalPathname,
-              serverActionsBodySizeLimit:
-                this.nextConfig.experimental.serverActions?.bodySizeLimit,
+              serverActions: this.nextConfig.experimental.serverActions,
             }
           : {}),
         isDataReq,

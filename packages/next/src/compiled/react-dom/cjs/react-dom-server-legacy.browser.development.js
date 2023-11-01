@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-canary-8c8ee9ee6-20231026';
+var ReactVersion = '18.3.0-canary-08a39539f-20231031';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 

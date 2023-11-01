@@ -656,6 +656,7 @@ export default class DevServer extends Server {
 
       try {
         const pathsResult = await staticPathsWorker.loadStaticPaths({
+          dir: this.dir,
           distDir: this.distDir,
           pathname,
           config: {
