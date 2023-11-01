@@ -488,8 +488,7 @@ export async function exportAppImpl(
     optimizeFonts: nextConfig.optimizeFonts as FontConfig,
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     serverComponents: options.hasAppDir,
-    serverActionsBodySizeLimit:
-      nextConfig.experimental.serverActions?.bodySizeLimit,
+    serverActions: nextConfig.experimental.serverActions,
     nextFontManifest: require(join(
       distDir,
       'server',
