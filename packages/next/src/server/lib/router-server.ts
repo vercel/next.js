@@ -32,7 +32,6 @@ import {
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
 import { DevBundlerService } from './dev-bundler-service'
-import type { TLSSocket } from 'tls'
 
 const debug = setupDebug('next:router-server:main')
 
