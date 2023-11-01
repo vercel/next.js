@@ -1026,7 +1026,7 @@ export default async function build(
         const turboJson = findUp.sync('turbo.json', { cwd: dir })
         // eslint-disable-next-line no-shadow
         const packagePath = findUp.sync('package.json', { cwd: dir })
-        let binding = await loadBindings()
+        let binding = await loadBindings(config.experimental.useWasmBinary)
 
         let root =
           turboNextBuildRoot ??

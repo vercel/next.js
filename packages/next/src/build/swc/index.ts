@@ -174,7 +174,9 @@ export interface Binding {
   teardownCrashReporter?: any
 }
 
-export async function loadBindings(): Promise<Binding> {
+export async function loadBindings(
+  useWasmBinary: boolean = false
+): Promise<Binding> {
   if (pendingBindings) {
     return pendingBindings
   }
@@ -207,7 +209,8 @@ export async function loadBindings(): Promise<Binding> {
       triples.some(
         (triple: any) =>
           !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
-      )
+      ) &&
+      useWasmBinary
 
     if (shouldLoadWasmFallbackFirst) {
       lastNativeBindingsLoadErrorCode = 'unsupported_target'
@@ -240,14 +243,6 @@ export async function loadBindings(): Promise<Binding> {
       }
 
       attempts = attempts.concat(a)
-    }
-
-    // For these platforms we already tried to load wasm and failed, skip reattempt
-    if (!shouldLoadWasmFallbackFirst && !disableWasmFallback) {
-      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
-      if (fallbackBindings) {
-        return resolve(fallbackBindings)
-      }
     }
 
     logLoadFailure(attempts, true)
