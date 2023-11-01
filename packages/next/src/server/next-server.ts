@@ -2,7 +2,6 @@ import './node-environment'
 import './require-hook'
 import './node-polyfill-crypto'
 
-import type { TLSSocket } from 'tls'
 import type { CacheFs } from '../shared/lib/utils'
 import {
   DecodeError,
