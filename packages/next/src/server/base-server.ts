@@ -32,15 +32,11 @@ import type {
 } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type { PagesRouteModule } from './future/route-modules/pages/module'
 import type { AppPageRouteModule } from './future/route-modules/app-page/module'
 import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
-import type {
-  AppRouteRouteHandlerContext,
-  AppRouteRouteModule,
-} from './future/route-modules/app-route/module'
+import type { AppRouteRouteHandlerContext } from './future/route-modules/app-route/module'
 import type { Server as HTTPServer } from 'http'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
@@ -105,7 +101,6 @@ import { getTracer, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
-import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
 import {
   fromNodeOutgoingHttpHeaders,
@@ -128,6 +123,12 @@ import { stripInternalHeaders } from './internal-utils'
 import { RSCPathnameNormalizer } from './future/normalizers/request/rsc'
 import { PostponedPathnameNormalizer } from './future/normalizers/request/postponed'
 import type { TLSSocket } from 'tls'
+import { stripFlightHeaders } from './app-render/strip-flight-headers'
+import {
+  isAppPageRouteModule,
+  isAppRouteRouteModule,
+  isPagesRouteModule,
+} from './future/route-modules/checks'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -297,6 +298,11 @@ type ResponsePayload = {
   revalidate?: Revalidate
 }
 
+export type NextEnabledDirectories = {
+  readonly pages: boolean
+  readonly app: boolean
+}
+
 export default abstract class Server<ServerOptions extends Options = Options> {
   public readonly hostname?: string
   public readonly fetchHostname?: string
@@ -307,7 +313,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly distDir: string
   protected readonly publicDir: string
   protected readonly hasStaticDir: boolean
-  protected readonly hasAppDir: boolean
   protected readonly pagesManifest?: PagesManifest
   protected readonly appPathsManifest?: PagesManifest
   protected readonly buildId: string
@@ -321,10 +326,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
-  protected abstract getHasAppDir(dev: boolean): boolean
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getAppPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
+
+  protected readonly enabledDirectories: NextEnabledDirectories
+  protected abstract getEnabledDirectories(dev: boolean): NextEnabledDirectories
 
   protected abstract findPageComponents(params: {
     page: string
@@ -461,16 +468,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this[minimalModeKey] =
       minimalMode || !!process.env.NEXT_PRIVATE_MINIMAL_MODE
 
-    this.hasAppDir = this.getHasAppDir(dev)
+    this.enabledDirectories = this.getEnabledDirectories(dev)
 
     this.normalizers = {
       postponed: new PostponedPathnameNormalizer(
-        this.hasAppDir && this.nextConfig.experimental.ppr
+        this.enabledDirectories.app && this.nextConfig.experimental.ppr
       ),
-      rsc: new RSCPathnameNormalizer(this.hasAppDir),
+      rsc: new RSCPathnameNormalizer(this.enabledDirectories.app),
     }
-
-    const serverComponents = this.hasAppDir
 
     this.nextFontManifest = this.getNextFontManifest()
 
@@ -503,7 +508,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         this.nextConfig.experimental.disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
-      serverComponents,
+      serverComponents: this.enabledDirectories.app,
       enableTainting: this.nextConfig.experimental.taint,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
@@ -734,7 +739,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     )
 
     // If the app directory is enabled, then add the app matchers and handlers.
-    if (this.hasAppDir) {
+    if (this.enabledDirectories.app) {
       // Match app pages under `app/`.
       matchers.push(
         new AppPageRouteMatcherProvider(this.distDir, manifestLoader)
@@ -934,7 +939,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // TODO: merge handling with x-invoke-path
       if (useMatchedPathHeader) {
         try {
-          if (this.hasAppDir) {
+          if (this.enabledDirectories.app) {
             // ensure /index path is normalized for prerender
             // in minimal mode
             if (req.url.match(/^\/index($|\?)/)) {
@@ -1389,7 +1394,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     finished = await this.handleNextDataRequest(req, res, url)
     if (finished) return true
 
-    if (this.minimalMode && this.hasAppDir) {
+    if (this.minimalMode && this.enabledDirectories.app) {
       finished = await this.handleRSCRequest(req, res, url)
       if (finished) return true
 
@@ -1931,7 +1936,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // We don't clear RSC headers in development since SSG doesn't apply
       // These headers are cleared for SSG as we need to always generate the
-      // full RSC response for ISR
+      // full RSC response for ISR.
       if (
         !this.renderOpts.dev &&
         !isPreviewMode &&
@@ -1941,14 +1946,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (!this.minimalMode) {
           isDataReq = true
         }
-        // strip header so we generate HTML still
+
+        // Strip the flight headers so that we generate both the RSC and HTML
+        // for the request.
         if (
           !isEdgeRuntime(opts.runtime) ||
           (this.serverOptions as any).webServerConfig
         ) {
-          for (const param of FLIGHT_PARAMETERS) {
-            delete req.headers[param.toString().toLowerCase()]
-          }
+          stripFlightHeaders(req.headers)
         }
       }
     }
@@ -2072,6 +2077,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           | 'https',
       })
 
+    const { routeModule } = components
+
     type Renderer = (
       postponed: string | undefined
     ) => Promise<ResponseCacheEntry | null>
@@ -2141,141 +2148,138 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // served by the server.
       let result: RenderResult
 
-      if (components.routeModule?.definition.kind === RouteKind.APP_ROUTE) {
-        const routeModule = components.routeModule as AppRouteRouteModule
-
-        const context: AppRouteRouteHandlerContext = {
-          params: opts.params,
-          prerenderManifest,
-          renderOpts: {
-            // App Route's cannot postpone, so don't enable it.
-            ppr: false,
-            originalPathname: components.ComponentMod.originalPathname,
-            supportsDynamicHTML,
-            incrementalCache,
-            isRevalidate: isSSG,
-          },
-        }
-
-        try {
-          const request = NextRequestAdapter.fromBaseNextRequest(
-            req,
-            signalFromNodeResponse((res as NodeNextResponse).originalResponse)
-          )
-
-          const response = await routeModule.handle(request, context)
-
-          ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
-
-          const cacheTags = (context.renderOpts as any).fetchTags
-
-          // If the request is for a static response, we can cache it so long
-          // as it's not edge.
-          if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
-            const blob = await response.blob()
-
-            // Copy the headers from the response.
-            headers = toNodeOutgoingHttpHeaders(response.headers)
-
-            if (cacheTags) {
-              headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
-            }
-
-            if (!headers['content-type'] && blob.type) {
-              headers['content-type'] = blob.type
-            }
-
-            const revalidate = context.renderOpts.store?.revalidate ?? false
-
-            // Create the cache entry for the response.
-            const cacheEntry: ResponseCacheEntry = {
-              value: {
-                kind: 'ROUTE',
-                status: response.status,
-                body: Buffer.from(await blob.arrayBuffer()),
-                headers,
-              },
-              revalidate,
-            }
-
-            return cacheEntry
-          }
-
-          // Send the response now that we have copied it into the cache.
-          await sendResponse(req, res, response, context.renderOpts.waitUntil)
-          return null
-        } catch (err) {
-          // If this is during static generation, throw the error again.
-          if (isSSG) throw err
-
-          Log.error(err)
-
-          // Otherwise, send a 500 response.
-          await sendResponse(req, res, handleInternalServerErrorResponse())
-
-          return null
-        }
-      }
-      // If we've matched a page while not in edge where the module exports a
-      // `routeModule`, then we should be able to render it using the provided
-      // `render` method.
-      else if (components.routeModule?.definition.kind === RouteKind.PAGES) {
-        const module = components.routeModule as PagesRouteModule
-
-        // Due to the way we pass data by mutating `renderOpts`, we can't extend
-        // the object here but only updating its `clientReferenceManifest` and
-        // `nextFontManifest` properties.
-        // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-        renderOpts.nextFontManifest = this.nextFontManifest
-        renderOpts.clientReferenceManifest = components.clientReferenceManifest
-
-        // Call the built-in render method on the module.
-        result = await module.render(
-          (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
-          (res as NodeNextResponse).originalResponse ??
-            (res as WebNextResponse),
-          { page: pathname, params: opts.params, query, renderOpts }
-        )
-      } else if (
-        components.routeModule?.definition.kind === RouteKind.APP_PAGE
-      ) {
-        if (isAppPrefetch && process.env.NODE_ENV === 'production') {
-          try {
-            const prefetchRsc = await this.getPrefetchRsc(resolvedUrlPathname)
-            if (prefetchRsc) {
-              res.setHeader(
-                'cache-control',
-                'private, no-cache, no-store, max-age=0, must-revalidate'
-              )
-              res.setHeader('content-type', RSC_CONTENT_TYPE_HEADER)
-              res.body(prefetchRsc).send()
-              return null
-            }
-          } catch {
-            // We fallback to invoking the function if prefetch data is not
-            // available.
-          }
-        }
-
-        const module = components.routeModule as AppPageRouteModule
-
-        // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-        // object here but only updating its `nextFontManifest` field.
-        // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-        renderOpts.nextFontManifest = this.nextFontManifest
-
-        // Call the built-in render method on the module.
-        result = await module.render(
-          (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
-          (res as NodeNextResponse).originalResponse ??
-            (res as WebNextResponse),
-          {
-            page: is404Page ? '/404' : pathname,
+      if (routeModule) {
+        if (isAppRouteRouteModule(routeModule)) {
+          const context: AppRouteRouteHandlerContext = {
             params: opts.params,
-            query,
-            renderOpts,
+            prerenderManifest,
+            renderOpts: {
+              // App Route's cannot postpone, so don't enable it.
+              ppr: false,
+              originalPathname: components.ComponentMod.originalPathname,
+              supportsDynamicHTML,
+              incrementalCache,
+              isRevalidate: isSSG,
+            },
           }
-        )
+
+          try {
+            const request = NextRequestAdapter.fromBaseNextRequest(
+              req,
+              signalFromNodeResponse((res as NodeNextResponse).originalResponse)
+            )
+
+            const response = await routeModule.handle(request, context)
+
+            ;(req as any).fetchMetrics = (
+              context.renderOpts as any
+            ).fetchMetrics
+
+            const cacheTags = (context.renderOpts as any).fetchTags
+
+            // If the request is for a static response, we can cache it so long
+            // as it's not edge.
+            if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
+              const blob = await response.blob()
+
+              // Copy the headers from the response.
+              headers = toNodeOutgoingHttpHeaders(response.headers)
+
+              if (cacheTags) {
+                headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
+              }
+
+              if (!headers['content-type'] && blob.type) {
+                headers['content-type'] = blob.type
+              }
+
+              const revalidate = context.renderOpts.store?.revalidate ?? false
+
+              // Create the cache entry for the response.
+              const cacheEntry: ResponseCacheEntry = {
+                value: {
+                  kind: 'ROUTE',
+                  status: response.status,
+                  body: Buffer.from(await blob.arrayBuffer()),
+                  headers,
+                },
+                revalidate,
+              }
+
+              return cacheEntry
+            }
+
+            // Send the response now that we have copied it into the cache.
+            await sendResponse(req, res, response, context.renderOpts.waitUntil)
+            return null
+          } catch (err) {
+            // If this is during static generation, throw the error again.
+            if (isSSG) throw err
+
+            Log.error(err)
+
+            // Otherwise, send a 500 response.
+            await sendResponse(req, res, handleInternalServerErrorResponse())
+
+            return null
+          }
+        } else if (isPagesRouteModule(routeModule)) {
+          // Due to the way we pass data by mutating `renderOpts`, we can't extend
+          // the object here but only updating its `clientReferenceManifest` and
+          // `nextFontManifest` properties.
+          // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+          renderOpts.nextFontManifest = this.nextFontManifest
+          renderOpts.clientReferenceManifest =
+            components.clientReferenceManifest
+
+          // Call the built-in render method on the module.
+          result = await routeModule.render(
+            (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
+            (res as NodeNextResponse).originalResponse ??
+              (res as WebNextResponse),
+            { page: pathname, params: opts.params, query, renderOpts }
+          )
+        } else if (isAppPageRouteModule(routeModule)) {
+          if (isAppPrefetch && process.env.NODE_ENV === 'production') {
+            try {
+              const prefetchRsc = await this.getPrefetchRsc(resolvedUrlPathname)
+              if (prefetchRsc) {
+                res.setHeader(
+                  'cache-control',
+                  'private, no-cache, no-store, max-age=0, must-revalidate'
+                )
+                res.setHeader('content-type', RSC_CONTENT_TYPE_HEADER)
+                res.body(prefetchRsc).send()
+                return null
+              }
+            } catch {
+              // We fallback to invoking the function if prefetch data is not
+              // available.
+            }
+          }
+
+          const module = components.routeModule as AppPageRouteModule
+
+          // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+          // object here but only updating its `nextFontManifest` field.
+          // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+          renderOpts.nextFontManifest = this.nextFontManifest
+
+          // Call the built-in render method on the module.
+          result = await module.render(
+            (req as NodeNextRequest).originalRequest ?? (req as WebNextRequest),
+            (res as NodeNextResponse).originalResponse ??
+              (res as WebNextResponse),
+            {
+              page: is404Page ? '/404' : pathname,
+              params: opts.params,
+              query,
+              renderOpts,
+            }
+          )
+        } else {
+          throw new Error('Invariant: Unknown route module type')
+        }
       } else {
         // If we didn't match a page, we should fallback to using the legacy
         // render method.
@@ -2516,6 +2520,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       },
       {
+        routeKind: routeModule?.definition.kind,
         incrementalCache,
         isOnDemandRevalidate: isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
@@ -2682,7 +2687,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       if (isDataReq) {
-        // If this isn't a prefetch and this isn't a resume request, we  want to
+        // If this isn't a prefetch and this isn't a resume request, we want to
         // respond with the dynamic flight data. In the case that this is a
         // resume request the page data will already be dynamic.
         if (!isAppPrefetch && !resumed) {
@@ -2798,7 +2803,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   // map the route to the actual bundle name
   protected getOriginalAppPaths(route: string) {
-    if (this.hasAppDir) {
+    if (this.enabledDirectories.app) {
       const originalAppPath = this.appPathRoutes?.[route]
 
       if (!originalAppPath) {
@@ -3102,7 +3107,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let using404Page = false
 
       if (is404) {
-        if (this.hasAppDir) {
+        if (this.enabledDirectories.app) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
             page: this.renderOpts.dev ? '/not-found' : '/_not-found',
