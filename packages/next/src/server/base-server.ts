@@ -1501,6 +1501,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return
     }
     const { req, res } = ctx
+    const originalStatus = res.statusCode
     const { body, type } = payload
     let { revalidate } = payload
     if (!res.sent) {
@@ -1512,13 +1513,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         revalidate = undefined
       }
 
-      return this.sendRenderResult(req, res, {
+      await this.sendRenderResult(req, res, {
         result: body,
         type,
         generateEtags,
         poweredByHeader,
         revalidate,
       })
+      res.statusCode = originalStatus
     }
   }
 
