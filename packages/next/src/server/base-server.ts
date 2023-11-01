@@ -127,6 +127,7 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { stripInternalHeaders } from './internal-utils'
 import { RSCPathnameNormalizer } from './future/normalizers/request/rsc'
 import { PostponedPathnameNormalizer } from './future/normalizers/request/postponed'
+import type { TLSSocket } from 'tls'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -244,7 +245,10 @@ type BaseRenderOpts = {
   supportsDynamicHTML?: boolean
   isBot?: boolean
   clientReferenceManifest?: ClientReferenceManifest
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedForwardedHosts?: string[]
+  }
   serverActionsManifest?: any
   nextFontManifest?: NextFontManifest
   renderServerComponentData?: boolean
@@ -755,50 +759,54 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<void> {
     await this.prepare()
     const method = req.method.toUpperCase()
-    return getTracer().trace(
-      BaseServerSpan.handleRequest,
-      {
-        spanName: `${method} ${req.url}`,
-        kind: SpanKind.SERVER,
-        attributes: {
-          'http.method': method,
-          'http.target': req.url,
+
+    const tracer = getTracer()
+    return tracer.withPropagatedContext(req, () => {
+      return tracer.trace(
+        BaseServerSpan.handleRequest,
+        {
+          spanName: `${method} ${req.url}`,
+          kind: SpanKind.SERVER,
+          attributes: {
+            'http.method': method,
+            'http.target': req.url,
+          },
         },
-      },
-      async (span) =>
-        this.handleRequestImpl(req, res, parsedUrl).finally(() => {
-          if (!span) return
-          span.setAttributes({
-            'http.status_code': res.statusCode,
-          })
-          const rootSpanAttributes = getTracer().getRootSpanAttributes()
-          // We were unable to get attributes, probably OTEL is not enabled
-          if (!rootSpanAttributes) return
-
-          if (
-            rootSpanAttributes.get('next.span_type') !==
-            BaseServerSpan.handleRequest
-          ) {
-            console.warn(
-              `Unexpected root span type '${rootSpanAttributes.get(
-                'next.span_type'
-              )}'. Please report this Next.js issue https://github.com/vercel/next.js`
-            )
-            return
-          }
-
-          const route = rootSpanAttributes.get('next.route')
-          if (route) {
-            const newName = `${method} ${route}`
+        async (span) =>
+          this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+            if (!span) return
             span.setAttributes({
-              'next.route': route,
-              'http.route': route,
-              'next.span_name': newName,
+              'http.status_code': res.statusCode,
             })
-            span.updateName(newName)
-          }
-        })
-    )
+            const rootSpanAttributes = tracer.getRootSpanAttributes()
+            // We were unable to get attributes, probably OTEL is not enabled
+            if (!rootSpanAttributes) return
+
+            if (
+              rootSpanAttributes.get('next.span_type') !==
+              BaseServerSpan.handleRequest
+            ) {
+              console.warn(
+                `Unexpected root span type '${rootSpanAttributes.get(
+                  'next.span_type'
+                )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+              )
+              return
+            }
+
+            const route = rootSpanAttributes.get('next.route')
+            if (route) {
+              const newName = `${method} ${route}`
+              span.setAttributes({
+                'next.route': route,
+                'http.route': route,
+                'next.span_name': newName,
+              })
+              span.updateName(newName)
+            }
+          })
+      )
+    })
   }
 
   private async handleRequestImpl(
@@ -889,6 +897,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           delete req.headers[param.toString().toLowerCase()]
         }
       }
+
+      req.headers['x-forwarded-host'] ??= `${this.hostname}:${this.port}`
+      req.headers['x-forwarded-port'] ??= this.port?.toString()
+      const { originalRequest } = req as NodeNextRequest
+      req.headers['x-forwarded-proto'] ??= (originalRequest.socket as TLSSocket)
+        ?.encrypted
+        ? 'https'
+        : 'http'
+      req.headers['x-forwarded-for'] ??= originalRequest.socket?.remoteAddress
 
       this.attachRequestMeta(req, parsedUrl)
 
@@ -1487,6 +1504,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return
     }
     const { req, res } = ctx
+    const originalStatus = res.statusCode
     const { body, type } = payload
     let { revalidate } = payload
     if (!res.sent) {
@@ -1498,13 +1516,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         revalidate = undefined
       }
 
-      return this.sendRenderResult(req, res, {
+      await this.sendRenderResult(req, res, {
         result: body,
         type,
         generateEtags,
         poweredByHeader,
         revalidate,
       })
+      res.statusCode = originalStatus
     }
   }
 
@@ -2090,8 +2109,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               incrementalCache,
               isRevalidate: isSSG,
               originalPathname: components.ComponentMod.originalPathname,
-              serverActionsBodySizeLimit:
-                this.nextConfig.experimental.serverActions?.bodySizeLimit,
+              serverActions: this.nextConfig.experimental.serverActions,
             }
           : {}),
         isDataReq,
