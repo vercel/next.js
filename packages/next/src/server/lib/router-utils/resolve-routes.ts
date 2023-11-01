@@ -37,6 +37,7 @@ import {
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
 import { createRequestResponseMocks } from '../mock-request'
+import type { TLSSocket } from 'tls'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
@@ -134,8 +135,12 @@ export function getResolveRoutes(
       }
     }
 
-    // Injected in base-server.ts
-    const protocol = req.headers['x-forwarded-proto'] as 'http' | 'https'
+    // TODO: inherit this from higher up
+    const protocol =
+      (req.socket as TLSSocket)?.encrypted ||
+      req.headers['x-forwarded-proto'] === 'https'
+        ? 'https'
+        : 'http'
 
     // When there are hostname and port we build an absolute URL
     const initUrl = (config.experimental as any).trustHostHeader
