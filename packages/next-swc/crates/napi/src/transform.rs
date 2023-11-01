@@ -82,7 +82,13 @@ impl Task for TransformTask {
                     },
                     |handler| {
                         self.c.run(|| {
-                            let options: TransformOptions = serde_json::from_slice(&self.options)?;
+                            let options: TransformOptions = serde_json::from_slice(&self.options)
+                                .with_context(|| {
+                                format!(
+                                    "failed to deserialize options: {}",
+                                    String::from_utf8_lossy(&self.options)
+                                )
+                            })?;
                             let fm = match &self.input {
                                 Input::Source { src } => {
                                     let filename = if options.swc.filename.is_empty() {
@@ -220,6 +226,15 @@ fn test_deser() {
 #[test]
 fn test_deserialize_transform_regenerator() {
     const JSON_STR: &str = r#"{"jsc":{"parser":{"syntax":"ecmascript","dynamicImport":true,"jsx":true},"transform":{ "regenerator": { "importPath": "foo" }, "react":{"runtime":"automatic","pragma":"React.createElement","pragmaFrag":"React.Fragment","throwIfNamespace":true,"development":false,"useBuiltins":true}},"target":"es5"},"filename":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js","sourceMaps":false,"sourceFileName":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js"}"#;
+
+    let tr: TransformOptions = serde_json::from_str(JSON_STR).unwrap();
+
+    println!("{:#?}", tr);
+}
+
+#[test]
+fn test_deser_2() {
+    const JSON_STR: &str = r#"{"jsc":{"parser":{"syntax":"ecmascript","dynamicImport":true,"jsx":true},"transform":{"react":{"runtime":"automatic","pragma":"React.createElement","pragmaFrag":"React.Fragment","throwIfNamespace":true,"development":false,"useBuiltins":true}},"target":"es5"},"filename":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js","sourceMaps":false,"sourceFileName":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js"}"#;
 
     let tr: TransformOptions = serde_json::from_str(JSON_STR).unwrap();
 
