@@ -316,10 +316,7 @@ export function watchCompilers(
   })
 }
 
-const internalSegments = new Set([
-  '[[...__metadata_id__]]',
-  '[__metadata_id__]',
-])
+const internalSegments = ['[[...__metadata_id__]]', '[__metadata_id__]']
 export function reportTrigger(trigger: string) {
   for (const segment of internalSegments) {
     if (trigger.includes(segment)) {
