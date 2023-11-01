@@ -73,6 +73,7 @@ const getDerivedTags = (pathname: string): string[] => {
 
 export function addImplicitTags(staticGenerationStore: StaticGenerationStore) {
   const newTags: string[] = []
+  const filteredTags: string[] = []
   const { pagePath, urlPathname } = staticGenerationStore
 
   if (!Array.isArray(staticGenerationStore.tags)) {
@@ -87,7 +88,12 @@ export function addImplicitTags(staticGenerationStore: StaticGenerationStore) {
       if (!staticGenerationStore.tags?.includes(tag)) {
         staticGenerationStore.tags.push(tag)
       }
-      newTags.push(tag)
+
+      if (tag.length > 1024) {
+        filteredTags.push(tag)
+      } else {
+        newTags.push(tag)
+      }
     }
   }
 
@@ -96,7 +102,19 @@ export function addImplicitTags(staticGenerationStore: StaticGenerationStore) {
     if (!staticGenerationStore.tags?.includes(tag)) {
       staticGenerationStore.tags.push(tag)
     }
-    newTags.push(tag)
+
+    if (tag.length > 1024) {
+      filteredTags.push(tag)
+    } else {
+      newTags.push(tag)
+    }
+  }
+
+  if (filteredTags.length > 0) {
+    console.warn(
+      `Tags exceeded limit of 64 items or 1024 max length per item on ${urlPathname},  filtered tags: `,
+      filteredTags.join(',')
+    )
   }
   return newTags
 }
