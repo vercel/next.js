@@ -13,7 +13,9 @@ export default function Root({ children }) {
   return (
     <html className="root-layout-html">
       <body>
-        <NotFoundTrigger />
+        <React.Suspense fallback={<div>Loading...</div>}>
+          <NotFoundTrigger />
+        </React.Suspense>
         <button id="trigger-not-found" onClick={() => setClicked(true)}>
           Click to not found
         </button>
