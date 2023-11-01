@@ -655,6 +655,9 @@ function assignDefaults(
     '@mui/icons-material': {
       transform: '@mui/icons-material/{{member}}',
     },
+    '@phosphor-icons/react': {
+      transform: '@phosphor-icons/react/dist/ssr/{{member}}',
+    },
     'date-fns': {
       transform: 'date-fns/{{member}}',
     },
@@ -715,6 +718,7 @@ function assignDefaults(
       '@heroicons/react/20/solid',
       '@heroicons/react/24/solid',
       '@heroicons/react/24/outline',
+      '@phosphor-icons/react',
       '@visx/visx',
       '@tremor/react',
       'rxjs',
