@@ -338,6 +338,8 @@ export interface ExperimentalConfig {
    * Uses an IPC server to dedupe build-time requests to the cache handler
    */
   staticWorkerRequestDeduping?: boolean
+
+  useWasmBinary?: boolean
 }
 
 export type ExportPathMap = {
@@ -787,7 +789,6 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
-    staticWorkerRequestDeduping: false,
   },
 }
 
