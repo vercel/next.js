@@ -673,6 +673,7 @@ export async function exportAppImpl(
 
       const result = await pageExportSpan.traceAsyncFn(async () => {
         return await exportPage({
+          dir,
           path,
           pathMap,
           distDir,

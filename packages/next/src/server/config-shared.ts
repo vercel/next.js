@@ -282,11 +282,7 @@ export interface ExperimentalConfig {
   typedRoutes?: boolean
 
   /**
-   * Run the Webpack build in a separate process to optimize memory usage during build.
-   * Valid values are:
-   * - `false`: Disable the Webpack build worker
-   * - `true`: Enable the Webpack build worker
-   * - `undefined`: Enable the Webpack build worker only if the webpack config is not customized
+   * This option is to enable running the Webpack build in a worker thread.
    */
   webpackBuildWorker?: boolean
 
@@ -787,7 +783,6 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
-    webpackBuildWorker: undefined,
   },
 }
 
