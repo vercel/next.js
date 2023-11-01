@@ -983,22 +983,6 @@ createNextDescribe(
               "initialRevalidateSeconds": false,
               "srcRoute": "/hooks/use-pathname/[slug]",
             },
-            "/hooks/use-search-params": {
-              "dataRoute": "/hooks/use-search-params.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/hooks/use-search-params",
-            },
             "/hooks/use-search-params/force-static": {
               "dataRoute": "/hooks/use-search-params/force-static.rsc",
               "experimentalBypassFor": [
