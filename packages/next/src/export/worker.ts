@@ -65,6 +65,7 @@ async function exportPageImpl(
     enableExperimentalReact,
     ampValidatorPath,
     trailingSlash,
+    enabledDirectories,
   } = input
 
   if (enableExperimentalReact) {
@@ -222,7 +223,8 @@ async function exportPageImpl(
             isrMemoryCacheSize,
             fetchCacheKeyPrefix,
             distDir,
-            dir
+            dir,
+            enabledDirectories
           )
         : undefined
 
