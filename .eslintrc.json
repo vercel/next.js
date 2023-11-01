@@ -100,17 +100,8 @@
           }
         ],
         "no-use-before-define": "off",
-        "@typescript-eslint/no-use-before-define": [
-          "warn",
-          {
-            "functions": true,
-            "classes": true,
-            "variables": true,
-            "enums": true,
-            "typedefs": true
-          }
-        ],
         "no-useless-constructor": "off",
+        "@typescript-eslint/no-use-before-define": "off",
         "@typescript-eslint/no-useless-constructor": "warn",
         "@typescript-eslint/prefer-literal-enum-member": "error"
       }
@@ -213,6 +204,18 @@
         ],
         "eslint-plugin/require-meta-docs-url": "error"
       }
+    },
+    {
+      "files": ["packages/**/*.tsx", "packages/**/*.ts"],
+      "rules": {
+        "@typescript-eslint/consistent-type-imports": [
+          "error",
+          {
+            "disallowTypeAnnotations": false
+          }
+        ],
+        "@typescript-eslint/no-import-type-side-effects": "error"
+      }
     }
   ],
   "rules": {
@@ -306,14 +309,7 @@
         "ignoreRestSiblings": true
       }
     ],
-    "no-use-before-define": [
-      "warn",
-      {
-        "functions": false,
-        "classes": false,
-        "variables": false
-      }
-    ],
+    "no-use-before-define": "off",
     "no-useless-computed-key": "warn",
     "no-useless-concat": "warn",
     "no-useless-constructor": "warn",

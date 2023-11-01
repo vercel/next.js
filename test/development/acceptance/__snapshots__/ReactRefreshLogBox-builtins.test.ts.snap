@@ -4,7 +4,7 @@ exports[`ReactRefreshLogBox default Module not found (empty import trace) 1`] = 
 "./pages/index.js:1:0
 Module not found: Can't resolve 'b'
 > 1 | import Comp from 'b'
-  2 | 
+  2 |
   3 | export default function Oops() {
   4 |   return (
 
@@ -15,7 +15,7 @@ exports[`ReactRefreshLogBox default Module not found (missing global CSS) 1`] = 
 "./pages/_app.js:1:0
 Module not found: Can't resolve './non-existent.css'
 > 1 | import './non-existent.css'
-  2 | 
+  2 |
   3 | export default function App({ Component, pageProps }) {
   4 |   return <Component {...pageProps} />
 
@@ -26,7 +26,7 @@ exports[`ReactRefreshLogBox default Module not found 1`] = `
 "./index.js:1:0
 Module not found: Can't resolve 'b'
 > 1 | import Comp from 'b'
-  2 | 
+  2 |
   3 | export default function Oops() {
   4 |   return (
 

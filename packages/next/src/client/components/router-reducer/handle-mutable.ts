@@ -1,5 +1,5 @@
 import { computeChangedPath } from './compute-changed-path'
-import {
+import type {
   Mutable,
   ReadonlyReducerState,
   ReducerState,
@@ -41,8 +41,8 @@ export function handleMutable(
           false,
       onlyHashChange:
         !!mutable.hashFragment &&
-        state.canonicalUrl.split('#')[0] ===
-          mutable.canonicalUrl?.split('#')[0],
+        state.canonicalUrl.split('#', 1)[0] ===
+          mutable.canonicalUrl?.split('#', 1)[0],
       hashFragment: shouldScroll
         ? // Empty hash should trigger default behavior of scrolling layout into view.
           // #top is handled in layout-router.

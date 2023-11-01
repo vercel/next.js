@@ -1,10 +1,10 @@
-const {
+export {
   renderToReadableStream,
   decodeReply,
   decodeAction,
   decodeFormState,
   // eslint-disable-next-line import/no-extraneous-dependencies
-} = require('react-server-dom-webpack/server.edge')
+} from 'react-server-dom-webpack/server.edge'
 
 import AppRouter from '../../client/components/app-router'
 import LayoutRouter from '../../client/components/layout-router'
@@ -23,6 +23,8 @@ import {
   preconnect,
 } from '../../server/app-render/rsc/preloads'
 
+import { taintObjectReference } from '../../server/app-render/rsc/taint'
+
 const { NotFoundBoundary } =
   require('next/dist/client/components/not-found-boundary') as typeof import('../../client/components/not-found-boundary')
 
@@ -36,13 +38,10 @@ export {
   staticGenerationBailout,
   createSearchParamsBailoutProxy,
   serverHooks,
-  renderToReadableStream,
-  decodeReply,
-  decodeAction,
-  decodeFormState,
   preloadStyle,
   preloadFont,
   preconnect,
+  taintObjectReference,
   StaticGenerationSearchParamsBailoutProvider,
   NotFoundBoundary,
 }

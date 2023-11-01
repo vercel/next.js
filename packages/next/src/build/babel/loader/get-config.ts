@@ -4,7 +4,7 @@ import JSON5 from 'next/dist/compiled/json5'
 import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
 import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 
-import { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
+import type { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
 import * as Log from '../../output/log'
 

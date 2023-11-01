@@ -7,6 +7,9 @@ const createJestConfig = nextJest()
 const customJestConfig = {
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.jsx', '**/*.test.tsx'],
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
+  snapshotFormat: {
+    printBasicPrototype: false,
+  },
   verbose: true,
   rootDir: 'test',
   roots: [
@@ -17,9 +20,6 @@ const customJestConfig = {
   modulePathIgnorePatterns: ['/\\.next/'],
   modulePaths: ['<rootDir>/lib'],
   transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
-  globals: {
-    AbortSignal: global.AbortSignal,
-  },
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },

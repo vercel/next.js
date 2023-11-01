@@ -20,7 +20,7 @@ const installCheckVisible = (browser) => {
         watcherDiv.querySelector('div').className.indexOf('visible') > -1
       )
       if (window.showedBuilder) clearInterval(window.checkInterval)
-    }, 50)
+    }, 5)
   })()`)
 }
 

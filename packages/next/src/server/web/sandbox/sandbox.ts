@@ -1,9 +1,8 @@
 import type { NodejsRequestData, FetchEventResult, RequestData } from '../types'
-import { getServerError } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import { getModuleContext } from './context'
-import { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
-import { requestToBodyStream } from '../../body-streams'
+import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
+import { getModuleContext } from './context'
+import { requestToBodyStream } from '../../body-streams'
 import { NEXT_RSC_UNION_QUERY } from '../../../client/components/app-router-headers'
 
 export const ErrorSource = Symbol('SandboxError')
@@ -30,19 +29,26 @@ type RunnerFn = (params: {
  * tagged with `edge-server` so they can properly be rendered in dev.
  */
 function withTaggedErrors(fn: RunnerFn): RunnerFn {
-  return (params) =>
-    fn(params)
-      .then((result) => ({
-        ...result,
-        waitUntil: result?.waitUntil?.catch((error) => {
-          // TODO: used COMPILER_NAMES.edgeServer instead. Verify that it does not increase the runtime size.
+  if (process.env.NODE_ENV === 'development') {
+    const { getServerError } =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+
+    return (params) =>
+      fn(params)
+        .then((result) => ({
+          ...result,
+          waitUntil: result?.waitUntil?.catch((error) => {
+            // TODO: used COMPILER_NAMES.edgeServer instead. Verify that it does not increase the runtime size.
+            throw getServerError(error, 'edge-server')
+          }),
+        }))
+        .catch((error) => {
+          // TODO: used COMPILER_NAMES.edgeServer instead
           throw getServerError(error, 'edge-server')
-        }),
-      }))
-      .catch((error) => {
-        // TODO: used COMPILER_NAMES.edgeServer instead
-        throw getServerError(error, 'edge-server')
-      })
+        })
+  }
+
+  return fn
 }
 
 export async function getRuntimeContext(params: {
