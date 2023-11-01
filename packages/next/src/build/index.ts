@@ -483,8 +483,9 @@ export default async function build(
       // For app directory, we run type checking after build. That's because
       // we dynamically generate types for each layout and page in the app
       // directory.
-      if (!appDir && !isExperimentalCompile)
+      if (!appDir && !isExperimentalCompile) {
         await startTypeChecking(typeCheckingOptions)
+      }
 
       if (appDir && 'exportPathMap' in config) {
         Log.error(
