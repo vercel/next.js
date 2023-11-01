@@ -204,13 +204,18 @@ export async function loadBindings(
 
     let attempts: any[] = []
     const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
+    const unsupportedPlatform = triples.some(
+      (triple: any) =>
+        !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
+    )
     const shouldLoadWasmFallbackFirst =
-      !disableWasmFallback &&
-      triples.some(
-        (triple: any) =>
-          !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
-      ) &&
-      useWasmBinary
+      !disableWasmFallback && unsupportedPlatform && useWasmBinary
+
+    if (!unsupportedPlatform && useWasmBinary) {
+      Log.warn(
+        `experimental.useWasmBinary is not an option for supported platform ${PlatformName}/${ArchName} and will be ignored.`
+      )
+    }
 
     if (shouldLoadWasmFallbackFirst) {
       lastNativeBindingsLoadErrorCode = 'unsupported_target'
