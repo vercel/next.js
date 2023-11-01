@@ -1,4 +1,3 @@
-import type { TLSSocket } from 'tls'
 import type { FsOutput } from './filesystem'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextConfigComplete } from '../../config-shared'
@@ -38,6 +37,7 @@ import {
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
 import { createRequestResponseMocks } from '../mock-request'
+import type { TLSSocket } from 'tls'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
