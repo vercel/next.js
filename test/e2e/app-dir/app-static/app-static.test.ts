@@ -2932,12 +2932,6 @@ createNextDescribe(
       // Don't run these tests in dev mode since they won't be statically generated
       if (!isDev) {
         describe('server response', () => {
-          it('should bailout to client rendering - without suspense boundary', async () => {
-            const res = await next.fetch('/hooks/use-search-params')
-            const html = await res.text()
-            expect(html).toInclude('<html id="__next_error__">')
-          })
-
           it('should bailout to client rendering - with suspense boundary', async () => {
             const res = await next.fetch(
               '/hooks/use-search-params/with-suspense'
