@@ -1216,6 +1216,7 @@ export const collectGenerateParams = async (
 }
 
 export async function buildAppStaticPaths({
+  dir,
   page,
   distDir,
   configFileName,
@@ -1229,6 +1230,7 @@ export async function buildAppStaticPaths({
   serverHooks,
   ppr,
 }: {
+  dir: string
   page: string
   configFileName: string
   generateParams: GenerateParams
@@ -1252,7 +1254,9 @@ export async function buildAppStaticPaths({
   let CacheHandler: any
 
   if (incrementalCacheHandlerPath) {
-    CacheHandler = require(incrementalCacheHandlerPath)
+    CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
+      ? incrementalCacheHandlerPath
+      : path.join(dir, incrementalCacheHandlerPath))
     CacheHandler = CacheHandler.default || CacheHandler
   }
 
@@ -1379,6 +1383,7 @@ export async function buildAppStaticPaths({
 }
 
 export async function isPageStatic({
+  dir,
   page,
   distDir,
   configFileName,
@@ -1396,6 +1401,7 @@ export async function isPageStatic({
   incrementalCacheHandlerPath,
   ppr,
 }: {
+  dir: string
   page: string
   distDir: string
   configFileName: string
@@ -1565,6 +1571,7 @@ export async function isPageStatic({
             fallback: prerenderFallback,
             encodedPaths: encodedPrerenderRoutes,
           } = await buildAppStaticPaths({
+            dir,
             page,
             serverHooks,
             staticGenerationAsyncStorage,

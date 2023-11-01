@@ -1387,6 +1387,7 @@ export default async function build(
           async () =>
             hasCustomErrorPage &&
             pagesStaticWorkers.isPageStatic({
+              dir,
               page: '/_error',
               distDir,
               configFileName,
@@ -1586,6 +1587,7 @@ export default async function build(
                               ? appStaticWorkers
                               : pagesStaticWorkers
                           )!.isPageStatic({
+                            dir,
                             page,
                             originalAppPath,
                             distDir,
