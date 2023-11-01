@@ -24,7 +24,6 @@ export async function proxyRequest(
     target,
     changeOrigin: true,
     ignorePath: true,
-    xfwd: true,
     ws: true,
     // we limit proxy requests to 30s by default, in development
     // we don't time out WebSocket requests to allow proxying
