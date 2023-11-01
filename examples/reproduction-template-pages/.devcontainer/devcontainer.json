@@ -1,0 +1,6 @@
+{
+  "name": "Next.js Pages Router Reproduction Template Dev Container",
+  "build": {
+    "dockerfile": "./Dockerfile"
+  }
+}
