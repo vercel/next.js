@@ -225,17 +225,6 @@ export async function initialize(opts: {
         'x-middleware-invoke': '',
         'x-invoke-path': invokePath,
         'x-invoke-query': encodeURIComponent(JSON.stringify(parsedUrl.query)),
-        'x-forwarded-host':
-          req.headers['x-forwarded-host'] ?? req.headers.host ?? opts.hostname,
-        'x-forwarded-port':
-          req.headers['x-forwarded-port'] ?? opts.port.toString(),
-        'x-forwarded-proto':
-          req.headers['x-forwarded-proto'] ??
-          (req.socket as TLSSocket).encrypted
-            ? 'https'
-            : 'http',
-        'x-forwarded-for':
-          req.headers['x-forwarded-for'] ?? req.socket.remoteAddress,
         ...(additionalInvokeHeaders || {}),
       }
       Object.assign(req.headers, invokeHeaders)
