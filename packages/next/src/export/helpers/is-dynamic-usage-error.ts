@@ -5,6 +5,4 @@ import { isRedirectError } from '../../client/components/redirect'
 export const isDynamicUsageError = (err: any) =>
   err.digest === DYNAMIC_ERROR_CODE ||
   isNotFoundError(err) ||
-  isRedirectError(err) ||
-  // TODO: (wyattjoh) remove once we bump react
-  err.$$typeof === Symbol.for('react.postpone')
+  isRedirectError(err)

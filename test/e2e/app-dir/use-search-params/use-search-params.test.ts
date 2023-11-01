@@ -6,11 +6,11 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next, isNextStart }) => {
+    if (!isNextStart) {
+      it('skip test for dev mode', () => {})
+      return
+    }
     it('should fail build if useSearchParams is used without suspense boundaries', async () => {
-      if (!isNextStart) {
-        it('skip test for dev mode', () => {})
-        return
-      }
       await next.patchFile(
         'app/layout.js',
         `
