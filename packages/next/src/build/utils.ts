@@ -69,8 +69,8 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
-import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module.compiled'
 import { RouteKind } from '../server/future/route-kind'
+import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1508,7 +1508,7 @@ export async function isPageStatic({
         const { tree, staticGenerationAsyncStorage, serverHooks } = ComponentMod
 
         const generateParams: GenerateParams =
-          routeModule && AppRouteRouteModule.is(routeModule)
+          routeModule && isAppRouteRouteModule(routeModule)
             ? [
                 {
                   config: {
