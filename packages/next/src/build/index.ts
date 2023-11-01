@@ -1091,7 +1091,7 @@ export default async function build(
         if (isExperimentalCompile) {
           let durationInSeconds = 0
 
-          await webpackBuild(true, ['server']).then((res) => {
+          await webpackBuild(useBuildWorker, ['server']).then((res) => {
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
             const buildTraceWorker = new Worker(
@@ -1120,11 +1120,11 @@ export default async function build(
               })
           })
 
-          await webpackBuild(true, ['edge-server']).then((res) => {
+          await webpackBuild(useBuildWorker, ['edge-server']).then((res) => {
             durationInSeconds += res.duration
           })
 
-          await webpackBuild(true, ['client']).then((res) => {
+          await webpackBuild(useBuildWorker, ['client']).then((res) => {
             durationInSeconds += res.duration
           })
 
