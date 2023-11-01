@@ -28,6 +28,9 @@ export async function proxyRequest(
     // we limit proxy requests to 30s by default, in development
     // we don't time out WebSocket requests to allow proxying
     proxyTimeout: proxyTimeout === null ? undefined : proxyTimeout || 30_000,
+    headers: {
+      'x-forwarded-host': req.headers.host || '',
+    },
   })
 
   await new Promise((proxyResolve, proxyReject) => {
