@@ -127,6 +127,7 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { stripInternalHeaders } from './internal-utils'
 import { RSCPathnameNormalizer } from './future/normalizers/request/rsc'
 import { PostponedPathnameNormalizer } from './future/normalizers/request/postponed'
+import type { TLSSocket } from 'tls'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -893,6 +894,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           delete req.headers[param.toString().toLowerCase()]
         }
       }
+
+      req.headers['x-forwarded-host'] ??= `${this.hostname}:${this.port}`
+      req.headers['x-forwarded-port'] ??= this.port?.toString()
+      const { originalRequest } = req as NodeNextRequest
+      req.headers['x-forwarded-proto'] ??= (originalRequest.socket as TLSSocket)
+        ?.encrypted
+        ? 'https'
+        : 'http'
+      req.headers['x-forwarded-for'] ??= originalRequest.socket?.remoteAddress
 
       this.attachRequestMeta(req, parsedUrl)
 
