@@ -1740,6 +1740,7 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl: NextUrlWithParsedQuery,
     isUpgradeReq?: boolean
   ) {
+    // Injected in base-server.ts
     const protocol = req.headers['x-forwarded-proto'] as 'https' | 'http'
 
     // When there are hostname and port we build an absolute URL
