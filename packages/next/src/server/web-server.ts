@@ -62,7 +62,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       dev,
       requestHeaders,
       requestProtocol: 'https',
-      appDir: this.hasAppDir,
+      pagesDir: this.enabledDirectories.pages,
+      appDir: this.enabledDirectories.app,
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -87,8 +88,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.buildId
   }
 
-  protected getHasAppDir() {
-    return this.serverOptions.webServerConfig.pagesType === 'app'
+  protected getEnabledDirectories() {
+    return {
+      app: this.serverOptions.webServerConfig.pagesType === 'app',
+      pages: this.serverOptions.webServerConfig.pagesType === 'pages',
+    }
   }
 
   protected getPagesManifest() {
