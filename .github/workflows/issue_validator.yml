@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Nissuer
-        uses: balazsorban44/nissuer@1.3.5
+        uses: balazsorban44/nissuer@1.5.0
         with:
           label-area-prefix: 'area:'
           label-area-section: 'Which area\(s\) are affected\? \(Select all that apply\)(.*)### Additional context'
@@ -32,3 +32,4 @@ jobs:
           reproduction-hosts: 'github.com,codesandbox.io'
           reproduction-link-section: '### Link to the code that reproduces this issue(.*)### To Reproduce'
           reproduction-invalid-label: 'invalid link'
+          reproduction-issue-labels: 'template: bug'

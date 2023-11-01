@@ -5,8 +5,6 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 
-type BundleType = 'client' | 'server' | 'default'
-
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
@@ -43,10 +41,8 @@ function getBaseSWCOptions({
   resolvedBaseUrl,
   jsConfig,
   swcCacheDir,
-  isServerLayer,
-  bundleTarget,
-  hasServerComponents,
-  isServerActionsEnabled,
+  serverComponents,
+  isReactServerLayer,
 }: {
   filename: string
   jest?: boolean
@@ -54,15 +50,13 @@ function getBaseSWCOptions({
   hasReactRefresh: boolean
   globalWindow: boolean
   modularizeImports?: NextConfig['modularizeImports']
-  swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
+  swcPlugins: ExperimentalConfig['swcPlugins']
   resolvedBaseUrl?: string
   jsConfig: any
-  bundleTarget: BundleType
   swcCacheDir?: string
-  isServerLayer?: boolean
-  hasServerComponents?: boolean
-  isServerActionsEnabled?: boolean
+  serverComponents?: boolean
+  isReactServerLayer?: boolean
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -110,7 +104,7 @@ function getBaseSWCOptions({
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
-            (compilerOptions?.emotion && !isServerLayer
+            (compilerOptions?.emotion && !isReactServerLayer
               ? '@emotion/react'
               : 'react'),
           runtime: 'automatic',
@@ -169,7 +163,7 @@ function getBaseSWCOptions({
     // Always transform styled-jsx and error when `client-only` condition is triggered
     styledJsx: {},
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
-    ...(!isServerLayer && {
+    ...(!isReactServerLayer && {
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
       emotion: getEmotionOptions(compilerOptions?.emotion, development),
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -178,17 +172,21 @@ function getBaseSWCOptions({
         development
       ),
     }),
-    serverComponents: hasServerComponents
-      ? { isServer: !!isServerLayer }
-      : undefined,
-    serverActions: hasServerComponents
-      ? {
-          // TODO-APP: When Server Actions is stable, we need to remove this flag.
-          enabled: !!isServerActionsEnabled,
-          isServer: !!isServerLayer,
-        }
-      : undefined,
-    bundleTarget,
+    serverComponents:
+      serverComponents && !jest
+        ? {
+            isReactServerLayer: !!isReactServerLayer,
+          }
+        : undefined,
+    serverActions:
+      serverComponents && !jest
+        ? {
+            // always enable server actions
+            // TODO: remove this option
+            enabled: true,
+            isReactServerLayer: !!isReactServerLayer,
+          }
+        : undefined,
   }
 }
 
@@ -251,7 +249,6 @@ export function getJestSWCOptions({
   jsConfig,
   resolvedBaseUrl,
   pagesDir,
-  hasServerComponents,
 }: {
   isServer: boolean
   filename: string
@@ -262,7 +259,7 @@ export function getJestSWCOptions({
   jsConfig: any
   resolvedBaseUrl?: string
   pagesDir?: string
-  hasServerComponents?: boolean
+  serverComponents?: boolean
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
@@ -274,12 +271,11 @@ export function getJestSWCOptions({
     swcPlugins,
     compilerOptions,
     jsConfig,
-    hasServerComponents,
     resolvedBaseUrl,
     // Don't apply server layer transformations for Jest
-    isServerLayer: false,
+    isReactServerLayer: false,
     // Disable server / client graph assertions for Jest
-    bundleTarget: 'default',
+    serverComponents: false,
   })
 
   const isNextDist = nextDistPath.test(filename)
@@ -318,11 +314,8 @@ export function getLoaderSWCOptions({
   supportedBrowsers,
   swcCacheDir,
   relativeFilePathFromRoot,
-  hasServerComponents,
-  isServerLayer,
-  isServerActionsEnabled,
-  optimizeBarrelExports,
-  bundleTarget = 'client',
+  serverComponents,
+  isReactServerLayer,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 {
@@ -330,7 +323,7 @@ export function getLoaderSWCOptions({
   development: boolean
   isServer: boolean
   pagesDir?: string
-  appDir: string
+  appDir?: string
   isPageFile: boolean
   hasReactRefresh: boolean
   optimizeServerReact?: boolean
@@ -341,14 +334,11 @@ export function getLoaderSWCOptions({
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
-  supportedBrowsers: string[]
+  supportedBrowsers: string[] | undefined
   swcCacheDir: string
   relativeFilePathFromRoot: string
-  bundleTarget: BundleType
-  hasServerComponents?: boolean
-  isServerLayer: boolean
-  isServerActionsEnabled?: boolean
-  optimizeBarrelExports?: string[]
+  serverComponents?: boolean
+  isReactServerLayer?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -361,10 +351,8 @@ export function getLoaderSWCOptions({
     jsConfig,
     // resolvedBaseUrl,
     swcCacheDir,
-    hasServerComponents,
-    isServerLayer,
-    isServerActionsEnabled,
-    bundleTarget,
+    isReactServerLayer,
+    serverComponents,
   })
   baseOptions.fontLoaders = {
     fontLoaders: [
@@ -403,9 +391,6 @@ export function getLoaderSWCOptions({
       packages: optimizePackageImports,
     }
   }
-  if (optimizeBarrelExports) {
-    baseOptions.optimizeBarrelExports = optimizeBarrelExports
-  }
 
   const isNextDist = nextDistPath.test(filename)
 
@@ -416,7 +401,7 @@ export function getLoaderSWCOptions({
       disableNextSsg: true,
       disablePageConfig: true,
       isDevelopment: development,
-      isServer,
+      isServerCompiler: isServer,
       pagesDir,
       appDir,
       isPageFile,
@@ -440,7 +425,7 @@ export function getLoaderSWCOptions({
         : {}),
       disableNextSsg: !isPageFile,
       isDevelopment: development,
-      isServer,
+      isServerCompiler: isServer,
       pagesDir,
       appDir,
       isPageFile,

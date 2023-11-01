@@ -1,12 +1,11 @@
-import {
-  CacheNode,
-  CacheStates,
-} from '../../../../shared/lib/app-router-context.shared-runtime'
+import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightSegmentPath,
 } from '../../../../server/app-render/types'
 import { fetchServerResponse } from '../fetch-server-response'
+import type { FetchServerResponseResult } from '../fetch-server-response'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'
 import { createHrefFromUrl } from '../create-href-from-url'
@@ -16,13 +15,14 @@ import { createOptimisticTree } from '../create-optimistic-tree'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { shouldHardNavigate } from '../should-hard-navigate'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import {
+import type {
   Mutable,
   NavigateAction,
-  PrefetchKind,
   ReadonlyReducerState,
   ReducerState,
+  ThenableRecord,
 } from '../router-reducer-types'
+import { PrefetchKind } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import {
@@ -78,7 +78,7 @@ function addRefetchToLeafSegments(
   currentCache: CacheNode,
   flightSegmentPath: FlightSegmentPath,
   treePatch: FlightRouterState,
-  data: () => ReturnType<typeof fetchServerResponse>
+  data: () => ThenableRecord<FetchServerResponseResult>
 ) {
   let appliedPatch = false
 
@@ -159,7 +159,7 @@ export function navigateReducer(
     temporaryCacheNode.subTreeData = state.cache.subTreeData
     temporaryCacheNode.parallelRoutes = new Map(state.cache.parallelRoutes)
 
-    let data: ReturnType<typeof createRecordFromThenable> | undefined
+    let data: ThenableRecord<FetchServerResponseResult> | null = null
 
     const fetchResponse = () => {
       if (!data) {
@@ -199,7 +199,7 @@ export function navigateReducer(
       mutable.canonicalUrl = href
 
       state.prefetchCache.set(createHrefFromUrl(url, false), {
-        data: createRecordFromThenable(Promise.resolve(data)),
+        data: data ? createRecordFromThenable(Promise.resolve(data)) : null,
         // this will make sure that the entry will be discarded after 30s
         kind: PrefetchKind.TEMPORARY,
         prefetchTime: Date.now(),
@@ -249,7 +249,7 @@ export function navigateReducer(
   prefetchQueue.bump(data!)
 
   // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
-  const [flightData, canonicalUrlOverride] = readRecordValue(data!)
+  const [flightData, canonicalUrlOverride, postponed] = readRecordValue(data!)
 
   // we only want to mark this once
   if (!prefetchValues.lastUsedTime) {
@@ -300,13 +300,17 @@ export function navigateReducer(
         return handleExternalUrl(state, mutable, href, pendingPush)
       }
 
-      let applied = applyFlightData(
-        currentCache,
-        cache,
-        flightDataPath,
-        prefetchValues.kind === 'auto' &&
-          prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
-      )
+      // TODO-APP: If the prefetch was postponed, we don't want to apply it
+      // until we land router changes to handle the postponed case.
+      let applied = postponed
+        ? false
+        : applyFlightData(
+            currentCache,
+            cache,
+            flightDataPath,
+            prefetchValues.kind === 'auto' &&
+              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
+          )
 
       if (
         !applied &&
@@ -319,7 +323,14 @@ export function navigateReducer(
           treePatch,
           // eslint-disable-next-line no-loop-func
           () =>
-            fetchServerResponse(url, currentTree, state.nextUrl, state.buildId)
+            createRecordFromThenable(
+              fetchServerResponse(
+                url,
+                currentTree,
+                state.nextUrl,
+                state.buildId
+              )
+            )
         )
       }
 

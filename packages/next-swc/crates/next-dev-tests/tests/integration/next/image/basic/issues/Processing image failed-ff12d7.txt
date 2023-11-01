@@ -1,5 +1,0 @@
-error - [image] [project]/packages/next-swc/crates/next-dev-tests/tests/temp/next/image/basic/input/public/broken.jpeg  Processing image failed
-  unable to decode image data
-  
-  Caused by:
-  - failed to fill whole buffer

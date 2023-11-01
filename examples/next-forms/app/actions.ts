@@ -9,9 +9,9 @@ import { z } from 'zod'
 //   text TEXT NOT NULL
 // );
 
-export async function createTodo(formData: FormData) {
+export async function createTodo(prevState: any, formData: FormData) {
   const schema = z.object({
-    todo: z.string().nonempty(),
+    todo: z.string().min(1),
   })
   const data = schema.parse({
     todo: formData.get('todo'),
@@ -24,25 +24,31 @@ export async function createTodo(formData: FormData) {
   `
 
     revalidatePath('/')
-
-    return { message: 'Saved successfully' }
+    return { message: `Added todo ${data.todo}` }
   } catch (e) {
     return { message: 'Failed to create todo' }
   }
 }
 
-export async function deleteTodo(formData: FormData) {
+export async function deleteTodo(prevState: any, formData: FormData) {
   const schema = z.object({
-    id: z.string().nonempty(),
+    id: z.string().min(1),
+    todo: z.string().min(1),
   })
   const data = schema.parse({
     id: formData.get('id'),
+    todo: formData.get('todo'),
   })
 
-  await sql`
-    DELETE FROM todos
-    WHERE id = ${data.id};
-  `
+  try {
+    await sql`
+      DELETE FROM todos
+      WHERE id = ${data.id};
+    `
 
-  revalidatePath('/')
+    revalidatePath('/')
+    return { message: `Deleted todo ${data.todo}` }
+  } catch (e) {
+    return { message: 'Failed to delete todo' }
+  }
 }

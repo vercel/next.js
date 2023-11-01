@@ -22,9 +22,6 @@ packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
 
 packages/next-swc/crates/**/tests/**/output*
 packages/next-swc/crates/core/tests/loader/issue-32553/input.js
-packages/next-swc/crates/next-dev-tests/tests/integration/turbopack/basic/error/input/broken.js
-packages/next-swc/crates/next-dev-tests/tests/integration/next/webpack-loaders/no-options/input/pages/hello.raw.js
-packages/next-swc/crates/next-dev-tests/tests/integration/next/webpack-loaders/no-options/input/raw/hello.js
 packages/next-swc/native/**/*
 
 packages/next-codemod/transforms/__testfixtures__/**

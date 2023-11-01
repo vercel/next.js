@@ -50,6 +50,11 @@ export function deleteAppClientCache() {
   deleteFromRequireCache(
     require.resolve('next/dist/compiled/next-server/app-page.runtime.dev.js')
   )
+  deleteFromRequireCache(
+    require.resolve(
+      'next/dist/compiled/next-server/app-page-experimental.runtime.dev.js'
+    )
+  )
 }
 
 export function deleteCache(filePath: string) {
@@ -64,10 +69,10 @@ const PLUGIN_NAME = 'NextJsRequireCacheHotReloader'
 // This plugin flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
 export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
   prevAssets: any = null
-  hasServerComponents: boolean
+  serverComponents: boolean
 
-  constructor(opts: { hasServerComponents: boolean }) {
-    this.hasServerComponents = opts.hasServerComponents
+  constructor(opts: { serverComponents: boolean }) {
+    this.serverComponents = opts.serverComponents
   }
 
   apply(compiler: Compiler) {

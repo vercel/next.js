@@ -16,7 +16,7 @@ export function middleware(request) {
     upgrade-insecure-requests;
 `
 
-  const requestHeaders = new Headers()
+  const requestHeaders = new Headers(request.headers)
 
   // Setting request headers
   requestHeaders.set('x-nonce', nonce)

@@ -631,7 +631,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Error: {\\"a\\":1,\\"b\\":\\"x\\"}"`
+      `"Error: {"a":1,"b":"x"}"`
     )
 
     // fix previous error
