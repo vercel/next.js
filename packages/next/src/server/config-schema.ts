@@ -360,6 +360,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         serverMinification: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
         bundlePagesExternals: z.boolean().optional(),
+        useWasmBinary: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z
