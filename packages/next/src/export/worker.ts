@@ -33,6 +33,7 @@ import { exportPages } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
 import { isPostpone } from '../server/lib/router-utils/is-postpone'
+import { isMissingPostponeDataError } from '../server/app-render/is-missing-postpone-error'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -306,10 +307,13 @@ async function exportPageImpl(
       fileWriter
     )
   } catch (err) {
-    console.error(
-      `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
-        (isError(err) && err.stack ? err.stack : err)
-    )
+    // if this is a postpone error, it's logged elsewhere, so no need to log it again here
+    if (!isMissingPostponeDataError(err)) {
+      console.error(
+        `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
+          (isError(err) && err.stack ? err.stack : err)
+      )
+    }
 
     return { error: true }
   }
