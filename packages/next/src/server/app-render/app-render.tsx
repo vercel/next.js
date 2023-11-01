@@ -393,7 +393,6 @@ async function renderToHTMLOrFlightImpl(
   renderOpts: RenderOpts,
   baseCtx: AppRenderBaseContext
 ) {
-  const isFlight = req.headers[RSC_HEADER.toLowerCase()] !== undefined
   const isNotFoundPath = pagePath === '/404'
 
   // A unique request timestamp used by development to ensure that it's
@@ -540,14 +539,17 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  const isPrefetch =
+  const isRSCRequest = req.headers[RSC_HEADER.toLowerCase()] !== undefined
+
+  const isPrefetchRSCRequest =
+    isRSCRequest &&
     req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
 
   /**
    * Router state provided from the client-side router. Used to handle rendering from the common layout down.
    */
   let providedFlightRouterState =
-    isFlight && (!isPrefetch || !renderOpts.experimental.ppr)
+    isRSCRequest && (!isPrefetchRSCRequest || !renderOpts.experimental.ppr)
       ? parseAndValidateFlightRouterState(
           req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
         )
@@ -586,7 +588,7 @@ async function renderToHTMLOrFlightImpl(
     ...baseCtx,
     getDynamicParamFromSegment,
     query,
-    isPrefetch,
+    isPrefetch: isPrefetchRSCRequest,
     providedSearchParams,
     requestTimestamp,
     searchParamsProps,
@@ -603,7 +605,7 @@ async function renderToHTMLOrFlightImpl(
     res,
   }
 
-  if (isFlight && !isStaticGeneration) {
+  if (isRSCRequest && !isStaticGeneration) {
     return generateFlight(ctx)
   }
 

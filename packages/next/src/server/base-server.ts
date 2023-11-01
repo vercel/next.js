@@ -1802,8 +1802,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
      * prefetch request.
      */
     const isPrefetchRSCRequest =
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1' ||
-      getRequestMeta(req, 'isPrefetchRSCRequest')
+      (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1' ||
+        getRequestMeta(req, 'isPrefetchRSCRequest')) ??
+      false
 
     // when we are handling a middleware prefetch and it doesn't
     // resolve to a static data route we bail early to avoid
@@ -1847,8 +1848,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
     const isRSCRequest =
-      Boolean(req.headers[RSC_HEADER.toLowerCase()]) ||
-      getRequestMeta(req, 'isRSCRequest')
+      (Boolean(req.headers[RSC_HEADER.toLowerCase()]) ||
+        getRequestMeta(req, 'isRSCRequest')) ??
+      false
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
@@ -1965,24 +1967,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (isAppPath) {
       res.setHeader('vary', RSC_VARY_HEADER)
 
-      // We don't clear RSC headers in development since SSG doesn't apply
-      // These headers are cleared for SSG as we need to always generate the
-      // full RSC response for ISR.
-      if (
-        !this.renderOpts.dev &&
-        !isPreviewMode &&
-        isSSG &&
-        !isDynamicRSCRequest
-      ) {
+      if (!this.renderOpts.dev && !isPreviewMode && isSSG && isRSCRequest) {
+        // If this is an RSC request but we aren't in minimal mode, then we mark
+        // that this is a data request so that we can generate the flight data
+        // only.
         if (!this.minimalMode) {
           isDataReq = true
         }
 
-        // Strip the flight headers so that we generate both the RSC and HTML
-        // for the request.
+        // If this is a dynamic RSC request, ensure that we don't purge the
+        // flight headers to ensure that we will only produce the RSC response.
+        // We only need to do this in non-edge environments (as edge doesn't
+        // support static generation).
         if (
-          !isEdgeRuntime(opts.runtime) ||
-          (this.serverOptions as any).webServerConfig
+          !isDynamicRSCRequest &&
+          (!isEdgeRuntime(opts.runtime) ||
+            (this.serverOptions as any).webServerConfig)
         ) {
           stripFlightHeaders(req.headers)
         }
@@ -2048,7 +2048,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       isSSG &&
       !opts.supportsDynamicHTML &&
       !isServerAction &&
-      !resumed
+      !resumed &&
+      !isDynamicRSCRequest
     ) {
       ssgCacheKey = `${locale ? `/${locale}` : ''}${
         (pathname === '/' || resolvedUrlPathname === '/') && locale
@@ -2117,12 +2118,30 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const doRender: Renderer = async (postponed) => {
       // In development, we always want to generate dynamic HTML.
       const supportsDynamicHTML =
-        ((!isDataReq && opts.dev) ||
-          !(isSSG || hasStaticPaths) ||
-          !!postponed) &&
-        // We don't support dynamic HTML for prefetch RSC requests when PPR is
-        // enabled.
-        !(isPrefetchRSCRequest && this.renderOpts.experimental.ppr)
+        // If this isn't a data request and we're not in development, then we
+        // support dynamic HTML.
+        (!isDataReq && opts.dev) ||
+        // If this is not SSG or does not have static paths, then it supports
+        // dynamic HTML.
+        !(isSSG || hasStaticPaths) ||
+        // If this request has provided postponed data, it supports dynamic
+        // HTML.
+        !!postponed ||
+        // If this is a dynamic RSC request, then this render supports dynamic
+        // HTML (it's dynamic).
+        isDynamicRSCRequest
+
+      // Ensure we bail if a prefetch RSC request is made while PPR is
+      // enabled that has dynamic HTML enabled.
+      if (
+        this.renderOpts.experimental.ppr &&
+        isPrefetchRSCRequest &&
+        supportsDynamicHTML
+      ) {
+        throw new Error(
+          "Invariant: prefetch RSC requests can't support dynamic HTML"
+        )
+      }
 
       let headers: OutgoingHttpHeaders | undefined
 
@@ -2276,7 +2295,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             { page: pathname, params: opts.params, query, renderOpts }
           )
         } else if (isAppPageRouteModule(routeModule)) {
-          if (isPrefetchRSCRequest && process.env.NODE_ENV === 'production') {
+          if (
+            !this.renderOpts.experimental.ppr &&
+            isPrefetchRSCRequest &&
+            process.env.NODE_ENV === 'production' &&
+            !this.minimalMode
+          ) {
             try {
               const prefetchRsc = await this.getPrefetchRsc(resolvedUrlPathname)
               if (prefetchRsc) {
@@ -2730,13 +2754,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           cachedData.headers[NEXT_CACHE_TAGS_HEADER] as string
         )
       }
-      if (isDataReq && typeof cachedData.pageData !== 'string') {
-        throw new Error(
-          'invariant: Expected pageData to be a string for app data request but received ' +
-            typeof cachedData.pageData +
-            '. This is a bug in Next.js.'
-        )
-      }
 
       if (cachedData.status) {
         res.statusCode = cachedData.status
@@ -2753,39 +2770,34 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       if (isDataReq) {
-        // If this isn't a prefetch and this isn't a resume request, we want to
-        // respond with the dynamic flight data. In the case that this is a
-        // resume request the page data will already be dynamic.
-        if (!isPrefetchRSCRequest && !resumed) {
-          const result = await doRender(cachedData.postponed)
-          if (!result) {
-            return null
+        // If this is a dynamic RSC request, then stream the response.
+        if (isDynamicRSCRequest) {
+          if (cachedData.pageData) {
+            throw new Error('Invariant: Expected pageData to be undefined')
           }
 
-          if (result.value?.kind !== 'PAGE') {
-            throw new Error('Invariant: Expected a page response')
-          }
-
-          if (!result.value.pageData) {
-            throw new Error('Invariant: Expected pageData to be present')
-          }
-
-          if (result.value.postponed) {
+          if (cachedData.postponed) {
             throw new Error('Invariant: Expected postponed to be undefined')
           }
 
           return {
             type: 'rsc',
-            body: RenderResult.fromStatic(result.value.pageData as string),
+            body: cachedData.html,
             revalidate: cacheEntry.revalidate,
           }
+        }
+
+        if (typeof cachedData.pageData !== 'string') {
+          throw new Error(
+            `Invariant: expected pageData to be a string, got ${typeof cachedData.pageData}`
+          )
         }
 
         // As this isn't a prefetch request, we should serve the static flight
         // data.
         return {
           type: 'rsc',
-          body: RenderResult.fromStatic(cachedData.pageData as string),
+          body: RenderResult.fromStatic(cachedData.pageData),
           revalidate: cacheEntry.revalidate,
         }
       }
