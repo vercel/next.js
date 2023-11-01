@@ -41,7 +41,6 @@ import {
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
-  INTERNAL_HEADERS,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -1616,10 +1615,6 @@ export default class NextNodeServer extends BaseServer {
     >
     let bubblingResult = false
 
-    for (const key of INTERNAL_HEADERS) {
-      delete req.headers[key]
-    }
-
     // Strip the internal headers.
     this.stripInternalHeaders(req)
 
@@ -1747,10 +1742,7 @@ export default class NextNodeServer extends BaseServer {
     isUpgradeReq?: boolean
   ) {
     const protocol =
-      ((req as NodeNextRequest).originalRequest?.socket as TLSSocket)
-        ?.encrypted || req.headers['x-forwarded-proto']?.includes('https')
-        ? 'https'
-        : 'http'
+      req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'
 
     // When there are hostname and port we build an absolute URL
     const initUrl =
