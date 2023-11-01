@@ -350,6 +350,8 @@ export default async function build(
   let hasAppDir = false
   try {
     const nextBuildSpan = trace('next-build', undefined, {
+      buildMode: buildMode,
+      isTurboBuild: String(turboNextBuild),
       version: process.env.__NEXT_VERSION as string,
     })
 
@@ -1059,30 +1061,16 @@ export default async function build(
         })
 
         const [duration] = process.hrtime(turboNextBuildStart)
-        return { duration, buildTraceContext: undefined }
+        return { duration, buildTraceContext: null }
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
-      // if the option is set, we respect it, otherwise we check if the user
-      // has a custom webpack config and disable the build worker by default.
-      const useBuildWorker =
-        config.experimental.webpackBuildWorker || !config.webpack
-
-      if (
-        config.webpack &&
-        config.experimental.webpackBuildWorker === undefined
-      ) {
-        Log.warn(
-          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
-        )
-      }
-
       if (!isGenerate) {
-        if (isCompile && useBuildWorker) {
+        if (isCompile && config.experimental.webpackBuildWorker) {
           let durationInSeconds = 0
 
-          await webpackBuild(true, ['server']).then((res) => {
+          await webpackBuild(['server']).then((res) => {
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
             const buildTraceWorker = new Worker(
@@ -1111,11 +1099,11 @@ export default async function build(
               })
           })
 
-          await webpackBuild(true, ['edge-server']).then((res) => {
+          await webpackBuild(['edge-server']).then((res) => {
             durationInSeconds += res.duration
           })
 
-          await webpackBuild(true, ['client']).then((res) => {
+          await webpackBuild(['client']).then((res) => {
             durationInSeconds += res.duration
           })
 
@@ -1131,7 +1119,7 @@ export default async function build(
         } else {
           const { duration: webpackBuildDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
-            : await webpackBuild(false)
+            : await webpackBuild()
 
           buildTraceContext = rest.buildTraceContext
 
@@ -1380,6 +1368,7 @@ export default async function build(
           async () =>
             hasCustomErrorPage &&
             pagesStaticWorkers.isPageStatic({
+              dir,
               page: '/_error',
               distDir,
               configFileName,
@@ -1579,6 +1568,7 @@ export default async function build(
                               ? appStaticWorkers
                               : pagesStaticWorkers
                           )!.isPageStatic({
+                            dir,
                             page,
                             originalAppPath,
                             distDir,

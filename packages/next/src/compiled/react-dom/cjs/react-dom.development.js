@@ -4036,7 +4036,7 @@ function isTagValidWithParent(tag, parentTag) {
   switch (parentTag) {
     // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inselect
     case 'select':
-      return tag === 'option' || tag === 'optgroup' || tag === '#text';
+      return tag === 'hr' || tag === 'option' || tag === 'optgroup' || tag === '#text';
 
     case 'optgroup':
       return tag === 'option' || tag === '#text';
@@ -27936,7 +27936,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-canary-8c8ee9ee6-20231026';
+var ReactVersion = '18.3.0-canary-08a39539f-20231031';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -36357,7 +36357,7 @@ function preinitStyle(href, precedence, options) {
     var instance = ownerDocument.querySelector(getStylesheetSelectorFromKey(key));
 
     if (instance) {
-      state.loading = Loaded & Inserted;
+      state.loading = Loaded | Inserted;
     } else {
       // Construct a new instance and insert it
       var stylesheetProps = assign({
