@@ -1088,10 +1088,7 @@ export default async function build(
       }
 
       if (!isExperimentalGenerate) {
-        if (
-          (buildMode === 'default' || isExperimentalCompile) &&
-          useBuildWorker
-        ) {
+        if (useBuildWorker) {
           let durationInSeconds = 0
 
           await webpackBuild(true, ['server']).then((res) => {
