@@ -24,6 +24,7 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import setupCompression from 'next/dist/compiled/compression'
 import { NoFallbackError } from '../base-server'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
+import { isPostpone } from './router-utils/is-postpone'
 
 import {
   PHASE_PRODUCTION_SERVER,
@@ -31,7 +32,6 @@ import {
   PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
 import { DevBundlerService } from './dev-bundler-service'
-import type { TLSSocket } from 'tls'
 
 const debug = setupDebug('next:router-server:main')
 
@@ -150,6 +150,11 @@ export async function initialize(opts: {
     type: 'uncaughtException' | 'unhandledRejection',
     err: Error | undefined
   ) => {
+    if (isPostpone(err)) {
+      // React postpones that are unhandled might end up logged here but they're
+      // not really errors. They're just part of rendering.
+      return
+    }
     await developmentBundler?.logErrorWithOriginalStack(err, type)
   }
 
@@ -219,17 +224,6 @@ export async function initialize(opts: {
         'x-middleware-invoke': '',
         'x-invoke-path': invokePath,
         'x-invoke-query': encodeURIComponent(JSON.stringify(parsedUrl.query)),
-        'x-forwarded-host':
-          req.headers['x-forwarded-host'] ?? req.headers.host ?? opts.hostname,
-        'x-forwarded-port':
-          req.headers['x-forwarded-port'] ?? opts.port.toString(),
-        'x-forwarded-proto':
-          req.headers['x-forwarded-proto'] ??
-          (req.socket as TLSSocket).encrypted
-            ? 'https'
-            : 'http',
-        'x-forwarded-for':
-          req.headers['x-forwarded-for'] ?? req.socket.remoteAddress,
         ...(additionalInvokeHeaders || {}),
       }
       Object.assign(req.headers, invokeHeaders)
@@ -602,8 +596,9 @@ export async function initialize(opts: {
       if (parsedUrl.protocol) {
         return await proxyRequest(req, socket as any, parsedUrl, head)
       }
-      // no match close socket
-      socket.end()
+
+      // If there's no matched output, we don't handle the request as user's
+      // custom WS server may be listening on the same path.
     } catch (err) {
       console.error('Error handling upgrade request', err)
       socket.end()

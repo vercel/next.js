@@ -31,7 +31,7 @@ const infoLog = (...args: any[]) => {
  * Based on napi-rs's target triples, returns triples that have corresponding next-swc binaries.
  */
 export const getSupportedArchTriples: () => Record<string, any> = () => {
-  const { darwin, win32, linux, freebsd, android } = platformArchTriples
+  const { darwin, win32, linux } = platformArchTriples
 
   return {
     darwin,
@@ -48,16 +48,6 @@ export const getSupportedArchTriples: () => Record<string, any> = () => {
         (triple: { abi: string }) => triple.abi !== 'gnux32'
       ),
       arm64: linux.arm64,
-      // This target is being deprecated, however we keep it in `knownDefaultWasmFallbackTriples` for now
-      arm: linux.arm,
-    },
-    // Below targets are being deprecated, however we keep it in `knownDefaultWasmFallbackTriples` for now
-    freebsd: {
-      x64: freebsd.x64,
-    },
-    android: {
-      arm64: android.arm64,
-      arm: android.arm,
     },
   }
 }
@@ -77,7 +67,7 @@ const triples = (() => {
 
   if (rawTargetTriple) {
     Log.warn(
-      `Trying to load next-swc for target triple ${rawTargetTriple}, but there next-swc does not have native bindings support`
+      `Trying to load next-swc for target triple ${rawTargetTriple}, but this target is not supported`
     )
   } else {
     Log.warn(
@@ -106,21 +96,6 @@ function checkVersionMismatch(pkgData: any) {
     )
   }
 }
-
-// These are the platforms we'll try to load wasm bindings first,
-// only try to load native bindings if loading wasm binding somehow fails.
-// Fallback to native binding is for migration period only,
-// once we can verify loading-wasm-first won't cause visible regressions,
-// we'll not include native bindings for these platform at all.
-const knownDefaultWasmFallbackTriples = [
-  'x86_64-unknown-freebsd',
-  'aarch64-linux-android',
-  'arm-linux-androideabi',
-  'armv7-unknown-linux-gnueabihf',
-  'i686-pc-windows-msvc',
-  // WOA targets are TBD, while current userbase is small we may support it in the future
-  //'aarch64-pc-windows-msvc',
-]
 
 // The last attempt's error code returned when cjs require to native bindings fails.
 // If node.js throws an error without error code, this should be `unknown` instead of undefined.
@@ -201,21 +176,6 @@ export async function loadBindings(): Promise<Binding> {
     }
 
     let attempts: any[] = []
-    const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
-    const shouldLoadWasmFallbackFirst =
-      !disableWasmFallback &&
-      triples.some(
-        (triple: any) =>
-          !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
-      )
-
-    if (shouldLoadWasmFallbackFirst) {
-      lastNativeBindingsLoadErrorCode = 'unsupported_target'
-      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
-      if (fallbackBindings) {
-        return resolve(fallbackBindings)
-      }
-    }
 
     // Trickle down loading `fallback` bindings:
     //
@@ -224,7 +184,6 @@ export async function loadBindings(): Promise<Binding> {
     // that host system where generated package lock is not matching to the guest system running on, try to manually
     // download corresponding target triple and load it. This won't be triggered if native bindings are failed to load
     // with other reasons than `ERR_MODULE_NOT_FOUND`.
-    // - Lastly, falls back to wasm binding where possible.
     try {
       return resolve(loadNative())
     } catch (a) {
@@ -242,15 +201,7 @@ export async function loadBindings(): Promise<Binding> {
       attempts = attempts.concat(a)
     }
 
-    // For these platforms we already tried to load wasm and failed, skip reattempt
-    if (!shouldLoadWasmFallbackFirst && !disableWasmFallback) {
-      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
-      if (fallbackBindings) {
-        return resolve(fallbackBindings)
-      }
-    }
-
-    logLoadFailure(attempts, true)
+    logLoadFailure(attempts)
   })
   return pendingBindings
 }
@@ -279,6 +230,8 @@ async function tryLoadNativeWithFallback(attempts: Array<string>) {
   return undefined
 }
 
+// We may end up using this function in the future if/when we support wasm builds again
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function tryLoadWasmWithFallback(attempts: any) {
   try {
     let bindings = await loadWasm('')
@@ -331,18 +284,12 @@ function loadBindingsSync() {
     attempts = attempts.concat(a)
   }
 
-  // we can leverage the wasm bindings if they are already
-  // loaded
-  if (wasmBindings) {
-    return wasmBindings
-  }
-
   logLoadFailure(attempts)
 }
 
 let loggingLoadFailure = false
 
-function logLoadFailure(attempts: any, triedWasm = false) {
+function logLoadFailure(attempts: any) {
   // make sure we only emit the event and log the failure once
   if (loggingLoadFailure) return
   loggingLoadFailure = true
@@ -353,7 +300,6 @@ function logLoadFailure(attempts: any, triedWasm = false) {
 
   // @ts-expect-error TODO: this event has a wrong type.
   eventSwcLoadFailure({
-    wasm: triedWasm ? 'failed' : undefined,
     nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
   })
     .then(() => lockfilePatchPromise.cur || Promise.resolve())
@@ -420,6 +366,7 @@ export interface DefineEnv {
 }
 
 export function createDefineEnv({
+  isTurbopack,
   allowedRevalidateHeaderKeys,
   clientRouterFilters,
   config,
@@ -442,6 +389,7 @@ export function createDefineEnv({
   for (const variant of Object.keys(defineEnv) as (keyof typeof defineEnv)[]) {
     defineEnv[variant] = rustifyEnv(
       getDefineEnv({
+        isTurbopack,
         allowedRevalidateHeaderKeys,
         clientRouterFilters,
         config,
@@ -532,15 +480,6 @@ export interface UpdateInfo {
   tasks: number
 }
 
-export enum ServerClientChangeType {
-  Server = 'Server',
-  Client = 'Client',
-  Both = 'Both',
-}
-export interface ServerClientChange {
-  type: ServerClientChangeType
-}
-
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
@@ -582,11 +521,19 @@ export interface Endpoint {
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
   /**
-   * Listen to changes to the endpoint.
-   * After changed() has been awaited it will listen to changes.
+   * Listen to client-side changes to the endpoint.
+   * After clientChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  changed(): Promise<AsyncIterableIterator<TurbopackResult<ServerClientChange>>>
+  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+  /**
+   * Listen to server-side changes to the endpoint.
+   * After serverChanged() has been awaited it will listen to changes.
+   * The async iterator will yield for each change.
+   */
+  serverChanged(
+    includeIssues: boolean
+  ): Promise<AsyncIterableIterator<TurbopackResult>>
 }
 
 interface EndpointConfig {
@@ -733,32 +680,6 @@ function bindingToApi(binding: any, _wasm: boolean) {
       return { value: undefined, done: true } as IteratorReturnResult<never>
     }
     return iterator
-  }
-
-  /**
-   * Like Promise.race, except that we return an array of results so that you
-   * know which promise won. This also allows multiple promises to resolve
-   * before the awaiter finally continues execution, making multiple values
-   * available.
-   */
-  function race<T extends unknown[]>(
-    promises: T
-  ): Promise<{ [P in keyof T]: Awaited<T[P]> | undefined }> {
-    return new Promise((resolve, reject) => {
-      const results: any[] = []
-      for (let i = 0; i < promises.length; i++) {
-        const value = promises[i]
-        Promise.resolve(value).then(
-          (v) => {
-            results[i] = v
-            resolve(results as any)
-          },
-          (e) => {
-            reject(e)
-          }
-        )
-      }
-    })
   }
 
   async function rustifyProjectOptions(
@@ -961,17 +882,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
       )
     }
 
-    async changed(): Promise<
-      AsyncIterableIterator<TurbopackResult<ServerClientChange>>
-    > {
-      const serverSubscription = subscribe<TurbopackResult>(
-        false,
-        async (callback) =>
-          binding.endpointServerChangedSubscribe(
-            await this._nativeEndpoint,
-            callback
-          )
-      )
+    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
       const clientSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
@@ -980,49 +891,24 @@ function bindingToApi(binding: any, _wasm: boolean) {
             callback
           )
       )
+      await clientSubscription.next()
+      return clientSubscription
+    }
 
-      // The subscriptions will always emit once, which is the initial
-      // computation. This is not a change, so swallow it.
-      await Promise.all([serverSubscription.next(), clientSubscription.next()])
-
-      return (async function* () {
-        try {
-          while (true) {
-            const [server, client] = await race([
-              serverSubscription.next(),
-              clientSubscription.next(),
-            ])
-
-            const done = server?.done || client?.done
-            if (done) {
-              break
-            }
-
-            if (server && client) {
-              yield {
-                issues: server.value.issues.concat(client.value.issues),
-                diagnostics: server.value.diagnostics.concat(
-                  client.value.diagnostics
-                ),
-                type: ServerClientChangeType.Both,
-              }
-            } else if (server) {
-              yield {
-                ...server.value,
-                type: ServerClientChangeType.Server,
-              }
-            } else {
-              yield {
-                ...client!.value,
-                type: ServerClientChangeType.Client,
-              }
-            }
-          }
-        } finally {
-          serverSubscription.return?.()
-          clientSubscription.return?.()
-        }
-      })()
+    async serverChanged(
+      includeIssues: boolean
+    ): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
+      const serverSubscription = subscribe<TurbopackResult>(
+        false,
+        async (callback) =>
+          binding.endpointServerChangedSubscribe(
+            await this._nativeEndpoint,
+            includeIssues,
+            callback
+          )
+      )
+      await serverSubscription.next()
+      return serverSubscription
     }
   }
 

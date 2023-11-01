@@ -193,7 +193,9 @@ export async function collectBuildTraces({
   const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
 
   await nextBuildSpan
-    .traceChild('node-file-trace-build')
+    .traceChild('node-file-trace-build', {
+      isTurbotrace: Boolean(config.experimental.turbotrace) ? 'true' : 'false',
+    })
     .traceAsyncFn(async () => {
       const nextServerTraceOutput = path.join(
         distDir,
@@ -219,14 +221,6 @@ export async function collectBuildTraces({
                 paths: [require.resolve('next/dist/server/require-hook')],
               })
             )),
-        require.resolve('next/dist/compiled/next-server/app-page.runtime.prod'),
-        require.resolve(
-          'next/dist/compiled/next-server/app-route.runtime.prod'
-        ),
-        require.resolve('next/dist/compiled/next-server/pages.runtime.prod'),
-        require.resolve(
-          'next/dist/compiled/next-server/pages-api.runtime.prod'
-        ),
       ]
 
       const { incrementalCacheHandlerPath } = config.experimental
@@ -271,30 +265,20 @@ export async function collectBuildTraces({
       }
 
       const sharedIgnores = [
-        '**/*.d.ts',
-        '**/*.map',
         '**/next/dist/compiled/next-server/**/*.dev.js',
-        '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
-
-        ...additionalIgnores,
-        ...(config.experimental.outputFileTracingIgnores || []),
-      ]
-
-      const serverIgnores = [
-        ...sharedIgnores,
         isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
         '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
         '**/node_modules/webpack5/**/*',
-        '**/next/dist/server/lib/squoosh/**/*.wasm',
         '**/next/dist/server/lib/route-resolver*',
-        '**/next/dist/pages/**/*',
+        'next/dist/compiled/@next/react-dev-overlay/dist/**/*',
+        'next/dist/compiled/semver/semver/**/*.js',
 
         ...(ciEnvironment.hasNextSupport
           ? [
               // only ignore image-optimizer code when
               // this is being handled outside of next-server
               '**/next/dist/server/image-optimizer.js',
-              '**/node_modules/sharp/**/*',
+              '**/next/dist/server/lib/squoosh/**/*.wasm',
             ]
           : []),
 
@@ -303,6 +287,17 @@ export async function collectBuildTraces({
           : []),
 
         ...(isStandalone ? [] : TRACE_IGNORES),
+        ...additionalIgnores,
+        ...(config.experimental.outputFileTracingIgnores || []),
+      ]
+
+      const serverIgnores = [
+        ...sharedIgnores,
+        '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
+        '**/*.d.ts',
+        '**/*.map',
+        '**/next/dist/pages/**/*',
+        ...(ciEnvironment.hasNextSupport ? ['**/node_modules/sharp/**/*'] : []),
       ].filter(nonNullable)
 
       const minimalServerIgnores = [
@@ -314,10 +309,9 @@ export async function collectBuildTraces({
 
       const routesIgnores = [
         ...sharedIgnores,
-        '**/next/dist/compiled/next-server/**/*',
         '**/next/dist/server/optimize-amp.js',
         '**/next/dist/server/post-process.js',
-      ]
+      ].filter(nonNullable)
 
       const makeIgnoreFn = (ignores: string[]) => (pathname: string) => {
         if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {

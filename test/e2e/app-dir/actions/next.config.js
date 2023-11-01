@@ -1,9 +1,12 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
   productionBrowserSourceMaps: true,
+  logging: {
+    fetches: {},
+  },
   experimental: {
-    logging: {
-      level: 'verbose',
+    serverActions: {
+      allowedForwardedHosts: ['safe.com'],
     },
   },
 }
