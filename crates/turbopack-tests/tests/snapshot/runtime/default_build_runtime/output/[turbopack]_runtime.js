@@ -1,4 +1,5 @@
 const RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
+const OUTPUT_ROOT = "crates/turbopack-tests/tests/snapshot/runtime/default_build_runtime";
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -321,9 +322,28 @@ let SourceType;
 })(SourceType || (SourceType = {}));
 const path = require("path");
 const relativePathToRuntimeRoot = path.relative(RUNTIME_PUBLIC_PATH, ".");
+// Compute the relative path to the `distDir`.
+const relativePathToDistRoot = path.relative(path.join(OUTPUT_ROOT, RUNTIME_PUBLIC_PATH), ".");
 const RUNTIME_ROOT = path.resolve(__filename, relativePathToRuntimeRoot);
+// Compute the absolute path to the root, by stripping distDir from the absolute path to this file.
+const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
 const moduleFactories = Object.create(null);
 const moduleCache = Object.create(null);
+/**
+ * Returns an absolute path to the given module path.
+ * Module path should be relative, either path to a file or a directory.
+ *
+ * This fn allows to calculate an absolute path for some global static values, such as
+ * `__dirname` or `import.meta.url` that Turbopack will not embeds in compile time.
+ * See ImportMetaBinding::code_generation for the usage.
+ */ function resolveAbsolutePath(modulePath) {
+    if (modulePath) {
+        // Module path can contain common relative path to the root, recalaute to avoid duplicated joined path.
+        const relativePathToRoot = path.relative(ABSOLUTE_ROOT, modulePath);
+        return path.join(ABSOLUTE_ROOT, relativePathToRoot);
+    }
+    return ABSOLUTE_ROOT;
+}
 function loadChunk(chunkData) {
     if (typeof chunkData === "string") {
         return loadChunkPath(chunkData);
@@ -428,6 +448,7 @@ function instantiateModule(id, source) {
             w: loadWebAssembly,
             u: loadWebAssemblyModule,
             g: globalThis,
+            p: resolveAbsolutePath,
             __dirname: module1.id.replace(/(^|\/)[\/]+$/, "")
         });
     } catch (error) {

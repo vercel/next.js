@@ -48,13 +48,16 @@ impl EcmascriptBuildNodeRuntimeChunk {
         };
 
         let mut code = CodeBuilder::default();
+        let output_root = output_root.to_string();
 
         writedoc!(
             code,
             r#"
                 const RUNTIME_PUBLIC_PATH = {};
+                const OUTPUT_ROOT = {};
             "#,
-            StringifyJs(runtime_public_path)
+            StringifyJs(runtime_public_path),
+            StringifyJs(output_root.as_str()),
         )?;
 
         match this.chunking_context.await?.runtime_type() {

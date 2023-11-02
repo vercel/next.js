@@ -34,12 +34,16 @@ async function loadWebAssembly(
   throw new Error("loading WebAssembly is not supported");
 }
 
-
 async function loadWebAssemblyModule(
   _source: SourceInfo,
   _id: ModuleId,
 ): Promise<any> {
   throw new Error("loading WebAssembly is not supported");
+}
+
+// [TODO] should this behaves same as dom runtime?
+function resolveAbsolutePath(modulePath?: string) {
+  throw new Error('resolveAbsolutePath is not implemented');
 }
 
 (() => {

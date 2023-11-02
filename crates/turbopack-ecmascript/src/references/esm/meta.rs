@@ -49,12 +49,20 @@ impl CodeGenerateable for ImportMetaBinding {
                         as Expr
                 )
             },
-            |path| format!("file://{}", encode_path(path)).into(),
+            |path| {
+                let formatted = encode_path(path).trim_start_matches("/ROOT/").to_string();
+                quote!(
+                    "`file://${__turbopack_resolve_absolute_path__($formatted)}`" as Expr,
+                    formatted: Expr = formatted.into()
+                )
+            },
         );
 
         let visitor = create_visitor!(visit_mut_program(program: &mut Program) {
+            // [NOTE] url property is lazy-evaluated, as it should be computed once turbopack_runtime injects a function
+            // to calculate an absolute path.
             let meta = quote!(
-                "const $name = { url: $path };" as Stmt,
+                "const $name = { get url() { return $path } };" as Stmt,
                 name = meta_ident(),
                 path: Expr = path.clone(),
             );
