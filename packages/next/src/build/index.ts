@@ -1321,11 +1321,11 @@ export default async function build(
         incrementalCacheIpcValidationKey = cacheInitialization.ipcValidationKey
       }
 
-      let pagesStaticWorkers = createStaticWorker(
+      const pagesStaticWorkers = createStaticWorker(
         incrementalCacheIpcPort,
         incrementalCacheIpcValidationKey
       )
-      let appStaticWorkers = appDir
+      const appStaticWorkers = appDir
         ? createStaticWorker(
             incrementalCacheIpcPort,
             incrementalCacheIpcValidationKey
