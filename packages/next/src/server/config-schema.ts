@@ -532,5 +532,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     useFileSystemPublicRoutes: z.boolean().optional(),
     // The webpack config type is unknown, use z.any() here
     webpack: z.any().nullable().optional(),
+    staticWorkerRequestDeduping: z.boolean().optional(),
   })
 )

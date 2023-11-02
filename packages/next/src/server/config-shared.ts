@@ -334,6 +334,10 @@ export interface ExperimentalConfig {
    * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
    */
   bundlePagesExternals?: boolean
+  /**
+   * Uses an IPC server to dedupe build-time requests to the cache handler
+   */
+  staticWorkerRequestDeduping?: boolean
 }
 
 export type ExportPathMap = {
@@ -783,6 +787,7 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
+    staticWorkerRequestDeduping: false,
   },
 }
 
