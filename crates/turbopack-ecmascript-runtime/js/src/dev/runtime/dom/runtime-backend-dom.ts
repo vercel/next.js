@@ -52,6 +52,11 @@ async function loadWebAssemblyModule(
   return await WebAssembly.compileStreaming(req);
 }
 
+// [TODO] need to match behavior as similar to UrlAssetReference
+function resolveAbsolutePath(modulePath?: string) {
+  throw new Error('resolveAbsolutePath is not implemented in the DOM runtime');
+}
+
 (() => {
   BACKEND = {
     async registerChunk(chunkPath, params) {
