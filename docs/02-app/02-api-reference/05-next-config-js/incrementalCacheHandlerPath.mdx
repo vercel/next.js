@@ -9,6 +9,7 @@ In Next.js, the [default cache handler](/docs/app/building-your-application/data
 ```js filename="next.config.js"
 module.exports = {
   cacheHandler: require.resolve('./cache-handler.js'),
+  cacheMaxMemorySize: 0, // disable default in-memory caching
 }
 ```
 
