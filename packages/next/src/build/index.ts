@@ -81,6 +81,7 @@ import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
+
 import {
   eventBuildOptimize,
   eventCliSession,
@@ -155,6 +156,7 @@ import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
+import type { NextEnabledDirectories } from '../server/base-server'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -347,7 +349,6 @@ export default async function build(
   const isCompile = buildMode === 'experimental-compile'
   const isGenerate = buildMode === 'experimental-generate'
 
-  let hasAppDir = false
   try {
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: buildMode,
@@ -432,11 +433,14 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const isAppDirEnabled = true
       const { pagesDir, appDir } = findPagesDir(dir)
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
-      hasAppDir = Boolean(appDir)
+
+      const enabledDirectories: NextEnabledDirectories = {
+        app: typeof appDir === 'string',
+        pages: typeof pagesDir === 'string',
+      }
 
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
@@ -1292,8 +1296,9 @@ export default async function build(
       } = await initializeIncrementalCache({
         fs: nodeFs,
         dev: false,
-        appDir: isAppDirEnabled,
-        fetchCache: isAppDirEnabled,
+        pagesDir: true,
+        appDir: true,
+        fetchCache: true,
         flushToDisk: config.experimental.isrFlushToDisk,
         serverDistDir: path.join(distDir, 'server'),
         fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
@@ -1317,7 +1322,7 @@ export default async function build(
         incrementalCacheIpcPort,
         incrementalCacheIpcValidationKey
       )
-      const appStaticWorkers = isAppDirEnabled
+      const appStaticWorkers = appDir
         ? createStaticWorker(
             incrementalCacheIpcPort,
             incrementalCacheIpcValidationKey
@@ -2032,7 +2037,7 @@ export default async function build(
         (combinedPages.length > 0 ||
           useStaticPages404 ||
           useDefaultStatic500 ||
-          isAppDirEnabled)
+          appDir)
       ) {
         const staticGenerationSpan =
           nextBuildSpan.traceChild('static-generation')
@@ -2172,7 +2177,7 @@ export default async function build(
 
           const exportOptions: ExportAppOptions = {
             nextConfig: exportConfig,
-            hasAppDir,
+            enabledDirectories,
             silent: false,
             buildExport: true,
             debugOutput,
@@ -2870,7 +2875,7 @@ export default async function build(
         const options: ExportAppOptions = {
           buildExport: false,
           nextConfig: config,
-          hasAppDir,
+          enabledDirectories,
           silent: true,
           threads: config.experimental.cpus,
           outdir: path.join(dir, configOutDir),

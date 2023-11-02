@@ -1,7 +1,6 @@
-import path from 'path'
 import stripAnsi from 'strip-ansi'
 import { check } from 'next-test-utils'
-import { createNextDescribe, FileRef } from 'e2e-utils'
+import { createNextDescribe } from 'e2e-utils'
 
 function parseLogsFromCli(cliOutput: string) {
   const logs = stripAnsi(cliOutput)
@@ -37,22 +36,14 @@ function parseLogsFromCli(cliOutput: string) {
 }
 
 createNextDescribe(
-  'app-dir - data fetching with cache logging',
+  'app-dir - logging',
   {
     skipDeployment: true,
-    files: {
-      'app/layout.js': new FileRef(path.join(__dirname, 'app/layout.js')),
-      'app/default-cache/page.js': new FileRef(
-        path.join(__dirname, 'app/default-cache/page.js')
-      ),
-      'next.config.js': `module.exports = {
-          logging: { fetches: { fullUrl: true } }
-        }`,
-    },
+    files: __dirname,
   },
   ({ next, isNextDev }) => {
-    function runTests({ hasLogging }: { hasLogging: boolean }) {
-      if (hasLogging) {
+    function runTests({ withFetchesLogging }: { withFetchesLogging: boolean }) {
+      if (withFetchesLogging) {
         it('should only log requests in dev mode', async () => {
           const outputIndex = next.cliOutput.length
           await next.fetch('/default-cache')
@@ -143,10 +134,40 @@ createNextDescribe(
           }, 'success')
         })
       }
+
+      if (isNextDev) {
+        it('should not contain trailing word page for app router routes', async () => {
+          const logLength = next.cliOutput.length
+          await next.fetch('/')
+
+          await check(() => {
+            const output = stripAnsi(next.cliOutput.slice(logLength))
+            expect(output).toContain('/')
+            expect(output).not.toContain('/page')
+
+            return 'success'
+          }, /success/)
+        })
+
+        it('should not contain metadata internal segments for dynamic metadata routes', async () => {
+          const logLength = next.cliOutput.length
+          await next.fetch('/dynamic/big/icon')
+
+          await check(() => {
+            const output = stripAnsi(next.cliOutput.slice(logLength))
+            expect(output).toContain('/dynamic/[slug]/icon')
+            expect(output).not.toContain('/(group)')
+            expect(output).not.toContain('[[...__metadata_id__]]')
+            expect(output).not.toContain('/route')
+
+            return 'success'
+          }, /success/)
+        })
+      }
     }
 
     describe('with verbose logging', () => {
-      runTests({ hasLogging: true })
+      runTests({ withFetchesLogging: true })
     })
 
     describe('with verbose logging for edge runtime', () => {
@@ -160,7 +181,7 @@ createNextDescribe(
         await next.start()
       })
 
-      runTests({ hasLogging: false })
+      runTests({ withFetchesLogging: false })
     })
 
     describe('with default logging', () => {
@@ -170,7 +191,7 @@ createNextDescribe(
         await next.start()
       })
 
-      runTests({ hasLogging: false })
+      runTests({ withFetchesLogging: false })
     })
   }
 )
