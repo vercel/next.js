@@ -367,6 +367,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         serverSourceMaps: z.boolean().optional(),
         bundlePagesExternals: z.boolean().optional(),
         staticWorkerRequestDeduping: z.boolean().optional(),
+        useWasmBinary: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z
