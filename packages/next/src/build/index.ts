@@ -1218,8 +1218,8 @@ export default async function build(
         : config.experimental.cpus || 4
 
       function createStaticWorker(
-        incrementalCacheIpcPort: number,
-        incrementalCacheIpcValidationKey: string
+        incrementalCacheIpcPort?: number,
+        incrementalCacheIpcValidationKey?: string
       ) {
         let infoPrinted = false
 
@@ -1259,7 +1259,9 @@ export default async function build(
           forkOptions: {
             env: {
               ...process.env,
-              __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort + '',
+              __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort
+                ? incrementalCacheIpcPort + ''
+                : undefined,
               __NEXT_INCREMENTAL_CACHE_IPC_KEY:
                 incrementalCacheIpcValidationKey,
             },
@@ -1281,42 +1283,45 @@ export default async function build(
           >
       }
 
-      let CacheHandler: any
+      let incrementalCacheIpcPort
+      let incrementalCacheIpcValidationKey
 
-      if (incrementalCacheHandlerPath) {
-        CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
-          ? incrementalCacheHandlerPath
-          : path.join(dir, incrementalCacheHandlerPath))
-        CacheHandler = CacheHandler.default || CacheHandler
+      if (config.experimental.staticWorkerRequestDeduping) {
+        let CacheHandler
+        if (incrementalCacheHandlerPath) {
+          CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
+            ? incrementalCacheHandlerPath
+            : path.join(dir, incrementalCacheHandlerPath))
+          CacheHandler = CacheHandler.default || CacheHandler
+        }
+
+        const cacheInitialization = await initializeIncrementalCache({
+          fs: nodeFs,
+          dev: false,
+          pagesDir: true,
+          appDir: true,
+          fetchCache: true,
+          flushToDisk: config.experimental.isrFlushToDisk,
+          serverDistDir: path.join(distDir, 'server'),
+          fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+          maxMemoryCacheSize: config.experimental.isrMemoryCacheSize,
+          getPrerenderManifest: () => ({
+            version: -1 as any, // letting us know this doesn't conform to spec
+            routes: {},
+            dynamicRoutes: {},
+            notFoundRoutes: [],
+            preview: null as any, // `preview` is special case read in next-dev-server
+          }),
+          requestHeaders: {},
+          CurCacheHandler: CacheHandler,
+          minimalMode: ciEnvironment.hasNextSupport,
+          allowedRevalidateHeaderKeys:
+            config.experimental.allowedRevalidateHeaderKeys,
+        })
+
+        incrementalCacheIpcPort = cacheInitialization.ipcPort
+        incrementalCacheIpcValidationKey = cacheInitialization.ipcValidationKey
       }
-
-      const {
-        ipcPort: incrementalCacheIpcPort,
-        ipcValidationKey: incrementalCacheIpcValidationKey,
-      } = await initializeIncrementalCache({
-        fs: nodeFs,
-        dev: false,
-        pagesDir: true,
-        appDir: true,
-        fetchCache: true,
-        flushToDisk: config.experimental.isrFlushToDisk,
-        serverDistDir: path.join(distDir, 'server'),
-        fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-        maxMemoryCacheSize: config.experimental.isrMemoryCacheSize,
-        getPrerenderManifest: () => ({
-          version: -1 as any, // letting us know this doesn't conform to spec
-          routes: {},
-          dynamicRoutes: {},
-          notFoundRoutes: [],
-          preview: null as any, // `preview` is special case read in next-dev-server
-        }),
-        requestHeaders: {},
-        CurCacheHandler: CacheHandler,
-        minimalMode: ciEnvironment.hasNextSupport,
-
-        allowedRevalidateHeaderKeys:
-          config.experimental.allowedRevalidateHeaderKeys,
-      })
 
       const pagesStaticWorkers = createStaticWorker(
         incrementalCacheIpcPort,
