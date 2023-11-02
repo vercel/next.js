@@ -13,6 +13,7 @@ import type { OpenGraph } from './types/opengraph-types'
 import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
+import type { AbsoluteTemplateString } from './types/metadata-types'
 import {
   createDefaultMetadata,
   createDefaultViewport,
@@ -517,19 +518,46 @@ export async function resolveMetadataItems({
   return metadataItems
 }
 
+type WithTitle = { title?: AbsoluteTemplateString | null }
+type WithDescription = { description?: string | null }
+
+const hasTitle = (metadata: WithTitle | null) => !!metadata?.title?.absolute
+
+function inheritFromMetadata(
+  metadata: ResolvedMetadata,
+  target: (WithTitle & WithDescription) | null
+) {
+  if (target) {
+    if (!hasTitle(target) && hasTitle(metadata)) {
+      target.title = metadata.title
+    }
+    if (!target.description && metadata.description) {
+      target.description = metadata.description
+    }
+  }
+}
+
 const commonOgKeys = ['title', 'description', 'images'] as const
 function postProcessMetadata(
   metadata: ResolvedMetadata,
   titleTemplates: TitleTemplates
 ): ResolvedMetadata {
   const { openGraph, twitter } = metadata
+
+  // If there's no title and description configured in openGraph or twitter,
+  // use the title and description from metadata.
+  inheritFromMetadata(metadata, openGraph)
+  inheritFromMetadata(metadata, twitter)
+
   if (openGraph) {
+    // If there's openGraph information but not configured in twitter,
+    // inherit them from openGraph metadata.
     let autoFillProps: Partial<{
       [Key in (typeof commonOgKeys)[number]]: NonNullable<
         ResolvedMetadata['openGraph']
       >[Key]
     }> = {}
-    const hasTwTitle = twitter?.title.absolute
+    const hasTwTitle = hasTitle(twitter)
     const hasTwDescription = twitter?.description
     const hasTwImages = Boolean(
       twitter?.hasOwnProperty('images') && twitter.images

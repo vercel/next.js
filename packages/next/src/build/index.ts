@@ -81,6 +81,7 @@ import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
+
 import {
   eventBuildOptimize,
   eventCliSession,
@@ -155,6 +156,7 @@ import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
+import type { NextEnabledDirectories } from '../server/base-server'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -347,9 +349,10 @@ export default async function build(
   const isCompile = buildMode === 'experimental-compile'
   const isGenerate = buildMode === 'experimental-generate'
 
-  let hasAppDir = false
   try {
     const nextBuildSpan = trace('next-build', undefined, {
+      buildMode: buildMode,
+      isTurboBuild: String(turboNextBuild),
       version: process.env.__NEXT_VERSION as string,
     })
 
@@ -430,11 +433,14 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const isAppDirEnabled = true
       const { pagesDir, appDir } = findPagesDir(dir)
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
-      hasAppDir = Boolean(appDir)
+
+      const enabledDirectories: NextEnabledDirectories = {
+        app: typeof appDir === 'string',
+        pages: typeof pagesDir === 'string',
+      }
 
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
@@ -1059,30 +1065,16 @@ export default async function build(
         })
 
         const [duration] = process.hrtime(turboNextBuildStart)
-        return { duration, buildTraceContext: undefined }
+        return { duration, buildTraceContext: null }
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
-      // if the option is set, we respect it, otherwise we check if the user
-      // has a custom webpack config and disable the build worker by default.
-      const useBuildWorker =
-        config.experimental.webpackBuildWorker || !config.webpack
-
-      if (
-        config.webpack &&
-        config.experimental.webpackBuildWorker === undefined
-      ) {
-        Log.warn(
-          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
-        )
-      }
-
       if (!isGenerate) {
-        if (isCompile && useBuildWorker) {
+        if (isCompile && config.experimental.webpackBuildWorker) {
           let durationInSeconds = 0
 
-          await webpackBuild(true, ['server']).then((res) => {
+          await webpackBuild(['server']).then((res) => {
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
             const buildTraceWorker = new Worker(
@@ -1111,11 +1103,11 @@ export default async function build(
               })
           })
 
-          await webpackBuild(true, ['edge-server']).then((res) => {
+          await webpackBuild(['edge-server']).then((res) => {
             durationInSeconds += res.duration
           })
 
-          await webpackBuild(true, ['client']).then((res) => {
+          await webpackBuild(['client']).then((res) => {
             durationInSeconds += res.duration
           })
 
@@ -1131,7 +1123,7 @@ export default async function build(
         } else {
           const { duration: webpackBuildDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
-            : await webpackBuild(false)
+            : await webpackBuild()
 
           buildTraceContext = rest.buildTraceContext
 
@@ -1304,8 +1296,9 @@ export default async function build(
       } = await initializeIncrementalCache({
         fs: nodeFs,
         dev: false,
-        appDir: isAppDirEnabled,
-        fetchCache: isAppDirEnabled,
+        pagesDir: true,
+        appDir: true,
+        fetchCache: true,
         flushToDisk: config.experimental.isrFlushToDisk,
         serverDistDir: path.join(distDir, 'server'),
         fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
@@ -1329,7 +1322,7 @@ export default async function build(
         incrementalCacheIpcPort,
         incrementalCacheIpcValidationKey
       )
-      const appStaticWorkers = isAppDirEnabled
+      const appStaticWorkers = appDir
         ? createStaticWorker(
             incrementalCacheIpcPort,
             incrementalCacheIpcValidationKey
@@ -1380,6 +1373,7 @@ export default async function build(
           async () =>
             hasCustomErrorPage &&
             pagesStaticWorkers.isPageStatic({
+              dir,
               page: '/_error',
               distDir,
               configFileName,
@@ -1579,6 +1573,7 @@ export default async function build(
                               ? appStaticWorkers
                               : pagesStaticWorkers
                           )!.isPageStatic({
+                            dir,
                             page,
                             originalAppPath,
                             distDir,
@@ -2042,7 +2037,7 @@ export default async function build(
         (combinedPages.length > 0 ||
           useStaticPages404 ||
           useDefaultStatic500 ||
-          isAppDirEnabled)
+          appDir)
       ) {
         const staticGenerationSpan =
           nextBuildSpan.traceChild('static-generation')
@@ -2182,7 +2177,7 @@ export default async function build(
 
           const exportOptions: ExportAppOptions = {
             nextConfig: exportConfig,
-            hasAppDir,
+            enabledDirectories,
             silent: false,
             buildExport: true,
             debugOutput,
@@ -2880,7 +2875,7 @@ export default async function build(
         const options: ExportAppOptions = {
           buildExport: false,
           nextConfig: config,
-          hasAppDir,
+          enabledDirectories,
           silent: true,
           threads: config.experimental.cpus,
           outdir: path.join(dir, configOutDir),

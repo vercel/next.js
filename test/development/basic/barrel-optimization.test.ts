@@ -61,7 +61,7 @@ describe('optimizePackageImports', () => {
 
     const modules = [
       ...logs.matchAll(
-        /Compiled (\/[\w-]+)*\s*in \d+(\.\d+)?(s|ms) \((\d+) modules\)/g
+        /Compiled (\/[\w-]*)*\s*in \d+(\.\d+)?(s|ms) \((\d+) modules\)/g
       ),
     ]
 

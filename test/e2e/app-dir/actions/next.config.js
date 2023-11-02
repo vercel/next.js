@@ -4,4 +4,9 @@ module.exports = {
   logging: {
     fetches: {},
   },
+  experimental: {
+    serverActions: {
+      allowedForwardedHosts: ['safe.com'],
+    },
+  },
 }
