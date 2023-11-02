@@ -1281,11 +1281,11 @@ export default async function build(
           >
       }
 
-      let CacheHandler
       let incrementalCacheIpcPort
       let incrementalCacheIpcValidationKey
 
       if (config.experimental.staticWorkerRequestDeduping) {
+        let CacheHandler
         if (incrementalCacheHandlerPath) {
           CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
             ? incrementalCacheHandlerPath
