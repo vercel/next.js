@@ -69,8 +69,8 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
-import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module.compiled'
 import { RouteKind } from '../server/future/route-kind'
+import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -680,7 +680,11 @@ export async function printTreeView(
   print(
     textTable(
       [
-        usedSymbols.has('○') && ['○', '(Static)', 'prerendered as static HTML'],
+        usedSymbols.has('○') && [
+          '○',
+          '(Static)',
+          'prerendered as static content',
+        ],
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
@@ -1216,6 +1220,7 @@ export const collectGenerateParams = async (
 }
 
 export async function buildAppStaticPaths({
+  dir,
   page,
   distDir,
   configFileName,
@@ -1229,6 +1234,7 @@ export async function buildAppStaticPaths({
   serverHooks,
   ppr,
 }: {
+  dir: string
   page: string
   configFileName: string
   generateParams: GenerateParams
@@ -1252,13 +1258,17 @@ export async function buildAppStaticPaths({
   let CacheHandler: any
 
   if (incrementalCacheHandlerPath) {
-    CacheHandler = require(incrementalCacheHandlerPath)
+    CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
+      ? incrementalCacheHandlerPath
+      : path.join(dir, incrementalCacheHandlerPath))
     CacheHandler = CacheHandler.default || CacheHandler
   }
 
   const incrementalCache = new IncrementalCache({
     fs: nodeFs,
     dev: true,
+    // Enabled both for build as we're only writing this cache, not reading it.
+    pagesDir: true,
     appDir: true,
     flushToDisk: isrFlushToDisk,
     serverDistDir: path.join(distDir, 'server'),
@@ -1379,6 +1389,7 @@ export async function buildAppStaticPaths({
 }
 
 export async function isPageStatic({
+  dir,
   page,
   distDir,
   configFileName,
@@ -1396,6 +1407,7 @@ export async function isPageStatic({
   incrementalCacheHandlerPath,
   ppr,
 }: {
+  dir: string
   page: string
   distDir: string
   configFileName: string
@@ -1496,7 +1508,7 @@ export async function isPageStatic({
         const { tree, staticGenerationAsyncStorage, serverHooks } = ComponentMod
 
         const generateParams: GenerateParams =
-          routeModule && AppRouteRouteModule.is(routeModule)
+          routeModule && isAppRouteRouteModule(routeModule)
             ? [
                 {
                   config: {
@@ -1565,6 +1577,7 @@ export async function isPageStatic({
             fallback: prerenderFallback,
             encodedPaths: encodedPrerenderRoutes,
           } = await buildAppStaticPaths({
+            dir,
             page,
             serverHooks,
             staticGenerationAsyncStorage,
