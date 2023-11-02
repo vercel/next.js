@@ -165,12 +165,7 @@ export class TerserPlugin {
                         },
                       }
                     : {}),
-                  compress: {
-                    // Identical as the option we pass to terser
-                    // The following two options are known to break valid JavaScript code
-                    comparisons: false,
-                    inline: 2, // https://github.com/vercel/next.js/issues/7178#issuecomment-493048965
-                  },
+                  compress: true,
                   mangle: true,
                 }
               )
