@@ -117,6 +117,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     analyticsId: z.string().optional(),
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
+    cacheHandler: z.string().optional(),
+    cacheMaxMemorySize: z.number().optional(),
     cleanDistDir: z.boolean().optional(),
     compiler: z
       .strictObject({
@@ -267,9 +269,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
-        incrementalCacheHandlerPath: z.string().optional(),
         isrFlushToDisk: z.boolean().optional(),
-        isrMemoryCacheSize: z.number().optional(),
         largePageDataBytes: z.number().optional(),
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),

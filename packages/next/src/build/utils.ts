@@ -1226,7 +1226,7 @@ export async function buildAppStaticPaths({
   configFileName,
   generateParams,
   isrFlushToDisk,
-  incrementalCacheHandlerPath,
+  cacheHandler,
   requestHeaders,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
@@ -1238,7 +1238,7 @@ export async function buildAppStaticPaths({
   page: string
   configFileName: string
   generateParams: GenerateParams
-  incrementalCacheHandlerPath?: string
+  cacheHandler?: string
   distDir: string
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
@@ -1257,10 +1257,10 @@ export async function buildAppStaticPaths({
 
   let CacheHandler: any
 
-  if (incrementalCacheHandlerPath) {
-    CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
-      ? incrementalCacheHandlerPath
-      : path.join(dir, incrementalCacheHandlerPath))
+  if (cacheHandler) {
+    CacheHandler = require(path.isAbsolute(cacheHandler)
+      ? cacheHandler
+      : path.join(dir, cacheHandler))
     CacheHandler = CacheHandler.default || CacheHandler
   }
 
@@ -1404,7 +1404,7 @@ export async function isPageStatic({
   originalAppPath,
   isrFlushToDisk,
   maxMemoryCacheSize,
-  incrementalCacheHandlerPath,
+  cacheHandler,
   ppr,
 }: {
   dir: string
@@ -1422,7 +1422,7 @@ export async function isPageStatic({
   originalAppPath?: string
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
-  incrementalCacheHandlerPath?: string
+  cacheHandler?: string
   nextConfigOutput: 'standalone' | 'export'
   ppr: boolean
 }): Promise<{
@@ -1587,7 +1587,7 @@ export async function isPageStatic({
             requestHeaders: {},
             isrFlushToDisk,
             maxMemoryCacheSize,
-            incrementalCacheHandlerPath,
+            cacheHandler,
             ppr,
           }))
         }

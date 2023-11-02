@@ -6,8 +6,8 @@ import { hasNextSupport } from '../../telemetry/ci-info'
 import { nodeFs } from '../../server/lib/node-fs-methods'
 
 export function createIncrementalCache(
-  incrementalCacheHandlerPath: string | undefined,
-  isrMemoryCacheSize: number | undefined,
+  cacheHandler: string | undefined,
+  cacheMaxMemorySize: number | undefined,
   fetchCacheKeyPrefix: string | undefined,
   distDir: string,
   dir: string,
@@ -15,10 +15,10 @@ export function createIncrementalCache(
 ) {
   // Custom cache handler overrides.
   let CacheHandler: any
-  if (incrementalCacheHandlerPath) {
-    CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
-      ? incrementalCacheHandlerPath
-      : path.join(dir, incrementalCacheHandlerPath))
+  if (cacheHandler) {
+    CacheHandler = require(path.isAbsolute(cacheHandler)
+      ? cacheHandler
+      : path.join(dir, cacheHandler))
     CacheHandler = CacheHandler.default || CacheHandler
   }
 
@@ -27,7 +27,7 @@ export function createIncrementalCache(
     requestHeaders: {},
     flushToDisk: true,
     fetchCache: true,
-    maxMemoryCacheSize: isrMemoryCacheSize,
+    maxMemoryCacheSize: cacheMaxMemorySize,
     fetchCacheKeyPrefix,
     getPrerenderManifest: () => ({
       version: 4,

@@ -58,10 +58,10 @@ async function exportPageImpl(
     optimizeCss,
     disableOptimizedLoading,
     debugOutput = false,
-    isrMemoryCacheSize,
+    cacheMaxMemorySize,
     fetchCache,
     fetchCacheKeyPrefix,
-    incrementalCacheHandlerPath,
+    cacheHandler,
     enableExperimentalReact,
     ampValidatorPath,
     trailingSlash,
@@ -219,8 +219,8 @@ async function exportPageImpl(
     const incrementalCache =
       isAppDir && fetchCache
         ? createIncrementalCache(
-            incrementalCacheHandlerPath,
-            isrMemoryCacheSize,
+            cacheHandler,
+            cacheMaxMemorySize,
             fetchCacheKeyPrefix,
             distDir,
             dir,

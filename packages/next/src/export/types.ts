@@ -53,9 +53,9 @@ export interface ExportPageInput {
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   debugOutput?: boolean
-  isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
+  cacheMaxMemorySize?: NextConfigComplete['cacheMaxMemorySize']
   fetchCache?: boolean
-  incrementalCacheHandlerPath?: string
+  cacheHandler?: string
   fetchCacheKeyPrefix?: string
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean

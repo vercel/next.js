@@ -3,9 +3,7 @@ module.exports = {
   logging: {
     fetches: {},
   },
-  experimental: {
-    incrementalCacheHandlerPath: process.env.CUSTOM_CACHE_HANDLER,
-  },
+  cacheHandler: process.env.CUSTOM_CACHE_HANDLER,
 
   rewrites: async () => {
     return {

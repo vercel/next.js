@@ -23,7 +23,7 @@ export type EdgeSSRLoaderQuery = {
   appDirLoader?: string
   pagesType: 'app' | 'pages' | 'root'
   sriEnabled: boolean
-  incrementalCacheHandlerPath?: string
+  cacheHandler?: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: string
   serverActions?: {
@@ -75,7 +75,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       appDirLoader: appDirLoaderBase64,
       pagesType,
       sriEnabled,
-      incrementalCacheHandlerPath,
+      cacheHandler,
       preferredRegion,
       middlewareConfig: middlewareConfigBase64,
       serverActions,
@@ -157,7 +157,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
               : JSON.stringify(serverActions),
         },
         {
-          incrementalCacheHandler: incrementalCacheHandlerPath ?? null,
+          incrementalCacheHandler: cacheHandler ?? null,
         }
       )
     } else {
@@ -186,7 +186,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         },
         {
           userland500Page: userland500Path,
-          incrementalCacheHandler: incrementalCacheHandlerPath ?? null,
+          incrementalCacheHandler: cacheHandler ?? null,
         }
       )
     }

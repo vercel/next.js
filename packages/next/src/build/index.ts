@@ -934,7 +934,7 @@ export default async function build(
 
       const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
 
-      const { incrementalCacheHandlerPath } = config.experimental
+      const { cacheHandler } = config
 
       const requiredServerFiles = nextBuildSpan
         .traceChild('generate-required-server-files')
@@ -951,8 +951,8 @@ export default async function build(
             experimental: {
               ...config.experimental,
               trustHostHeader: ciEnvironment.hasNextSupport,
-              incrementalCacheHandlerPath: incrementalCacheHandlerPath
-                ? path.relative(distDir, incrementalCacheHandlerPath)
+              cacheHandler: cacheHandler
+                ? path.relative(distDir, cacheHandler)
                 : undefined,
 
               isExperimentalCompile: isCompile,
@@ -1283,10 +1283,10 @@ export default async function build(
 
       let CacheHandler: any
 
-      if (incrementalCacheHandlerPath) {
-        CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
-          ? incrementalCacheHandlerPath
-          : path.join(dir, incrementalCacheHandlerPath))
+      if (cacheHandler) {
+        CacheHandler = require(path.isAbsolute(cacheHandler)
+          ? cacheHandler
+          : path.join(dir, cacheHandler))
         CacheHandler = CacheHandler.default || CacheHandler
       }
 
@@ -1302,7 +1302,7 @@ export default async function build(
         flushToDisk: config.experimental.isrFlushToDisk,
         serverDistDir: path.join(distDir, 'server'),
         fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-        maxMemoryCacheSize: config.experimental.isrMemoryCacheSize,
+        maxMemoryCacheSize: config.cacheMaxMemorySize,
         getPrerenderManifest: () => ({
           version: -1 as any, // letting us know this doesn't conform to spec
           routes: {},
@@ -1586,11 +1586,9 @@ export default async function build(
                             pageRuntime,
                             edgeInfo,
                             pageType,
-                            incrementalCacheHandlerPath:
-                              config.experimental.incrementalCacheHandlerPath,
+                            cacheHandler: config.cacheHandler,
                             isrFlushToDisk: config.experimental.isrFlushToDisk,
-                            maxMemoryCacheSize:
-                              config.experimental.isrMemoryCacheSize,
+                            maxMemoryCacheSize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             ppr: config.experimental.ppr === true,
                           })

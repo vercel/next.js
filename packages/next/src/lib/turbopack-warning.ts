@@ -41,6 +41,8 @@ const supportedTurbopackNextConfigOptions = [
   'amp',
   'devIndicators',
   'analyticsId',
+  'cacheHandler',
+  'cacheMaxMemorySize',
 
   // Options that are ignored as they don't affect Turbopack
   'webpack',
@@ -84,10 +86,8 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.clientRouterFilterRedirects',
   'experimental.webpackBuildWorker',
   'experimental.appDocumentPreloading',
-  'experimental.incrementalCacheHandlerPath',
   'experimental.amp',
   'experimental.disableOptimizedLoading',
-  'experimental.isrMemoryCacheSize',
   'experimental.largePageDataBytes',
   'experimental.gzipSize',
   'experimental.trustHostHeader',
