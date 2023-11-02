@@ -1259,7 +1259,9 @@ export default async function build(
           forkOptions: {
             env: {
               ...process.env,
-              __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort + '',
+              __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort
+                ? incrementalCacheIpcPort + ''
+                : undefined,
               __NEXT_INCREMENTAL_CACHE_IPC_KEY:
                 incrementalCacheIpcValidationKey,
             },
