@@ -134,6 +134,17 @@ const API_DOCS: Record<
     description: 'Next.js Metadata configurations',
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/metadata',
   },
+  maxDuration: {
+    description:
+      'The `maxDuration` option allows you to opt into a higher execution time based on your deployment platform. Note that this settings requires Next.js 13.4.10 or higher.',
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#maxduration',
+    isValid: (value: string) => {
+      return Number(value.replace(/_/g, '')) > 0
+    },
+    getHint: (value: any) => {
+      return `Set the default maxDuration time to \`${value}\` seconds.`
+    },
+  },
 }
 
 function visitEntryConfig(
