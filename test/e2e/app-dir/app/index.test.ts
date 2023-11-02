@@ -12,8 +12,21 @@ createNextDescribe(
     buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
       ? 'pnpm next experimental-compile'
       : undefined,
+    dependencies: {
+      nanoid: '4.0.1',
+    },
   },
-  ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+  ({ next, isNextDev: isDev, isNextStart, isNextDeploy, isTurbopack }) => {
+    if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
+      it('should provide query for getStaticProps page correctly', async () => {
+        const res = await next.fetch('/ssg?hello=world')
+        expect(res.status).toBe(200)
+
+        const $ = cheerio.load(await res.text())
+        expect(JSON.parse($('#query').text())).toEqual({ hello: 'world' })
+      })
+    }
+
     if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
       it('should not have loader generated function for edge runtime', async () => {
         expect(
@@ -182,10 +195,13 @@ createNextDescribe(
       await check(async () => {
         return requests.some(
           (req) =>
-            req.includes(encodeURI('/[category]/[id]')) && req.endsWith('.js')
+            req.includes(
+              encodeURI(isTurbopack ? '[category]_[id]' : '/[category]/[id]')
+            ) && req.endsWith('.js')
         )
           ? 'found'
-          : JSON.stringify(requests)
+          : // When it fails will log out the paths.
+            JSON.stringify(requests)
       }, 'found')
     })
 
@@ -1811,7 +1827,10 @@ createNextDescribe(
         expect($('body').find('script[async]').length).toBe(1)
       })
 
-      if (!isDev) {
+      // Turbopack doesn't use eval by default, so we can check strict CSP.
+      if (!isDev || isTurbopack) {
+        // This test is here to ensure that we don't accidentally turn CSP off
+        // for the prod version.
         it('should successfully bootstrap even when using CSP', async () => {
           // This path has a nonce applied in middleware
           const browser = await next.browser('/bootstrap/with-nonce')
@@ -1828,19 +1847,18 @@ createNextDescribe(
         })
       } else {
         it('should fail to bootstrap when using CSP in Dev due to eval', async () => {
-          // This test is here to ensure that we don't accidentally turn CSP off
-          // for the prod version.
           const browser = await next.browser('/bootstrap/with-nonce')
-          const response = await next.fetch('/bootstrap/with-nonce')
-          // We expect this page to response with CSP headers requiring a nonce for scripts
-          expect(response.headers.get('content-security-policy')).toContain(
-            "script-src 'nonce"
-          )
           // We expect our app to fail to bootstrap due to invalid eval use in Dev.
           // We assert the html is in it's SSR'd state.
           expect(
             await browser.eval('document.getElementById("val").textContent')
           ).toBe('initial')
+
+          const response = await next.fetch('/bootstrap/with-nonce')
+          // We expect this page to response with CSP headers requiring a nonce for scripts
+          expect(response.headers.get('content-security-policy')).toContain(
+            "script-src 'nonce"
+          )
         })
       }
     })

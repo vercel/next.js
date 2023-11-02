@@ -417,12 +417,11 @@ export function getEdgeServerEntry(opts: {
     middlewareConfig: Buffer.from(
       JSON.stringify(opts.middlewareConfig || {})
     ).toString('base64'),
-    serverActionsBodySizeLimit:
-      opts.config.experimental.serverActionsBodySizeLimit,
+    serverActions: opts.config.experimental.serverActions,
   }
 
   return {
-    import: `next-edge-ssr-loader?${stringify(loaderParams)}!`,
+    import: `next-edge-ssr-loader?${JSON.stringify(loaderParams)}!`,
     // The Edge bundle includes the server in its entrypoint, so it has to
     // be in the SSR layer — we later convert the page request to the RSC layer
     // via a webpack rule.
@@ -591,6 +590,7 @@ export async function createEntrypoints(
         page,
       })
 
+      // TODO(timneutkens): remove this
       const isServerComponent =
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 

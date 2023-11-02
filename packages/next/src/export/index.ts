@@ -3,7 +3,6 @@ import type {
   ExportAppOptions,
   ExportWorker,
   WorkerRenderOptsPartial,
-  ExportPageInput,
 } from './types'
 import type { PrerenderManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -174,32 +173,29 @@ function setupWorkers(
 
   let infoPrinted = false
 
-  const worker = Worker.create<typeof import('./worker'), [ExportPageInput]>(
-    require.resolve('./worker'),
-    {
-      timeout: timeout * 1000,
-      onRestart: (_method, [{ path }], attempts) => {
-        if (attempts >= 3) {
-          throw new ExportError(
-            `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
-          )
-        }
-        Log.warn(
-          `Restarted static page generation for ${path} because it took more than ${timeout} seconds`
+  const worker = new Worker(require.resolve('./worker'), {
+    timeout: timeout * 1000,
+    onRestart: (_method, [{ path }], attempts) => {
+      if (attempts >= 3) {
+        throw new ExportError(
+          `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
         )
-        if (!infoPrinted) {
-          Log.warn(
-            'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
-          )
-          infoPrinted = true
-        }
-      },
-      maxRetries: 0,
-      numWorkers: threads,
-      enableWorkerThreads: nextConfig.experimental.workerThreads,
-      exposedMethods: ['default'],
-    }
-  )
+      }
+      Log.warn(
+        `Restarted static page generation for ${path} because it took more than ${timeout} seconds`
+      )
+      if (!infoPrinted) {
+        Log.warn(
+          'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
+        )
+        infoPrinted = true
+      }
+    },
+    maxRetries: 0,
+    numWorkers: threads,
+    enableWorkerThreads: nextConfig.experimental.workerThreads,
+    exposedMethods: ['default'],
+  }) as Worker & typeof import('./worker')
 
   return {
     pages: worker.default,
@@ -219,6 +215,8 @@ export async function exportAppImpl(
   // attempt to load global env values so they are available in next.config.js
   span.traceChild('load-dotenv').traceFn(() => loadEnvConfig(dir, false, Log))
 
+  const { enabledDirectories } = options
+
   const nextConfig =
     options.nextConfig ||
     (await span
@@ -226,40 +224,6 @@ export async function exportAppImpl(
       .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
 
   const distDir = join(dir, nextConfig.distDir)
-  const isExportOutput = nextConfig.output === 'export'
-
-  // Running 'next export'
-  if (options.isInvokedFromCli) {
-    if (isExportOutput) {
-      if (options.hasOutdirFromCli) {
-        throw new ExportError(
-          '"next export -o <dir>" cannot be used when "output: export" is configured in next.config.js. Instead add "distDir" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-        )
-      }
-      Log.warn(
-        '"next export" is no longer needed when "output: export" is configured in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-      )
-      return null
-    }
-    if (existsSync(join(distDir, 'server', 'app'))) {
-      throw new ExportError(
-        '"next export" does not work with App Router. Please use "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-      )
-    }
-    Log.warn(
-      '"next export" is deprecated in favor of "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-    )
-  }
-
-  // Running 'next export' or output is set to 'export'
-  if (options.isInvokedFromCli || isExportOutput) {
-    if (nextConfig.experimental.serverActions) {
-      throw new ExportError(
-        `Server Actions are not supported with static export.`
-      )
-    }
-  }
-
   const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
   if (telemetry) {
@@ -481,6 +445,25 @@ export async function exportAppImpl(
     }
   }
 
+  let serverActionsManifest
+  if (enabledDirectories.app) {
+    serverActionsManifest = require(join(
+      distDir,
+      SERVER_DIRECTORY,
+      SERVER_REFERENCE_MANIFEST + '.json'
+    ))
+    if (nextConfig.output === 'export') {
+      if (
+        Object.keys(serverActionsManifest.node).length > 0 ||
+        Object.keys(serverActionsManifest.edge).length > 0
+      ) {
+        throw new ExportError(
+          `Server Actions are not supported with static export.`
+        )
+      }
+    }
+  }
+
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
     previewProps: prerenderManifest?.preview,
@@ -506,26 +489,22 @@ export async function exportAppImpl(
     nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
     optimizeFonts: nextConfig.optimizeFonts as FontConfig,
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
-    serverComponents: options.hasAppDir,
-    serverActionsBodySizeLimit:
-      nextConfig.experimental.serverActionsBodySizeLimit,
+    serverActions: nextConfig.experimental.serverActions,
+    serverComponents: enabledDirectories.app,
     nextFontManifest: require(join(
       distDir,
       'server',
       `${NEXT_FONT_MANIFEST}.json`
     )),
     images: nextConfig.images,
-    ...(options.hasAppDir
+    ...(enabledDirectories.app
       ? {
-          serverActionsManifest: require(join(
-            distDir,
-            SERVER_DIRECTORY,
-            SERVER_REFERENCE_MANIFEST + '.json'
-          )),
+          serverActionsManifest,
         }
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.experimental.deploymentId,
+    ppr: nextConfig.experimental.ppr === true,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -627,7 +606,7 @@ export async function exportAppImpl(
 
     // Warn if the user defines a path for an API page
     if (hasApiRoutes || hasMiddleware) {
-      if (!options.silent) {
+      if (nextConfig.output === 'export') {
         Log.warn(
           yellow(
             `Statically exporting a Next.js application via \`next export\` disables API routes and middleware.`
@@ -696,6 +675,7 @@ export async function exportAppImpl(
 
       const result = await pageExportSpan.traceAsyncFn(async () => {
         return await exportPage({
+          dir,
           path,
           pathMap,
           distDir,
@@ -720,6 +700,7 @@ export async function exportAppImpl(
           incrementalCacheHandlerPath:
             nextConfig.experimental.incrementalCacheHandlerPath,
           enableExperimentalReact: needsExperimentalReact(nextConfig),
+          enabledDirectories,
         })
       })
 
@@ -768,6 +749,15 @@ export async function exportAppImpl(
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata
       }
+
+      if (typeof result.hasEmptyPrelude !== 'undefined') {
+        info.hasEmptyPrelude = result.hasEmptyPrelude
+      }
+
+      if (typeof result.hasPostponed !== 'undefined') {
+        info.hasPostponed = result.hasPostponed
+      }
+
       collector.byPath.set(path, info)
 
       // Update not found.

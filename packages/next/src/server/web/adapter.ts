@@ -10,12 +10,8 @@ import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
-import { normalizeRscPath } from '../../shared/lib/router/utils/app-paths'
-import {
-  NEXT_ROUTER_PREFETCH,
-  NEXT_ROUTER_STATE_TREE,
-  RSC,
-} from '../../client/components/app-router-headers'
+import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
+import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
 import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import { ensureInstrumentationRegistered } from './globals'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
@@ -47,12 +43,6 @@ class NextRequestHint extends NextRequest {
   }
 }
 
-const FLIGHT_PARAMETERS = [
-  [RSC],
-  [NEXT_ROUTER_STATE_TREE],
-  [NEXT_ROUTER_PREFETCH],
-] as const
-
 export type AdapterOptions = {
   handler: NextMiddleware
   page: string
@@ -72,7 +62,7 @@ export async function adapter(
       ? JSON.parse(self.__PRERENDER_MANIFEST)
       : undefined
 
-  params.request.url = normalizeRscPath(params.request.url, true)
+  params.request.url = normalizeRscURL(params.request.url)
 
   const requestUrl = new NextURL(params.request.url, {
     headers: params.request.headers,

@@ -34,7 +34,6 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         core::{
             changed::content_changed,
-            chunk::ChunkingContext,
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             diagnostics::DiagnosticExt,
@@ -255,6 +254,15 @@ impl ProjectContainer {
     pub fn hmr_identifiers(self: Vc<Self>) -> Vc<Vec<String>> {
         self.project().hmr_identifiers()
     }
+
+    #[turbo_tasks::function]
+    pub async fn get_versioned_content(
+        self: Vc<Self>,
+        file_path: Vc<FileSystemPath>,
+    ) -> Result<Vc<Box<dyn VersionedContent>>> {
+        let this = self.await?;
+        Ok(this.versioned_content_map.get(file_path))
+    }
 }
 
 #[turbo_tasks::value]
@@ -267,7 +275,7 @@ pub struct Project {
     dist_dir: String,
 
     /// A path inside the root_path which contains the app/pages directories.
-    project_path: String,
+    pub project_path: String,
 
     /// Whether to watch the filesystem for file changes.
     watch: bool,
@@ -361,7 +369,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn node_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    pub async fn node_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone());
         disk_fs.await?.start_watching_with_invalidation_reason()?;
@@ -374,13 +382,18 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+    pub async fn dist_dir(self: Vc<Self>) -> Result<Vc<String>> {
+        Ok(Vc::cell(self.await?.dist_dir.to_string()))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         Ok(self.node_fs().root().join(this.dist_dir.to_string()))
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_root(self: Vc<Self>) -> Vc<FileSystemPath> {
+    pub fn client_root(self: Vc<Self>) -> Vc<FileSystemPath> {
         self.client_fs().root()
     }
 
@@ -399,7 +412,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+    pub async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let next_config = self.next_config().await?;
         Ok(self.client_root().join(format!(
             "{}/_next",
@@ -411,7 +424,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+    pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let root = self.project_root_path();
         let project_relative = this.project_path.strip_prefix(&this.root_path).unwrap();
@@ -462,7 +475,6 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn client_compile_time_info(&self) -> Result<Vc<CompileTimeInfo>> {
         Ok(get_client_compile_time_info(
-            self.mode,
             self.browserslist_query.clone(),
             self.define_env.client(),
         ))
@@ -472,11 +484,9 @@ impl Project {
     pub(super) async fn server_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
         let this = self.await?;
         Ok(get_server_compile_time_info(
-            this.mode,
             self.env(),
             self.server_addr(),
             this.define_env.nodejs(),
-            self.next_config(),
         ))
     }
 
@@ -484,10 +494,9 @@ impl Project {
     pub(super) async fn edge_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
         let this = self.await?;
         Ok(get_edge_compile_time_info(
-            this.mode,
             self.project_path(),
             self.server_addr(),
-            this.define_env.nodejs(),
+            this.define_env.edge(),
         ))
     }
 
@@ -506,7 +515,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn server_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
+    pub(super) fn server_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
         get_server_chunking_context(
             self.project_path(),
             self.node_root(),
@@ -517,11 +526,10 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn edge_chunking_context(self: Vc<Self>) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    pub(super) fn edge_chunking_context(self: Vc<Self>) -> Vc<Box<dyn EcmascriptChunkingContext>> {
         get_edge_chunking_context(
             self.project_path(),
             self.node_root(),
-            self.client_relative_path(),
             self.edge_compile_time_info().environment(),
         )
     }
@@ -602,54 +610,6 @@ impl Project {
         emit_event("swcEmotion", emotion_enabled);
 
         Ok(Default::default())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn ssr_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
-        self.server_chunking_context().with_layer("ssr".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn edge_ssr_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.edge_chunking_context()
-            .with_layer("edge ssr".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn ssr_data_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
-        self.server_chunking_context()
-            .with_layer("ssr data".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn edge_ssr_data_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.edge_chunking_context()
-            .with_layer("edge ssr data".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn rsc_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
-        self.server_chunking_context().with_layer("rsc".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn edge_rsc_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.edge_chunking_context()
-            .with_layer("edge rsc".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn edge_middleware_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.edge_chunking_context()
-            .with_layer("middleware".to_string())
     }
 
     /// Scans the app/pages directories for entry points files (matching the
@@ -739,6 +699,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
+            Vc::cell("middleware".to_string()),
         ))
     }
 
@@ -851,7 +812,7 @@ impl Project {
     #[turbo_tasks::function]
     pub fn server_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
         let path = self.node_root();
-        any_output_changed(roots, path)
+        any_output_changed(roots, path, true)
     }
 
     /// Completion when client side changes are detected in output assets
@@ -859,7 +820,7 @@ impl Project {
     #[turbo_tasks::function]
     pub fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
         let path = self.client_root();
-        any_output_changed(roots, path)
+        any_output_changed(roots, path, false)
     }
 }
 
@@ -867,6 +828,7 @@ impl Project {
 async fn any_output_changed(
     roots: Vc<OutputAssets>,
     path: Vc<FileSystemPath>,
+    server: bool,
 ) -> Result<Vc<Completion>> {
     let path = &path.await?;
     let completions = AdjacencyMap::new()
@@ -878,7 +840,10 @@ async fn any_output_changed(
         .into_reverse_topological()
         .map(|m| async move {
             let asset_path = m.ident().path().await?;
-            if !asset_path.path.ends_with(".map") && asset_path.is_inside_ref(path) {
+            if !asset_path.path.ends_with(".map")
+                && (!server || !asset_path.path.ends_with(".css"))
+                && asset_path.is_inside_ref(path)
+            {
                 Ok(Some(content_changed(Vc::upcast(m))))
             } else {
                 Ok(None)

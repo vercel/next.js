@@ -15,7 +15,7 @@ import {
   prepareDestination,
 } from '../shared/lib/router/utils/prepare-destination'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import { normalizeRscPath } from '../shared/lib/router/utils/app-paths'
+import { normalizeRscURL } from '../shared/lib/router/utils/app-paths'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 
 export function normalizeVercelUrl(
@@ -337,12 +337,12 @@ export function getUtils({
       let value: string | string[] | undefined = params[key]
 
       if (typeof value === 'string') {
-        value = normalizeRscPath(value, true)
+        value = normalizeRscURL(value)
       }
       if (Array.isArray(value)) {
         value = value.map((val) => {
           if (typeof val === 'string') {
-            val = normalizeRscPath(val, true)
+            val = normalizeRscURL(val)
           }
           return val
         })

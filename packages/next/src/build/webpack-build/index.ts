@@ -6,6 +6,7 @@ import { Worker } from 'next/dist/compiled/jest-worker'
 import origDebug from 'next/dist/compiled/debug'
 import type { ChildProcess } from 'child_process'
 import path from 'path'
+import { exportTraceState, recordTraceEvents } from '../../trace'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -24,7 +25,7 @@ function deepMerge(target: any, source: any) {
       ? (target[key] = [...target[key], ...(source[key] || [])])
       : typeof target[key] == 'object' && typeof source[key] == 'object'
       ? deepMerge(target[key], source[key])
-      : structuredClone(result[key])
+      : result[key]
   }
   return result
 }
@@ -83,7 +84,15 @@ async function webpackBuildWithWorker(
     const curResult = await worker.workerMain({
       buildContext: prunedBuildContext,
       compilerName,
+      traceState: {
+        ...exportTraceState(),
+        defaultParentSpanId: nextBuildSpan?.id,
+        shouldSaveTraceEvents: true,
+      },
     })
+    if (nextBuildSpan && curResult.debugTraceEvents) {
+      recordTraceEvents(curResult.debugTraceEvents)
+    }
     // destroy worker so it's not sticking around using memory
     await worker.end()
 

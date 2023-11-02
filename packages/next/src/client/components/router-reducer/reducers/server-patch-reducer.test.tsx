@@ -13,10 +13,6 @@ import { navigateReducer } from './navigate-reducer'
 import { serverPatchReducer } from './server-patch-reducer'
 const buildId = 'development'
 
-const globalMutable = {
-  refresh: () => {},
-}
-
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [
@@ -181,7 +177,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     const newState = await runPromiseThrowChain(() =>
@@ -189,17 +185,17 @@ describe('serverPatchReducer', () => {
     )
 
     expect(newState).toMatchInlineSnapshot(`
-      Object {
+      {
         "buildId": "development",
-        "cache": Object {
+        "cache": {
           "data": null,
           "parallelRoutes": Map {
             "children" => Map {
-              "linking" => Object {
+              "linking" => {
                 "data": null,
                 "parallelRoutes": Map {
                   "children" => Map {
-                    "" => Object {
+                    "" => {
                       "data": null,
                       "parallelRoutes": Map {},
                       "status": "READY",
@@ -207,11 +203,11 @@ describe('serverPatchReducer', () => {
                         Linking page
                       </React.Fragment>,
                     },
-                    "somewhere-else" => Object {
+                    "somewhere-else" => {
                       "data": null,
                       "parallelRoutes": Map {
                         "children" => Map {
-                          "" => Object {
+                          "" => {
                             "data": null,
                             "head": <React.Fragment>
                               <title>
@@ -247,30 +243,30 @@ describe('serverPatchReducer', () => {
           </html>,
         },
         "canonicalUrl": "/linking/about",
-        "focusAndScrollRef": Object {
+        "focusAndScrollRef": {
           "apply": false,
           "hashFragment": null,
           "onlyHashChange": false,
-          "segmentPaths": Array [],
+          "segmentPaths": [],
         },
         "nextUrl": "/linking/somewhere-else",
         "prefetchCache": Map {},
-        "pushRef": Object {
+        "pushRef": {
           "mpaNavigation": false,
           "pendingPush": false,
         },
-        "tree": Array [
+        "tree": [
           "",
-          Object {
-            "children": Array [
+          {
+            "children": [
               "linking",
-              Object {
-                "children": Array [
+              {
+                "children": [
                   "somewhere-else",
-                  Object {
-                    "children": Array [
+                  {
+                    "children": [
                       "",
-                      Object {},
+                      {},
                     ],
                   },
                 ],
@@ -372,7 +368,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => serverPatchReducer(state, action))
@@ -382,17 +378,17 @@ describe('serverPatchReducer', () => {
     )
 
     expect(newState).toMatchInlineSnapshot(`
-      Object {
+      {
         "buildId": "development",
-        "cache": Object {
+        "cache": {
           "data": null,
           "parallelRoutes": Map {
             "children" => Map {
-              "linking" => Object {
+              "linking" => {
                 "data": null,
                 "parallelRoutes": Map {
                   "children" => Map {
-                    "" => Object {
+                    "" => {
                       "data": null,
                       "parallelRoutes": Map {},
                       "status": "READY",
@@ -418,30 +414,30 @@ describe('serverPatchReducer', () => {
           </html>,
         },
         "canonicalUrl": "/linking/about",
-        "focusAndScrollRef": Object {
+        "focusAndScrollRef": {
           "apply": false,
           "hashFragment": null,
           "onlyHashChange": false,
-          "segmentPaths": Array [],
+          "segmentPaths": [],
         },
         "nextUrl": "/linking/about",
         "prefetchCache": Map {},
-        "pushRef": Object {
+        "pushRef": {
           "mpaNavigation": false,
           "pendingPush": false,
         },
-        "tree": Array [
+        "tree": [
           "",
-          Object {
-            "children": Array [
+          {
+            "children": [
               "linking",
-              Object {
-                "children": Array [
+              {
+                "children": [
                   "about",
-                  Object {
-                    "children": Array [
+                  {
+                    "children": [
                       "",
-                      Object {},
+                      {},
                     ],
                   },
                 ],
@@ -511,7 +507,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     const state = createInitialRouterState({
@@ -553,7 +549,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     const newState = await runPromiseThrowChain(() =>
@@ -561,17 +557,17 @@ describe('serverPatchReducer', () => {
     )
 
     expect(newState).toMatchInlineSnapshot(`
-      Object {
+      {
         "buildId": "development",
-        "cache": Object {
+        "cache": {
           "data": null,
           "parallelRoutes": Map {
             "children" => Map {
-              "linking" => Object {
+              "linking" => {
                 "data": null,
                 "parallelRoutes": Map {
                   "children" => Map {
-                    "" => Object {
+                    "" => {
                       "data": null,
                       "parallelRoutes": Map {},
                       "status": "READY",
@@ -579,11 +575,11 @@ describe('serverPatchReducer', () => {
                         Linking page
                       </React.Fragment>,
                     },
-                    "about" => Object {
+                    "about" => {
                       "data": null,
                       "parallelRoutes": Map {
                         "children" => Map {
-                          "" => Object {
+                          "" => {
                             "data": null,
                             "head": <React.Fragment>
                               <title>
@@ -601,11 +597,11 @@ describe('serverPatchReducer', () => {
                         About Page!
                       </h1>,
                     },
-                    "somewhere-else" => Object {
+                    "somewhere-else" => {
                       "data": null,
                       "parallelRoutes": Map {
                         "children" => Map {
-                          "" => Object {
+                          "" => {
                             "data": null,
                             "head": <React.Fragment>
                               <title>
@@ -641,12 +637,12 @@ describe('serverPatchReducer', () => {
           </html>,
         },
         "canonicalUrl": "/linking/about",
-        "focusAndScrollRef": Object {
+        "focusAndScrollRef": {
           "apply": true,
           "hashFragment": null,
           "onlyHashChange": false,
-          "segmentPaths": Array [
-            Array [
+          "segmentPaths": [
+            [
               "children",
               "linking",
               "children",
@@ -658,22 +654,22 @@ describe('serverPatchReducer', () => {
         },
         "nextUrl": "/linking/somewhere-else",
         "prefetchCache": Map {
-          "/linking/about" => Object {
+          "/linking/about" => {
             "data": Promise {
               "status": "fulfilled",
-              "value": Array [
-                Array [
-                  Array [
+              "value": [
+                [
+                  [
                     "children",
                     "linking",
                     "children",
                     "about",
-                    Array [
+                    [
                       "about",
-                      Object {
-                        "children": Array [
+                      {
+                        "children": [
                           "",
-                          Object {},
+                          {},
                         ],
                       },
                     ],
@@ -693,18 +689,18 @@ describe('serverPatchReducer', () => {
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
-            "treeAtTimeOfPrefetch": Array [
+            "treeAtTimeOfPrefetch": [
               "",
-              Object {
-                "children": Array [
+              {
+                "children": [
                   "linking",
-                  Object {
-                    "children": Array [
+                  {
+                    "children": [
                       "about",
-                      Object {
-                        "children": Array [
+                      {
+                        "children": [
                           "",
-                          Object {},
+                          {},
                         ],
                       },
                     ],
@@ -717,22 +713,22 @@ describe('serverPatchReducer', () => {
             ],
           },
         },
-        "pushRef": Object {
+        "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
         },
-        "tree": Array [
+        "tree": [
           "",
-          Object {
-            "children": Array [
+          {
+            "children": [
               "linking",
-              Object {
-                "children": Array [
+              {
+                "children": [
                   "somewhere-else",
-                  Object {
-                    "children": Array [
+                  {
+                    "children": [
                       "",
-                      Object {},
+                      {},
                     ],
                   },
                 ],
