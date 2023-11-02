@@ -33,8 +33,11 @@ export function GoogleTagManager(props: GTMParams) {
 
   useEffect(() => {
     // Useful for feature detection and measurement
-    performance.mark('next-third-parties', {
-      type: 'gtm',
+    performance.mark('mark_use_counter', {
+      detail: {
+        feature: 'next-third-parties',
+        type: 'gtm',
+      },
     })
   }, [])
 

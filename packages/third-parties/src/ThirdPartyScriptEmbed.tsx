@@ -19,8 +19,11 @@ export default function ThirdPartyScriptEmbed({
 }: ScriptEmbed) {
   useEffect(() => {
     // Useful for feature detection and measurement
-    performance.mark('next-third-parties', {
-      type: dataNtpc,
+    performance.mark('mark_use_counter', {
+      detail: {
+        feature: 'next-third-parties',
+        type: dataNtpc,
+      },
     })
   }, [dataNtpc])
 
