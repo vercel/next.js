@@ -69,8 +69,8 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
-import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module.compiled'
 import { RouteKind } from '../server/future/route-kind'
+import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -337,6 +337,9 @@ export interface PageInfo {
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
   runtime: ServerRuntime
+  hasEmptyPrelude?: boolean
+  hasPostponed?: boolean
+  isDynamicAppRoute?: boolean
 }
 
 export async function printTreeView(
@@ -450,18 +453,28 @@ export async function printTreeView(
         (pageInfo?.pageDuration || 0) +
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
-      const symbol =
-        item === '/_app' || item === '/_app.server'
-          ? ' '
-          : isEdgeRuntime(pageInfo?.runtime)
-          ? 'ℇ'
-          : pageInfo?.isPPR
-          ? '◐'
-          : pageInfo?.isStatic
-          ? '○'
-          : pageInfo?.isSSG
-          ? '●'
-          : 'λ'
+      let symbol: string
+
+      if (item === '/_app' || item === '/_app.server') {
+        symbol = ' '
+      } else if (isEdgeRuntime(pageInfo?.runtime)) {
+        symbol = 'ℇ'
+      } else if (pageInfo?.isPPR) {
+        // If the page has an empty prelude, then it's equivalent to a static page.
+        if (pageInfo?.hasEmptyPrelude || pageInfo.isDynamicAppRoute) {
+          symbol = 'λ'
+        } else if (!pageInfo?.hasPostponed) {
+          symbol = '○'
+        } else {
+          symbol = '◐'
+        }
+      } else if (pageInfo?.isStatic) {
+        symbol = '○'
+      } else if (pageInfo?.isSSG) {
+        symbol = '●'
+      } else {
+        symbol = 'λ'
+      }
 
       usedSymbols.add(symbol)
 
@@ -667,34 +680,15 @@ export async function printTreeView(
   print(
     textTable(
       [
-        usedSymbols.has('◐') && [
-          '◐',
-          '(Partially Pre-Rendered)',
-          'static parts of the page were pre-rendered and the dynamic parts will be streamed',
-        ],
-        usedSymbols.has('ℇ') && [
-          'ℇ',
-          '(Streaming)',
-          `server-side renders with streaming (uses React 18 SSR streaming or Server Components)`,
-        ],
-        usedSymbols.has('λ') && [
-          'λ',
-          '(Server)',
-          `server-side renders at runtime (uses ${cyan(
-            'getInitialProps'
-          )} or ${cyan('getServerSideProps')})`,
-        ],
         usedSymbols.has('○') && [
           '○',
           '(Static)',
-          'automatically rendered as static HTML (uses no initial props)',
+          'prerendered as static content',
         ],
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
-          `automatically generated as static HTML + JSON (uses ${cyan(
-            'getStaticProps'
-          )})`,
+          `prerendered as static HTML (uses ${cyan('getStaticProps')})`,
         ],
         usedSymbols.has('ISR') && [
           '',
@@ -702,6 +696,21 @@ export async function printTreeView(
           `incremental static regeneration (uses revalidate in ${cyan(
             'getStaticProps'
           )})`,
+        ],
+        usedSymbols.has('◐') && [
+          '◐',
+          '(Partial Prerender)',
+          'prerendered as static HTML with dynamic server-streamed content',
+        ],
+        usedSymbols.has('λ') && [
+          'λ',
+          '(Dynamic)',
+          `server-rendered on demand using Node.js`,
+        ],
+        usedSymbols.has('ℇ') && [
+          'ℇ',
+          '(Edge Runtime)',
+          `server-rendered on demand using the Edge Runtime`,
         ],
       ].filter((x) => x) as [string, string, string][],
       {
@@ -1211,6 +1220,7 @@ export const collectGenerateParams = async (
 }
 
 export async function buildAppStaticPaths({
+  dir,
   page,
   distDir,
   configFileName,
@@ -1224,6 +1234,7 @@ export async function buildAppStaticPaths({
   serverHooks,
   ppr,
 }: {
+  dir: string
   page: string
   configFileName: string
   generateParams: GenerateParams
@@ -1247,13 +1258,17 @@ export async function buildAppStaticPaths({
   let CacheHandler: any
 
   if (incrementalCacheHandlerPath) {
-    CacheHandler = require(incrementalCacheHandlerPath)
+    CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
+      ? incrementalCacheHandlerPath
+      : path.join(dir, incrementalCacheHandlerPath))
     CacheHandler = CacheHandler.default || CacheHandler
   }
 
   const incrementalCache = new IncrementalCache({
     fs: nodeFs,
     dev: true,
+    // Enabled both for build as we're only writing this cache, not reading it.
+    pagesDir: true,
     appDir: true,
     flushToDisk: isrFlushToDisk,
     serverDistDir: path.join(distDir, 'server'),
@@ -1374,6 +1389,7 @@ export async function buildAppStaticPaths({
 }
 
 export async function isPageStatic({
+  dir,
   page,
   distDir,
   configFileName,
@@ -1391,6 +1407,7 @@ export async function isPageStatic({
   incrementalCacheHandlerPath,
   ppr,
 }: {
+  dir: string
   page: string
   distDir: string
   configFileName: string
@@ -1491,7 +1508,7 @@ export async function isPageStatic({
         const { tree, staticGenerationAsyncStorage, serverHooks } = ComponentMod
 
         const generateParams: GenerateParams =
-          routeModule && AppRouteRouteModule.is(routeModule)
+          routeModule && isAppRouteRouteModule(routeModule)
             ? [
                 {
                   config: {
@@ -1560,6 +1577,7 @@ export async function isPageStatic({
             fallback: prerenderFallback,
             encodedPaths: encodedPrerenderRoutes,
           } = await buildAppStaticPaths({
+            dir,
             page,
             serverHooks,
             staticGenerationAsyncStorage,

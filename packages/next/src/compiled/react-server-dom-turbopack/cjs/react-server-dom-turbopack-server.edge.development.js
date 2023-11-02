@@ -56,6 +56,9 @@ function printWarning(level, format, args) {
   }
 }
 
+// -----------------------------------------------------------------------------
+var enablePostpone = false;
+
 function scheduleWork(callback) {
   setTimeout(callback, 0);
 }
@@ -670,6 +673,7 @@ var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
 var REACT_MEMO_TYPE = Symbol.for('react.memo');
 var REACT_LAZY_TYPE = Symbol.for('react.lazy');
 var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
+var REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -2250,6 +2254,11 @@ function resolveModelToJSON(request, parent, key, value) {
   throw new Error("Type " + typeof value + " is not supported in Client Component props." + describeObjectForErrorMessage(parent, key));
 }
 
+function logPostpone(request, reason) {
+  var onPostpone = request.onPostpone;
+  onPostpone(reason);
+}
+
 function logRecoverableError(request, error) {
   var onError = request.onError;
   var errorDigest = onError(error);
@@ -2272,6 +2281,30 @@ function fatalError(request, error) {
     request.status = CLOSING;
     request.fatalError = error;
   }
+}
+
+function emitPostponeChunk(request, id, postponeInstance) {
+  var row;
+
+  {
+    var reason = '';
+    var stack = '';
+
+    try {
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      reason = String(postponeInstance.message); // eslint-disable-next-line react-internal/safe-string-coercion
+
+      stack = String(postponeInstance.stack);
+    } catch (x) {}
+
+    row = serializeRowHeader('P', id) + stringify({
+      reason: reason,
+      stack: stack
+    }) + '\n';
+  }
+
+  var processedChunk = stringToChunk(row);
+  request.completedErrorChunks.push(processedChunk);
 }
 
 function emitErrorChunk(request, id, digest, error) {
@@ -2598,11 +2631,15 @@ function abort(request, reason) {
     if (abortableTasks.size > 0) {
       // We have tasks to abort. We'll emit one error row and then emit a reference
       // to that row from every row that's still remaining.
-      var error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
-      var digest = logRecoverableError(request, error);
       request.pendingChunks++;
       var errorId = request.nextChunkId++;
-      emitErrorChunk(request, errorId, digest, error);
+
+      var postponeInstance; if (enablePostpone && typeof reason === 'object' && reason !== null && reason.$$typeof === REACT_POSTPONE_TYPE) ; else {
+        var error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
+        var digest = logRecoverableError(request, error);
+        emitErrorChunk(request, errorId, digest, error);
+      }
+
       abortableTasks.forEach(function (task) {
         return abortTask(task, request, errorId);
       });
@@ -3324,8 +3361,9 @@ function decodeReply(body, turbopackMap) {
   }
 
   var response = createResponse(turbopackMap, '', body);
+  var root = getRoot(response);
   close(response);
-  return getRoot(response);
+  return root;
 }
 
 exports.createClientModuleProxy = createClientModuleProxy;

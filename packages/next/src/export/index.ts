@@ -215,6 +215,8 @@ export async function exportAppImpl(
   // attempt to load global env values so they are available in next.config.js
   span.traceChild('load-dotenv').traceFn(() => loadEnvConfig(dir, false, Log))
 
+  const { enabledDirectories } = options
+
   const nextConfig =
     options.nextConfig ||
     (await span
@@ -444,7 +446,7 @@ export async function exportAppImpl(
   }
 
   let serverActionsManifest
-  if (options.hasAppDir) {
+  if (enabledDirectories.app) {
     serverActionsManifest = require(join(
       distDir,
       SERVER_DIRECTORY,
@@ -487,16 +489,15 @@ export async function exportAppImpl(
     nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
     optimizeFonts: nextConfig.optimizeFonts as FontConfig,
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
-    serverComponents: options.hasAppDir,
-    serverActionsBodySizeLimit:
-      nextConfig.experimental.serverActionsBodySizeLimit,
+    serverActions: nextConfig.experimental.serverActions,
+    serverComponents: enabledDirectories.app,
     nextFontManifest: require(join(
       distDir,
       'server',
       `${NEXT_FONT_MANIFEST}.json`
     )),
     images: nextConfig.images,
-    ...(options.hasAppDir
+    ...(enabledDirectories.app
       ? {
           serverActionsManifest,
         }
@@ -674,6 +675,7 @@ export async function exportAppImpl(
 
       const result = await pageExportSpan.traceAsyncFn(async () => {
         return await exportPage({
+          dir,
           path,
           pathMap,
           distDir,
@@ -698,6 +700,7 @@ export async function exportAppImpl(
           incrementalCacheHandlerPath:
             nextConfig.experimental.incrementalCacheHandlerPath,
           enableExperimentalReact: needsExperimentalReact(nextConfig),
+          enabledDirectories,
         })
       })
 
@@ -746,6 +749,15 @@ export async function exportAppImpl(
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata
       }
+
+      if (typeof result.hasEmptyPrelude !== 'undefined') {
+        info.hasEmptyPrelude = result.hasEmptyPrelude
+      }
+
+      if (typeof result.hasPostponed !== 'undefined') {
+        info.hasPostponed = result.hasPostponed
+      }
+
       collector.byPath.set(path, info)
 
       // Update not found.

@@ -155,7 +155,8 @@ async fn wrap_edge_page(
     // TODO(timneutkens): remove this
     let is_server_component = true;
 
-    let server_actions_body_size_limit = &next_config.experimental.server_actions_body_size_limit;
+    let server_actions = next_config.experimental.server_actions.as_ref();
+
     let sri_enabled = !dev
         && next_config
             .experimental
@@ -177,7 +178,7 @@ async fn wrap_edge_page(
             "nextConfig" => serde_json::to_string(next_config)?,
             "isServerComponent" => serde_json::Value::Bool(is_server_component).to_string(),
             "dev" => serde_json::Value::Bool(dev).to_string(),
-            "serverActionsBodySizeLimit" => serde_json::to_string(server_actions_body_size_limit)?,
+            "serverActions" => serde_json::to_string(&server_actions)?
         },
         indexmap! {
             "incrementalCacheHandler" => None,
