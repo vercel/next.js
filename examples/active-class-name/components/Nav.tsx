@@ -2,7 +2,7 @@ import ActiveLink from './ActiveLink'
 
 const Nav = () => (
   <nav>
-    <style jsx>{`
+    <style jsx global>{`
       .nav-link {
         text-decoration: none;
       }

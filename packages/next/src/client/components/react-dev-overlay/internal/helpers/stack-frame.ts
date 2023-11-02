@@ -85,10 +85,9 @@ export function getOriginalStackFrame(
   }
 
   if (
-    !(
-      source.file?.startsWith('webpack-internal:') ||
-      source.file?.startsWith('file:')
-    )
+    source.file === '<anonymous>' ||
+    source.file?.match(/^node:/) ||
+    source.file?.match(/https?:\/\//)
   ) {
     return Promise.resolve({
       error: false,

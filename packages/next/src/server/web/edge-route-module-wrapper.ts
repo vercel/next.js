@@ -13,6 +13,7 @@ import { RouteMatcher } from '../future/route-matchers/route-matcher'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
+import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -108,15 +109,20 @@ export class EdgeRouteModuleWrapper {
       },
       renderOpts: {
         supportsDynamicHTML: true,
+        // App Route's cannot be postponed.
+        ppr: false,
       },
     }
 
     // Get the response from the handler.
     const res = await this.routeModule.handle(request, context)
 
+    const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
     if (context.renderOpts.waitUntil) {
-      evt.waitUntil(context.renderOpts.waitUntil)
+      waitUntilPromises.push(context.renderOpts.waitUntil)
     }
+    evt.waitUntil(Promise.all(waitUntilPromises))
+
     return res
   }
 }

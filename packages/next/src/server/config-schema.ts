@@ -251,8 +251,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
         esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
-        serverActions: z.boolean().optional(),
-        serverActionsBodySizeLimit: zSizeLimit.optional(),
+        serverActions: z
+          .object({
+            bodySizeLimit: zSizeLimit.optional(),
+            allowedForwardedHosts: z.array(z.string()).optional(),
+          })
+          .optional(),
+        allowedForwardedHosts: z.array(z.string()).optional(),
         // The original type was Record<string, any>
         extensionAlias: z.record(z.string(), z.any()).optional(),
         externalDir: z.boolean().optional(),
@@ -281,6 +286,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .record(z.string(), z.array(z.string()))
           .optional(),
         ppr: z.boolean().optional(),
+        taint: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
         serverComponentsExternalPackages: z.array(z.string()).optional(),
         scrollRestoration: z.boolean().optional(),
@@ -355,12 +361,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             contextDirectory: z.string().optional(),
             processCwd: z.string().optional(),
             memoryLimit: z.number().int().optional(),
-          })
-          .optional(),
-        logging: z
-          .object({
-            level: z.literal('verbose').optional(),
-            fullUrl: z.boolean().optional(),
           })
           .optional(),
         serverMinification: z.boolean().optional(),
@@ -456,6 +456,15 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         loaderFile: z.string().optional(),
         minimumCacheTTL: z.number().int().gte(0).optional(),
         path: z.string().optional(),
+      })
+      .optional(),
+    logging: z
+      .object({
+        fetches: z
+          .object({
+            fullUrl: z.boolean().optional(),
+          })
+          .optional(),
       })
       .optional(),
     modularizeImports: z

@@ -10,7 +10,6 @@ use turbopack_binding::{
     turbopack::{
         build::{BuildChunkingContext, MinifyType},
         core::{
-            compile_time_defines,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
@@ -193,64 +192,46 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-fn defines(
-    mode: NextMode,
-    define_env: &IndexMap<String, String>,
-    server_actions: bool,
-) -> CompileTimeDefines {
-    let mut defines = compile_time_defines!(
-        process.turbopack = true,
-        process.env.NEXT_RUNTIME = "nodejs",
-        process.env.NODE_ENV = mode.node_env(),
-        process.env.TURBOPACK = true,
-        process.env.__NEXT_EXPERIMENTAL_REACT = server_actions,
-    );
+fn defines(define_env: &IndexMap<String, String>) -> CompileTimeDefines {
+    let mut defines = IndexMap::new();
 
     for (k, v) in define_env {
         defines
-            .0
-            .entry(k.split('.').map(|s| s.to_string()).collect())
-            .or_insert_with(|| CompileTimeDefineValue::JSON(v.clone()));
+            .entry(k.split('.').map(|s| s.to_string()).collect::<Vec<String>>())
+            .or_insert_with(|| {
+                let val = serde_json::from_str(v);
+                match val {
+                    Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
+                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v),
+                    _ => CompileTimeDefineValue::JSON(v.clone()),
+                }
+            });
     }
 
-    defines
+    CompileTimeDefines(defines)
 }
 
 #[turbo_tasks::function]
-async fn next_server_defines(
-    mode: NextMode,
-    define_env: Vc<EnvMap>,
-    server_actions: Vc<bool>,
-) -> Result<Vc<CompileTimeDefines>> {
-    Ok(defines(mode, &*define_env.await?, *server_actions.await?).cell())
+async fn next_server_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefines>> {
+    Ok(defines(&*define_env.await?).cell())
 }
 
 #[turbo_tasks::function]
-async fn next_server_free_vars(
-    mode: NextMode,
-    define_env: Vc<EnvMap>,
-    server_actions: Vc<bool>,
-) -> Result<Vc<FreeVarReferences>> {
-    Ok(free_var_references!(
-        ..defines(mode, &*define_env.await?, *server_actions.await?).into_iter()
-    )
-    .cell())
+async fn next_server_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarReferences>> {
+    Ok(free_var_references!(..defines(&*define_env.await?).into_iter()).cell())
 }
 
 #[turbo_tasks::function]
 pub async fn get_server_compile_time_info(
-    mode: NextMode,
     process_env: Vc<Box<dyn ProcessEnv>>,
     server_addr: Vc<ServerAddr>,
     define_env: Vc<EnvMap>,
-    next_config: Vc<NextConfig>,
 ) -> Vc<CompileTimeInfo> {
-    let server_actions = next_config.enable_server_actions();
     CompileTimeInfo::builder(Environment::new(Value::new(
         ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::current(process_env, server_addr)),
     )))
-    .defines(next_server_defines(mode, define_env, server_actions))
-    .free_var_references(next_server_free_vars(mode, define_env, server_actions))
+    .defines(next_server_defines(define_env))
+    .free_var_references(next_server_free_vars(define_env))
     .cell()
 }
 
@@ -267,14 +248,33 @@ pub async fn get_server_module_options_context(
 
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
-    let enable_postcss_transform = Some(PostCssTransformOptions {
+    let postcss_transform_options = Some(PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
         ..Default::default()
     });
 
-    let webpack_rules =
-        *maybe_add_babel_loader(project_path, *next_config.webpack_rules().await?).await?;
-    let webpack_rules = maybe_add_sass_loader(next_config.sass_config(), webpack_rules).await?;
+    // A separate webpack rules will be applied to codes matching
+    // foreign_code_context_condition. This allows to import codes from
+    // node_modules that requires webpack loaders, which next-dev implicitly
+    // does by default.
+    let foreign_webpack_rules = maybe_add_sass_loader(
+        next_config.sass_config(),
+        *next_config.webpack_rules().await?,
+    )
+    .await?;
+    let foreign_webpack_loaders = foreign_webpack_rules.map(|rules| {
+        WebpackLoadersOptions {
+            rules,
+            loader_runner_package: Some(get_external_next_compiled_package_mapping(Vc::cell(
+                "loader-runner".to_owned(),
+            ))),
+        }
+        .cell()
+    });
+
+    // Now creates a webpack rules that applies to all codes.
+    let webpack_rules = *foreign_webpack_rules.clone();
+    let webpack_rules = *maybe_add_babel_loader(project_path, webpack_rules).await?;
     let enable_webpack_loaders = webpack_rules.map(|rules| {
         WebpackLoadersOptions {
             rules,
@@ -348,6 +348,14 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
 
+            let foreign_code_module_options_context = ModuleOptionsContext {
+                custom_rules: internal_custom_rules.clone(),
+                enable_webpack_loaders: foreign_webpack_loaders,
+                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
+                enable_postcss_transform: postcss_transform_options.clone(),
+                ..module_options_context.clone()
+            };
+
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 enable_jsx: Some(JsxTransformOptions::default().cell()),
@@ -357,15 +365,15 @@ pub async fn get_server_module_options_context(
 
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_postcss_transform,
                 enable_webpack_loaders,
+                enable_postcss_transform: postcss_transform_options,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        module_options_context.clone().cell(),
+                        foreign_code_module_options_context.cell(),
                     ),
                     (
                         ContextCondition::InPath(next_js_fs().root()),
@@ -407,23 +415,40 @@ pub async fn get_server_module_options_context(
                 execution_context: Some(execution_context),
                 ..Default::default()
             };
+            let foreign_code_module_options_context = ModuleOptionsContext {
+                custom_rules: internal_custom_rules.clone(),
+                enable_webpack_loaders: foreign_webpack_loaders,
+                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
+                enable_postcss_transform: postcss_transform_options.clone(),
+                ..module_options_context.clone()
+            };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 custom_rules: internal_custom_rules,
                 ..module_options_context.clone()
             };
 
+            // Get the jsx transform options for the `client` side.
+            // This matches to the behavior of existing webpack config, if issuer layer is
+            // ssr or pages-browser (client bundle for the browser)
+            // applies client specific swc transforms.
+            //
+            // This enables correct emotion transform and other hydration between server and
+            // client bundles. ref: https://github.com/vercel/next.js/blob/4bbf9b6c70d2aa4237defe2bebfa790cdb7e334e/packages/next/src/build/webpack-config.ts#L1421-L1426
+            let jsx_runtime_options =
+                get_jsx_transform_options(project_path, mode, None, false, next_config);
+
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_postcss_transform,
                 enable_webpack_loaders,
+                enable_postcss_transform: postcss_transform_options,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        module_options_context.clone().cell(),
+                        foreign_code_module_options_context.cell(),
                     ),
                     (
                         ContextCondition::InPath(next_js_fs().root()),
@@ -474,6 +499,13 @@ pub async fn get_server_module_options_context(
                 execution_context: Some(execution_context),
                 ..Default::default()
             };
+            let foreign_code_module_options_context = ModuleOptionsContext {
+                custom_rules: internal_custom_rules.clone(),
+                enable_webpack_loaders: foreign_webpack_loaders,
+                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
+                enable_postcss_transform: postcss_transform_options.clone(),
+                ..module_options_context.clone()
+            };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 custom_rules: internal_custom_rules,
@@ -481,15 +513,15 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_postcss_transform,
                 enable_webpack_loaders,
+                enable_postcss_transform: postcss_transform_options,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        module_options_context.clone().cell(),
+                        foreign_code_module_options_context.cell(),
                     ),
                     (
                         ContextCondition::InPath(next_js_fs().root()),
@@ -512,8 +544,8 @@ pub async fn get_server_module_options_context(
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
-                enable_postcss_transform,
                 enable_webpack_loaders,
+                enable_postcss_transform: postcss_transform_options,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -561,8 +593,8 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
-                enable_postcss_transform,
                 enable_webpack_loaders,
+                enable_postcss_transform: postcss_transform_options,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),

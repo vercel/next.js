@@ -20,7 +20,7 @@ exports[`ReactRefreshLogBox default conversion to class component (1) 1`] = `
 
 exports[`ReactRefreshLogBox default css syntax errors 1`] = `
 "./index.module.css:1:1
-Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
+Syntax error: Selector "button" is not pure (pure selectors must contain at least one local class or id)
 
 > 1 | button {}
     | ^"
@@ -61,7 +61,7 @@ exports[`ReactRefreshLogBox default module init error not shown 1`] = `
 exports[`ReactRefreshLogBox default should strip whitespace correctly with newline 1`] = `
 "index.js (8:26) @ onClick
 
-   6 | 
+   6 |
    7 | <a onClick={() => {
 >  8 |   throw new Error('idk')
      |        ^

@@ -1,7 +1,7 @@
 // /* eslint-env jest */
 
 import { join } from 'path'
-import { nextBuild, nextExport } from 'next-test-utils'
+import { nextBuild } from 'next-test-utils'
 
 const nextdir = join(__dirname, '../app')
 const outdir = join(nextdir, 'out')
@@ -17,7 +17,6 @@ if (process.env.TEST_ELECTRON) {
       describe('File Protocol via Electron', () => {
         beforeAll(async () => {
           await nextBuild(nextdir)
-          await nextExport(nextdir, { outdir })
 
           app = new Application({
             path: electron,

@@ -12,6 +12,7 @@ export interface StaticGenerationStore {
   readonly isOnDemandRevalidate?: boolean
   readonly isPrerendering?: boolean
   readonly isRevalidate?: boolean
+  readonly isUnstableCacheCallback?: boolean
 
   forceDynamic?: boolean
   fetchCache?:
@@ -26,6 +27,7 @@ export interface StaticGenerationStore {
   forceStatic?: boolean
   dynamicShouldError?: boolean
   pendingRevalidates?: Promise<any>[]
+  postponeWasTriggered?: boolean
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
@@ -41,6 +43,10 @@ export interface StaticGenerationStore {
   fetchMetrics?: FetchMetrics
 
   isDraftMode?: boolean
+
+  readonly experimental: {
+    readonly ppr: boolean
+  }
 }
 
 export type StaticGenerationAsyncStorage =

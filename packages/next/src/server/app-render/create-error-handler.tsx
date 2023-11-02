@@ -5,6 +5,9 @@ import { isNotFoundError } from '../../client/components/not-found'
 import { isRedirectError } from '../../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
+import { isAbortError } from '../pipe-readable'
+
+export type ErrorHandler = (err: any) => string | undefined
 
 /**
  * Create error handler for renderers.
@@ -21,6 +24,7 @@ export function createErrorHandler({
   errorLogger,
   capturedErrors,
   allCapturedErrors,
+  silenceLogger,
 }: {
   _source: string
   dev?: boolean
@@ -28,8 +32,9 @@ export function createErrorHandler({
   errorLogger?: (err: any) => Promise<void>
   capturedErrors: Error[]
   allCapturedErrors?: Error[]
-}) {
-  return (err: any): string => {
+  silenceLogger?: boolean
+}): ErrorHandler {
+  return (err) => {
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     if (
@@ -41,6 +46,9 @@ export function createErrorHandler({
     ) {
       return err.digest
     }
+
+    // If the response was closed, we don't need to log the error.
+    if (isAbortError(err)) return
 
     // Format server errors in development to add more helpful error messages
     if (dev) {
@@ -67,19 +75,21 @@ export function createErrorHandler({
         })
       }
 
-      if (errorLogger) {
-        errorLogger(err).catch(() => {})
-      } else {
-        // The error logger is currently not provided in the edge runtime.
-        // Use `log-app-dir-error` instead.
-        // It won't log the source code, but the error will be more useful.
-        if (process.env.NODE_ENV !== 'production') {
-          const { logAppDirError } =
-            require('../dev/log-app-dir-error') as typeof import('../dev/log-app-dir-error')
-          logAppDirError(err)
-        }
-        if (process.env.NODE_ENV === 'production') {
-          console.error(err)
+      if (!silenceLogger) {
+        if (errorLogger) {
+          errorLogger(err).catch(() => {})
+        } else {
+          // The error logger is currently not provided in the edge runtime.
+          // Use `log-app-dir-error` instead.
+          // It won't log the source code, but the error will be more useful.
+          if (process.env.NODE_ENV !== 'production') {
+            const { logAppDirError } =
+              require('../dev/log-app-dir-error') as typeof import('../dev/log-app-dir-error')
+            logAppDirError(err)
+          }
+          if (process.env.NODE_ENV === 'production') {
+            console.error(err)
+          }
         }
       }
     }

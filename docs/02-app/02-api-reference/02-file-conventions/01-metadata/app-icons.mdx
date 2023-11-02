@@ -78,10 +78,10 @@ Generate an app icon by creating an `icon` or `apple-icon` route that default ex
 | `icon`          | `.js`, `.ts`, `.tsx` |
 | `apple-icon`    | `.js`, `.ts`, `.tsx` |
 
-The easiest way to generate an icon is to use the [`ImageResponse`](/docs/app/api-reference/functions/image-response) API from `next/server`.
+The easiest way to generate an icon is to use the [`ImageResponse`](/docs/app/api-reference/functions/image-response) API from `next/og`.
 
 ```tsx filename="app/icon.tsx" switcher
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
 // Route segment config
 export const runtime = 'edge'
@@ -124,7 +124,7 @@ export default function Icon() {
 ```
 
 ```jsx filename="app/icon.js" switcher
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
 // Route segment config
 export const runtime = 'edge'
@@ -220,13 +220,13 @@ You can optionally configure the icon's metadata by exporting `size` and `conten
 
 #### `size`
 
-```tsx filename="icon.tsx / apple-icon.tsx" switcher
+```tsx filename="icon.tsx | apple-icon.tsx" switcher
 export const size = { width: 32, height: 32 }
 
 export default function Icon() {}
 ```
 
-```jsx filename="icon.js / apple-icon.js" switcher
+```jsx filename="icon.js | apple-icon.js" switcher
 export const size = { width: 32, height: 32 }
 
 export default function Icon() {}
@@ -238,13 +238,13 @@ export default function Icon() {}
 
 #### `contentType`
 
-```tsx filename="icon.tsx / apple-icon.tsx" switcher
+```tsx filename="icon.tsx | apple-icon.tsx" switcher
 export const contentType = 'image/png'
 
 export default function Icon() {}
 ```
 
-```jsx filename="icon.js / apple-icon.js" switcher
+```jsx filename="icon.js | apple-icon.js" switcher
 export const contentType = 'image/png'
 
 export default function Icon() {}

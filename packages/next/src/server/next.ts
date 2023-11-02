@@ -10,7 +10,6 @@ import type { NextUrlWithParsedQuery } from './request-meta'
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './lib/types'
 
 import './require-hook'
-import './node-polyfill-fetch'
 import './node-polyfill-crypto'
 
 import type { default as Server } from './next-server'
@@ -26,7 +25,7 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import { checkIsNodeDebugging } from './lib/is-node-debugging'
+import { checkNodeDebugType } from './lib/utils'
 
 let ServerImpl: typeof Server
 
@@ -199,7 +198,7 @@ export class NextServer {
         )).config
 
         // @ts-expect-error internal field
-        config.experimental.isExperimentalConfig =
+        config.experimental.isExperimentalCompile =
           serializedConfig.experimental.isExperimentalCompile
       } catch (_) {
         // if distDir is customized we don't know until we
@@ -276,7 +275,7 @@ class NextCustomServer extends NextServer {
     const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
-    const isNodeDebugging = checkIsNodeDebugging()
+    const isNodeDebugging = !!checkNodeDebugType()
 
     const initResult = await getRequestHandlers({
       dir: this.options.dir!,
