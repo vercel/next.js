@@ -32,7 +32,7 @@ Add or generate a `sitemap.xml` file that matches the [Sitemaps XML format](http
 
 ## Generate a Sitemap
 
-Add a `sitemap.js` or `sitemap.ts` file that returns [`Sitemap`](#sitemap-return-type).
+Add a `sitemap.js` or `sitemap.ts` file that returns [`Sitemap` or `Promise<Sitemap>`](#sitemap-return-type).
 
 ```ts filename="app/sitemap.ts" switcher
 import { MetadataRoute } from 'next'
