@@ -51,15 +51,13 @@ module.exports = async function collectDiffs(
       }
 
       if (curFiles.length > 0) {
-        const filesInDiffingDir = await fs.readdir(diffingDir)
-        logger('Files in diffingDir:', filesInDiffingDir)
         const prettierPath = path.join(
           __dirname,
           '../../node_modules/.bin/prettier'
         )
         await exec(
           `cd "${process.env.LOCAL_STATS ? process.cwd() : diffingDir}" && ` +
-            `${prettierPath} --write ${curFiles
+            `${prettierPath} --write --no-error-on-unmatched-pattern ${curFiles
               .map((f) => path.join(diffingDir, f))
               .join(' ')}`
         )
