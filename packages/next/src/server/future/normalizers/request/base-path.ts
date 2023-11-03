@@ -1,6 +1,6 @@
-import type { Normalizer } from '../normalizer'
+import type { PathnameNormalizer } from './pathname-normalizer'
 
-export class BasePathPathnameNormalizer implements Normalizer {
+export class BasePathPathnameNormalizer implements PathnameNormalizer {
   private readonly basePath?: string
   constructor(basePath: string) {
     // A basePath of `/` is not a basePath.
