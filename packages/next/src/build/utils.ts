@@ -1284,6 +1284,7 @@ export async function buildAppStaticPaths({
     CurCacheHandler: CacheHandler,
     requestHeaders,
     minimalMode: ciEnvironment.hasNextSupport,
+    experimental: { ppr },
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(
@@ -1296,7 +1297,7 @@ export async function buildAppStaticPaths({
         supportsDynamicHTML: true,
         isRevalidate: false,
         isBot: false,
-        ppr,
+        experimental: { ppr },
       },
     },
     async () => {

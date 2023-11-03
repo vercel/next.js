@@ -1,10 +1,10 @@
 import type { PathnameNormalizer } from './pathname-normalizer'
 
-import { RSC_SUFFIX } from '../../../../lib/constants'
+import { RSC_PREFETCH_SUFFIX } from '../../../../lib/constants'
 import { SuffixPathnameNormalizer } from './suffix'
 
-export class RSCPathnameNormalizer implements PathnameNormalizer {
-  private readonly suffix = new SuffixPathnameNormalizer(RSC_SUFFIX)
+export class PrefetchRSCPathnameNormalizer implements PathnameNormalizer {
+  private readonly suffix = new SuffixPathnameNormalizer(RSC_PREFETCH_SUFFIX)
 
   constructor(private readonly hasAppDir: boolean) {}
 
