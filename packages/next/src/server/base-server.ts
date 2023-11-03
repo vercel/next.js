@@ -41,6 +41,7 @@ import type { Server as HTTPServer } from 'http'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
+import type { PathnameNormalizer } from './future/normalizers/request/pathname-normalizer'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -81,7 +82,6 @@ import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathnam
 import {
   RSC_HEADER,
   RSC_VARY_HEADER,
-  FLIGHT_PARAMETERS,
   NEXT_RSC_UNION_QUERY,
   ACTION,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -130,6 +130,7 @@ import {
   isPagesRouteModule,
 } from './future/route-modules/checks'
 import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/prefetch-rsc'
+import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -146,7 +147,7 @@ export type RouteHandler = (
   req: BaseNextRequest,
   res: BaseNextResponse,
   parsedUrl: NextUrlWithParsedQuery
-) => PromiseLike<boolean | void> | boolean | void
+) => PromiseLike<boolean> | boolean
 
 /**
  * The normalized route manifest is the same as the route manifest, but with
@@ -407,6 +408,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     readonly postponed: PostponedPathnameNormalizer
     readonly rsc: RSCPathnameNormalizer
     readonly prefetchRSC: PrefetchRSCPathnameNormalizer
+    readonly data: NextDataPathnameNormalizer
   }
 
   public constructor(options: ServerOptions) {
@@ -480,6 +482,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       prefetchRSC: new PrefetchRSCPathnameNormalizer(
         this.enabledDirectories.app
       ),
+      data: new NextDataPathnameNormalizer(this.buildId),
     }
 
     this.nextFontManifest = this.getNextFontManifest()
@@ -560,7 +563,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private handleRSCRequest: RouteHandler = (req, _res, parsedUrl) => {
-    if (!parsedUrl.pathname) return
+    if (!parsedUrl.pathname) return false
 
     if (this.normalizers.prefetchRSC.match(parsedUrl.pathname)) {
       parsedUrl.pathname = this.normalizers.prefetchRSC.normalize(
@@ -582,16 +585,30 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // Mark the request as a RSC request.
       req.headers[RSC_HEADER.toLowerCase()] = '1'
       addRequestMeta(req, 'isRSCRequest', true)
+    } else if (req.headers['x-now-route-matches']) {
+      // If we didn't match, return with the flight headers stripped. If in
+      // minimal mode we didn't match based on the path, this can't be a RSC
+      // request. This is because Vercel only sends this header during
+      // revalidation requests and we want the cache to instead depend on the
+      // request path for flight information.
+      stripFlightHeaders(req.headers)
+      return false
     } else {
-      // If we didn't match, return.
-      return
+      // Otherwise just return without doing anything.
+      return false
     }
+
+    // If we're here, this is a data request, as it didn't return and it matched
+    // either a RSC or a prefetch RSC request.
+    parsedUrl.query.__nextDataReq = '1'
 
     if (req.url) {
       const parsed = parseUrl(req.url)
       parsed.pathname = parsedUrl.pathname
       req.url = formatUrl(parsed)
     }
+
+    return false
   }
 
   protected handleNextPostponedRequest: RouteHandler = async (
@@ -604,7 +621,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       !this.normalizers.postponed.match(parsedUrl.pathname) ||
       req.method !== 'POST'
     ) {
-      return
+      return false
     }
 
     parsedUrl.pathname = this.normalizers.postponed.normalize(
@@ -621,7 +638,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // If we've already read the postponed body, then we don't need to do so
     // again.
     let postponed = getRequestMeta(req, 'postponed') ?? ''
-    if (postponed) return
+    if (postponed) return false
 
     // Read the body in chunks. If it errors here it's because the chunks
     // being decoded are not strings.
@@ -634,6 +651,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     postponed = Buffer.concat(body).toString('utf8')
 
     addRequestMeta(req, 'postponed', postponed)
+
+    return false
   }
 
   private handleNextDataRequest: RouteHandler = async (req, res, parsedUrl) => {
@@ -729,9 +748,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return false
   }
 
-  protected handleNextImageRequest: RouteHandler = () => {}
-  protected handleCatchallRenderRequest: RouteHandler = () => {}
-  protected handleCatchallMiddlewareRequest: RouteHandler = () => {}
+  protected handleNextImageRequest: RouteHandler = () => false
+  protected handleCatchallRenderRequest: RouteHandler = () => false
+  protected handleCatchallMiddlewareRequest: RouteHandler = () => false
 
   protected getRouteMatchers(): RouteMatcherManager {
     // Create a new manifest loader that get's the manifests from the server.
@@ -920,15 +939,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         )
       }
 
-      let finished = await this.handleRSCRequest(req, res, parsedUrl)
-      if (finished) return
+      let finished: boolean = false
+      if (this.minimalMode && this.enabledDirectories.app) {
+        finished = await this.handleRSCRequest(req, res, parsedUrl)
+        if (finished) return
 
-      finished = await this.handleNextPostponedRequest(req, res, parsedUrl)
-      if (finished) return
-
-      if (this.minimalMode && req.headers['x-now-route-matches']) {
-        for (const param of FLIGHT_PARAMETERS) {
-          delete req.headers[param.toString().toLowerCase()]
+        if (this.nextConfig.experimental.ppr) {
+          finished = await this.handleNextPostponedRequest(req, res, parsedUrl)
+          if (finished) return
         }
       }
 
@@ -985,17 +1003,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             'http://localhost'
           )
 
-          let urlPathname = new URL(req.url, 'http://localhost').pathname
-
           // For ISR  the URL is normalized to the prerenderPath so if
           // it's a data request the URL path will be the data URL,
           // basePath is already stripped by this point
-          if (urlPathname.startsWith(`/_next/data/`)) {
+          if (this.normalizers.data.match(parsedUrl.pathname)) {
             parsedUrl.query.__nextDataReq = '1'
           }
 
-          const normalizedUrlPath = this.stripNextDataPath(urlPathname)
-          matchedPath = this.stripNextDataPath(matchedPath, false)
+          // We should attempt route normalization for these routes, but don't
+          // use them to determine the kind of the request, this is just now
+          // used for routing.
+          matchedPath = this.normalize(matchedPath)
+          const normalizedUrlPath = this.normalize(parsedUrl.pathname)
 
           // Perform locale detection and normalization.
           const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
@@ -1175,7 +1194,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
 
-          finished = await this.handle(req, res, parsedUrl)
+          finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
           if (finished) return
         } catch (err) {
           if (err instanceof DecodeError || err instanceof NormalizeError) {
@@ -1339,7 +1358,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         }
 
-        finished = await this.handle(req, res, parsedUrl)
+        finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
         if (finished) return
 
         await this.handleCatchallRenderRequest(req, res, parsedUrl)
@@ -1350,7 +1369,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         process.env.NEXT_RUNTIME !== 'edge' &&
         req.headers['x-middleware-invoke']
       ) {
-        finished = await this.handle(req, res, parsedUrl)
+        finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
         if (finished) return
 
         finished = await this.handleCatchallMiddlewareRequest(
@@ -1408,22 +1427,49 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
   }
 
-  protected handle: RouteHandler = async (req, res, url) => {
+  /**
+   * Normalizes a pathname without attaching any metadata from any matched
+   * normalizer.
+   *
+   * @param pathname the pathname to normalize
+   * @returns the normalized pathname
+   */
+  private normalize = (pathname: string) => {
+    const normalizers: Array<PathnameNormalizer> = []
+
+    if (this.enabledDirectories.pages) {
+      normalizers.push(this.normalizers.data)
+    }
+
+    if (this.minimalMode && this.enabledDirectories.app) {
+      // We have to put the prefetch normalizer before the RSC normalizer
+      // because the RSC normalizer will match the prefetch RSC routes too.
+      if (this.renderOpts.experimental.ppr) {
+        normalizers.push(this.normalizers.prefetchRSC)
+      }
+
+      normalizers.push(this.normalizers.rsc)
+    }
+
+    for (const normalizer of normalizers) {
+      if (!normalizer.match(pathname)) continue
+
+      return normalizer.normalize(pathname, true)
+    }
+
+    return pathname
+  }
+
+  private normalizeAndAttachMetadata: RouteHandler = async (req, res, url) => {
     let finished = await this.handleNextImageRequest(req, res, url)
     if (finished) return true
 
-    finished = await this.handleNextDataRequest(req, res, url)
-    if (finished) return true
-
-    if (this.minimalMode && this.enabledDirectories.app) {
-      finished = await this.handleRSCRequest(req, res, url)
+    if (this.enabledDirectories.pages) {
+      finished = await this.handleNextDataRequest(req, res, url)
       if (finished) return true
-
-      if (this.nextConfig.experimental.ppr) {
-        finished = await this.handleNextPostponedRequest(req, res, url)
-        if (finished) return true
-      }
     }
+
+    return false
   }
 
   /**

@@ -1,6 +1,6 @@
-import type { Normalizer } from '../normalizer'
+import type { PathnameNormalizer } from './pathname-normalizer'
 
-export class PostponedPathnameNormalizer implements Normalizer {
+export class PostponedPathnameNormalizer implements PathnameNormalizer {
   constructor(private readonly ppr: boolean | undefined) {}
 
   public match(pathname: string) {
