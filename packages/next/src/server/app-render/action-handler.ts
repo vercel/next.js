@@ -224,6 +224,13 @@ type Host =
     }
   | undefined
 
+/**
+ * Ensures the value of the header can't create long logs.
+ */
+function limitUntrustedHeaderValueForLogs(value: string) {
+  return value.length > 100 ? value.slice(0, 100) + '...' : value
+}
+
 export async function handleAction({
   req,
   res,
@@ -323,9 +330,11 @@ export async function handleAction({
       if (host) {
         // This is an attack. We should not proceed the action.
         console.error(
-          `\`${!host.type}\` header with value \`${
+          `\`${!host.type}\` header with value \`${limitUntrustedHeaderValueForLogs(
             host.value
-          }\` does not match \`origin\` header with value \`${originHostname}\` from a forwarded Server Actions request. Aborting the action.`
+          )}\` does not match \`origin\` header with value \`${limitUntrustedHeaderValueForLogs(
+            originHostname
+          )}\` from a forwarded Server Actions request. Aborting the action.`
         )
       } else {
         // This is an attack. We should not proceed the action.
