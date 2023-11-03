@@ -51,6 +51,8 @@ module.exports = async function collectDiffs(
       }
 
       if (curFiles.length > 0) {
+        const filesInDiffingDir = await fs.readdir(diffingDir)
+        logger('Files in diffingDir:', filesInDiffingDir)
         const prettierPath = path.join(
           __dirname,
           '../../node_modules/.bin/prettier'
