@@ -103,7 +103,6 @@ pub struct EsmAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
     pub request: Vc<Request>,
     pub annotations: ImportAnnotations,
-
     pub export_name: Option<Vc<ModulePart>>,
 }
 
@@ -162,8 +161,8 @@ impl ModuleReference for EsmAssetReference {
             self.get_origin().resolve().await?,
             self.request,
             ty,
-            None,
             IssueSeverity::Error.cell(),
+            None,
         ))
     }
 }

@@ -6,7 +6,7 @@ use swc_core::{
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::ChunkableModuleReference,
-    issue::IssueSource,
+    issue::LazyIssueSource,
     reference::ModuleReference,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
@@ -25,7 +25,7 @@ use crate::{
 pub struct CjsAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
     pub request: Vc<Request>,
-    pub issue_source: Vc<IssueSource>,
+    pub issue_source: Vc<LazyIssueSource>,
     pub in_try: bool,
 }
 
@@ -35,7 +35,7 @@ impl CjsAssetReference {
     pub fn new(
         origin: Vc<Box<dyn ResolveOrigin>>,
         request: Vc<Request>,
-        issue_source: Vc<IssueSource>,
+        issue_source: Vc<LazyIssueSource>,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(CjsAssetReference {
@@ -80,7 +80,7 @@ pub struct CjsRequireAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
     pub request: Vc<Request>,
     pub path: Vc<AstPath>,
-    pub issue_source: Vc<IssueSource>,
+    pub issue_source: Vc<LazyIssueSource>,
     pub in_try: bool,
 }
 
@@ -91,7 +91,7 @@ impl CjsRequireAssetReference {
         origin: Vc<Box<dyn ResolveOrigin>>,
         request: Vc<Request>,
         path: Vc<AstPath>,
-        issue_source: Vc<IssueSource>,
+        issue_source: Vc<LazyIssueSource>,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(CjsRequireAssetReference {
@@ -204,7 +204,7 @@ pub struct CjsRequireResolveAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
     pub request: Vc<Request>,
     pub path: Vc<AstPath>,
-    pub issue_source: Vc<IssueSource>,
+    pub issue_source: Vc<LazyIssueSource>,
     pub in_try: bool,
 }
 
@@ -215,7 +215,7 @@ impl CjsRequireResolveAssetReference {
         origin: Vc<Box<dyn ResolveOrigin>>,
         request: Vc<Request>,
         path: Vc<AstPath>,
-        issue_source: Vc<IssueSource>,
+        issue_source: Vc<LazyIssueSource>,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(CjsRequireResolveAssetReference {

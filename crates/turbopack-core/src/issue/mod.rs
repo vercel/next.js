@@ -396,12 +396,42 @@ impl CapturedIssues {
     }
 }
 
+/// Use this to pass and store byte offsets for an AST node along with its
+/// source. When row/column is needed, this can be lazily converted into a
+/// proper `IssueSource` at that time using
+/// [LazyIssueSource::to_issue_source].
 #[turbo_tasks::value]
-#[derive(Clone)]
-pub struct IssueSource {
+#[derive(Clone, Debug)]
+pub struct LazyIssueSource {
     pub source: Vc<Box<dyn Source>>,
-    pub start: SourcePos,
-    pub end: SourcePos,
+    pub start: usize,
+    pub end: usize,
+}
+
+#[turbo_tasks::value_impl]
+impl LazyIssueSource {
+    #[turbo_tasks::function]
+    pub fn new(source: Vc<Box<dyn Source>>, start: usize, end: usize) -> Vc<Self> {
+        Self::cell(LazyIssueSource { source, start, end })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn to_issue_source(self: Vc<Self>) -> Result<Vc<IssueSource>> {
+        let this = &*self.await?;
+        Ok(IssueSource::from_byte_offset(
+            this.source,
+            this.start,
+            this.end,
+        ))
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Clone, Debug)]
+pub struct IssueSource {
+    source: Vc<Box<dyn Source>>,
+    start: SourcePos,
+    end: SourcePos,
 }
 
 #[turbo_tasks::value_impl]

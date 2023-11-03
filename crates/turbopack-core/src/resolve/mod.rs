@@ -26,7 +26,7 @@ use self::{
 };
 use crate::{
     file_source::FileSource,
-    issue::{resolve::ResolvingIssue, IssueExt},
+    issue::{resolve::ResolvingIssue, IssueExt, LazyIssueSource},
     module::{Module, Modules, OptionModule},
     output::{OutputAsset, OutputAssets},
     package_json::{read_package_json, PackageJsonIssue},
@@ -54,7 +54,7 @@ pub use alias_map::{
 };
 pub use remap::{ResolveAliasMap, SubpathValue};
 
-use crate::issue::{IssueSeverity, IssueSource};
+use crate::issue::IssueSeverity;
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
@@ -1930,8 +1930,8 @@ pub async fn handle_resolve_error(
     origin_path: Vc<FileSystemPath>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
-    source: Option<Vc<IssueSource>>,
     severity: Vc<IssueSeverity>,
+    source: Option<Vc<LazyIssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     Ok(match result.is_unresolveable().await {
         Ok(unresolveable) => {
