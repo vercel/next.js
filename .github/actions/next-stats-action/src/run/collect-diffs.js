@@ -39,15 +39,16 @@ module.exports = async function collectDiffs(
         })
       )
 
+      logger('Tracking the following files:')
+      logger(curFiles)
+
       for (let file of curFiles) {
         const absPath = path.join(statsAppDir, file)
 
         const diffDest = path.join(diffingDir, file)
+        logger('Copying', absPath, 'to', diffDest)
         await fs.cp(absPath, diffDest, { recursive: true, force: true })
       }
-
-      logger('Tracking the following files:')
-      logger(curFiles)
 
       if (curFiles.length > 0) {
         const prettierPath = path.join(
