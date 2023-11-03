@@ -618,6 +618,19 @@ createNextDescribe(
           }
         }
       })
+
+      it('should load chunks correctly without double encoding of url', async () => {
+        const browser = await next.browser('/router')
+
+        await browser
+          .elementByCss('#dynamic-link')
+          .click()
+          .waitForElementByCss('#dynamic-gsp-content')
+
+        expect(await browser.elementByCss('#dynamic-gsp-content').text()).toBe(
+          'slug:1'
+        )
+      })
     })
 
     describe('SEO', () => {

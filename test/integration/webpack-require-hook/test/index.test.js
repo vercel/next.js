@@ -22,10 +22,8 @@ const appDir = path.join(__dirname, '..')
           stdout: true,
           stderr: true,
         })
-        const errors = stderr
-          .split('\n')
-          .filter((line) => line && !line.trim().startsWith('⚠'))
-        expect(errors).toEqual([])
+        console.log(stderr)
+        expect(stderr.length).toStrictEqual(0)
         expect(stdout).toMatch(/Initialized config/)
       })
     })
