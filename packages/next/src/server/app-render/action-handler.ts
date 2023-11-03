@@ -232,7 +232,7 @@ export async function handleAction({
   generateFlight,
   staticGenerationStore,
   requestStore,
-  serverActionsBodySizeLimit,
+  serverActions,
   ctx,
 }: {
   req: IncomingMessage
@@ -248,7 +248,10 @@ export async function handleAction({
   generateFlight: GenerateFlight
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedForwardedHosts?: string[]
+  }
   ctx: AppRenderContext
 }): Promise<
   | undefined
@@ -308,41 +311,51 @@ export async function handleAction({
       'Missing `origin` header from a forwarded Server Actions request.'
     )
   } else if (!host || originHostname !== host.value) {
-    if (host) {
-      // This is an attack. We should not proceed the action.
-      console.error(
-        `\`${!host.type}\` header with value \`${
-          host.value
-        }\` does not match \`origin\` header with value \`${originHostname}\` from a forwarded Server Actions request. Aborting the action.`
-      )
+    // If the customer sets a list of allowed hosts, we'll allow the request.
+    // These can be their reverse proxies or other safe hosts.
+    if (
+      host &&
+      typeof host.value === 'string' &&
+      serverActions?.allowedForwardedHosts?.includes(host.value)
+    ) {
+      // Ignore it
     } else {
-      // This is an attack. We should not proceed the action.
-      console.error(
-        `\`x-forwarded-host\` or \`host\` headers are not provided. One of these is needed to compare the \`origin\` header from a forwarded Server Actions request. Aborting the action.`
-      )
-    }
-
-    const error = new Error('Invalid Server Actions request.')
-
-    if (isFetchAction) {
-      res.statusCode = 500
-      await Promise.all(staticGenerationStore.pendingRevalidates || [])
-      const promise = Promise.reject(error)
-      try {
-        await promise
-      } catch {}
-
-      return {
-        type: 'done',
-        result: await generateFlight(ctx, {
-          actionResult: promise,
-          // if the page was not revalidated, we can skip the rendering the flight tree
-          skipFlight: !staticGenerationStore.pathWasRevalidated,
-        }),
+      if (host) {
+        // This is an attack. We should not proceed the action.
+        console.error(
+          `\`${!host.type}\` header with value \`${
+            host.value
+          }\` does not match \`origin\` header with value \`${originHostname}\` from a forwarded Server Actions request. Aborting the action.`
+        )
+      } else {
+        // This is an attack. We should not proceed the action.
+        console.error(
+          `\`x-forwarded-host\` or \`host\` headers are not provided. One of these is needed to compare the \`origin\` header from a forwarded Server Actions request. Aborting the action.`
+        )
       }
-    }
 
-    throw error
+      const error = new Error('Invalid Server Actions request.')
+
+      if (isFetchAction) {
+        res.statusCode = 500
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        const promise = Promise.reject(error)
+        try {
+          await promise
+        } catch {}
+
+        return {
+          type: 'done',
+          result: await generateFlight(ctx, {
+            actionResult: promise,
+            // if the page was not revalidated, we can skip the rendering the flight tree
+            skipFlight: !staticGenerationStore.pathWasRevalidated,
+          }),
+        }
+      }
+
+      throw error
+    }
   }
 
   // ensure we avoid caching server actions unexpectedly
@@ -461,15 +474,14 @@ export async function handleAction({
 
           const actionData = Buffer.concat(chunks).toString('utf-8')
 
-          const limit = require('next/dist/compiled/bytes').parse(
-            serverActionsBodySizeLimit ?? '1mb'
-          )
+          const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
+          const limit = require('next/dist/compiled/bytes').parse(readableLimit)
 
           if (actionData.length > limit) {
             const { ApiError } = require('../api-utils')
             throw new ApiError(
               413,
-              `Body exceeded ${serverActionsBodySizeLimit} limit.
+              `Body exceeded ${readableLimit} limit.
 To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation`
             )
           }

@@ -107,7 +107,7 @@ export function unstable_cache<T extends Callback>(
             store?.isOnDemandRevalidate || incrementalCache.isOnDemandRevalidate
           ) &&
           (await incrementalCache?.get(cacheKey, {
-            fetchCache: true,
+            kindHint: 'fetch',
             revalidate: options.revalidate,
             tags,
             softTags: implicitTags,
