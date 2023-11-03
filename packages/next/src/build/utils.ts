@@ -69,8 +69,8 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
-import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module.compiled'
 import { RouteKind } from '../server/future/route-kind'
+import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -680,7 +680,11 @@ export async function printTreeView(
   print(
     textTable(
       [
-        usedSymbols.has('○') && ['○', '(Static)', 'prerendered as static HTML'],
+        usedSymbols.has('○') && [
+          '○',
+          '(Static)',
+          'prerendered as static content',
+        ],
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
@@ -1263,6 +1267,8 @@ export async function buildAppStaticPaths({
   const incrementalCache = new IncrementalCache({
     fs: nodeFs,
     dev: true,
+    // Enabled both for build as we're only writing this cache, not reading it.
+    pagesDir: true,
     appDir: true,
     flushToDisk: isrFlushToDisk,
     serverDistDir: path.join(distDir, 'server'),
@@ -1502,7 +1508,7 @@ export async function isPageStatic({
         const { tree, staticGenerationAsyncStorage, serverHooks } = ComponentMod
 
         const generateParams: GenerateParams =
-          routeModule && AppRouteRouteModule.is(routeModule)
+          routeModule && isAppRouteRouteModule(routeModule)
             ? [
                 {
                   config: {

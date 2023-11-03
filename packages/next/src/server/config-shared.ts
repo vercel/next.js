@@ -307,6 +307,13 @@ export interface ExperimentalConfig {
      * Allows adjusting body parser size limit for server actions.
      */
     bodySizeLimit?: SizeLimit
+
+    /**
+     * Allowed domains that can bypass CSRF check.
+     * @example
+     * ["my-reverse-proxy.com"]
+     */
+    allowedForwardedHosts?: string[]
   }
 
   /**
@@ -327,6 +334,12 @@ export interface ExperimentalConfig {
    * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
    */
   bundlePagesExternals?: boolean
+  /**
+   * Uses an IPC server to dedupe build-time requests to the cache handler
+   */
+  staticWorkerRequestDeduping?: boolean
+
+  useWasmBinary?: boolean
 }
 
 export type ExportPathMap = {
