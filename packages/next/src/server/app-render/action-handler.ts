@@ -6,7 +6,6 @@ import type {
 } from 'http'
 import type { WebNextRequest } from '../base-http/web'
 import type { SizeLimit } from '../../../types'
-import type { ApiError } from '../api-utils'
 
 import {
   ACTION,
@@ -37,15 +36,6 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
 import type { AppRenderContext, GenerateFlight } from './app-render'
-
-function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { Readable } = require('stream') as typeof import('stream')
-    return Readable.toWeb(nodeReadable) as ReadableStream
-  } else {
-    throw new Error('Invalid runtime')
-  }
-}
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -226,7 +216,7 @@ export async function handleAction({
   generateFlight,
   staticGenerationStore,
   requestStore,
-  serverActionsBodySizeLimit,
+  serverActions,
   ctx,
 }: {
   req: IncomingMessage
@@ -242,7 +232,10 @@ export async function handleAction({
   generateFlight: GenerateFlight
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedForwardedHosts?: string[]
+  }
   ctx: AppRenderContext
 }): Promise<
   | undefined
@@ -287,32 +280,41 @@ export async function handleAction({
       'Missing `origin` header from a forwarded Server Actions request.'
     )
   } else if (!host || originHostname !== host) {
-    // This is an attack. We should not proceed the action.
-    console.error(
-      '`x-forwarded-host` and `host` headers do not match `origin` header from a forwarded Server Actions request. Aborting the action.'
-    )
+    // If the customer sets a list of allowed hosts, we'll allow the request.
+    // These can be their reverse proxies or other safe hosts.
+    if (
+      typeof host === 'string' &&
+      serverActions?.allowedForwardedHosts?.includes(host)
+    ) {
+      // Ignore it
+    } else {
+      // This is an attack. We should not proceed the action.
+      console.error(
+        '`x-forwarded-host` and `host` headers do not match `origin` header from a forwarded Server Actions request. Aborting the action.'
+      )
 
-    const error = new Error('Invalid Server Actions request.')
+      const error = new Error('Invalid Server Actions request.')
 
-    if (isFetchAction) {
-      res.statusCode = 500
-      await Promise.all(staticGenerationStore.pendingRevalidates || [])
-      const promise = Promise.reject(error)
-      try {
-        await promise
-      } catch {}
+      if (isFetchAction) {
+        res.statusCode = 500
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        const promise = Promise.reject(error)
+        try {
+          await promise
+        } catch {}
 
-      return {
-        type: 'done',
-        result: await generateFlight(ctx, {
-          actionResult: promise,
-          // if the page was not revalidated, we can skip the rendering the flight tree
-          skipFlight: !staticGenerationStore.pathWasRevalidated,
-        }),
+        return {
+          type: 'done',
+          result: await generateFlight(ctx, {
+            actionResult: promise,
+            // if the page was not revalidated, we can skip the rendering the flight tree
+            skipFlight: !staticGenerationStore.pathWasRevalidated,
+          }),
+        }
       }
-    }
 
-    throw error
+      throw error
+    }
   }
 
   // ensure we avoid caching server actions unexpectedly
@@ -390,13 +392,28 @@ export async function handleAction({
 
             bound = await decodeReplyFromBusboy(bb, serverModuleMap)
           } else {
+            // Convert the Node.js readable stream to a Web Stream.
+            const readableStream = new ReadableStream({
+              start(controller) {
+                req.on('data', (chunk) => {
+                  controller.enqueue(new Uint8Array(chunk))
+                })
+                req.on('end', () => {
+                  controller.close()
+                })
+                req.on('error', (err) => {
+                  controller.error(err)
+                })
+              },
+            })
+
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
             const fakeRequest = new Request('http://localhost', {
               method: 'POST',
               // @ts-expect-error
               headers: { 'Content-Type': contentType },
-              body: nodeToWebReadableStream(req),
+              body: readableStream,
               duplex: 'half',
             })
             const formData = await fakeRequest.formData()
@@ -408,21 +425,24 @@ export async function handleAction({
             return
           }
         } else {
-          const { parseBody } =
-            require('../api-utils/node/parse-body') as typeof import('../api-utils/node/parse-body')
+          const chunks = []
 
-          let actionData
-          try {
-            actionData =
-              (await parseBody(req, serverActionsBodySizeLimit ?? '1mb')) || ''
-          } catch (e: any) {
-            if (e && (e as ApiError).statusCode === 413) {
-              // Exceeded the size limit
-              e.message =
-                e.message +
-                '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
-            }
-            throw e
+          for await (const chunk of req) {
+            chunks.push(Buffer.from(chunk))
+          }
+
+          const actionData = Buffer.concat(chunks).toString('utf-8')
+
+          const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
+          const limit = require('next/dist/compiled/bytes').parse(readableLimit)
+
+          if (actionData.length > limit) {
+            const { ApiError } = require('../api-utils')
+            throw new ApiError(
+              413,
+              `Body exceeded ${readableLimit} limit.
+To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation`
+            )
           }
 
           if (isURLEncodedAction) {
