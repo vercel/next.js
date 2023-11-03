@@ -1,27 +1,23 @@
-use std::io::Write;
-
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use indoc::writedoc;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
+    turbo::tasks_fs::FileSystemPath,
     turbopack::{
         core::{
-            asset::AssetContent,
             context::AssetContext,
             module::Module,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
-            virtual_source::VirtualSource,
         },
-        ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
+        ecmascript::chunk::EcmascriptChunkPlaceable,
         turbopack::ModuleAssetContext,
     },
 };
 
 use crate::{
     next_app::{AppEntry, AppPage, AppPath},
+    next_edge::entry::wrap_edge_entry,
     parse_segment_config_from_source,
     util::{load_next_js_template, NextRuntime},
 };
@@ -35,13 +31,7 @@ pub async fn get_app_route_entry(
     page: AppPage,
     project_root: Vc<FileSystemPath>,
 ) -> Result<Vc<AppEntry>> {
-    let config = parse_segment_config_from_source(
-        nodejs_context.process(
-            source,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
-        ),
-        source,
-    );
+    let config = parse_segment_config_from_source(source);
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
     let context = if is_edge {
         edge_context
@@ -92,7 +82,12 @@ pub async fn get_app_route_entry(
     );
 
     if is_edge {
-        rsc_entry = wrap_edge_entry(context, project_root, rsc_entry, pathname.clone());
+        rsc_entry = wrap_edge_route(
+            Vc::upcast(context),
+            project_root,
+            rsc_entry,
+            pathname.clone(),
+        );
     }
 
     let Some(rsc_entry) =
@@ -111,39 +106,33 @@ pub async fn get_app_route_entry(
 }
 
 #[turbo_tasks::function]
-pub async fn wrap_edge_entry(
-    context: Vc<ModuleAssetContext>,
+async fn wrap_edge_route(
+    context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
     pathname: String,
 ) -> Result<Vc<Box<dyn Module>>> {
-    let mut source = RopeBuilder::default();
-    writedoc!(
-        source,
-        r#"
-            import {{ EdgeRouteModuleWrapper }} from 'next/dist/esm/server/web/edge-route-module-wrapper'
-            import * as module from "MODULE"
+    const INNER: &str = "INNER_ROUTE_ENTRY";
 
-            self._ENTRIES ||= {{}}
-            self._ENTRIES[{}] = {{
-                ComponentMod: module,
-                default: EdgeRouteModuleWrapper.wrap(module.routeModule),
-            }}
-        "#,
-        StringifyJs(&format_args!("middleware_{}", pathname))
-    )?;
-    let file = File::from(source.build());
-    // TODO(alexkirsz) Figure out how to name this virtual asset.
-    let virtual_source = VirtualSource::new(
-        project_root.join("edge-wrapper.js".to_string()),
-        AssetContent::file(file.into()),
-    );
+    let source = load_next_js_template(
+        "edge-app-route.js",
+        project_root,
+        indexmap! {
+            "VAR_USERLAND" => INNER.to_string(),
+        },
+        indexmap! {},
+        indexmap! {},
+    )
+    .await?;
+
     let inner_assets = indexmap! {
-        "MODULE".to_string() => entry
+        INNER.to_string() => entry
     };
 
-    Ok(context.process(
-        Vc::upcast(virtual_source),
+    let wrapped = context.process(
+        Vc::upcast(source),
         Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    ))
+    );
+
+    Ok(wrap_edge_entry(context, project_root, wrapped, pathname))
 }

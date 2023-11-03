@@ -8,6 +8,10 @@ createNextDescribe('x-forwarded-headers', { files: __dirname }, ({ next }) => {
     expect(headers['x-forwarded-host']).toBe(url.host)
     expect(headers['x-forwarded-port']).toBe(url.port)
     expect(headers['x-forwarded-proto']).toBe(url.protocol.replace(':', ''))
-    console.log(headers)
+    expect(headers['middleware-x-forwarded-host']).toBe(url.host)
+    expect(headers['middleware-x-forwarded-port']).toBe(url.port)
+    expect(headers['middleware-x-forwarded-proto']).toBe(
+      url.protocol.replace(':', '')
+    )
   })
 })

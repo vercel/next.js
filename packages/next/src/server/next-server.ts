@@ -2,7 +2,6 @@ import './node-environment'
 import './require-hook'
 import './node-polyfill-crypto'
 
-import type { TLSSocket } from 'tls'
 import type { CacheFs } from '../shared/lib/utils'
 import {
   DecodeError,
@@ -15,17 +14,20 @@ import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest } from '../build'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './future/route-matches/route-match'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { PagesAPIRouteModule } from './future/route-modules/pages-api/module'
+import type { UrlWithParsedQuery } from 'url'
+import type { ParsedUrlQuery } from 'querystring'
+import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
+import type { Revalidate } from './lib/revalidate'
 
 import fs from 'fs'
 import { join, resolve, isAbsolute } from 'path'
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { PagesAPIRouteModule } from './future/route-modules/pages-api/module'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
   PAGES_MANIFEST,
@@ -38,14 +40,10 @@ import {
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
-  INTERNAL_HEADERS,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
-import type { UrlWithParsedQuery } from 'url'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { sendRenderResult } from './send-payload'
-import type { ParsedUrlQuery } from 'querystring'
-import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import { parseUrl } from '../shared/lib/router/utils/parse-url'
 import * as Log from '../build/output/log'
 
@@ -57,6 +55,7 @@ import type {
   NormalizedRouteManifest,
   LoadedRenderOpts,
   RouteHandler,
+  NextEnabledDirectories,
 } from './base-server'
 import BaseServer, { NoFallbackError } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
@@ -122,7 +121,7 @@ export interface NodeRequestHandler {
     req: IncomingMessage | BaseNextRequest,
     res: ServerResponse | BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery | undefined
-  ): Promise<void>
+  ): Promise<void> | void
 }
 
 const MiddlewareMatcherCache = new WeakMap<
@@ -180,10 +179,8 @@ export default class NextNodeServer extends BaseServer {
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
-
-    if (this.nextConfig.experimental.deploymentId) {
-      process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.experimental.deploymentId
-    }
+    process.env.NEXT_DEPLOYMENT_ID =
+      this.nextConfig.experimental.deploymentId || ''
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
@@ -314,7 +311,8 @@ export default class NextNodeServer extends BaseServer {
       dev,
       requestHeaders,
       requestProtocol,
-      appDir: this.hasAppDir,
+      pagesDir: this.enabledDirectories.pages,
+      appDir: this.enabledDirectories.app,
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -346,7 +344,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
-    if (!this.hasAppDir) return undefined
+    if (!this.enabledDirectories.app) return undefined
 
     return loadManifest(join(this.serverDistDir, APP_PATHS_MANIFEST))
   }
@@ -356,7 +354,7 @@ export default class NextNodeServer extends BaseServer {
       pathname,
       this.distDir,
       this.nextConfig.i18n?.locales,
-      this.hasAppDir
+      this.enabledDirectories.app
     )
   }
 
@@ -375,8 +373,13 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
-  protected getHasAppDir(dev: boolean): boolean {
-    return Boolean(findDir(dev ? this.dir : this.serverDistDir, 'app'))
+  protected getEnabledDirectories(dev: boolean): NextEnabledDirectories {
+    const dir = dev ? this.dir : this.serverDistDir
+
+    return {
+      app: findDir(dir, 'app') ? true : false,
+      pages: findDir(dir, 'pages') ? true : false,
+    }
   }
 
   protected sendRenderResult(
@@ -387,13 +390,17 @@ export default class NextNodeServer extends BaseServer {
       type: 'html' | 'json'
       generateEtags: boolean
       poweredByHeader: boolean
-      options?: PayloadOptions | undefined
+      revalidate: Revalidate | undefined
     }
   ): Promise<void> {
     return sendRenderResult({
       req: req.originalRequest,
       res: res.originalResponse,
-      ...options,
+      result: options.result,
+      type: options.type,
+      generateEtags: options.generateEtags,
+      poweredByHeader: options.poweredByHeader,
+      revalidate: options.revalidate,
     })
   }
 
@@ -484,7 +491,7 @@ export default class NextNodeServer extends BaseServer {
       // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
       renderOpts.nextFontManifest = this.nextFontManifest
 
-      if (this.hasAppDir && renderOpts.isAppPath) {
+      if (this.enabledDirectories.app && renderOpts.isAppPath) {
         return lazyRenderAppPage(
           req.originalRequest,
           res.originalResponse,
@@ -569,7 +576,12 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagePath(pathname: string, locales?: string[]): string {
-    return getPagePath(pathname, this.distDir, locales, this.hasAppDir)
+    return getPagePath(
+      pathname,
+      this.distDir,
+      locales,
+      this.enabledDirectories.app
+    )
   }
 
   protected async renderPageComponent(
@@ -769,6 +781,7 @@ export default class NextNodeServer extends BaseServer {
         await this.render404(req, res)
         return true
       }
+
       const paramsResult = ImageOptimizerCache.validateParams(
         (req as NodeNextRequest).originalRequest,
         parsedUrl.query,
@@ -781,6 +794,7 @@ export default class NextNodeServer extends BaseServer {
         res.body(paramsResult.errorMessage).send()
         return true
       }
+
       const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
 
       try {
@@ -816,6 +830,7 @@ export default class NextNodeServer extends BaseServer {
             'invariant did not get entry from image response cache'
           )
         }
+
         sendResponse(
           (req as NodeNextRequest).originalRequest,
           (res as NodeNextResponse).originalResponse,
@@ -828,6 +843,7 @@ export default class NextNodeServer extends BaseServer {
           cacheEntry.revalidate || 0,
           Boolean(this.renderOpts.dev)
         )
+        return true
       } catch (err) {
         if (err instanceof ImageError) {
           res.statusCode = err.statusCode
@@ -836,7 +852,6 @@ export default class NextNodeServer extends BaseServer {
         }
         throw err
       }
-      return true
     }
   }
 
@@ -1031,9 +1046,9 @@ export default class NextNodeServer extends BaseServer {
       const normalizedReq = this.normalizeReq(req)
       const normalizedRes = this.normalizeRes(res)
 
-      const enabledVerboseLogging =
-        this.nextConfig.experimental.logging?.level === 'verbose'
-      const shouldTruncateUrl = !this.nextConfig.experimental.logging?.fullUrl
+      const loggingFetchesConfig = this.nextConfig.logging?.fetches
+      const enabledVerboseLogging = !!loggingFetchesConfig
+      const shouldTruncateUrl = loggingFetchesConfig?.fullUrl
 
       if (this.renderOpts.dev) {
         const { bold, green, yellow, red, gray, white } =
@@ -1260,7 +1275,7 @@ export default class NextNodeServer extends BaseServer {
     const { req, res, query } = ctx
     const is404 = res.statusCode === 404
 
-    if (is404 && this.hasAppDir) {
+    if (is404 && this.enabledDirectories.app) {
       const notFoundPathname = this.renderOpts.dev
         ? '/not-found'
         : '/_not-found'
@@ -1578,17 +1593,14 @@ export default class NextNodeServer extends BaseServer {
   ) => {
     const isMiddlewareInvoke = req.headers['x-middleware-invoke']
 
-    const handleFinished = (finished: boolean = false) => {
-      if (isMiddlewareInvoke && !finished) {
-        res.setHeader('x-middleware-invoke', '1')
-        res.body('').send()
-        return true
-      }
-      return finished
-    }
-
     if (!isMiddlewareInvoke) {
       return false
+    }
+
+    const handleFinished = () => {
+      res.setHeader('x-middleware-invoke', '1')
+      res.body('').send()
+      return true
     }
 
     const middleware = this.getMiddleware()
@@ -1613,10 +1625,6 @@ export default class NextNodeServer extends BaseServer {
       ReturnType<typeof NextNodeServer.prototype.runMiddleware>
     >
     let bubblingResult = false
-
-    for (const key of INTERNAL_HEADERS) {
-      delete req.headers[key]
-    }
 
     // Strip the internal headers.
     this.stripInternalHeaders(req)
@@ -1744,11 +1752,8 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl: NextUrlWithParsedQuery,
     isUpgradeReq?: boolean
   ) {
-    const protocol =
-      ((req as NodeNextRequest).originalRequest?.socket as TLSSocket)
-        ?.encrypted || req.headers['x-forwarded-proto']?.includes('https')
-        ? 'https'
-        : 'http'
+    // Injected in base-server.ts
+    const protocol = req.headers['x-forwarded-proto'] as 'https' | 'http'
 
     // When there are hostname and port we build an absolute URL
     const initUrl =

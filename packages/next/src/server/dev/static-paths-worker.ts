@@ -14,16 +14,19 @@ import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { isAppRouteRouteModule } from '../future/route-modules/checks'
 
-const { AppRouteRouteModule } =
-  require('../future/route-modules/app-route/module.compiled') as typeof import('../future/route-modules/app-route/module')
-
-type RuntimeConfig = any
+type RuntimeConfig = {
+  configFileName: string
+  publicRuntimeConfig: { [key: string]: any }
+  serverRuntimeConfig: { [key: string]: any }
+}
 
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break
 // during a production build
 export async function loadStaticPaths({
+  dir,
   distDir,
   pathname,
   config,
@@ -37,7 +40,9 @@ export async function loadStaticPaths({
   maxMemoryCacheSize,
   requestHeaders,
   incrementalCacheHandlerPath,
+  ppr,
 }: {
+  dir: string
   distDir: string
   pathname: string
   config: RuntimeConfig
@@ -51,6 +56,7 @@ export async function loadStaticPaths({
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   incrementalCacheHandlerPath?: string
+  ppr: boolean
 }): Promise<{
   paths?: string[]
   encodedPaths?: string[]
@@ -80,7 +86,7 @@ export async function loadStaticPaths({
   if (isAppPath) {
     const { routeModule } = components
     const generateParams: GenerateParams =
-      routeModule && AppRouteRouteModule.is(routeModule)
+      routeModule && isAppRouteRouteModule(routeModule)
         ? [
             {
               config: {
@@ -95,6 +101,7 @@ export async function loadStaticPaths({
         : await collectGenerateParams(components.ComponentMod.tree)
 
     return await buildAppStaticPaths({
+      dir,
       page: pathname,
       generateParams,
       configFileName: config.configFileName,
@@ -106,6 +113,7 @@ export async function loadStaticPaths({
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
+      ppr,
     })
   }
 

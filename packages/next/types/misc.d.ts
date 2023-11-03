@@ -31,10 +31,6 @@ declare module 'react-server-dom-webpack/server.edge'
 declare module 'react-server-dom-webpack/server.node'
 declare module 'react-server-dom-webpack/client.edge'
 
-declare module 'react-dom/server-rendering-stub'
-declare module 'react-dom/server.browser'
-declare module 'react-dom/server.edge'
-
 declare module 'VAR_MODULE_GLOBAL_ERROR'
 declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'

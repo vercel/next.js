@@ -444,14 +444,6 @@ export function nextBuild(
   return runNextCommand(['build', dir, ...args], opts)
 }
 
-export function nextExport(dir: string, { outdir }, opts: NextOptions = {}) {
-  return runNextCommand(['export', dir, '--outdir', outdir], opts)
-}
-
-export function nextExportDefault(dir: string, opts: NextOptions = {}) {
-  return runNextCommand(['export', dir], opts)
-}
-
 export function nextLint(
   dir: string,
   args: string[] = [],
