@@ -208,6 +208,22 @@ async function createRedirectRenderResult(
   return new RenderResult(JSON.stringify({}))
 }
 
+// Used to compare Host header and Origin header.
+const enum HostType {
+  XForwardedHost = 'x-forwarded-host',
+  Host = 'host',
+}
+type Host =
+  | {
+      type: HostType.XForwardedHost
+      value: string
+    }
+  | {
+      type: HostType.Host
+      value: string
+    }
+  | undefined
+
 export async function handleAction({
   req,
   res,
@@ -266,7 +282,22 @@ export async function handleAction({
     typeof req.headers['origin'] === 'string'
       ? new URL(req.headers['origin']).host
       : undefined
-  const host = req.headers['x-forwarded-host'] || req.headers['host']
+
+  const forwardedHostHeader = req.headers['x-forwarded-host'] as
+    | string
+    | undefined
+  const hostHeader = req.headers['host']
+  const host: Host = forwardedHostHeader
+    ? {
+        type: HostType.XForwardedHost,
+        value: forwardedHostHeader,
+      }
+    : hostHeader
+    ? {
+        type: HostType.Host,
+        value: hostHeader,
+      }
+    : undefined
 
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
@@ -276,11 +307,20 @@ export async function handleAction({
     console.warn(
       'Missing `origin` header from a forwarded Server Actions request.'
     )
-  } else if (!host || originHostname !== host) {
-    // This is an attack. We should not proceed the action.
-    console.error(
-      '`x-forwarded-host` and `host` headers do not match `origin` header from a forwarded Server Actions request. Aborting the action.'
-    )
+  } else if (!host || originHostname !== host.value) {
+    if (host) {
+      // This is an attack. We should not proceed the action.
+      console.error(
+        `\`${!host.type}\` header with value \`${
+          host.value
+        }\` does not match \`origin\` header with value \`${originHostname}\` from a forwarded Server Actions request. Aborting the action.`
+      )
+    } else {
+      // This is an attack. We should not proceed the action.
+      console.error(
+        `\`x-forwarded-host\` or \`host\` headers are not provided. One of these is needed to compare the \`origin\` header from a forwarded Server Actions request. Aborting the action.`
+      )
+    }
 
     const error = new Error('Invalid Server Actions request.')
 
