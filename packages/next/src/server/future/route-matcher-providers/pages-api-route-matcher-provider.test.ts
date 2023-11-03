@@ -1,7 +1,7 @@
 import { PAGES_MANIFEST, SERVER_DIRECTORY } from '../../../shared/lib/constants'
-import { PagesAPIRouteDefinition } from '../route-definitions/pages-api-route-definition'
+import type { PagesAPIRouteDefinition } from '../route-definitions/pages-api-route-definition'
 import { RouteKind } from '../route-kind'
-import { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
+import type { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
 import { PagesAPIRouteMatcherProvider } from './pages-api-route-matcher-provider'
 
 describe('PagesAPIRouteMatcherProvider', () => {

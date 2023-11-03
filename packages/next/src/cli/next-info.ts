@@ -3,11 +3,8 @@
 import os from 'os'
 import childProcess from 'child_process'
 
-import chalk from 'next/dist/compiled/chalk'
-const { fetch } = require('next/dist/compiled/undici') as {
-  fetch: typeof global.fetch
-}
-import { CliCommand } from '../lib/commands'
+import { bold, cyan, yellow } from '../lib/picocolors'
+import type { CliCommand } from '../lib/commands'
 import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 
@@ -62,6 +59,9 @@ async function getNextConfig() {
 
   return {
     output: config.output ?? 'N/A',
+    experimental: {
+      useWasmBinary: config.experimental?.useWasmBinary,
+    },
   }
 }
 
@@ -83,17 +83,17 @@ function getBinaryVersion(binaryName: string) {
 function printHelp() {
   console.log(
     `
-    Description
-      Prints relevant details about the current system which can be used to report Next.js bugs
+Description
+  Prints relevant details about the current system which can be used to report Next.js bugs
 
-    Usage
-      $ next info
+Usage
+  $ next info
 
-    Options
-      --help, -h    Displays this message
-      --verbose     Collect additional information for debugging
+Options
+  --help, -h    Displays this message
+  --verbose     Collect additional information for debugging
 
-    Learn more: ${chalk.cyan('https://nextjs.org/docs/api-reference/cli#info')}`
+Learn more: ${cyan('https://nextjs.org/docs/api-reference/cli#info')}`
   )
 }
 
@@ -105,23 +105,23 @@ async function printDefaultInfo() {
   const nextConfig = await getNextConfig()
 
   console.log(`
-    Operating System:
-      Platform: ${os.platform()}
-      Arch: ${os.arch()}
-      Version: ${os.version()}
-    Binaries:
-      Node: ${process.versions.node}
-      npm: ${getBinaryVersion('npm')}
-      Yarn: ${getBinaryVersion('yarn')}
-      pnpm: ${getBinaryVersion('pnpm')}
-    Relevant Packages:
-      next: ${installedRelease}
-      eslint-config-next: ${getPackageVersion('eslint-config-next')}
-      react: ${getPackageVersion('react')}
-      react-dom: ${getPackageVersion('react-dom')}
-      typescript: ${getPackageVersion('typescript')}
-    Next.js Config:
-      output: ${nextConfig.output}
+Operating System:
+  Platform: ${os.platform()}
+  Arch: ${os.arch()}
+  Version: ${os.version()}
+Binaries:
+  Node: ${process.versions.node}
+  npm: ${getBinaryVersion('npm')}
+  Yarn: ${getBinaryVersion('yarn')}
+  pnpm: ${getBinaryVersion('pnpm')}
+Relevant Packages:
+  next: ${installedRelease}
+  eslint-config-next: ${getPackageVersion('eslint-config-next')}
+  react: ${getPackageVersion('react')}
+  react-dom: ${getPackageVersion('react-dom')}
+  typescript: ${getPackageVersion('typescript')}
+Next.js Config:
+  output: ${nextConfig.output}
 
 `)
 
@@ -134,8 +134,8 @@ async function printDefaultInfo() {
 
     if (installedRelease !== newestRelease) {
       console.warn(
-        `${chalk.yellow(
-          chalk.bold('warn')
+        `${yellow(
+          bold('warn')
         )}  - Latest canary version not detected, detected: "${installedRelease}", newest: "${newestRelease}".
         Please try the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
         Read more - https://nextjs.org/docs/messages/opening-an-issue`
@@ -143,8 +143,8 @@ async function printDefaultInfo() {
     }
   } catch (e) {
     console.warn(
-      `${chalk.yellow(
-        chalk.bold('warn')
+      `${yellow(
+        bold('warn')
       )}  - Failed to fetch latest canary version. (Reason: ${
         (e as Error).message
       }.)
@@ -353,8 +353,11 @@ async function printVerbose() {
 
           // First, try to load next-swc via loadBindings.
           try {
+            let nextConfig = await getNextConfig()
             const { loadBindings } = require('../build/swc')
-            const bindings = await loadBindings()
+            const bindings = await loadBindings(
+              nextConfig.experimental?.useWasmBinary
+            )
             // Run arbitary function to verify the bindings are loaded correctly.
             const target = bindings.getTargetTriple()
 
@@ -555,7 +558,7 @@ async function printVerbose() {
     })
   }
 
-  console.log(`\n${chalk.bold('Generated diagnostics report')}`)
+  console.log(`\n${bold('Generated diagnostics report')}`)
 
   console.log(`\nPlease copy below report and paste it into your issue.`)
   for (const { title, result } of report) {

@@ -38,11 +38,8 @@ import {
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
-import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  HMR_ACTION_TYPES,
-} from '../../../server/dev/hot-reloader-types'
-
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../server/dev/hot-reloader-types'
+import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
 // https://github.com/webpack/webpack/blob/webpack-1/hot/dev-server.js
@@ -122,6 +119,8 @@ function handleSuccess() {
     if (isHotUpdate) {
       tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
     }
+  } else {
+    onBuildOk()
   }
 }
 

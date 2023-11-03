@@ -7,7 +7,8 @@
     "esModuleInterop": true,
     "moduleResolution": "node",
     "jsx": "react",
-    "stripInternal": true
+    "stripInternal": true,
+    "verbatimModuleSyntax": true
   },
   "exclude": [
     "dist",

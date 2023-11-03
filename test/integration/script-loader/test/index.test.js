@@ -20,7 +20,7 @@ let appWithPartytownMissingDir = join(__dirname, '../partytown-missing')
 let server
 let appPort
 
-const runTests = (isDev = false) => {
+const runTests = (isDev) => {
   // TODO: We will refactor the next/script to be strict mode resilient
   // Don't skip the test case for dev mode (strict mode) once refactoring is finished
   it('priority afterInteractive', async () => {
@@ -251,17 +251,23 @@ const runTests = (isDev = false) => {
     }
   })
 
-  it('Error message is shown if Partytown is not installed locally', async () => {
-    const { stdout, stderr } = await nextBuild(appWithPartytownMissingDir, [], {
-      stdout: true,
-      stderr: true,
-    })
-    const output = stdout + stderr
+  if (!isDev) {
+    it('Error message is shown if Partytown is not installed locally', async () => {
+      const { stdout, stderr } = await nextBuild(
+        appWithPartytownMissingDir,
+        [],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+      const output = stdout + stderr
 
-    expect(output.replace(/\n|\r/g, '')).toMatch(
-      /It looks like you're trying to use Partytown with next\/script but do not have the required package\(s\) installed.Please install Partytown by running:.*?(npm|pnpm|yarn) (install|add) (--save-dev|--dev) @builder.io\/partytownIf you are not trying to use Partytown, please disable the experimental "nextScriptWorkers" flag in next.config.js./
-    )
-  })
+      expect(output.replace(/\n|\r/g, '')).toMatch(
+        /It looks like you're trying to use Partytown with next\/script but do not have the required package\(s\) installed.Please install Partytown by running:.*?(npm|pnpm|yarn) (install|add) (--save-dev|--dev) @builder.io\/partytownIf you are not trying to use Partytown, please disable the experimental "nextScriptWorkers" flag in next.config.js./
+      )
+    })
+  }
 
   it('onReady fires after load event and then on every subsequent re-mount', async () => {
     let browser
@@ -317,21 +323,23 @@ describe('Next.js Script - Primary Strategies - Strict Mode', () => {
 })
 
 describe('Next.js Script - Primary Strategies - Production Mode', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
 
-    const app = nextServer({
-      dir: appDir,
-      dev: false,
-      quiet: true,
+      const app = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
+      })
+
+      server = await startApp(app)
+      appPort = server.address().port
+    })
+    afterAll(async () => {
+      await stopApp(server)
     })
 
-    server = await startApp(app)
-    appPort = server.address().port
+    runTests(false)
   })
-  afterAll(async () => {
-    await stopApp(server)
-  })
-
-  runTests(false)
 })

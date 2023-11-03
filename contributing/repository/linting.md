@@ -14,7 +14,7 @@ If you get errors, you can run the ESLint and Prettier auto-fix using:
 pnpm lint-fix
 ```
 
-Not all rules can be auto-fixed, those require manual changes.
+Not all rules can be auto-fixed, some require manual changes.
 
 If you get a warning by alex, follow the instructions to correct the language.
 

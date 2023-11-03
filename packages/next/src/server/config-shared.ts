@@ -1,15 +1,15 @@
 import os from 'os'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
-import {
+import { imageConfigDefault } from '../shared/lib/image-config'
+import type {
   ImageConfig,
   ImageConfigComplete,
-  imageConfigDefault,
 } from '../shared/lib/image-config'
-import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
-import { WEB_VITALS } from '../shared/lib/utils'
+import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
+import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import { SizeLimit } from '../../types'
+import type { SizeLimit } from '../../types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -163,10 +163,6 @@ export interface ExperimentalConfig {
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
   deploymentId?: string
-  logging?: {
-    level?: 'verbose'
-    fullUrl?: false
-  }
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -188,7 +184,6 @@ export interface ExperimentalConfig {
   swcMinify?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
-  sharedPool?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
@@ -223,10 +218,6 @@ export interface ExperimentalConfig {
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
 
-  /**
-   * This option is removed
-   */
-  swcMinifyDebugOptions?: never
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
   /**
@@ -286,7 +277,6 @@ export interface ExperimentalConfig {
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
-   * This option requires `appDir` to be enabled first.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
    */
   typedRoutes?: boolean
@@ -302,20 +292,29 @@ export interface ExperimentalConfig {
   instrumentationHook?: boolean
 
   /**
-   * Enables server actions. Using this feature will enable the `react@experimental` for the `app` directory.
-   * @see https://nextjs.org/docs/app/api-reference/functions/server-actions
-   */
-  serverActions?: boolean
-
-  /**
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   ppr?: boolean
 
   /**
-   * Allows adjusting body parser size limit for server actions.
+   * Enables experimental taint APIs in React.
+   * Using this feature will enable the `react@experimental` for the `app` directory.
    */
-  serverActionsBodySizeLimit?: SizeLimit
+  taint?: boolean
+
+  serverActions?: {
+    /**
+     * Allows adjusting body parser size limit for server actions.
+     */
+    bodySizeLimit?: SizeLimit
+
+    /**
+     * Allowed domains that can bypass CSRF check.
+     * @example
+     * ["my-reverse-proxy.com"]
+     */
+    allowedForwardedHosts?: string[]
+  }
 
   /**
    * enables the minification of server code.
@@ -331,6 +330,16 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
+  /**
+   * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
+   */
+  bundlePagesExternals?: boolean
+  /**
+   * Uses an IPC server to dedupe build-time requests to the cache handler
+   */
+  staticWorkerRequestDeduping?: boolean
+
+  useWasmBinary?: boolean
 }
 
 export type ExportPathMap = {
@@ -582,6 +591,8 @@ export interface NextConfig extends Record<string, any> {
    * that are needed for deploying a production version of your application.
    *
    * @see [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
+   * @deprecated will be enabled by default and removed in Next.js 15
+   *
    */
   outputFileTracing?: boolean
 
@@ -602,6 +613,7 @@ export interface NextConfig extends Record<string, any> {
 
   /**
    * Use [SWC compiler](https://swc.rs) to minify the generated JavaScript
+   * @deprecated will be enabled by default and removed in Next.js 15
    *
    * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
    */
@@ -662,6 +674,12 @@ export interface NextConfig extends Record<string, any> {
       skipDefaultConversion?: boolean
     }
   >
+
+  logging?: {
+    fetches?: {
+      fullUrl?: boolean
+    }
+  }
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -741,7 +759,6 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     memoryBasedWorkersCount: false,
-    sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -771,6 +788,7 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     instrumentationHook: false,
+    bundlePagesExternals: false,
   },
 }
 
@@ -780,20 +798,4 @@ export async function normalizeConfig(phase: string, config: any) {
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
-}
-
-export function validateConfig(userConfig: NextConfig): {
-  errors?: Array<any> | null
-} {
-  if (process.env.NEXT_MINIMAL) {
-    return {
-      errors: [],
-    }
-  } else {
-    const configValidator = require('next/dist/next-config-validate.js')
-    configValidator(userConfig)
-    return {
-      errors: configValidator.errors,
-    }
-  }
 }

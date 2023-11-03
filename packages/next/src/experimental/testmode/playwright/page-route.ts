@@ -1,9 +1,13 @@
-import type { Page, Route, Request } from '@playwright/test'
+import type {
+  Page,
+  Route,
+  Request as PlaywrightRequest,
+} from '@playwright/test'
 import type { FetchHandler } from './next-worker-fixture'
 
 function continueRoute(
   route: Route,
-  request: Request,
+  request: PlaywrightRequest,
   testHeaders: Record<string, string>
 ): Promise<void> {
   return route.continue({

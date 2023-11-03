@@ -8,7 +8,7 @@ import { Image } from '../../client/image-component'
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 
-const unstable_getImgProps = (imgProps: ImageProps) => {
+export const unstable_getImgProps = (imgProps: ImageProps) => {
   warnOnce(
     'Warning: unstable_getImgProps() is experimental and may change or be removed at any time. Use at your own risk.'
   )
@@ -27,10 +27,4 @@ const unstable_getImgProps = (imgProps: ImageProps) => {
 
 export default Image
 
-export {
-  ImageProps,
-  ImageLoaderProps,
-  ImageLoader,
-  StaticImageData,
-  unstable_getImgProps,
-}
+export type { ImageProps, ImageLoaderProps, ImageLoader, StaticImageData }
