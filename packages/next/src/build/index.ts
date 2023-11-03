@@ -81,6 +81,7 @@ import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
+
 import {
   eventBuildOptimize,
   eventCliSession,
@@ -154,6 +155,8 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
+import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
+import type { NextEnabledDirectories } from '../server/base-server'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -346,9 +349,10 @@ export default async function build(
   const isCompile = buildMode === 'experimental-compile'
   const isGenerate = buildMode === 'experimental-generate'
 
-  let hasAppDir = false
   try {
     const nextBuildSpan = trace('next-build', undefined, {
+      buildMode: buildMode,
+      isTurboBuild: String(turboNextBuild),
       version: process.env.__NEXT_VERSION as string,
     })
 
@@ -373,6 +377,8 @@ export default async function build(
             silent: false,
           })
         )
+
+      process.env.NEXT_DEPLOYMENT_ID = config.experimental.deploymentId || ''
       NextBuildContext.config = config
 
       let configOutDir = 'out'
@@ -427,11 +433,14 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const isAppDirEnabled = true
       const { pagesDir, appDir } = findPagesDir(dir)
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
-      hasAppDir = Boolean(appDir)
+
+      const enabledDirectories: NextEnabledDirectories = {
+        app: typeof appDir === 'string',
+        pages: typeof pagesDir === 'string',
+      }
 
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
@@ -501,6 +510,14 @@ export default async function build(
           return this
         },
       } as any
+
+      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir)
+      logStartInfo({
+        networkUrl: null,
+        appUrl: null,
+        envInfo,
+        expFeatureInfo,
+      })
 
       if (!isGenerate) {
         buildSpinner = createSpinner('Creating an optimized production build')
@@ -1013,7 +1030,7 @@ export default async function build(
         const turboJson = findUp.sync('turbo.json', { cwd: dir })
         // eslint-disable-next-line no-shadow
         const packagePath = findUp.sync('package.json', { cwd: dir })
-        let binding = await loadBindings()
+        let binding = await loadBindings(config?.experimental?.useWasmBinary)
 
         let root =
           turboNextBuildRoot ??
@@ -1033,6 +1050,7 @@ export default async function build(
           root,
           distDir: config.distDir,
           defineEnv: createDefineEnv({
+            isTurbopack: turboNextBuild,
             allowedRevalidateHeaderKeys:
               config.experimental.allowedRevalidateHeaderKeys,
             clientRouterFilters: NextBuildContext.clientRouterFilters,
@@ -1200,8 +1218,8 @@ export default async function build(
         : config.experimental.cpus || 4
 
       function createStaticWorker(
-        incrementalCacheIpcPort: number,
-        incrementalCacheIpcValidationKey: string
+        incrementalCacheIpcPort?: number,
+        incrementalCacheIpcValidationKey?: string
       ) {
         let infoPrinted = false
 
@@ -1241,7 +1259,9 @@ export default async function build(
           forkOptions: {
             env: {
               ...process.env,
-              __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort + '',
+              __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort
+                ? incrementalCacheIpcPort + ''
+                : undefined,
               __NEXT_INCREMENTAL_CACHE_IPC_KEY:
                 incrementalCacheIpcValidationKey,
             },
@@ -1263,47 +1283,51 @@ export default async function build(
           >
       }
 
-      let CacheHandler: any
+      let incrementalCacheIpcPort
+      let incrementalCacheIpcValidationKey
 
-      if (incrementalCacheHandlerPath) {
-        CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
-          ? incrementalCacheHandlerPath
-          : path.join(dir, incrementalCacheHandlerPath))
-        CacheHandler = CacheHandler.default || CacheHandler
+      if (config.experimental.staticWorkerRequestDeduping) {
+        let CacheHandler
+        if (incrementalCacheHandlerPath) {
+          CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
+            ? incrementalCacheHandlerPath
+            : path.join(dir, incrementalCacheHandlerPath))
+          CacheHandler = CacheHandler.default || CacheHandler
+        }
+
+        const cacheInitialization = await initializeIncrementalCache({
+          fs: nodeFs,
+          dev: false,
+          pagesDir: true,
+          appDir: true,
+          fetchCache: true,
+          flushToDisk: config.experimental.isrFlushToDisk,
+          serverDistDir: path.join(distDir, 'server'),
+          fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+          maxMemoryCacheSize: config.experimental.isrMemoryCacheSize,
+          getPrerenderManifest: () => ({
+            version: -1 as any, // letting us know this doesn't conform to spec
+            routes: {},
+            dynamicRoutes: {},
+            notFoundRoutes: [],
+            preview: null as any, // `preview` is special case read in next-dev-server
+          }),
+          requestHeaders: {},
+          CurCacheHandler: CacheHandler,
+          minimalMode: ciEnvironment.hasNextSupport,
+          allowedRevalidateHeaderKeys:
+            config.experimental.allowedRevalidateHeaderKeys,
+        })
+
+        incrementalCacheIpcPort = cacheInitialization.ipcPort
+        incrementalCacheIpcValidationKey = cacheInitialization.ipcValidationKey
       }
-
-      const {
-        ipcPort: incrementalCacheIpcPort,
-        ipcValidationKey: incrementalCacheIpcValidationKey,
-      } = await initializeIncrementalCache({
-        fs: nodeFs,
-        dev: false,
-        appDir: isAppDirEnabled,
-        fetchCache: isAppDirEnabled,
-        flushToDisk: config.experimental.isrFlushToDisk,
-        serverDistDir: path.join(distDir, 'server'),
-        fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-        maxMemoryCacheSize: config.experimental.isrMemoryCacheSize,
-        getPrerenderManifest: () => ({
-          version: -1 as any, // letting us know this doesn't conform to spec
-          routes: {},
-          dynamicRoutes: {},
-          notFoundRoutes: [],
-          preview: null as any, // `preview` is special case read in next-dev-server
-        }),
-        requestHeaders: {},
-        CurCacheHandler: CacheHandler,
-        minimalMode: ciEnvironment.hasNextSupport,
-
-        allowedRevalidateHeaderKeys:
-          config.experimental.allowedRevalidateHeaderKeys,
-      })
 
       const pagesStaticWorkers = createStaticWorker(
         incrementalCacheIpcPort,
         incrementalCacheIpcValidationKey
       )
-      const appStaticWorkers = isAppDirEnabled
+      const appStaticWorkers = appDir
         ? createStaticWorker(
             incrementalCacheIpcPort,
             incrementalCacheIpcValidationKey
@@ -1354,6 +1378,7 @@ export default async function build(
           async () =>
             hasCustomErrorPage &&
             pagesStaticWorkers.isPageStatic({
+              dir,
               page: '/_error',
               distDir,
               configFileName,
@@ -1362,6 +1387,7 @@ export default async function build(
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
+              ppr: config.experimental.ppr === true,
             })
         )
 
@@ -1449,7 +1475,7 @@ export default async function build(
               })
               return checkPageSpan.traceAsyncFn(async () => {
                 const actualPage = normalizePagePath(page)
-                const [selfSize, allSize] = await getJsPageSizeInKb(
+                const [size, totalSize] = await getJsPageSizeInKb(
                   pageType,
                   actualPage,
                   distDir,
@@ -1459,7 +1485,8 @@ export default async function build(
                   computedManifestData
                 )
 
-                let isSsg = false
+                let isPPR = false
+                let isSSG = false
                 let isStatic = false
                 let isServerComponent = false
                 let isHybridAmp = false
@@ -1551,6 +1578,7 @@ export default async function build(
                               ? appStaticWorkers
                               : pagesStaticWorkers
                           )!.isPageStatic({
+                            dir,
                             page,
                             originalAppPath,
                             distDir,
@@ -1569,6 +1597,7 @@ export default async function build(
                             maxMemoryCacheSize:
                               config.experimental.isrMemoryCacheSize,
                             nextConfigOutput: config.output,
+                            ppr: config.experimental.ppr === true,
                           })
                         }
                       )
@@ -1578,12 +1607,24 @@ export default async function build(
                         // TODO-APP: handle prerendering with edge
                         if (isEdgeRuntime(pageRuntime)) {
                           isStatic = false
-                          isSsg = false
+                          isSSG = false
 
                           Log.warnOnce(
                             `Using edge runtime on a page currently disables static generation for that page`
                           )
                         } else {
+                          // If this route can be partially pre-rendered, then
+                          // mark it as such and mark it that it can be
+                          // generated server-side.
+                          if (workerResult.isPPR) {
+                            isPPR = workerResult.isPPR
+                            isSSG = true
+                            isStatic = true
+
+                            appStaticPaths.set(originalAppPath, [])
+                            appStaticPathsEncoded.set(originalAppPath, [])
+                          }
+
                           if (
                             workerResult.encodedPrerenderRoutes &&
                             workerResult.prerenderRoutes
@@ -1597,7 +1638,7 @@ export default async function build(
                               workerResult.encodedPrerenderRoutes
                             )
                             ssgPageRoutes = workerResult.prerenderRoutes
-                            isSsg = true
+                            isSSG = true
                           }
 
                           const appConfig = workerResult.appConfig || {}
@@ -1684,7 +1725,7 @@ export default async function build(
 
                         if (workerResult.hasStaticProps) {
                           ssgPages.add(page)
-                          isSsg = true
+                          isSSG = true
 
                           if (
                             workerResult.prerenderRoutes &&
@@ -1719,7 +1760,7 @@ export default async function build(
                           // This is a static server component page that doesn't have
                           // gSP or gSSP. We still treat it as a SSG page.
                           ssgPages.add(page)
-                          isSsg = true
+                          isSSG = true
                         }
 
                         if (hasPages404 && page === '/404') {
@@ -1762,7 +1803,7 @@ export default async function build(
                   }
 
                   if (pageType === 'app') {
-                    if (isSsg || isStatic) {
+                    if (isSSG || isStatic) {
                       staticAppPagesCount++
                     } else {
                       serverAppPagesCount++
@@ -1771,16 +1812,18 @@ export default async function build(
                 }
 
                 pageInfos.set(page, {
-                  size: selfSize,
-                  totalSize: allSize,
-                  static: isStatic,
-                  isSsg,
+                  size,
+                  totalSize,
+                  isStatic,
+                  isSSG,
+                  isPPR,
                   isHybridAmp,
                   ssgPageRoutes,
                   initialRevalidateSeconds: false,
                   runtime: pageRuntime,
                   pageDuration: undefined,
                   ssgPageDurations: undefined,
+                  hasEmptyPrelude: undefined,
                 })
               })
             })
@@ -1999,7 +2042,7 @@ export default async function build(
         (combinedPages.length > 0 ||
           useStaticPages404 ||
           useDefaultStatic500 ||
-          isAppDirEnabled)
+          appDir)
       ) {
         const staticGenerationSpan =
           nextBuildSpan.traceChild('static-generation')
@@ -2138,9 +2181,8 @@ export default async function build(
           }
 
           const exportOptions: ExportAppOptions = {
-            isInvokedFromCli: false,
             nextConfig: exportConfig,
-            hasAppDir,
+            enabledDirectories,
             silent: false,
             buildExport: true,
             debugOutput,
@@ -2182,14 +2224,13 @@ export default async function build(
               appConfig.revalidate === 0 ||
               exportResult.byPath.get(page)?.revalidate === 0
 
-            // TODO: (wyattjoh) maybe change behavior for postpone?
-            if (hasDynamicData && pageInfos.get(page)?.static) {
+            if (hasDynamicData && pageInfos.get(page)?.isStatic) {
               // if the page was marked as being static, but it contains dynamic data
               // (ie, in the case of a static generation bailout), then it should be marked dynamic
               pageInfos.set(page, {
                 ...(pageInfos.get(page) as PageInfo),
-                static: false,
-                isSsg: false,
+                isStatic: false,
+                isSSG: false,
               })
             }
 
@@ -2213,7 +2254,15 @@ export default async function build(
               const {
                 revalidate = appConfig.revalidate ?? false,
                 metadata = {},
+                hasEmptyPrelude,
+                hasPostponed,
               } = exportResult.byPath.get(route) ?? {}
+
+              pageInfos.set(route, {
+                ...(pageInfos.get(route) as PageInfo),
+                hasPostponed,
+                hasEmptyPrelude,
+              })
 
               if (revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route)
@@ -2265,8 +2314,8 @@ export default async function build(
                 // used dynamic data
                 pageInfos.set(route, {
                   ...(pageInfos.get(route) as PageInfo),
-                  isSsg: false,
-                  static: false,
+                  isSSG: false,
+                  isStatic: false,
                 })
               }
             })
@@ -2274,6 +2323,11 @@ export default async function build(
             if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
               const normalizedRoute = normalizePagePath(page)
               const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+
+              pageInfos.set(page, {
+                ...(pageInfos.get(page) as PageInfo),
+                isDynamicAppRoute: true,
+              })
 
               // TODO: create a separate manifest to allow enforcing
               // dynamicParams for non-static paths?
@@ -2824,10 +2878,9 @@ export default async function build(
         )
 
         const options: ExportAppOptions = {
-          isInvokedFromCli: false,
           buildExport: false,
           nextConfig: config,
-          hasAppDir,
+          enabledDirectories,
           silent: true,
           threads: config.experimental.cpus,
           outdir: path.join(dir, configOutDir),

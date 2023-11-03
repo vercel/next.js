@@ -3,15 +3,18 @@ import type {
   ResponseCacheEntry,
   ResponseGenerator,
   IncrementalCacheItem,
+  ResponseCacheBase,
+  IncrementalCacheKindHint,
 } from './types'
+import { RouteKind } from '../future/route-kind'
 
 import RenderResult from '../render-result'
 import { Batcher } from '../../lib/batcher'
-import { scheduleOnNextTick } from '../lib/schedule-on-next-tick'
+import { scheduleOnNextTick } from '../../lib/scheduler'
 
 export * from './types'
 
-export default class ResponseCache {
+export default class ResponseCache implements ResponseCacheBase {
   private readonly batcher = Batcher.create<
     { key: string; isOnDemandRevalidate: boolean },
     ResponseCacheEntry | null,
@@ -46,6 +49,7 @@ export default class ResponseCache {
     key: string | null,
     responseGenerator: ResponseGenerator,
     context: {
+      routeKind?: RouteKind
       isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
       incrementalCache: IncrementalCache
@@ -70,11 +74,22 @@ export default class ResponseCache {
           return this.previousCacheItem.entry
         }
 
+        // Coerce the kindHint into a given kind for the incremental cache.
+        let kindHint: IncrementalCacheKindHint | undefined
+        if (
+          context.routeKind === RouteKind.APP_PAGE ||
+          context.routeKind === RouteKind.APP_ROUTE
+        ) {
+          kindHint = 'app'
+        } else if (context.routeKind === RouteKind.PAGES) {
+          kindHint = 'pages'
+        }
+
         let resolved = false
         let cachedResponse: IncrementalCacheItem = null
         try {
           cachedResponse = !this.minimalMode
-            ? await incrementalCache.get(key)
+            ? await incrementalCache.get(key, { kindHint })
             : null
 
           if (cachedResponse && !isOnDemandRevalidate) {
@@ -93,6 +108,7 @@ export default class ResponseCache {
                       kind: 'PAGE',
                       html: RenderResult.fromStatic(cachedResponse.value.html),
                       pageData: cachedResponse.value.pageData,
+                      postponed: cachedResponse.value.postponed,
                       headers: cachedResponse.value.headers,
                       status: cachedResponse.value.status,
                     }
@@ -137,6 +153,7 @@ export default class ResponseCache {
                   ? {
                       kind: 'PAGE',
                       html: cacheEntry.value.html.toUnchunkedString(),
+                      postponed: cacheEntry.value.postponed,
                       pageData: cacheEntry.value.pageData,
                       headers: cacheEntry.value.headers,
                       status: cacheEntry.value.status,

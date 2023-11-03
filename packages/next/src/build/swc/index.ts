@@ -174,7 +174,9 @@ export interface Binding {
   teardownCrashReporter?: any
 }
 
-export async function loadBindings(): Promise<Binding> {
+export async function loadBindings(
+  useWasmBinary: boolean = false
+): Promise<Binding> {
   if (pendingBindings) {
     return pendingBindings
   }
@@ -202,12 +204,18 @@ export async function loadBindings(): Promise<Binding> {
 
     let attempts: any[] = []
     const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
+    const unsupportedPlatform = triples.some(
+      (triple: any) =>
+        !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
+    )
     const shouldLoadWasmFallbackFirst =
-      !disableWasmFallback &&
-      triples.some(
-        (triple: any) =>
-          !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
+      !disableWasmFallback && unsupportedPlatform && useWasmBinary
+
+    if (!unsupportedPlatform && useWasmBinary) {
+      Log.warn(
+        `experimental.useWasmBinary is not an option for supported platform ${PlatformName}/${ArchName} and will be ignored.`
       )
+    }
 
     if (shouldLoadWasmFallbackFirst) {
       lastNativeBindingsLoadErrorCode = 'unsupported_target'
@@ -240,14 +248,6 @@ export async function loadBindings(): Promise<Binding> {
       }
 
       attempts = attempts.concat(a)
-    }
-
-    // For these platforms we already tried to load wasm and failed, skip reattempt
-    if (!shouldLoadWasmFallbackFirst && !disableWasmFallback) {
-      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
-      if (fallbackBindings) {
-        return resolve(fallbackBindings)
-      }
     }
 
     logLoadFailure(attempts, true)
@@ -420,6 +420,7 @@ export interface DefineEnv {
 }
 
 export function createDefineEnv({
+  isTurbopack,
   allowedRevalidateHeaderKeys,
   clientRouterFilters,
   config,
@@ -442,6 +443,7 @@ export function createDefineEnv({
   for (const variant of Object.keys(defineEnv) as (keyof typeof defineEnv)[]) {
     defineEnv[variant] = rustifyEnv(
       getDefineEnv({
+        isTurbopack,
         allowedRevalidateHeaderKeys,
         clientRouterFilters,
         config,
@@ -519,18 +521,17 @@ export interface HmrIdentifiers {
   identifiers: string[]
 }
 
+interface TurbopackStackFrame {
+  column: number | null
+  file: string
+  isServer: boolean
+  line: number
+  methodName: string | null
+}
+
 export interface UpdateInfo {
   duration: number
   tasks: number
-}
-
-export enum ServerClientChangeType {
-  Server = 'Server',
-  Client = 'Client',
-  Both = 'Both',
-}
-export interface ServerClientChange {
-  type: ServerClientChangeType
 }
 
 export interface Project {
@@ -540,6 +541,10 @@ export interface Project {
   hmrIdentifiersSubscribe(): AsyncIterableIterator<
     TurbopackResult<HmrIdentifiers>
   >
+  getSourceForAsset(filePath: string): Promise<string | null>
+  traceSource(
+    stackFrame: TurbopackStackFrame
+  ): Promise<TurbopackStackFrame | null>
   updateInfoSubscribe(): AsyncIterableIterator<TurbopackResult<UpdateInfo>>
 }
 
@@ -570,11 +575,19 @@ export interface Endpoint {
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
   /**
-   * Listen to changes to the endpoint.
-   * After changed() has been awaited it will listen to changes.
+   * Listen to client-side changes to the endpoint.
+   * After clientChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  changed(): Promise<AsyncIterableIterator<TurbopackResult<ServerClientChange>>>
+  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+  /**
+   * Listen to server-side changes to the endpoint.
+   * After serverChanged() has been awaited it will listen to changes.
+   * The async iterator will yield for each change.
+   */
+  serverChanged(
+    includeIssues: boolean
+  ): Promise<AsyncIterableIterator<TurbopackResult>>
 }
 
 interface EndpointConfig {
@@ -721,32 +734,6 @@ function bindingToApi(binding: any, _wasm: boolean) {
       return { value: undefined, done: true } as IteratorReturnResult<never>
     }
     return iterator
-  }
-
-  /**
-   * Like Promise.race, except that we return an array of results so that you
-   * know which promise won. This also allows multiple promises to resolve
-   * before the awaiter finally continues execution, making multiple values
-   * available.
-   */
-  function race<T extends unknown[]>(
-    promises: T
-  ): Promise<{ [P in keyof T]: Awaited<T[P]> | undefined }> {
-    return new Promise((resolve, reject) => {
-      const results: any[] = []
-      for (let i = 0; i < promises.length; i++) {
-        const value = promises[i]
-        Promise.resolve(value).then(
-          (v) => {
-            results[i] = v
-            resolve(results as any)
-          },
-          (e) => {
-            reject(e)
-          }
-        )
-      }
-    })
   }
 
   async function rustifyProjectOptions(
@@ -916,6 +903,16 @@ function bindingToApi(binding: any, _wasm: boolean) {
       return subscription
     }
 
+    traceSource(
+      stackFrame: TurbopackStackFrame
+    ): Promise<TurbopackStackFrame | null> {
+      return binding.projectTraceSource(this._nativeProject, stackFrame)
+    }
+
+    getSourceForAsset(filePath: string): Promise<string | null> {
+      return binding.projectGetSourceForAsset(this._nativeProject, filePath)
+    }
+
     updateInfoSubscribe() {
       const subscription = subscribe<TurbopackResult<UpdateInfo>>(
         true,
@@ -939,17 +936,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
       )
     }
 
-    async changed(): Promise<
-      AsyncIterableIterator<TurbopackResult<ServerClientChange>>
-    > {
-      const serverSubscription = subscribe<TurbopackResult>(
-        false,
-        async (callback) =>
-          binding.endpointServerChangedSubscribe(
-            await this._nativeEndpoint,
-            callback
-          )
-      )
+    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
       const clientSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
@@ -958,49 +945,24 @@ function bindingToApi(binding: any, _wasm: boolean) {
             callback
           )
       )
+      await clientSubscription.next()
+      return clientSubscription
+    }
 
-      // The subscriptions will always emit once, which is the initial
-      // computation. This is not a change, so swallow it.
-      await Promise.all([serverSubscription.next(), clientSubscription.next()])
-
-      return (async function* () {
-        try {
-          while (true) {
-            const [server, client] = await race([
-              serverSubscription.next(),
-              clientSubscription.next(),
-            ])
-
-            const done = server?.done || client?.done
-            if (done) {
-              break
-            }
-
-            if (server && client) {
-              yield {
-                issues: server.value.issues.concat(client.value.issues),
-                diagnostics: server.value.diagnostics.concat(
-                  client.value.diagnostics
-                ),
-                type: ServerClientChangeType.Both,
-              }
-            } else if (server) {
-              yield {
-                ...server.value,
-                type: ServerClientChangeType.Server,
-              }
-            } else {
-              yield {
-                ...client!.value,
-                type: ServerClientChangeType.Client,
-              }
-            }
-          }
-        } finally {
-          serverSubscription.return?.()
-          clientSubscription.return?.()
-        }
-      })()
+    async serverChanged(
+      includeIssues: boolean
+    ): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
+      const serverSubscription = subscribe<TurbopackResult>(
+        false,
+        async (callback) =>
+          binding.endpointServerChangedSubscribe(
+            await this._nativeEndpoint,
+            includeIssues,
+            callback
+          )
+      )
+      await serverSubscription.next()
+      return serverSubscription
     }
   }
 

@@ -64,10 +64,6 @@ const getInitialRouterStateTree = (): FlightRouterState => [
   true,
 ]
 
-const globalMutable = {
-  refresh: () => {},
-}
-
 async function runPromiseThrowChain(fn: any): Promise<any> {
   try {
     return await fn()
@@ -141,7 +137,7 @@ describe('refreshReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -302,7 +298,7 @@ describe('refreshReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -489,7 +485,7 @@ describe('refreshReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -725,7 +721,7 @@ describe('refreshReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 

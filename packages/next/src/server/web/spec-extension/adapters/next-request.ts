@@ -84,7 +84,7 @@ export class NextRequestAdapter {
       url = new URL(request.url)
     } else {
       // Grab the full URL from the request metadata.
-      const base = getRequestMeta(request, '__NEXT_INIT_URL')
+      const base = getRequestMeta(request, 'initURL')
       if (!base || !base.startsWith('http')) {
         // Because the URL construction relies on the fact that the URL provided
         // is absolute, we need to provide a base URL. We can't use the request

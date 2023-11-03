@@ -34,10 +34,15 @@ describe('app-fetch-deduping', () => {
 
       afterAll(() => externalServer.close())
 
-      it('dedupes requests amongst static workers', async () => {
+      it('dedupes requests amongst static workers when experimental.staticWorkerRequestDeduping is enabled', async () => {
         const next = await createNext({
           files: new FileRef(__dirname),
           env: { TEST_SERVER_PORT: `${externalServerPort}` },
+          nextConfig: {
+            experimental: {
+              staticWorkerRequestDeduping: true,
+            },
+          },
         })
 
         expect(requests.length).toBe(1)

@@ -42,9 +42,8 @@ export const createNextApp = (
   delete cloneEnv.RUN_ID
   delete cloneEnv.BUILD_NUMBER
 
-  if (testVersion) {
-    cloneEnv.NEXT_PRIVATE_TEST_VERSION = testVersion
-  }
+  cloneEnv.NEXT_PRIVATE_TEST_VERSION = testVersion || 'canary'
+
   return spawn('node', [cli].concat(args), {
     ...options,
     env: {

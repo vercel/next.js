@@ -1,11 +1,13 @@
-import type { reducer } from './router-reducer/router-reducer'
-import type {
-  ReducerState,
-  ReducerAction,
-  MutableRefObject,
-  Dispatch,
-} from 'react'
-import { useRef, useReducer, useEffect, useCallback } from 'react'
+import type { Dispatch } from 'react'
+import React, { use, useContext } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
+import {
+  isThenable,
+  type AppRouterState,
+  type ReducerActions,
+  type ReducerState,
+} from './router-reducer/router-reducer-types'
+import { ActionQueueContext } from '../../shared/lib/router/action-queue'
 
 function normalizeRouterState(val: any): any {
   if (val instanceof Map) {
@@ -61,70 +63,44 @@ function normalizeRouterState(val: any): any {
   return val
 }
 
-// Log router state when actions are triggered.
-// function logReducer(fn: typeof reducer) {
-//   return (
-//     state: ReducerState<typeof reducer>,
-//     action: ReducerAction<typeof reducer>
-//   ) => {
-//     console.groupCollapsed(action.type)
-//     console.log('action', action)
-//     console.log('old', state)
-//     const res = fn(state, action)
-//     console.log('new', res)
-//     console.groupEnd()
-//     return res
-//   }
-// }
-
 declare global {
   interface Window {
     __REDUX_DEVTOOLS_EXTENSION__: any
   }
 }
 
-interface ReduxDevToolsInstance {
+export interface ReduxDevToolsInstance {
   send(action: any, state: any): void
   init(initialState: any): void
 }
 
-function devToolReducer(
-  fn: typeof reducer,
-  ref: MutableRefObject<ReduxDevToolsInstance | undefined>
-) {
-  return (
-    state: ReducerState<typeof reducer>,
-    action: ReducerAction<typeof reducer>
-  ) => {
-    const res = fn(state, action)
-    if (ref.current) {
-      ref.current.send(action, normalizeRouterState(res))
-    }
-    return res
+export function useUnwrapState(state: ReducerState) {
+  // reducer actions can be async, so sometimes we need to suspend until the state is resolved
+  if (isThenable(state)) {
+    const result = use(state)
+    return result
   }
+
+  return state
 }
 
 function useReducerWithReduxDevtoolsNoop(
-  fn: typeof reducer,
-  initialState: ReturnType<typeof reducer>
-): [
-  ReturnType<typeof reducer>,
-  Dispatch<ReducerAction<typeof reducer>>,
-  () => void
-] {
-  const [state, dispatch] = useReducer(fn, initialState)
-
-  return [state, dispatch, () => {}]
+  initialState: AppRouterState
+): [ReducerState, Dispatch<ReducerActions>, () => void] {
+  return [initialState, () => {}, () => {}]
 }
 
 function useReducerWithReduxDevtoolsImpl(
-  fn: typeof reducer,
-  initialState: ReturnType<typeof reducer>
-): [
-  ReturnType<typeof reducer>,
-  Dispatch<ReducerAction<typeof reducer>>,
-  () => void
-] {
+  initialState: AppRouterState
+): [ReducerState, Dispatch<ReducerActions>, () => void] {
+  const [state, setState] = React.useState<ReducerState>(initialState)
+
+  const actionQueue = useContext(ActionQueueContext)
+
+  if (!actionQueue) {
+    throw new Error('Invariant: Missing ActionQueueContext')
+  }
+
   const devtoolsConnectionRef = useRef<ReduxDevToolsInstance>()
   const enabledRef = useRef<boolean>()
 
@@ -149,16 +125,28 @@ function useReducerWithReduxDevtoolsImpl(
     )
     if (devtoolsConnectionRef.current) {
       devtoolsConnectionRef.current.init(normalizeRouterState(initialState))
+
+      if (actionQueue) {
+        actionQueue.devToolsInstance = devtoolsConnectionRef.current
+      }
     }
 
     return () => {
       devtoolsConnectionRef.current = undefined
     }
-  }, [initialState])
+  }, [initialState, actionQueue])
 
-  const [state, dispatch] = useReducer(
-    devToolReducer(/* logReducer( */ fn /*)*/, devtoolsConnectionRef),
-    initialState
+  const dispatch = useCallback(
+    (action: ReducerActions) => {
+      if (!actionQueue.state) {
+        // we lazy initialize the mutable action queue state since the data needed
+        // to generate the state is not available when the actionQueue context is created
+        actionQueue.state = initialState
+      }
+
+      actionQueue.dispatch(action, setState)
+    },
+    [actionQueue, initialState]
   )
 
   const sync = useCallback(() => {
@@ -169,6 +157,7 @@ function useReducerWithReduxDevtoolsImpl(
       )
     }
   }, [state])
+
   return [state, dispatch, sync]
 }
 

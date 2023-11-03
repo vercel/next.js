@@ -21,7 +21,7 @@ var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-experimental-a41957507-20231017';
+var ReactVersion = '18.3.0-experimental-08a39539f-20231031';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -1976,6 +1976,25 @@ function createResumableState(identifierPrefix, externalRuntimeConfig) {
     moduleUnknownResources: {},
     moduleScriptResources: {}
   };
+}
+function resetResumableState(resumableState, renderState) {
+  // Resets the resumable state based on what didn't manage to fully flush in the render state.
+  // This currently assumes nothing was flushed.
+  resumableState.nextFormID = 0;
+  resumableState.hasBody = false;
+  resumableState.hasHtml = false;
+  resumableState.unknownResources = {};
+  resumableState.dnsResources = {};
+  resumableState.connectResources = {
+    default: {},
+    anonymous: {},
+    credentials: {}
+  };
+  resumableState.imageResources = {};
+  resumableState.styleResources = {};
+  resumableState.scriptResources = {};
+  resumableState.moduleUnknownResources = {};
+  resumableState.moduleScriptResources = {};
 } // Constants for the insertion mode we're currently writing in. We don't encode all HTML5 insertion
 // modes. We only include the variants as they matter for the sake of our purposes.
 // We don't actually provide the namespace therefore we use constants instead of the string.
@@ -3605,7 +3624,7 @@ function pushStyleImpl(target, props) {
   }
 
   pushInnerHTML(target, innerHTML, children);
-  target.push(endTag1, stringToChunk('style'), endTag2);
+  target.push(endChunkForTag('style'));
   return null;
 }
 
@@ -3827,7 +3846,7 @@ function pushTitleImpl(target, props) {
   }
 
   pushInnerHTML(target, innerHTML, children);
-  target.push(endTag1, stringToChunk('title'), endTag2);
+  target.push(endChunkForTag('title'));
   return null;
 }
 
@@ -3970,7 +3989,7 @@ function pushScriptImpl(target, props) {
     target.push(stringToChunk(encodeHTMLTextNode(children)));
   }
 
-  target.push(endTag1, stringToChunk('script'), endTag2);
+  target.push(endChunkForTag('script'));
   return null;
 }
 
@@ -4310,8 +4329,19 @@ function pushStartInstance(target, type, props, resumableState, renderState, for
 
   return pushStartGenericElement(target, props, type);
 }
-var endTag1 = stringToPrecomputedChunk('</');
-var endTag2 = stringToPrecomputedChunk('>');
+var endTagCache = new Map();
+
+function endChunkForTag(tag) {
+  var chunk = endTagCache.get(tag);
+
+  if (chunk === undefined) {
+    chunk = stringToPrecomputedChunk('</' + tag + '>');
+    endTagCache.set(tag, chunk);
+  }
+
+  return chunk;
+}
+
 function pushEndInstance(target, type, props, resumableState, formatContext) {
   switch (type) {
     // When float is on we expect title and script tags to always be pushed in
@@ -4368,7 +4398,7 @@ function pushEndInstance(target, type, props, resumableState, formatContext) {
       break;
   }
 
-  target.push(endTag1, stringToChunk(type), endTag2);
+  target.push(endChunkForTag(type));
 }
 
 function writeBootstrap(destination, renderState) {
@@ -5157,9 +5187,7 @@ function writePreamble(destination, resumableState, renderState, willFlushAllSeg
     // if the main content contained the </head> it would also have provided a
     // <head>. This means that all the content inside <html> is either <body> or
     // invalid HTML
-    writeChunk(destination, endTag1);
-    writeChunk(destination, stringToChunk('head'));
-    writeChunk(destination, endTag2);
+    writeChunk(destination, endChunkForTag('head'));
   }
 } // We don't bother reporting backpressure at the moment because we expect to
 // flush the entire preamble in a single pass. This probably should be modified
@@ -5216,15 +5244,11 @@ function writeHoistables(destination, resumableState, renderState) {
 }
 function writePostamble(destination, resumableState) {
   if (resumableState.hasBody) {
-    writeChunk(destination, endTag1);
-    writeChunk(destination, stringToChunk('body'));
-    writeChunk(destination, endTag2);
+    writeChunk(destination, endChunkForTag('body'));
   }
 
   if (resumableState.hasHtml) {
-    writeChunk(destination, endTag1);
-    writeChunk(destination, stringToChunk('html'));
-    writeChunk(destination, endTag2);
+    writeChunk(destination, endChunkForTag('html'));
   }
 }
 var arrayFirstOpenBracket = stringToPrecomputedChunk('[');
@@ -8606,6 +8630,22 @@ function resumeRequest(children, postponedState, renderState, onError, onAllRead
     onFatalError: onFatalError === undefined ? noop : onFatalError,
     formState: null
   };
+
+  if (typeof postponedState.replaySlots === 'number') {
+    var resumedId = postponedState.replaySlots; // We have a resume slot at the very root. This is effectively just a full rerender.
+
+    var rootSegment = createPendingSegment(request, 0, null, postponedState.rootFormatContext, // Root segments are never embedded in Text on either edge
+    false, false);
+    rootSegment.id = resumedId; // There is no parent so conceptually, we're unblocked to flush this segment.
+
+    rootSegment.parentFlushed = true;
+
+    var _rootTask = createRenderTask(request, null, children, -1, null, rootSegment, abortSet, null, postponedState.rootFormatContext, emptyContextObject, rootContextSnapshot, emptyTreeContext);
+
+    pingedTasks.push(_rootTask);
+    return request;
+  }
+
   var replay = {
     nodes: postponedState.replayNodes,
     slots: postponedState.replaySlots,
@@ -10040,6 +10080,18 @@ function trackPostpone(request, trackedPostpones, task, segment) {
   var keyPath = task.keyPath;
   var boundary = task.blockedBoundary;
 
+  if (boundary === null) {
+    segment.id = request.nextSegmentId++;
+    trackedPostpones.rootSlots = segment.id;
+
+    if (request.completedRootSegment !== null) {
+      // Postpone the root if this was a deeper segment.
+      request.completedRootSegment.status = POSTPONED;
+    }
+
+    return;
+  }
+
   if (boundary !== null && boundary.status === PENDING) {
     boundary.status = POSTPONED; // We need to eagerly assign it an ID because we'll need to refer to
     // it before flushing and we know that we can't inline it.
@@ -10303,7 +10355,7 @@ function renderNode(request, task, node, childIndex) {
           return;
         }
 
-        if (request.trackedPostpones !== null && x.$$typeof === REACT_POSTPONE_TYPE && task.blockedBoundary !== null // TODO: Support holes in the shell
+        if (request.trackedPostpones !== null && x.$$typeof === REACT_POSTPONE_TYPE && task.blockedBoundary !== null // bubble if we're postponing in the shell
         ) {
             // If we're tracking postpones, we inject a hole here and continue rendering
             // sibling. Similar to suspending. If we're not tracking, we treat it more like
@@ -10774,20 +10826,19 @@ function retryRenderTask(request, task, segment) {
         x.then(ping, ping);
         task.thenableState = getThenableStateAfterSuspending();
         return;
-      } else if (request.trackedPostpones !== null && x.$$typeof === REACT_POSTPONE_TYPE && task.blockedBoundary !== null // TODO: Support holes in the shell
-      ) {
-          // If we're tracking postpones, we mark this segment as postponed and finish
-          // the task without filling it in. If we're not tracking, we treat it more like
-          // an error.
-          var trackedPostpones = request.trackedPostpones;
-          task.abortSet.delete(task);
-          var postponeInstance = x;
-          logPostpone(request, postponeInstance.message);
-          trackPostpone(request, trackedPostpones, task, segment);
-          finishedTask(request, task.blockedBoundary, segment);
-          lastBoundaryErrorComponentStackDev = null;
-          return;
-        }
+      } else if (request.trackedPostpones !== null && x.$$typeof === REACT_POSTPONE_TYPE) {
+        // If we're tracking postpones, we mark this segment as postponed and finish
+        // the task without filling it in. If we're not tracking, we treat it more like
+        // an error.
+        var trackedPostpones = request.trackedPostpones;
+        task.abortSet.delete(task);
+        var postponeInstance = x;
+        logPostpone(request, postponeInstance.message);
+        trackPostpone(request, trackedPostpones, task, segment);
+        finishedTask(request, task.blockedBoundary, segment);
+        lastBoundaryErrorComponentStackDev = null;
+        return;
+      }
     }
 
     task.abortSet.delete(task);
@@ -10830,7 +10881,7 @@ function retryReplayTask(request, task) {
     // component suspends again, the thenable state will be restored.
     var prevThenableState = task.thenableState;
     task.thenableState = null;
-    renderNodeDestructive(request, task, prevThenableState, task.node, -1);
+    renderNodeDestructive(request, task, prevThenableState, task.node, task.childIndex);
 
     if (task.replay.pendingTasks === 1 && task.replay.nodes.length > 0) {
       throw new Error("Couldn't find all resumable slots by key/index during replaying. " + "The tree doesn't match so React will fallback to client rendering.");
@@ -11189,7 +11240,10 @@ function flushCompletedQueues(request, destination) {
     var completedRootSegment = request.completedRootSegment;
 
     if (completedRootSegment !== null) {
-      if (request.pendingRootTasks === 0) {
+      if (completedRootSegment.status === POSTPONED) {
+        // We postponed the root, so we write nothing.
+        return;
+      } else if (request.pendingRootTasks === 0) {
         if (enableFloat) {
           writePreamble(destination, request.resumableState, request.renderState, request.allPendingTasks === 0 && request.trackedPostpones === null);
         }
@@ -11303,7 +11357,10 @@ function flushCompletedQueues(request, destination) {
         } // We're done.
 
 
-        close(destination);
+        close(destination); // We need to stop flowing now because we do not want any async contexts which might call
+        // float methods to initiate any flushes after this point
+
+        stopFlowing(request);
       } else {
       completeWriting(destination);
       flushBuffered(destination);
@@ -11326,10 +11383,17 @@ function enqueueFlush(request) {
   request.pingedTasks.length === 0 && // If there is no destination there is nothing we can flush to. A flush will
   // happen when we start flowing again
   request.destination !== null) {
-    var destination = request.destination;
     request.flushScheduled = true;
     scheduleWork(function () {
-      return flushCompletedQueues(request, destination);
+      // We need to existence check destination again here because it might go away
+      // in between the enqueueFlush call and the work execution
+      var destination = request.destination;
+
+      if (destination) {
+        flushCompletedQueues(request, destination);
+      } else {
+        request.flushScheduled = false;
+      }
     });
   }
 }
@@ -11421,6 +11485,11 @@ function getPostponedState(request) {
     // Reset. Let the flushing behave as if we completed the whole document.
     request.trackedPostpones = null;
     return null;
+  }
+
+  if (request.completedRootSegment !== null && request.completedRootSegment.status === POSTPONED) {
+    // We postponed the root so we didn't flush anything.
+    resetResumableState(request.resumableState);
   }
 
   return {
