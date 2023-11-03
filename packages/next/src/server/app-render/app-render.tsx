@@ -32,9 +32,9 @@ import {
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
 import {
-  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE,
-  RSC,
+  RSC_HEADER,
 } from '../../client/components/app-router-headers'
 import { createMetadataComponents } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
@@ -393,7 +393,6 @@ async function renderToHTMLOrFlightImpl(
   renderOpts: RenderOpts,
   baseCtx: AppRenderBaseContext
 ) {
-  const isFlight = req.headers[RSC.toLowerCase()] !== undefined
   const isNotFoundPath = pagePath === '/404'
 
   // A unique request timestamp used by development to ensure that it's
@@ -469,7 +468,8 @@ async function renderToHTMLOrFlightImpl(
   const isStaticGeneration = staticGenerationStore.isStaticGeneration
   // when static generation fails during PPR, we log the errors separately. We intentionally
   // silence the error logger in this case to avoid double logging.
-  const silenceStaticGenerationErrors = renderOpts.ppr && isStaticGeneration
+  const silenceStaticGenerationErrors =
+    renderOpts.experimental.ppr && isStaticGeneration
 
   const serverComponentsErrorHandler = createErrorHandler({
     _source: 'serverComponentsRenderer',
@@ -539,17 +539,21 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  const isPrefetch =
-    req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] !== undefined
+  const isRSCRequest = req.headers[RSC_HEADER.toLowerCase()] !== undefined
+
+  const isPrefetchRSCRequest =
+    isRSCRequest &&
+    req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
 
   /**
    * Router state provided from the client-side router. Used to handle rendering from the common layout down.
    */
-  let providedFlightRouterState = isFlight
-    ? parseAndValidateFlightRouterState(
-        req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-      )
-    : undefined
+  let providedFlightRouterState =
+    isRSCRequest && (!isPrefetchRSCRequest || !renderOpts.experimental.ppr)
+      ? parseAndValidateFlightRouterState(
+          req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+        )
+      : undefined
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -584,7 +588,7 @@ async function renderToHTMLOrFlightImpl(
     ...baseCtx,
     getDynamicParamFromSegment,
     query,
-    isPrefetch,
+    isPrefetch: isPrefetchRSCRequest,
     providedSearchParams,
     requestTimestamp,
     searchParamsProps,
@@ -601,7 +605,7 @@ async function renderToHTMLOrFlightImpl(
     res,
   }
 
-  if (isFlight && !isStaticGeneration) {
+  if (isRSCRequest && !isStaticGeneration) {
     return generateFlight(ctx)
   }
 
@@ -701,7 +705,7 @@ async function renderToHTMLOrFlightImpl(
       )
 
       const renderer = createStaticRenderer({
-        ppr: renderOpts.ppr,
+        ppr: renderOpts.experimental.ppr,
         isStaticGeneration: staticGenerationStore.isStaticGeneration,
         postponed: renderOpts.postponed
           ? JSON.parse(renderOpts.postponed)
@@ -1003,7 +1007,7 @@ async function renderToHTMLOrFlightImpl(
 
     if (
       // if PPR is enabled
-      renderOpts.ppr &&
+      renderOpts.experimental.ppr &&
       // and a call to `maybePostpone` happened
       staticGenerationStore.postponeWasTriggered &&
       // but there's no postpone state

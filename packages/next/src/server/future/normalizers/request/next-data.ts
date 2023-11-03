@@ -1,6 +1,6 @@
-import type { Normalizer } from '../normalizer'
+import type { PathnameNormalizer } from './pathname-normalizer'
 
-export class NextDataPathnameNormalizer implements Normalizer {
+export class NextDataPathnameNormalizer implements PathnameNormalizer {
   private readonly prefix: string
   constructor(buildID: string) {
     if (!buildID) {

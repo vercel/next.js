@@ -1,6 +1,6 @@
-import type { Normalizer } from '../normalizer'
+import type { PathnameNormalizer } from './pathname-normalizer'
 
-export class PostponedPathnameNormalizer implements Normalizer {
+export class PostponedPathnameNormalizer implements PathnameNormalizer {
   constructor(private readonly ppr: boolean | undefined) {}
 
   public match(pathname: string) {
@@ -21,6 +21,11 @@ export class PostponedPathnameNormalizer implements Normalizer {
     if (!matched && !this.match(pathname)) return pathname
 
     // Remove the prefix.
-    return pathname.substring('/_next/postponed'.length) || '/'
+    pathname = pathname.substring('/_next/postponed'.length) || '/'
+
+    // If the pathname is equal to `/index`, we normalize it to `/`.
+    if (pathname === '/index') return '/'
+
+    return pathname
   }
 }
