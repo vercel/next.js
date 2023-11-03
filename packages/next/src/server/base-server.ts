@@ -1442,9 +1442,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (this.minimalMode && this.enabledDirectories.app) {
-      // We have to put the prefetch normalizer before the RSC normalizer
-      // because the RSC normalizer will match the prefetch RSC routes too.
       if (this.renderOpts.experimental.ppr) {
+        normalizers.push(this.normalizers.postponed)
+        // We have to put the prefetch normalizer before the RSC normalizer
+        // because the RSC normalizer will match the prefetch RSC routes too.
         normalizers.push(this.normalizers.prefetchRSC)
       }
 
