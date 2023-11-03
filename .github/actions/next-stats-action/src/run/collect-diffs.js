@@ -46,6 +46,9 @@ module.exports = async function collectDiffs(
         await fs.cp(absPath, diffDest, { recursive: true, force: true })
       }
 
+      logger('Tracking the following files:')
+      logger(curFiles)
+
       if (curFiles.length > 0) {
         const prettierPath = path.join(
           __dirname,
