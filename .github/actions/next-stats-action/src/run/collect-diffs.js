@@ -46,7 +46,6 @@ module.exports = async function collectDiffs(
         const absPath = path.join(statsAppDir, file)
 
         const diffDest = path.join(diffingDir, file)
-        logger('Copying', absPath, 'to', diffDest)
         await fs.cp(absPath, diffDest, { recursive: true, force: true })
       }
 
