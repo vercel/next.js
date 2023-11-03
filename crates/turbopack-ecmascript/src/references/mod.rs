@@ -51,7 +51,7 @@ use turbo_tasks_fs::{FileJsonContent, FileSystemPath};
 use turbopack_core::{
     compile_time_info::{CompileTimeInfo, FreeVarReference},
     error::PrettyPrintError,
-    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource},
+    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, LazyIssueSource},
     module::Module,
     reference::{ModuleReference, ModuleReferences, SourceMapReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -962,7 +962,7 @@ pub(crate) async fn analyze_ecmascript_module(
                     Request::parse(Value::new(pat)),
                     compile_time_info.environment().rendering(),
                     Vc::cell(ast_path),
-                    IssueSource::from_byte_offset(source, span.lo.to_usize(), span.hi.to_usize()),
+                    LazyIssueSource::new(source, span.lo.to_usize(), span.hi.to_usize()),
                     in_try,
                 ));
             }
@@ -1778,8 +1778,8 @@ async fn handle_free_var_reference(
     Ok(true)
 }
 
-fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
-    IssueSource::from_byte_offset(source, span.lo.to_usize(), span.hi.to_usize())
+fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<LazyIssueSource> {
+    LazyIssueSource::new(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
 fn analyze_amd_define(

@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     context::AssetContext,
-    issue::{IssueSeverity, IssueSource},
+    issue::{IssueSeverity, LazyIssueSource},
     reference_type::{
         CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType,
         UrlReferenceSubType,
@@ -64,21 +64,21 @@ pub async fn esm_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     ty: Value<EcmaScriptModulesReferenceSubType>,
-    issue_source: Option<Vc<IssueSource>>,
     issue_severity: Vc<IssueSeverity>,
+    issue_source: Option<Vc<LazyIssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::EcmaScriptModules(ty.into_value()));
     let options = apply_esm_specific_options(origin.resolve_options(ty.clone()))
         .resolve()
         .await?;
-    specific_resolve(origin, request, options, ty, issue_source, issue_severity).await
+    specific_resolve(origin, request, options, ty, issue_severity, issue_source).await
 }
 
 #[turbo_tasks::function]
 pub async fn cjs_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<Vc<LazyIssueSource>>,
     issue_severity: Vc<IssueSeverity>,
 ) -> Result<Vc<ModuleResolveResult>> {
     // TODO pass CommonJsReferenceSubType
@@ -86,7 +86,7 @@ pub async fn cjs_resolve(
     let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()))
         .resolve()
         .await?;
-    specific_resolve(origin, request, options, ty, issue_source, issue_severity).await
+    specific_resolve(origin, request, options, ty, issue_severity, issue_source).await
 }
 
 #[turbo_tasks::function]
@@ -94,7 +94,7 @@ pub async fn url_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     ty: Value<UrlReferenceSubType>,
-    issue_source: Vc<IssueSource>,
+    issue_source: Vc<LazyIssueSource>,
     issue_severity: Vc<IssueSeverity>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::Url(ty.into_value()));
@@ -117,8 +117,8 @@ pub async fn url_resolve(
         origin.origin_path(),
         request,
         resolve_options,
-        Some(issue_source),
         issue_severity,
+        Some(issue_source),
     )
     .await
 }
@@ -128,8 +128,8 @@ async fn specific_resolve(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
     reference_type: Value<ReferenceType>,
-    issue_source: Option<Vc<IssueSource>>,
     issue_severity: Vc<IssueSeverity>,
+    issue_source: Option<Vc<LazyIssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let result = origin.resolve_asset(request, options, reference_type.clone());
 
@@ -139,8 +139,8 @@ async fn specific_resolve(
         origin.origin_path(),
         request,
         options,
-        issue_source,
         issue_severity,
+        issue_source,
     )
     .await
 }
