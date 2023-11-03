@@ -9,7 +9,6 @@ use turbopack_binding::{
     turbopack::{
         core::{
             changed::any_content_changed_of_module,
-            chunk::ChunkingContext,
             context::AssetContext,
             file_source::FileSource,
             ident::AssetIdent,
@@ -443,9 +442,8 @@ pub struct ExperimentalConfig {
     pub optimize_css: Option<serde_json::Value>,
     pub next_script_workers: Option<bool>,
     pub web_vitals_attribution: Option<Vec<String>>,
-    /// Enables server actions. Using this feature will enable the
-    /// `react@experimental` for the `app` directory. @see https://nextjs.org/docs/app/api-reference/functions/server-actions
-    server_actions: Option<bool>,
+    pub server_actions: Option<ServerActions>,
+    pub sri: Option<SubResourceIntegrity>,
 
     // ---
     // UNSUPPORTED
@@ -486,14 +484,12 @@ pub struct ExperimentalConfig {
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
     ppr: Option<bool>,
+    taint: Option<bool>,
     proxy_timeout: Option<f64>,
-    /// Allows adjusting body parser size limit for server actions.
-    server_actions_body_size_limit: Option<SizeLimit>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
     /// Enables source maps generation for the server production bundle.
     server_source_maps: Option<bool>,
-    sri: Option<serde_json::Value>,
     swc_minify: Option<bool>,
     swc_trace_profiling: Option<bool>,
     /// @internal Used by the Next.js internals only.
@@ -510,8 +506,21 @@ pub struct ExperimentalConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct SubResourceIntegrity {
+    pub algorithm: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerActions {
+    /// Allows adjusting body parser size limit for server actions.
+    pub body_size_limit: Option<SizeLimit>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
-enum SizeLimit {
+pub enum SizeLimit {
     Number(f64),
     WithUnit(String),
 }
@@ -737,10 +746,13 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn enable_server_actions(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?.experimental.server_actions.unwrap_or(false),
-        ))
+    pub async fn enable_ppr(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.experimental.ppr.unwrap_or(false)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn enable_taint(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.experimental.taint.unwrap_or(false)))
     }
 }
 
@@ -802,7 +814,12 @@ async fn load_next_config_and_custom_routes_internal(
     import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
-    let context = node_evaluate_asset_context(execution_context, Some(import_map.cell()), None);
+    let context = node_evaluate_asset_context(
+        execution_context,
+        Some(import_map.cell()),
+        None,
+        "next_config".to_string(),
+    );
     let config_asset = config_file.map(FileSource::new);
 
     let config_changed = config_asset.map_or_else(Completion::immutable, |config_asset| {
@@ -824,7 +841,7 @@ async fn load_next_config_and_custom_routes_internal(
         env,
         config_asset.map_or_else(|| AssetIdent::from_path(project_path), |c| c.ident()),
         context,
-        chunking_context.with_layer("next_config".to_string()),
+        chunking_context,
         None,
         vec![],
         config_changed,

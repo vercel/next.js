@@ -69,7 +69,7 @@ export type ImageConfigComplete = {
   loaderFile: string
 
   /**
-   * @see [Image domains configuration](https://nextjs.org/docs/api-reference/next/image#domains)
+   * @deprecated Use `remotePatterns` instead.
    */
   domains: string[]
 

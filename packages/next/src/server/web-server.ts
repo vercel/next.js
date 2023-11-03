@@ -2,16 +2,16 @@ import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
-import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
-import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PrerenderManifest } from '../build'
 import type {
   LoadedRenderOpts,
   MiddlewareRoutingItem,
   NormalizedRouteManifest,
   Options,
+  RouteHandler,
 } from './base-server'
+import type { Revalidate } from './lib/revalidate'
 
 import { byteLength } from './api-utils/web'
 import BaseServer, { NoFallbackError } from './base-server'
@@ -62,7 +62,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       dev,
       requestHeaders,
       requestProtocol: 'https',
-      appDir: this.hasAppDir,
+      pagesDir: this.enabledDirectories.pages,
+      appDir: this.enabledDirectories.app,
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -87,8 +88,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.buildId
   }
 
-  protected getHasAppDir() {
-    return this.serverOptions.webServerConfig.pagesType === 'app'
+  protected getEnabledDirectories() {
+    return {
+      app: this.serverOptions.webServerConfig.pagesType === 'app',
+      pages: this.serverOptions.webServerConfig.pagesType === 'pages',
+    }
   }
 
   protected getPagesManifest() {
@@ -110,7 +114,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     req: WebNextRequest,
     parsedUrl: NextUrlWithParsedQuery
   ) {
-    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
+    addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
   }
 
   protected getPrerenderManifest() {
@@ -133,11 +137,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest
   }
 
-  protected async handleCatchallRenderRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
+  protected handleCatchallRenderRequest: RouteHandler = async (
+    req,
+    res,
+    parsedUrl
+  ) => {
     let { pathname, query } = parsedUrl
     if (!pathname) {
       throw new Error('pathname is undefined')
@@ -182,14 +186,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     try {
       await this.render(req, res, pathname, query, parsedUrl, true)
 
-      return {
-        finished: true,
-      }
+      return true
     } catch (err) {
       if (err instanceof NoFallbackError && bubbleNoFallback) {
-        return {
-          finished: false,
-        }
+        return false
       }
       throw err
     }
@@ -234,7 +234,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       type: 'html' | 'json'
       generateEtags: boolean
       poweredByHeader: boolean
-      options?: PayloadOptions | undefined
+      revalidate: Revalidate | undefined
     }
   ): Promise<void> {
     res.setHeader('X-Edge-Runtime', '1')

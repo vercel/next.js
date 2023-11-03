@@ -6,7 +6,6 @@ import type {
 } from 'http'
 import type { WebNextRequest } from '../base-http/web'
 import type { SizeLimit } from '../../../types'
-import type { ApiError } from '../api-utils'
 
 import {
   ACTION,
@@ -37,34 +36,6 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
 import type { AppRenderContext, GenerateFlight } from './app-render'
-
-function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { Readable } = require('stream')
-    if ('toWeb' in Readable && typeof Readable.toWeb === 'function') {
-      return Readable.toWeb(nodeReadable)
-    }
-
-    const iterator = nodeReadable[Symbol.asyncIterator]()
-
-    return new ReadableStream({
-      pull: async (controller) => {
-        const { value, done } = await iterator.next()
-
-        if (done) {
-          controller.close()
-        } else {
-          controller.enqueue(value)
-        }
-      },
-      cancel: () => {
-        iterator.return?.()
-      },
-    })
-  } else {
-    throw new Error('Invalid runtime')
-  }
-}
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -241,23 +212,30 @@ export async function handleAction({
   req,
   res,
   ComponentMod,
-  page,
-  serverActionsManifest,
+  serverModuleMap,
   generateFlight,
   staticGenerationStore,
   requestStore,
-  serverActionsBodySizeLimit,
+  serverActions,
   ctx,
 }: {
   req: IncomingMessage
   res: ServerResponse
   ComponentMod: any
-  page: string
-  serverActionsManifest: any
+  serverModuleMap: {
+    [id: string]: {
+      id: string
+      chunks: string[]
+      name: string
+    }
+  }
   generateFlight: GenerateFlight
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedForwardedHosts?: string[]
+  }
   ctx: AppRenderContext
 }): Promise<
   | undefined
@@ -302,32 +280,41 @@ export async function handleAction({
       'Missing `origin` header from a forwarded Server Actions request.'
     )
   } else if (!host || originHostname !== host) {
-    // This is an attack. We should not proceed the action.
-    console.error(
-      '`x-forwarded-host` and `host` headers do not match `origin` header from a forwarded Server Actions request. Aborting the action.'
-    )
+    // If the customer sets a list of allowed hosts, we'll allow the request.
+    // These can be their reverse proxies or other safe hosts.
+    if (
+      typeof host === 'string' &&
+      serverActions?.allowedForwardedHosts?.includes(host)
+    ) {
+      // Ignore it
+    } else {
+      // This is an attack. We should not proceed the action.
+      console.error(
+        '`x-forwarded-host` and `host` headers do not match `origin` header from a forwarded Server Actions request. Aborting the action.'
+      )
 
-    const error = new Error('Invalid Server Actions request.')
+      const error = new Error('Invalid Server Actions request.')
 
-    if (isFetchAction) {
-      res.statusCode = 500
-      await Promise.all(staticGenerationStore.pendingRevalidates || [])
-      const promise = Promise.reject(error)
-      try {
-        await promise
-      } catch {}
+      if (isFetchAction) {
+        res.statusCode = 500
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        const promise = Promise.reject(error)
+        try {
+          await promise
+        } catch {}
 
-      return {
-        type: 'done',
-        result: await generateFlight(ctx, {
-          actionResult: promise,
-          // if the page was not revalidated, we can skip the rendering the flight tree
-          skipFlight: !staticGenerationStore.pathWasRevalidated,
-        }),
+        return {
+          type: 'done',
+          result: await generateFlight(ctx, {
+            actionResult: promise,
+            // if the page was not revalidated, we can skip the rendering the flight tree
+            skipFlight: !staticGenerationStore.pathWasRevalidated,
+          }),
+        }
       }
-    }
 
-    throw error
+      throw error
+    }
   }
 
   // ensure we avoid caching server actions unexpectedly
@@ -336,22 +323,6 @@ export async function handleAction({
     'no-cache, no-store, max-age=0, must-revalidate'
   )
   let bound = []
-
-  const workerName = 'app' + page
-  const serverModuleMap = new Proxy(
-    {},
-    {
-      get: (_, id: string) => {
-        return {
-          id: serverActionsManifest[
-            process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          ][id].workers[workerName],
-          name: id,
-          chunks: [],
-        }
-      },
-    }
-  )
 
   const { actionAsyncStorage } = ComponentMod as {
     actionAsyncStorage: ActionAsyncStorage
@@ -421,13 +392,28 @@ export async function handleAction({
 
             bound = await decodeReplyFromBusboy(bb, serverModuleMap)
           } else {
+            // Convert the Node.js readable stream to a Web Stream.
+            const readableStream = new ReadableStream({
+              start(controller) {
+                req.on('data', (chunk) => {
+                  controller.enqueue(new Uint8Array(chunk))
+                })
+                req.on('end', () => {
+                  controller.close()
+                })
+                req.on('error', (err) => {
+                  controller.error(err)
+                })
+              },
+            })
+
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
-            const UndiciRequest = require('next/dist/compiled/undici').Request
-            const fakeRequest = new UndiciRequest('http://localhost', {
+            const fakeRequest = new Request('http://localhost', {
               method: 'POST',
-              headers: { 'Content-Type': req.headers['content-type'] },
-              body: nodeToWebReadableStream(req),
+              // @ts-expect-error
+              headers: { 'Content-Type': contentType },
+              body: readableStream,
               duplex: 'half',
             })
             const formData = await fakeRequest.formData()
@@ -439,21 +425,24 @@ export async function handleAction({
             return
           }
         } else {
-          const { parseBody } =
-            require('../api-utils/node/parse-body') as typeof import('../api-utils/node/parse-body')
+          const chunks = []
 
-          let actionData
-          try {
-            actionData =
-              (await parseBody(req, serverActionsBodySizeLimit ?? '1mb')) || ''
-          } catch (e: any) {
-            if (e && (e as ApiError).statusCode === 413) {
-              // Exceeded the size limit
-              e.message =
-                e.message +
-                '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
-            }
-            throw e
+          for await (const chunk of req) {
+            chunks.push(Buffer.from(chunk))
+          }
+
+          const actionData = Buffer.concat(chunks).toString('utf-8')
+
+          const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
+          const limit = require('next/dist/compiled/bytes').parse(readableLimit)
+
+          if (actionData.length > limit) {
+            const { ApiError } = require('../api-utils')
+            throw new ApiError(
+              413,
+              `Body exceeded ${readableLimit} limit.
+To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation`
+            )
           }
 
           if (isURLEncodedAction) {
@@ -477,13 +466,10 @@ export async function handleAction({
       // / -> fire action -> POST / -> appRender1 -> modId for the action file
       // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
 
-      // Get all workers that include this action
-      const actionWorkers =
-        serverActionsManifest[
-          process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-        ][actionId]
-
-      if (!actionWorkers) {
+      let actionModId: string
+      try {
+        actionModId = serverModuleMap[actionId].id
+      } catch (err) {
         // When this happens, it could be a deployment skew where the action came
         // from a different deployment. We'll just return a 404 with a message logged.
         console.error(
@@ -494,7 +480,6 @@ export async function handleAction({
         }
       }
 
-      const actionModId = actionWorkers.workers[workerName]
       const actionHandler =
         ComponentMod.__next_app__.require(actionModId)[actionId]
 

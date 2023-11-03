@@ -3,13 +3,14 @@ import type { PrerenderManifest } from '../../../build'
 import type {
   IncrementalCacheValue,
   IncrementalCacheEntry,
+  IncrementalCache as IncrementalCacheType,
+  IncrementalCacheKindHint,
 } from '../../response-cache'
+
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
 import path from '../../../shared/lib/isomorphic/path'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
-
-import '../../node-polyfill-web-streams'
 
 import {
   CACHE_ONE_YEAR,
@@ -32,6 +33,7 @@ export interface CacheHandlerContext {
   prerenderManifest?: PrerenderManifest
   revalidatedTags: string[]
   _appDir: boolean
+  _pagesDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
 }
 
@@ -59,7 +61,7 @@ export class CacheHandler {
   public async revalidateTag(_tag: string): Promise<void> {}
 }
 
-export class IncrementalCache {
+export class IncrementalCache implements IncrementalCacheType {
   dev?: boolean
   cacheHandler?: CacheHandler
   prerenderManifest: PrerenderManifest
@@ -77,6 +79,7 @@ export class IncrementalCache {
     fs,
     dev,
     appDir,
+    pagesDir,
     flushToDisk,
     fetchCache,
     minimalMode,
@@ -92,6 +95,7 @@ export class IncrementalCache {
     fs?: CacheFs
     dev: boolean
     appDir?: boolean
+    pagesDir?: boolean
     fetchCache?: boolean
     minimalMode?: boolean
     serverDistDir?: string
@@ -167,6 +171,7 @@ export class IncrementalCache {
         serverDistDir,
         revalidatedTags,
         maxMemoryCacheSize,
+        _pagesDir: !!pagesDir,
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
         fetchCacheKeyPrefix,
@@ -399,7 +404,7 @@ export class IncrementalCache {
   async get(
     cacheKey: string,
     ctx: {
-      fetchCache?: boolean
+      kindHint?: IncrementalCacheKindHint
       revalidate?: number | false
       fetchUrl?: string
       fetchIdx?: number
@@ -427,12 +432,13 @@ export class IncrementalCache {
     // so that getStaticProps is always called for easier debugging
     if (
       this.dev &&
-      (!ctx.fetchCache || this.requestHeaders['cache-control'] === 'no-cache')
+      (ctx.kindHint !== 'fetch' ||
+        this.requestHeaders['cache-control'] === 'no-cache')
     ) {
       return null
     }
 
-    cacheKey = this._getPathname(cacheKey, ctx.fetchCache)
+    cacheKey = this._getPathname(cacheKey, ctx.kindHint === 'fetch')
     let entry: IncrementalCacheEntry | null = null
     let revalidate = ctx.revalidate
 
@@ -481,7 +487,7 @@ export class IncrementalCache {
       revalidateAfter = this.calculateRevalidate(
         cacheKey,
         cacheData?.lastModified || Date.now(),
-        this.dev && !ctx.fetchCache
+        this.dev && ctx.kindHint !== 'fetch'
       )
       isStale =
         revalidateAfter !== false && revalidateAfter < Date.now()

@@ -19,17 +19,16 @@ import { quote as shellQuote } from 'shell-quote'
 const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
 
 describe('SCSS Support', () => {
-  describe('Friendly Webpack Error', () => {
-    const appDir = join(fixturesDir, 'webpack-error')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    describe('Friendly Webpack Error', () => {
+      const appDir = join(fixturesDir, 'webpack-error')
 
-    const mockFile = join(appDir, 'mock.js')
+      const mockFile = join(appDir, 'mock.js')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-    ;(process.env.TURBOPACK ? it.skip : it)(
-      'should be a friendly error successfully',
-      async () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      it('should be a friendly error successfully', async () => {
         const { code, stderr } = await nextBuild(appDir, [], {
           env: { NODE_OPTIONS: shellQuote([`--require`, mockFile]) },
           stderr: true,
@@ -52,186 +51,190 @@ describe('SCSS Support', () => {
         expect(stderr).not.toContain('css-loader')
         // eslint-disable-next-line
         expect(stderr).not.toContain('sass-loader')
-      }
-    )
-  })
-
-  describe('CSS Compilation and Prefixing', () => {
-    const appDir = join(fixturesDir, 'compilation-and-prefixing')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should compile successfully', async () => {
-      const { code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
       })
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
     })
 
-    it(`should've compiled and prefixed`, async () => {
-      const cssFolder = join(appDir, '.next/static/css')
+    describe('CSS Compilation and Prefixing', () => {
+      const appDir = join(fixturesDir, 'compilation-and-prefixing')
 
-      const files = await readdir(cssFolder)
-      const cssFiles = files.filter((f) => /\.css$/.test(f))
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
 
-      expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-      expect(
-        cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(
-        `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
-      )
+      it('should compile successfully', async () => {
+        const { code, stdout } = await nextBuild(appDir, [], {
+          stdout: true,
+        })
+        expect(code).toBe(0)
+        expect(stdout).toMatch(/Compiled successfully/)
+      })
 
-      // Contains a source map
-      expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
-    })
+      it(`should've compiled and prefixed`, async () => {
+        const cssFolder = join(appDir, '.next/static/css')
 
-    it(`should've emitted a source map`, async () => {
-      const cssFolder = join(appDir, '.next/static/css')
+        const files = await readdir(cssFolder)
+        const cssFiles = files.filter((f) => /\.css$/.test(f))
 
-      const files = await readdir(cssFolder)
-      const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
-
-      expect(cssMapFiles.length).toBe(1)
-      const cssMapContent = (
-        await readFile(join(cssFolder, cssMapFiles[0]), 'utf8')
-      ).trim()
-
-      const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
-      expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-        Object {
-          "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
-          "sourcesContent": Array [
-            "$var: red;
-        .redText {
-          ::placeholder {
-            color: $var;
-          }
-        }
-
-        .flex-parsing {
-          flex: 0 0 calc(50% - var(--vertical-gutter));
-        }
-        ",
-          ],
-          "version": 3,
-        }
-      `)
-    })
-  })
-
-  describe('Can hot reload CSS without losing state', () => {
-    const appDir = join(fixturesDir, 'multi-page')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    let appPort
-    let app
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
-
-    it('should update CSS color without remounting <input>', async () => {
-      let browser
-      try {
-        browser = await webdriver(appPort, '/page1')
-
-        const desiredText = 'hello world'
-        await browser.elementById('text-input').type(desiredText)
-        expect(await browser.elementById('text-input').getValue()).toBe(
-          desiredText
+        expect(cssFiles.length).toBe(1)
+        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+        expect(
+          cssContent.replace(/\/\*.*?\*\//g, '').trim()
+        ).toMatchInlineSnapshot(
+          `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
         )
+
+        // Contains a source map
+        expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
+      })
+
+      it(`should've emitted a source map`, async () => {
+        const cssFolder = join(appDir, '.next/static/css')
+
+        const files = await readdir(cssFolder)
+        const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
+
+        expect(cssMapFiles.length).toBe(1)
+        const cssMapContent = (
+          await readFile(join(cssFolder, cssMapFiles[0]), 'utf8')
+        ).trim()
+
+        const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
+        expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
+{
+  "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
+  "sourcesContent": [
+    "$var: red;
+.redText {
+  ::placeholder {
+    color: $var;
+  }
+}
+
+.flex-parsing {
+  flex: 0 0 calc(50% - var(--vertical-gutter));
+}
+",
+  ],
+  "version": 3,
+}
+`)
+      })
+    })
+
+    describe('Has CSS in computed styles in Production', () => {
+      const appDir = join(fixturesDir, 'multi-page')
+
+      let appPort
+      let app
+      let stdout
+      let code
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+        ;({ code, stdout } = await nextBuild(appDir, [], {
+          stdout: true,
+        }))
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      it('should have compiled successfully', () => {
+        expect(code).toBe(0)
+        expect(stdout).toMatch(/Compiled successfully/)
+      })
+
+      it('should have CSS for page', async () => {
+        const browser = await webdriver(appPort, '/page2')
 
         const currentColor = await browser.eval(
-          `window.getComputedStyle(document.querySelector('.red-text')).color`
+          `window.getComputedStyle(document.querySelector('.blue-text')).color`
         )
-        expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+        expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+      })
 
-        const cssFile = new File(join(appDir, 'styles/global1.scss'))
+      it(`should've preloaded the CSS file and injected it in <head>`, async () => {
+        const content = await renderViaHTTP(appPort, '/page2')
+        const $ = cheerio.load(content)
+
+        const cssPreload = $('link[rel="preload"][as="style"]')
+        expect(cssPreload.length).toBe(1)
+        expect(cssPreload.attr('href')).toMatch(
+          /^\/_next\/static\/css\/.*\.css$/
+        )
+
+        const cssSheet = $('link[rel="stylesheet"]')
+        expect(cssSheet.length).toBe(1)
+        expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
+
+        /* ensure CSS preloaded first */
+        const allPreloads = [].slice.call($('link[rel="preload"]'))
+        const styleIndexes = allPreloads.flatMap((p, i) =>
+          p.attribs.as === 'style' ? i : []
+        )
+        expect(styleIndexes).toEqual([0])
+      })
+    })
+  })
+
+  describe('development mode', () => {
+    describe('Can hot reload CSS without losing state', () => {
+      const appDir = join(fixturesDir, 'multi-page')
+
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+
+      let appPort
+      let app
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      it('should update CSS color without remounting <input>', async () => {
+        let browser
         try {
-          cssFile.replace('$var: red', '$var: purple')
-          await waitFor(2000) // wait for HMR
+          browser = await webdriver(appPort, '/page1')
 
-          const refreshedColor = await browser.eval(
-            `window.getComputedStyle(document.querySelector('.red-text')).color`
-          )
-          expect(refreshedColor).toMatchInlineSnapshot(`"rgb(128, 0, 128)"`)
-
-          // ensure text remained
+          const desiredText = 'hello world'
+          await browser.elementById('text-input').type(desiredText)
           expect(await browser.elementById('text-input').getValue()).toBe(
             desiredText
           )
+
+          const currentColor = await browser.eval(
+            `window.getComputedStyle(document.querySelector('.red-text')).color`
+          )
+          expect(currentColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+
+          const cssFile = new File(join(appDir, 'styles/global1.scss'))
+          try {
+            cssFile.replace('$var: red', '$var: purple')
+            await waitFor(2000) // wait for HMR
+
+            const refreshedColor = await browser.eval(
+              `window.getComputedStyle(document.querySelector('.red-text')).color`
+            )
+            expect(refreshedColor).toMatchInlineSnapshot(`"rgb(128, 0, 128)"`)
+
+            // ensure text remained
+            expect(await browser.elementById('text-input').getValue()).toBe(
+              desiredText
+            )
+          } finally {
+            cssFile.restore()
+          }
         } finally {
-          cssFile.restore()
+          if (browser) {
+            await browser.close()
+          }
         }
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-  })
-
-  describe('Has CSS in computed styles in Production', () => {
-    const appDir = join(fixturesDir, 'multi-page')
-
-    let appPort
-    let app
-    let stdout
-    let code
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-      ;({ code, stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      }))
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
-
-    it('should have compiled successfully', () => {
-      expect(code).toBe(0)
-      expect(stdout).toMatch(/Compiled successfully/)
-    })
-
-    it('should have CSS for page', async () => {
-      const browser = await webdriver(appPort, '/page2')
-
-      const currentColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('.blue-text')).color`
-      )
-      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
-    })
-
-    it(`should've preloaded the CSS file and injected it in <head>`, async () => {
-      const content = await renderViaHTTP(appPort, '/page2')
-      const $ = cheerio.load(content)
-
-      const cssPreload = $('link[rel="preload"][as="style"]')
-      expect(cssPreload.length).toBe(1)
-      expect(cssPreload.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
-
-      const cssSheet = $('link[rel="stylesheet"]')
-      expect(cssSheet.length).toBe(1)
-      expect(cssSheet.attr('href')).toMatch(/^\/_next\/static\/css\/.*\.css$/)
-
-      /* ensure CSS preloaded first */
-      const allPreloads = [].slice.call($('link[rel="preload"]'))
-      const styleIndexes = allPreloads.flatMap((p, i) =>
-        p.attribs.as === 'style' ? i : []
-      )
-      expect(styleIndexes).toEqual([0])
+      })
     })
   })
 })

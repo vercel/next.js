@@ -1,6 +1,3 @@
-// We use `Headers` here which is provided by the polyfill.
-import '../../../node-polyfill-fetch'
-
 import { RequestCookies } from '../cookies'
 import {
   ReadonlyRequestCookiesError,
