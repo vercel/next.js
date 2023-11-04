@@ -1867,17 +1867,6 @@ export async function ncc_sass_loader(task, opts) {
 }
 // eslint-disable-next-line camelcase
 externals['schema-utils'] = 'MISSING_VERSION schema-utils version not specified'
-externals['schema-utils2'] = 'next/dist/compiled/schema-utils2'
-export async function ncc_schema_utils2(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('schema-utils2')))
-    .ncc({
-      packageName: 'schema-utils',
-      bundleName: 'schema-utils2',
-      externals,
-    })
-    .target('src/compiled/schema-utils2')
-}
 // eslint-disable-next-line camelcase
 externals['schema-utils3'] = 'next/dist/compiled/schema-utils3'
 export async function ncc_schema_utils3(task, opts) {
@@ -2303,7 +2292,6 @@ export async function ncc(task, opts) {
         'ncc_postcss_modules_values',
         'ncc_postcss_value_parser',
         'ncc_icss_utils',
-        'ncc_schema_utils2',
         'ncc_schema_utils3',
         'ncc_semver',
         'ncc_send',

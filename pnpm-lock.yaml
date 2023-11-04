@@ -1318,9 +1318,6 @@ importers:
       sass-loader:
         specifier: 12.4.0
         version: 12.4.0(sass@1.54.0)(webpack@5.86.0)
-      schema-utils2:
-        specifier: npm:schema-utils@2.7.1
-        version: /schema-utils@2.7.1
       schema-utils3:
         specifier: npm:schema-utils@3.0.0
         version: /schema-utils@3.0.0
@@ -21440,15 +21437,6 @@ packages:
     resolution: {integrity: sha512-IZXdmNU4Z2QYxC5AqUIVfKaXg9Cu1OSrzcnjGvDF9ZLDQkCYjuLGN9JogNsT/x6fNtkYXC/RZunzi1rnQC9qNg==}
     dependencies:
       loose-envify: 1.4.0
-    dev: true
-
-  /schema-utils@2.7.1:
-    resolution: {integrity: sha512-SHiNtMOUGWBQJwzISiVYKu82GiV4QYGePp3odlY1tuKO7gPtphAT5R/py0fA6xtbgLL/RvtJZnU9b8s0F1q0Xg==}
-    engines: {node: '>= 8.9.0'}
-    dependencies:
-      '@types/json-schema': 7.0.12
-      ajv: 6.12.6
-      ajv-keywords: 3.5.2(ajv@6.12.6)
     dev: true
 
   /schema-utils@3.0.0:
