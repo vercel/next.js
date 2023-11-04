@@ -13,7 +13,11 @@
 import execa from 'execa'
 import Conf from 'next/dist/compiled/conf'
 import { useTempDir } from '../../lib/use-temp-dir'
-import { projectFilesShouldExist, shouldBeJavascriptProject } from './lib/utils'
+import {
+  getTestVersion,
+  projectFilesShouldExist,
+  shouldBeJavascriptProject,
+} from './lib/utils'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
@@ -21,8 +25,11 @@ const examplePath = 'examples/basic-css'
 const env = {
   ...process.env,
   COREPACK_ENABLE_STRICT: '0',
-  NEXT_PRIVATE_TEST_VERSION: 'canary',
 }
+
+beforeAll(async () => {
+  env['NEXT_PRIVATE_TEST_VERSION'] = await getTestVersion()
+})
 
 const run = (args: string[], options: execa.Options) => {
   const conf = new Conf({ projectName: 'create-next-app' })

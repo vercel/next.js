@@ -16,6 +16,7 @@ import path from 'path'
 import Conf from 'next/dist/compiled/conf'
 import { useTempDir } from '../../lib/use-temp-dir'
 import {
+  getTestVersion,
   projectFilesShouldExist,
   projectFilesShouldNotExist,
   shouldBeJavascriptProject,
@@ -25,6 +26,8 @@ const cli = require.resolve('create-next-app/dist/index.js')
 const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
 const examplePath = 'examples/basic-css'
 
+let testVersion
+
 const run = (args: string[], options: execa.Options) => {
   const conf = new Conf({ projectName: 'create-next-app' })
   conf.clear()
@@ -32,12 +35,16 @@ const run = (args: string[], options: execa.Options) => {
     ...options,
     env: {
       ...(options.env || {}),
-      NEXT_PRIVATE_TEST_VERSION: 'canary',
+      NEXT_PRIVATE_TEST_VERSION: testVersion,
     } as any,
   })
 }
 
 describe('create next app', () => {
+  beforeAll(async () => {
+    testVersion = await getTestVersion()
+  })
+
   it('non-empty directory', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'non-empty-directory'

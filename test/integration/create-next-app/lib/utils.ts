@@ -9,6 +9,7 @@ import { existsSync } from 'fs'
 import { resolve } from 'path'
 import glob from 'glob'
 import Conf from 'next/dist/compiled/conf'
+import { version as nextVersion } from 'next/package.json'
 
 import {
   getProjectSetting,
@@ -16,8 +17,29 @@ import {
   projectSpecification,
 } from './specification'
 import { CustomTemplateOptions, ProjectDeps, ProjectFiles } from './types'
+import { Span } from 'next/dist/trace'
+import { createNextInstall } from '../../../lib/create-next-install'
 
 const cli = require.resolve('create-next-app/dist/index.js')
+
+// we can only use local version for testing if the version
+// number is published on npm otherwise we fall back to canary
+export const getTestVersion = async () => {
+  const publishedVersions = await fetch(
+    'https://www.npmjs.com/package/next?activeTab=versions'
+  ).then((res) => res.text())
+
+  let testVersion = 'canary'
+
+  if (publishedVersions.includes(`>${nextVersion}<`)) {
+    const span = new Span({ name: 'parent' })
+    testVersion =
+      (
+        await createNextInstall({ parentSpan: span, keepRepoDir: true })
+      ).pkgPaths.get('next') || 'canary'
+  }
+  return testVersion
+}
 
 /**
  * Run the built version of `create-next-app` with the given arguments.

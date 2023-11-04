@@ -30,7 +30,7 @@ export const projectSpecification: ProjectSpecification = {
       'node_modules/next',
       '.gitignore',
     ],
-    deps: ['next', 'react', 'react-dom'],
+    deps: ['next', 'react', 'react-dom', 'geist'],
     devDeps: ['eslint', 'eslint-config-next'],
   },
   default: {

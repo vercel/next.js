@@ -127,7 +127,7 @@ async function createNextInstall({
       }
       const combinedDependencies = {
         next: pkgPaths.get('next'),
-        ...Object.keys(dependencies).reduce((prev, pkg) => {
+        ...Object.keys(dependencies || {}).reduce((prev, pkg) => {
           const pkgPath = pkgPaths.get(pkg)
           prev[pkg] = pkgPath || dependencies[pkg]
           return prev

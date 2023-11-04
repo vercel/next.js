@@ -10,12 +10,12 @@ import path from 'path'
 import fs from 'fs-extra'
 import {
   createNextApp,
+  getTestVersion,
   projectFilesShouldExist,
   shouldBeJavascriptProject,
   shouldBeTypescriptProject,
   spawnExitPromise,
 } from './lib/utils'
-//import { Span } from 'next/dist/trace'
 
 import { useTempDir } from '../../lib/use-temp-dir'
 import {
@@ -26,7 +26,6 @@ import {
   launchApp,
 } from 'next-test-utils'
 import resolveFrom from 'resolve-from'
-//import { createNextInstall } from '../../lib/create-next-install'
 import ansiEscapes from 'ansi-escapes'
 
 const startsWithoutError = async (
@@ -62,13 +61,7 @@ let testVersion
 
 describe('create-next-app templates', () => {
   beforeAll(async () => {
-    // TODO: investigate moving this post publish or create deployed
-    // tarballs to avoid these failing while a publish is in progress
-    testVersion = 'canary'
-    // const span = new Span({ name: 'parent' })
-    // testVersion = (
-    //   await createNextInstall({ onlyPackages: true, parentSpan: span })
-    // ).get('next')
+    testVersion = await getTestVersion()
   })
 
   it('should prompt user to choose if --ts or --js is not provided', async () => {
