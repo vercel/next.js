@@ -15,9 +15,8 @@ describe('emotion SWC option', () => {
       ),
     },
     dependencies: {
-      '@emotion/cache': '^10.0.29',
-      '@emotion/core': '^10.0.35',
-      '@emotion/styled': '^10.0.27',
+      '@emotion/react': '11.10.4',
+      '@emotion/styled': '11.10.4',
     },
   })
 
