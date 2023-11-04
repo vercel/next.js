@@ -21,7 +21,7 @@ export async function getOnline(): Promise<boolean> {
     // If DNS lookup succeeds, we are online
     return true
   } catch {
-    // DNS lookup failed, but we are still fine as long as a proxy has been set
+    // The DNS lookup failed, but we are still fine as long as a proxy has been set
     const proxy = getProxy()
     if (!proxy) {
       return false
@@ -38,7 +38,7 @@ export async function getOnline(): Promise<boolean> {
       // If DNS lookup succeeds for the proxy server, we are online
       return true
     } catch {
-      // DNS lookup failed even for the proxy server
+      // The DNS lookup for the proxy server also failed, so we are offline
       return false
     }
   }
