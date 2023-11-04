@@ -48,7 +48,12 @@ export class CssMinimizerPlugin {
       .process(input, postcssOptions)
       .then((res) => {
         if (res.map) {
-          return new sources.SourceMapSource(res.css, file, res.map.toJSON())
+          // The type between postcss' RawSourceMap and webpack-sources' RawSourceMap are incompatible
+          return new sources.SourceMapSource(
+            res.css,
+            file,
+            res.map.toJSON() as any
+          )
         } else {
           return new sources.RawSource(res.css)
         }
