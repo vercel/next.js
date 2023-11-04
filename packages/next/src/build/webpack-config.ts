@@ -81,6 +81,9 @@ type ClientEntries = {
 const EXTERNAL_PACKAGES =
   require('../lib/server-external-packages.json') as string[]
 
+const INTERNAL_PACKAGES =
+  require('../lib/server-internal-packages.json') as string[]
+
 export const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
 export const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
 const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
@@ -721,14 +724,19 @@ export default async function getBaseWebpackConfig(
       .join('|')})[/\\\\]`
   )
 
+  const transpilePackages = [
+    ...(config.transpilePackages || []),
+    ...INTERNAL_PACKAGES,
+  ]
+  const shouldIncludeExternalDirs =
+    config.experimental.externalDir || !!config.transpilePackages
+
   const handleExternals = makeExternalHandler({
     config,
     optOutBundlingPackageRegex,
     dir,
+    transpilePackages,
   })
-
-  const shouldIncludeExternalDirs =
-    config.experimental.externalDir || !!config.transpilePackages
 
   function createLoaderRuleExclude(skipNodeModules: boolean) {
     return (excludePath: string) => {
@@ -738,7 +746,7 @@ export default async function getBaseWebpackConfig(
 
       const shouldBeBundled = isResourceInPackages(
         excludePath,
-        config.transpilePackages
+        transpilePackages
       )
       if (shouldBeBundled) return false
 
@@ -2043,7 +2051,7 @@ export default async function getBaseWebpackConfig(
     future: config.future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
-    transpilePackages: config.transpilePackages,
+    transpilePackages,
     serverSourceMaps: config.experimental.serverSourceMaps,
   })
 

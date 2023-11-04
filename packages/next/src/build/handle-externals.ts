@@ -132,10 +132,12 @@ export function makeExternalHandler({
   config,
   optOutBundlingPackageRegex,
   dir,
+  transpilePackages,
 }: {
   config: NextConfigComplete
   optOutBundlingPackageRegex: RegExp
   dir: string
+  transpilePackages: string[]
 }) {
   let resolvedExternalPackageDirs: Map<string, string>
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
@@ -338,10 +340,10 @@ export function makeExternalHandler({
 
     // If a package should be transpiled by Next.js, we skip making it external.
     // It doesn't matter what the extension is, as we'll transpile it anyway.
-    if (config.transpilePackages && !resolvedExternalPackageDirs) {
+    if (transpilePackages && !resolvedExternalPackageDirs) {
       resolvedExternalPackageDirs = new Map()
       // We need to resolve all the external package dirs initially.
-      for (const pkg of config.transpilePackages) {
+      for (const pkg of transpilePackages) {
         const pkgRes = await resolveExternal(
           dir,
           config.experimental.esmExternals,
@@ -360,7 +362,7 @@ export function makeExternalHandler({
     const shouldBeBundled =
       isResourceInPackages(
         res,
-        config.transpilePackages,
+        transpilePackages,
         resolvedExternalPackageDirs
       ) ||
       (isEsm && isAppLayer) ||

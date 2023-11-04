@@ -253,12 +253,6 @@ function assignDefaults(
 
   const result = { ...defaultConfig, ...config }
 
-  // add default transpile packages
-  if (!result.transpilePackages) {
-    result.transpilePackages = []
-  }
-  result.transpilePackages.push('geist')
-
   if (result.experimental?.ppr && !version.includes('canary')) {
     Log.warn(
       `The experimental.ppr feature is present in your current version but we recommend using the latest canary version for the best experience.`
