@@ -1,12 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import tar from 'tar'
-import { Stream, Readable } from 'stream'
-import { promisify } from 'util'
-import { join } from 'path'
-import { tmpdir } from 'os'
-import { createWriteStream, promises as fs } from 'fs'
-
-const pipeline = promisify(Stream.pipeline)
+import { Readable } from 'stream'
+import { pipeline } from 'stream/promises'
 
 export type RepoInfo = {
   username: string
@@ -93,44 +88,35 @@ export function existsInRepo(nameOrUrl: string): Promise<boolean> {
   }
 }
 
-async function downloadTar(url: string) {
-  const tempFile = join(tmpdir(), `next.js-cna-example.temp-${Date.now()}`)
-
+async function downloadTarStream(url: string) {
   const resp = await fetch(url)
 
   if (!resp.body) {
     throw new Error(`Failed to download: ${url}`)
   }
 
-  await pipeline(
-    Readable.fromWeb(resp.body as import('stream/web').ReadableStream),
-    createWriteStream(tempFile)
-  )
-
-  return tempFile
+  return Readable.fromWeb(resp.body as import('stream/web').ReadableStream)
 }
 
 export async function downloadAndExtractRepo(
   root: string,
   { username, name, branch, filePath }: RepoInfo
 ) {
-  const tempFile = await downloadTar(
-    `https://codeload.github.com/${username}/${name}/tar.gz/${branch}`
+  await pipeline(
+    await downloadTarStream(
+      `https://codeload.github.com/${username}/${name}/tar.gz/${branch}`
+    ),
+    tar.x({
+      cwd: root,
+      strip: filePath ? filePath.split('/').length + 1 : 1,
+      filter: (p) =>
+        p.startsWith(
+          `${name}-${branch.replace(/\//g, '-')}${
+            filePath ? `/${filePath}/` : '/'
+          }`
+        ),
+    })
   )
-
-  await tar.x({
-    file: tempFile,
-    cwd: root,
-    strip: filePath ? filePath.split('/').length + 1 : 1,
-    filter: (p) =>
-      p.startsWith(
-        `${name}-${branch.replace(/\//g, '-')}${
-          filePath ? `/${filePath}/` : '/'
-        }`
-      ),
-  })
-
-  await fs.unlink(tempFile)
 }
 
 export async function downloadAndExtractExample(root: string, name: string) {
@@ -138,16 +124,14 @@ export async function downloadAndExtractExample(root: string, name: string) {
     throw new Error('This is an internal example for testing the CLI.')
   }
 
-  const tempFile = await downloadTar(
-    'https://codeload.github.com/vercel/next.js/tar.gz/canary'
+  await pipeline(
+    await downloadTarStream(
+      'https://codeload.github.com/vercel/next.js/tar.gz/canary'
+    ),
+    tar.x({
+      cwd: root,
+      strip: 2 + name.split('/').length,
+      filter: (p) => p.includes(`next.js-canary/examples/${name}/`),
+    })
   )
-
-  await tar.x({
-    file: tempFile,
-    cwd: root,
-    strip: 2 + name.split('/').length,
-    filter: (p) => p.includes(`next.js-canary/examples/${name}/`),
-  })
-
-  await fs.unlink(tempFile)
 }
