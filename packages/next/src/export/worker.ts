@@ -224,7 +224,9 @@ async function exportPageImpl(
             fetchCacheKeyPrefix,
             distDir,
             dir,
-            enabledDirectories
+            enabledDirectories,
+            // PPR is not available for Pages.
+            { ppr: false }
           )
         : undefined
 
