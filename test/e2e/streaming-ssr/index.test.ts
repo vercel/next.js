@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { createNext, createNextDescribe, FileRef } from 'e2e-utils'
+import { createNext, createNextDescribe } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
   check,
