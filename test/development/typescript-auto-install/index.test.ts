@@ -26,10 +26,6 @@ describe('typescript-auto-install', () => {
         RUN_ID: '',
         BUILD_NUMBER: '',
       },
-      startCommand: `yarn next ${
-        shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-      }`,
-      installCommand: 'yarn',
       dependencies: {},
     })
   })
