@@ -1,3 +1,7 @@
+declare module 'next/dist/lib/picocolors' {
+  export * from 'next/src/lib/picocolors'
+}
+
 declare module 'next/dist/client/components/react-dev-overlay/internal/helpers/parse-component-stack' {
   export * from 'next/src/client/components/react-dev-overlay/internal/helpers/parse-component-stack'
 }
