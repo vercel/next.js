@@ -36,7 +36,7 @@ export = defineRule({
           if (block.type === 'ExportDefaultDeclaration' && isClientComponent) {
             // export default async function MyComponent() {...}
             if (
-              block.declaration.type === 'FunctionDeclaration' &&
+              block.declaration?.type === 'FunctionDeclaration' &&
               block.declaration.async &&
               isCapitalized(block.declaration.id.name)
             ) {
@@ -51,21 +51,54 @@ export = defineRule({
               block.declaration.type === 'Identifier' &&
               isCapitalized(block.declaration.name)
             ) {
-              const functionName = block.declaration.name
-              const functionDeclaration = node.body.find(
-                (localBlock) =>
+              const targetName = block.declaration.name
+
+              const functionDeclaration = node.body.find((localBlock) => {
+                if (
                   localBlock.type === 'FunctionDeclaration' &&
-                  localBlock.id.name === functionName
-              )
+                  localBlock.id.name === targetName
+                )
+                  return true
+
+                if (
+                  localBlock.type === 'VariableDeclaration' &&
+                  localBlock.declarations.find(
+                    (declaration) =>
+                      declaration.id?.type === 'Identifier' &&
+                      declaration.id.name === targetName
+                  )
+                )
+                  return true
+
+                return false
+              })
 
               if (
-                functionDeclaration.type === 'FunctionDeclaration' &&
+                functionDeclaration?.type === 'FunctionDeclaration' &&
                 functionDeclaration.async
               ) {
                 context.report({
                   node: functionDeclaration,
                   message,
                 })
+              }
+
+              if (functionDeclaration?.type === 'VariableDeclaration') {
+                const varDeclarator = functionDeclaration.declarations.find(
+                  (declaration) =>
+                    declaration.id?.type === 'Identifier' &&
+                    declaration.id.name === targetName
+                )
+
+                if (
+                  varDeclarator?.init?.type === 'ArrowFunctionExpression' &&
+                  varDeclarator.init.async
+                ) {
+                  context.report({
+                    node: functionDeclaration,
+                    message,
+                  })
+                }
               }
             }
           }

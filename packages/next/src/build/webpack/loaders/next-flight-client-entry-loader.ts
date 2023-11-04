@@ -11,7 +11,7 @@ export type NextFlightClientEntryLoaderOptions = {
   server: boolean | 'true' | 'false'
 }
 
-export default async function transformSource(this: any): Promise<string> {
+export default function transformSource(this: any) {
   let { modules, server }: NextFlightClientEntryLoaderOptions =
     this.getOptions()
   const isServer = server === 'true'

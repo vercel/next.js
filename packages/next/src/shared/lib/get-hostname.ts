@@ -14,7 +14,7 @@ export function getHostname(
   // hostname.
   let hostname: string
   if (headers?.host && !Array.isArray(headers.host)) {
-    hostname = headers.host.toString().split(':')[0]
+    hostname = headers.host.toString().split(':', 1)[0]
   } else if (parsed.hostname) {
     hostname = parsed.hostname
   } else return

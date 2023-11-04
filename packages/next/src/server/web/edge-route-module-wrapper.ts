@@ -1,14 +1,19 @@
-import type { RouteHandlerManagerContext } from '../future/route-handler-managers/route-handler-manager'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
-import type { RouteModule } from '../future/route-modules/route-module'
 import type { NextRequest } from './spec-extension/request'
+import type {
+  AppRouteRouteHandlerContext,
+  AppRouteRouteModule,
+} from '../future/route-modules/app-route/module'
+import type { PrerenderManifest } from '../../build'
 
 import './globals'
+
 import { adapter, type AdapterOptions } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
-
-import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
+import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
+import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import type { NextFetchEvent } from './spec-extension/fetch-event'
+import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -26,9 +31,7 @@ export class EdgeRouteModuleWrapper {
    *
    * @param routeModule the route module to wrap
    */
-  private constructor(
-    private readonly routeModule: RouteModule<RouteDefinition>
-  ) {
+  private constructor(private readonly routeModule: AppRouteRouteModule) {
     // TODO: (wyattjoh) possibly allow the module to define it's own matcher
     this.matcher = new RouteMatcher(routeModule.definition)
   }
@@ -43,7 +46,7 @@ export class EdgeRouteModuleWrapper {
    * @returns a function that can be used as a handler for the edge runtime
    */
   public static wrap(
-    routeModule: RouteModule<RouteDefinition>,
+    routeModule: AppRouteRouteModule,
     options: WrapOptions = {}
   ) {
     // Create the module wrapper.
@@ -61,10 +64,20 @@ export class EdgeRouteModuleWrapper {
     }
   }
 
-  private async handler(request: NextRequest): Promise<Response> {
+  private async handler(
+    request: NextRequest,
+    evt: NextFetchEvent
+  ): Promise<Response> {
     // Get the pathname for the matcher. Pathnames should not have trailing
     // slashes for matching.
-    const pathname = removeTrailingSlash(new URL(request.url).pathname)
+    let pathname = removeTrailingSlash(new URL(request.url).pathname)
+
+    // Get the base path and strip it from the pathname if it exists.
+    const { basePath } = request.nextUrl
+    if (basePath) {
+      // If the path prefix doesn't exist, then this will do nothing.
+      pathname = removePathPrefix(pathname, basePath)
+    }
 
     // Get the match for this request.
     const match = this.matcher.match(pathname)
@@ -74,27 +87,42 @@ export class EdgeRouteModuleWrapper {
       )
     }
 
+    const prerenderManifest: PrerenderManifest | undefined =
+      typeof self.__PRERENDER_MANIFEST === 'string'
+        ? JSON.parse(self.__PRERENDER_MANIFEST)
+        : undefined
+
     // Create the context for the handler. This contains the params from the
     // match (if any).
-    const context: RouteHandlerManagerContext = {
+    const context: AppRouteRouteHandlerContext = {
       params: match.params,
       prerenderManifest: {
         version: 4,
         routes: {},
         dynamicRoutes: {},
-        preview: {
+        preview: prerenderManifest?.preview || {
           previewModeEncryptionKey: '',
-          previewModeId: '',
+          previewModeId: 'development-id',
           previewModeSigningKey: '',
         },
         notFoundRoutes: [],
       },
-      staticGenerationContext: {
+      renderOpts: {
         supportsDynamicHTML: true,
+        // App Route's cannot be postponed.
+        experimental: { ppr: false },
       },
     }
 
     // Get the response from the handler.
-    return await this.routeModule.handle(request, context)
+    const res = await this.routeModule.handle(request, context)
+
+    const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
+    if (context.renderOpts.waitUntil) {
+      waitUntilPromises.push(context.renderOpts.waitUntil)
+    }
+    evt.waitUntil(Promise.all(waitUntilPromises))
+
+    return res
   }
 }

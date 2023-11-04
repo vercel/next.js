@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
-import type { CacheNode } from '../../../shared/lib/app-router-context'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightRouterState } from '../../../server/app-render/types'
 
-import { CacheStates } from '../../../shared/lib/app-router-context'
+import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
@@ -47,7 +47,12 @@ export function createInitialRouterState({
     cache,
     prefetchCache: new Map(),
     pushRef: { pendingPush: false, mpaNavigation: false },
-    focusAndScrollRef: { apply: false, hashFragment: null, segmentPaths: [] },
+    focusAndScrollRef: {
+      apply: false,
+      onlyHashChange: false,
+      hashFragment: null,
+      segmentPaths: [],
+    },
     canonicalUrl:
       // location.href is read as the initial value for canonicalUrl in the browser
       // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.

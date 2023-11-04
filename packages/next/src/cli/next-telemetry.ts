@@ -1,30 +1,9 @@
 #!/usr/bin/env node
-import chalk from 'next/dist/compiled/chalk'
-import arg from 'next/dist/compiled/arg/index.js'
-import { printAndExit } from '../server/lib/utils'
-import { CliCommand } from '../lib/commands'
+import { bold, cyan, green, red, yellow } from '../lib/picocolors'
+import type { CliCommand } from '../lib/commands'
 import { Telemetry } from '../telemetry/storage'
-import isError from '../lib/is-error'
 
-const nextTelemetry: CliCommand = (argv) => {
-  const validArgs: arg.Spec = {
-    // Types
-    '--enable': Boolean,
-    '--disable': Boolean,
-    '--help': Boolean,
-    // Aliases
-    '-h': '--help',
-  }
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
-
+const nextTelemetry: CliCommand = (args) => {
   if (args['--help']) {
     console.log(
       `
@@ -41,7 +20,7 @@ const nextTelemetry: CliCommand = (argv) => {
        --disable   Disables Next.js' telemetry collection
        --help, -h  Displays this message
 
-      Learn more: ${chalk.cyan('https://nextjs.org/telemetry')}
+      Learn more: ${cyan('https://nextjs.org/telemetry')}
     `
     )
     return
@@ -53,7 +32,7 @@ const nextTelemetry: CliCommand = (argv) => {
 
   if (args['--enable'] || args._[0] === 'enable') {
     telemetry.setEnabled(true)
-    console.log(chalk.cyan('Success!'))
+    console.log(cyan('Success!'))
     console.log()
 
     isEnabled = true
@@ -61,27 +40,21 @@ const nextTelemetry: CliCommand = (argv) => {
     const path = telemetry.setEnabled(false)
     if (isEnabled) {
       console.log(
-        chalk.cyan(
-          `Your preference has been saved${path ? ` to ${path}` : ''}.`
-        )
+        cyan(`Your preference has been saved${path ? ` to ${path}` : ''}.`)
       )
     } else {
-      console.log(
-        chalk.yellow(`Next.js' telemetry collection is already disabled.`)
-      )
+      console.log(yellow(`Next.js' telemetry collection is already disabled.`))
     }
     console.log()
 
     isEnabled = false
   } else {
-    console.log(chalk.bold('Next.js Telemetry'))
+    console.log(bold('Next.js Telemetry'))
     console.log()
   }
 
   console.log(
-    `Status: ${
-      isEnabled ? chalk.bold.green('Enabled') : chalk.bold.red('Disabled')
-    }`
+    `Status: ${isEnabled ? bold(green('Enabled')) : bold(red('Disabled'))}`
   )
   console.log()
 

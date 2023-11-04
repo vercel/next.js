@@ -12,7 +12,7 @@ Invoking the `notFound()` function throws a `NEXT_NOT_FOUND` error and terminate
 ```jsx filename="app/user/[id]/page.js"
 import { notFound } from 'next/navigation'
 
-async function fetchUsers(id) {
+async function fetchUser(id) {
   const res = await fetch('https://...')
   if (!res.ok) return undefined
   return res.json()

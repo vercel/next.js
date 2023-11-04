@@ -1,49 +1,53 @@
 use anyhow::{bail, Context, Result};
+use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{
-    primitives::{JsonValue, JsonValueVc, StringVc},
-    trace::TraceRawVcs,
-    TaskInput, Value, ValueToString,
-};
+use turbo_tasks::{trace::TraceRawVcs, TaskInput, ValueDefault, ValueToString, Vc};
+use turbo_tasks_fs::{rope::Rope, util::join_path, File};
 use turbopack_binding::{
-    turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPathVc},
+    turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPath},
     turbopack::{
         core::{
-            asset::{Asset, AssetVc},
-            environment::{ServerAddrVc, ServerInfo},
-            ident::AssetIdentVc,
-            issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
-            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-            resolve::{
-                self, handle_resolve_error, node::node_cjs_resolve_options, parse::RequestVc,
-                pattern::QueryMapVc, PrimaryResolveResult,
-            },
+            asset::AssetContent,
+            environment::{ServerAddr, ServerInfo},
+            ident::AssetIdent,
+            issue::{Issue, IssueExt, IssueSeverity},
+            module::Module,
+            source::Source,
+            virtual_source::VirtualSource,
         },
         ecmascript::{
             analyzer::{JsValue, ObjectPart},
             parse::ParseResult,
-            EcmascriptModuleAssetVc,
+            utils::StringifyJs,
+            EcmascriptModuleAsset,
         },
         turbopack::condition::ContextCondition,
     },
 };
 
-use crate::next_config::{NextConfigVc, OutputType};
+use crate::{
+    next_config::{NextConfig, OutputType},
+    next_import_map::get_next_package,
+};
+
+const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TaskInput)]
 pub enum PathType {
-    Page,
+    PagesPage,
+    PagesApi,
     Data,
 }
 
 /// Converts a filename within the server root into a next pathname.
 #[turbo_tasks::function]
 pub async fn pathname_for_path(
-    server_root: FileSystemPathVc,
-    server_path: FileSystemPathVc,
+    server_root: Vc<FileSystemPath>,
+    server_path: Vc<FileSystemPath>,
     path_ty: PathType,
-) -> Result<StringVc> {
+) -> Result<Vc<String>> {
     let server_path_value = &*server_path.await?;
     let path = if let Some(path) = server_root.await?.get_path_to(server_path_value) {
         path
@@ -62,27 +66,50 @@ pub async fn pathname_for_path(
         (_, path) => format!("/{}", path),
     };
 
-    Ok(StringVc::cell(path))
+    Ok(Vc::cell(path))
+}
+
+// Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
+// TODO(alexkirsz) There's no need to create an intermediate string here (and
+// below), we should instead return an `impl Display`.
+pub fn get_asset_prefix_from_pathname(pathname: &str) -> String {
+    if pathname == "/" {
+        "/index".to_string()
+    } else if pathname == "/index" || pathname.starts_with("/index/") {
+        format!("/index{}", pathname)
+    } else {
+        pathname.to_string()
+    }
 }
 
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts
 pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
-    if pathname == "/" {
-        format!("/index{}", ext)
-    } else if pathname == "/index" || pathname.starts_with("/index/") {
-        format!("/index{}{}", pathname, ext)
-    } else {
-        format!("{}{}", pathname, ext)
-    }
+    format!("{}{}", get_asset_prefix_from_pathname(pathname), ext)
 }
 
-pub async fn foreign_code_context_condition(next_config: NextConfigVc) -> Result<ContextCondition> {
+pub async fn foreign_code_context_condition(
+    next_config: Vc<NextConfig>,
+    project_path: Vc<FileSystemPath>,
+) -> Result<ContextCondition> {
     let transpile_packages = next_config.transpile_packages().await?;
+
+    // The next template files are allowed to import the user's code via import
+    // mapping, and imports must use the project-level [ResolveOptions] instead
+    // of the `node_modules` specific resolve options (the template files are
+    // technically node module files).
+    let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
+        get_next_package(project_path).join(NEXT_TEMPLATE_PATH.to_string()),
+    ));
+
     let result = if transpile_packages.is_empty() {
-        ContextCondition::InDirectory("node_modules".to_string())
+        ContextCondition::all(vec![
+            ContextCondition::InDirectory("node_modules".to_string()),
+            not_next_template_dir,
+        ])
     } else {
         ContextCondition::all(vec![
             ContextCondition::InDirectory("node_modules".to_string()),
+            not_next_template_dir,
             ContextCondition::not(ContextCondition::any(
                 transpile_packages
                     .iter()
@@ -94,7 +121,21 @@ pub async fn foreign_code_context_condition(next_config: NextConfigVc) -> Result
     Ok(result)
 }
 
-#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Default,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Hash,
+    PartialOrd,
+    Ord,
+    TaskInput,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
     #[default]
@@ -104,7 +145,7 @@ pub enum NextRuntime {
 }
 
 #[turbo_tasks::value]
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct NextSourceConfig {
     pub runtime: NextRuntime,
 
@@ -113,9 +154,9 @@ pub struct NextSourceConfig {
 }
 
 #[turbo_tasks::value_impl]
-impl NextSourceConfigVc {
+impl ValueDefault for NextSourceConfig {
     #[turbo_tasks::function]
-    pub fn default() -> Self {
+    pub fn value_default() -> Vc<Self> {
         NextSourceConfig::default().cell()
     }
 }
@@ -123,35 +164,35 @@ impl NextSourceConfigVc {
 /// An issue that occurred while parsing the page config.
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
-    ident: AssetIdentVc,
-    detail: StringVc,
+    ident: Vc<AssetIdent>,
+    detail: Vc<String>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for NextSourceConfigParsingIssue {
     #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
+    fn severity(&self) -> Vc<IssueSeverity> {
         IssueSeverity::Warning.into()
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> StringVc {
-        StringVc::cell("Unable to parse config export in source file".to_string())
+    fn title(&self) -> Vc<String> {
+        Vc::cell("Unable to parse config export in source file".to_string())
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("parsing".to_string())
+    fn category(&self) -> Vc<String> {
+        Vc::cell("parsing".to_string())
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.ident.path()
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
-        StringVc::cell(
+    fn description(&self) -> Vc<String> {
+        Vc::cell(
             "The exported configuration object in a source file need to have a very specific \
              format from which some properties can be statically parsed at compiled-time."
                 .to_string(),
@@ -159,21 +200,23 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn detail(&self) -> StringVc {
+    fn detail(&self) -> Vc<String> {
         self.detail
     }
 }
 
 #[turbo_tasks::function]
-pub async fn parse_config_from_source(module_asset: AssetVc) -> Result<NextSourceConfigVc> {
-    if let Some(ecmascript_asset) = EcmascriptModuleAssetVc::resolve_from(module_asset).await? {
+pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<NextSourceConfig>> {
+    if let Some(ecmascript_asset) =
+        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
+    {
         if let ParseResult::Ok {
-            program: Program::Module(module),
+            program: Program::Module(module_ast),
             eval_context,
             ..
         } = &*ecmascript_asset.parse().await?
         {
-            for item in &module.body {
+            for item in &module_ast.body {
                 if let Some(decl) = item
                     .as_module_decl()
                     .and_then(|mod_decl| mod_decl.as_export_decl())
@@ -188,18 +231,17 @@ pub async fn parse_config_from_source(module_asset: AssetVc) -> Result<NextSourc
                         {
                             if let Some(init) = decl.init.as_ref() {
                                 let value = eval_context.eval(init);
-                                return Ok(parse_config_from_js_value(module_asset, &value).cell());
+                                return Ok(parse_config_from_js_value(module, &value).cell());
                             } else {
                                 NextSourceConfigParsingIssue {
-                                    ident: module_asset.ident(),
-                                    detail: StringVc::cell(
+                                    ident: module.ident(),
+                                    detail: Vc::cell(
                                         "The exported config object must contain an variable \
                                          initializer."
                                             .to_string(),
                                     ),
                                 }
                                 .cell()
-                                .as_issue()
                                 .emit()
                             }
                         }
@@ -208,19 +250,18 @@ pub async fn parse_config_from_source(module_asset: AssetVc) -> Result<NextSourc
             }
         }
     }
-    Ok(NextSourceConfigVc::default())
+    Ok(Default::default())
 }
 
-fn parse_config_from_js_value(module_asset: AssetVc, value: &JsValue) -> NextSourceConfig {
+fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> NextSourceConfig {
     let mut config = NextSourceConfig::default();
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
         NextSourceConfigParsingIssue {
-            ident: module_asset.ident(),
-            detail: StringVc::cell(format!("{detail} Got {explainer}.{hints}")),
+            ident: module.ident(),
+            detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
         }
         .cell()
-        .as_issue()
         .emit()
     };
     if let JsValue::Object { parts, .. } = value {
@@ -311,44 +352,291 @@ fn parse_config_from_js_value(module_asset: AssetVc, value: &JsValue) -> NextSou
     config
 }
 
-pub async fn load_next_json<T: DeserializeOwned>(
-    context: FileSystemPathVc,
+/// Loads a next.js template, replaces `replacements` and `injections` and makes
+/// sure there are none left over.
+pub async fn load_next_js_template(
     path: &str,
-) -> Result<T> {
-    let request = RequestVc::module(
-        "next".to_owned(),
-        Value::new(path.to_string().into()),
-        QueryMapVc::cell(None),
-    );
-    let resolve_options = node_cjs_resolve_options(context.root());
+    project_path: Vc<FileSystemPath>,
+    replacements: IndexMap<&'static str, String>,
+    injections: IndexMap<&'static str, String>,
+    imports: IndexMap<&'static str, Option<String>>,
+) -> Result<Vc<Box<dyn Source>>> {
+    let path = virtual_next_js_template_path(project_path, path.to_string());
 
-    let resolve_result = handle_resolve_error(
-        resolve::resolve(context, request, resolve_options),
-        Value::new(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::Undefined,
-        )),
-        context,
-        request,
-        resolve_options,
-        OptionIssueSourceVc::none(),
-        IssueSeverity::Error.cell(),
-    )
-    .await?;
-    let resolve_result = &*resolve_result.await?;
+    let content = &*file_content_rope(path.read()).await?;
+    let content = content.to_str()?.to_string();
 
-    let primary = resolve_result
-        .primary
-        .first()
-        .context("Unable to resolve primary asset")?;
+    let parent_path = path.parent();
+    let parent_path_value = &*parent_path.await?;
 
-    let PrimaryResolveResult::Asset(metrics_asset) = primary else {
-        bail!("Expected to find asset");
-    };
+    let package_root = get_next_package(project_path).parent();
+    let package_root_value = &*package_root.await?;
 
-    let content = &*metrics_asset.content().file_content().await?;
+    /// See [regex::Regex::replace_all].
+    fn replace_all<E>(
+        re: &regex::Regex,
+        haystack: &str,
+        mut replacement: impl FnMut(&regex::Captures) -> Result<String, E>,
+    ) -> Result<String, E> {
+        let mut new = String::with_capacity(haystack.len());
+        let mut last_match = 0;
+        for caps in re.captures_iter(haystack) {
+            let m = caps.get(0).unwrap();
+            new.push_str(&haystack[last_match..m.start()]);
+            new.push_str(&replacement(&caps)?);
+            last_match = m.end();
+        }
+        new.push_str(&haystack[last_match..]);
+        Ok(new)
+    }
+
+    // Update the relative imports to be absolute. This will update any relative
+    // imports to be relative to the root of the `next` package.
+    let regex = lazy_regex::regex!("(?:from \"(\\..*)\"|import \"(\\..*)\")");
+
+    let mut count = 0;
+    let mut content = replace_all(regex, &content, |caps| {
+        let from_request = caps.get(1).map_or("", |c| c.as_str());
+        let import_request = caps.get(2).map_or("", |c| c.as_str());
+
+        count += 1;
+        let is_from_request = !from_request.is_empty();
+
+        let imported = FileSystemPath {
+            fs: package_root_value.fs,
+            path: join_path(
+                &parent_path_value.path,
+                if is_from_request {
+                    from_request
+                } else {
+                    import_request
+                },
+            )
+            .context("path should not leave the fs")?,
+        };
+
+        let relative = package_root_value
+            .get_relative_path_to(&imported)
+            .context("path has to be relative to package root")?;
+
+        if !relative.starts_with("./next/") {
+            bail!(
+                "Invariant: Expected relative import to start with \"./next/\", found \"{}\"",
+                relative
+            )
+        }
+
+        let relative = relative
+            .strip_prefix("./")
+            .context("should be able to strip the prefix")?;
+
+        Ok(if is_from_request {
+            format!("from {}", StringifyJs(relative))
+        } else {
+            format!("import {}", StringifyJs(relative))
+        })
+    })
+    .context("replacing imports failed")?;
+
+    // Verify that at least one import was replaced. It's the case today where
+    // every template file has at least one import to update, so this ensures that
+    // we don't accidentally remove the import replacement code or use the wrong
+    // template file.
+    if count == 0 {
+        bail!("Invariant: Expected to replace at least one import")
+    }
+
+    // Replace all the template variables with the actual values. If a template
+    // variable is missing, throw an error.
+    let mut replaced = IndexSet::new();
+    for (key, replacement) in &replacements {
+        let full = format!("\"{}\"", key);
+
+        if content.contains(&full) {
+            replaced.insert(*key);
+            content = content.replace(&full, &StringifyJs(&replacement).to_string());
+        }
+    }
+
+    // Check to see if there's any remaining template variables.
+    let regex = lazy_regex::regex!("/VAR_[A-Z_]+");
+    let matches = regex
+        .find_iter(&content)
+        .map(|m| m.as_str().to_string())
+        .collect::<Vec<_>>();
+
+    if !matches.is_empty() {
+        bail!(
+            "Invariant: Expected to replace all template variables, found {}",
+            matches.join(", "),
+        )
+    }
+
+    // Check to see if any template variable was provided but not used.
+    if replaced.len() != replacements.len() {
+        // Find the difference between the provided replacements and the replaced
+        // template variables. This will let us notify the user of any template
+        // variables that were not used but were provided.
+        let difference = replacements
+            .keys()
+            .filter(|k| !replaced.contains(*k))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        bail!(
+            "Invariant: Expected to replace all template variables, missing {} in template",
+            difference.join(", "),
+        )
+    }
+
+    // Replace the injections.
+    let mut injected = IndexSet::new();
+    for (key, injection) in &injections {
+        let full = format!("// INJECT:{}", key);
+
+        if content.contains(&full) {
+            // Track all the injections to ensure that we're not missing any.
+            injected.insert(*key);
+            content = content.replace(&full, &format!("const {} = {}", key, injection));
+        }
+    }
+
+    // Check to see if there's any remaining injections.
+    let regex = lazy_regex::regex!("// INJECT:[A-Za-z0-9_]+");
+    let matches = regex
+        .find_iter(&content)
+        .map(|m| m.as_str().to_string())
+        .collect::<Vec<_>>();
+
+    if !matches.is_empty() {
+        bail!(
+            "Invariant: Expected to inject all injections, found {}",
+            matches.join(", "),
+        )
+    }
+
+    // Check to see if any injection was provided but not used.
+    if injected.len() != injections.len() {
+        // Find the difference between the provided replacements and the replaced
+        // template variables. This will let us notify the user of any template
+        // variables that were not used but were provided.
+        let difference = injections
+            .keys()
+            .filter(|k| !injected.contains(*k))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        bail!(
+            "Invariant: Expected to inject all injections, missing {} in template",
+            difference.join(", "),
+        )
+    }
+
+    // Replace the optional imports.
+    let mut imports_added = IndexSet::new();
+    for (key, import_path) in &imports {
+        let mut full = format!("// OPTIONAL_IMPORT:{}", key);
+        let namespace = if !content.contains(&full) {
+            full = format!("// OPTIONAL_IMPORT:* as {}", key);
+            if content.contains(&full) {
+                true
+            } else {
+                continue;
+            }
+        } else {
+            false
+        };
+
+        // Track all the imports to ensure that we're not missing any.
+        imports_added.insert(*key);
+
+        if let Some(path) = import_path {
+            content = content.replace(
+                &full,
+                &format!(
+                    "import {}{} from {}",
+                    if namespace { "* as " } else { "" },
+                    key,
+                    &StringifyJs(&path).to_string()
+                ),
+            );
+        } else {
+            content = content.replace(&full, &format!("const {} = null", key));
+        }
+    }
+
+    // Check to see if there's any remaining imports.
+    let regex = lazy_regex::regex!("// OPTIONAL_IMPORT:(\\* as )?[A-Za-z0-9_]+");
+    let matches = regex
+        .find_iter(&content)
+        .map(|m| m.as_str().to_string())
+        .collect::<Vec<_>>();
+
+    if !matches.is_empty() {
+        bail!(
+            "Invariant: Expected to inject all imports, found {}",
+            matches.join(", "),
+        )
+    }
+
+    // Check to see if any import was provided but not used.
+    if imports_added.len() != imports.len() {
+        // Find the difference between the provided imports and the injected
+        // imports. This will let us notify the user of any imports that were
+        // not used but were provided.
+        let difference = imports
+            .keys()
+            .filter(|k| !imports_added.contains(*k))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        bail!(
+            "Invariant: Expected to inject all imports, missing {} in template",
+            difference.join(", "),
+        )
+    }
+
+    // Ensure that the last line is a newline.
+    if !content.ends_with('\n') {
+        content.push('\n');
+    }
+
+    let file = File::from(content);
+
+    let source = VirtualSource::new(path, AssetContent::file(file.into()));
+
+    Ok(Vc::upcast(source))
+}
+
+#[turbo_tasks::function]
+pub async fn file_content_rope(content: Vc<FileContent>) -> Result<Vc<Rope>> {
+    let content = &*content.await?;
 
     let FileContent::Content(file) = content else {
-        bail!("Expected file content for metrics data");
+        bail!("Expected file content for file");
+    };
+
+    Ok(file.content().to_owned().cell())
+}
+
+pub fn virtual_next_js_template_path(
+    project_path: Vc<FileSystemPath>,
+    file: String,
+) -> Vc<FileSystemPath> {
+    debug_assert!(!file.contains('/'));
+    get_next_package(project_path).join(format!("{NEXT_TEMPLATE_PATH}/{file}"))
+}
+
+pub async fn load_next_js_templateon<T: DeserializeOwned>(
+    project_path: Vc<FileSystemPath>,
+    path: String,
+) -> Result<T> {
+    let file_path = get_next_package(project_path).join(path.clone());
+
+    let content = &*file_path.read().await?;
+
+    let FileContent::Content(file) = content else {
+        bail!("Expected file content at {}", path);
     };
 
     let result: T = parse_json_rope_with_source_context(file.content())?;
@@ -358,22 +646,32 @@ pub async fn load_next_json<T: DeserializeOwned>(
 
 #[turbo_tasks::function]
 pub async fn render_data(
-    next_config: NextConfigVc,
-    server_addr: ServerAddrVc,
-) -> Result<JsonValueVc> {
+    next_config: Vc<NextConfig>,
+    server_addr: Vc<ServerAddr>,
+) -> Result<Vc<JsonValue>> {
     #[derive(Serialize)]
     #[serde(rename_all = "camelCase")]
     struct Data {
         next_config_output: Option<OutputType>,
         server_info: Option<ServerInfo>,
+        allowed_revalidate_header_keys: Option<Vec<String>>,
+        fetch_cache_key_prefix: Option<String>,
+        isr_memory_cache_size: Option<f64>,
+        isr_flush_to_disk: Option<bool>,
     }
 
     let config = next_config.await?;
     let server_info = ServerInfo::try_from(&*server_addr.await?);
 
+    let experimental = &config.experimental;
+
     let value = serde_json::to_value(Data {
         next_config_output: config.output.clone(),
         server_info: server_info.ok(),
+        allowed_revalidate_header_keys: experimental.allowed_revalidate_header_keys.clone(),
+        fetch_cache_key_prefix: experimental.fetch_cache_key_prefix.clone(),
+        isr_memory_cache_size: experimental.isr_memory_cache_size,
+        isr_flush_to_disk: experimental.isr_flush_to_disk,
     })?;
-    Ok(JsonValue(value).cell())
+    Ok(Vc::cell(value))
 }

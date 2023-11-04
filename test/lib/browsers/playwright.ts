@@ -53,8 +53,13 @@ export class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string, locale: string, javaScriptEnabled: boolean) {
-    const headless = !!process.env.HEADLESS
+  async setup(
+    browserName: string,
+    locale: string,
+    javaScriptEnabled: boolean,
+    ignoreHTTPSErrors: boolean,
+    headless: boolean
+  ) {
     let device
 
     if (process.env.DEVICE_NAME) {
@@ -74,6 +79,7 @@ export class Playwright extends BrowserInterface {
         context = await browser.newContext({
           locale,
           javaScriptEnabled,
+          ignoreHTTPSErrors,
           ...device,
         })
         contextHasJSEnabled = javaScriptEnabled
@@ -82,7 +88,12 @@ export class Playwright extends BrowserInterface {
     }
 
     browser = await this.launchBrowser(browserName, { headless })
-    context = await browser.newContext({ locale, javaScriptEnabled, ...device })
+    context = await browser.newContext({
+      locale,
+      javaScriptEnabled,
+      ignoreHTTPSErrors,
+      ...device,
+    })
     contextHasJSEnabled = javaScriptEnabled
   }
 
@@ -90,11 +101,23 @@ export class Playwright extends BrowserInterface {
     if (browserName === 'safari') {
       return await webkit.launch(launchOptions)
     } else if (browserName === 'firefox') {
-      return await firefox.launch(launchOptions)
+      return await firefox.launch({
+        ...launchOptions,
+        firefoxUserPrefs: {
+          ...launchOptions.firefoxUserPrefs,
+          // The "fission.webContentIsolationStrategy" pref must be
+          // set to 1 on Firefox due to the bug where a new history
+          // state is pushed on a page reload.
+          // See https://github.com/microsoft/playwright/issues/22640
+          // See https://bugzilla.mozilla.org/show_bug.cgi?id=1832341
+          'fission.webContentIsolationStrategy': 1,
+        },
+      })
     } else {
       return await chromium.launch({
         devtools: !launchOptions.headless,
         ...launchOptions,
+        ignoreDefaultArgs: ['--disable-back-forward-cache'],
       })
     }
   }
@@ -175,11 +198,9 @@ export class Playwright extends BrowserInterface {
         websocketFrames.push({ payload: frame.payload })
 
         if (tracePlaywright) {
-          if (!frame.payload.includes('pong')) {
-            page
-              .evaluate(`console.log('received ws message ${frame.payload}')`)
-              .catch(() => {})
-          }
+          page
+            .evaluate(`console.log('received ws message ${frame.payload}')`)
+            .catch(() => {})
         }
       })
     })
@@ -196,14 +217,14 @@ export class Playwright extends BrowserInterface {
     await page.goto(url, { waitUntil: 'load' })
   }
 
-  back(): BrowserInterface {
+  back(options): BrowserInterface {
     return this.chain(async () => {
-      await page.goBack()
+      await page.goBack(options)
     })
   }
-  forward(): BrowserInterface {
+  forward(options): BrowserInterface {
     return this.chain(async () => {
-      await page.goForward()
+      await page.goForward(options)
     })
   }
   refresh(): BrowserInterface {

@@ -1,5 +1,5 @@
-import { SpanId } from './shared'
 import { reporter } from './report'
+import type { SpanId, TraceEvent, TraceState } from './types'
 
 const NUM_OF_MICROSEC_IN_NANOSEC = BigInt('1000')
 let count = 0
@@ -7,6 +7,9 @@ const getId = () => {
   count++
   return count
 }
+let defaultParentSpanId: SpanId | undefined
+let shouldSaveTraceEvents: boolean | undefined
+let savedTraceEvents: TraceEvent[] = []
 
 // eslint typescript has a bug with TS enums
 /* eslint-disable no-shadow */
@@ -19,11 +22,13 @@ export class Span {
   name: string
   id: SpanId
   parentId?: SpanId
+  // Duration of the span in *microseconds*.
   duration: number | null
   attrs: { [key: string]: any }
   status: SpanStatus
   now: number
 
+  // Number of nanoseconds since epoch.
   _start: bigint
 
   constructor({
@@ -38,7 +43,7 @@ export class Span {
     attrs?: Object
   }) {
     this.name = name
-    this.parentId = parentId
+    this.parentId = parentId ?? defaultParentSpanId
     this.duration = null
     this.attrs = attrs ? { ...attrs } : {}
     this.status = SpanStatus.Started
@@ -64,15 +69,19 @@ export class Span {
       throw new Error(`Duration is too long to express as float64: ${duration}`)
     }
     const timestamp = this._start / NUM_OF_MICROSEC_IN_NANOSEC
-    reporter.report(
-      this.name,
-      Number(duration),
-      Number(timestamp),
-      this.id,
-      this.parentId,
-      this.attrs,
-      this.now
-    )
+    const traceEvent: TraceEvent = {
+      name: this.name,
+      duration: Number(duration),
+      timestamp: Number(timestamp),
+      id: this.id,
+      parentId: this.parentId,
+      tags: this.attrs,
+      startTime: this.now,
+    }
+    reporter.report(traceEvent)
+    if (shouldSaveTraceEvents) {
+      savedTraceEvents.push(traceEvent)
+    }
   }
 
   traceChild(name: string, attrs?: Object) {
@@ -81,7 +90,9 @@ export class Span {
 
   manualTraceChild(
     name: string,
+    // Start time in nanoseconds since epoch.
     startTime: bigint,
+    // Stop time in nanoseconds since epoch.
     stopTime: bigint,
     attrs?: Object
   ) {
@@ -119,3 +130,35 @@ export const trace = (
 }
 
 export const flushAllTraces = () => reporter.flushAll()
+
+// This code supports workers by serializing the state of tracers when the
+// worker is initialized, and serializing the trace events from the worker back
+// to the main process to record when the worker is complete.
+export const exportTraceState = (): TraceState => ({
+  defaultParentSpanId,
+  lastId: count,
+  shouldSaveTraceEvents,
+})
+export const initializeTraceState = (state: TraceState) => {
+  count = state.lastId
+  defaultParentSpanId = state.defaultParentSpanId
+  shouldSaveTraceEvents = state.shouldSaveTraceEvents
+}
+
+export function getTraceEvents(): TraceEvent[] {
+  return savedTraceEvents
+}
+
+export function recordTraceEvents(events: TraceEvent[]) {
+  for (const traceEvent of events) {
+    reporter.report(traceEvent)
+    if (traceEvent.id > count) {
+      count = traceEvent.id + 1
+    }
+  }
+  if (shouldSaveTraceEvents) {
+    savedTraceEvents.push(...events)
+  }
+}
+
+export const clearTraceEvents = () => (savedTraceEvents = [])

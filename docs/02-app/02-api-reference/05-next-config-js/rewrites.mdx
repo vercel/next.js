@@ -3,9 +3,21 @@ title: rewrites
 description: Add rewrites to your Next.js app.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 Rewrites allow you to map an incoming request path to a different destination path.
 
+<AppOnly>
+
+Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site. In contrast, [redirects](/docs/app/api-reference/next-config-js/redirects) will reroute to a new page and show the URL changes.
+
+</AppOnly>
+
+<PagesOnly>
+
 Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site. In contrast, [redirects](/docs/pages/api-reference/next-config-js/redirects) will reroute to a new page and show the URL changes.
+
+</PagesOnly>
 
 To use rewrites you can use the `rewrites` key in `next.config.js`:
 
@@ -74,12 +86,27 @@ module.exports = {
 
 The order Next.js routes are checked is:
 
+<AppOnly>
+
+1. [headers](/docs/app/api-reference/next-config-js/headers) are checked/applied
+2. [redirects](/docs/app/api-reference/next-config-js/redirects) are checked/applied
+3. `beforeFiles` rewrites are checked/applied
+4. static files from the [public directory](/docs/app/building-your-application/optimizing/static-assets), `_next/static` files, and non-dynamic pages are checked/served
+5. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
+6. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked. If you use [fallback: true/'blocking'](/docs/pages/api-reference/functions/get-static-paths#fallback-true) in `getStaticPaths`, the fallback `rewrites` defined in your `next.config.js` will _not_ be run.
+
+</AppOnly>
+
+<PagesOnly>
+
 1. [headers](/docs/pages/api-reference/next-config-js/headers) are checked/applied
 2. [redirects](/docs/pages/api-reference/next-config-js/redirects) are checked/applied
 3. `beforeFiles` rewrites are checked/applied
 4. static files from the [public directory](/docs/pages/building-your-application/optimizing/static-assets), `_next/static` files, and non-dynamic pages are checked/served
 5. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
 6. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked. If you use [fallback: true/'blocking'](/docs/pages/api-reference/functions/get-static-paths#fallback-true) in `getStaticPaths`, the fallback `rewrites` defined in your `next.config.js` will _not_ be run.
+
+</PagesOnly>
 
 ## Rewrite parameters
 
@@ -387,7 +414,17 @@ module.exports = {
 
 ### Rewrites with i18n support
 
+<AppOnly>
+
+When leveraging [`i18n` support](/docs/app/building-your-application/routing/internationalization) with rewrites each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the rewrite. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
+
+</AppOnly>
+
+<PagesOnly>
+
 When leveraging [`i18n` support](/docs/pages/building-your-application/routing/internationalization) with rewrites each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the rewrite. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
+
+</PagesOnly>
 
 ```js filename="next.config.js"
 module.exports = {

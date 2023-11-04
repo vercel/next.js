@@ -4,6 +4,5 @@ export default function _maybeArrayLike(next, arr, i) {
     var len = arr.length;
     return arrayLikeToArray(arr, i !== void 0 && i < len ? i : len);
   }
-
   return next(arr, i);
 }

@@ -9,25 +9,33 @@ describe('FileSystemCache', () => {
   it('set image route', async () => {
     const fsCache = new FileSystemCache({
       _appDir: true,
+      _pagesDir: true,
       _requestHeaders: {},
       flushToDisk: true,
       fs: nodeFs,
       serverDistDir: cacheDir,
       revalidatedTags: [],
+      experimental: {
+        ppr: false,
+      },
     })
 
     const binary = await fs.readFile(
       fileURLToPath(new URL('./images/icon.png', import.meta.url))
     )
 
-    await fsCache.set('icon.png', {
-      body: binary,
-      headers: {
-        'Content-Type': 'image/png',
+    await fsCache.set(
+      'icon.png',
+      {
+        body: binary,
+        headers: {
+          'Content-Type': 'image/png',
+        },
+        status: 200,
+        kind: 'ROUTE',
       },
-      status: 200,
-      kind: 'ROUTE',
-    })
+      {}
+    )
 
     expect((await fsCache.get('icon.png')).value).toEqual({
       body: binary,

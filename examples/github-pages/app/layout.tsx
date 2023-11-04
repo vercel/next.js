@@ -1,3 +1,13 @@
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: 'Next.js on GitHub Pages',
+  description: 'A Next.js web application on GitHub Pages',
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -5,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={inter.className}>{children}</body>
     </html>
   )
 }

@@ -1,4 +1,8 @@
 on:
+  schedule:
+    # run every day at 23:15
+    - cron: '15 23 * * *'
+
   workflow_dispatch:
     inputs:
       releaseType:
@@ -25,10 +29,8 @@ name: Trigger Release
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.9.6
-  PNPM_VERSION: 7.24.3
-  NODE_MAINTENANCE_VERSION: 16
-  NODE_LTS_VERSION: 18
+  TURBO_VERSION: 1.10.9
+  NODE_LTS_VERSION: 20
 
 jobs:
   start:
@@ -39,11 +41,10 @@ jobs:
       # canary next-swc binaries in the monorepo
       NEXT_SKIP_NATIVE_POSTINSTALL: 1
 
-    environment: release-${{ github.event.inputs.releaseType }}
+    environment: release-${{ github.event.inputs.releaseType || 'canary' }}
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
-        if: ${{ steps.docs-change.outputs.docsChange == 'nope' }}
         with:
           node-version: 18
           check-latest: true
@@ -56,7 +57,7 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - run: npm i -g pnpm@${PNPM_VERSION}
+      - run: corepack enable && pnpm --version
 
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
@@ -75,6 +76,6 @@ jobs:
 
       - run: pnpm run build
 
-      - run: node ./scripts/start-release.js --release-type ${{ github.event.inputs.releaseType }} --semver-type ${{ github.event.inputs.semverType }}
+      - run: node ./scripts/start-release.js --release-type ${{ github.event.inputs.releaseType || 'canary' }} --semver-type ${{ github.event.inputs.semverType }}
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}

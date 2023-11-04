@@ -7,13 +7,34 @@ const { randomBytes } = require('crypto')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
+/**
+ * Sets the `resolution-mode` for pnpm in the specified directory.
+ *
+ * See [pnpm/.npmrc#resolution-mode]{@link https://pnpm.io/npmrc#resolution-mode} and
+ * [GitHub Issue]{@link https://github.com/pnpm/pnpm/issues/6463}
+ *
+ * @param {string} cwd - The project directory where pnpm configuration is set.
+ * @returns {Promise<void>}
+ */
+function setPnpmResolutionMode(cwd) {
+  return execa(
+    'pnpm',
+    ['config', 'set', '--location=project', 'resolution-mode', 'highest'],
+    {
+      cwd: cwd,
+      stdio: ['ignore', 'inherit', 'inherit'],
+      env: process.env,
+    }
+  )
+}
+
 async function createNextInstall({
   parentSpan = null,
   dependencies = null,
+  resolutions = null,
   installCommand = null,
   packageJson = {},
   dirSuffix = '',
-  onlyPackages = false,
   keepRepoDir = false,
 }) {
   return await parentSpan
@@ -29,10 +50,11 @@ async function createNextInstall({
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
 
-      let pkgPaths = process.env.NEXT_TEST_PKG_PATHS
+      const pkgPathsEnv = process.env.NEXT_TEST_PKG_PATHS
+      let pkgPaths
 
-      if (pkgPaths) {
-        pkgPaths = new Map(JSON.parse(pkgPaths))
+      if (pkgPathsEnv) {
+        pkgPaths = new Map(JSON.parse(pkgPathsEnv))
         require('console').log('using provided pkg paths')
       } else {
         tmpRepoDir = path.join(
@@ -77,8 +99,8 @@ async function createNextInstall({
         for (const item of ['package.json', 'packages']) {
           await rootSpan
             .traceChild(`copy ${item} to temp dir`)
-            .traceAsyncFn(async () => {
-              await fs.copy(
+            .traceAsyncFn(() =>
+              fs.copy(
                 path.join(origRepoDir, item),
                 path.join(tmpRepoDir, item),
                 {
@@ -94,7 +116,7 @@ async function createNextInstall({
                   },
                 }
               )
-            })
+            )
         }
 
         pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
@@ -103,20 +125,13 @@ async function createNextInstall({
           })
         )
       }
-      let combinedDependencies = dependencies
-
-      if (onlyPackages) {
-        return pkgPaths
-      }
-      if (!(packageJson && packageJson.nextParamateSkipLocalDeps)) {
-        combinedDependencies = {
-          next: pkgPaths.get('next'),
-          ...Object.keys(dependencies).reduce((prev, pkg) => {
-            const pkgPath = pkgPaths.get(pkg)
-            prev[pkg] = pkgPath || dependencies[pkg]
-            return prev
-          }, {}),
-        }
+      const combinedDependencies = {
+        next: pkgPaths.get('next'),
+        ...Object.keys(dependencies).reduce((prev, pkg) => {
+          const pkgPath = pkgPaths.get(pkg)
+          prev[pkg] = pkgPath || dependencies[pkg]
+          return prev
+        }, {}),
       }
 
       await fs.ensureDir(installDir)
@@ -127,16 +142,22 @@ async function createNextInstall({
             ...packageJson,
             dependencies: combinedDependencies,
             private: true,
+            // Add resolutions if provided.
+            ...(resolutions ? { resolutions } : {}),
           },
           null,
           2
         )
       )
+      await setPnpmResolutionMode(installDir)
 
       if (installCommand) {
         const installString =
           typeof installCommand === 'function'
-            ? installCommand({ dependencies: combinedDependencies })
+            ? installCommand({
+                dependencies: combinedDependencies,
+                resolutions,
+              })
             : installCommand
 
         console.log('running install command', installString)
@@ -149,7 +170,7 @@ async function createNextInstall({
       } else {
         await rootSpan
           .traceChild('run generic install command')
-          .traceAsyncFn(async () => {
+          .traceAsyncFn(() => {
             const args = [
               'install',
               '--strict-peer-dependencies=false',
@@ -160,7 +181,7 @@ async function createNextInstall({
               args.push('--prefer-offline')
             }
 
-            await execa('pnpm', args, {
+            return execa('pnpm', args, {
               cwd: installDir,
               stdio: ['ignore', 'inherit', 'inherit'],
               env: process.env,
@@ -171,18 +192,17 @@ async function createNextInstall({
       if (!keepRepoDir && tmpRepoDir) {
         await fs.remove(tmpRepoDir)
       }
-      if (keepRepoDir) {
-        return {
-          installDir,
-          pkgPaths,
-          tmpRepoDir,
-        }
+
+      return {
+        installDir,
+        pkgPaths,
+        tmpRepoDir,
       }
-      return installDir
     })
 }
 
 module.exports = {
+  setPnpmResolutionMode,
   createNextInstall,
   getPkgPaths: linkPackages,
 }

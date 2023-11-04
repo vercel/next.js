@@ -32,3 +32,14 @@ export async function getLayoutOrPageModule(loaderTree: LoaderTree) {
 
   return [value, modType] as const
 }
+
+export async function getComponentTypeModule(
+  loaderTree: LoaderTree,
+  componentType: 'layout' | 'not-found'
+) {
+  const { [componentType]: component } = loaderTree[2]
+  if (typeof component !== 'undefined') {
+    return await component[0]()
+  }
+  return undefined
+}

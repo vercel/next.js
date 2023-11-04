@@ -5,12 +5,12 @@ import {
   PagesLocaleRouteMatcher,
   PagesRouteMatcher,
 } from '../route-matchers/pages-route-matcher'
-import {
+import type {
   Manifest,
   ManifestLoader,
 } from './helpers/manifest-loaders/manifest-loader'
 import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
-import { I18NProvider } from '../helpers/i18n-provider'
+import type { I18NProvider } from '../helpers/i18n-provider'
 import { PagesNormalizers } from '../normalizers/built/pages'
 
 export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<PagesRouteMatcher> {
@@ -67,6 +67,7 @@ export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<Page
         matchers.push(
           new PagesRouteMatcher({
             kind: RouteKind.PAGES,
+            // In `pages/`, the page is the same as the pathname.
             pathname: page,
             page,
             bundlePath: this.normalizers.bundlePath.normalize(page),

@@ -1,4 +1,4 @@
-import { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import send from 'next/dist/compiled/send'
 
 // TODO: Remove this once "send" has updated the "mime", or next.js use custom version of "mime"
@@ -10,10 +10,11 @@ send.mime.define({
 export function serveStatic(
   req: IncomingMessage,
   res: ServerResponse,
-  path: string
+  path: string,
+  opts?: Parameters<typeof send>[2]
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    send(req, path)
+    send(req, path, opts)
       .on('directory', () => {
         // We don't allow directories to be read.
         const err: any = new Error('No directory access')

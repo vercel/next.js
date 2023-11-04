@@ -7,12 +7,11 @@ import type {
   MetadataImageModule,
   PossibleImageFileNameConvention,
 } from './metadata/types'
-import fs from 'fs/promises'
+import { existsSync, promises as fs } from 'fs'
 import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
-import { fileExists } from '../../../lib/file-exists'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 
@@ -23,12 +22,14 @@ interface Options {
   basePath: string
 }
 
+// [NOTE] For turbopack
+// refer loader_tree's write_static|dynamic_metadata for corresponding features
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
   const { type, segment, pageExtensions, basePath } = options
-  const numericSizes = type === 'twitter' || type === 'openGraph'
   const { resourcePath, rootContext: context } = this
   const { name: fileNameBase, ext } = path.parse(resourcePath)
+  const useNumericSizes = type === 'twitter' || type === 'openGraph'
 
   let extension = ext.slice(1)
   if (extension === 'jpg') {
@@ -82,6 +83,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
         .map((dep: any) => {
           return dep.name
         }) || []
+
     // re-export and spread as `exportedImageData` to avoid non-exported error
     return `\
     import {
@@ -143,7 +145,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     }`
   }
 
-  const imageSize = await getImageSize(
+  const imageSize: { width?: number; height?: number } = await getImageSize(
     content,
     extension as 'avif' | 'webp' | 'png' | 'jpeg'
   ).catch((err) => err)
@@ -158,13 +160,18 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     ...(extension in imageExtMimeTypeMap && {
       type: imageExtMimeTypeMap[extension as keyof typeof imageExtMimeTypeMap],
     }),
-    ...(numericSizes
-      ? { width: imageSize.width as number, height: imageSize.height as number }
+    ...(useNumericSizes && imageSize.width != null && imageSize.height != null
+      ? imageSize
       : {
           sizes:
-            extension === 'ico'
-              ? 'any'
-              : `${imageSize.width}x${imageSize.height}`,
+            // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
+            // For the images doesn't provide the size properly, use "any" as well.
+            // If the size is presented, use the actual size for the image.
+            extension !== 'svg' &&
+            imageSize.width != null &&
+            imageSize.height != null
+              ? `${imageSize.width}x${imageSize.height}`
+              : 'any',
         }),
   }
   if (type === 'openGraph' || type === 'twitter') {
@@ -173,7 +180,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       fileNameBase + '.alt.txt'
     )
 
-    if (await fileExists(altPath)) {
+    if (existsSync(altPath)) {
       imageData.alt = await fs.readFile(altPath, 'utf8')
     }
   }

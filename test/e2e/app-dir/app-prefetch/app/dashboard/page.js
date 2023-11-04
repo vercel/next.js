@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export const revalidate = 0
 
 async function getData() {
@@ -12,6 +14,9 @@ export default async function DashboardPage(props) {
   return (
     <>
       <p id="dashboard-page">{message}</p>
+      <Link href="/static-page" id="to-static-page">
+        To Static Page
+      </Link>
     </>
   )
 }

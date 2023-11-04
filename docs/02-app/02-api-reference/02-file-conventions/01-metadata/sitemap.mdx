@@ -12,14 +12,20 @@ Add or generate a `sitemap.xml` file that matches the [Sitemaps XML format](http
   <url>
     <loc>https://acme.com</loc>
     <lastmod>2023-04-06T15:02:24.021Z</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>1</priority>
   </url>
   <url>
     <loc>https://acme.com/about</loc>
     <lastmod>2023-04-06T15:02:24.021Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://acme.com/blog</loc>
     <lastmod>2023-04-06T15:02:24.021Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
   </url>
 </urlset>
 ```
@@ -36,14 +42,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: 'https://acme.com',
       lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 1,
     },
     {
       url: 'https://acme.com/about',
       lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
     },
     {
       url: 'https://acme.com/blog',
       lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.5,
     },
   ]
 }
@@ -55,14 +67,20 @@ export default function sitemap() {
     {
       url: 'https://acme.com',
       lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 1,
     },
     {
       url: 'https://acme.com/about',
       lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
     },
     {
       url: 'https://acme.com/blog',
       lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.5,
     },
   ]
 }
@@ -75,14 +93,20 @@ Output:
   <url>
     <loc>https://acme.com</loc>
     <lastmod>2023-04-06T15:02:24.021Z</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>1</priority>
   </url>
   <url>
     <loc>https://acme.com/about</loc>
     <lastmod>2023-04-06T15:02:24.021Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://acme.com/blog</loc>
     <lastmod>2023-04-06T15:02:24.021Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
   </url>
 </urlset>
 ```
@@ -93,6 +117,15 @@ Output:
 type Sitemap = Array<{
   url: string
   lastModified?: string | Date
+  changeFrequency?:
+    | 'always'
+    | 'hourly'
+    | 'daily'
+    | 'weekly'
+    | 'monthly'
+    | 'yearly'
+    | 'never'
+  priority?: number
 }>
 ```
 
@@ -102,6 +135,7 @@ type Sitemap = Array<{
 
 ## Version History
 
-| Version   | Changes               |
-| --------- | --------------------- |
-| `v13.3.0` | `sitemap` introduced. |
+| Version   | Changes                                                      |
+| --------- | ------------------------------------------------------------ |
+| `v13.3.0` | `sitemap` introduced.                                        |
+| `v13.4.5` | Add `changeFrequency` and `priority` attributes to sitemaps. |

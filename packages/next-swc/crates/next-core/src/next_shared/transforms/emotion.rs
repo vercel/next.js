@@ -1,15 +1,16 @@
 use anyhow::Result;
+use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
-    ecmascript::{OptionTransformPluginVc, TransformPluginVc},
+    ecmascript::OptionTransformPlugin,
     ecmascript_plugin::transform::emotion::{EmotionTransformConfig, EmotionTransformer},
 };
 
-use crate::next_config::{EmotionTransformOptionsOrBoolean, NextConfigVc};
+use crate::next_config::{EmotionTransformOptionsOrBoolean, NextConfig};
 
 #[turbo_tasks::function]
 pub async fn get_emotion_transform_plugin(
-    next_config: NextConfigVc,
-) -> Result<OptionTransformPluginVc> {
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<OptionTransformPlugin>> {
     let transform_plugin = next_config
         .await?
         .compiler
@@ -33,12 +34,8 @@ pub async fn get_emotion_transform_plugin(
                     };
 
                     transformer.map_or_else(
-                        || OptionTransformPluginVc::cell(None),
-                        |v| {
-                            OptionTransformPluginVc::cell(Some(TransformPluginVc::cell(Box::new(
-                                v,
-                            ))))
-                        },
+                        || Vc::cell(None),
+                        |v| Vc::cell(Some(Vc::cell(Box::new(v) as _))),
                     )
                 })
                 .unwrap_or_default()

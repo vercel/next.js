@@ -1,6 +1,7 @@
 import React from 'react'
 import type { FlightRouterState } from '../../../server/app-render/types'
-import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
+import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from './create-initial-router-state'
 
 const buildId = 'development'
@@ -98,7 +99,12 @@ describe('createInitialRouterState', () => {
       canonicalUrl: initialCanonicalUrl,
       prefetchCache: new Map(),
       pushRef: { pendingPush: false, mpaNavigation: false },
-      focusAndScrollRef: { apply: false, hashFragment: null, segmentPaths: [] },
+      focusAndScrollRef: {
+        apply: false,
+        onlyHashChange: false,
+        hashFragment: null,
+        segmentPaths: [],
+      },
       cache: expectedCache,
       nextUrl: '/linking',
     }

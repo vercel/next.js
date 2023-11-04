@@ -1,0 +1,17 @@
+---
+title: Resolving "Babel and `next/font` Conflict" in Next.js
+description: This document explains the "Babel and `next/font` Conflict" in Next.js and provides a solution to resolve this issue.
+---
+
+## Why This Error Occurred
+
+The "Babel and `next/font` Conflict" error arises when you attempt to use `next/font` in conjunction with a custom Babel configuration in your Next.js application. When you have a custom Babel config, you opt out of the Next.js Compiler, which is a requirement for using `next/font`.
+
+## Possible Ways to Fix It
+
+To address this issue, you should remove your custom Babel configuration (e.g. `.babelrc`) and instead make use of the Next.js Compiler. This ensures compatibility between your Babel configuration and `next/font`.
+
+## Useful Links
+
+- [Next.js Compiler](/docs/architecture/nextjs-compiler) - Learn more about the Next.js Compiler and how it benefits your application.
+- [Customizing Babel Config](/docs/pages/building-your-application/configuring/babel) - Understand more about how to customize your Babel configuration in a Next.js application, and the implications of doing so.

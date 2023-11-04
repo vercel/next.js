@@ -1,29 +1,23 @@
 import { join } from 'path'
-import { nonNullable } from './non-nullable'
-import { promises } from 'fs'
+import fs from 'fs/promises'
 
 export async function flatReaddir(dir: string, includes: RegExp[]) {
-  const dirents = await promises.readdir(dir, { withFileTypes: true })
-  const result = await Promise.all(
-    dirents.map(async (part) => {
-      const absolutePath = join(dir, part.name)
-      if (part.isSymbolicLink()) {
-        const stats = await promises.stat(absolutePath)
-        if (stats.isDirectory()) {
-          return null
-        }
-      }
+  const dirents = await fs.opendir(dir)
+  const result = []
 
-      if (
-        part.isDirectory() ||
-        !includes.some((include) => include.test(part.name))
-      ) {
-        return null
-      }
+  for await (const part of dirents) {
+    let shouldOmit =
+      part.isDirectory() || !includes.some((include) => include.test(part.name))
 
-      return absolutePath
-    })
-  )
+    if (part.isSymbolicLink()) {
+      const stats = await fs.stat(join(dir, part.name))
+      shouldOmit = stats.isDirectory()
+    }
 
-  return result.filter(nonNullable)
+    if (!shouldOmit) {
+      result.push(join(dir, part.name))
+    }
+  }
+
+  return result
 }

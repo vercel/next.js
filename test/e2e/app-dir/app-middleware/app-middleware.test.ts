@@ -124,12 +124,21 @@ createNextDescribe(
           res.headers.get('x-middleware-request-x-from-client3')
         ).toBeNull()
       })
+
+      it(`Supports draft mode`, async () => {
+        const res = await next.fetch(`${path}?draft=true`)
+        const headers: string = res.headers.get('set-cookie') || ''
+        const bypassCookie = headers
+          .split(';')
+          .find((c) => c.startsWith('__prerender_bypass'))
+        expect(bypassCookie).toBeDefined()
+      })
     })
   }
 )
 
 createNextDescribe(
-  'app dir middleware without pages dir',
+  'app dir - middleware without pages dir',
   {
     files: {
       app: new FileRef(path.join(__dirname, 'app')),
@@ -154,6 +163,40 @@ createNextDescribe(
       const html = await next.render('/headers')
 
       expect(html).toContain('redirected')
+    })
+  }
+)
+
+createNextDescribe(
+  'app dir - middleware with middleware in src dir',
+  {
+    files: {
+      'src/app': new FileRef(path.join(__dirname, 'app')),
+      'next.config.js': new FileRef(path.join(__dirname, 'next.config.js')),
+      'src/middleware.js': `
+      import { NextResponse } from 'next/server'
+      import { cookies } from 'next/headers'
+
+      export async function middleware(request) {
+        const cookie = cookies().get('test-cookie')
+        return NextResponse.json({ cookie })
+      }
+    `,
+    },
+    skipDeployment: true,
+  },
+  ({ next }) => {
+    it('works without crashing when using requestAsyncStorage', async () => {
+      const browser = await next.browser('/')
+      await browser.addCookie({
+        name: 'test-cookie',
+        value: 'test-cookie-response',
+      })
+      await browser.refresh()
+
+      const html = await browser.eval('document.documentElement.innerHTML')
+
+      expect(html).toContain('test-cookie-response')
     })
   }
 )

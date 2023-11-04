@@ -4,6 +4,8 @@ nav_title: exportPathMap
 description: Customize the pages that will be exported as HTML files when using `next export`.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 > This feature is exclusive to `next export` and currently **deprecated** in favor of `getStaticPaths` with `pages` or `generateStaticParams` with `app`.
 
 <details>
@@ -73,7 +75,17 @@ module.exports = {
 
 ## Customizing the output directory
 
+<AppOnly>
+
+[`next export`](/docs/app/building-your-application/deploying/static-exports) will use `out` as the default output directory, you can customize this using the `-o` argument, like so:
+
+</AppOnly>
+
+<PagesOnly>
+
 [`next export`](/docs/pages/building-your-application/deploying/static-exports) will use `out` as the default output directory, you can customize this using the `-o` argument, like so:
+
+</PagesOnly>
 
 ```bash filename="Terminal"
 next export -o outdir

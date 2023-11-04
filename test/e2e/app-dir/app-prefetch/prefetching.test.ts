@@ -1,7 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 
-// @ts-ignore
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 const browserConfigWithFixedTime = {
@@ -29,7 +28,7 @@ const browserConfigWithFixedTime = {
 }
 
 createNextDescribe(
-  'app dir prefetching',
+  'app dir - prefetching',
   {
     files: __dirname,
     skipDeployment: true,
@@ -58,7 +57,7 @@ createNextDescribe(
       const after = Date.now()
       const timeToComplete = after - before
 
-      expect(timeToComplete < 1000).toBe(true)
+      expect(timeToComplete).toBeLessThan(1000)
 
       expect(await browser.elementByCss('#dashboard-layout').text()).toBe(
         'Dashboard Hello World'
@@ -157,6 +156,43 @@ createNextDescribe(
       ).toBe(1)
     })
 
+    it('should calculate `_rsc` query based on `Next-Url`', async () => {
+      const browser = await next.browser('/404', browserConfigWithFixedTime)
+      let staticPageRequests: string[] = []
+
+      browser.on('request', (req) => {
+        const url = new URL(req.url())
+        if (url.toString().includes(`/static-page?${NEXT_RSC_UNION_QUERY}=`)) {
+          staticPageRequests.push(`${url.pathname}${url.search}`)
+        }
+      })
+      await browser.eval('location.href = "/"')
+      await browser.eval(
+        `window.nd.router.prefetch("/static-page", {kind: "auto"})`
+      )
+      await check(() => {
+        return staticPageRequests.length === 1
+          ? 'success'
+          : JSON.stringify(staticPageRequests)
+      }, 'success')
+
+      // Unable to clear router cache so mpa navigation
+      await browser.eval('location.href = "/dashboard"')
+      await browser.eval(
+        `window.nd.router.prefetch("/static-page", {kind: "auto"})`
+      )
+      await check(() => {
+        return staticPageRequests.length === 2
+          ? 'success'
+          : JSON.stringify(staticPageRequests)
+      }, 'success')
+
+      expect(staticPageRequests[0]).toMatch('/static-page?_rsc=')
+      expect(staticPageRequests[1]).toMatch('/static-page?_rsc=')
+      // `_rsc` does not match because it depends on the `Next-Url`
+      expect(staticPageRequests[0]).not.toBe(staticPageRequests[1])
+    })
+
     it('should not prefetch for a bot user agent', async () => {
       const browser = await next.browser('/404')
       let requests: string[] = []
@@ -195,6 +231,94 @@ createNextDescribe(
       expect(
         await browser.elementByCss('#prefetch-false-page-result').text()
       ).toBe('Result page')
+    })
+
+    it('should not need to prefetch the layout if the prefetch is initiated at the same segment', async () => {
+      const stateTree = encodeURIComponent(
+        JSON.stringify([
+          '',
+          {
+            children: [
+              'prefetch-auto',
+              {
+                children: [
+                  ['slug', 'justputit', 'd'],
+                  { children: ['__PAGE__', {}] },
+                ],
+              },
+            ],
+          },
+          null,
+          null,
+          true,
+        ])
+      )
+      const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
+        headers: {
+          RSC: '1',
+          'Next-Router-Prefetch': '1',
+          'Next-Router-State-Tree': stateTree,
+          'Next-Url': '/prefetch-auto/justputit',
+        },
+      })
+
+      const prefetchResponse = await response.text()
+      expect(prefetchResponse).not.toContain('Hello World')
+      expect(prefetchResponse).not.toContain('Loading Prefetch Auto')
+    })
+
+    it('should only prefetch the loading state and not the component tree when prefetching at the same segment', async () => {
+      const stateTree = encodeURIComponent(
+        JSON.stringify([
+          '',
+          {
+            children: [
+              'prefetch-auto',
+              {
+                children: [
+                  ['slug', 'vercel', 'd'],
+                  { children: ['__PAGE__', {}] },
+                ],
+              },
+            ],
+          },
+          null,
+          null,
+          true,
+        ])
+      )
+      const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
+        headers: {
+          RSC: '1',
+          'Next-Router-Prefetch': '1',
+          'Next-Router-State-Tree': stateTree,
+          'Next-Url': '/prefetch-auto/vercel',
+        },
+      })
+
+      const prefetchResponse = await response.text()
+      expect(prefetchResponse).not.toContain('Hello World')
+      expect(prefetchResponse).toContain('Loading Prefetch Auto')
+    })
+
+    it('should not generate static prefetches for layouts that opt into dynamic rendering', async () => {
+      await next.stop()
+      const rootLoading = await next.readFile('./app/loading.js')
+      await next.deleteFile('./app/loading.js')
+      await next.start()
+      expect(
+        await next
+          .readFile('.next/server/app/prefetch-dynamic-usage/foo.prefetch.rsc')
+          .catch(() => false)
+      ).toBeFalsy()
+
+      expect(
+        await next
+          .readFile('.next/server/app/prefetch-dynamic-usage/foo.prefetch.rsc')
+          .catch(() => false)
+      ).toBeFalsy()
+
+      await next.patchFile('./app/loading', rootLoading)
     })
   }
 )

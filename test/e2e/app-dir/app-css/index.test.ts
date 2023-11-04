@@ -2,7 +2,7 @@ import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 createNextDescribe(
-  'app dir css',
+  'app dir - css',
   {
     files: __dirname,
     skipDeployment: true,
@@ -175,11 +175,11 @@ createNextDescribe(
 
       describe('special entries', () => {
         it('should include css imported in loading.js', async () => {
-          const html = await next.render('/loading-bug/hi')
-          // The link tag should be included together with loading
-          expect(html).toMatch(
-            /<link rel="stylesheet" href="(.+)\.css(\?v=\d+)?"\/><h2>Loading...<\/h2>/
-          )
+          const $ = await next.render$('/loading-bug/hi')
+          // The link tag should be hoist into head with precedence properties
+          expect($('head link[data-precedence]').length).toBe(2)
+
+          expect($('body h2').text()).toBe('Loading...')
         })
 
         it('should include css imported in client template.js', async () => {
@@ -338,6 +338,38 @@ createNextDescribe(
                 `window.getComputedStyle(document.querySelector('h1')).color`
               )
             ).toBe('rgb(255, 0, 0)')
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
+        it('should not preload styles twice during HMR', async () => {
+          const filePath = 'app/hmr/page.js'
+          const origContent = await next.readFile(filePath)
+
+          const browser = await next.browser('/hmr')
+
+          try {
+            await next.patchFile(
+              filePath,
+              origContent.replace(
+                '<div>hello!</div>',
+                '<div>hello world!</div>'
+              )
+            )
+
+            // Wait for HMR to trigger
+            await check(
+              () => browser.elementByCss('body').text(),
+              'hello world!'
+            )
+
+            // there should be only 1 preload link
+            expect(
+              await browser.eval(
+                `document.querySelectorAll("link[rel=preload][href^='/_next/static/css/app/layout.css']").length`
+              )
+            ).toBe(1)
           } finally {
             await next.patchFile(filePath, origContent)
           }

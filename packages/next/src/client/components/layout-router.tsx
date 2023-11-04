@@ -1,6 +1,6 @@
 'use client'
 
-import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
+import type { ChildSegmentMap } from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightSegmentPath,
@@ -17,7 +17,7 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   TemplateContext,
-} from '../../shared/lib/app-router-context'
+} from '../../shared/lib/app-router-context.shared-runtime'
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
@@ -27,6 +27,7 @@ import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
+import { createRecordFromThenable } from './router-reducer/create-record-from-thenable'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -116,9 +117,22 @@ const rectProperties = [
   'y',
 ] as const
 /**
- * Check if a HTMLElement is hidden.
+ * Check if a HTMLElement is hidden or fixed/sticky position
  */
-function elementCanScroll(element: HTMLElement) {
+function shouldSkipElement(element: HTMLElement) {
+  // we ignore fixed or sticky positioned elements since they'll likely pass the "in-viewport" check
+  // and will result in a situation we bail on scroll because of something like a fixed nav,
+  // even though the actual page content is offscreen
+  if (['sticky', 'fixed'].includes(getComputedStyle(element).position)) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        'Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element:',
+        element
+      )
+    }
+    return true
+  }
+
   // Uses `getBoundingClientRect` to check if the element is hidden instead of `offsetParent`
   // because `offsetParent` doesn't consider document/body
   const rect = element.getBoundingClientRect()
@@ -192,17 +206,15 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         domNode = findDOMNode(this)
       }
 
-      // TODO-APP: Handle the case where we couldn't select any DOM node, even higher up in the layout-router above the current segmentPath.
       // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
       if (!(domNode instanceof Element)) {
         return
       }
 
-      // Verify if the element is a HTMLElement and if it's visible on screen (e.g. not display: none).
-      // If the element is not a HTMLElement or not visible we try to select the next sibling and try again.
-      while (!(domNode instanceof HTMLElement) || elementCanScroll(domNode)) {
-        // TODO-APP: Handle the case where we couldn't select any DOM node, even higher up in the layout-router above the current segmentPath.
-        // No siblings found that are visible so we handle scroll higher up in the tree instead.
+      // Verify if the element is a HTMLElement and if we want to consider it for scroll behavior.
+      // If the element is skipped, try to select the next sibling and try again.
+      while (!(domNode instanceof HTMLElement) || shouldSkipElement(domNode)) {
+        // No siblings found that match the criteria are found, so handle scroll higher up in the tree instead.
         if (domNode.nextElementSibling === null) {
           return
         }
@@ -247,8 +259,12 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         {
           // We will force layout by querying domNode position
           dontForceLayout: true,
+          onlyHashChange: focusAndScrollRef.onlyHashChange,
         }
       )
+
+      // Mutate after scrolling so that it can be read by `handleSmoothScroll`
+      focusAndScrollRef.onlyHashChange = false
 
       // Set focus on the element
       domNode.focus()
@@ -363,11 +379,13 @@ function InnerLayoutRouter({
 
     childNode = {
       status: CacheStates.DATA_FETCH,
-      data: fetchServerResponse(
-        new URL(url, location.origin),
-        refetchTree,
-        context.nextUrl,
-        buildId
+      data: createRecordFromThenable(
+        fetchServerResponse(
+          new URL(url, location.origin),
+          refetchTree,
+          context.nextUrl,
+          buildId
+        )
       ),
       subTreeData: null,
       head:
@@ -448,11 +466,13 @@ function LoadingBoundary({
   children,
   loading,
   loadingStyles,
+  loadingScripts,
   hasLoading,
 }: {
   children: React.ReactNode
   loading?: React.ReactNode
   loadingStyles?: React.ReactNode
+  loadingScripts?: React.ReactNode
   hasLoading: boolean
 }): JSX.Element {
   if (hasLoading) {
@@ -461,6 +481,7 @@ function LoadingBoundary({
         fallback={
           <>
             {loadingStyles}
+            {loadingScripts}
             {loading}
           </>
         }
@@ -483,14 +504,16 @@ export default function OuterLayoutRouter({
   childProp,
   error,
   errorStyles,
+  errorScripts,
   templateStyles,
+  templateScripts,
   loading,
   loadingStyles,
+  loadingScripts,
   hasLoading,
   template,
   notFound,
   notFoundStyles,
-  asNotFound,
   styles,
 }: {
   parallelRouterKey: string
@@ -498,14 +521,16 @@ export default function OuterLayoutRouter({
   childProp: ChildProp
   error: ErrorComponent
   errorStyles: React.ReactNode | undefined
+  errorScripts: React.ReactNode | undefined
   templateStyles: React.ReactNode | undefined
+  templateScripts: React.ReactNode | undefined
   template: React.ReactNode
   loading: React.ReactNode | undefined
   loadingStyles: React.ReactNode | undefined
+  loadingScripts: React.ReactNode | undefined
   hasLoading: boolean
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
-  asNotFound?: boolean
   styles?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
@@ -564,16 +589,20 @@ export default function OuterLayoutRouter({
             key={createRouterCacheKey(preservedSegment, true)}
             value={
               <ScrollAndFocusHandler segmentPath={segmentPath}>
-                <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
+                <ErrorBoundary
+                  errorComponent={error}
+                  errorStyles={errorStyles}
+                  errorScripts={errorScripts}
+                >
                   <LoadingBoundary
                     hasLoading={hasLoading}
                     loading={loading}
                     loadingStyles={loadingStyles}
+                    loadingScripts={loadingScripts}
                   >
                     <NotFoundBoundary
                       notFound={notFound}
                       notFoundStyles={notFoundStyles}
-                      asNotFound={asNotFound}
                     >
                       <RedirectBoundary>
                         <InnerLayoutRouter
@@ -596,6 +625,7 @@ export default function OuterLayoutRouter({
             }
           >
             {templateStyles}
+            {templateScripts}
             {template}
           </TemplateContext.Provider>
         )

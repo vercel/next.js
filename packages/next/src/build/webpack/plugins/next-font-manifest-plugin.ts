@@ -25,7 +25,7 @@ const PLUGIN_NAME = 'NextFontManifestPlugin'
  */
 function getPreloadedFontFiles(fontFiles: string[]) {
   return fontFiles.filter((file: string) =>
-    /\.p.(woff|woff2|eot|ttf|otf)$/.test(file)
+    /\.p\.(woff|woff2|eot|ttf|otf)$/.test(file)
   )
 }
 

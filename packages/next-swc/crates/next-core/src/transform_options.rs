@@ -1,35 +1,35 @@
 use anyhow::Result;
+use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::tasks_fs::{FileJsonContentVc, FileSystemPathVc},
+    turbo::tasks_fs::{FileJsonContent, FileSystemPath},
     turbopack::{
         core::{
-            asset::AssetVc,
+            file_source::FileSource,
             resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
-            source_asset::SourceAssetVc,
+            source::Source,
         },
         dev::react_refresh::assert_can_resolve_react_refresh,
         ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
         turbopack::{
             module_options::{
-                DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, JsxTransformOptions,
-                JsxTransformOptionsVc, TypescriptTransformOptions, TypescriptTransformOptionsVc,
+                DecoratorsKind, DecoratorsOptions, JsxTransformOptions, TypescriptTransformOptions,
             },
-            resolve_options_context::ResolveOptionsContextVc,
+            resolve_options_context::ResolveOptionsContext,
         },
     },
 };
 
-use crate::mode::NextMode;
+use crate::{mode::NextMode, next_config::NextConfig};
 
 async fn get_typescript_options(
-    project_path: FileSystemPathVc,
-) -> Option<Vec<(FileJsonContentVc, AssetVc)>> {
+    project_path: Vc<FileSystemPath>,
+) -> Option<Vec<(Vc<FileJsonContent>, Vc<Box<dyn Source>>)>> {
     let tsconfig = find_context_file(project_path, tsconfig());
     match *tsconfig.await.ok()? {
         FindContextFileResult::Found(path, _) => Some(
             read_tsconfigs(
                 path.read(),
-                SourceAssetVc::new(path).into(),
+                Vc::upcast(FileSource::new(path)),
                 node_cjs_resolve_options(path.root()),
             )
             .await
@@ -43,8 +43,8 @@ async fn get_typescript_options(
 /// outputs
 #[turbo_tasks::function]
 pub async fn get_typescript_transform_options(
-    project_path: FileSystemPathVc,
-) -> Result<TypescriptTransformOptionsVc> {
+    project_path: Vc<FileSystemPath>,
+) -> Result<Vc<TypescriptTransformOptions>> {
     let tsconfig = get_typescript_options(project_path).await;
 
     let use_define_for_class_fields = if let Some(tsconfig) = tsconfig {
@@ -68,8 +68,8 @@ pub async fn get_typescript_transform_options(
 /// [TODO]: Currnently only typescript's legacy decorators are supported
 #[turbo_tasks::function]
 pub async fn get_decorators_transform_options(
-    project_path: FileSystemPathVc,
-) -> Result<DecoratorsOptionsVc> {
+    project_path: Vc<FileSystemPath>,
+) -> Result<Vc<DecoratorsOptions>> {
     let tsconfig = get_typescript_options(project_path).await;
 
     let decorators_transform_options = if let Some(tsconfig) = tsconfig {
@@ -124,10 +124,12 @@ pub async fn get_decorators_transform_options(
 
 #[turbo_tasks::function]
 pub async fn get_jsx_transform_options(
-    project_path: FileSystemPathVc,
+    project_path: Vc<FileSystemPath>,
     mode: NextMode,
-    resolve_options_context: Option<ResolveOptionsContextVc>,
-) -> Result<JsxTransformOptionsVc> {
+    resolve_options_context: Option<Vc<ResolveOptionsContext>>,
+    is_server_context: bool,
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<JsxTransformOptions>> {
     let tsconfig = get_typescript_options(project_path).await;
 
     let enable_react_refresh = if let Some(resolve_options_context) = resolve_options_context {
@@ -138,13 +140,26 @@ pub async fn get_jsx_transform_options(
         false
     };
 
+    let is_emotion_enabled = next_config
+        .await?
+        .compiler
+        .as_ref()
+        .map(|c| c.emotion.is_some())
+        .unwrap_or_default();
+
     // [NOTE]: ref: WEB-901
     // next.js does not allow to overriding react runtime config via tsconfig /
     // jsconfig, it forces overrides into automatic runtime instead.
     // [TODO]: we need to emit / validate config message like next.js devserver does
     let react_transform_options = JsxTransformOptions {
         development: mode.is_react_development(),
-        import_source: None,
+        // https://github.com/vercel/next.js/blob/3dc2c1c7f8441cdee31da9f7e0986d654c7fd2e7/packages/next/src/build/swc/options.ts#L112
+        // This'll be ignored if ts|jsconfig explicitly specifies importSource
+        import_source: if is_emotion_enabled && !is_server_context {
+            Some("@emotion/react".to_string())
+        } else {
+            None
+        },
         runtime: Some("automatic".to_string()),
         react_refresh: enable_react_refresh,
     };
@@ -156,7 +171,11 @@ pub async fn get_jsx_transform_options(
                 .map(|s| s.to_string());
 
             Some(JsxTransformOptions {
-                import_source: jsx_import_source,
+                import_source: if jsx_import_source.is_some() {
+                    jsx_import_source
+                } else {
+                    react_transform_options.import_source.clone()
+                },
                 ..react_transform_options.clone()
             })
         })

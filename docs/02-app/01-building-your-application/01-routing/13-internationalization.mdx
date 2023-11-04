@@ -33,30 +33,27 @@ match(languages, locales, defaultLocale) // -> 'en-US'
 Routing can be internationalized by either the sub-path (`/fr/products`) or domain (`my-site.fr/products`). With this information, you can now redirect the user based on the locale inside [Middleware](/docs/app/building-your-application/routing/middleware).
 
 ```js filename="middleware.js"
-import { NextResponse } from 'next/server'
 
 let locales = ['en-US', 'nl-NL', 'nl']
 
-// Get the preferred locale, similar to above or using a library
+// Get the preferred locale, similar to the above or using a library
 function getLocale(request) { ... }
 
 export function middleware(request) {
   // Check if there is any supported locale in the pathname
-  const pathname = request.nextUrl.pathname
-  const pathnameIsMissingLocale = locales.every(
-    (locale) => !pathname.startsWith(`/${locale}/`) && pathname !== `/${locale}`
+  const { pathname } = request.nextUrl
+  const pathnameHasLocale = locales.some(
+    (locale) => pathname.startsWith(`/${locale}/`) || pathname === `/${locale}`
   )
 
-  // Redirect if there is no locale
-  if (pathnameIsMissingLocale) {
-    const locale = getLocale(request)
+  if (pathnameHasLocale) return
 
-    // e.g. incoming request is /products
-    // The new URL is now /en-US/products
-    return NextResponse.redirect(
-      new URL(`/${locale}/${pathname}`, request.url)
-    )
-  }
+  // Redirect if there is no locale
+  const locale = getLocale(request)
+  request.nextUrl.pathname = `/${locale}${pathname}`
+  // e.g. incoming request is /products
+  // The new URL is now /en-US/products
+  return Response.redirect(request.nextUrl)
 }
 
 export const config = {
@@ -127,7 +124,7 @@ export default async function Page({ params: { lang } }) {
 }
 ```
 
-Because all layouts and pages in the `app/` directory default to [Server Components](/docs/getting-started/react-essentials#server-components), we do not need to worry about the size of the translation files affecting our client-side JavaScript bundle size. This code will **only run on the server**, and only the resulting HTML will be sent to the browser.
+Because all layouts and pages in the `app/` directory default to [Server Components](/docs/app/building-your-application/rendering/server-components), we do not need to worry about the size of the translation files affecting our client-side JavaScript bundle size. This code will **only run on the server**, and only the resulting HTML will be sent to the browser.
 
 ## Static Generation
 
@@ -147,7 +144,9 @@ export default function Root({ children, params }) {
 }
 ```
 
-## Examples
+## Resources
 
 - [Minimal i18n routing and translations](https://github.com/vercel/next.js/tree/canary/examples/app-dir-i18n-routing)
-- [next-intl](https://next-intl-docs.vercel.app/docs/next-13)
+- [`next-intl`](https://next-intl-docs.vercel.app/docs/next-13)
+- [`next-international`](https://github.com/QuiiBz/next-international)
+- [`next-i18n-router`](https://github.com/i18nexus/next-i18n-router)

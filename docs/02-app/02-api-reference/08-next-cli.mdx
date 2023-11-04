@@ -3,6 +3,8 @@ title: Next.js CLI
 description: The Next.js CLI allows you to start, build, and export your application. Learn more about it here.
 ---
 
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
 The Next.js CLI allows you to start, build, and export your application.
 
 To get a list of the available CLI commands, run the following command inside your project directory:
@@ -123,7 +125,7 @@ npx next start --keepAliveTimeout 70000
 
 ## Lint
 
-`next lint` runs ESLint for all files in the `pages/`, `app` (only if the experimental `appDir` feature is enabled), `components/`, `lib/`, and `src/` directories. It also
+`next lint` runs ESLint for all files in the `pages/`, `app/`, `components/`, `lib/`, and `src/` directories. It also
 provides a guided setup to install any required dependencies if ESLint is not already configured in
 your application.
 
@@ -156,20 +158,22 @@ will give you information like this example:
 
 ```bash filename="Terminal"
 
-    Operating System:
-      Platform: linux
-      Arch: x64
-      Version: #22-Ubuntu SMP Fri Nov 5 13:21:36 UTC 2021
-    Binaries:
-      Node: 16.13.0
-      npm: 8.1.0
-      Yarn: 1.22.17
-      pnpm: 6.24.2
-    Relevant packages:
-      next: 12.0.8
-      react: 17.0.2
-      react-dom: 17.0.2
+Operating System:
+  Platform: linux
+  Arch: x64
+  Version: #22-Ubuntu SMP Fri Nov 5 13:21:36 UTC 2021
+Binaries:
+  Node: 16.13.0
+  npm: 8.1.0
+  Yarn: 1.22.17
+  pnpm: 6.24.2
+Relevant packages:
+  next: 12.0.8
+  react: 17.0.2
+  react-dom: 17.0.2
 
 ```
 
 This information should then be pasted into GitHub Issues.
+
+In order to diagnose installation issues, you can run `next info --verbose` to print additional information about system and the installation of next-related packages.

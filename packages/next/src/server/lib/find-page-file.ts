@@ -4,7 +4,7 @@ import { nonNullable } from '../../lib/non-nullable'
 import { join, sep, normalize } from 'path'
 import { promises as fsPromises } from 'fs'
 import { warn } from '../../build/output/log'
-import chalk from '../../lib/chalk'
+import { cyan } from '../../lib/picocolors'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
@@ -58,11 +58,9 @@ export async function findPageFile(
 
   if (others.length > 0) {
     warn(
-      `Duplicate page detected. ${chalk.cyan(
-        join('pages', existingPath)
-      )} and ${chalk.cyan(
+      `Duplicate page detected. ${cyan(join('pages', existingPath))} and ${cyan(
         join('pages', others[0])
-      )} both resolve to ${chalk.cyan(normalizedPagePath)}.`
+      )} both resolve to ${cyan(normalizedPagePath)}.`
     )
   }
 
@@ -91,7 +89,7 @@ export function createValidFileMatcher(
       pageExtensions
     )}$`
   )
-  const leafOnlyNotFoundFileRegex = new RegExp(
+  const rootNotFoundFileRegex = new RegExp(
     `^not-found\\.${getExtensionRegexString(pageExtensions)}$`
   )
   /** TODO-METADATA: support other metadata routes
@@ -136,7 +134,7 @@ export function createValidFileMatcher(
       return false
     }
     const rest = filePath.slice(appDirPath.length + 1)
-    return leafOnlyNotFoundFileRegex.test(rest)
+    return rootNotFoundFileRegex.test(rest)
   }
 
   return {

@@ -83,35 +83,30 @@ export function getRouteRegex(normalizedRoute: string): RouteRegex {
  * number of characters.
  */
 function buildGetSafeRouteKey() {
-  let routeKeyCharCode = 97
-  let routeKeyCharLength = 1
+  let i = 0
 
   return () => {
     let routeKey = ''
-    for (let i = 0; i < routeKeyCharLength; i++) {
-      routeKey += String.fromCharCode(routeKeyCharCode)
-      routeKeyCharCode++
-
-      if (routeKeyCharCode > 122) {
-        routeKeyCharLength++
-        routeKeyCharCode = 97
-      }
+    let j = ++i
+    while (j > 0) {
+      routeKey += String.fromCharCode(97 + ((j - 1) % 26))
+      j = Math.floor((j - 1) / 26)
     }
     return routeKey
   }
 }
 
 function getSafeKeyFromSegment({
+  getSafeRouteKey,
   segment,
   routeKeys,
   keyPrefix,
 }: {
+  getSafeRouteKey: () => string
   segment: string
   routeKeys: Record<string, string>
   keyPrefix?: string
 }) {
-  const getSafeRouteKey = buildGetSafeRouteKey()
-
   const { key, optional, repeat } = parseParameter(segment)
 
   // replace any non-word characters since they can break
@@ -151,6 +146,7 @@ function getSafeKeyFromSegment({
 
 function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
   const segments = removeTrailingSlash(route).slice(1).split('/')
+  const getSafeRouteKey = buildGetSafeRouteKey()
   const routeKeys: { [named: string]: string } = {}
   return {
     namedParameterizedRoute: segments
@@ -162,6 +158,7 @@ function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
 
         if (hasInterceptionMarker && paramMatches) {
           return getSafeKeyFromSegment({
+            getSafeRouteKey,
             segment: paramMatches[1],
             routeKeys,
             keyPrefix: prefixRouteKeys
@@ -170,6 +167,7 @@ function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
           })
         } else if (paramMatches) {
           return getSafeKeyFromSegment({
+            getSafeRouteKey,
             segment: paramMatches[1],
             routeKeys,
             keyPrefix: prefixRouteKeys ? NEXT_QUERY_PARAM_PREFIX : undefined,

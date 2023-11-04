@@ -1,5 +1,8 @@
-import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
+import type { IncomingHttpHeaders } from 'http'
 import type { NextParsedUrlQuery } from './request-meta'
+
+import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
+import { INTERNAL_HEADERS } from '../shared/lib/constants'
 
 const INTERNAL_QUERY_NAMES = [
   '__nextFallback',
@@ -35,4 +38,15 @@ export function stripInternalSearchParams<T extends string | URL>(
   }
 
   return (isStringUrl ? instance.toString() : instance) as T
+}
+
+/**
+ * Strip internal headers from the request headers.
+ *
+ * @param headers the headers to strip of internal headers
+ */
+export function stripInternalHeaders(headers: IncomingHttpHeaders) {
+  for (const key of INTERNAL_HEADERS) {
+    delete headers[key]
+  }
 }

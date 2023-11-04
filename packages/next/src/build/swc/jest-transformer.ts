@@ -42,7 +42,7 @@ export interface JestTransformerConfig extends TransformerConfig {
   jsConfig: any
   resolvedBaseUrl?: string
   pagesDir?: string
-  hasServerComponents?: boolean
+  serverComponents?: boolean
   isEsmProject: boolean
   modularizeImports?: NextConfig['modularizeImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
@@ -84,13 +84,14 @@ const createTransformer: TransformerCreator<
     const jestConfig = getJestConfig(jestOptions)
 
     const swcTransformOpts = getJestSWCOptions({
-      // When target is node it's similar to the server option set in SWC.
-      isServer: jestConfig.testEnvironment === 'node',
+      isServer:
+        jestConfig.testEnvironment === 'node' ||
+        jestConfig.testEnvironment.includes('jest-environment-node'),
       filename,
       jsConfig: inputOptions?.jsConfig,
       resolvedBaseUrl: inputOptions?.resolvedBaseUrl,
       pagesDir: inputOptions?.pagesDir,
-      hasServerComponents: inputOptions?.hasServerComponents,
+      serverComponents: inputOptions?.serverComponents,
       modularizeImports: inputOptions?.modularizeImports,
       swcPlugins: inputOptions?.swcPlugins,
       compilerOptions: inputOptions?.compilerOptions,

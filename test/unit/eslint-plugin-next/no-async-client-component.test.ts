@@ -103,7 +103,7 @@ ruleTester.run('no-async-client-component multiple line capitalization', rule, {
   valid: [
     `
     "use client"
-    
+
     async function myFunction() {
       return ''
     }
@@ -118,6 +118,38 @@ ruleTester.run('no-async-client-component multiple line capitalization', rule, {
 
       async function MyFunction() {
         return ''
+      }
+
+      export default MyFunction
+      `,
+      errors: [
+        {
+          message,
+        },
+      ],
+    },
+  ],
+})
+
+ruleTester.run('no-async-client-component arrow function', rule, {
+  valid: [
+    `
+    "use client"
+
+    const myFunction = () => {
+      return ''
+    }
+
+    export default myFunction
+    `,
+  ],
+  invalid: [
+    {
+      code: `
+      "use client"
+
+      const MyFunction = async () => {
+        return '123'
       }
 
       export default MyFunction

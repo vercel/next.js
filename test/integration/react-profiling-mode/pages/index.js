@@ -9,7 +9,7 @@ const Index = () => {
         window.profileResults.push(res)
       }}
     >
-      <p>hello world</p>
+      <p>hello pages</p>
     </React.Profiler>
   )
 }

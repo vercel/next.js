@@ -17,24 +17,28 @@ Once you have access to [the environment variables you'll need](#step-15-set-up-
 
 ### Related examples
 
-- [WordPress](/examples/cms-wordpress)
-- [DatoCMS](/examples/cms-datocms)
-- [Sanity](/examples/cms-sanity)
-- [TakeShape](/examples/cms-takeshape)
-- [Prismic](/examples/cms-prismic)
-- [Contentful](/examples/cms-contentful)
-- [Strapi](/examples/cms-strapi)
-- [Cosmic](/examples/cms-cosmic)
-- [ButterCMS](/examples/cms-buttercms)
-- [Storyblok](/examples/cms-storyblok)
-- [GraphCMS](/examples/cms-graphcms)
-- [Kontent](/examples/cms-kontent)
-- [Ghost](/examples/cms-ghost)
-- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
-- [Blog Starter](/examples/blog-starter)
+- [AgilityCMS](/examples/cms-agilitycms)
 - [Builder.io](/examples/cms-builder-io)
+- [ButterCMS](/examples/cms-buttercms)
+- [Contentful](/examples/cms-contentful)
+- [Cosmic](/examples/cms-cosmic)
+- [DatoCMS](/examples/cms-datocms)
 - [DotCMS](/examples/cms-dotcms)
+- [Drupal](/examples/cms-drupal)
 - [Enterspeed](/examples/cms-enterspeed)
+- [Ghost](/examples/cms-ghost)
+- [GraphCMS](/examples/cms-graphcms)
+- [Kontent](/examples/cms-kontent-ai)
+- [Prepr](/examples/cms-prepr)
+- [Prismic](/examples/cms-prismic)
+- [Sanity](/examples/cms-sanity)
+- [Sitefinity](/examples/cms-sitefinity)
+- [Storyblok](/examples/cms-storyblok)
+- [TakeShape](/examples/cms-takeshape)
+- [Umbraco heartcore](/examples/cms-umbraco-heartcore)
+- [Webiny](/examples/cms-webiny)
+- [WordPress](/examples/cms-wordpress)
+- [Blog Starter](/examples/blog-starter)
 
 ## How to use
 
@@ -317,7 +321,7 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 
 ### Step 18. Try preview mode
 
-Now that you've deployed your app to Vercel, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [NextJS Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)).
+Now that you've deployed your app to Vercel, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [Next.js Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)).
 
 To enable the Preview Mode, you'll need to add your site to **Domain Configuration** in Agility CMS:
 

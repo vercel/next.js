@@ -13,13 +13,13 @@ type Repo = {
   stargazers_count: number
 }
 
-export const getStaticProps: GetStaticProps<{
-  repo: Repo
-}> = async () => {
+export const getStaticProps = (async (context) => {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
   return { props: { repo } }
-}
+}) satisfies GetStaticProps<{
+  repo: Repo
+}>
 
 export default function Page({
   repo,
@@ -29,7 +29,7 @@ export default function Page({
 ```
 
 ```jsx filename="pages/index.js" switcher
-export const getStaticProps = async () => {
+export async function getStaticPaths() {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
   return { props: { repo } }
@@ -51,7 +51,7 @@ The `context` parameter is an object containing the following keys:
 | `params`        | Contains the route parameters for pages using [dynamic routes](/docs/pages/building-your-application/routing/dynamic-routes). For example, if the page name is `[id].js`, then `params` will look like `{ id: ... }`. You should use this together with `getStaticPaths`, which we'll explain later. |
 | `preview`       | (Deprecated for `draftMode`) `preview` is `true` if the page is in the [Preview Mode](/docs/pages/building-your-application/configuring/preview-mode) and `false` otherwise.                                                                                                                         |
 | `previewData`   | (Deprecated for `draftMode`) The [preview](/docs/pages/building-your-application/configuring/preview-mode) data set by `setPreviewData`.                                                                                                                                                             |
-| `draftMode`     | `draftMode` is `true` if the page is in the [Draft Mode](docs/pages/building-your-application/configuring/draft-mode) and `false` otherwise.                                                                                                                                                         |
+| `draftMode`     | `draftMode` is `true` if the page is in the [Draft Mode](/docs/pages/building-your-application/configuring/draft-mode) and `false` otherwise.                                                                                                                                                        |
 | `locale`        | Contains the active locale (if enabled).                                                                                                                                                                                                                                                             |
 | `locales`       | Contains all supported locales (if enabled).                                                                                                                                                                                                                                                         |
 | `defaultLocale` | Contains the configured default locale (if enabled).                                                                                                                                                                                                                                                 |
@@ -62,7 +62,7 @@ The `getStaticProps` function should return an object containing either `props`,
 
 ### `props`
 
-The `props` object is a key-value pair, where each value is received by the page component. It should be a [serializable object](https://developer.mozilla.org/en-US/docs/Glossary/Serialization) so that any props passed, could be serialized with [`JSON.stringify`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify).
+The `props` object is a key-value pair, where each value is received by the page component. It should be a [serializable object](https://developer.mozilla.org/docs/Glossary/Serialization) so that any props passed, could be serialized with [`JSON.stringify`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify).
 
 ```jsx
 export async function getStaticProps(context) {

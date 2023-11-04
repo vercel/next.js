@@ -19,9 +19,15 @@ createNextDescribe(
       } else {
         expect(error).toBeDefined()
       }
-      expect(next.cliOutput).toContain('`export const config`')
+
+      expect(next.cliOutput).toContain('Page config in ')
       expect(next.cliOutput).toContain(
-        'app/legacy-runtime-config/page.js is deprecated. Please change `runtime` property to segment export config. See https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config'
+        // the full path is more complex, we only care about this part
+        'app/legacy-runtime-config/page.js is deprecated. Replace `export const config=…` with the following:'
+      )
+      expect(next.cliOutput).toContain('- `export const runtime = "edge"`')
+      expect(next.cliOutput).toContain(
+        '- `export const preferredRegion = ["us-east-1"]`'
       )
     })
   }

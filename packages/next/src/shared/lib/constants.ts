@@ -10,6 +10,19 @@ export const COMPILER_NAMES = {
   edgeServer: 'edge-server',
 } as const
 
+/**
+ * Headers that are set by the Next.js server and should be stripped from the
+ * request headers going to the user's application.
+ */
+export const INTERNAL_HEADERS = [
+  'x-invoke-error',
+  'x-invoke-output',
+  'x-invoke-path',
+  'x-invoke-query',
+  'x-invoke-status',
+  'x-middleware-invoke',
+] as const
+
 export type CompilerNameValues = ValueOf<typeof COMPILER_NAMES>
 
 export const COMPILER_INDEXES: {
@@ -31,6 +44,7 @@ export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
 export const APP_BUILD_MANIFEST = 'app-build-manifest.json'
+export const FUNCTIONS_CONFIG_MANIFEST = 'functions-config-manifest.json'
 export const SUBRESOURCE_INTEGRITY_MANIFEST = 'subresource-integrity-manifest'
 export const NEXT_FONT_MANIFEST = 'next-font-manifest'
 export const EXPORT_MARKER = 'export-marker.json'
@@ -50,12 +64,11 @@ export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'
-export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
-export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
+export const BARREL_OPTIMIZATION_PREFIX = '__barrel_optimize__'
 
-// server/client-reference-manifest
+// server/[entry]/page_client-reference-manifest.js
 export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'
 // server/server-reference-manifest
 export const SERVER_REFERENCE_MANIFEST = 'server-reference-manifest'
@@ -69,7 +82,7 @@ export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN_APP = `${CLIENT_STATIC_FILES_RUNTIME_MAIN}-app`
 // next internal client components chunk for layouts
-export const APP_CLIENT_INTERNALS = 'app-client-internals'
+export const APP_CLIENT_INTERNALS = 'app-pages-internals'
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
 // static/runtime/amp.js

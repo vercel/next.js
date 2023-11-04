@@ -44,14 +44,15 @@ fn next_dynamic_fixture(input: PathBuf) {
         NextDynamicMode::Webpack,
     );
 
-    // TODO(alexkirsz) Also test production once implemented.
     next_dynamic_fixture_run(
         &input,
         "output-turbo-dev-client.js",
         true,
         false,
         false,
-        NextDynamicMode::Turbo,
+        NextDynamicMode::Turbopack {
+            dynamic_transition_name: "next-client-chunks".into(),
+        },
     );
     next_dynamic_fixture_run(
         &input,
@@ -59,7 +60,39 @@ fn next_dynamic_fixture(input: PathBuf) {
         true,
         true,
         false,
-        NextDynamicMode::Turbo,
+        NextDynamicMode::Turbopack {
+            dynamic_transition_name: "next-client-chunks".into(),
+        },
+    );
+    next_dynamic_fixture_run(
+        &input,
+        "output-turbo-build-client.js",
+        false,
+        false,
+        false,
+        NextDynamicMode::Turbopack {
+            dynamic_transition_name: "next-dynamic".into(),
+        },
+    );
+    next_dynamic_fixture_run(
+        &input,
+        "output-turbo-build-server.js",
+        false,
+        true,
+        false,
+        NextDynamicMode::Turbopack {
+            dynamic_transition_name: "next-dynamic".into(),
+        },
+    );
+    next_dynamic_fixture_run(
+        &input,
+        "output-turbo-build-rsc.js",
+        false,
+        true,
+        true,
+        NextDynamicMode::Turbopack {
+            dynamic_transition_name: "next-dynamic".into(),
+        },
     );
 }
 
@@ -67,8 +100,8 @@ fn next_dynamic_fixture_run(
     input: &Path,
     output: &str,
     is_development: bool,
-    is_server: bool,
-    is_server_components: bool,
+    is_server_compiler: bool,
+    is_react_server_layer: bool,
     mode: NextDynamicMode,
 ) {
     let output = input.parent().unwrap().join(output);
@@ -77,9 +110,9 @@ fn next_dynamic_fixture_run(
         &|_tr| {
             next_dynamic(
                 is_development,
-                is_server,
-                is_server_components,
-                mode,
+                is_server_compiler,
+                is_react_server_layer,
+                mode.clone(),
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )

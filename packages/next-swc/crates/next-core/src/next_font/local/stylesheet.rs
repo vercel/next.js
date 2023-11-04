@@ -1,28 +1,28 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbopack_binding::turbo::tasks::primitives::{StringVc, U32Vc};
+use turbo_tasks::Vc;
 
-use super::options::{FontDescriptors, NextFontLocalOptionsVc};
+use super::options::{FontDescriptors, NextFontLocalOptions};
 use crate::next_font::{
-    font_fallback::FontFallbacksVc,
+    font_fallback::FontFallbacks,
     stylesheet::{build_fallback_definition, build_font_class_rules},
-    util::{get_scoped_font_family, FontCssPropertiesVc, FontFamilyType},
+    util::{get_scoped_font_family, FontCssProperties, FontFamilyType},
 };
 
 #[turbo_tasks::function]
 pub(super) async fn build_stylesheet(
-    options: NextFontLocalOptionsVc,
-    fallbacks: FontFallbacksVc,
-    css_properties: FontCssPropertiesVc,
-    request_hash: U32Vc,
-) -> Result<StringVc> {
+    options: Vc<NextFontLocalOptions>,
+    fallbacks: Vc<FontFallbacks>,
+    css_properties: Vc<FontCssProperties>,
+    request_hash: Vc<u32>,
+) -> Result<Vc<String>> {
     let scoped_font_family = get_scoped_font_family(
         FontFamilyType::WebFont.cell(),
         options.font_family(),
         request_hash,
     );
 
-    Ok(StringVc::cell(formatdoc!(
+    Ok(Vc::cell(formatdoc!(
         r#"
         {}
         {}
@@ -37,9 +37,9 @@ pub(super) async fn build_stylesheet(
 /// Builds a string of `@font-face` definitions for each local font file
 #[turbo_tasks::function]
 pub(super) async fn build_font_face_definitions(
-    scoped_font_family: StringVc,
-    options: NextFontLocalOptionsVc,
-) -> Result<StringVc> {
+    scoped_font_family: Vc<String>,
+    options: Vc<NextFontLocalOptions>,
+) -> Result<Vc<String>> {
     let options = &*options.await?;
 
     let mut definitions = String::new();
@@ -75,7 +75,7 @@ pub(super) async fn build_font_face_definitions(
         ));
     }
 
-    Ok(StringVc::cell(definitions))
+    Ok(Vc::cell(definitions))
 }
 
 /// Used as e.g. `format('woff')` in `src` properties in `@font-face`

@@ -1,7 +1,7 @@
 // @ts-check
 
 const path = require('path')
-const { readJson, writeJson } = require('fs-extra')
+const fsp = require('fs/promises')
 const execa = require('execa')
 
 /** @type {any} */
@@ -52,7 +52,9 @@ Or, run this command with no arguments to use the most recently published versio
   }
 
   const cwd = process.cwd()
-  const pkgJson = await readJson(path.join(cwd, 'package.json'))
+  const pkgJson = JSON.parse(
+    await fsp.readFile(path.join(cwd, 'package.json'), 'utf-8')
+  )
   const devDependencies = pkgJson.devDependencies
   const baseVersionStr = devDependencies[
     useExperimental ? 'react-experimental-builtin' : 'react-builtin'
@@ -90,7 +92,10 @@ Or, run this command with no arguments to use the most recently published versio
       )
     }
   }
-  await writeJson(path.join(cwd, 'package.json'), pkgJson, { spaces: 2 })
+  await fsp.writeFile(
+    path.join(cwd, 'package.json'),
+    JSON.stringify(pkgJson, null, 2)
+  )
   console.log('Successfully updated React dependencies in package.json.\n')
 
   // Install the updated dependencies and build the vendored React files.
@@ -138,7 +143,7 @@ Or, run this command with no arguments to use the most recently published versio
         `GitHub reported no changes between ${baseSha} and ${newSha}.`
       )
     } else {
-      console.log('Includes the following upstream changes:\n\n' + changelog)
+      console.log(`### React upstream changes\n\n${changelog}\n\n`)
     }
   } catch (error) {
     console.error(error)
@@ -191,11 +196,19 @@ async function getChangelogFromGitHub(baseSha, newSha) {
 
     const { commits } = data
     for (const { commit, sha } of commits) {
-      changelog.push(
-        `-  ${sha.slice(0, 9)} ${commit.message.split('\n')[0]} (${
-          commit.author.name
-        })`
-      )
+      const title = commit.message.split('\n')[0] || ''
+      // The "title" looks like "[Fiber][Float] preinitialized stylesheets should support integrity option (#26881)"
+      const match = /\(#([0-9]+)\)$/.exec(title)
+      const prNum = match ? match[1] : ''
+      if (prNum) {
+        changelog.push(`- https://github.com/facebook/react/pull/${prNum}`)
+      } else {
+        changelog.push(
+          `-  ${sha.slice(0, 9)} ${commit.message.split('\n')[0]} (${
+            commit.author.name
+          })`
+        )
+      }
     }
 
     if (commits.length !== pageSize) {

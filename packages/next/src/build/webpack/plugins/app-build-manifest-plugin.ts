@@ -76,7 +76,6 @@ export class AppBuildManifestPlugin {
       }
 
       const filesForPage = getEntrypointFiles(entrypoint)
-
       manifest.pages[pagePath] = [...new Set([...mainFiles, ...filesForPage])]
     }
 

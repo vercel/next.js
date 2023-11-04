@@ -67,7 +67,7 @@ if (!(globalThis as any).isNextStart) {
           const appPort = await findPort()
           server = await initNextServerScript(
             testServer,
-            /Listening on/,
+            /- Local:/,
             {
               ...process.env,
               PORT: appPort.toString(),

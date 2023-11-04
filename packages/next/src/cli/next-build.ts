@@ -1,39 +1,15 @@
 #!/usr/bin/env node
+
+import '../server/lib/cpu-profile'
 import { existsSync } from 'fs'
-import arg from 'next/dist/compiled/arg/index.js'
 import * as Log from '../build/output/log'
-import { CliCommand } from '../lib/commands'
+import type { CliCommand } from '../lib/commands'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 
-const nextBuild: CliCommand = (argv) => {
-  const validArgs: arg.Spec = {
-    // Types
-    '--help': Boolean,
-    '--profile': Boolean,
-    '--debug': Boolean,
-    '--no-lint': Boolean,
-    '--no-mangling': Boolean,
-    '--experimental-app-only': Boolean,
-    '--experimental-turbo': Boolean,
-    '--experimental-turbo-root': String,
-    '--build-mode': String,
-    // Aliases
-    '-h': '--help',
-    '-d': '--debug',
-  }
-
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+const nextBuild: CliCommand = (args) => {
   if (args['--help']) {
     printAndExit(
       `

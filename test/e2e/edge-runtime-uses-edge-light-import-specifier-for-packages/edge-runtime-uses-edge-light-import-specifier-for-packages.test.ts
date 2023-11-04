@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { shouldRunTurboDevTest } from '../../lib/next-test-utils'
 
 createNextDescribe(
   'edge-runtime uses edge-light import specifier for packages',
@@ -8,7 +9,9 @@ createNextDescribe(
       scripts: {
         setup: 'cp -r ./node_modules_bak/* ./node_modules',
         build: 'yarn setup && next build',
-        dev: 'yarn setup && next dev',
+        dev: `yarn setup && next ${
+          shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
+        }`,
         start: 'next start',
       },
     },

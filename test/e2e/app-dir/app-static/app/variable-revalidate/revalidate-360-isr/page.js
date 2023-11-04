@@ -28,7 +28,7 @@ export default async function Page() {
     },
     ['random'],
     {
-      tags: ['thankyounext'],
+      tags: ['thankyounext', 'unstable_cache_tag1'],
       revalidate: 10,
     }
   )()

@@ -10,10 +10,13 @@ createNextDescribe(
     describe('OG image route', () => {
       if (isNextStart) {
         it('should not bundle `ImageResponse` into the page worker', async () => {
-          const pageBundle = await next.readFile(
-            '.next/server/middleware-manifest.json'
-          )
+          const pageBundle = await next.readFile('.next/server/app/page.js')
           expect(pageBundle).not.toContain('ImageResponse')
+
+          const sharedPageBundle = await next.readFile(
+            '.next/server/app/another/page.js'
+          )
+          expect(sharedPageBundle).not.toContain('ImageResponse')
         })
       }
     })

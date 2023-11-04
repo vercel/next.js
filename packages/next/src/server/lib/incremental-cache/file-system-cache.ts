@@ -1,10 +1,18 @@
-import type { OutgoingHttpHeaders } from 'http'
+import type { RouteMetadata } from '../../../export/routes/types'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+import type { CacheFs } from '../../../shared/lib/utils'
+import type {
+  CachedFetchValue,
+  IncrementalCacheKindHint,
+} from '../../response-cache'
+
 import LRUCache from 'next/dist/compiled/lru-cache'
-import { CacheFs } from '../../../shared/lib/utils'
 import path from '../../../shared/lib/isomorphic/path'
-import { CachedFetchValue } from '../../response-cache'
-import { getDerivedTags } from './utils'
+import {
+  NEXT_CACHE_TAGS_HEADER,
+  RSC_PREFETCH_SUFFIX,
+  RSC_SUFFIX,
+} from '../../../lib/constants'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -12,11 +20,12 @@ type FileSystemCacheContext = Omit<
 > & {
   fs: CacheFs
   serverDistDir: string
+  experimental: { ppr: boolean }
 }
 
 type TagsManifest = {
   version: 1
-  items: { [tag: string]: { keys: string[]; revalidatedAt: number } }
+  items: { [tag: string]: { revalidatedAt: number } }
 }
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 let tagsManifest: TagsManifest | undefined
@@ -26,15 +35,19 @@ export default class FileSystemCache implements CacheHandler {
   private flushToDisk?: FileSystemCacheContext['flushToDisk']
   private serverDistDir: FileSystemCacheContext['serverDistDir']
   private appDir: boolean
+  private pagesDir: boolean
   private tagsManifestPath?: string
   private revalidatedTags: string[]
+  private readonly experimental: { ppr: boolean }
 
   constructor(ctx: FileSystemCacheContext) {
     this.fs = ctx.fs
     this.flushToDisk = ctx.flushToDisk
     this.serverDistDir = ctx.serverDistDir
     this.appDir = !!ctx._appDir
+    this.pagesDir = !!ctx._pagesDir
     this.revalidatedTags = ctx.revalidatedTags
+    this.experimental = ctx.experimental
 
     if (ctx.maxMemoryCacheSize && !memoryCache) {
       memoryCache = new LRUCache({
@@ -71,38 +84,13 @@ export default class FileSystemCache implements CacheHandler {
   }
 
   private loadTagsManifest() {
-    if (!this.tagsManifestPath || !this.fs) return
+    if (!this.tagsManifestPath || !this.fs || tagsManifest) return
     try {
       tagsManifest = JSON.parse(
-        this.fs.readFileSync(this.tagsManifestPath).toString('utf8')
+        this.fs.readFileSync(this.tagsManifestPath, 'utf8')
       )
     } catch (err: any) {
       tagsManifest = { version: 1, items: {} }
-    }
-  }
-
-  async setTags(key: string, tags: string[]) {
-    this.loadTagsManifest()
-    if (!tagsManifest || !this.tagsManifestPath) {
-      return
-    }
-
-    for (const tag of tags) {
-      const data = tagsManifest.items[tag] || { keys: [] }
-      if (!data.keys.includes(key)) {
-        data.keys.push(key)
-      }
-      tagsManifest.items[tag] = data
-    }
-
-    try {
-      await this.fs.mkdir(path.dirname(this.tagsManifestPath))
-      await this.fs.writeFile(
-        this.tagsManifestPath,
-        JSON.stringify(tagsManifest || {})
-      )
-    } catch (err: any) {
-      console.warn('Failed to update tags manifest.', err)
     }
   }
 
@@ -115,7 +103,7 @@ export default class FileSystemCache implements CacheHandler {
       return
     }
 
-    const data = tagsManifest.items[tag] || { keys: [] }
+    const data = tagsManifest.items[tag] || {}
     data.revalidatedAt = Date.now()
     tagsManifest.items[tag] = data
 
@@ -130,23 +118,29 @@ export default class FileSystemCache implements CacheHandler {
     }
   }
 
-  public async get(key: string, fetchCache?: boolean) {
+  public async get(
+    key: string,
+    {
+      tags,
+      softTags,
+      kindHint,
+    }: {
+      tags?: string[]
+      softTags?: string[]
+      kindHint?: IncrementalCacheKindHint
+    } = {}
+  ) {
     let data = memoryCache?.get(key)
 
     // let's check the disk for seed data
     if (!data && process.env.NEXT_RUNTIME !== 'edge') {
       try {
-        const { filePath } = await this.getFsPath({
-          pathname: `${key}.body`,
-          appDir: true,
-        })
+        const filePath = this.getFilePath(`${key}.body`, 'app')
         const fileData = await this.fs.readFile(filePath)
         const { mtime } = await this.fs.stat(filePath)
 
         const meta = JSON.parse(
-          (
-            await this.fs.readFile(filePath.replace(/\.body$/, '.meta'))
-          ).toString('utf8')
+          await this.fs.readFile(filePath.replace(/\.body$/, '.meta'), 'utf8')
         )
 
         const cacheEntry: CacheHandlerValue = {
@@ -164,55 +158,68 @@ export default class FileSystemCache implements CacheHandler {
       }
 
       try {
-        const { filePath, isAppPath } = await this.getFsPath({
-          pathname: fetchCache ? key : `${key}.html`,
-          fetchCache,
-        })
-        const fileData = (await this.fs.readFile(filePath)).toString('utf-8')
+        // Determine the file kind if we didn't know it already.
+        let kind = kindHint
+        if (!kind) {
+          kind = this.detectFileKind(`${key}.html`)
+        }
+
+        const isAppPath = kind === 'app'
+        const filePath = this.getFilePath(
+          kind === 'fetch' ? key : `${key}.html`,
+          kind
+        )
+
+        const fileData = await this.fs.readFile(filePath, 'utf8')
         const { mtime } = await this.fs.stat(filePath)
 
-        if (fetchCache) {
+        if (kind === 'fetch') {
           const lastModified = mtime.getTime()
           const parsedData: CachedFetchValue = JSON.parse(fileData)
           data = {
             lastModified,
             value: parsedData,
           }
+
+          if (data.value?.kind === 'FETCH') {
+            const storedTags = data.value?.data?.tags
+
+            // update stored tags if a new one is being added
+            // TODO: remove this when we can send the tags
+            // via header on GET same as SET
+            if (!tags?.every((tag) => storedTags?.includes(tag))) {
+              await this.set(key, data.value, { tags })
+            }
+          }
         } else {
           const pageData = isAppPath
-            ? (
-                await this.fs.readFile(
-                  (
-                    await this.getFsPath({
-                      pathname: `${key}.rsc`,
-                      appDir: true,
-                    })
-                  ).filePath
-                )
-              ).toString('utf8')
+            ? await this.fs.readFile(
+                this.getFilePath(
+                  `${key}${
+                    this.experimental.ppr ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX
+                  }`,
+                  'app'
+                ),
+                'utf8'
+              )
             : JSON.parse(
-                (
-                  await this.fs.readFile(
-                    (
-                      await this.getFsPath({
-                        pathname: `${key}.json`,
-                        appDir: false,
-                      })
-                    ).filePath
-                  )
-                ).toString('utf8')
+                await this.fs.readFile(
+                  this.getFilePath(`${key}.json`, 'pages'),
+                  'utf8'
+                )
               )
 
-          let meta: { status?: number; headers?: OutgoingHttpHeaders } = {}
+          let meta: RouteMetadata | undefined
 
           if (isAppPath) {
             try {
               meta = JSON.parse(
-                (
-                  await this.fs.readFile(filePath.replace(/\.html$/, '.meta'))
-                ).toString('utf-8')
+                await this.fs.readFile(
+                  filePath.replace(/\.html$/, '.meta'),
+                  'utf8'
+                )
               )
-            } catch (_) {}
+            } catch {}
           }
 
           data = {
@@ -221,8 +228,9 @@ export default class FileSystemCache implements CacheHandler {
               kind: 'PAGE',
               html: fileData,
               pageData,
-              headers: meta.headers,
-              status: meta.status,
+              postponed: meta?.postponed,
+              headers: meta?.headers,
+              status: meta?.status,
             },
           }
         }
@@ -234,38 +242,41 @@ export default class FileSystemCache implements CacheHandler {
         // unable to get data from disk
       }
     }
-    let cacheTags: undefined | string[]
 
     if (data?.value?.kind === 'PAGE') {
-      const tagsHeader = data.value.headers?.['x-next-cache-tags']
+      let cacheTags: undefined | string[]
+      const tagsHeader = data.value.headers?.[NEXT_CACHE_TAGS_HEADER]
 
       if (typeof tagsHeader === 'string') {
         cacheTags = tagsHeader.split(',')
       }
-    }
 
-    if (data?.value?.kind === 'PAGE' && cacheTags?.length) {
-      this.loadTagsManifest()
-      const derivedTags = getDerivedTags(cacheTags || [])
+      if (cacheTags?.length) {
+        this.loadTagsManifest()
 
-      const isStale = derivedTags.some((tag) => {
-        return (
-          tagsManifest?.items[tag]?.revalidatedAt &&
-          tagsManifest?.items[tag].revalidatedAt >=
-            (data?.lastModified || Date.now())
-        )
-      })
-      if (isStale) {
-        data.lastModified = -1
+        const isStale = cacheTags.some((tag) => {
+          return (
+            tagsManifest?.items[tag]?.revalidatedAt &&
+            tagsManifest?.items[tag].revalidatedAt >=
+              (data?.lastModified || Date.now())
+          )
+        })
+
+        // we trigger a blocking validation if an ISR page
+        // had a tag revalidated, if we want to be a background
+        // revalidation instead we return data.lastModified = -1
+        if (isStale) {
+          data = undefined
+        }
       }
     }
 
     if (data && data?.value?.kind === 'FETCH') {
       this.loadTagsManifest()
-      const innerData = data.value.data
-      const derivedTags = getDerivedTags(innerData.tags || [])
 
-      const wasRevalidated = derivedTags.some((tag) => {
+      const combinedTags = [...(tags || []), ...(softTags || [])]
+
+      const wasRevalidated = combinedTags.some((tag) => {
         if (this.revalidatedTags.includes(tag)) {
           return true
         }
@@ -283,10 +294,16 @@ export default class FileSystemCache implements CacheHandler {
       }
     }
 
-    return data || null
+    return data ?? null
   }
 
-  public async set(key: string, data: CacheHandlerValue['value']) {
+  public async set(
+    key: string,
+    data: CacheHandlerValue['value'],
+    ctx: {
+      tags?: string[]
+    }
+  ) {
     memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
@@ -294,103 +311,120 @@ export default class FileSystemCache implements CacheHandler {
     if (!this.flushToDisk) return
 
     if (data?.kind === 'ROUTE') {
-      const { filePath } = await this.getFsPath({
-        pathname: `${key}.body`,
-        appDir: true,
-      })
+      const filePath = this.getFilePath(`${key}.body`, 'app')
       await this.fs.mkdir(path.dirname(filePath))
       await this.fs.writeFile(filePath, data.body)
+
+      const meta: RouteMetadata = {
+        headers: data.headers,
+        status: data.status,
+        postponed: undefined,
+      }
+
       await this.fs.writeFile(
         filePath.replace(/\.body$/, '.meta'),
-        JSON.stringify({ headers: data.headers, status: data.status })
+        JSON.stringify(meta, null, 2)
       )
       return
     }
 
     if (data?.kind === 'PAGE') {
       const isAppPath = typeof data.pageData === 'string'
-      const { filePath: htmlPath } = await this.getFsPath({
-        pathname: `${key}.html`,
-        appDir: isAppPath,
-      })
+      const htmlPath = this.getFilePath(
+        `${key}.html`,
+        isAppPath ? 'app' : 'pages'
+      )
       await this.fs.mkdir(path.dirname(htmlPath))
       await this.fs.writeFile(htmlPath, data.html)
 
       await this.fs.writeFile(
-        (
-          await this.getFsPath({
-            pathname: `${key}.${isAppPath ? 'rsc' : 'json'}`,
-            appDir: isAppPath,
-          })
-        ).filePath,
+        this.getFilePath(
+          `${key}.${isAppPath ? 'rsc' : 'json'}`,
+          isAppPath ? 'app' : 'pages'
+        ),
         isAppPath ? data.pageData : JSON.stringify(data.pageData)
       )
 
       if (data.headers || data.status) {
+        const meta: RouteMetadata = {
+          headers: data.headers,
+          status: data.status,
+          postponed: data.postponed,
+        }
+
         await this.fs.writeFile(
           htmlPath.replace(/\.html$/, '.meta'),
-          JSON.stringify({
-            headers: data.headers,
-            status: data.status,
-          })
+          JSON.stringify(meta)
         )
       }
     } else if (data?.kind === 'FETCH') {
-      const { filePath } = await this.getFsPath({
-        pathname: key,
-        fetchCache: true,
-      })
+      const filePath = this.getFilePath(key, 'fetch')
       await this.fs.mkdir(path.dirname(filePath))
-      await this.fs.writeFile(filePath, JSON.stringify(data))
-      await this.setTags(key, data.data.tags || [])
+      await this.fs.writeFile(
+        filePath,
+        JSON.stringify({
+          ...data,
+          tags: ctx.tags,
+        })
+      )
     }
   }
 
-  private async getFsPath({
-    pathname,
-    appDir,
-    fetchCache,
-  }: {
-    pathname: string
-    appDir?: boolean
-    fetchCache?: boolean
-  }): Promise<{
-    filePath: string
-    isAppPath: boolean
-  }> {
-    if (fetchCache) {
-      // we store in .next/cache/fetch-cache so it can be persisted
-      // across deploys
-      return {
-        filePath: path.join(
+  private detectFileKind(pathname: string) {
+    if (!this.appDir && !this.pagesDir) {
+      throw new Error(
+        "Invariant: Can't determine file path kind, no page directory enabled"
+      )
+    }
+
+    // If app directory isn't enabled, then assume it's pages and avoid the fs
+    // hit.
+    if (!this.appDir && this.pagesDir) {
+      return 'pages'
+    }
+    // Otherwise assume it's a pages file if the pages directory isn't enabled.
+    else if (this.appDir && !this.pagesDir) {
+      return 'app'
+    }
+
+    // If both are enabled, we need to test each in order, starting with
+    // `pages`.
+    let filePath = this.getFilePath(pathname, 'pages')
+    if (this.fs.existsSync(filePath)) {
+      return 'pages'
+    }
+
+    filePath = this.getFilePath(pathname, 'app')
+    if (this.fs.existsSync(filePath)) {
+      return 'app'
+    }
+
+    throw new Error(
+      `Invariant: Unable to determine file path kind for ${pathname}`
+    )
+  }
+
+  private getFilePath(
+    pathname: string,
+    kind: 'app' | 'fetch' | 'pages'
+  ): string {
+    switch (kind) {
+      case 'fetch':
+        // we store in .next/cache/fetch-cache so it can be persisted
+        // across deploys
+        return path.join(
           this.serverDistDir,
           '..',
           'cache',
           'fetch-cache',
           pathname
-        ),
-        isAppPath: false,
-      }
-    }
-    let isAppPath = false
-    let filePath = path.join(this.serverDistDir, 'pages', pathname)
-
-    if (!this.appDir || appDir === false)
-      return {
-        filePath,
-        isAppPath,
-      }
-    try {
-      await this.fs.readFile(filePath)
-      return {
-        filePath,
-        isAppPath,
-      }
-    } catch (err) {
-      return {
-        filePath: path.join(this.serverDistDir, 'app', pathname),
-        isAppPath: true,
-      }
+        )
+      case 'pages':
+        return path.join(this.serverDistDir, 'pages', pathname)
+      case 'app':
+        return path.join(this.serverDistDir, 'app', pathname)
+      default:
+        throw new Error("Invariant: Can't determine file path kind")
     }
   }
 }

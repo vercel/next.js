@@ -2,23 +2,23 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
+use turbo_tasks::{TryJoinIterExt, Value, Vc};
+use turbo_tasks_fs::FileSystemPathOption;
 use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
+    turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
     turbopack::{
         core::{
-            asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
-            chunk::{
-                ChunkDataVc, ChunkableAsset, ChunkingContext, ChunkingContextVc, ChunksDataVc,
-                EvaluatableAssetVc, EvaluatableAssetsVc,
-            },
-            context::{AssetContext, AssetContextVc},
-            ident::AssetIdentVc,
-            reference::{AssetReferencesVc, SingleAssetReferenceVc},
-            reference_type::{EntryReferenceSubType, InnerAssetsVc, ReferenceType},
-            virtual_asset::VirtualAssetVc,
+            asset::{Asset, AssetContent},
+            chunk::{ChunkData, ChunksData},
+            context::AssetContext,
+            ident::AssetIdent,
+            module::Module,
+            output::{OutputAsset, OutputAssets},
+            proxied_asset::ProxiedAsset,
+            reference_type::{EntryReferenceSubType, ReferenceType},
+            source::Source,
+            virtual_source::VirtualSource,
         },
-        dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
         ecmascript::{chunk::EcmascriptChunkData, utils::StringifyJs},
     },
 };
@@ -26,40 +26,11 @@ use turbopack_binding::{
 use crate::{embed_js::next_js_file_path, util::get_asset_path_from_pathname};
 
 #[turbo_tasks::function]
-pub async fn create_page_loader(
-    server_root: FileSystemPathVc,
-    client_context: AssetContextVc,
-    client_chunking_context: ChunkingContextVc,
-    entry_asset: AssetVc,
-    pathname: StringVc,
-) -> Result<ContentSourceVc> {
-    let asset = PageLoaderAsset {
-        server_root,
-        client_context,
-        client_chunking_context,
-        entry_asset,
-        pathname,
-    }
-    .cell();
-
-    Ok(AssetGraphContentSourceVc::new_lazy(server_root, asset.into()).into())
-}
-
-#[turbo_tasks::value(shared)]
-pub struct PageLoaderAsset {
-    pub server_root: FileSystemPathVc,
-    pub client_context: AssetContextVc,
-    pub client_chunking_context: ChunkingContextVc,
-    pub entry_asset: AssetVc,
-    pub pathname: StringVc,
-}
-
-#[turbo_tasks::function]
-pub async fn create_page_loader_entry_asset(
-    client_context: AssetContextVc,
-    entry_asset: AssetVc,
-    pathname: StringVc,
-) -> Result<AssetVc> {
+pub async fn create_page_loader_entry_module(
+    client_context: Vc<Box<dyn AssetContext>>,
+    entry_asset: Vc<Box<dyn Source>>,
+    pathname: Vc<String>,
+) -> Result<Vc<Box<dyn Module>>> {
     let mut result = RopeBuilder::default();
     writeln!(
         result,
@@ -67,7 +38,7 @@ pub async fn create_page_loader_entry_asset(
         StringifyJs(&*pathname.await?)
     )?;
 
-    let page_loader_path = next_js_file_path("entry/page-loader.ts");
+    let page_loader_path = next_js_file_path("entry/page-loader.ts".to_string());
     let base_code = page_loader_path.read();
     if let FileContent::Content(base_file) = &*base_code.await? {
         result += base_file.content()
@@ -77,67 +48,119 @@ pub async fn create_page_loader_entry_asset(
 
     let file = File::from(result.build());
 
-    let virtual_asset = VirtualAssetVc::new(page_loader_path, file.into()).into();
+    let virtual_source = Vc::upcast(VirtualSource::new(
+        page_loader_path,
+        AssetContent::file(file.into()),
+    ));
 
     Ok(client_context.process(
-        virtual_asset,
-        Value::new(ReferenceType::Internal(
-            InnerAssetsVc::cell(indexmap! {
-                "PAGE".to_string() => client_context.process(entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
-            })
-        )))
-    )
+        virtual_source,
+        Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+            "PAGE".to_string() => client_context.process(
+                entry_asset,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page))
+            ),
+        }))),
+    ))
+}
+
+#[turbo_tasks::value(shared)]
+pub struct PageLoaderAsset {
+    pub server_root: Vc<FileSystemPath>,
+    pub pathname: Vc<String>,
+    pub rebase_prefix_path: Vc<FileSystemPathOption>,
+    pub page_chunks: Vc<OutputAssets>,
 }
 
 #[turbo_tasks::value_impl]
-impl PageLoaderAssetVc {
+impl PageLoaderAsset {
     #[turbo_tasks::function]
-    async fn get_page_chunks(self) -> Result<AssetsVc> {
-        let this = &*self.await?;
-
-        let page_loader_entry_asset =
-            create_page_loader_entry_asset(this.client_context, this.entry_asset, this.pathname);
-
-        let Some(module) = EvaluatableAssetVc::resolve_from(page_loader_entry_asset).await? else {
-            bail!("internal module must be evaluatable");
-        };
-
-        Ok(this.client_chunking_context.evaluated_chunk_group(
-            module.as_root_chunk(this.client_chunking_context),
-            EvaluatableAssetsVc::one(module),
-        ))
+    pub fn new(
+        server_root: Vc<FileSystemPath>,
+        pathname: Vc<String>,
+        rebase_prefix_path: Vc<FileSystemPathOption>,
+        page_chunks: Vc<OutputAssets>,
+    ) -> Vc<Self> {
+        Self {
+            server_root,
+            pathname,
+            rebase_prefix_path,
+            page_chunks,
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
-    async fn chunks_data(self) -> Result<ChunksDataVc> {
+    async fn chunks_data(
+        self: Vc<Self>,
+        rebase_prefix_path: Vc<FileSystemPathOption>,
+    ) -> Result<Vc<ChunksData>> {
         let this = self.await?;
-        Ok(ChunkDataVc::from_assets(
-            this.server_root,
-            self.get_page_chunks(),
-        ))
+        let mut chunks = this.page_chunks;
+
+        // If we are provided a prefix path, we need to rewrite our chunk paths to
+        // remove that prefix.
+        if let Some(rebase_path) = &*rebase_prefix_path.await? {
+            let root_path = rebase_path.root();
+            let rebased = chunks
+                .await?
+                .iter()
+                .map(|chunk| {
+                    Vc::upcast(ProxiedAsset::new(
+                        *chunk,
+                        FileSystemPath::rebase(chunk.ident().path(), *rebase_path, root_path),
+                    ))
+                })
+                .collect();
+            chunks = Vc::cell(rebased);
+        };
+
+        Ok(ChunkData::from_assets(this.server_root, chunks))
     }
 }
 
 #[turbo_tasks::function]
-fn page_loader_chunk_reference_description() -> StringVc {
-    StringVc::cell("page loader chunk".to_string())
+fn page_loader_chunk_reference_description() -> Vc<String> {
+    Vc::cell("page loader chunk".to_string())
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for PageLoaderAsset {
+impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<AssetIdentVc> {
-        Ok(AssetIdentVc::from_path(self.server_root.join(&format!(
-            "_next/static/chunks/pages{}",
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        let root = self.rebase_prefix_path.await?.unwrap_or(self.server_root);
+        Ok(AssetIdent::from_path(root.join(format!(
+            "static/chunks/pages{}",
             get_asset_path_from_pathname(&self.pathname.await?, ".js")
         ))))
     }
 
     #[turbo_tasks::function]
-    async fn content(self_vc: PageLoaderAssetVc) -> Result<AssetContentVc> {
-        let this = &*self_vc.await?;
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+        let chunks = self.await?.page_chunks.await?;
 
-        let chunks_data = self_vc.chunks_data().await?;
+        let mut references = Vec::with_capacity(chunks.len());
+        for &chunk in chunks.iter() {
+            references.push(chunk);
+        }
+
+        // We don't need to strip the client relative prefix, because we won't be using
+        // these reference paths with `__turbopack_load__`.
+        for chunk_data in &*self.chunks_data(FileSystemPathOption::none()).await? {
+            references.extend(chunk_data.references().await?.iter().copied());
+        }
+
+        Ok(Vc::cell(references))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for PageLoaderAsset {
+    #[turbo_tasks::function]
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        let this = &*self.await?;
+
+        let chunks_data = self.chunks_data(this.rebase_prefix_path).await?;
         let chunks_data = chunks_data.iter().try_join().await?;
         let chunks_data: Vec<_> = chunks_data
             .iter()
@@ -150,25 +173,6 @@ impl Asset for PageLoaderAsset {
             StringifyJs(&chunks_data)
         );
 
-        Ok(AssetContentVc::from(File::from(content)))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self_vc: PageLoaderAssetVc) -> Result<AssetReferencesVc> {
-        let chunks = self_vc.get_page_chunks().await?;
-
-        let mut references = Vec::with_capacity(chunks.len());
-        for chunk in chunks.iter() {
-            references.push(
-                SingleAssetReferenceVc::new(*chunk, page_loader_chunk_reference_description())
-                    .into(),
-            );
-        }
-
-        for chunk_data in &*self_vc.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().copied());
-        }
-
-        Ok(AssetReferencesVc::cell(references))
+        Ok(AssetContent::file(File::from(content).into()))
     }
 }

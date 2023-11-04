@@ -1,0 +1,46 @@
+---
+title: Invalid i18n config
+---
+
+## Why This Error Occurred
+
+In your `next.config.js` file, you provided an invalid config for the `i18n` field. This could mean the limit for 100 locale items was exceeded.
+
+## Possible Ways to Fix It
+
+Make sure your `i18n` field follows the allowed config shape, limits, and values:
+
+```js filename="next.config.js"
+module.exports = {
+  i18n: {
+    // These are all the locales you want to support in
+    // your application
+    locales: ['en-US', 'es', 'fr', 'nl-NL'],
+    // This is the default locale you want to be used when visiting
+    // a non-locale prefixed path e.g. `/hello`
+    defaultLocale: 'en-US',
+    // This is a list of locale domains and the default locale they
+    // should handle (these are only required when setting up domain routing)
+    domains: [
+      {
+        domain: 'example.com',
+        defaultLocale: 'en-US',
+        // other locales that should be handled on this domain
+        locales: ['es'],
+      },
+      {
+        domain: 'example.nl',
+        defaultLocale: 'nl-NL',
+      },
+      {
+        domain: 'example.fr',
+        defaultLocale: 'fr',
+      },
+    ],
+  },
+}
+```
+
+## Useful Links
+
+- [Internationalized Routing Documentation](/docs/pages/building-your-application/routing/internationalization)

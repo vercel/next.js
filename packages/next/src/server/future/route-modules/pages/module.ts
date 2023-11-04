@@ -17,7 +17,14 @@ import {
   type RouteModuleHandleContext,
   type RouteModuleOptions,
 } from '../route-module'
-import { renderToHTMLImpl } from '../../../render'
+import { renderToHTMLImpl, renderToHTML } from '../../../render'
+import * as vendoredContexts from './vendored/contexts/entrypoints'
+
+/**
+ * The PagesModule is the type of the module exported by the bundled pages
+ * module.
+ */
+export type PagesModule = typeof import('../../../../build/templates/pages')
 
 /**
  * The userland module for a page. This is the module that is exported from the
@@ -110,10 +117,6 @@ export class PagesRouteModule extends RouteModule<
     this.components = options.components
   }
 
-  public handle(): Promise<Response> {
-    throw new Error('Method not implemented.')
-  }
-
   public render(
     req: IncomingMessage,
     res: ServerResponse,
@@ -132,5 +135,12 @@ export class PagesRouteModule extends RouteModule<
     )
   }
 }
+
+const vendored = {
+  contexts: vendoredContexts,
+}
+
+// needed for the static build
+export { renderToHTML, vendored }
 
 export default PagesRouteModule

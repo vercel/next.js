@@ -6,18 +6,18 @@ import type {
 } from '../shared/lib/router/router'
 
 import React from 'react'
-import { UrlObject } from 'url'
-import { resolveHref } from '../shared/lib/router/utils/resolve-href'
+import type { UrlObject } from 'url'
+import { resolveHref } from './resolve-href'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { isAbsoluteUrl } from '../shared/lib/utils'
 import { addLocale } from './add-locale'
-import { RouterContext } from '../shared/lib/router-context'
-import {
-  AppRouterContext,
+import { RouterContext } from '../shared/lib/router-context.shared-runtime'
+import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
+import type {
   AppRouterInstance,
   PrefetchOptions as AppRouterPrefetchOptions,
-} from '../shared/lib/app-router-context'
+} from '../shared/lib/app-router-context.shared-runtime'
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
@@ -103,7 +103,11 @@ type InternalLinkProps = {
 
 // TODO-APP: Include the full set of Anchor props
 // adding this to the publicly exported type currently breaks existing apps
-export type LinkProps = InternalLinkProps
+
+// `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
+// isn't generated yet. It will be replaced when the webpack plugin runs.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type LinkProps<RouteInferType = any> = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
@@ -217,15 +221,17 @@ function linkClicked(
 
   const navigate = () => {
     // If the router is an NextRouter instance it will have `beforePopState`
+    const routerScroll = scroll ?? true
     if ('beforePopState' in router) {
       router[replace ? 'replace' : 'push'](href, as, {
         shallow,
         locale,
-        scroll,
+        scroll: routerScroll,
       })
     } else {
       router[replace ? 'replace' : 'push'](as || href, {
         forceOptimisticNavigation: !prefetchEnabled,
+        scroll: routerScroll,
       })
     }
   }
@@ -270,8 +276,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onClick,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
-      // @ts-expect-error this is inlined as a literal boolean not a string
-      legacyBehavior = process.env.__NEXT_NEW_LINK_BEHAVIOR === false,
+      legacyBehavior = false,
       ...restProps
     } = props
 

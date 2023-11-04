@@ -1,5 +1,3 @@
-import * as page from 'PAGE'
-
 // inserted by rust code
 declare const PAGE_PATH: string
 
@@ -7,7 +5,7 @@ declare const PAGE_PATH: string
 ;(window.__NEXT_P = window.__NEXT_P || []).push([
   PAGE_PATH,
   () => {
-    return page
+    return require('PAGE')
   },
 ])
 if (module.hot) {

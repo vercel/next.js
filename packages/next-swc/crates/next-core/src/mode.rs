@@ -1,9 +1,10 @@
 use turbo_tasks::TaskInput;
 
 /// The mode in which Next.js is running.
-#[derive(Debug, Copy, Clone, TaskInput)]
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Copy, Clone, TaskInput, Ord, PartialOrd, Hash)]
 pub enum NextMode {
-    /// `next dev`
+    /// `next dev --turbo`
     Development,
     /// `next build`
     Build,

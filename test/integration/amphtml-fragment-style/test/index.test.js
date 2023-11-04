@@ -16,19 +16,21 @@ let appPort
 let app
 
 describe('AMP Fragment Styles', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir, [])
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir, [])
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-  it('adds styles from fragment in AMP mode correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/', { amp: 1 })
-    await validateAMP(html)
-    const $ = cheerio.load(html)
-    const styles = $('style[amp-custom]').text()
-    expect(styles).toMatch(/background:(.*|)hotpink/)
-    expect(styles).toMatch(/font-size:(.*|)16\.4px/)
+    it('adds styles from fragment in AMP mode correctly', async () => {
+      const html = await renderViaHTTP(appPort, '/', { amp: 1 })
+      await validateAMP(html)
+      const $ = cheerio.load(html)
+      const styles = $('style[amp-custom]').text()
+      expect(styles).toMatch(/background:(.*|)hotpink/)
+      expect(styles).toMatch(/font-size:(.*|)16\.4px/)
+    })
   })
 })

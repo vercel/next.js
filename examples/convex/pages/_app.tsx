@@ -5,9 +5,7 @@ import { ConvexProvider, ConvexReactClient } from 'convex/react'
 
 const address = process.env.NEXT_PUBLIC_CONVEX_URL
 if (!address) {
-  throw new Error(
-    'Convex address not found in env. Have you run npx convex dev for a dev deploy or npx convex deploy for prod?'
-  )
+  throw new Error('Convex deployment url not found in environment.')
 }
 const convex = new ConvexReactClient(address)
 

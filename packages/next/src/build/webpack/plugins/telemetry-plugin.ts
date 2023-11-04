@@ -1,4 +1,5 @@
-import { NormalModule, webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import { NormalModule } from 'next/dist/compiled/webpack/webpack'
 
 /**
  * List of target triples next-swc native binary supports.

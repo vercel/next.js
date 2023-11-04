@@ -2,6 +2,7 @@ import glob from 'glob'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
+import { nanoid } from 'nanoid'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
@@ -14,7 +15,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 
-describe('should set-up next', () => {
+describe('required server files', () => {
   let next: NextInstance
   let server
   let appPort
@@ -113,14 +114,15 @@ describe('should set-up next', () => {
       testServer,
       (
         await fs.readFile(testServer, 'utf8')
-      ).replace('conf:', `minimalMode: ${minimalMode},conf:`)
+      ).replace('port:', `minimalMode: ${minimalMode},port:`)
     )
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /Listening on/,
+      /- Local:/,
       {
         ...process.env,
+        ENV_FROM_HOST: 'FOOBAR',
         PORT: appPort,
       },
       undefined,
@@ -956,7 +958,10 @@ describe('should set-up next', () => {
     expect(await res.text()).toBe('Internal Server Error')
 
     await check(
-      () => (errors[0].includes('gip hit an oops') ? 'success' : errors[0]),
+      () =>
+        errors.join('\n').includes('gip hit an oops')
+          ? 'success'
+          : errors.join('\n'),
       'success'
     )
   })
@@ -967,7 +972,10 @@ describe('should set-up next', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
-      () => (errors[0].includes('gssp hit an oops') ? 'success' : errors[0]),
+      () =>
+        errors.join('\n').includes('gssp hit an oops')
+          ? 'success'
+          : errors.join('\n'),
       'success'
     )
   })
@@ -978,7 +986,10 @@ describe('should set-up next', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
-      () => (errors[0].includes('gsp hit an oops') ? 'success' : errors[0]),
+      () =>
+        errors.join('\n').includes('gsp hit an oops')
+          ? 'success'
+          : errors.join('\n'),
       'success'
     )
   })
@@ -990,9 +1001,9 @@ describe('should set-up next', () => {
     expect(await res.text()).toBe('Internal Server Error')
     await check(
       () =>
-        errors[0].includes('some error from /api/error')
+        errors.join('\n').includes('some error from /api/error')
           ? 'success'
-          : errors[0],
+          : errors.join('\n'),
       'success'
     )
   })
@@ -1256,7 +1267,7 @@ describe('should set-up next', () => {
     }
   })
 
-  it('should copy and read .env file', async () => {
+  it('should read .env files and process.env', async () => {
     const res = await fetchViaHTTP(appPort, '/api/env')
 
     const envVariables = await res.json()
@@ -1264,13 +1275,10 @@ describe('should set-up next', () => {
     expect(envVariables.env).not.toBeUndefined()
     expect(envVariables.envProd).not.toBeUndefined()
     expect(envVariables.envLocal).toBeUndefined()
+    expect(envVariables.envFromHost).toBe('FOOBAR')
   })
 
   it('should run middleware correctly (without minimalMode, with wasm)', async () => {
-    await next.destroy()
-    await killApp(server)
-    await setupNext({ nextEnv: false, minimalMode: false })
-
     const standaloneDir = join(next.testDir, 'standalone')
 
     const testServer = join(standaloneDir, 'server.js')
@@ -1283,7 +1291,7 @@ describe('should set-up next', () => {
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /Listening on/,
+      /- Local:/,
       {
         ...process.env,
         PORT: appPort,
@@ -1313,8 +1321,20 @@ describe('should set-up next', () => {
 
     expect(resImageResponse.status).toBe(200)
     expect(resImageResponse.headers.get('content-type')).toBe('image/png')
+  })
 
-    // when not in next env should be compress: true
-    expect(fs.readFileSync(testServer, 'utf8')).toContain('"compress":true')
+  it('should correctly handle a mismatch in buildIds when normalizing next data', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${nanoid()}/index.json`,
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/[teamSlug]/[project]/[id]/[suffix]',
+        },
+      }
+    )
+
+    expect(res.status).toBe(404)
   })
 })
