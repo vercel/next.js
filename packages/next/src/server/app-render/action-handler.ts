@@ -6,11 +6,10 @@ import type {
 } from 'http'
 import type { WebNextRequest } from '../base-http/web'
 import type { SizeLimit } from '../../../types'
-import type { ApiError } from '../api-utils'
 
 import {
   ACTION,
-  RSC,
+  RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
@@ -37,33 +36,6 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
 import type { AppRenderContext, GenerateFlight } from './app-render'
-
-function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { Readable } = require('stream')
-    if ('toWeb' in Readable && typeof Readable.toWeb === 'function') {
-      return Readable.toWeb(nodeReadable)
-    }
-
-    return new ReadableStream({
-      start(controller) {
-        nodeReadable.on('data', (chunk) => {
-          controller.enqueue(chunk)
-        })
-
-        nodeReadable.on('end', () => {
-          controller.close()
-        })
-
-        nodeReadable.on('error', (error) => {
-          controller.error(error)
-        })
-      },
-    })
-  } else {
-    throw new Error('Invalid runtime')
-  }
-}
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -101,7 +73,7 @@ function getForwardedHeaders(
     Array.isArray(rawSetCookies) ? rawSetCookies : [rawSetCookies]
   ).map((setCookie) => {
     // remove the suffixes like 'HttpOnly' and 'SameSite'
-    const [cookie] = `${setCookie}`.split(';')
+    const [cookie] = `${setCookie}`.split(';', 1)
     return cookie
   })
 
@@ -174,7 +146,7 @@ async function createRedirectRenderResult(
   // if we're redirecting to a relative path, we'll try to stream the response
   if (redirectUrl.startsWith('/')) {
     const forwardedHeaders = getForwardedHeaders(req, res)
-    forwardedHeaders.set(RSC, '1')
+    forwardedHeaders.set(RSC_HEADER, '1')
 
     const host = req.headers['host']
     const proto =
@@ -236,27 +208,57 @@ async function createRedirectRenderResult(
   return new RenderResult(JSON.stringify({}))
 }
 
+// Used to compare Host header and Origin header.
+const enum HostType {
+  XForwardedHost = 'x-forwarded-host',
+  Host = 'host',
+}
+type Host =
+  | {
+      type: HostType.XForwardedHost
+      value: string
+    }
+  | {
+      type: HostType.Host
+      value: string
+    }
+  | undefined
+
+/**
+ * Ensures the value of the header can't create long logs.
+ */
+function limitUntrustedHeaderValueForLogs(value: string) {
+  return value.length > 100 ? value.slice(0, 100) + '...' : value
+}
+
 export async function handleAction({
   req,
   res,
   ComponentMod,
-  page,
-  serverActionsManifest,
+  serverModuleMap,
   generateFlight,
   staticGenerationStore,
   requestStore,
-  serverActionsBodySizeLimit,
+  serverActions,
   ctx,
 }: {
   req: IncomingMessage
   res: ServerResponse
   ComponentMod: any
-  page: string
-  serverActionsManifest: any
+  serverModuleMap: {
+    [id: string]: {
+      id: string
+      chunks: string[]
+      name: string
+    }
+  }
   generateFlight: GenerateFlight
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedForwardedHosts?: string[]
+  }
   ctx: AppRenderContext
 }): Promise<
   | undefined
@@ -290,7 +292,22 @@ export async function handleAction({
     typeof req.headers['origin'] === 'string'
       ? new URL(req.headers['origin']).host
       : undefined
-  const host = req.headers['x-forwarded-host'] || req.headers['host']
+
+  const forwardedHostHeader = req.headers['x-forwarded-host'] as
+    | string
+    | undefined
+  const hostHeader = req.headers['host']
+  const host: Host = forwardedHostHeader
+    ? {
+        type: HostType.XForwardedHost,
+        value: forwardedHostHeader,
+      }
+    : hostHeader
+    ? {
+        type: HostType.Host,
+        value: hostHeader,
+      }
+    : undefined
 
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
@@ -300,33 +317,54 @@ export async function handleAction({
     console.warn(
       'Missing `origin` header from a forwarded Server Actions request.'
     )
-  } else if (!host || originHostname !== host) {
-    // This is an attack. We should not proceed the action.
-    console.error(
-      '`x-forwarded-host` and `host` headers do not match `origin` header from a forwarded Server Actions request. Aborting the action.'
-    )
-
-    const error = new Error('Invalid Server Actions request.')
-
-    if (isFetchAction) {
-      res.statusCode = 500
-      await Promise.all(staticGenerationStore.pendingRevalidates || [])
-      const promise = Promise.reject(error)
-      try {
-        await promise
-      } catch {}
-
-      return {
-        type: 'done',
-        result: await generateFlight(ctx, {
-          actionResult: promise,
-          // if the page was not revalidated, we can skip the rendering the flight tree
-          skipFlight: !staticGenerationStore.pathWasRevalidated,
-        }),
+  } else if (!host || originHostname !== host.value) {
+    // If the customer sets a list of allowed hosts, we'll allow the request.
+    // These can be their reverse proxies or other safe hosts.
+    if (
+      host &&
+      typeof host.value === 'string' &&
+      serverActions?.allowedForwardedHosts?.includes(host.value)
+    ) {
+      // Ignore it
+    } else {
+      if (host) {
+        // This is an attack. We should not proceed the action.
+        console.error(
+          `\`${!host.type}\` header with value \`${limitUntrustedHeaderValueForLogs(
+            host.value
+          )}\` does not match \`origin\` header with value \`${limitUntrustedHeaderValueForLogs(
+            originHostname
+          )}\` from a forwarded Server Actions request. Aborting the action.`
+        )
+      } else {
+        // This is an attack. We should not proceed the action.
+        console.error(
+          `\`x-forwarded-host\` or \`host\` headers are not provided. One of these is needed to compare the \`origin\` header from a forwarded Server Actions request. Aborting the action.`
+        )
       }
-    }
 
-    throw error
+      const error = new Error('Invalid Server Actions request.')
+
+      if (isFetchAction) {
+        res.statusCode = 500
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        const promise = Promise.reject(error)
+        try {
+          await promise
+        } catch {}
+
+        return {
+          type: 'done',
+          result: await generateFlight(ctx, {
+            actionResult: promise,
+            // if the page was not revalidated, we can skip the rendering the flight tree
+            skipFlight: !staticGenerationStore.pathWasRevalidated,
+          }),
+        }
+      }
+
+      throw error
+    }
   }
 
   // ensure we avoid caching server actions unexpectedly
@@ -335,22 +373,6 @@ export async function handleAction({
     'no-cache, no-store, max-age=0, must-revalidate'
   )
   let bound = []
-
-  const workerName = 'app' + page
-  const serverModuleMap = new Proxy(
-    {},
-    {
-      get: (_, id: string) => {
-        return {
-          id: serverActionsManifest[
-            process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          ][id].workers[workerName],
-          name: id,
-          chunks: [],
-        }
-      },
-    }
-  )
 
   const { actionAsyncStorage } = ComponentMod as {
     actionAsyncStorage: ActionAsyncStorage
@@ -420,13 +442,28 @@ export async function handleAction({
 
             bound = await decodeReplyFromBusboy(bb, serverModuleMap)
           } else {
+            // Convert the Node.js readable stream to a Web Stream.
+            const readableStream = new ReadableStream({
+              start(controller) {
+                req.on('data', (chunk) => {
+                  controller.enqueue(new Uint8Array(chunk))
+                })
+                req.on('end', () => {
+                  controller.close()
+                })
+                req.on('error', (err) => {
+                  controller.error(err)
+                })
+              },
+            })
+
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
-            const UndiciRequest = require('next/dist/compiled/undici').Request
-            const fakeRequest = new UndiciRequest('http://localhost', {
+            const fakeRequest = new Request('http://localhost', {
               method: 'POST',
-              headers: { 'Content-Type': req.headers['content-type'] },
-              body: nodeToWebReadableStream(req),
+              // @ts-expect-error
+              headers: { 'Content-Type': contentType },
+              body: readableStream,
               duplex: 'half',
             })
             const formData = await fakeRequest.formData()
@@ -438,21 +475,24 @@ export async function handleAction({
             return
           }
         } else {
-          const { parseBody } =
-            require('../api-utils/node/parse-body') as typeof import('../api-utils/node/parse-body')
+          const chunks = []
 
-          let actionData
-          try {
-            actionData =
-              (await parseBody(req, serverActionsBodySizeLimit ?? '1mb')) || ''
-          } catch (e: any) {
-            if (e && (e as ApiError).statusCode === 413) {
-              // Exceeded the size limit
-              e.message =
-                e.message +
-                '\nTo configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
-            }
-            throw e
+          for await (const chunk of req) {
+            chunks.push(Buffer.from(chunk))
+          }
+
+          const actionData = Buffer.concat(chunks).toString('utf-8')
+
+          const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
+          const limit = require('next/dist/compiled/bytes').parse(readableLimit)
+
+          if (actionData.length > limit) {
+            const { ApiError } = require('../api-utils')
+            throw new ApiError(
+              413,
+              `Body exceeded ${readableLimit} limit.
+To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation`
+            )
           }
 
           if (isURLEncodedAction) {
@@ -476,13 +516,10 @@ export async function handleAction({
       // / -> fire action -> POST / -> appRender1 -> modId for the action file
       // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
 
-      // Get all workers that include this action
-      const actionWorkers =
-        serverActionsManifest[
-          process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-        ][actionId]
-
-      if (!actionWorkers) {
+      let actionModId: string
+      try {
+        actionModId = serverModuleMap[actionId].id
+      } catch (err) {
         // When this happens, it could be a deployment skew where the action came
         // from a different deployment. We'll just return a 404 with a message logged.
         console.error(
@@ -493,7 +530,6 @@ export async function handleAction({
         }
       }
 
-      const actionModId = actionWorkers.workers[workerName]
       const actionHandler =
         ComponentMod.__next_app__.require(actionModId)[actionId]
 

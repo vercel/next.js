@@ -111,6 +111,7 @@ export interface RenderOptsPartial {
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
+  enableTainting?: boolean
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
   nextFontManifest?: NextFontManifest
@@ -131,9 +132,15 @@ export interface RenderOptsPartial {
     rawConfig?: boolean,
     silent?: boolean
   ) => Promise<NextConfigComplete>
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedForwardedHosts?: string[]
+  }
+  allowedForwardedHosts?: string[]
   params?: ParsedUrlQuery
   isPrefetch?: boolean
+  experimental: { ppr: boolean }
+  postponed?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

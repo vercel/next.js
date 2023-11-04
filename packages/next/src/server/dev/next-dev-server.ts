@@ -61,6 +61,8 @@ import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers
 import { NextBuildContext } from '../../build/build-context'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import { DetachedPromise } from '../../lib/detached-promise'
+import { isPostpone } from '../lib/router-utils/is-postpone'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -89,7 +91,7 @@ export default class DevServer extends Server {
    * The promise that resolves when the server is ready. When this is unset
    * the server is ready.
    */
-  private ready? = Promise.withResolvers<void>()
+  private ready? = new DetachedPromise<void>()
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string
@@ -278,6 +280,11 @@ export default class DevServer extends Server {
     setGlobal('telemetry', telemetry)
 
     process.on('unhandledRejection', (reason) => {
+      if (isPostpone(reason)) {
+        // React postpones that are unhandled might end up logged here but they're
+        // not really errors. They're just part of rendering.
+        return
+      }
       this.logErrorWithOriginalStack(reason, 'unhandledRejection').catch(
         () => {}
       )
@@ -501,7 +508,7 @@ export default class DevServer extends Server {
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
-    if (!this.hasAppDir) return undefined
+    if (!this.enabledDirectories.app) return undefined
 
     return (
       NodeManifestLoader.require(
@@ -649,6 +656,7 @@ export default class DevServer extends Server {
 
       try {
         const pathsResult = await staticPathsWorker.loadStaticPaths({
+          dir: this.dir,
           distDir: this.distDir,
           pathname,
           config: {
@@ -667,6 +675,7 @@ export default class DevServer extends Server {
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
           maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+          ppr: this.nextConfig.experimental.ppr === true,
         })
         return pathsResult
       } finally {

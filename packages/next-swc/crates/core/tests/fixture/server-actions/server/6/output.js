@@ -1,4 +1,5 @@
-/* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ import { createActionProxy } from "private-next-rsc-action-proxy";
+/* __next_internal_action_entry_do_not_use__ {"6d53ce510b2e36499b8f56038817b9bad86cabb4":"$$ACTION_0"} */ import { createActionProxy } from "private-next-rsc-action-proxy";
+import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import f, { f1, f2 } from 'foo';
 const f3 = 1;
 var f4;
@@ -22,16 +23,19 @@ export function y(p, [p1, { p2 }], ...p3) {
         return $$ACTION_0.apply(null, (action.$$bound || []).concat(args));
     }
     createActionProxy("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
-        f2,
-        f11,
-        p,
-        p1,
-        p2,
-        p3
+        encryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
+            f2,
+            f11,
+            p,
+            p1,
+            p2,
+            p3
+        ])
     ], action, $$ACTION_0);
     return <Button action={action}>Delete</Button>;
 }
-export async function $$ACTION_0($$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2, $$ACTION_ARG_3, $$ACTION_ARG_4, $$ACTION_ARG_5) {
+export async function $$ACTION_0($$ACTION_CLOSURE_BOUND) {
+    var [$$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2, $$ACTION_ARG_3, $$ACTION_ARG_4, $$ACTION_ARG_5] = await decryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_CLOSURE_BOUND);
     const f17 = 1;
     if (true) {
         const f18 = 1;

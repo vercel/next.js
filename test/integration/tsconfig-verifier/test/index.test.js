@@ -26,38 +26,38 @@ import path from 'path'
       expect(code).toBe(0)
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
-        \\"compilerOptions\\": {
-          \\"lib\\": [
-            \\"dom\\",
-            \\"dom.iterable\\",
-            \\"esnext\\"
+        "compilerOptions": {
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
           ],
-          \\"allowJs\\": true,
-          \\"skipLibCheck\\": true,
-          \\"strict\\": false,
-          \\"noEmit\\": true,
-          \\"incremental\\": true,
-          \\"esModuleInterop\\": true,
-          \\"module\\": \\"esnext\\",
-          \\"moduleResolution\\": \\"node\\",
-          \\"resolveJsonModule\\": true,
-          \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\",
-          \\"plugins\\": [
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "noEmit": true,
+          "incremental": true,
+          "esModuleInterop": true,
+          "module": "esnext",
+          "moduleResolution": "node",
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "jsx": "preserve",
+          "plugins": [
             {
-              \\"name\\": \\"next\\"
+              "name": "next"
             }
           ],
-          \\"strictNullChecks\\": true
+          "strictNullChecks": true
         },
-        \\"include\\": [
-          \\"next-env.d.ts\\",
-          \\".next/types/**/*.ts\\",
-          \\"**/*.ts\\",
-          \\"**/*.tsx\\"
+        "include": [
+          "next-env.d.ts",
+          ".next/types/**/*.ts",
+          "**/*.ts",
+          "**/*.tsx"
         ],
-        \\"exclude\\": [
-          \\"node_modules\\"
+        "exclude": [
+          "node_modules"
         ]
       }
       "
@@ -80,38 +80,38 @@ import path from 'path'
 
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
-        \\"compilerOptions\\": {
-          \\"lib\\": [
-            \\"dom\\",
-            \\"dom.iterable\\",
-            \\"esnext\\"
+        "compilerOptions": {
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
           ],
-          \\"allowJs\\": true,
-          \\"skipLibCheck\\": true,
-          \\"strict\\": false,
-          \\"noEmit\\": true,
-          \\"incremental\\": true,
-          \\"esModuleInterop\\": true,
-          \\"module\\": \\"esnext\\",
-          \\"moduleResolution\\": \\"node\\",
-          \\"resolveJsonModule\\": true,
-          \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\",
-          \\"plugins\\": [
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "noEmit": true,
+          "incremental": true,
+          "esModuleInterop": true,
+          "module": "esnext",
+          "moduleResolution": "node",
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "jsx": "preserve",
+          "plugins": [
             {
-              \\"name\\": \\"next\\"
+              "name": "next"
             }
           ],
-          \\"strictNullChecks\\": true
+          "strictNullChecks": true
         },
-        \\"include\\": [
-          \\"next-env.d.ts\\",
-          \\".next/types/**/*.ts\\",
-          \\"**/*.ts\\",
-          \\"**/*.tsx\\"
+        "include": [
+          "next-env.d.ts",
+          ".next/types/**/*.ts",
+          "**/*.ts",
+          "**/*.tsx"
         ],
-        \\"exclude\\": [
-          \\"node_modules\\"
+        "exclude": [
+          "node_modules"
         ]
       }
       "
@@ -148,43 +148,43 @@ import path from 'path'
       "// top-level comment
       {
         // in-object comment 1
-        \\"compilerOptions\\": {
+        "compilerOptions": {
           // in-object comment
-          \\"esModuleInterop\\": true, // this should be true
-          \\"module\\": \\"esnext\\" // should not be umd
+          "esModuleInterop": true, // this should be true
+          "module": "esnext" // should not be umd
           // end-object comment
           ,
-          \\"lib\\": [
-            \\"dom\\",
-            \\"dom.iterable\\",
-            \\"esnext\\"
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
           ],
-          \\"allowJs\\": true,
-          \\"skipLibCheck\\": true,
-          \\"strict\\": false,
-          \\"noEmit\\": true,
-          \\"incremental\\": true,
-          \\"moduleResolution\\": \\"node\\",
-          \\"resolveJsonModule\\": true,
-          \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\",
-          \\"plugins\\": [
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "noEmit": true,
+          "incremental": true,
+          "moduleResolution": "node",
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "jsx": "preserve",
+          "plugins": [
             {
-              \\"name\\": \\"next\\"
+              "name": "next"
             }
           ],
-          \\"strictNullChecks\\": true
+          "strictNullChecks": true
         }
         // in-object comment 2
         ,
-        \\"include\\": [
-          \\"next-env.d.ts\\",
-          \\".next/types/**/*.ts\\",
-          \\"**/*.ts\\",
-          \\"**/*.tsx\\"
+        "include": [
+          "next-env.d.ts",
+          ".next/types/**/*.ts",
+          "**/*.ts",
+          "**/*.tsx"
         ],
-        \\"exclude\\": [
-          \\"node_modules\\"
+        "exclude": [
+          "node_modules"
         ]
       }
       // end comment
@@ -205,38 +205,38 @@ import path from 'path'
 
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
-        \\"compilerOptions\\": {
-          \\"esModuleInterop\\": true,
-          \\"module\\": \\"commonjs\\",
-          \\"lib\\": [
-            \\"dom\\",
-            \\"dom.iterable\\",
-            \\"esnext\\"
+        "compilerOptions": {
+          "esModuleInterop": true,
+          "module": "commonjs",
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
           ],
-          \\"allowJs\\": true,
-          \\"skipLibCheck\\": true,
-          \\"strict\\": false,
-          \\"noEmit\\": true,
-          \\"incremental\\": true,
-          \\"moduleResolution\\": \\"node\\",
-          \\"resolveJsonModule\\": true,
-          \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\",
-          \\"plugins\\": [
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "noEmit": true,
+          "incremental": true,
+          "moduleResolution": "node",
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "jsx": "preserve",
+          "plugins": [
             {
-              \\"name\\": \\"next\\"
+              "name": "next"
             }
           ],
-          \\"strictNullChecks\\": true
+          "strictNullChecks": true
         },
-        \\"include\\": [
-          \\"next-env.d.ts\\",
-          \\".next/types/**/*.ts\\",
-          \\"**/*.ts\\",
-          \\"**/*.tsx\\"
+        "include": [
+          "next-env.d.ts",
+          ".next/types/**/*.ts",
+          "**/*.ts",
+          "**/*.tsx"
         ],
-        \\"exclude\\": [
-          \\"node_modules\\"
+        "exclude": [
+          "node_modules"
         ]
       }
       "
@@ -256,38 +256,38 @@ import path from 'path'
 
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
-        \\"compilerOptions\\": {
-          \\"esModuleInterop\\": true,
-          \\"module\\": \\"es2020\\",
-          \\"lib\\": [
-            \\"dom\\",
-            \\"dom.iterable\\",
-            \\"esnext\\"
+        "compilerOptions": {
+          "esModuleInterop": true,
+          "module": "es2020",
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
           ],
-          \\"allowJs\\": true,
-          \\"skipLibCheck\\": true,
-          \\"strict\\": false,
-          \\"noEmit\\": true,
-          \\"incremental\\": true,
-          \\"moduleResolution\\": \\"node\\",
-          \\"resolveJsonModule\\": true,
-          \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\",
-          \\"plugins\\": [
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "noEmit": true,
+          "incremental": true,
+          "moduleResolution": "node",
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "jsx": "preserve",
+          "plugins": [
             {
-              \\"name\\": \\"next\\"
+              "name": "next"
             }
           ],
-          \\"strictNullChecks\\": true
+          "strictNullChecks": true
         },
-        \\"include\\": [
-          \\"next-env.d.ts\\",
-          \\".next/types/**/*.ts\\",
-          \\"**/*.ts\\",
-          \\"**/*.tsx\\"
+        "include": [
+          "next-env.d.ts",
+          ".next/types/**/*.ts",
+          "**/*.ts",
+          "**/*.tsx"
         ],
-        \\"exclude\\": [
-          \\"node_modules\\"
+        "exclude": [
+          "node_modules"
         ]
       }
       "
@@ -311,38 +311,38 @@ import path from 'path'
 
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
-        \\"compilerOptions\\": {
-          \\"esModuleInterop\\": true,
-          \\"moduleResolution\\": \\"node16\\",
-          \\"module\\": \\"node16\\",
-          \\"lib\\": [
-            \\"dom\\",
-            \\"dom.iterable\\",
-            \\"esnext\\"
+        "compilerOptions": {
+          "esModuleInterop": true,
+          "moduleResolution": "node16",
+          "module": "node16",
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
           ],
-          \\"allowJs\\": true,
-          \\"skipLibCheck\\": true,
-          \\"strict\\": false,
-          \\"noEmit\\": true,
-          \\"incremental\\": true,
-          \\"resolveJsonModule\\": true,
-          \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\",
-          \\"plugins\\": [
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "noEmit": true,
+          "incremental": true,
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "jsx": "preserve",
+          "plugins": [
             {
-              \\"name\\": \\"next\\"
+              "name": "next"
             }
           ],
-          \\"strictNullChecks\\": true
+          "strictNullChecks": true
         },
-        \\"include\\": [
-          \\"next-env.d.ts\\",
-          \\".next/types/**/*.ts\\",
-          \\"**/*.ts\\",
-          \\"**/*.tsx\\"
+        "include": [
+          "next-env.d.ts",
+          ".next/types/**/*.ts",
+          "**/*.ts",
+          "**/*.tsx"
         ],
-        \\"exclude\\": [
-          \\"node_modules\\"
+        "exclude": [
+          "node_modules"
         ]
       }
       "
@@ -366,38 +366,38 @@ import path from 'path'
 
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
-        \\"compilerOptions\\": {
-          \\"esModuleInterop\\": true,
-          \\"moduleResolution\\": \\"bundler\\",
-          \\"lib\\": [
-            \\"dom\\",
-            \\"dom.iterable\\",
-            \\"esnext\\"
+        "compilerOptions": {
+          "esModuleInterop": true,
+          "moduleResolution": "bundler",
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
           ],
-          \\"allowJs\\": true,
-          \\"skipLibCheck\\": true,
-          \\"strict\\": false,
-          \\"noEmit\\": true,
-          \\"incremental\\": true,
-          \\"module\\": \\"esnext\\",
-          \\"resolveJsonModule\\": true,
-          \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\",
-          \\"plugins\\": [
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "noEmit": true,
+          "incremental": true,
+          "module": "esnext",
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "jsx": "preserve",
+          "plugins": [
             {
-              \\"name\\": \\"next\\"
+              "name": "next"
             }
           ],
-          \\"strictNullChecks\\": true
+          "strictNullChecks": true
         },
-        \\"include\\": [
-          \\"next-env.d.ts\\",
-          \\".next/types/**/*.ts\\",
-          \\"**/*.ts\\",
-          \\"**/*.tsx\\"
+        "include": [
+          "next-env.d.ts",
+          ".next/types/**/*.ts",
+          "**/*.ts",
+          "**/*.tsx"
         ],
-        \\"exclude\\": [
-          \\"node_modules\\"
+        "exclude": [
+          "node_modules"
         ]
       }
       "
@@ -418,39 +418,39 @@ import path from 'path'
 
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
-        \\"compilerOptions\\": {
-          \\"target\\": \\"es2022\\",
-          \\"lib\\": [
-            \\"dom\\",
-            \\"dom.iterable\\",
-            \\"esnext\\"
+        "compilerOptions": {
+          "target": "es2022",
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
           ],
-          \\"allowJs\\": true,
-          \\"skipLibCheck\\": true,
-          \\"strict\\": false,
-          \\"noEmit\\": true,
-          \\"incremental\\": true,
-          \\"esModuleInterop\\": true,
-          \\"module\\": \\"esnext\\",
-          \\"moduleResolution\\": \\"node\\",
-          \\"resolveJsonModule\\": true,
-          \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\",
-          \\"plugins\\": [
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "noEmit": true,
+          "incremental": true,
+          "esModuleInterop": true,
+          "module": "esnext",
+          "moduleResolution": "node",
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "jsx": "preserve",
+          "plugins": [
             {
-              \\"name\\": \\"next\\"
+              "name": "next"
             }
           ],
-          \\"strictNullChecks\\": true
+          "strictNullChecks": true
         },
-        \\"include\\": [
-          \\"next-env.d.ts\\",
-          \\".next/types/**/*.ts\\",
-          \\"**/*.ts\\",
-          \\"**/*.tsx\\"
+        "include": [
+          "next-env.d.ts",
+          ".next/types/**/*.ts",
+          "**/*.ts",
+          "**/*.tsx"
         ],
-        \\"exclude\\": [
-          \\"node_modules\\"
+        "exclude": [
+          "node_modules"
         ]
       }
       "
@@ -474,38 +474,38 @@ import path from 'path'
 
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
-        \\"compilerOptions\\": {
-          \\"esModuleInterop\\": true,
-          \\"module\\": \\"node16\\",
-          \\"moduleResolution\\": \\"node16\\",
-          \\"lib\\": [
-            \\"dom\\",
-            \\"dom.iterable\\",
-            \\"esnext\\"
+        "compilerOptions": {
+          "esModuleInterop": true,
+          "module": "node16",
+          "moduleResolution": "node16",
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
           ],
-          \\"allowJs\\": true,
-          \\"skipLibCheck\\": true,
-          \\"strict\\": false,
-          \\"noEmit\\": true,
-          \\"incremental\\": true,
-          \\"resolveJsonModule\\": true,
-          \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\",
-          \\"plugins\\": [
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "noEmit": true,
+          "incremental": true,
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "jsx": "preserve",
+          "plugins": [
             {
-              \\"name\\": \\"next\\"
+              "name": "next"
             }
           ],
-          \\"strictNullChecks\\": true
+          "strictNullChecks": true
         },
-        \\"include\\": [
-          \\"next-env.d.ts\\",
-          \\".next/types/**/*.ts\\",
-          \\"**/*.ts\\",
-          \\"**/*.tsx\\"
+        "include": [
+          "next-env.d.ts",
+          ".next/types/**/*.ts",
+          "**/*.ts",
+          "**/*.tsx"
         ],
-        \\"exclude\\": [
-          \\"node_modules\\"
+        "exclude": [
+          "node_modules"
         ]
       }
       "
@@ -529,38 +529,38 @@ import path from 'path'
 
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
-        \\"compilerOptions\\": {
-          \\"verbatimModuleSyntax\\": true,
-          \\"lib\\": [
-            \\"dom\\",
-            \\"dom.iterable\\",
-            \\"esnext\\"
+        "compilerOptions": {
+          "verbatimModuleSyntax": true,
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
           ],
-          \\"allowJs\\": true,
-          \\"skipLibCheck\\": true,
-          \\"strict\\": false,
-          \\"noEmit\\": true,
-          \\"incremental\\": true,
-          \\"esModuleInterop\\": true,
-          \\"module\\": \\"esnext\\",
-          \\"moduleResolution\\": \\"node\\",
-          \\"resolveJsonModule\\": true,
-          \\"jsx\\": \\"preserve\\",
-          \\"plugins\\": [
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "noEmit": true,
+          "incremental": true,
+          "esModuleInterop": true,
+          "module": "esnext",
+          "moduleResolution": "node",
+          "resolveJsonModule": true,
+          "jsx": "preserve",
+          "plugins": [
             {
-              \\"name\\": \\"next\\"
+              "name": "next"
             }
           ],
-          \\"strictNullChecks\\": true
+          "strictNullChecks": true
         },
-        \\"include\\": [
-          \\"next-env.d.ts\\",
-          \\".next/types/**/*.ts\\",
-          \\"**/*.ts\\",
-          \\"**/*.tsx\\"
+        "include": [
+          "next-env.d.ts",
+          ".next/types/**/*.ts",
+          "**/*.ts",
+          "**/*.tsx"
         ],
-        \\"exclude\\": [
-          \\"node_modules\\"
+        "exclude": [
+          "node_modules"
         ]
       }
       "
@@ -586,38 +586,38 @@ import path from 'path'
 
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
         "{
-          \\"extends\\": \\"./tsconfig.base.json\\",
-          \\"compilerOptions\\": {
-            \\"lib\\": [
-              \\"dom\\",
-              \\"dom.iterable\\",
-              \\"esnext\\"
+          "extends": "./tsconfig.base.json",
+          "compilerOptions": {
+            "lib": [
+              "dom",
+              "dom.iterable",
+              "esnext"
             ],
-            \\"allowJs\\": true,
-            \\"skipLibCheck\\": true,
-            \\"strict\\": false,
-            \\"noEmit\\": true,
-            \\"incremental\\": true,
-            \\"esModuleInterop\\": true,
-            \\"module\\": \\"esnext\\",
-            \\"moduleResolution\\": \\"node\\",
-            \\"resolveJsonModule\\": true,
-            \\"jsx\\": \\"preserve\\",
-            \\"plugins\\": [
+            "allowJs": true,
+            "skipLibCheck": true,
+            "strict": false,
+            "noEmit": true,
+            "incremental": true,
+            "esModuleInterop": true,
+            "module": "esnext",
+            "moduleResolution": "node",
+            "resolveJsonModule": true,
+            "jsx": "preserve",
+            "plugins": [
               {
-                \\"name\\": \\"next\\"
+                "name": "next"
               }
             ],
-            \\"strictNullChecks\\": true
+            "strictNullChecks": true
           },
-          \\"include\\": [
-            \\"next-env.d.ts\\",
-            \\".next/types/**/*.ts\\",
-            \\"**/*.ts\\",
-            \\"**/*.tsx\\"
+          "include": [
+            "next-env.d.ts",
+            ".next/types/**/*.ts",
+            "**/*.ts",
+            "**/*.tsx"
           ],
-          \\"exclude\\": [
-            \\"node_modules\\"
+          "exclude": [
+            "node_modules"
           ]
         }
         "
@@ -682,7 +682,7 @@ import path from 'path'
       expect(code).toBe(0)
 
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(
-        `"{ \\"extends\\": \\"./tsconfig.base.json\\" }"`
+        `"{ "extends": "./tsconfig.base.json" }"`
       )
     })
 
@@ -744,10 +744,10 @@ import path from 'path'
 
       expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
-        \\"extends\\": \\"./tsconfig.base.json\\",
-        \\"compilerOptions\\": {
-          \\"incremental\\": true,
-          \\"strictNullChecks\\": true
+        "extends": "./tsconfig.base.json",
+        "compilerOptions": {
+          "incremental": true,
+          "strictNullChecks": true
         }
       }
       "

@@ -1,7 +1,8 @@
 const os = require('os')
 const path = require('path')
 const _glob = require('glob')
-const fs = require('fs-extra')
+const { existsSync } = require('fs')
+const fsp = require('fs/promises')
 const nodeFetch = require('node-fetch')
 const vercelFetch = require('@vercel/fetch')
 const fetch = vercelFetch(nodeFetch)
@@ -36,7 +37,7 @@ const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
 // Check env to see if test should continue even if some of test fails
 const shouldContinueTestsOnError = !!process.env.NEXT_TEST_CONTINUE_ON_ERROR
-// Check env to load a list of test paths to skip retry. This is to be used in conjuction with NEXT_TEST_CONTINUE_ON_ERROR,
+// Check env to load a list of test paths to skip retry. This is to be used in conjunction with NEXT_TEST_CONTINUE_ON_ERROR,
 // When try to run all of the tests regardless of pass / fail and want to skip retrying `known` failed tests.
 // manifest should be a json file with an array of test paths.
 const skipRetryTestManifest = process.env.NEXT_TEST_SKIP_RETRY_MANIFEST
@@ -116,10 +117,16 @@ ${output}
 
 const cleanUpAndExit = async (code) => {
   if (process.env.NEXT_TEST_STARTER) {
-    await fs.remove(process.env.NEXT_TEST_STARTER)
+    await fsp.rm(process.env.NEXT_TEST_STARTER, {
+      recursive: true,
+      force: true,
+    })
   }
   if (process.env.NEXT_TEST_TEMP_REPO) {
-    await fs.remove(process.env.NEXT_TEST_TEMP_REPO)
+    await fsp.rm(process.env.NEXT_TEST_TEMP_REPO, {
+      recursive: true,
+      force: true,
+    })
   }
   if (process.env.CI) {
     await maybeLogSummary()
@@ -250,7 +257,7 @@ async function main() {
     try {
       const timingsFile = path.join(process.cwd(), 'test-timings.json')
       try {
-        prevTimings = JSON.parse(await fs.readFile(timingsFile, 'utf8'))
+        prevTimings = JSON.parse(await fsp.readFile(timingsFile, 'utf8'))
         console.log('Loaded test timings from disk successfully')
       } catch (_) {
         console.error('failed to load from disk', _)
@@ -261,7 +268,7 @@ async function main() {
         console.log('Fetched previous timings data successfully')
 
         if (writeTimings) {
-          await fs.writeFile(timingsFile, JSON.stringify(prevTimings))
+          await fsp.writeFile(timingsFile, JSON.stringify(prevTimings))
           console.log('Wrote previous timings data to', timingsFile)
           await cleanUpAndExit(0)
         }
@@ -544,15 +551,16 @@ ${ENDGROUP}`)
 
           return reject(err)
         }
-        await fs
-          .remove(
+        await fsp
+          .rm(
             path.join(
               __dirname,
               'test/traces',
               path
                 .relative(path.join(__dirname, 'test'), test.file)
                 .replace(/\//g, '-')
-            )
+            ),
+            { recursive: true, force: true }
           )
           .catch(() => {})
         resolve(new Date().getTime() - start)
@@ -645,7 +653,7 @@ ${ENDGROUP}`)
       // Emit test output if test failed or if we're continuing tests on error
       if ((!passed || shouldContinueTestsOnError) && isTestJob) {
         try {
-          const testsOutput = await fs.readFile(
+          const testsOutput = await fsp.readFile(
             `${test.file}${RESULTS_EXT}`,
             'utf8'
           )
@@ -708,7 +716,7 @@ ${ENDGROUP}`)
         }
 
         for (const test of Object.keys(newTimings)) {
-          if (!(await fs.pathExists(path.join(__dirname, test)))) {
+          if (!existsSync(path.join(__dirname, test))) {
             console.log('removing stale timing', test)
             delete newTimings[test]
           }

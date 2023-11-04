@@ -12,6 +12,10 @@ import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context.shar
 import onRecoverableError from './on-recoverable-error'
 import { callServer } from './app-call-server'
 import { isNextRouterError } from './components/is-next-router-error'
+import {
+  ActionQueueContext,
+  createMutableActionQueue,
+} from '../shared/lib/router/action-queue'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
@@ -222,6 +226,8 @@ export function hydrate() {
     }
   }
 
+  const actionQueue = createMutableActionQueue()
+
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider
@@ -229,9 +235,11 @@ export function hydrate() {
           appDir: true,
         }}
       >
-        <Root>
-          <RSCComponent />
-        </Root>
+        <ActionQueueContext.Provider value={actionQueue}>
+          <Root>
+            <RSCComponent />
+          </Root>
+        </ActionQueueContext.Provider>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
   )

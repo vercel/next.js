@@ -19,4 +19,6 @@ export type YouTubeEmbed = {
   width?: number
   videoid: string
   playlabel?: string
+  params?: string
+  style?: string
 }

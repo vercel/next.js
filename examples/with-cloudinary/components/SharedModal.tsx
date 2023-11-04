@@ -81,7 +81,7 @@ export default function SharedModal({
                   height={navigation ? 853 : 1280}
                   priority
                   alt="Next.js Conf image"
-                  onLoadingComplete={() => setLoaded(true)}
+                  onLoad={() => setLoaded(true)}
                 />
               </motion.div>
             </AnimatePresence>
