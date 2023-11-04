@@ -164,9 +164,46 @@ export default async function RemoteMdxPage() {
   return <MDXRemote source={markdown} />
 }
 ```
-
 </AppOnly>
 
+The following example demonstrates how to integrate remark and rehype plugins into Next.js for utilizing extended Markdown syntax with remote MDX
+
+<AppOnly>
+
+```tsx filename="app/my-mdx-page-remote/page.tsx" switcher
+const options = {
+  mdxOptions: {
+// you can add the necessary plugins to the array.
+    remarkPlugins: [],
+    rehypePlugins: [],
+  },
+};
+return (
+<MDXRemote
+      options={options}
+      components={components}
+    />
+),
+
+```
+
+```jsx filename="app/my-mdx-page-remote/page.js" switcher
+const options = {
+  mdxOptions: {
+    remarkPlugins: [],
+    rehypePlugins: [],
+  },
+};
+return (
+<MDXRemote
+      options={options}
+      components={components}
+    />
+),
+
+```
+
+</AppOnly>
 <PagesOnly>
 
 ```tsx filename="pages/my-mdx-page-remote.tsx" switcher
@@ -215,7 +252,8 @@ Navigating to the `/my-mdx-page-remote` route should display your rendered MDX.
 
 <AppOnly>
 
-To share a layout amongst MDX pages, you can use the [built-in layouts support](/docs/app/building-your-application/routing/pages-and-layouts#layouts) with the App Router.
+To share a layout amongst MDX pages, you can use the [built-in layouts support](/docs/app/building-your-application/routing/
+pages-and-layouts#layouts) with the App Router.
 
 ```tsx filename="app/my-mdx-page/layout.tsx" switcher
 export default function MdxLayout({ children }: { children: React.ReactNode }) {
