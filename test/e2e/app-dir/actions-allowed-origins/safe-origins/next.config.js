@@ -6,7 +6,7 @@ module.exports = {
   },
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000'],
+      allowedOrigins: ['localhost:41831'],
     },
   },
 }

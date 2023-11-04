@@ -12,6 +12,8 @@ createNextDescribe(
       'react-dom': 'latest',
       'server-only': 'latest',
     },
+    // An arbitrary & random port.
+    forcedPort: '41831',
   },
   ({ next }) => {
     it('should pass if localhost is set as a safe origin', async function () {
