@@ -5,7 +5,7 @@ import { check } from 'next-test-utils'
 createNextDescribe(
   'asset-prefix',
   {
-    files: join(__dirname, 'asset-prefix'),
+    files: join(__dirname, 'fixture'),
   },
   ({ next }) => {
     it('should load the app properly without reloading', async () => {

@@ -14,9 +14,7 @@ import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
-
-const { AppRouteRouteModule } =
-  require('../future/route-modules/app-route/module.compiled') as typeof import('../future/route-modules/app-route/module')
+import { isAppRouteRouteModule } from '../future/route-modules/checks'
 
 type RuntimeConfig = {
   configFileName: string
@@ -88,7 +86,7 @@ export async function loadStaticPaths({
   if (isAppPath) {
     const { routeModule } = components
     const generateParams: GenerateParams =
-      routeModule && AppRouteRouteModule.is(routeModule)
+      routeModule && isAppRouteRouteModule(routeModule)
         ? [
             {
               config: {

@@ -522,7 +522,7 @@ export function patchFetch({
           const entry = staticGenerationStore.isOnDemandRevalidate
             ? null
             : await staticGenerationStore.incrementalCache.get(cacheKey, {
-                fetchCache: true,
+                kindHint: 'fetch',
                 revalidate,
                 fetchUrl,
                 fetchIdx,
