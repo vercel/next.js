@@ -7,12 +7,12 @@ if (typeof window !== 'undefined') {
   // hijack fetch
   const originalFetch = window.fetch
   window.fetch = function (url, init) {
-    if (window.__override_forwarded_host && init?.method === 'POST') {
+    if (init?.method === 'POST') {
       console.log('fetch', url, init)
 
       // override forwarded host
       init.headers = init.headers || {}
-      init.headers['x-forwarded-host'] = window.__override_forwarded_host
+      init.headers['x-forwarded-host'] = 'my-proxy.com'
     }
 
     return originalFetch(url, init)

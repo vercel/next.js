@@ -250,7 +250,7 @@ type BaseRenderOpts = {
   clientReferenceManifest?: ClientReferenceManifest
   serverActions?: {
     bodySizeLimit?: SizeLimit
-    allowedForwardedHosts?: string[]
+    allowedOrigins?: string[]
   }
   serverActionsManifest?: any
   nextFontManifest?: NextFontManifest
