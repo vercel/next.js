@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { createNextDescribe, FileRef } from 'e2e-utils'
+import { createNextDescribe } from 'e2e-utils'
 import { shouldRunTurboDevTest } from 'next-test-utils'
 
 createNextDescribe(
@@ -8,19 +8,7 @@ createNextDescribe(
     env: {
       NEXT_TEST_MODE: '1',
     },
-    files: {
-      app: new FileRef(join(__dirname, 'barrel-optimization/app')),
-      pages: new FileRef(join(__dirname, 'barrel-optimization/pages')),
-      components: new FileRef(
-        join(__dirname, 'barrel-optimization/components')
-      ),
-      'next.config.js': new FileRef(
-        join(__dirname, 'barrel-optimization/next.config.js')
-      ),
-      node_modules_bak: new FileRef(
-        join(__dirname, 'barrel-optimization/node_modules_bak')
-      ),
-    },
+    files: join(__dirname, 'fixture'),
     packageJson: {
       scripts: {
         setup: `cp -r ./node_modules_bak/* ./node_modules`,
