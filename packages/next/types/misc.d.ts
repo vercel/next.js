@@ -174,10 +174,6 @@ declare module 'next/dist/compiled/babel/preset-env' {
   const anyType: any
   export default anyType
 }
-declare module 'watchpack' {
-  const anyType: any
-  export default anyType
-}
 declare module 'next/dist/compiled/babel/core' {
   export * from '@babel/core'
 }
@@ -442,7 +438,7 @@ declare namespace NodeJS {
   }
 }
 
-declare module 'next/dist/compiled/watchpack' {
+declare module 'watchpack' {
   import { EventEmitter } from 'events'
 
   class Watchpack extends EventEmitter {
