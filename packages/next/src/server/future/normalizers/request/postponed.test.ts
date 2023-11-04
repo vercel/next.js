@@ -4,9 +4,9 @@ describe('PostponedPathnameNormalizer', () => {
   describe('match', () => {
     it('should not match if it is disabled', () => {
       const pathnames = [
-        '/_next/postponed/foo',
-        '/_next/postponed/bar',
-        '/_next/postponed/baz',
+        '/_next/postponed/resume/foo',
+        '/_next/postponed/resume/bar',
+        '/_next/postponed/resume/baz',
       ]
       const normalizer = new PostponedPathnameNormalizer(false)
       for (const pathname of pathnames) {
@@ -16,9 +16,9 @@ describe('PostponedPathnameNormalizer', () => {
 
     it('should match if it is enabled', () => {
       const pathnames = [
-        '/_next/postponed/foo',
-        '/_next/postponed/bar',
-        '/_next/postponed/baz',
+        '/_next/postponed/resume/foo',
+        '/_next/postponed/resume/bar',
+        '/_next/postponed/resume/baz',
       ]
       const normalizer = new PostponedPathnameNormalizer(true)
       for (const pathname of pathnames) {
@@ -38,9 +38,9 @@ describe('PostponedPathnameNormalizer', () => {
   describe('normalize', () => {
     it('should not normalize if it is disabled', () => {
       const pathnames = [
-        '/_next/postponed/foo',
-        '/_next/postponed/bar',
-        '/_next/postponed/baz',
+        '/_next/postponed/resume/foo',
+        '/_next/postponed/resume/bar',
+        '/_next/postponed/resume/baz',
       ]
       const normalizer = new PostponedPathnameNormalizer(false)
       for (const pathname of pathnames) {
@@ -60,15 +60,17 @@ describe('PostponedPathnameNormalizer', () => {
       const pathnames = ['/foo', '/bar', '/baz']
       const normalizer = new PostponedPathnameNormalizer(true)
       for (const pathname of pathnames) {
-        expect(normalizer.normalize(`/_next/postponed${pathname}`, true)).toBe(
-          pathname
-        )
+        expect(
+          normalizer.normalize(`/_next/postponed/resume${pathname}`, true)
+        ).toBe(pathname)
       }
     })
 
     it('should normalize `/index` to `/`', () => {
       const normalizer = new PostponedPathnameNormalizer(true)
-      expect(normalizer.normalize('/_next/postponed/index', true)).toBe('/')
+      expect(normalizer.normalize('/_next/postponed/resume/index', true)).toBe(
+        '/'
+      )
     })
   })
 })

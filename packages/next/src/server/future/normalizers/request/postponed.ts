@@ -1,5 +1,7 @@
 import type { PathnameNormalizer } from './pathname-normalizer'
 
+const prefix = '/_next/postponed/resume'
+
 export class PostponedPathnameNormalizer implements PathnameNormalizer {
   constructor(private readonly ppr: boolean | undefined) {}
 
@@ -8,7 +10,7 @@ export class PostponedPathnameNormalizer implements PathnameNormalizer {
     if (!this.ppr) return false
 
     // If the pathname doesn't start with the prefix, we don't match.
-    if (!pathname.startsWith('/_next/postponed')) return false
+    if (!pathname.startsWith(prefix)) return false
 
     return true
   }
@@ -21,7 +23,7 @@ export class PostponedPathnameNormalizer implements PathnameNormalizer {
     if (!matched && !this.match(pathname)) return pathname
 
     // Remove the prefix.
-    pathname = pathname.substring('/_next/postponed'.length) || '/'
+    pathname = pathname.substring(prefix.length) || '/'
 
     // If the pathname is equal to `/index`, we normalize it to `/`.
     if (pathname === '/index') return '/'
