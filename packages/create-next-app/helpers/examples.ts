@@ -1,7 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import got from 'got'
 import tar from 'tar'
-import { Stream } from 'stream'
+import { Stream, Readable } from 'stream'
 import { promisify } from 'util'
 import { join } from 'path'
 import { tmpdir } from 'os'
@@ -17,8 +16,15 @@ export type RepoInfo = {
 }
 
 export async function isUrlOk(url: string): Promise<boolean> {
-  const res = await got.head(url).catch((e) => e)
-  return res.statusCode === 200
+  try {
+    const res = await fetch(url, { method: 'HEAD' })
+    if (res.status !== 200) {
+      return false
+    }
+    return true
+  } catch {
+    return false
+  }
 }
 
 export async function getRepoInfo(
@@ -37,14 +43,19 @@ export async function getRepoInfo(
     // In this case "t" will be an empty string while the next part "_branch" will be undefined
     (t === '' && _branch === undefined)
   ) {
-    const infoResponse = await got(
-      `https://api.github.com/repos/${username}/${name}`
-    ).catch((e) => e)
-    if (infoResponse.statusCode !== 200) {
+    try {
+      const infoResponse = await fetch(
+        `https://api.github.com/repos/${username}/${name}`
+      )
+      if (infoResponse.status !== 200) {
+        return
+      }
+
+      const info = await infoResponse.json()
+      return { username, name, branch: info['default_branch'], filePath }
+    } catch {
       return
     }
-    const info = JSON.parse(infoResponse.body)
-    return { username, name, branch: info['default_branch'], filePath }
   }
 
   // If examplePath is available, the branch name takes the entire path
@@ -84,7 +95,18 @@ export function existsInRepo(nameOrUrl: string): Promise<boolean> {
 
 async function downloadTar(url: string) {
   const tempFile = join(tmpdir(), `next.js-cna-example.temp-${Date.now()}`)
-  await pipeline(got.stream(url), createWriteStream(tempFile))
+
+  const resp = await fetch(url)
+
+  if (!resp.body) {
+    throw new Error(`Failed to download: ${url}`)
+  }
+
+  await pipeline(
+    Readable.fromWeb(resp.body as import('stream/web').ReadableStream),
+    createWriteStream(tempFile)
+  )
+
   return tempFile
 }
 
