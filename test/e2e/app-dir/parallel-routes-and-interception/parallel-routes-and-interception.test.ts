@@ -339,6 +339,41 @@ createNextDescribe(
         )
       })
 
+      describe('on soft navigation', () => {
+        it('should apply the catch-all slot to the parallel route that has only the children slot', async () => {
+          const browser = await next.browser('/parallel-catchall-slot-only')
+
+          await browser
+            .elementByCss('[href="/parallel-catchall-slot-only/foo"]')
+            .click()
+          await check(() => browser.waitForElementByCss('#main').text(), 'foo')
+          await check(
+            () => browser.waitForElementByCss('#slot-content').text(),
+            'slot catchall'
+          )
+        })
+      })
+
+      describe('on hard navigation', () => {
+        it('should apply the catch-all slot to the parallel route that has only the children slot', async () => {
+          const browser = await next.browser('/parallel-catchall-slot-only/foo')
+
+          await check(() => browser.waitForElementByCss('#main').text(), 'foo')
+          await check(
+            () => browser.waitForElementByCss('#slot-content').text(),
+            'slot catchall'
+          )
+        })
+      })
+
+      it('should throw a 404 when no children slot available', async () => {
+        const browser = await next.browser('/parallel-catchall-slot-only/bar')
+
+        expect(await browser.elementByCss('body').text()).toMatch(
+          /This page could not be found/
+        )
+      })
+
       it('should navigate with a link with prefetch=false', async () => {
         const browser = await next.browser('/parallel-prefetch-false')
 
