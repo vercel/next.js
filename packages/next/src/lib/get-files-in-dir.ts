@@ -10,7 +10,7 @@ export async function getFilesInDir(path: string): Promise<string[]> {
     let resolvedFile: Dirent | StatsBase<number> = file
 
     if (file.isSymbolicLink()) {
-      resolvedFile = await fs.stat(await fs.realpath(join(path, file.name)))
+      resolvedFile = await fs.stat(join(path, file.name))
     }
 
     if (resolvedFile.isFile()) {

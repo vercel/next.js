@@ -27,6 +27,11 @@ const setupTestDir = async () => {
   await fs.outputFile(join(srcDir, 'folder1', 'file1'), 'file1')
   await fs.outputFile(join(srcDir, 'folder1', 'file2'), 'file2')
   await fs.ensureSymlink(join(srcDir, 'file'), join(srcDir, 'link'))
+  await fs.ensureSymlink(join(srcDir, 'link'), join(srcDir, 'link-level-2'))
+  await fs.ensureSymlink(
+    join(srcDir, 'link-level-2'),
+    join(srcDir, 'link-level-3')
+  )
   await fs.ensureSymlink(join(srcDir, 'folder1'), join(srcDir, 'linkfolder'))
   return paths
 }
@@ -42,6 +47,12 @@ describe('getFilesInDir', () => {
     await fs.remove(testDir)
     await setupTestDir()
 
-    expect(await getFilesInDir(srcDir)).toEqual(['.hidden', 'file', 'link'])
+    expect(await getFilesInDir(srcDir)).toIncludeAllMembers([
+      '.hidden',
+      'file',
+      'link',
+      'link-level-2',
+      'link-level-3',
+    ])
   })
 })
