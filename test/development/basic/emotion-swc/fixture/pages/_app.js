@@ -1,5 +1,5 @@
 import createCache from '@emotion/cache'
-import { CacheProvider } from '@emotion/core'
+import { CacheProvider } from '@emotion/react'
 
 import { globalStyles } from '../shared/styles'
 
