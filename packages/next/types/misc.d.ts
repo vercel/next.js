@@ -437,7 +437,7 @@ declare namespace NodeJS {
   }
 }
 
-declare module 'watchpack' {
+declare module 'next/dist/compiled/watchpack' {
   import { EventEmitter } from 'events'
 
   class Watchpack extends EventEmitter {
