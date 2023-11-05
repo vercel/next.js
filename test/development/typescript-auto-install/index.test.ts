@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, renderViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
+import { check, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import stripAnsi from 'strip-ansi'
 
