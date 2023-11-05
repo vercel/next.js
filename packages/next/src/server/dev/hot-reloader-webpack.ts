@@ -1489,7 +1489,6 @@ export default class HotReloader implements NextJsHotReloaderInterface {
 
     return this.onDemandEntries?.ensurePage({
       page,
-      clientOnly,
       appPaths,
       definition,
       isApp,

@@ -89,7 +89,7 @@ export default function nextJest(options: { dir?: string } = {}) {
           : customJestConfig) ?? {}
 
       // eagerly load swc bindings instead of waiting for transform calls
-      await loadBindings()
+      await loadBindings(nextConfig?.experimental?.useWasmBinary)
 
       if (lockfilePatchPromise.cur) {
         await lockfilePatchPromise.cur

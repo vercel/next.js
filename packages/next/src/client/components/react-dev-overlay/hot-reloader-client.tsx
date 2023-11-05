@@ -414,7 +414,6 @@ function processMessage(
       return
     }
     default: {
-      throw new Error('Unexpected action ' + JSON.stringify(obj))
     }
   }
 }
