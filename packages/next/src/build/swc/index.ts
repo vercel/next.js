@@ -208,8 +208,9 @@ export async function loadBindings(
       (triple: any) =>
         !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
     )
+    const isWebContainer = process.versions.webcontainer;
     const shouldLoadWasmFallbackFirst =
-      !disableWasmFallback && unsupportedPlatform && useWasmBinary
+      !disableWasmFallback && unsupportedPlatform && useWasmBinary || isWebContainer
 
     if (!unsupportedPlatform && useWasmBinary) {
       Log.warn(
