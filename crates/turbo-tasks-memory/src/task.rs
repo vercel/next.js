@@ -503,14 +503,18 @@ impl Task {
         aggregation_context.apply_queued_updates();
     }
 
-    pub(crate) fn get_function_name(&self) -> Option<&'static str> {
+    pub(crate) fn get_function_name(&self) -> Option<Cow<'static, str>> {
         if let TaskType::Persistent { ty, .. } = &self.ty {
             match &**ty {
                 PersistentTaskType::Native(native_fn, _)
                 | PersistentTaskType::ResolveNative(native_fn, _) => {
-                    return Some(&registry::get_function(*native_fn).name);
+                    return Some(Cow::Borrowed(&registry::get_function(*native_fn).name));
                 }
-                _ => {}
+                PersistentTaskType::ResolveTrait(trait_id, fn_name, _) => {
+                    return Some(
+                        format!("{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
+                    );
+                }
             }
         }
         None
