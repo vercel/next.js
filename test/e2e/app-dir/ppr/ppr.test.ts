@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from '../../../lib/next-test-utils'
 
 createNextDescribe(
   'ppr',
@@ -147,9 +148,8 @@ createNextDescribe(
     describe('/no-suspense/node/gsp/[slug]', () => {
       it('should serve the static & dynamic parts', async () => {
         const $ = await next.render$('/no-suspense/node/gsp/foo')
-        let dynamic = $('#container > #dynamic > #state')
         expect($('#page').length).toBe(1)
-        expect(dynamic.length).toBe(1)
+        expect($('#container > #dynamic > #state').length).toBe(1)
       })
     })
 
@@ -159,24 +159,10 @@ createNextDescribe(
         expect($('#page').length).toBe(1)
       })
 
-      if (isNextDev) {
-        it('should have the dynamic part', async () => {
-          let $ = await next.render$('/suspense/node/gsp/foo')
-          let dynamic = $('#container > #dynamic > #state')
-
-          expect(dynamic.length).toBe(1)
-          expect(dynamic.text()).toBe('Not Signed In')
-
-          $ = await next.render$('/suspense/node/gsp/foo')
-          dynamic = $('#container > #dynamic > #state')
-          expect(dynamic.length).toBe(1)
-        })
-      } else {
-        it('should not have the dynamic part', async () => {
-          const $ = await next.render$('/suspense/node/gsp/foo')
-          expect($('#container > #dynamic > #state').length).toBe(0)
-        })
-      }
+      it('should not have the dynamic part', async () => {
+        const $ = await next.render$('/suspense/node/gsp/foo')
+        expect($('#container > #dynamic > #state').length).toBe(0)
+      })
     })
   }
 )
