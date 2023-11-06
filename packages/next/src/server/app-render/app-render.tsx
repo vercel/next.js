@@ -497,12 +497,7 @@ async function renderToHTMLOrFlightImpl(
     silenceLogger: silenceStaticGenerationErrors,
   })
 
-  patchFetch(ComponentMod, {
-    // in the case of static generation during PPR, fetch will need to re-patched
-    // to ensure that it uses the bundled (experimental) version of React.
-    // This is because fetch can postpone.
-    canUpdatePatch: renderOpts.experimental.ppr && isStaticGeneration,
-  })
+  patchFetch(ComponentMod)
 
   /**
    * Rules of Static & Dynamic HTML:

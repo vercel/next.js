@@ -148,7 +148,7 @@ interface PatchableModule {
 }
 
 interface PatchFetchOptions {
-  canUpdatePatch?: boolean
+  canRepatchFetch?: boolean
 }
 
 // we patch fetch to collect cache information used for
@@ -161,9 +161,7 @@ export function patchFetch(
     ;(globalThis as any)._nextOriginalFetch = globalThis.fetch
   }
 
-  if ((globalThis.fetch as any).__nextPatched && !options?.canUpdatePatch) {
-    return
-  }
+  if ((globalThis.fetch as any).__nextPatched) return
 
   const { DynamicServerError } = serverHooks
   const originFetch: typeof fetch = (globalThis as any)._nextOriginalFetch
@@ -650,5 +648,11 @@ export function patchFetch(
   ;(globalThis.fetch as any).__nextGetStaticStore = () => {
     return staticGenerationAsyncStorage
   }
-  ;(globalThis.fetch as any).__nextPatched = true
+
+  // indicate whether or not subsequent calls to `patchFetch` can re-patch the implementation.
+  // This is to support the case where fetch might need to be patched again, since certain APIs
+  // (such as React.unstable_postpone) might not be available when first patched.
+  if (!options?.canRepatchFetch) {
+    ;(globalThis.fetch as any).__nextPatched = true
+  }
 }

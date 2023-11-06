@@ -1250,10 +1250,16 @@ export async function buildAppStaticPaths({
   serverHooks: Parameters<typeof patchFetch>[0]['serverHooks']
   ppr: boolean
 }) {
-  patchFetch({
-    staticGenerationAsyncStorage,
-    serverHooks,
-  })
+  patchFetch(
+    {
+      staticGenerationAsyncStorage,
+      serverHooks,
+    },
+    {
+      // we allow other calls to `patchFetch` to potentially override this one
+      canRepatchFetch: true,
+    }
+  )
 
   let CacheHandler: any
 
