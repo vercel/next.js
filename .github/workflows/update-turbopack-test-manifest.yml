@@ -25,6 +25,12 @@ jobs:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
 
+      - run: corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm i
+
       - name: Create Pull Request
         shell: bash
         run: node scripts/automated-update-workflow.js
