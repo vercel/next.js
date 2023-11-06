@@ -532,7 +532,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
-        ppr: this.nextConfig.experimental.ppr === true,
+        ppr:
+          this.enabledDirectories.app &&
+          this.nextConfig.experimental.ppr === true,
       },
     }
 
@@ -607,50 +609,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       parsed.pathname = parsedUrl.pathname
       req.url = formatUrl(parsed)
     }
-
-    return false
-  }
-
-  protected handleNextPostponedRequest: RouteHandler = async (
-    req,
-    _res,
-    parsedUrl
-  ) => {
-    if (
-      !parsedUrl.pathname ||
-      !this.normalizers.postponed.match(parsedUrl.pathname) ||
-      req.method !== 'POST'
-    ) {
-      return false
-    }
-
-    parsedUrl.pathname = this.normalizers.postponed.normalize(
-      parsedUrl.pathname,
-      true
-    )
-
-    if (req.url) {
-      const parsed = parseUrl(req.url)
-      parsed.pathname = parsedUrl.pathname
-      req.url = formatUrl(parsed)
-    }
-
-    // If we've already read the postponed body, then we don't need to do so
-    // again.
-    let postponed = getRequestMeta(req, 'postponed') ?? ''
-    if (postponed) return false
-
-    // Read the body in chunks. If it errors here it's because the chunks
-    // being decoded are not strings.
-    const body: Array<Buffer> = []
-    for await (const chunk of req.body) {
-      body.push(chunk)
-    }
-
-    // Decode the body as a string.
-    postponed = Buffer.concat(body).toString('utf8')
-
-    addRequestMeta(req, 'postponed', postponed)
 
     return false
   }
@@ -939,17 +897,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         )
       }
 
-      let finished: boolean = false
-      if (this.minimalMode && this.enabledDirectories.app) {
-        finished = await this.handleRSCRequest(req, res, parsedUrl)
-        if (finished) return
-
-        if (this.nextConfig.experimental.ppr) {
-          finished = await this.handleNextPostponedRequest(req, res, parsedUrl)
-          if (finished) return
-        }
-      }
-
       req.headers['x-forwarded-host'] ??= `${this.hostname}:${this.port}`
       req.headers['x-forwarded-port'] ??= this.port?.toString()
       const { originalRequest } = req as NodeNextRequest
@@ -959,7 +906,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest.socket?.remoteAddress
 
+      // This should be done before any normalization of the pathname happens as
+      // it captures the initial URL.
       this.attachRequestMeta(req, parsedUrl)
+
+      let finished: boolean = false
+      if (this.minimalMode && this.enabledDirectories.app) {
+        finished = await this.handleRSCRequest(req, res, parsedUrl)
+        if (finished) return
+      }
 
       const domainLocale = this.i18nProvider?.detectDomainLocale(
         getHostname(parsedUrl, req.headers)
@@ -1006,13 +961,32 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // For ISR  the URL is normalized to the prerenderPath so if
           // it's a data request the URL path will be the data URL,
           // basePath is already stripped by this point
-          if (this.normalizers.data.match(parsedUrl.pathname)) {
+          if (
+            this.enabledDirectories.pages &&
+            this.normalizers.data.match(parsedUrl.pathname)
+          ) {
             parsedUrl.query.__nextDataReq = '1'
           }
+          // In minimal mode, if PPR is enabled, then we should check to see if
+          // the matched path is a postponed path, and if it is, handle it.
+          else if (
+            this.minimalMode &&
+            this.renderOpts.experimental.ppr &&
+            this.normalizers.postponed.match(matchedPath) &&
+            req.method === 'POST'
+          ) {
+            // Decode the postponed state from the request body, it will come as
+            // an array of buffers, so collect them and then concat them to form
+            // the string.
+            const body: Array<Buffer> = []
+            for await (const chunk of req.body) {
+              body.push(chunk)
+            }
+            const postponed = Buffer.concat(body).toString('utf8')
 
-          // We should attempt route normalization for these routes, but don't
-          // use them to determine the kind of the request, this is just now
-          // used for routing.
+            addRequestMeta(req, 'postponed', postponed)
+          }
+
           matchedPath = this.normalize(matchedPath)
           const normalizedUrlPath = this.normalize(parsedUrl.pathname)
 
@@ -2725,7 +2699,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // and the revalidate options.
     const onCacheEntry = getRequestMeta(req, 'onCacheEntry')
     if (onCacheEntry) {
-      const finished = await onCacheEntry(cacheEntry)
+      const finished = await onCacheEntry(cacheEntry, {
+        url: getRequestMeta(req, 'initURL'),
+      })
       if (finished) {
         // TODO: maybe we have to end the request?
         return null
