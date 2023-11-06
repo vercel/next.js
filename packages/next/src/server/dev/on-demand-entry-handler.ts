@@ -39,6 +39,7 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -832,7 +833,8 @@ export function onDemandEntryHandler({
       const hasNewEntry = addedValues.some((entry) => entry.newEntry)
 
       if (hasNewEntry) {
-        reportTrigger(route.page)
+        const routePage = isApp ? route.page : normalizeAppPath(route.page)
+        reportTrigger(routePage)
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
