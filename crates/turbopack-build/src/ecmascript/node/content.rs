@@ -2,21 +2,22 @@ use std::io::Write;
 
 use anyhow::Result;
 use indoc::writedoc;
-use turbo_tasks::{TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
-    chunk::ChunkItemExt,
+    chunk::{ChunkItemExt, ChunkingContext, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, OptionSourceMap},
+    version::{Version, VersionedContent},
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkContent, EcmascriptChunkItemExt},
     utils::StringifyJs,
 };
 
-use super::chunk::EcmascriptBuildNodeChunk;
+use super::{chunk::EcmascriptBuildNodeChunk, version::EcmascriptBuildNodeChunkVersion};
 use crate::{chunking_context::MinifyType, ecmascript::minify::minify, BuildChunkingContext};
 
 #[turbo_tasks::value]
@@ -43,6 +44,23 @@ impl EcmascriptBuildNodeChunkContent {
     }
 }
 
+pub(super) async fn chunk_items(
+    content: Vc<EcmascriptChunkContent>,
+) -> Result<Vec<(ReadRef<ModuleId>, ReadRef<Code>)>> {
+    content
+        .await?
+        .chunk_items
+        .iter()
+        .map(|&(chunk_item, async_module_info)| async move {
+            Ok((
+                chunk_item.id().await?,
+                chunk_item.code(async_module_info).await?,
+            ))
+        })
+        .try_join()
+        .await
+}
+
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
@@ -61,19 +79,7 @@ impl EcmascriptBuildNodeChunkContent {
             "#,
         )?;
 
-        let content = this.content.await?;
-        for (id, item_code) in content
-            .chunk_items
-            .iter()
-            .map(|&(chunk_item, async_module_info)| async move {
-                Ok((
-                    chunk_item.id().await?,
-                    chunk_item.code(async_module_info).await?,
-                ))
-            })
-            .try_join()
-            .await?
-        {
+        for (id, item_code) in chunk_items(this.content).await? {
             write!(code, "{}: ", StringifyJs(&id))?;
             code.push_code(&item_code);
             writeln!(code, ",")?;
@@ -98,10 +104,13 @@ impl EcmascriptBuildNodeChunkContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let code = self.code().await?;
-        Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
+    pub(crate) async fn own_version(self: Vc<Self>) -> Result<Vc<EcmascriptBuildNodeChunkVersion>> {
+        let this = self.await?;
+        Ok(EcmascriptBuildNodeChunkVersion::new(
+            this.chunking_context.output_root(),
+            this.chunk.ident().path(),
+            this.content,
+            this.chunking_context.await?.minify_type(),
         ))
     }
 }
@@ -111,5 +120,21 @@ impl GenerateSourceMap for EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
         self.code().generate_source_map()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl VersionedContent for EcmascriptBuildNodeChunkContent {
+    #[turbo_tasks::function]
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        let code = self.code().await?;
+        Ok(AssetContent::file(
+            File::from(code.source_code().clone()).into(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn version(self: Vc<Self>) -> Vc<Box<dyn Version>> {
+        Vc::upcast(self.own_version())
     }
 }

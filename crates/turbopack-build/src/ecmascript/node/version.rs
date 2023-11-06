@@ -1,25 +1,28 @@
 use anyhow::{bail, Result};
-use indexmap::IndexMap;
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
-use turbopack_core::{chunk::ModuleId, version::Version};
+use turbopack_core::{chunk::ModuleId, code_builder::Code, version::Version};
+use turbopack_ecmascript::chunk::EcmascriptChunkContent;
 
-use super::content_entry::EcmascriptDevChunkContentEntries;
+use super::content::chunk_items;
+use crate::MinifyType;
 
 #[turbo_tasks::value(serialization = "none")]
-pub(super) struct EcmascriptDevChunkVersion {
-    pub(super) chunk_path: String,
-    pub(super) entries_hashes: IndexMap<ReadRef<ModuleId>, u64>,
+pub(super) struct EcmascriptBuildNodeChunkVersion {
+    chunk_path: String,
+    chunk_items: Vec<(ReadRef<ModuleId>, ReadRef<Code>)>,
+    minify_type: MinifyType,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunkVersion {
+impl EcmascriptBuildNodeChunkVersion {
     #[turbo_tasks::function]
     pub async fn new(
         output_root: Vc<FileSystemPath>,
         chunk_path: Vc<FileSystemPath>,
-        entries: Vc<EcmascriptDevChunkContentEntries>,
+        content: Vc<EcmascriptChunkContent>,
+        minify_type: MinifyType,
     ) -> Result<Vc<Self>> {
         let output_root = output_root.await?;
         let chunk_path = chunk_path.await?;
@@ -32,32 +35,26 @@ impl EcmascriptDevChunkVersion {
                 output_root.to_string()
             );
         };
-        let entries = entries.await?;
-        let mut entries_hashes = IndexMap::with_capacity(entries.len());
-        for (id, entry) in entries.iter() {
-            entries_hashes.insert(id.clone(), *entry.hash.await?);
-        }
-        Ok(EcmascriptDevChunkVersion {
+        let chunk_items = chunk_items(content).await?;
+        Ok(EcmascriptBuildNodeChunkVersion {
             chunk_path: chunk_path.to_string(),
-            entries_hashes,
+            chunk_items,
+            minify_type,
         }
         .cell())
     }
 }
 
 #[turbo_tasks::value_impl]
-impl Version for EcmascriptDevChunkVersion {
+impl Version for EcmascriptBuildNodeChunkVersion {
     #[turbo_tasks::function]
     fn id(&self) -> Vc<String> {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_ref(&self.chunk_path);
-        let sorted_hashes = {
-            let mut hashes: Vec<_> = self.entries_hashes.values().copied().collect();
-            hashes.sort();
-            hashes
-        };
-        for hash in sorted_hashes {
-            hasher.write_value(hash);
+        hasher.write_ref(&self.minify_type);
+        hasher.write_value(self.chunk_items.len());
+        for (module_id, code) in &self.chunk_items {
+            hasher.write_value((module_id, code.source_code()));
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);

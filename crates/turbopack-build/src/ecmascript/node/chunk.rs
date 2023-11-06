@@ -8,6 +8,7 @@ use turbopack_core::{
     introspect::{Introspectable, IntrospectableChildren},
     output::{OutputAsset, OutputAssets},
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
+    version::VersionedContent,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunk;
 
@@ -96,6 +97,11 @@ impl Asset for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent> {
         self.own_content().content()
+    }
+
+    #[turbo_tasks::function]
+    fn versioned_content(self: Vc<Self>) -> Vc<Box<dyn VersionedContent>> {
+        Vc::upcast(self.own_content())
     }
 }
 

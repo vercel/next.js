@@ -150,6 +150,33 @@ impl<T: DeterministicHash> DeterministicHash for Vec<T> {
     }
 }
 
+macro_rules! tuple_impls {
+    ( $( $name:ident )+ ) => {
+        impl<$($name: DeterministicHash),+> DeterministicHash for ($($name,)+)
+        {
+            #[allow(non_snake_case)]
+            fn deterministic_hash<Hasher: DeterministicHasher>(&self, state: &mut Hasher) {
+                let ($(ref $name,)+) = *self;
+                $($name.deterministic_hash(state);)+
+            }
+        }
+    };
+}
+
+// Implement `DeterministicHash` for all tuples of 1 to 12 elements.
+tuple_impls! { A }
+tuple_impls! { A B }
+tuple_impls! { A B C }
+tuple_impls! { A B C D }
+tuple_impls! { A B C D E }
+tuple_impls! { A B C D E F }
+tuple_impls! { A B C D E F G }
+tuple_impls! { A B C D E F G H }
+tuple_impls! { A B C D E F G H I }
+tuple_impls! { A B C D E F G H I J }
+tuple_impls! { A B C D E F G H I J K }
+tuple_impls! { A B C D E F G H I J K L }
+
 /// HasherWrapper allows the DeterministicHasher to be used as a Hasher, for
 /// standard types that do not allow us to directly access their internals.
 struct HasherWrapper<'a, D: DeterministicHasher>(&'a mut D);
