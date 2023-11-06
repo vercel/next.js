@@ -370,7 +370,7 @@ export default async function getBaseWebpackConfig(
 
   // eagerly load swc bindings instead of waiting for transform calls
   if (!babelConfigFile && isClient) {
-    await loadBindings()
+    await loadBindings(config.experimental.useWasmBinary)
   }
 
   if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
@@ -380,7 +380,8 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
-  const getBabelLoader = () => {
+  const babelLoader = (function getBabelLoader() {
+    if (useSWCLoader) return undefined
     return {
       loader: require.resolve('./babel/loader/index'),
       options: {
@@ -394,7 +395,7 @@ export default async function getBaseWebpackConfig(
         hasJsxRuntime: true,
       },
     }
-  }
+  })()
 
   let swcTraceProfilingInitialized = false
   const getSwcLoader = (extraOptions: Partial<SWCLoaderOptions>) => {
@@ -429,40 +430,34 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  const swcServerLayerLoader = getSwcLoader({
+    serverComponents: true,
+    isReactServerLayer: true,
+  })
+  const swcClientLayerLoader = getSwcLoader({
+    serverComponents: true,
+    isReactServerLayer: false,
+  })
+
   const defaultLoaders = {
-    babel: useSWCLoader
-      ? getSwcLoader({
-          serverComponents: true,
-          isReactServerLayer: false,
-        })
-      : getBabelLoader(),
+    babel: useSWCLoader ? swcClientLayerLoader : babelLoader!,
   }
 
   const swcLoaderForServerLayer = hasAppDir
-    ? useSWCLoader
-      ? [
-          getSwcLoader({
-            isReactServerLayer: true,
-            serverComponents: true,
-          }),
-        ]
-      : // When using Babel, we will have to add the SWC loader
+    ? [
+        // When using Babel, we will have to add the SWC loader
         // as an additional pass to handle RSC correctly.
         // This will cause some performance overhead but
         // acceptable as Babel will not be recommended.
-        [
-          getSwcLoader({
-            isReactServerLayer: true,
-            serverComponents: true,
-          }),
-          getBabelLoader(),
-        ]
+        swcServerLayerLoader,
+        babelLoader,
+      ].filter(Boolean)
     : []
 
   const swcLoaderForMiddlewareLayer = useSWCLoader
     ? getSwcLoader({
-        serverComponents: true,
-        isReactServerLayer: true,
+        serverComponents: false,
+        isReactServerLayer: false,
       })
     : // When using Babel, we will have to use SWC to do the optimization
       // for middleware to tree shake the unused default optimized imports like "next/server".
@@ -470,10 +465,9 @@ export default async function getBaseWebpackConfig(
       // acceptable as Babel will not be recommended.
       [
         getSwcLoader({
-          serverComponents: true,
-          isReactServerLayer: true,
+          serverComponents: false,
+          isReactServerLayer: false,
         }),
-        getBabelLoader(),
       ]
 
   // client components layers: SSR + browser
@@ -491,24 +485,14 @@ export default async function getBaseWebpackConfig(
       loader: 'next-flight-client-module-loader',
     },
     ...(hasAppDir
-      ? useSWCLoader
-        ? [
-            getSwcLoader({
-              isReactServerLayer: false,
-              serverComponents: true,
-            }),
-          ]
-        : // When using Babel, we will have to add the SWC loader
+      ? [
+          // When using Babel, we will have to add the SWC loader
           // as an additional pass to handle RSC correctly.
           // This will cause some performance overhead but
           // acceptable as Babel will not be recommended.
-          [
-            getSwcLoader({
-              isReactServerLayer: false,
-              serverComponents: false,
-            }),
-            getBabelLoader(),
-          ]
+          swcClientLayerLoader,
+          babelLoader,
+        ].filter(Boolean)
       : []),
   ]
 
@@ -612,6 +596,7 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: createWebpackAliases({
+      distDir,
       isClient,
       isEdgeServer,
       isNodeServer,
@@ -746,13 +731,8 @@ export default async function getBaseWebpackConfig(
   const shouldIncludeExternalDirs =
     config.experimental.externalDir || !!config.transpilePackages
 
-  const codeCondition = {
-    test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
-    ...(shouldIncludeExternalDirs
-      ? // Allowing importing TS/TSX files from outside of the root dir.
-        {}
-      : { include: [dir, ...babelIncludeRegexes] }),
-    exclude: (excludePath: string) => {
+  function createLoaderRuleExclude(skipNodeModules: boolean) {
+    return (excludePath: string) => {
       if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
         return false
       }
@@ -763,8 +743,17 @@ export default async function getBaseWebpackConfig(
       )
       if (shouldBeBundled) return false
 
-      return excludePath.includes('node_modules')
-    },
+      return skipNodeModules && excludePath.includes('node_modules')
+    }
+  }
+
+  const codeCondition = {
+    test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
+    ...(shouldIncludeExternalDirs
+      ? // Allowing importing TS/TSX files from outside of the root dir.
+        {}
+      : { include: [dir, ...babelIncludeRegexes] }),
+    exclude: createLoaderRuleExclude(true),
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -904,7 +893,7 @@ export default async function getBaseWebpackConfig(
           return {
             filename: '[name].js',
             chunks: 'all',
-            minSize: 1000,
+            minChunks: 2,
           }
         }
 
@@ -1417,12 +1406,17 @@ export default async function getBaseWebpackConfig(
                     use: swcLoaderForServerLayer,
                   },
                   {
-                    ...codeCondition,
-                    issuerLayer: [
-                      WEBPACK_LAYERS.appPagesBrowser,
-                      WEBPACK_LAYERS.serverSideRendering,
-                    ],
+                    test: codeCondition.test,
                     exclude: codeCondition.exclude,
+                    issuerLayer: [WEBPACK_LAYERS.appPagesBrowser],
+                    use: swcLoaderForClientLayer,
+                    resolve: {
+                      mainFields: getMainField('app', compilerType),
+                    },
+                  },
+                  {
+                    test: codeCondition.test,
+                    issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
                     use: swcLoaderForClientLayer,
                     resolve: {
                       mainFields: getMainField('app', compilerType),

@@ -8,6 +8,9 @@ export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
 
 export const NEXT_DID_POSTPONE_HEADER = 'x-nextjs-postponed'
 
+export const RSC_PREFETCH_SUFFIX = '.prefetch.rsc'
+export const RSC_SUFFIX = '.rsc'
+
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
 export const NEXT_CACHE_SOFT_TAGS_HEADER = 'x-next-cache-soft-tags'
 export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
@@ -154,9 +157,12 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
       WEBPACK_LAYERS_NAMES.appRouteHandler,
-      WEBPACK_LAYERS_NAMES.middleware,
     ],
-    nonClientServerTarget: [WEBPACK_LAYERS_NAMES.api],
+    nonClientServerTarget: [
+      // plus middleware and pages api
+      WEBPACK_LAYERS_NAMES.middleware,
+      WEBPACK_LAYERS_NAMES.api,
+    ],
     app: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,

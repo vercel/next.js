@@ -32,9 +32,9 @@ import {
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
 import {
-  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE,
-  RSC,
+  RSC_HEADER,
 } from '../../client/components/app-router-headers'
 import { createMetadataComponents } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
@@ -61,7 +61,7 @@ import { validateURL } from './validate-url'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
-import { warn } from '../../build/output/log'
+import { warn, error } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
@@ -72,6 +72,7 @@ import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './action-encryption-utils'
 import { createStaticRenderer } from './static/static-renderer'
+import { MissingPostponeDataError } from './is-missing-postpone-error'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -392,7 +393,6 @@ async function renderToHTMLOrFlightImpl(
   renderOpts: RenderOpts,
   baseCtx: AppRenderBaseContext
 ) {
-  const isFlight = req.headers[RSC.toLowerCase()] !== undefined
   const isNotFoundPath = pagePath === '/404'
 
   // A unique request timestamp used by development to ensure that it's
@@ -409,7 +409,7 @@ async function renderToHTMLOrFlightImpl(
     dev,
     nextFontManifest,
     supportsDynamicHTML,
-    serverActionsBodySizeLimit,
+    serverActions,
     buildId,
     appDirDevErrorLogger,
     assetPrefix = '',
@@ -464,12 +464,20 @@ async function renderToHTMLOrFlightImpl(
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
   const isNextExport = !!renderOpts.nextExport
+  const { staticGenerationStore, requestStore } = baseCtx
+  const isStaticGeneration = staticGenerationStore.isStaticGeneration
+  // when static generation fails during PPR, we log the errors separately. We intentionally
+  // silence the error logger in this case to avoid double logging.
+  const silenceStaticGenerationErrors =
+    renderOpts.experimental.ppr && isStaticGeneration
+
   const serverComponentsErrorHandler = createErrorHandler({
     _source: 'serverComponentsRenderer',
     dev,
     isNextExport,
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
+    silenceLogger: silenceStaticGenerationErrors,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
     _source: 'flightDataRenderer',
@@ -477,6 +485,7 @@ async function renderToHTMLOrFlightImpl(
     isNextExport,
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
+    silenceLogger: silenceStaticGenerationErrors,
   })
   const htmlRendererErrorHandler = createErrorHandler({
     _source: 'htmlRenderer',
@@ -485,6 +494,7 @@ async function renderToHTMLOrFlightImpl(
     errorLogger: appDirDevErrorLogger,
     capturedErrors,
     allCapturedErrors,
+    silenceLogger: silenceStaticGenerationErrors,
   })
 
   patchFetch(ComponentMod)
@@ -520,7 +530,6 @@ async function renderToHTMLOrFlightImpl(
     )
   }
 
-  const { staticGenerationStore, requestStore } = baseCtx
   const { urlPathname } = staticGenerationStore
 
   staticGenerationStore.fetchMetrics = []
@@ -530,17 +539,21 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  const isPrefetch =
-    req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] !== undefined
+  const isRSCRequest = req.headers[RSC_HEADER.toLowerCase()] !== undefined
+
+  const isPrefetchRSCRequest =
+    isRSCRequest &&
+    req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
 
   /**
    * Router state provided from the client-side router. Used to handle rendering from the common layout down.
    */
-  let providedFlightRouterState = isFlight
-    ? parseAndValidateFlightRouterState(
-        req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-      )
-    : undefined
+  let providedFlightRouterState =
+    isRSCRequest && (!isPrefetchRSCRequest || !renderOpts.experimental.ppr)
+      ? parseAndValidateFlightRouterState(
+          req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+        )
+      : undefined
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -553,8 +566,6 @@ async function renderToHTMLOrFlightImpl(
   } else {
     requestId = require('next/dist/compiled/nanoid').nanoid()
   }
-
-  const isStaticGeneration = staticGenerationStore.isStaticGeneration
 
   // During static generation we need to call the static generation bailout when reading searchParams
   const providedSearchParams = isStaticGeneration
@@ -577,7 +588,7 @@ async function renderToHTMLOrFlightImpl(
     ...baseCtx,
     getDynamicParamFromSegment,
     query,
-    isPrefetch,
+    isPrefetch: isPrefetchRSCRequest,
     providedSearchParams,
     requestTimestamp,
     searchParamsProps,
@@ -594,7 +605,7 @@ async function renderToHTMLOrFlightImpl(
     res,
   }
 
-  if (isFlight && !isStaticGeneration) {
+  if (isRSCRequest && !isStaticGeneration) {
     return generateFlight(ctx)
   }
 
@@ -694,7 +705,7 @@ async function renderToHTMLOrFlightImpl(
       )
 
       const renderer = createStaticRenderer({
-        ppr: renderOpts.ppr,
+        ppr: renderOpts.experimental.ppr,
         isStaticGeneration: staticGenerationStore.isStaticGeneration,
         postponed: renderOpts.postponed
           ? JSON.parse(renderOpts.postponed)
@@ -775,15 +786,6 @@ async function renderToHTMLOrFlightImpl(
           )
         ) {
           // Ensure that "next dev" prints the red error overlay
-          throw err
-        }
-
-        // If there was a postponed error that escaped, it means that there was
-        // a postpone called without a wrapped suspense component.
-        if (err.$$typeof === Symbol.for('react.postpone')) {
-          // Ensure that we force the revalidation time to zero.
-          staticGenerationStore.revalidate = 0
-
           throw err
         }
 
@@ -955,7 +957,7 @@ async function renderToHTMLOrFlightImpl(
     generateFlight,
     staticGenerationStore: staticGenerationStore,
     requestStore: requestStore,
-    serverActionsBodySizeLimit,
+    serverActions,
     ctx,
   })
 
@@ -1003,6 +1005,34 @@ async function renderToHTMLOrFlightImpl(
   if (staticGenerationStore.isStaticGeneration) {
     const htmlResult = await renderResult.toUnchunkedString(true)
 
+    if (
+      // if PPR is enabled
+      renderOpts.experimental.ppr &&
+      // and a call to `maybePostpone` happened
+      staticGenerationStore.postponeWasTriggered &&
+      // but there's no postpone state
+      !extraRenderResultMeta.postponed
+    ) {
+      // a call to postpone was made but was caught and not detected by Next.js. We should fail the build immediately
+      // as we won't be able to generate the static part
+      warn('')
+      error(
+        `Postpone signal was caught while rendering ${urlPathname}. Check to see if you're try/catching a Next.js API such as headers / cookies, or a fetch with "no-store". Learn more: https://nextjs.org/docs/messages/ppr-postpone-errors`
+      )
+
+      if (capturedErrors.length > 0) {
+        warn(
+          'The following error was thrown during build, and may help identify the source of the issue:'
+        )
+
+        error(capturedErrors[0])
+      }
+
+      throw new MissingPostponeDataError(
+        `An unexpected error occurred while prerendering ${urlPathname}. Please check the logs above for more details.`
+      )
+    }
+
     // if we encountered any unexpected errors during build
     // we fail the prerendering phase and the build
     if (capturedErrors.length > 0) {
@@ -1048,6 +1078,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   query,
   renderOpts
 ) => {
+  // TODO: this includes query string, should it?
   const pathname = validateURL(req.url)
 
   return RequestAsyncStorageWrapper.wrap(
