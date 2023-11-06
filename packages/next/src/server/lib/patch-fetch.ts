@@ -147,16 +147,12 @@ interface PatchableModule {
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }
 
-interface PatchFetchOptions {
-  canRepatchFetch?: boolean
-}
-
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
-export function patchFetch(
-  { serverHooks, staticGenerationAsyncStorage }: PatchableModule,
-  options?: PatchFetchOptions
-) {
+export function patchFetch({
+  serverHooks,
+  staticGenerationAsyncStorage,
+}: PatchableModule) {
   if (!(globalThis as any)._nextOriginalFetch) {
     ;(globalThis as any)._nextOriginalFetch = globalThis.fetch
   }
@@ -648,11 +644,5 @@ export function patchFetch(
   ;(globalThis.fetch as any).__nextGetStaticStore = () => {
     return staticGenerationAsyncStorage
   }
-
-  // indicate whether or not subsequent calls to `patchFetch` can re-patch the implementation.
-  // This is to support the case where fetch might need to be patched again, since certain APIs
-  // (such as React.unstable_postpone) might not be available when first patched.
-  if (!options?.canRepatchFetch) {
-    ;(globalThis.fetch as any).__nextPatched = true
-  }
+  ;(globalThis.fetch as any).__nextPatched = true
 }

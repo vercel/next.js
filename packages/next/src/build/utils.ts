@@ -1230,9 +1230,8 @@ export async function buildAppStaticPaths({
   requestHeaders,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
-  staticGenerationAsyncStorage,
-  serverHooks,
   ppr,
+  ComponentMod,
 }: {
   dir: string
   page: string
@@ -1244,22 +1243,10 @@ export async function buildAppStaticPaths({
   fetchCacheKeyPrefix?: string
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
-  staticGenerationAsyncStorage: Parameters<
-    typeof patchFetch
-  >[0]['staticGenerationAsyncStorage']
-  serverHooks: Parameters<typeof patchFetch>[0]['serverHooks']
   ppr: boolean
+  ComponentMod: AppPageModule
 }) {
-  patchFetch(
-    {
-      staticGenerationAsyncStorage,
-      serverHooks,
-    },
-    {
-      // we allow other calls to `patchFetch` to potentially override this one
-      canRepatchFetch: true,
-    }
-  )
+  ComponentMod.patchFetch()
 
   let CacheHandler: any
 
@@ -1294,7 +1281,7 @@ export async function buildAppStaticPaths({
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(
-    staticGenerationAsyncStorage,
+    ComponentMod.staticGenerationAsyncStorage,
     {
       urlPathname: page,
       renderOpts: {
@@ -1512,7 +1499,7 @@ export async function isPageStatic({
 
         isClientComponent = isClientReference(componentsResult.ComponentMod)
 
-        const { tree, staticGenerationAsyncStorage, serverHooks } = ComponentMod
+        const { tree } = ComponentMod
 
         const generateParams: GenerateParams =
           routeModule && isAppRouteRouteModule(routeModule)
@@ -1586,8 +1573,6 @@ export async function isPageStatic({
           } = await buildAppStaticPaths({
             dir,
             page,
-            serverHooks,
-            staticGenerationAsyncStorage,
             configFileName,
             generateParams,
             distDir,
@@ -1596,6 +1581,7 @@ export async function isPageStatic({
             maxMemoryCacheSize,
             incrementalCacheHandlerPath,
             ppr,
+            ComponentMod,
           }))
         }
       } else {
