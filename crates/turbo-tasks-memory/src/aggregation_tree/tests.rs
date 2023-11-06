@@ -528,6 +528,7 @@ fn many_children() {
     }
     let children_duration = start.elapsed();
     println!("Children: {:?}", children_duration);
+    let mut number_of_slow_children = 0;
     for _ in 0..10 {
         let start = Instant::now();
         for i in 0..CHILDREN {
@@ -543,8 +544,14 @@ fn many_children() {
         }
         let dur = start.elapsed();
         println!("Children: {:?}", dur);
-        assert!(dur < children_duration * 2);
+        if dur > children_duration * 2 {
+            number_of_slow_children += 1;
+        }
     }
+
+    // Technically it should always be 0, but the performance of the environment
+    // might vary so we accept a few slow children
+    assert!(number_of_slow_children < 3);
 
     let root = NodeRef(roots[0].clone());
 
