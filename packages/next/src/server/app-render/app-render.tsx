@@ -536,7 +536,6 @@ async function renderToHTMLOrFlightImpl(
   }
 
   const { urlPathname } = staticGenerationStore
-  console.log('patch fetch render', urlPathname)
 
   staticGenerationStore.fetchMetrics = []
   extraRenderResultMeta.fetchMetrics = staticGenerationStore.fetchMetrics

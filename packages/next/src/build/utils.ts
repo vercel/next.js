@@ -1250,7 +1250,6 @@ export async function buildAppStaticPaths({
   serverHooks: Parameters<typeof patchFetch>[0]['serverHooks']
   ppr: boolean
 }) {
-  console.log('patch fetch', page)
   patchFetch({
     staticGenerationAsyncStorage,
     serverHooks,
