@@ -1,5 +1,3 @@
-import { Suspense } from 'react'
-
 export function generateStaticParams() {
   return [{ slug: 'foo' }]
 }
