@@ -62,7 +62,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       dev,
       requestHeaders,
       requestProtocol: 'https',
-      appDir: this.hasAppDir,
+      pagesDir: this.enabledDirectories.pages,
+      appDir: this.enabledDirectories.app,
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -73,6 +74,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,
       getPrerenderManifest: () => this.getPrerenderManifest(),
+      // PPR is not supported in the edge runtime.
+      experimental: { ppr: false },
     })
   }
   protected getResponseCache() {
@@ -87,8 +90,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.buildId
   }
 
-  protected getHasAppDir() {
-    return this.serverOptions.webServerConfig.pagesType === 'app'
+  protected getEnabledDirectories() {
+    return {
+      app: this.serverOptions.webServerConfig.pagesType === 'app',
+      pages: this.serverOptions.webServerConfig.pagesType === 'pages',
+    }
   }
 
   protected getPagesManifest() {

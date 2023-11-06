@@ -9,11 +9,15 @@ describe('FileSystemCache', () => {
   it('set image route', async () => {
     const fsCache = new FileSystemCache({
       _appDir: true,
+      _pagesDir: true,
       _requestHeaders: {},
       flushToDisk: true,
       fs: nodeFs,
       serverDistDir: cacheDir,
       revalidatedTags: [],
+      experimental: {
+        ppr: false,
+      },
     })
 
     const binary = await fs.readFile(

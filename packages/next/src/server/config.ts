@@ -254,7 +254,10 @@ function assignDefaults(
 
   const result = { ...defaultConfig, ...config }
 
-  if (result.experimental?.ppr && !version.includes('canary')) {
+  if (
+    result.experimental?.ppr &&
+    !process.env.__NEXT_VERSION!.includes('canary')
+  ) {
     Log.warn(
       `The experimental.ppr feature is present in your current version but we recommend using the latest canary version for the best experience.`
     )
@@ -418,13 +421,15 @@ function assignDefaults(
     }
   }
 
-  // TODO: Remove this warning in Next.js 15
-  warnOptionHasBeenDeprecated(
-    result,
-    'experimental.serverActions',
-    'Server Actions are available by default now, `experimental.serverActions` option can be safely removed.',
-    silent
-  )
+  if (typeof result.experimental?.serverActions === 'boolean') {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.serverActions',
+      'Server Actions are available by default now, `experimental.serverActions` option can be safely removed.',
+      silent
+    )
+  }
 
   if (result.swcMinify === false) {
     // TODO: Remove this warning in Next.js 15

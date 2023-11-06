@@ -4,11 +4,6 @@ import type {
   FlightData,
   FlightSegmentPath,
 } from '../../../server/app-render/types'
-import type {
-  FulfilledThenable,
-  PendingThenable,
-  RejectedThenable,
-} from 'react'
 import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
@@ -43,11 +38,6 @@ export interface Mutable {
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
   shouldScroll?: boolean
-  globalMutable: {
-    pendingNavigatePath?: string
-    pendingMpaPath?: string
-    refresh: () => void
-  }
 }
 
 export interface ServerActionMutable extends Mutable {
@@ -273,7 +263,7 @@ export type AppRouterState = {
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>
-export type ReducerState = AppRouterState
+export type ReducerState = Promise<AppRouterState> | AppRouterState
 export type ReducerActions = Readonly<
   | RefreshAction
   | NavigateAction
@@ -284,7 +274,36 @@ export type ReducerActions = Readonly<
   | ServerActionAction
 >
 
+export interface PendingThenable<T> extends ThenableImpl<T> {
+  status: 'pending'
+}
+
+export interface FulfilledThenable<T> extends ThenableImpl<T> {
+  status: 'fulfilled'
+  value: T
+}
+
+export interface RejectedThenable<T> extends ThenableImpl<T> {
+  status: 'rejected'
+  reason: unknown
+}
+
+interface ThenableImpl<T> {
+  then<TResult1 = T, TResult2 = never>(
+    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
+  ): Promise<TResult1 | TResult2>
+}
+
 export type ThenableRecord<T> =
   | PendingThenable<T>
   | RejectedThenable<T>
   | FulfilledThenable<T>
+
+export function isThenable(value: any): value is Promise<AppRouterState> {
+  return (
+    value &&
+    (typeof value === 'object' || typeof value === 'function') &&
+    typeof value.then === 'function'
+  )
+}

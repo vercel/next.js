@@ -32,7 +32,6 @@ import {
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
-import type { SizeLimit } from '../../../../types'
 import semver from 'next/dist/compiled/semver'
 import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
 
@@ -40,7 +39,6 @@ interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
-  serverActionsBodySizeLimit?: SizeLimit
 }
 
 const PLUGIN_NAME = 'FlightClientEntryPlugin'
@@ -160,14 +158,12 @@ export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
-  serverActionsBodySizeLimit?: SizeLimit
   assetPrefix: string
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
-    this.serverActionsBodySizeLimit = options.serverActionsBodySizeLimit
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
   }
 
@@ -197,7 +193,7 @@ export class FlightClientEntryPlugin {
         const modPath = mod.matchResource || mod.resourceResolveData?.path
         const modQuery = mod.resourceResolveData?.query || ''
         // query is already part of mod.resource
-        // so it's only neccessary to add it for matchResource or mod.resourceResolveData
+        // so it's only necessary to add it for matchResource or mod.resourceResolveData
         const modResource = modPath ? modPath + modQuery : mod.resource
 
         if (mod.layer !== WEBPACK_LAYERS.serverSideRendering) {

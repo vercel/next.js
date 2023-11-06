@@ -14,7 +14,10 @@ type ContentTypeOption = string | undefined
 export type RenderResultMetadata = {
   pageData?: any
   revalidate?: Revalidate
-  staticBailoutInfo?: any
+  staticBailoutInfo?: {
+    stack?: string
+    description?: string
+  }
   assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
