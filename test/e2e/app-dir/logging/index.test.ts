@@ -1,6 +1,8 @@
 import stripAnsi from 'strip-ansi'
 import { check } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
+import path from 'path'
+import fs from 'fs-extra'
 
 function parseLogsFromCli(cliOutput: string) {
   const logs = stripAnsi(cliOutput)
@@ -42,7 +44,13 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next, isNextDev }) => {
-    function runTests({ withFetchesLogging }: { withFetchesLogging: boolean }) {
+    function runTests({
+      withFetchesLogging,
+      withFullUrlFetches = false,
+    }: {
+      withFetchesLogging: boolean
+      withFullUrlFetches?: boolean
+    }) {
       if (withFetchesLogging) {
         it('should only log requests in dev mode', async () => {
           const outputIndex = next.cliOutput.length
@@ -74,8 +82,10 @@ createNextDescribe(
                 log.url.includes('api/random?no-cache')
               )
 
-              // expend full url
-              expect(logs.every((log) => log.url.includes('..'))).toBe(false)
+              // expect full url fetches to be logged when fullUrl: true is used
+              expect(logs.some((log) => log.url.includes('..'))).toBe(
+                !withFullUrlFetches
+              )
 
               if (logEntry?.cache === 'cache: no-cache') {
                 return 'success'
@@ -166,7 +176,22 @@ createNextDescribe(
       }
     }
 
-    describe('with verbose logging', () => {
+    describe('with fetches verbose logging', () => {
+      runTests({ withFetchesLogging: true, withFullUrlFetches: true })
+    })
+
+    describe('with fetches default logging', () => {
+      beforeAll(async () => {
+        await next.stop()
+        let curNextConfig = await fs.readFile(
+          path.join(__dirname, 'next.config.js'),
+          'utf8'
+        )
+        curNextConfig = curNextConfig.replace('fullUrl: true', 'fullUrl: false')
+        await next.patchFile('next.config.js', curNextConfig)
+        await next.start()
+      })
+
       runTests({ withFetchesLogging: true })
     })
 
