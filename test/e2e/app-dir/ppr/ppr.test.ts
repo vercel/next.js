@@ -1,5 +1,4 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from '../../../lib/next-test-utils'
 
 createNextDescribe(
   'ppr',
