@@ -370,7 +370,7 @@ export default async function getBaseWebpackConfig(
 
   // eagerly load swc bindings instead of waiting for transform calls
   if (!babelConfigFile && isClient) {
-    await loadBindings()
+    await loadBindings(config.experimental.useWasmBinary)
   }
 
   if (!loggedIgnoredCompilerOptions && !useSWCLoader && config.compiler) {
@@ -596,6 +596,7 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: createWebpackAliases({
+      distDir,
       isClient,
       isEdgeServer,
       isNodeServer,
@@ -730,13 +731,8 @@ export default async function getBaseWebpackConfig(
   const shouldIncludeExternalDirs =
     config.experimental.externalDir || !!config.transpilePackages
 
-  const codeCondition = {
-    test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
-    ...(shouldIncludeExternalDirs
-      ? // Allowing importing TS/TSX files from outside of the root dir.
-        {}
-      : { include: [dir, ...babelIncludeRegexes] }),
-    exclude: (excludePath: string) => {
+  function createLoaderRuleExclude(skipNodeModules: boolean) {
+    return (excludePath: string) => {
       if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
         return false
       }
@@ -747,8 +743,17 @@ export default async function getBaseWebpackConfig(
       )
       if (shouldBeBundled) return false
 
-      return excludePath.includes('node_modules')
-    },
+      return skipNodeModules && excludePath.includes('node_modules')
+    }
+  }
+
+  const codeCondition = {
+    test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
+    ...(shouldIncludeExternalDirs
+      ? // Allowing importing TS/TSX files from outside of the root dir.
+        {}
+      : { include: [dir, ...babelIncludeRegexes] }),
+    exclude: createLoaderRuleExclude(true),
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -888,7 +893,7 @@ export default async function getBaseWebpackConfig(
           return {
             filename: '[name].js',
             chunks: 'all',
-            minSize: 1000,
+            minChunks: 2,
           }
         }
 
@@ -1401,12 +1406,17 @@ export default async function getBaseWebpackConfig(
                     use: swcLoaderForServerLayer,
                   },
                   {
-                    ...codeCondition,
-                    issuerLayer: [
-                      WEBPACK_LAYERS.appPagesBrowser,
-                      WEBPACK_LAYERS.serverSideRendering,
-                    ],
+                    test: codeCondition.test,
                     exclude: codeCondition.exclude,
+                    issuerLayer: [WEBPACK_LAYERS.appPagesBrowser],
+                    use: swcLoaderForClientLayer,
+                    resolve: {
+                      mainFields: getMainField('app', compilerType),
+                    },
+                  },
+                  {
+                    test: codeCondition.test,
+                    issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
                     use: swcLoaderForClientLayer,
                     resolve: {
                       mainFields: getMainField('app', compilerType),

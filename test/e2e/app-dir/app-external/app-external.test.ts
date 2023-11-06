@@ -168,6 +168,9 @@ createNextDescribe(
           'CJS-ESM Compat package: cjs-esm-compat/index.mjs'
         )
         expect(html).toContain('CJS package: cjs-lib')
+        expect(html).toContain(
+          'Nested imports: nested-import:esm:cjs-esm-compat/index.mjs'
+        )
       })
 
       it('should use the same react in server app', async () => {

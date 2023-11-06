@@ -1,7 +1,4 @@
-import {
-  RSC_MOD_REF_PROXY_ALIAS,
-  WEBPACK_LAYERS,
-} from '../../../../lib/constants'
+import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
 import { RSC_MODULE_TYPES } from '../../../../shared/lib/constants'
 import { warnOnce } from '../../../../shared/lib/utils/warn-once'
 import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
@@ -29,30 +26,9 @@ export default function transformSource(
 
   // A client boundary.
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
-    const issuerLayer = this._module.layer
     const sourceType = this._module?.parser?.sourceType
     const detectedClientEntryType = buildInfo.rsc.clientEntryType
     const clientRefs = buildInfo.rsc.clientRefs!
-
-    if (issuerLayer === WEBPACK_LAYERS.actionBrowser) {
-      // You're importing a Server Action module ("use server") from a client module
-      // (hence you're on the actionBrowser layer), and you're trying to import a
-      // client module again from it. This is not allowed because of cyclic module
-      // graph.
-
-      // We need to only error for user code, not for node_modules/Next.js internals.
-      // Things like `next/navigation` exports both `cookies()` and `useRouter()`
-      // and we shouldn't error for that. In the future we might want to find a way
-      // to only throw when it's used.
-      if (!this.resourcePath.includes('node_modules')) {
-        this.callback(
-          new Error(
-            `You're importing a Client Component ("use client") from another Client Component imported Server Action file ("use server"). This is not allowed due to cyclic module graph between Server and Client.\nYou can work around it by defining and passing this Server Action from a Server Component into the Client Component via props.`
-          )
-        )
-        return
-      }
-    }
 
     // It's tricky to detect the type of a client boundary, but we should always
     // use the `module` type when we can, to support `export *` and `export from`

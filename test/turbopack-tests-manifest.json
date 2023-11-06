@@ -857,21 +857,20 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "ReactRefreshLogBox app turbo Module not found",
       "ReactRefreshLogBox app turbo Module not found empty import trace",
+      "ReactRefreshLogBox app turbo Module not found missing global CSS",
       "ReactRefreshLogBox app turbo Node.js builtins"
     ],
-    "failed": [],
     "pending": [
       "ReactRefreshLogBox app default Module not found",
       "ReactRefreshLogBox app default Module not found empty import trace",
       "ReactRefreshLogBox app default Module not found missing global CSS",
       "ReactRefreshLogBox app default Node.js builtins"
     ],
-    "flakey": [
-      "ReactRefreshLogBox app turbo Module not found missing global CSS"
-    ],
+    "flakey": [],
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshLogBox-scss.test.ts": {
@@ -1041,15 +1040,15 @@
   },
   "test/development/acceptance-app/error-recovery.test.ts": {
     "passed": [
+      "Error recovery app turbo can recover from a syntax error without losing state",
       "Error recovery app turbo client component can recover from a component error",
+      "Error recovery app turbo render error not shown right after syntax error",
       "Error recovery app turbo stuck error"
     ],
     "failed": [
       "Error recovery app turbo can recover from a event handler error",
-      "Error recovery app turbo can recover from a syntax error without losing state",
       "Error recovery app turbo client component can recover from syntax error",
       "Error recovery app turbo displays build error on initial page load",
-      "Error recovery app turbo render error not shown right after syntax error",
       "Error recovery app turbo server component can recover from a component error",
       "Error recovery app turbo server component can recover from syntax error",
       "Error recovery app turbo syntax > runtime error"
@@ -1193,12 +1192,11 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBox-builtins.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "ReactRefreshLogBox turbo Module not found",
       "ReactRefreshLogBox turbo Module not found (empty import trace)",
-      "ReactRefreshLogBox turbo Node.js builtins"
-    ],
-    "failed": [
+      "ReactRefreshLogBox turbo Node.js builtins",
       "ReactRefreshLogBox turbo Module not found (missing global CSS)"
     ],
     "pending": [
@@ -1441,6 +1439,7 @@
       "optimizePackageImports app - should render the icons correctly without creating all the modules",
       "optimizePackageImports pages - should optimize recursive wildcard export mapping",
       "optimizePackageImports pages - should render the icons correctly without creating all the modules",
+      "optimizePackageImports should support \"use client\" directive in barrel file",
       "optimizePackageImports should support visx"
     ],
     "pending": [],
@@ -2304,6 +2303,8 @@
     "passed": [
       "app dir - css HMR should not break HMR when CSS is imported in a server component",
       "app dir - css HMR should support HMR for CSS imports in client components",
+      "app dir - css HMR should support HMR for CSS imports in server components",
+      "app dir - css HMR should support HMR with sass/scss",
       "app dir - css Suspensey CSS should suspend on CSS imports if its slow on client navigation",
       "app dir - css css support client components should support css modules inside client components",
       "app dir - css css support client components should support css modules inside client page",
@@ -2319,6 +2320,7 @@
       "app dir - css css support server pages should support css modules inside server pages",
       "app dir - css css support server pages should support global css inside server pages",
       "app dir - css css support should not affect css orders during HMR",
+      "app dir - css css support should reload @import styles during HMR",
       "app dir - css css support special entries should include css imported in client not-found.js",
       "app dir - css css support special entries should include css imported in client template.js",
       "app dir - css css support special entries should include css imported in error.js",
@@ -2337,13 +2339,10 @@
     ],
     "failed": [
       "app dir - css HMR should not create duplicate link tags during HMR",
-      "app dir - css HMR should support HMR for CSS imports in server components",
-      "app dir - css HMR should support HMR with sass/scss",
       "app dir - css css support chunks should bundle css resources into chunks",
       "app dir - css css support multiple entries should deduplicate styles on the module level",
       "app dir - css css support multiple entries should only include the same style once in the flight data",
       "app dir - css css support should not preload styles twice during HMR",
-      "app dir - css css support should reload @import styles during HMR",
       "app dir - css css support special entries should include css imported in loading.js"
     ],
     "pending": [
@@ -2386,21 +2385,21 @@
       "app dir - external dependency react in external esm packages should use the same react in server app",
       "app dir - external dependency should correctly collect global css imports and mark them as side effects",
       "app dir - external dependency should export client module references in esm",
+      "app dir - external dependency should handle external async module libraries correctly",
       "app dir - external dependency should handle external css modules",
       "app dir - external dependency should handle external css modules in pages",
       "app dir - external dependency should handle external next/font",
       "app dir - external dependency should resolve 3rd party package exports based on the react-server condition",
       "app dir - external dependency should resolve the subset react in server components based on the react-server condition",
       "app dir - external dependency should support exporting multiple star re-exports",
+      "app dir - external dependency should transpile specific external packages with the `transpilePackages` option",
       "app dir - external dependency should use the same async storages if imported directly",
       "app dir - external dependency should use the same export type for packages in both ssr and client"
     ],
     "failed": [
       "app dir - external dependency react in external esm packages should use the same react in pages",
       "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components",
-      "app dir - external dependency should handle external async module libraries correctly",
-      "app dir - external dependency should have proper tree-shaking for known modules in CJS",
-      "app dir - external dependency should transpile specific external packages with the `transpilePackages` option"
+      "app dir - external dependency should have proper tree-shaking for known modules in CJS"
     ],
     "pending": [],
     "flakey": [],
@@ -2844,6 +2843,9 @@
       "app dir - basic next/script should insert preload tags for beforeInteractive and afterInteractive scripts",
       "app dir - basic next/script should load stylesheets for next/scripts",
       "app dir - basic next/script should support next/script and render in correct order",
+      "app dir - basic rewrites should support rewrites on client-side navigation",
+      "app dir - basic rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
+      "app dir - basic rewrites should support rewrites on initial load",
       "app dir - basic searchParams prop client component should have the correct search params",
       "app dir - basic searchParams prop client component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop client component should have the correct search params on rewrite",
@@ -2878,6 +2880,7 @@
       "app dir - basic should handle hash in initial url",
       "app dir - basic should have correct searchParams and params (client)",
       "app dir - basic should have correct searchParams and params (server)",
+      "app dir - basic should include document html and body",
       "app dir - basic should include layouts when no direct parent layout",
       "app dir - basic should include parent document when no direct parent layout",
       "app dir - basic should match redirects in pages correctly $path",
@@ -2887,10 +2890,13 @@
       "app dir - basic should not include parent when not in parent directory",
       "app dir - basic should not serve when layout is provided but no folder index",
       "app dir - basic should not share edge workers",
+      "app dir - basic should pass props from getServerSideProps in root layout",
+      "app dir - basic should return the `vary` header from edge runtime",
       "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
+      "app dir - basic should serve from app",
       "app dir - basic should serve from pages",
       "app dir - basic should serve from public",
       "app dir - basic should serve nested parent",
@@ -2902,14 +2908,7 @@
       "app dir - basic template component should render the template that holds state in a client component and reset on navigation"
     ],
     "failed": [
-      "app dir - basic rewrites should support rewrites on client-side navigation",
-      "app dir - basic rewrites should support rewrites on client-side navigation from pages to app with existing pages path",
-      "app dir - basic rewrites should support rewrites on initial load",
       "app dir - basic should encode chunk path correctly",
-      "app dir - basic should include document html and body",
-      "app dir - basic should pass props from getServerSideProps in root layout",
-      "app dir - basic should return the `vary` header from edge runtime",
-      "app dir - basic should serve from app",
       "app dir - basic should serve polyfills for browsers that do not support modules"
     ],
     "pending": [
@@ -3313,13 +3312,13 @@
       "app dir - metadata dynamic routes social image routes should support generate multi sitemaps with generateSitemaps",
       "app dir - metadata dynamic routes text routes should handle robots.[ext] dynamic routes",
       "app dir - metadata dynamic routes text routes should handle sitemap.[ext] dynamic routes",
-      "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used"
+      "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used",
+      "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
+      "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
+      "app dir - metadata dynamic routes should generate unique path for image routes under group routes"
     ],
     "failed": [
-      "app dir - metadata dynamic routes should generate unique path for image routes under group routes",
-      "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
-      "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime",
-      "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
+      "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime"
     ],
     "pending": [],
     "flakey": [],
@@ -3524,12 +3523,12 @@
   },
   "test/e2e/app-dir/not-found-default/index.test.ts": {
     "passed": [
+      "app dir - not found with default 404 page should be able to navigate to page calling not-found",
+      "app dir - not found with default 404 page should be able to navigate to page with calling not-found in metadata",
       "app dir - not found with default 404 page should error on client notFound from root layout in browser",
       "app dir - not found with default 404 page should error on server notFound from root layout on server-side"
     ],
     "failed": [
-      "app dir - not found with default 404 page should be able to navigate to page calling not-found",
-      "app dir - not found with default 404 page should be able to navigate to page with calling not-found in metadata",
       "app dir - not found with default 404 page should render default 404 with root layout for non-existent page",
       "app dir - not found with default 404 page should render default not found for group routes if not found is not defined"
     ],
@@ -3778,19 +3777,9 @@
   },
   "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts": {
     "passed": [
-      "app dir - rsc basics should be able to navigate between rsc routes",
-      "app dir - rsc basics should escape streaming data correctly",
-      "app dir - rsc basics should link correctly with next/link without mpa navigation to the page",
-      "app dir - rsc basics should not apply rsc syntax checks in pages/api",
-      "app dir - rsc basics should render built-in 404 page for missing route if pagesDir is not presented",
-      "app dir - rsc basics should reuse the inline flight response without sending extra requests",
-      "app dir - rsc basics should stick to the url without trailing /page suffix",
-      "app dir - rsc basics should support partial hydration with inlined server data",
-      "app dir - rsc basics should support streaming for flight response"
-    ],
-    "failed": [
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling taint",
+      "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",
       "app dir - rsc basics should correctly render component returning undefined",
       "app dir - rsc basics should correctly render layout returning null",
@@ -3798,22 +3787,31 @@
       "app dir - rsc basics should correctly render page returning null",
       "app dir - rsc basics should correctly render page returning undefined",
       "app dir - rsc basics should create client reference successfully for all file conventions",
+      "app dir - rsc basics should escape streaming data correctly",
       "app dir - rsc basics should handle streaming server components correctly",
       "app dir - rsc basics should handle various kinds of exports correctly",
+      "app dir - rsc basics should link correctly with next/link without mpa navigation to the page",
+      "app dir - rsc basics should not apply rsc syntax checks in pages/api",
       "app dir - rsc basics should not use bundled react for pages with app",
+      "app dir - rsc basics should render built-in 404 page for missing route if pagesDir is not presented",
       "app dir - rsc basics should render css-in-js suspense boundary correctly",
       "app dir - rsc basics should render initial styles of css-in-js in edge SSR correctly",
       "app dir - rsc basics should render initial styles of css-in-js in nodejs SSR correctly",
       "app dir - rsc basics should render server components correctly",
       "app dir - rsc basics should resolve different kinds of components correctly",
+      "app dir - rsc basics should reuse the inline flight response without sending extra requests",
+      "app dir - rsc basics should stick to the url without trailing /page suffix",
       "app dir - rsc basics should support multi-level server component imports",
       "app dir - rsc basics should support native modules in server component",
       "app dir - rsc basics should support next/link in server components",
+      "app dir - rsc basics should support partial hydration with inlined server data",
+      "app dir - rsc basics should support streaming for flight response",
       "app dir - rsc basics should suspense next/image in server components",
       "app dir - rsc basics should suspense next/legacy/image in server components",
       "app dir - rsc basics should track client components in dynamic imports",
       "app dir - rsc basics should use canary react for app"
     ],
+    "failed": [],
     "pending": [
       "app dir - rsc basics should support partial hydration with inlined server data in browser",
       "app dir - rsc basics should support webpack loader rules"
@@ -5096,8 +5094,7 @@
   "test/e2e/module-layer/index.test.ts": {
     "passed": [],
     "failed": [
-      "module layer no server-only in server targets should error when import client-only in middleware",
-      "module layer no server-only in server targets should error when import client-only in pages/api",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors"
     ],
     "pending": [],
