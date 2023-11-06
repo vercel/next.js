@@ -16,14 +16,14 @@ interface BrowserSession {
   reload(metricName: string): Promise<void>;
 }
 
-const browserOutput = !!process.env.BROWSER_OUTPUT;
+const browserOutput = Boolean(process.env.BROWSER_OUTPUT);
 
 async function withRequestMetrics(
   metricName: string,
   page: Page,
   fn: () => Promise<void>
 ): Promise<void> {
-  const activePromises: Promise<void>[] = [];
+  const activePromises: Array<Promise<void>> = [];
   const sizeByExtension = new Map<string, number>();
   const requestsByExtension = new Map<string, number>();
   const responseHandler = (response: Response) => {
@@ -32,14 +32,17 @@ async function withRequestMetrics(
         const url = response.request().url();
         const status = response.status();
         const extension =
-          /^[^\?#]+\.([a-z0-9]+)(?:[\?#]|$)/i.exec(url)?.[1] ?? "none";
+          // eslint-disable-next-line prefer-named-capture-group -- TODO: address lint
+          /^[^?#]+\.([a-z0-9]+)(?:[?#]|$)/i.exec(url)?.[1] ?? "none";
         const currentRequests = requestsByExtension.get(extension) ?? 0;
         requestsByExtension.set(extension, currentRequests + 1);
         if (status >= 200 && status < 300) {
           let body;
           try {
             body = await response.body();
-          } catch {}
+          } catch {
+            // empty
+          }
           if (body) {
             const size = body.length;
             const current = sizeByExtension.get(extension) ?? 0;
@@ -145,12 +148,19 @@ async function withRequestMetrics(
   }
 }
 
+/**
+ * Waits until network requests have all been resolved
+ * @param page - Playwright page object
+ * @param delayMs - Amount of time in ms to wait after the last request resolves before cleaning up
+ * @param timeoutMs - Amount of time to wait before continuing. In case of timeout, this function resolves
+ * @returns
+ */
 function networkIdle(
   page: Page,
-  delay: number = 300,
-  rejectTimeout: number = 180000
-) {
-  return new Promise<void>((resolve, reject) => {
+  delayMs = 300,
+  timeoutMs = 180000
+): Promise<number> {
+  return new Promise((resolve) => {
     const cleanup = () => {
       page.off("request", requestHandler);
       page.off("requestfailed", requestFinishedHandler);
@@ -160,50 +170,71 @@ function networkIdle(
         clearTimeout(timeout);
       }
     };
-    let activeRequests = 0;
+
+    const requests = new Map<string, number>();
+    const start = Date.now();
+    let lastRequest: number;
     let timeout: NodeJS.Timeout | null = null;
-    const requests = new Set();
+
     const fullTimeout = setTimeout(() => {
       cleanup();
-      reject(
-        new Error(
-          `Timeout while waiting for network idle. These requests are still pending: ${Array.from(
-            requests
-          ).join(", ")}}`
-        )
+      // eslint-disable-next-line no-console -- logging
+      console.error(
+        `Timeout while waiting for network idle. These requests are still pending: ${Array.from(
+          requests
+        ).join(", ")}} time is ${lastRequest - start}`
       );
-    }, rejectTimeout);
-    const requestFilter = async (request: Request) => {
-      return (await request.headers().accept) !== "text/event-stream";
+      resolve(Date.now() - lastRequest);
+    }, timeoutMs);
+
+    const requestFilter = (request: Request) => {
+      return request.headers().accept !== "text/event-stream";
     };
-    const requestHandler = async (request: Request) => {
-      requests.add(request.url());
-      activeRequests++;
+
+    const requestHandler = (request: Request) => {
+      requests.set(request.url(), (requests.get(request.url()) ?? 0) + 1);
       if (timeout) {
         clearTimeout(timeout);
         timeout = null;
       }
       // Avoid tracking some requests, but we only know this after awaiting
       // so we need to do this weird stunt to ensure that
-      if (!(await requestFilter(request))) {
-        await requestFinishedInternal(request);
-      }
-    };
-    const requestFinishedHandler = async (request: Request) => {
-      if (await requestFilter(request)) {
+      if (!requestFilter(request)) {
         requestFinishedInternal(request);
       }
     };
-    const requestFinishedInternal = async (request: Request) => {
-      requests.delete(request.url());
-      activeRequests--;
-      if (activeRequests === 0) {
-        timeout = setTimeout(() => {
-          cleanup();
-          resolve();
-        }, delay);
+
+    const requestFinishedHandler = (request: Request) => {
+      if (requestFilter(request)) {
+        requestFinishedInternal(request);
       }
     };
+
+    const requestFinishedInternal = (request: Request) => {
+      lastRequest = Date.now();
+      const currentCount = requests.get(request.url());
+      if (currentCount === undefined) {
+        // eslint-disable-next-line no-console -- basic logging
+        console.error(
+          `Unexpected untracked but completed request ${request.url()}`
+        );
+        return;
+      }
+
+      if (currentCount === 1) {
+        requests.delete(request.url());
+      } else {
+        requests.set(request.url(), currentCount - 1);
+      }
+
+      if (requests.size === 0) {
+        timeout = setTimeout(() => {
+          cleanup();
+          resolve(Date.now() - lastRequest);
+        }, delayMs);
+      }
+    };
+
     page.on("request", requestHandler);
     page.on("requestfailed", requestFinishedHandler);
     page.on("requestfinished", requestFinishedHandler);
@@ -229,27 +260,29 @@ class BrowserSessionImpl implements BrowserSession {
   }
 
   async hardNavigation(metricName: string, url: string) {
-    const page = (this.page = this.page ?? (await this.context.newPage()));
+    this.page = this.page ?? (await this.context.newPage());
+
+    const page = this.page;
     await withRequestMetrics(metricName, page, async () => {
-      measureTime(`${metricName}/start`);
+      await measureTime(`${metricName}/start`);
       const idle = networkIdle(page, 3000);
       await page.goto(url, {
         waitUntil: "commit",
       });
-      measureTime(`${metricName}/html`, {
+      await measureTime(`${metricName}/html`, {
         relativeTo: `${metricName}/start`,
       });
       await page.waitForLoadState("domcontentloaded");
-      measureTime(`${metricName}/dom`, {
+      await measureTime(`${metricName}/dom`, {
         relativeTo: `${metricName}/start`,
       });
       await page.waitForLoadState("load");
-      measureTime(`${metricName}/load`, {
+      await measureTime(`${metricName}/load`, {
         relativeTo: `${metricName}/start`,
       });
-      await idle;
-      measureTime(`${metricName}`, {
-        offset: 3000,
+      const offset = await idle;
+      await measureTime(`${metricName}`, {
+        offset,
         relativeTo: `${metricName}/start`,
       });
     });
@@ -264,18 +297,20 @@ class BrowserSessionImpl implements BrowserSession {
       );
     }
     await withRequestMetrics(metricName, page, async () => {
-      measureTime(`${metricName}/start`);
-      const firstResponse = new Promise<void>((resolve) =>
-        page.once("response", () => resolve())
-      );
+      await measureTime(`${metricName}/start`);
+      const firstResponse = new Promise<void>((resolve) => {
+        page.once("response", () => {
+          resolve();
+        });
+      });
       const idle = networkIdle(page, 3000);
       await page.click(selector);
       await firstResponse;
-      measureTime(`${metricName}/firstResponse`, {
+      await measureTime(`${metricName}/firstResponse`, {
         relativeTo: `${metricName}/start`,
       });
       await idle;
-      measureTime(`${metricName}`, {
+      await measureTime(`${metricName}`, {
         offset: 3000,
         relativeTo: `${metricName}/start`,
       });
@@ -288,24 +323,24 @@ class BrowserSessionImpl implements BrowserSession {
       throw new Error("reload() must be called after hardNavigation()");
     }
     await withRequestMetrics(metricName, page, async () => {
-      measureTime(`${metricName}/start`);
+      await measureTime(`${metricName}/start`);
       const idle = networkIdle(page, 3000);
       await page.reload({
         waitUntil: "commit",
       });
-      measureTime(`${metricName}/html`, {
+      await measureTime(`${metricName}/html`, {
         relativeTo: `${metricName}/start`,
       });
       await page.waitForLoadState("domcontentloaded");
-      measureTime(`${metricName}/dom`, {
+      await measureTime(`${metricName}/dom`, {
         relativeTo: `${metricName}/start`,
       });
       await page.waitForLoadState("load");
-      measureTime(`${metricName}/load`, {
+      await measureTime(`${metricName}/load`, {
         relativeTo: `${metricName}/start`,
       });
       await idle;
-      measureTime(`${metricName}`, {
+      await measureTime(`${metricName}`, {
         offset: 3000,
         relativeTo: `${metricName}/start`,
       });
@@ -320,6 +355,7 @@ export async function newBrowserSession(options: {
 }): Promise<BrowserSession> {
   const browser = await chromium.launch({
     headless: options.headless ?? process.env.HEADLESS !== "false",
+    devtools: true,
     timeout: 60000,
   });
   const context = await browser.newContext({
