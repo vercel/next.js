@@ -6,8 +6,8 @@
     "packages/*"
   ],
   "scripts": {
-    "new-error": "plop error",
-    "new-test": "plop test",
+    "new-error": "turbo gen error",
+    "new-test": "turbo gen test",
     "clean": "lerna clean -y && lerna bootstrap && lerna run clean && lerna exec 'node ../../scripts/rm.mjs dist'",
     "build": "turbo run build --remote-cache-timeout 60 --summarize true",
     "lerna": "lerna",
@@ -173,6 +173,7 @@
     "nanoid": "3.1.30",
     "next": "workspace:*",
     "node-fetch": "2.6.7",
+    "node-plop": "0.31.1",
     "npm-run-all": "4.1.5",
     "nprogress": "0.2.0",
     "octokit": "3.1.0",
@@ -181,7 +182,6 @@
     "pixrem": "5.0.0",
     "playwright-chromium": "1.35.1",
     "playwright-core": "1.35.1",
-    "plop": "3.0.5",
     "postcss": "8.4.31",
     "postcss-nested": "4.2.1",
     "postcss-pseudoelements": "5.0.0",
