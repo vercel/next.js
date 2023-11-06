@@ -783,12 +783,18 @@ importers:
 
   packages/font:
     devDependencies:
+      '@types/async-retry':
+        specifier: 1.4.2
+        version: 1.4.2
       '@types/fontkit':
         specifier: 2.0.0
         version: 2.0.0
       '@vercel/ncc':
         specifier: 0.34.0
         version: 0.34.0
+      async-retry:
+        specifier: 1.3.3
+        version: 1.3.3
       fontkit:
         specifier: 2.0.2
         version: 2.0.2
@@ -7927,6 +7933,12 @@ packages:
     resolution: {integrity: sha512-aiieFW/7h3hY0Bq5d+ktDBejxuwR78vRu9hDUdR8rNhSaQ29VzPL4AoIRG7D/c7tdenwOcKvgPM6tIxB3cB6HA==}
     dependencies:
       retry: 0.12.0
+    dev: true
+
+  /async-retry@1.3.3:
+    resolution: {integrity: sha512-wfr/jstw9xNi/0teMHrRW7dsz3Lt5ARhYNZ2ewpadnhaIp5mbALhOAP+EAdsC7t4Z6wqsDVv9+W6gm1Dk9mEyw==}
+    dependencies:
+      retry: 0.13.1
     dev: true
 
   /async-sema@3.0.0:
@@ -21143,7 +21155,7 @@ packages:
     dev: true
 
   /retry@0.12.0:
-    resolution: {integrity: sha1-G0KmJmoh8HQh0bC1S33BZ7AcATs=}
+    resolution: {integrity: sha512-9LkiTwjUh6rT555DtE9rTX+BKByPfrMzEAtnlEtdEwr3Nkffwiihqe2bWADg+OQRjt9gl6ICdmB/ZFDCGAtSow==}
     engines: {node: '>= 4'}
     dev: true
 
