@@ -1,5 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-import asyncRetry from 'async-retry'
+// @ts-expect-error File exists
+import asyncRetry from 'next/dist/compiled/async-retry'
 
 export async function retry<T>(
   fn: asyncRetry.RetryFunction<T>,
@@ -7,7 +8,7 @@ export async function retry<T>(
 ) {
   return await asyncRetry(fn, {
     retries,
-    onRetry(e, attempt) {
+    onRetry(e: unknown, attempt: unknown) {
       console.error(
         (e as Error).message + `\n\nRetrying ${attempt}/${retries}...`
       )
