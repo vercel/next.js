@@ -147,17 +147,23 @@ interface PatchableModule {
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }
 
+interface PatchFetchOptions {
+  canUpdatePatch?: boolean
+}
+
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
-export function patchFetch({
-  serverHooks,
-  staticGenerationAsyncStorage,
-}: PatchableModule) {
+export function patchFetch(
+  { serverHooks, staticGenerationAsyncStorage }: PatchableModule,
+  options?: PatchFetchOptions
+) {
   if (!(globalThis as any)._nextOriginalFetch) {
     ;(globalThis as any)._nextOriginalFetch = globalThis.fetch
   }
 
-  if ((globalThis.fetch as any).__nextPatched) return
+  if ((globalThis.fetch as any).__nextPatched && !options?.canUpdatePatch) {
+    return
+  }
 
   const { DynamicServerError } = serverHooks
   const originFetch: typeof fetch = (globalThis as any)._nextOriginalFetch
