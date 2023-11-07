@@ -1426,8 +1426,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       normalizers.push(this.normalizers.data)
     }
 
-    // NOTE: we don't normalize for postponed here as it only applies to the
-    // `x-matched-path` header in minimal mode
+    if (this.normalizers.postponed) {
+      normalizers.push(this.normalizers.postponed)
+    }
 
     // We have to put the prefetch normalizer before the RSC normalizer
     // because the RSC normalizer will match the prefetch RSC routes too.
