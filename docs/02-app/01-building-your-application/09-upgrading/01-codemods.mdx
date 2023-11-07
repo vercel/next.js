@@ -28,13 +28,13 @@ Replacing `<transform>` and `<path>` with appropriate values.
 
 #### Migrate `ImageResponse` imports
 
-#### `next-og-import`
+##### `next-og-import`
 
 ```bash filename="Terminal"
-npx @next/codemod@latest next-og-import.
+npx @next/codemod@latest next-og-import .
 ```
 
-This codemo migrates the import path of `ImageResponse` from `'next/server'` to `'next/og'`
+This codemod moves transforms imports from `next/server` to `next/og` for usage of [Dynamic OG Image Generation](/docs/app/building-your-application/optimizing/metadata#dynamic-image-generation).
 
 For example:
 
@@ -42,7 +42,7 @@ For example:
 import { ImageResponse } from 'next/server'
 ```
 
-Transform into:
+Transforms into:
 
 ```js
 import { ImageResponse } from 'next/og'
@@ -50,7 +50,7 @@ import { ImageResponse } from 'next/og'
 
 #### Use `viewport` export
 
-#### `metadata-to-viewport-export`
+##### `metadata-to-viewport-export`
 
 ```bash filename="Terminal"
 npx @next/codemod@latest metadata-to-viewport-export .

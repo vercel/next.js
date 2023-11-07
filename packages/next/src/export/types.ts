@@ -8,6 +8,7 @@ import type { FontConfig } from '../server/font-utils'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'
 import type { Revalidate } from '../server/lib/revalidate'
+import type { NextEnabledDirectories } from '../server/base-server'
 
 export interface AmpValidation {
   page: string
@@ -35,6 +36,7 @@ type PathMap = ExportPathMap[keyof ExportPathMap]
 
 export interface ExportPageInput {
   path: string
+  dir: string
   pathMap: PathMap
   distDir: string
   outDir: string
@@ -57,6 +59,7 @@ export interface ExportPageInput {
   fetchCacheKeyPrefix?: string
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
+  enabledDirectories: NextEnabledDirectories
 }
 
 export type ExportedPageFile = {
@@ -97,7 +100,7 @@ export type ExportWorker = (
 
 export interface ExportAppOptions {
   outdir: string
-  hasAppDir: boolean
+  enabledDirectories: NextEnabledDirectories
   silent?: boolean
   threads?: number
   debugOutput?: boolean
