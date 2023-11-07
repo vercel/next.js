@@ -28,6 +28,9 @@ import {
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
+  NEXT_DID_POSTPONE_HEADER,
+  RSC_PREFETCH_SUFFIX,
+  RSC_SUFFIX,
 } from '../lib/constants'
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -135,8 +138,8 @@ import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import {
   ACTION,
-  NEXT_ROUTER_PREFETCH,
-  RSC,
+  NEXT_ROUTER_PREFETCH_HEADER,
+  RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   RSC_VARY_HEADER,
 } from '../client/components/app-router-headers'
@@ -162,13 +165,19 @@ interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
 }
 
+interface ExperimentalPPRInfo {
+  experimentalPPR: boolean | undefined
+}
+
 interface DataRouteRouteInfo {
   dataRoute: string | null
+  prefetchDataRoute: string | null | undefined
 }
 
 export interface SsgRoute
   extends ExperimentalBypassForInfo,
-    DataRouteRouteInfo {
+    DataRouteRouteInfo,
+    ExperimentalPPRInfo {
   initialRevalidateSeconds: Revalidate
   srcRoute: string | null
   initialStatus?: number
@@ -177,10 +186,12 @@ export interface SsgRoute
 
 export interface DynamicSsgRoute
   extends ExperimentalBypassForInfo,
-    DataRouteRouteInfo {
-  routeRegex: string
+    DataRouteRouteInfo,
+    ExperimentalPPRInfo {
   fallback: string | null | false
+  routeRegex: string
   dataRouteRegex: string | null
+  prefetchDataRouteRegex: string | null | undefined
 }
 
 export type PrerenderManifest = {
@@ -243,9 +254,12 @@ export type RoutesManifest = {
     localeDetection?: false
   }
   rsc: {
-    header: typeof RSC
+    header: typeof RSC_HEADER
+    didPostponeHeader: typeof NEXT_DID_POSTPONE_HEADER
     varyHeader: typeof RSC_VARY_HEADER
-    prefetchHeader: typeof NEXT_ROUTER_PREFETCH
+    prefetchHeader: typeof NEXT_ROUTER_PREFETCH_HEADER
+    suffix: typeof RSC_SUFFIX
+    prefetchSuffix: typeof RSC_PREFETCH_SUFFIX
   }
   skipMiddlewareUrlNormalize?: boolean
   caseSensitive?: boolean
@@ -826,13 +840,16 @@ export default async function build(
             dataRoutes: [],
             i18n: config.i18n || undefined,
             rsc: {
-              header: RSC,
+              header: RSC_HEADER,
               varyHeader: RSC_VARY_HEADER,
-              prefetchHeader: NEXT_ROUTER_PREFETCH,
+              prefetchHeader: NEXT_ROUTER_PREFETCH_HEADER,
+              didPostponeHeader: NEXT_DID_POSTPONE_HEADER,
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
+              suffix: RSC_SUFFIX,
+              prefetchSuffix: RSC_PREFETCH_SUFFIX,
             },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
-          }
+          } as RoutesManifest
         })
 
       if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
@@ -1317,6 +1334,7 @@ export default async function build(
           minimalMode: ciEnvironment.hasNextSupport,
           allowedRevalidateHeaderKeys:
             config.experimental.allowedRevalidateHeaderKeys,
+          experimental: { ppr: config.experimental.ppr === true },
         })
 
         incrementalCacheIpcPort = cacheInitialization.ipcPort
@@ -1676,6 +1694,7 @@ export default async function build(
                               appStaticPaths.set(originalAppPath, [])
                               appStaticPathsEncoded.set(originalAppPath, [])
                               isStatic = true
+                              isPPR = false
                             }
                           }
 
@@ -1686,10 +1705,13 @@ export default async function build(
                           }
                           appDefaultConfigs.set(originalAppPath, appConfig)
 
+                          // Only generate the app prefetch rsc if the route is
+                          // an app page.
                           if (
                             !isStatic &&
                             !isAppRouteRoute(originalAppPath) &&
-                            !isDynamicRoute(originalAppPath)
+                            !isDynamicRoute(originalAppPath) &&
+                            !isPPR
                           ) {
                             appPrefetchPaths.set(originalAppPath, page)
                           }
@@ -2095,6 +2117,7 @@ export default async function build(
                   }
                 }
               })
+
               // Append the "well-known" routes we should prerender for, e.g. blog
               // post slugs.
               additionalSsgPaths.forEach((routes, page) => {
@@ -2135,6 +2158,13 @@ export default async function build(
                   }
                 })
               })
+
+              // Ensure we don't generate explicit app prefetches while in PPR.
+              if (config.experimental.ppr && appPrefetchPaths.size > 0) {
+                throw new Error(
+                  "Invariant: explicit app prefetches shouldn't generated with PPR"
+                )
+              }
 
               for (const [originalAppPath, page] of appPrefetchPaths) {
                 defaultMap[page] = {
@@ -2236,6 +2266,13 @@ export default async function build(
 
             const isRouteHandler = isAppRouteRoute(originalAppPath)
 
+            // When this is an app page and PPR is enabled, the route supports
+            // partial pre-rendering.
+            const experimentalPPR =
+              !isRouteHandler && config.experimental.ppr === true
+                ? true
+                : undefined
+
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
             // to enable server actions on static routes
             const bypassFor: RouteHas[] = [
@@ -2266,9 +2303,20 @@ export default async function build(
 
               if (revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route)
-                const dataRoute = isRouteHandler
-                  ? null
-                  : path.posix.join(`${normalizedRoute}.rsc`)
+
+                let dataRoute: string | null
+                if (isRouteHandler) {
+                  dataRoute = null
+                } else {
+                  dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
+                }
+
+                let prefetchDataRoute: string | null | undefined
+                if (experimentalPPR) {
+                  prefetchDataRoute = path.posix.join(
+                    `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
+                  )
+                }
 
                 const routeMeta: Partial<SsgRoute> = {}
 
@@ -2303,10 +2351,12 @@ export default async function build(
 
                 finalPrerenderRoutes[route] = {
                   ...routeMeta,
+                  experimentalPPR,
                   experimentalBypassFor: bypassFor,
                   initialRevalidateSeconds: revalidate,
                   srcRoute: page,
                   dataRoute,
+                  prefetchDataRoute,
                 }
               } else {
                 hasDynamicData = true
@@ -2322,7 +2372,16 @@ export default async function build(
 
             if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
               const normalizedRoute = normalizePagePath(page)
-              const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+              const dataRoute = path.posix.join(
+                `${normalizedRoute}${RSC_SUFFIX}`
+              )
+
+              let prefetchDataRoute: string | null | undefined
+              if (experimentalPPR) {
+                prefetchDataRoute = path.posix.join(
+                  `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
+                )
+              }
 
               pageInfos.set(page, {
                 ...(pageInfos.get(page) as PageInfo),
@@ -2332,6 +2391,7 @@ export default async function build(
               // TODO: create a separate manifest to allow enforcing
               // dynamicParams for non-static paths?
               finalDynamicRoutes[page] = {
+                experimentalPPR,
                 experimentalBypassFor: bypassFor,
                 routeRegex: normalizeRouteRegex(
                   getNamedRouteRegex(page, false).re.source
@@ -2350,6 +2410,19 @@ export default async function build(
                         false
                       ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
                     ),
+                prefetchDataRoute,
+                prefetchDataRouteRegex:
+                  isRouteHandler || !prefetchDataRoute
+                    ? undefined
+                    : normalizeRouteRegex(
+                        getNamedRouteRegex(
+                          prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
+                          false
+                        ).re.source.replace(
+                          /\(\?:\\\/\)\?\$$/,
+                          '\\.prefetch\\.rsc$'
+                        )
+                      ),
               }
             }
           }
@@ -2566,24 +2639,29 @@ export default async function build(
                       initialRevalidateSeconds:
                         exportResult.byPath.get(localePage)?.revalidate ??
                         false,
+                      experimentalPPR: undefined,
                       srcRoute: null,
                       dataRoute: path.posix.join(
                         '/_next/data',
                         buildId,
                         `${file}.json`
                       ),
+                      prefetchDataRoute: undefined,
                     }
                   }
                 } else {
                   finalPrerenderRoutes[page] = {
                     initialRevalidateSeconds:
                       exportResult.byPath.get(page)?.revalidate ?? false,
+                    experimentalPPR: undefined,
                     srcRoute: null,
                     dataRoute: path.posix.join(
                       '/_next/data',
                       buildId,
                       `${file}.json`
                     ),
+                    // Pages does not have a prefetch data route.
+                    prefetchDataRoute: undefined,
                   }
                 }
                 // Set Page Revalidation Interval
@@ -2645,12 +2723,15 @@ export default async function build(
 
                   finalPrerenderRoutes[route] = {
                     initialRevalidateSeconds,
+                    experimentalPPR: undefined,
                     srcRoute: page,
                     dataRoute: path.posix.join(
                       '/_next/data',
                       buildId,
                       `${normalizePagePath(route)}.json`
                     ),
+                    // Pages does not have a prefetch data route.
+                    prefetchDataRoute: undefined,
                   }
 
                   // Set route Revalidation Interval
@@ -2729,6 +2810,7 @@ export default async function build(
             routeRegex: normalizeRouteRegex(
               getNamedRouteRegex(tbdRoute, false).re.source
             ),
+            experimentalPPR: undefined,
             dataRoute,
             fallback: ssgBlockingFallbackPages.has(tbdRoute)
               ? null
@@ -2741,9 +2823,12 @@ export default async function build(
                 false
               ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
             ),
+            // Pages does not have a prefetch data route.
+            prefetchDataRoute: undefined,
+            prefetchDataRouteRegex: undefined,
           }
         })
-        const prerenderManifest: PrerenderManifest = {
+        const prerenderManifest: Readonly<PrerenderManifest> = {
           version: 4,
           routes: finalPrerenderRoutes,
           dynamicRoutes: finalDynamicRoutes,
@@ -2774,7 +2859,7 @@ export default async function build(
           locales: config.i18n?.locales || [],
         })
       } else {
-        const prerenderManifest: PrerenderManifest = {
+        const prerenderManifest: Readonly<PrerenderManifest> = {
           version: 4,
           routes: {},
           dynamicRoutes: {},

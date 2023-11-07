@@ -64,7 +64,6 @@ import { getRuntimeContext } from '../server/web/sandbox'
 import { isClientReference } from '../lib/client-reference'
 import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/static-generation-async-storage-wrapper'
 import { IncrementalCache } from '../server/lib/incremental-cache'
-import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -1230,9 +1229,8 @@ export async function buildAppStaticPaths({
   requestHeaders,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
-  staticGenerationAsyncStorage,
-  serverHooks,
   ppr,
+  ComponentMod,
 }: {
   dir: string
   page: string
@@ -1244,16 +1242,10 @@ export async function buildAppStaticPaths({
   fetchCacheKeyPrefix?: string
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
-  staticGenerationAsyncStorage: Parameters<
-    typeof patchFetch
-  >[0]['staticGenerationAsyncStorage']
-  serverHooks: Parameters<typeof patchFetch>[0]['serverHooks']
   ppr: boolean
+  ComponentMod: AppPageModule
 }) {
-  patchFetch({
-    staticGenerationAsyncStorage,
-    serverHooks,
-  })
+  ComponentMod.patchFetch()
 
   let CacheHandler: any
 
@@ -1284,10 +1276,11 @@ export async function buildAppStaticPaths({
     CurCacheHandler: CacheHandler,
     requestHeaders,
     minimalMode: ciEnvironment.hasNextSupport,
+    experimental: { ppr },
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(
-    staticGenerationAsyncStorage,
+    ComponentMod.staticGenerationAsyncStorage,
     {
       urlPathname: page,
       renderOpts: {
@@ -1296,7 +1289,7 @@ export async function buildAppStaticPaths({
         supportsDynamicHTML: true,
         isRevalidate: false,
         isBot: false,
-        ppr,
+        experimental: { ppr },
       },
     },
     async () => {
@@ -1505,7 +1498,7 @@ export async function isPageStatic({
 
         isClientComponent = isClientReference(componentsResult.ComponentMod)
 
-        const { tree, staticGenerationAsyncStorage, serverHooks } = ComponentMod
+        const { tree } = ComponentMod
 
         const generateParams: GenerateParams =
           routeModule && isAppRouteRouteModule(routeModule)
@@ -1579,8 +1572,6 @@ export async function isPageStatic({
           } = await buildAppStaticPaths({
             dir,
             page,
-            serverHooks,
-            staticGenerationAsyncStorage,
             configFileName,
             generateParams,
             distDir,
@@ -1589,6 +1580,7 @@ export async function isPageStatic({
             maxMemoryCacheSize,
             incrementalCacheHandlerPath,
             ppr,
+            ComponentMod,
           }))
         }
       } else {
