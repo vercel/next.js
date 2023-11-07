@@ -1309,7 +1309,7 @@ dependencies = [
  "cssparser-macros",
  "dtoa-short",
  "itoa",
- "phf 0.11.2",
+ "phf 0.10.1",
  "smallvec",
 ]
 
@@ -6078,9 +6078,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_prefixer"
-version = "0.153.0"
+version = "0.153.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "440823e50ce60fb4ece4d7e241849f32344676726f66324adfd38e9762ca07fe"
+checksum = "28769f899a6c6dc208221c0272b58576b6c8cbe8988395efae913eeba5e4834e"
 dependencies = [
  "once_cell",
  "preset_env_base",
@@ -8343,7 +8343,7 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "rand",
  "static_assertions",
 ]
