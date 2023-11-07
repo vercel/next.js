@@ -169,7 +169,7 @@ impl AppProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".to_string()),
+            Vc::cell("app-client".to_string()),
         )
     }
 
@@ -273,7 +273,7 @@ impl AppProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".to_string()),
+            Vc::cell("app-client".to_string()),
         )
     }
 
