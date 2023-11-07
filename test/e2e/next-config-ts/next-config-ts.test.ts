@@ -7,6 +7,7 @@ const tests = [
   'esm',
   'esm-async',
   'esm-export-as-default',
+  'esm-fs-path',
 ]
 const failingTests = ['esm-no-default-export']
 
