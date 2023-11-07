@@ -24,7 +24,6 @@ import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../telemetry/ci-info'
-import { version } from 'next/package.json'
 import { transpileConfig } from '../build/transpile-config'
 
 export { normalizeConfig } from './config-shared'
@@ -958,9 +957,10 @@ export default async function loadConfig(
     configFileName = basename(path)
     let userConfigModule: any
 
-    if (configFileName === 'next.config.ts') {
+    if (/next\.config\.(ts|cts|mts)$/.test(configFileName)) {
       path = await transpileConfig({
         configPath: path as string,
+        configFileName,
         cwd: dir,
         log: curLog,
       })
