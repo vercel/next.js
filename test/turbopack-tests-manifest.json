@@ -3368,10 +3368,12 @@
       "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
       "app dir - metadata dynamic routes text routes should handle robots.[ext] dynamic routes",
       "app dir - metadata dynamic routes text routes should handle sitemap.[ext] dynamic routes",
-      "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used"
+      "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used",
+      "app dir - metadata dynamic routes should generate unique path for image routes under group routes",
+      "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime"
     ],
     "failed": [
-      "app dir - metadata dynamic routes should error if the default export of dynamic image is missing"
+      "app dir - should error if the default export of dynamic image is missing"
     ],
     "pending": [],
     "flakey": [],
@@ -14880,15 +14882,16 @@
     "runtimeError": false
   },
   "test/integration/url/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Handle new URL asset references in next dev should client-render the /ssg page",
       "Handle new URL asset references in next dev should client-render the /ssr page",
       "Handle new URL asset references in next dev should client-render the /static page",
       "Handle new URL asset references in next dev should render the /ssg page",
       "Handle new URL asset references in next dev should render the /ssr page",
       "Handle new URL asset references in next dev should render the /static page",
-      "Handle new URL asset references in next dev should respond on basename api",
+      "Handle new URL asset references in next dev should respond on basename api"
+    ],
+    "failed": [
       "Handle new URL asset references in next dev should respond on size api"
     ],
     "pending": [
