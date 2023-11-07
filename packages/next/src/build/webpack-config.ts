@@ -596,6 +596,7 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: createWebpackAliases({
+      distDir,
       isClient,
       isEdgeServer,
       isNodeServer,
@@ -1944,9 +1945,10 @@ export default async function getBaseWebpackConfig(
     // Disable memory cache in development in favor of our own MemoryWithGcCachePlugin.
     maxMemoryGenerations: dev ? 0 : Infinity, // Infinity is default value for production in webpack currently.
     // Includes:
+    //  - Next.js location on disk (some loaders use absolute paths and some resolve options depend on absolute paths)
     //  - Next.js version
     //  - next.config.js keys that affect compilation
-    version: `${process.env.__NEXT_VERSION}|${configVars}`,
+    version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}`,
     cacheDirectory: path.join(distDir, 'cache', 'webpack'),
     // For production builds, it's more efficient to compress all cache files together instead of compression each one individually.
     // So we disable compression here and allow the build runner to take care of compressing the cache as a whole.
