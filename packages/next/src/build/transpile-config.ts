@@ -9,6 +9,7 @@ type Log = {
 const transformOptions = {
   module: {
     type: 'commonjs',
+    strict: true,
   },
   jsc: {
     target: 'esnext',

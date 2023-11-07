@@ -7,6 +7,7 @@ const tests = [
   'esm',
   'esm-async',
   'esm-export-as-default',
+  'esm-import-pure-esm',
 ]
 const failingTests = ['esm-no-default-export']
 
