@@ -17,7 +17,7 @@ export async function transpileConfig({
   cwd: string
   log: Log
 }): Promise<string> {
-  const isCJS = configFileName.endsWith('mts')
+  const isCJS = configFileName.endsWith('cts')
   const compiledConfigPath = join(
     cwd,
     '.next',
@@ -29,7 +29,6 @@ export async function transpileConfig({
     const { code } = await transform(config, {
       module: {
         type: isCJS ? 'commonjs' : 'es6',
-        strict: true,
       },
       jsc: {
         target: 'esnext',

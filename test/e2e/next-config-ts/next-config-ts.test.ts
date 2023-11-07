@@ -3,11 +3,10 @@ import { createNextDescribe } from 'e2e-utils'
 
 const tests = [
   'cjs',
-  'cjs-export-assignment', // requires tsconfig.json to run
+  'cjs-export-assignment',
   'esm',
   'esm-async',
   'esm-export-as-default',
-  'esm-import-pure-esm',
 ]
 const failingTests = ['esm-no-default-export']
 
