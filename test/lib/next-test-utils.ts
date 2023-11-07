@@ -697,6 +697,10 @@ export async function evaluate(
   }
 }
 
+function now() {
+  return new Date().getTime()
+}
+
 export async function retry<T>(
   fn: () => T | Promise<T>,
   duration: number = 3000,
@@ -708,12 +712,12 @@ export async function retry<T>(
       `invalid duration ${duration} and interval ${interval} mix, duration must be evenly divisible by interval`
     )
   }
-
-  for (let i = duration; i >= 0; i -= interval) {
+  const start = now()
+  while (true) {
     try {
       return await fn()
     } catch (err) {
-      if (i === 0) {
+      if (now() - start > duration) {
         console.error(
           `Failed to retry${
             description ? ` ${description}` : ''
@@ -731,17 +735,9 @@ export async function retry<T>(
 
 export async function hasRedbox(browser: BrowserInterface, expected = true) {
   for (let i = 0; i < 30; i++) {
-    const result = await evaluate(browser, () => {
-      return Boolean(
-        [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
-            )
-          )
-      )
-    })
+    const result = await browser.hasElementByCssSelector(
+      '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
+    )
 
     if (result === expected) {
       return result
@@ -753,17 +749,7 @@ export async function hasRedbox(browser: BrowserInterface, expected = true) {
 
 export async function getRedboxHeader(browser: BrowserInterface) {
   return retry(
-    () => {
-      return evaluate(browser, () => {
-        const portal = [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
-          )
-        const root = portal?.shadowRoot
-        return root?.querySelector('[data-nextjs-dialog-header]')?.innerText
-      })
-    },
+    () => browser.elementByCss('[data-nextjs-dialog-header]').text(),
     10000,
     500,
     'getRedboxHeader'
@@ -773,19 +759,9 @@ export async function getRedboxHeader(browser: BrowserInterface) {
 export async function getRedboxSource(browser: BrowserInterface) {
   return retry(
     () =>
-      evaluate(browser, () => {
-        const portal = [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
-            )
-          )
-        const root = portal.shadowRoot
-        return root.querySelector(
-          '[data-nextjs-codeframe], [data-nextjs-terminal]'
-        ).innerText
-      }),
+      browser
+        .elementByCss('[data-nextjs-codeframe], [data-nextjs-terminal]')
+        .text(),
     10000,
     500,
     'getRedboxSource'

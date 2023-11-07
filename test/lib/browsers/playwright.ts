@@ -1,4 +1,4 @@
-import { BrowserInterface, Event } from './base'
+import { BaseElementHandle, BrowserInterface, Event } from './base'
 import fs from 'fs-extra'
 import {
   chromium,
@@ -40,10 +40,7 @@ async function teardown(tearDownFn: () => Promise<void>) {
   pendingTeardown.splice(pendingTeardown.indexOf(tearDownFn), 1)
 }
 
-interface ElementHandleExt extends ElementHandle {
-  getComputedCss(prop: string): Promise<string>
-  text(): Promise<string>
-}
+interface ElementHandleExt extends ElementHandle, BaseElementHandle {}
 
 export class Playwright extends BrowserInterface {
   private activeTrace?: string
@@ -315,26 +312,25 @@ export class Playwright extends BrowserInterface {
     return this.chain(() => page.bringToFront())
   }
 
-  private wrapElement(el: ElementHandle, selector: string): ElementHandleExt {
+  private wrapElement(el: ElementHandle<Element>): ElementHandleExt {
     function getComputedCss(prop: string) {
       return page.evaluate(
         function (args) {
-          const style = getComputedStyle(document.querySelector(args.selector))
+          const style = getComputedStyle(args.el)
           return style[args.prop] || null
         },
-        { selector, prop }
+        { el, prop }
       )
     }
 
     return Object.assign(el, {
-      selector,
       getComputedCss,
       text: () => el.innerText(),
     })
   }
 
   elementByCss(selector: string) {
-    return this.waitForElementByCss(selector)
+    return this.waitForElementByCss(selector, 0)
   }
 
   elementById(sel) {
@@ -397,7 +393,7 @@ export class Playwright extends BrowserInterface {
     })
   }
 
-  elementsByCss(sel) {
+  elementsByCss(sel: string) {
     return this.chain(() =>
       page.$$(sel).then((els) => {
         return els.map((el) => {
@@ -407,13 +403,13 @@ export class Playwright extends BrowserInterface {
             // match selenium
             return origGetAttribute(name).then((val) => val || '')
           }
-          return el
+          return this.wrapElement(el)
         })
       })
-    ) as any as BrowserInterface[]
+    )
   }
 
-  waitForElementByCss(selector, timeout?: number) {
+  waitForElementByCss(selector: string, timeout?: number) {
     return this.chain(() => {
       return page
         .waitForSelector(selector, { timeout, state: 'attached' })
@@ -421,7 +417,7 @@ export class Playwright extends BrowserInterface {
           // it seems selenium waits longer and tests rely on this behavior
           // so we wait for the load event fire before returning
           await page.waitForLoadState()
-          return this.wrapElement(el, selector)
+          return this.wrapElement(el)
         })
     })
   }
