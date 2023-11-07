@@ -6035,9 +6035,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_minifier"
-version = "0.116.0"
+version = "0.116.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5861fcaa5a392d38a5f21f013a16c4e6f4b0f1dd2a0db8351f33588974169e63"
+checksum = "bfe9803a0b7562ac8e0baebca15fc228fdd3dbc3c88d4fc5e85545b5f1f9597f"
 dependencies = [
  "serde",
  "swc_atoms",
