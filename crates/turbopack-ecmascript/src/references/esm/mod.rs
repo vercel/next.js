@@ -14,5 +14,5 @@ pub use self::{
     export::{EsmExport, EsmExports},
     meta::{ImportMetaBinding, ImportMetaRef},
     module_item::EsmModuleItem,
-    url::UrlAssetReference,
+    url::{UrlAssetReference, UrlRewriteBehavior},
 };

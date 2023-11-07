@@ -117,7 +117,7 @@ use crate::{
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
         cjs::{CjsRequireAssetReference, CjsRequireCacheAccess, CjsRequireResolveAssetReference},
-        esm::{module_id::EsmModuleIdAssetReference, EsmBinding},
+        esm::{module_id::EsmModuleIdAssetReference, EsmBinding, UrlRewriteBehavior},
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
     },
@@ -964,6 +964,10 @@ pub(crate) async fn analyze_ecmascript_module(
                     Vc::cell(ast_path),
                     LazyIssueSource::new(source, span.lo.to_usize(), span.hi.to_usize()),
                     in_try,
+                    options
+                        .url_rewrite_behavior
+                        .unwrap_or(UrlRewriteBehavior::Full)
+                        .cell(),
                 ));
             }
         }

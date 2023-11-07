@@ -34,6 +34,7 @@ use code_gen::CodeGenerateable;
 pub use parse::ParseResultSourceMap;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
+use references::esm::UrlRewriteBehavior;
 pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
 pub use static_code::StaticEcmascriptCode;
 use swc_core::{
@@ -94,6 +95,10 @@ pub struct EcmascriptOptions {
     pub import_parts: bool,
     /// module is forced to a specific type (happens e. g. for .cjs and .mjs)
     pub specified_module_type: SpecifiedModuleType,
+    /// Determines how to treat `new URL(...)` rewrites.
+    /// This allows to construct url depends on the different building context,
+    /// e.g. SSR, CSR, or Node.js.
+    pub url_rewrite_behavior: Option<UrlRewriteBehavior>,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]

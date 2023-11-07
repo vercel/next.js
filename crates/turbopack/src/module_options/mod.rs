@@ -76,6 +76,7 @@ impl ModuleOptions {
             ref custom_rules,
             execution_context,
             ref rules,
+            esm_url_rewrite_behavior,
             ..
         } = *module_options_context.await?;
         if !rules.is_empty() {
@@ -129,6 +130,7 @@ impl ModuleOptions {
         let ecmascript_options = EcmascriptOptions {
             split_into_parts: enable_tree_shaking,
             import_parts: enable_tree_shaking,
+            url_rewrite_behavior: esm_url_rewrite_behavior,
             ..Default::default()
         };
 
