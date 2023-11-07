@@ -32,6 +32,7 @@ export interface CacheHandlerContext {
   fetchCacheKeyPrefix?: string
   prerenderManifest?: PrerenderManifest
   revalidatedTags: string[]
+  experimental: { ppr: boolean }
   _appDir: boolean
   _pagesDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
@@ -91,6 +92,7 @@ export class IncrementalCache implements IncrementalCacheType {
     fetchCacheKeyPrefix,
     CurCacheHandler,
     allowedRevalidateHeaderKeys,
+    experimental,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -107,6 +109,7 @@ export class IncrementalCache implements IncrementalCacheType {
     getPrerenderManifest: () => PrerenderManifest
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
+    experimental: { ppr: boolean }
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     if (!CurCacheHandler) {
@@ -175,6 +178,7 @@ export class IncrementalCache implements IncrementalCacheType {
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
         fetchCacheKeyPrefix,
+        experimental,
       })
     }
   }
@@ -569,12 +573,15 @@ export class IncrementalCache implements IncrementalCacheType {
       // revalidateAfter values so we update this on set
       if (typeof ctx.revalidate !== 'undefined' && !ctx.fetchCache) {
         this.prerenderManifest.routes[pathname] = {
+          experimentalPPR: undefined,
           dataRoute: path.posix.join(
             '/_next/data',
             `${normalizePagePath(pathname)}.json`
           ),
           srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
           initialRevalidateSeconds: ctx.revalidate,
+          // Pages routes do not have a prefetch data route.
+          prefetchDataRoute: undefined,
         }
       }
       await this.cacheHandler?.set(pathname, data, ctx)

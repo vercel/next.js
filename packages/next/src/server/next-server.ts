@@ -82,7 +82,10 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { isPagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import type { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
-import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
+import {
+  INSTRUMENTATION_HOOK_FILENAME,
+  RSC_PREFETCH_SUFFIX,
+} from '../lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
@@ -324,6 +327,7 @@ export default class NextNodeServer extends BaseServer {
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       getPrerenderManifest: () => this.getPrerenderManifest(),
       CurCacheHandler: CacheHandler,
+      experimental: this.renderOpts.experimental,
     })
   }
 
@@ -996,7 +1000,7 @@ export default class NextNodeServer extends BaseServer {
 
   protected getPrefetchRsc(pathname: string): Promise<string> {
     return this.getCacheFilesystem().readFile(
-      join(this.serverDistDir, 'app', `${pathname}.prefetch.rsc`),
+      join(this.serverDistDir, 'app', `${pathname}${RSC_PREFETCH_SUFFIX}`),
       'utf8'
     )
   }

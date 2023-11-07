@@ -19,7 +19,7 @@ import { formatAmpMessages } from '../build/output/index'
 import type { AmpPageStatus } from '../build/output/index'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
-import { SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
+import { RSC_SUFFIX, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import {
   BUILD_ID_FILE,
@@ -504,7 +504,7 @@ export async function exportAppImpl(
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.experimental.deploymentId,
-    ppr: nextConfig.experimental.ppr === true,
+    experimental: { ppr: nextConfig.experimental.ppr === true },
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -775,6 +775,12 @@ export async function exportAppImpl(
 
   const endWorkerPromise = workers.end()
 
+  // Export mode provide static outputs that are not compatible with PPR mode.
+  if (!options.buildExport && nextConfig.experimental.ppr) {
+    // TODO: add message
+    throw new Error('Invariant: PPR cannot be enabled in export mode')
+  }
+
   // copy prerendered routes to outDir
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
@@ -837,7 +843,7 @@ export async function exportAppImpl(
         await fs.mkdir(dirname(jsonDest), { recursive: true })
 
         const htmlSrc = `${orig}.html`
-        const jsonSrc = `${orig}${isAppPath ? '.rsc' : '.json'}`
+        const jsonSrc = `${orig}${isAppPath ? RSC_SUFFIX : '.json'}`
 
         await fs.copyFile(htmlSrc, htmlDest)
         await fs.copyFile(jsonSrc, jsonDest)

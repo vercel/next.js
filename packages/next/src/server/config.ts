@@ -24,7 +24,6 @@ import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../telemetry/ci-info'
-import { version } from 'next/package.json'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -253,7 +252,10 @@ function assignDefaults(
 
   const result = { ...defaultConfig, ...config }
 
-  if (result.experimental?.ppr && !version.includes('canary')) {
+  if (
+    result.experimental?.ppr &&
+    !process.env.__NEXT_VERSION!.includes('canary')
+  ) {
     Log.warn(
       `The experimental.ppr feature is present in your current version but we recommend using the latest canary version for the best experience.`
     )

@@ -8,7 +8,11 @@ import type {
 
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from '../../../shared/lib/isomorphic/path'
-import { NEXT_CACHE_TAGS_HEADER } from '../../../lib/constants'
+import {
+  NEXT_CACHE_TAGS_HEADER,
+  RSC_PREFETCH_SUFFIX,
+  RSC_SUFFIX,
+} from '../../../lib/constants'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -16,6 +20,7 @@ type FileSystemCacheContext = Omit<
 > & {
   fs: CacheFs
   serverDistDir: string
+  experimental: { ppr: boolean }
 }
 
 type TagsManifest = {
@@ -33,6 +38,7 @@ export default class FileSystemCache implements CacheHandler {
   private pagesDir: boolean
   private tagsManifestPath?: string
   private revalidatedTags: string[]
+  private readonly experimental: { ppr: boolean }
 
   constructor(ctx: FileSystemCacheContext) {
     this.fs = ctx.fs
@@ -41,6 +47,7 @@ export default class FileSystemCache implements CacheHandler {
     this.appDir = !!ctx._appDir
     this.pagesDir = !!ctx._pagesDir
     this.revalidatedTags = ctx.revalidatedTags
+    this.experimental = ctx.experimental
 
     if (ctx.maxMemoryCacheSize && !memoryCache) {
       memoryCache = new LRUCache({
@@ -187,7 +194,12 @@ export default class FileSystemCache implements CacheHandler {
         } else {
           const pageData = isAppPath
             ? await this.fs.readFile(
-                this.getFilePath(`${key}.rsc`, 'app'),
+                this.getFilePath(
+                  `${key}${
+                    this.experimental.ppr ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX
+                  }`,
+                  'app'
+                ),
                 'utf8'
               )
             : JSON.parse(

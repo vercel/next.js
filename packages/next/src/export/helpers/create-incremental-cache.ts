@@ -11,7 +11,8 @@ export function createIncrementalCache(
   fetchCacheKeyPrefix: string | undefined,
   distDir: string,
   dir: string,
-  enabledDirectories: NextEnabledDirectories
+  enabledDirectories: NextEnabledDirectories,
+  experimental: { ppr: boolean }
 ) {
   // Custom cache handler overrides.
   let CacheHandler: any
@@ -46,6 +47,7 @@ export function createIncrementalCache(
     serverDistDir: path.join(distDir, 'server'),
     CurCacheHandler: CacheHandler,
     minimalMode: hasNextSupport,
+    experimental,
   })
 
   ;(globalThis as any).__incrementalCache = incrementalCache
