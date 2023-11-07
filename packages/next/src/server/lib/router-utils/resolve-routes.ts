@@ -296,9 +296,9 @@ export function getResolveRoutes(
     const normalizers = {
       basePath: new BasePathPathnameNormalizer(config.basePath),
       data: new NextDataPathnameNormalizer(fsChecker.buildId),
-      postponed: new PostponedPathnameNormalizer(
-        config.experimental.ppr === true
-      ),
+      postponed: config.experimental.ppr
+        ? new PostponedPathnameNormalizer()
+        : undefined,
     }
 
     async function handleRoute(
@@ -381,7 +381,7 @@ export function getResolveRoutes(
               updated = true
               parsedUrl.query.__nextDataReq = '1'
               normalized = normalizers.data.normalize(normalized, true)
-            } else if (normalizers.postponed.match(normalized)) {
+            } else if (normalizers.postponed?.match(normalized)) {
               updated = true
               normalized = normalizers.postponed.normalize(normalized, true)
             }
