@@ -144,10 +144,10 @@ Next.js can support both build time and runtime environment variables.
 To read runtime environment variables, we recommend using `getServerSideProps` or [incrementally adopting the App Router](/docs/app/building-your-application/upgrading/app-router-migration). With the App Router, we can safely read environment variables on the server during dynamic rendering. This allows you to use a singular Docker image that can be promoted through multiple environments with different values.
 
 ```jsx
-import { unstable_noStore as noStore } from 'next/cache';
+import { unstable_noStore as noStore } from 'next/cache'
 
 export default function Component() {
-  noStore();
+  noStore()
   // cookies(), headers(), and other dynamic functions
   // will also opt into dynamic rendering, making
   // this env variable is evaluated at runtime
