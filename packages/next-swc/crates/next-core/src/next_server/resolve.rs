@@ -161,21 +161,22 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
             return Ok(ResolveResultOption::none());
         }
 
-        // We don't know if this is a ESM reference, so also check if it is resolveable
-        // as ESM.
-        let is_esm_resolveable =
-            *is_node_resolveable(self.project_path, request, fs_path, true).await?;
         let is_cjs_resolveable =
             *is_node_resolveable(self.project_path, request, fs_path, false).await?;
 
-        if !is_cjs_resolveable && !is_esm_resolveable {
+        if !is_cjs_resolveable {
             // can't resolve request with node.js options
             return Ok(ResolveResultOption::none());
         }
 
+        // We don't know if this is a ESM reference, so also check if it is resolveable
+        // as ESM. ESM resolving is a bit more strict, e. g. regarding extensions.
+        let is_esm_resolveable =
+            *is_node_resolveable(self.project_path, request, fs_path, true).await?;
+
         // check if we can resolve the package from the project dir with node.js resolve
         // options (might be hidden by pnpm)
-        if is_cjs_resolveable {
+        if is_cjs_resolveable && is_esm_resolveable {
             // mark as external
             return Ok(ResolveResultOption::some(
                 ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
@@ -187,10 +188,13 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         if let Some(mut request_str) = request.await?.request() {
             if !request_str.ends_with(".js") {
                 request_str += ".js";
-                let request = Request::parse(Value::new(Pattern::Constant(request_str.clone())));
-                if *is_node_resolveable(self.project_path, request, fs_path, false).await?
-                    && *is_node_resolveable(self.project_path, request, fs_path, true).await?
-                {
+                let new_request =
+                    Request::parse(Value::new(Pattern::Constant(request_str.clone())));
+                let is_cjs_resolveable =
+                    *is_node_resolveable(self.project_path, new_request, fs_path, false).await?;
+                let is_esm_resolveable =
+                    *is_node_resolveable(self.project_path, new_request, fs_path, true).await?;
+                if is_cjs_resolveable && is_esm_resolveable {
                     // mark as external, but with .js extension
                     return Ok(ResolveResultOption::some(
                         ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
