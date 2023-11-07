@@ -1272,188 +1272,188 @@ globalThis.TURBOPACK_CHUNK_LISTS = {
  * It will be appended to the base development runtime code.
  */ /// <reference path="../base/runtime-base.ts" />
 let BACKEND;
-function augmentContext(context1) {
-    return context1;
+function augmentContext(context) {
+    return context;
 }
-function commonJsRequireContext(entry1, sourceModule1) {
-    return commonJsRequire(sourceModule1, entry1.id());
+function commonJsRequireContext(entry, sourceModule) {
+    return commonJsRequire(sourceModule, entry.id());
 }
-function fetchWebAssembly(wasmChunkPath1) {
-    return fetch(getChunkRelativeUrl(wasmChunkPath1));
+function fetchWebAssembly(wasmChunkPath) {
+    return fetch(getChunkRelativeUrl(wasmChunkPath));
 }
-async function loadWebAssembly(_source1, wasmChunkPath1, importsObj1) {
-    const req1 = fetchWebAssembly(wasmChunkPath1);
-    const { instance: instance1 } = await WebAssembly.instantiateStreaming(req1, importsObj1);
-    return instance1.exports;
+async function loadWebAssembly(_source, wasmChunkPath, importsObj) {
+    const req = fetchWebAssembly(wasmChunkPath);
+    const { instance } = await WebAssembly.instantiateStreaming(req, importsObj);
+    return instance.exports;
 }
-async function loadWebAssemblyModule(_source1, wasmChunkPath1) {
-    const req1 = fetchWebAssembly(wasmChunkPath1);
-    return await WebAssembly.compileStreaming(req1);
+async function loadWebAssemblyModule(_source, wasmChunkPath) {
+    const req = fetchWebAssembly(wasmChunkPath);
+    return await WebAssembly.compileStreaming(req);
 }
 // [TODO] need to match behavior as similar to UrlAssetReference
-function resolveAbsolutePath(modulePath1) {
+function resolveAbsolutePath(modulePath) {
     throw new Error('resolveAbsolutePath is not implemented in the DOM runtime');
 }
 (()=>{
     BACKEND = {
-        async registerChunk (chunkPath1, params1) {
-            const resolver1 = getOrCreateResolver1(chunkPath1);
-            resolver1.resolve();
-            if (params1 == null) {
+        async registerChunk (chunkPath, params) {
+            const resolver = getOrCreateResolver(chunkPath);
+            resolver.resolve();
+            if (params == null) {
                 return;
             }
-            for (const otherChunkData1 of params1.otherChunks){
-                const otherChunkPath1 = getChunkPath(otherChunkData1);
+            for (const otherChunkData of params.otherChunks){
+                const otherChunkPath = getChunkPath(otherChunkData);
                 // Chunk might have started loading, so we want to avoid triggering another load.
-                getOrCreateResolver1(otherChunkPath1);
+                getOrCreateResolver(otherChunkPath);
             }
             // This waits for chunks to be loaded, but also marks included items as available.
-            await Promise.all(params1.otherChunks.map((otherChunkData1)=>loadChunk({
+            await Promise.all(params.otherChunks.map((otherChunkData)=>loadChunk({
                     type: SourceType.Runtime,
-                    chunkPath: chunkPath1
-                }, otherChunkData1)));
-            if (params1.runtimeModuleIds.length > 0) {
-                for (const moduleId1 of params1.runtimeModuleIds){
-                    getOrInstantiateRuntimeModule(moduleId1, chunkPath1);
+                    chunkPath
+                }, otherChunkData)));
+            if (params.runtimeModuleIds.length > 0) {
+                for (const moduleId of params.runtimeModuleIds){
+                    getOrInstantiateRuntimeModule(moduleId, chunkPath);
                 }
             }
         },
-        loadChunk (chunkPath1, source1) {
-            return doLoadChunk1(chunkPath1, source1);
+        loadChunk (chunkPath, source) {
+            return doLoadChunk(chunkPath, source);
         },
-        unloadChunk (chunkPath1) {
-            deleteResolver1(chunkPath1);
-            const chunkUrl1 = getChunkRelativeUrl(chunkPath1);
-            if (chunkPath1.endsWith(".css")) {
-                const links1 = document.querySelectorAll(`link[href="${chunkUrl1}"]`);
-                for (const link1 of Array.from(links1)){
-                    link1.remove();
+        unloadChunk (chunkPath) {
+            deleteResolver(chunkPath);
+            const chunkUrl = getChunkRelativeUrl(chunkPath);
+            if (chunkPath.endsWith(".css")) {
+                const links = document.querySelectorAll(`link[href="${chunkUrl}"]`);
+                for (const link of Array.from(links)){
+                    link.remove();
                 }
-            } else if (chunkPath1.endsWith(".js")) {
+            } else if (chunkPath.endsWith(".js")) {
                 // Unloading a JS chunk would have no effect, as it lives in the JS
                 // runtime once evaluated.
                 // However, we still want to remove the script tag from the DOM to keep
                 // the HTML somewhat consistent from the user's perspective.
-                const scripts1 = document.querySelectorAll(`script[src="${chunkUrl1}"]`);
-                for (const script1 of Array.from(scripts1)){
-                    script1.remove();
+                const scripts = document.querySelectorAll(`script[src="${chunkUrl}"]`);
+                for (const script of Array.from(scripts)){
+                    script.remove();
                 }
             } else {
-                throw new Error(`can't infer type of chunk from path ${chunkPath1}`);
+                throw new Error(`can't infer type of chunk from path ${chunkPath}`);
             }
         },
-        reloadChunk (chunkPath1) {
-            return new Promise((resolve1, reject1)=>{
-                if (!chunkPath1.endsWith(".css")) {
-                    reject1(new Error("The DOM backend can only reload CSS chunks"));
+        reloadChunk (chunkPath) {
+            return new Promise((resolve, reject)=>{
+                if (!chunkPath.endsWith(".css")) {
+                    reject(new Error("The DOM backend can only reload CSS chunks"));
                     return;
                 }
-                const encodedChunkPath1 = chunkPath1.split("/").map((p1)=>encodeURIComponent(p1)).join("/");
-                const chunkUrl1 = getChunkRelativeUrl(encodedChunkPath1);
-                const previousLinks1 = document.querySelectorAll(`link[rel=stylesheet][href^="${chunkUrl1}"]`);
-                if (previousLinks1.length == 0) {
-                    reject1(new Error(`No link element found for chunk ${chunkPath1}`));
+                const encodedChunkPath = chunkPath.split("/").map((p)=>encodeURIComponent(p)).join("/");
+                const chunkUrl = getChunkRelativeUrl(encodedChunkPath);
+                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href^="${chunkUrl}"]`);
+                if (previousLinks.length == 0) {
+                    reject(new Error(`No link element found for chunk ${chunkPath}`));
                     return;
                 }
-                const link1 = document.createElement("link");
-                link1.rel = "stylesheet";
-                link1.href = chunkUrl1;
-                link1.onerror = ()=>{
-                    reject1();
+                const link = document.createElement("link");
+                link.rel = "stylesheet";
+                link.href = chunkUrl;
+                link.onerror = ()=>{
+                    reject();
                 };
-                link1.onload = ()=>{
+                link.onload = ()=>{
                     // First load the new CSS, then remove the old ones. This prevents visible
                     // flickering that would happen in-between removing the previous CSS and
                     // loading the new one.
-                    for (const previousLink1 of Array.from(previousLinks1))previousLink1.remove();
+                    for (const previousLink of Array.from(previousLinks))previousLink.remove();
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
-                    resolve1();
+                    resolve();
                 };
                 // Make sure to insert the new CSS right after the previous one, so that
                 // its precedence is higher.
-                previousLinks1[0].parentElement.insertBefore(link1, previousLinks1[0].nextSibling);
+                previousLinks[0].parentElement.insertBefore(link, previousLinks[0].nextSibling);
             });
         },
         restart: ()=>self.location.reload()
     };
     /**
    * Maps chunk paths to the corresponding resolver.
-   */ const chunkResolvers1 = new Map();
-    function getOrCreateResolver1(chunkPath1) {
-        let resolver1 = chunkResolvers1.get(chunkPath1);
-        if (!resolver1) {
-            let resolve1;
-            let reject1;
-            const promise1 = new Promise((innerResolve1, innerReject1)=>{
-                resolve1 = innerResolve1;
-                reject1 = innerReject1;
+   */ const chunkResolvers = new Map();
+    function getOrCreateResolver(chunkPath) {
+        let resolver = chunkResolvers.get(chunkPath);
+        if (!resolver) {
+            let resolve;
+            let reject;
+            const promise = new Promise((innerResolve, innerReject)=>{
+                resolve = innerResolve;
+                reject = innerReject;
             });
-            resolver1 = {
+            resolver = {
                 resolved: false,
-                promise: promise1,
+                promise,
                 resolve: ()=>{
-                    resolver1.resolved = true;
-                    resolve1();
+                    resolver.resolved = true;
+                    resolve();
                 },
-                reject: reject1
+                reject: reject
             };
-            chunkResolvers1.set(chunkPath1, resolver1);
+            chunkResolvers.set(chunkPath, resolver);
         }
-        return resolver1;
+        return resolver;
     }
-    function deleteResolver1(chunkPath1) {
-        chunkResolvers1.delete(chunkPath1);
+    function deleteResolver(chunkPath) {
+        chunkResolvers.delete(chunkPath);
     }
     /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
-   */ async function doLoadChunk1(chunkPath1, source1) {
-        const resolver1 = getOrCreateResolver1(chunkPath1);
-        if (resolver1.resolved) {
-            return resolver1.promise;
+   */ async function doLoadChunk(chunkPath, source) {
+        const resolver = getOrCreateResolver(chunkPath);
+        if (resolver.resolved) {
+            return resolver.promise;
         }
-        if (source1.type === SourceType.Runtime) {
+        if (source.type === SourceType.Runtime) {
             // We don't need to load chunks references from runtime code, as they're already
             // present in the DOM.
-            if (chunkPath1.endsWith(".css")) {
+            if (chunkPath.endsWith(".css")) {
                 // CSS chunks do not register themselves, and as such must be marked as
                 // loaded instantly.
-                resolver1.resolve();
+                resolver.resolve();
             }
             // We need to wait for JS chunks to register themselves within `registerChunk`
             // before we can start instantiating runtime modules, hence the absence of
             // `resolver.resolve()` in this branch.
-            return resolver1.promise;
+            return resolver.promise;
         }
-        const chunkUrl1 = getChunkRelativeUrl(chunkPath1);
-        if (chunkPath1.endsWith(".css")) {
-            const link1 = document.createElement("link");
-            link1.rel = "stylesheet";
-            link1.href = chunkUrl1;
-            link1.onerror = ()=>{
-                resolver1.reject();
+        const chunkUrl = getChunkRelativeUrl(chunkPath);
+        if (chunkPath.endsWith(".css")) {
+            const link = document.createElement("link");
+            link.rel = "stylesheet";
+            link.href = chunkUrl;
+            link.onerror = ()=>{
+                resolver.reject();
             };
-            link1.onload = ()=>{
+            link.onload = ()=>{
                 // CSS chunks do not register themselves, and as such must be marked as
                 // loaded instantly.
-                resolver1.resolve();
+                resolver.resolve();
             };
-            document.body.appendChild(link1);
-        } else if (chunkPath1.endsWith(".js")) {
-            const script1 = document.createElement("script");
-            script1.src = chunkUrl1;
+            document.body.appendChild(link);
+        } else if (chunkPath.endsWith(".js")) {
+            const script = document.createElement("script");
+            script.src = chunkUrl;
             // We'll only mark the chunk as loaded once the script has been executed,
             // which happens in `registerChunk`. Hence the absence of `resolve()` in
             // this branch.
-            script1.onerror = ()=>{
-                resolver1.reject();
+            script.onerror = ()=>{
+                resolver.reject();
             };
-            document.body.appendChild(script1);
+            document.body.appendChild(script);
         } else {
-            throw new Error(`can't infer type of chunk from path ${chunkPath1}`);
+            throw new Error(`can't infer type of chunk from path ${chunkPath}`);
         }
-        return resolver1.promise;
+        return resolver.promise;
     }
 })();
 function _eval({ code, url, map }) {
