@@ -146,10 +146,8 @@ To configure the ISR/Data Cache location when self-hosting, you can configure a 
 
 ```jsx filename="next.config.js"
 module.exports = {
-  experimental: {
-    incrementalCacheHandlerPath: require.resolve('./cache-handler.js'),
-    isrMemoryCacheSize: 0, // disable default in-memory caching
-  },
+  cacheHandler: require.resolve('./cache-handler.js'),
+  cacheMaxMemorySize: 0, // disable default in-memory caching
 }
 ```
 
