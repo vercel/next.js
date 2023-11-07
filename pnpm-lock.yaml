@@ -782,6 +782,10 @@ importers:
         version: 7.24.0
 
   packages/font:
+    dependencies:
+      next:
+        specifier: '*'
+        version: link:../next
     devDependencies:
       '@types/fontkit':
         specifier: 2.0.0
@@ -21143,7 +21147,7 @@ packages:
     dev: true
 
   /retry@0.12.0:
-    resolution: {integrity: sha1-G0KmJmoh8HQh0bC1S33BZ7AcATs=}
+    resolution: {integrity: sha512-9LkiTwjUh6rT555DtE9rTX+BKByPfrMzEAtnlEtdEwr3Nkffwiihqe2bWADg+OQRjt9gl6ICdmB/ZFDCGAtSow==}
     engines: {node: '>= 4'}
     dev: true
 
