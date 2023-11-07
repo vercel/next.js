@@ -680,6 +680,24 @@ export async function printTreeView(
     })
   )
 
+  const hasAppRouterPages =
+    lists.app != null &&
+    filterAndSortList(lists.app, 'app', hasCustomApp).length > 0
+  const hasPageRouterPages =
+    filterAndSortList(lists.pages, 'pages', hasCustomApp).length > 0
+  let prerenderMethod
+  if (hasAppRouterPages && hasPageRouterPages) {
+    prerenderMethod = `${cyan(
+      'generateStaticParams'
+    )} for App Router routes and ${cyan(
+      'getStaticProps'
+    )} for Pages Router routes`
+  } else if (hasAppRouterPages) {
+    prerenderMethod = cyan('generateStaticParams')
+  } else {
+    prerenderMethod = cyan('getStaticProps')
+  }
+
   print()
   print(
     textTable(
@@ -692,7 +710,7 @@ export async function printTreeView(
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
-          `prerendered as static HTML (uses ${cyan('getStaticProps')})`,
+          `prerendered as static HTML (uses ${prerenderMethod})`,
         ],
         usedSymbols.has('ISR') && [
           '',
