@@ -958,6 +958,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             'http://localhost'
           )
 
+          if (this.normalizers.rsc.match(matchedPath)) {
+            matchedPath = this.normalizers.rsc.normalize(matchedPath, true)
+          } else if (this.normalizers.postponed.match(matchedPath)) {
+            matchedPath = this.normalizers.postponed.normalize(
+              matchedPath,
+              true
+            )
+          }
+
           const { pathname: urlPathname } = new URL(req.url, 'http://localhost')
 
           // For ISR  the URL is normalized to the prerenderPath so if
@@ -989,8 +998,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             addRequestMeta(req, 'postponed', postponed)
           }
 
-          matchedPath = this.normalize(matchedPath)
-          const normalizedUrlPath = this.normalize(parsedUrl.pathname)
+          matchedPath = this.stripNextDataPath(matchedPath, false)
+          const normalizedUrlPath = this.stripNextDataPath(urlPathname)
 
           // Perform locale detection and normalization.
           const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
