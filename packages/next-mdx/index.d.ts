@@ -1,7 +1,6 @@
-/* eslint-disable */
-import { NextConfig } from 'next'
-import { Options } from '@mdx-js/loader'
-import { RuleSetConditionAbsolute } from 'webpack'
+import type { NextConfig } from 'next'
+import type { Options } from '@mdx-js/loader'
+import type { RuleSetConditionAbsolute } from 'webpack'
 
 type WithMDX = (config: NextConfig) => NextConfig
 
@@ -32,4 +31,3 @@ declare namespace nextMDX {
 declare function nextMDX(options?: nextMDX.NextMDXOptions): WithMDX
 
 export = nextMDX
-/* eslint=enable */
