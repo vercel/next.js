@@ -2250,11 +2250,10 @@ dependencies = [
 
 [[package]]
 name = "hstr"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5700a2810cdc52f9a306f40c88031fac8d480f3d51ef38b9ca9ff5b8d4f3814"
+checksum = "94f8eaaa1bccc114f3ed94b7b66f0195cbf48151402d3efc27f7f6e362042416"
 dependencies = [
- "dashmap",
  "new_debug_unreachable",
  "once_cell",
  "phf 0.11.2",
