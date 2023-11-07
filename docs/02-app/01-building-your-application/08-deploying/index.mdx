@@ -194,7 +194,7 @@ Using a custom cache handler will allow you to ensure consistency across all pod
 
 **Good to know:**
 
-- `revalidatePath` is a convenience layer on top of cache tags. Calling `revalidatePath` will call your `revalidateTag` function, which you can then choose if you want to tag cache keys based on the path.
+- `revalidatePath` is a convenience layer on top of cache tags. Calling `revalidatePath` will call the `revalidateTag` function with a special default tag for the provided page.
 
 ### Build Cache
 
@@ -215,7 +215,7 @@ module.exports = {
 
 Next.js will automatically mitigate most instances of [version skew](https://www.industrialempathy.com/posts/version-skew/) and automatically reload the application to retrieve new assets when detected. For example, if there is a mismatch in the build ID, transitions between pages will perform a hard navigation versus using a prefetched value.
 
-When the application is reloaded, there may be a loss of application state if it's not designed to persist between page navigations. For example, using URL state or local storage would persist state after a page refresh. However, component state like `useState` would be lost.
+When the application is reloaded, there may be a loss of application state if it's not designed to persist between page navigations. For example, using URL state or local storage would persist state after a page refresh. However, component state like `useState` would be lost in such navigations.
 
 Vercel provides additional [skew protection](https://vercel.com/docs/deployments/skew-protection?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) for Next.js applications to ensure assets and functions from the previous build are still available while the new build is being deployed.
 
@@ -242,11 +242,11 @@ You can set the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then registe
 ```js filename="pages/_document.js"
 if (process.env.NEXT_MANUAL_SIG_HANDLE) {
   process.on('SIGTERM', () => {
-    console.log('Received SIGTERM: ', 'cleaning up')
+    console.log('Received SIGTERM: cleaning up')
     process.exit(0)
   })
   process.on('SIGINT', () => {
-    console.log('Received SIGINT: ', 'cleaning up')
+    console.log('Received SIGINT: cleaning up')
     process.exit(0)
   })
 }
