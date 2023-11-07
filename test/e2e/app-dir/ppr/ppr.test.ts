@@ -143,5 +143,25 @@ createNextDescribe(
         })
       }
     )
+
+    describe('/no-suspense/node/gsp/[slug]', () => {
+      it('should serve the static & dynamic parts', async () => {
+        const $ = await next.render$('/no-suspense/node/gsp/foo')
+        expect($('#page').length).toBe(1)
+        expect($('#container > #dynamic > #state').length).toBe(1)
+      })
+    })
+
+    describe('/suspense/node/gsp/[slug]', () => {
+      it('should serve the static part first', async () => {
+        const $ = await next.render$('/suspense/node/gsp/foo')
+        expect($('#page').length).toBe(1)
+      })
+
+      it('should not have the dynamic part', async () => {
+        const $ = await next.render$('/suspense/node/gsp/foo')
+        expect($('#container > #dynamic > #state').length).toBe(0)
+      })
+    })
   }
 )
