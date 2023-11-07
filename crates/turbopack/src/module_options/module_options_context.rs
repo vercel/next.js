@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, ValueDefault, Vc};
 use turbopack_core::{environment::Environment, resolve::options::ImportMapping};
-use turbopack_ecmascript::TransformPlugin;
+use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TransformPlugin};
 use turbopack_node::{
     execution_context::ExecutionContext, transforms::webpack::WebpackLoaderItems,
 };
@@ -164,6 +164,7 @@ pub struct ModuleOptionsContext {
     pub rules: Vec<(ContextCondition, Vc<ModuleOptionsContext>)>,
     pub placeholder_for_future_extensions: (),
     pub enable_tree_shaking: bool,
+    pub esm_url_rewrite_behavior: Option<UrlRewriteBehavior>,
 }
 
 #[turbo_tasks::value_impl]

@@ -25,6 +25,20 @@ use crate::{
     utils::module_id_to_lit,
 };
 
+/// Determines how to treat `new URL(...)` rewrites.
+/// This allows to construct url depends on the different building context,
+/// e.g. SSR, CSR, or Node.js.
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Copy, Clone, PartialOrd, Ord, Hash)]
+pub enum UrlRewriteBehavior {
+    /// Omits base, resulting in a relative URL.
+    Relative,
+    /// Uses the full URL, including the base.
+    Full,
+    /// Do not attempt to rewrite the URL.
+    None,
+}
+
 /// URL Asset References are injected during code analysis when we find a
 /// (staticly analyzable) `new URL("path", import.meta.url)`.
 ///
@@ -38,6 +52,7 @@ pub struct UrlAssetReference {
     ast_path: Vc<AstPath>,
     issue_source: Vc<LazyIssueSource>,
     in_try: bool,
+    url_rewrite_behavior: Vc<UrlRewriteBehavior>,
 }
 
 #[turbo_tasks::value_impl]
@@ -50,6 +65,7 @@ impl UrlAssetReference {
         ast_path: Vc<AstPath>,
         issue_source: Vc<LazyIssueSource>,
         in_try: bool,
+        url_rewrite_behavior: Vc<UrlRewriteBehavior>,
     ) -> Vc<Self> {
         UrlAssetReference {
             origin,
@@ -58,6 +74,7 @@ impl UrlAssetReference {
             ast_path,
             issue_source,
             in_try,
+            url_rewrite_behavior,
         }
         .cell()
     }
@@ -115,50 +132,61 @@ impl CodeGenerateable for UrlAssetReference {
         let this = self.await?;
         let mut visitors = vec![];
 
-        let referenced_asset = self.get_referenced_asset().await?;
+        let rewrite_behavior = &*this.url_rewrite_behavior.await?;
 
-        // For rendering environments (CSR and SSR), we rewrite the `import.meta.url` to
-        // be a location.origin because it allows us to access files from the root of
-        // the dev server. It's important that this be rewritten for SSR as well, so
-        // that the client's hydration matches exactly.
-        //
-        // In a non-rendering env, the `import.meta.url` is already the correct `file://` URL
-        // to load files.
-        let rewrite = match &*this.rendering.await? {
-            Rendering::None => {
-                CodeGenerationIssue {
-                    severity: IssueSeverity::Error.into(),
-                    title: Vc::cell("new URL(…) not implemented for this environment".to_string()),
-                    message: Vc::cell(
-                        "new URL(…) is only currently supported for rendering environments like \
-                         Client-Side or Server-Side Rendering."
-                            .to_string(),
-                    ),
-                    path: this.origin.origin_path(),
-                }
-                .cell()
-                .emit();
-                None
+        match rewrite_behavior {
+            UrlRewriteBehavior::Relative => {
+                unimplemented!(
+                    "UrlRewriteBehavior::Relative is not implemented yet for code generation"
+                );
             }
-            Rendering::Client => Some(quote!("location.origin" as Expr)),
-            Rendering::Server(server_addr) => {
-                let location = server_addr.await?.to_string()?;
-                Some(location.into())
-            }
-        };
+            UrlRewriteBehavior::Full => {
+                let referenced_asset = self.get_referenced_asset().await?;
 
-        let ast_path = this.ast_path.await?;
+                // For rendering environments (CSR and SSR), we rewrite the `import.meta.url` to
+                // be a location.origin because it allows us to access files from the root of
+                // the dev server. It's important that this be rewritten for SSR as well, so
+                // that the client's hydration matches exactly.
+                //
+                // In a non-rendering env, the `import.meta.url` is already the correct `file://` URL
+                // to load files.
+                let rewrite = match &*this.rendering.await? {
+                    Rendering::None => {
+                        CodeGenerationIssue {
+                            severity: IssueSeverity::Error.into(),
+                            title: Vc::cell(
+                                "new URL(…) not implemented for this environment".to_string(),
+                            ),
+                            message: Vc::cell(
+                                "new URL(…) is only currently supported for rendering \
+                                 environments like Client-Side or Server-Side Rendering."
+                                    .to_string(),
+                            ),
+                            path: this.origin.origin_path(),
+                        }
+                        .cell()
+                        .emit();
+                        None
+                    }
+                    Rendering::Client => Some(quote!("location.origin" as Expr)),
+                    Rendering::Server(server_addr) => {
+                        let location = server_addr.await?.to_string()?;
+                        Some(location.into())
+                    }
+                };
 
-        match &*referenced_asset {
-            ReferencedAsset::Some(asset) => {
-                // We rewrite the first `new URL()` arguments to be a require() of the chunk
-                // item, which exports the static asset path to the linked file.
-                let id = asset
-                    .as_chunk_item(Vc::upcast(chunking_context))
-                    .id()
-                    .await?;
+                let ast_path = this.ast_path.await?;
 
-                visitors.push(
+                match &*referenced_asset {
+                    ReferencedAsset::Some(asset) => {
+                        // We rewrite the first `new URL()` arguments to be a require() of the chunk
+                        // item, which exports the static asset path to the linked file.
+                        let id = asset
+                            .as_chunk_item(Vc::upcast(chunking_context))
+                            .id()
+                            .await?;
+
+                        visitors.push(
                     create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
                         if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                             if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
@@ -176,10 +204,10 @@ impl CodeGenerateable for UrlAssetReference {
                         }
                     }),
                 );
-            }
-            ReferencedAsset::OriginalReferenceTypeExternal(request) => {
-                let request = request.to_string();
-                visitors.push(
+                    }
+                    ReferencedAsset::OriginalReferenceTypeExternal(request) => {
+                        let request = request.to_string();
+                        visitors.push(
                     create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
                         if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                             if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
@@ -194,9 +222,14 @@ impl CodeGenerateable for UrlAssetReference {
                         }
                     }),
                 );
+                    }
+                    ReferencedAsset::None => {}
+                }
             }
-            ReferencedAsset::None => {}
-        }
+            UrlRewriteBehavior::None => {
+                // Asked to not rewrite the URL, so we don't do anything.
+            }
+        };
 
         Ok(CodeGeneration { visitors }.into())
     }
