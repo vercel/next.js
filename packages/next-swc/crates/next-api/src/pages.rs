@@ -545,8 +545,8 @@ impl PageEndpoint {
                 "next/dist/client/next-dev-turbopack.js".to_string(),
             ))),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-            None,
             IssueSeverity::Error.cell(),
+            None,
         )
         .first_module()
         .await?

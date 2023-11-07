@@ -958,12 +958,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             'http://localhost'
           )
 
+          if (this.normalizers.rsc.match(matchedPath)) {
+            matchedPath = this.normalizers.rsc.normalize(matchedPath, true)
+          } else if (this.normalizers.postponed.match(matchedPath)) {
+            matchedPath = this.normalizers.postponed.normalize(
+              matchedPath,
+              true
+            )
+          }
+
+          const { pathname: urlPathname } = new URL(req.url, 'http://localhost')
+
           // For ISR  the URL is normalized to the prerenderPath so if
           // it's a data request the URL path will be the data URL,
           // basePath is already stripped by this point
           if (
             this.enabledDirectories.pages &&
-            this.normalizers.data.match(parsedUrl.pathname)
+            this.normalizers.data.match(urlPathname)
           ) {
             parsedUrl.query.__nextDataReq = '1'
           }
@@ -987,8 +998,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             addRequestMeta(req, 'postponed', postponed)
           }
 
-          matchedPath = this.normalize(matchedPath)
-          const normalizedUrlPath = this.normalize(parsedUrl.pathname)
+          matchedPath = this.stripNextDataPath(matchedPath, false)
+          const normalizedUrlPath = this.stripNextDataPath(urlPathname)
 
           // Perform locale detection and normalization.
           const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
@@ -1888,7 +1899,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // we can use this fact to only generate the flight data for the request
     // because we can't cache the HTML (as it's also dynamic).
     const isDynamicRSCRequest =
-      this.renderOpts.experimental.ppr && isRSCRequest && !isPrefetchRSCRequest
+      opts.experimental.ppr && isRSCRequest && !isPrefetchRSCRequest
 
     // For pages we need to ensure the correct Vary header is set too, to avoid
     // caching issues when navigating between pages and app
@@ -2138,31 +2149,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const doRender: Renderer = async (postponed) => {
       // In development, we always want to generate dynamic HTML.
-      const supportsDynamicHTML =
+      const supportsDynamicHTML: boolean =
         // If this isn't a data request and we're not in development, then we
         // support dynamic HTML.
-        (!isDataReq && opts.dev) ||
+        (!isDataReq && opts.dev === true) ||
         // If this is not SSG or does not have static paths, then it supports
         // dynamic HTML.
-        !(isSSG || hasStaticPaths) ||
+        (!isSSG && !hasStaticPaths) ||
         // If this request has provided postponed data, it supports dynamic
         // HTML.
         !!postponed ||
         // If this is a dynamic RSC request, then this render supports dynamic
         // HTML (it's dynamic).
         isDynamicRSCRequest
-
-      // Ensure we bail if a prefetch RSC request is made while PPR is
-      // enabled that has dynamic HTML enabled.
-      if (
-        this.renderOpts.experimental.ppr &&
-        isPrefetchRSCRequest &&
-        supportsDynamicHTML
-      ) {
-        throw new Error(
-          "Invariant: prefetch RSC requests can't support dynamic HTML"
-        )
-      }
 
       let headers: OutgoingHttpHeaders | undefined
 
@@ -2317,7 +2316,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         } else if (isAppPageRouteModule(routeModule)) {
           if (
-            !this.renderOpts.experimental.ppr &&
+            !opts.experimental.ppr &&
             isPrefetchRSCRequest &&
             process.env.NODE_ENV === 'production' &&
             !this.minimalMode
@@ -2655,7 +2654,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       this.minimalMode &&
       isRSCRequest &&
       !isPrefetchRSCRequest &&
-      this.renderOpts.experimental.ppr
+      opts.experimental.ppr
     ) {
       revalidate = 0
     } else if (
