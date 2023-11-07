@@ -39,7 +39,10 @@ async function main() {
   console.log('using repodir', repoDir)
   await fsp.mkdir(workDir, { recursive: true })
 
-  const pkgPaths = await linkPackages({ repoDir: origRepoDir })
+  const pkgPaths = await linkPackages({
+    repoDir: origRepoDir,
+    nextSwcVersion: null,
+  })
 
   await fsp.writeFile(
     path.join(workDir, 'package.json'),
