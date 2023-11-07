@@ -35,8 +35,7 @@ export function GoogleTagManager(props: GTMParams) {
     // Useful for feature detection and measurement
     performance.mark('mark_use_counter', {
       detail: {
-        feature: 'next-third-parties',
-        type: 'gtm',
+        feature: 'next-third-parties-gtm',
       },
     })
   }, [])

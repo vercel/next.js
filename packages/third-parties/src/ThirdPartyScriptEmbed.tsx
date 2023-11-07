@@ -21,8 +21,7 @@ export default function ThirdPartyScriptEmbed({
     // Useful for feature detection and measurement
     performance.mark('mark_use_counter', {
       detail: {
-        feature: 'next-third-parties',
-        type: dataNtpc,
+        feature: `next-third-parties-${dataNtpc}`,
       },
     })
   }, [dataNtpc])
