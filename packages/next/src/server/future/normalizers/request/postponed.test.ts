@@ -32,7 +32,7 @@ describe('PostponedPathnameNormalizer', () => {
       }
     })
 
-    it('should normalize and matched', () => {
+    it('should normalize when matched', () => {
       const pathnames = ['/foo', '/bar', '/baz']
       const normalizer = new PostponedPathnameNormalizer()
       for (const pathname of pathnames) {
