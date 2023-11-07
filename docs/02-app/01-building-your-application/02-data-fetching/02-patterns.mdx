@@ -59,7 +59,7 @@ When fetching data inside React components, you need to be aware of two data fet
 
 #### Sequential Data Fetching
 
-If you have nested components, and each component fetches its own data, Then, data fetching will happen sequentially if those data requests are different (this doesn't apply to requests for the same data as they are automatically [memoized](/docs/app/building-your-application/caching#request-memoization)).
+If you have nested components, and each component fetches its own data, then data fetching will happen sequentially if those data requests are different (this doesn't apply to requests for the same data as they are automatically [memoized](/docs/app/building-your-application/caching#request-memoization)).
 
 For example, the `Playlists` component will only start fetching data once the `Artist` component has finished fetching data because `Playlists` depends on the `artistID` prop:
 
