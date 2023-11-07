@@ -294,7 +294,10 @@ export function getResolveRoutes(
     }
 
     const normalizers = {
-      basePath: new BasePathPathnameNormalizer(config.basePath),
+      basePath:
+        config.basePath && config.basePath !== '/'
+          ? new BasePathPathnameNormalizer(config.basePath)
+          : undefined,
       data: new NextDataPathnameNormalizer(fsChecker.buildId),
       postponed: config.experimental.ppr
         ? new PostponedPathnameNormalizer()
@@ -371,8 +374,8 @@ export function getResolveRoutes(
             let normalized = parsedUrl.pathname
 
             // Remove the base path if it exists.
-            const hadBasePath = normalizers.basePath.match(parsedUrl.pathname)
-            if (hadBasePath) {
+            const hadBasePath = normalizers.basePath?.match(parsedUrl.pathname)
+            if (hadBasePath && normalizers.basePath) {
               normalized = normalizers.basePath.normalize(normalized, true)
             }
 
