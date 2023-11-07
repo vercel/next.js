@@ -188,7 +188,7 @@ export const installTemplate = async ({
       react: '^18',
       'react-dom': '^18',
       next: version,
-      geist: '^1',
+      geist: '^1.0.1',
     },
     devDependencies: {},
   }
