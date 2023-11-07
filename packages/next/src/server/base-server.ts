@@ -989,8 +989,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             addRequestMeta(req, 'postponed', postponed)
           }
 
-          matchedPath = this.normalize(matchedPath)
-          const normalizedUrlPath = this.normalize(parsedUrl.pathname)
+          matchedPath = this.stripNextDataPath(matchedPath, false)
+          const normalizedUrlPath = this.stripNextDataPath(urlPathname)
 
           // Perform locale detection and normalization.
           const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
