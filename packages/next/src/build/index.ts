@@ -2273,15 +2273,6 @@ export default async function build(
                 ? true
                 : undefined
 
-            if (isDynamicRoute(page) && experimentalPPR) {
-              // if PPR is turned on and the route contains a dynamic segment,
-              // we assume it'll be partially prerendered
-              pageInfos.set(page, {
-                ...(pageInfos.get(page) as PageInfo),
-                hasPostponed: true,
-              })
-            }
-
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
             // to enable server actions on static routes
             const bypassFor: RouteHas[] = [
@@ -2402,6 +2393,9 @@ export default async function build(
               pageInfos.set(page, {
                 ...(pageInfos.get(page) as PageInfo),
                 isDynamicAppRoute: true,
+                // if PPR is turned on and the route contains a dynamic segment,
+                // we assume it'll be partially prerendered
+                hasPostponed: experimentalPPR,
               })
 
               // TODO: create a separate manifest to allow enforcing
