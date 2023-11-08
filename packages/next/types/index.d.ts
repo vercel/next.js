@@ -87,7 +87,7 @@ export type Redirect =
     }
 
 /**
- * `Page` type, use it as a guide to create `pages`.
+ * `NextPage` type, use it as a guide to create `pages`.
  */
 export type NextPage<Props = {}, InitialProps = Props> = NextComponentType<
   NextPageContext,
