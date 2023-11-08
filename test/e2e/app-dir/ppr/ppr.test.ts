@@ -7,6 +7,10 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next, isNextDev, isNextStart }) => {
+    it('should indicate the feature is experimental', () => {
+      expect(next.cliOutput).toContain('Experiments (use at your own risk)')
+      expect(next.cliOutput).toContain('ppr')
+    })
     if (isNextStart) {
       describe('build output', () => {
         it('correctly marks pages as being partially prerendered in the build output', () => {
