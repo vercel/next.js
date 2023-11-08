@@ -281,9 +281,15 @@ impl DiskFileSystem {
         let invalidation_lock = self.invalidation_lock.clone();
         // Create a channel to receive the events.
         let (tx, rx) = channel();
+        // Linux watching is too fast, so we need to throttle it a bit to avoid reading
+        // wip files
+        #[cfg(target_os = "linux")]
+        let delay = Duration::from_millis(10);
+        #[cfg(not(target_os = "linux"))]
+        let delay = Duration::from_millis(1);
         // Create a watcher object, delivering debounced events.
         // The notification back-end is selected based on the platform.
-        let mut watcher = watcher(tx, Duration::from_millis(1))?;
+        let mut watcher = watcher(tx, delay)?;
         // Add a path to be watched. All files and directories at that path and
         // below will be monitored for changes.
         #[cfg(any(target_os = "macos", target_os = "windows"))]
