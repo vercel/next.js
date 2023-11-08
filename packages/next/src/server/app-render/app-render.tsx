@@ -740,6 +740,10 @@ async function renderToHTMLOrFlightImpl(
         // Copy headers created by React into the response object.
         headers.forEach((value: string, key: string) => {
           res.appendHeader(key, value)
+          if (!extraRenderResultMeta.extraHeaders) {
+            extraRenderResultMeta.extraHeaders = {}
+          }
+          extraRenderResultMeta.extraHeaders[key] = value
         })
       }
 

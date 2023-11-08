@@ -20,7 +20,6 @@ import {
 } from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
-import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -184,7 +183,7 @@ export async function exportAppPage(
       )
     }
 
-    const headers = toNodeOutgoingHttpHeaders(res.headers)
+    const headers = { ...metadata.extraHeaders }
 
     if (fetchTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = fetchTags

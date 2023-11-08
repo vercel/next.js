@@ -2374,8 +2374,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // Add any fetch tags that were on the page to the response headers.
       const cacheTags = metadata.fetchTags
 
-      // Copy the headers from the response.
-      headers = { ...res.getHeaders() }
+      headers = { ...metadata.extraHeaders }
 
       if (cacheTags) {
         headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
