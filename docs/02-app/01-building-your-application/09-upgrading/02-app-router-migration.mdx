@@ -14,7 +14,7 @@ This guide will help you:
 
 ### Node.js Version
 
-The minimum Node.js version is now **v16.14**. See the [Node.js documentation](https://nodejs.org/docs/latest-v16.x/api/) for more information.
+The minimum Node.js version is now **v18.17**. See the [Node.js documentation](https://nodejs.org/docs/latest-v18.x/api/) for more information.
 
 ### Next.js Version
 
@@ -859,7 +859,7 @@ export default async function PostList() {
 
 API Routes continue to work in the `pages/api` directory without any changes. However, they have been replaced by [Route Handlers](/docs/app/building-your-application/routing/route-handlers) in the `app` directory.
 
-Route Handlers allow you to create custom request handlers for a given route using the Web [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) APIs.
+Route Handlers allow you to create custom request handlers for a given route using the Web [Request](https://developer.mozilla.org/docs/Web/API/Request) and [Response](https://developer.mozilla.org/docs/Web/API/Response) APIs.
 
 ```ts filename="app/api/route.ts" switcher
 export async function GET(request: Request) {}

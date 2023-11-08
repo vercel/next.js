@@ -56,7 +56,9 @@ describe('TypeScript Features', () => {
 
       const found = await check(
         () => stripAnsi(output),
-        /Module not found: Can't resolve 'components\/worldd'/,
+        process.env.TURBOPACK
+          ? /unable to resolve module "components\/worldd"/
+          : /Module not found: Can't resolve 'components\/worldd'/,
         false
       )
       await fs.writeFile(basicPage, contents)
@@ -65,25 +67,26 @@ describe('TypeScript Features', () => {
   })
 
   describe('should build', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-    })
-    it('should trace correctly', async () => {
-      const helloTrace = await fs.readJSON(
-        join(appDir, '.next/server/pages/hello.js.nft.json')
-      )
-      const appTrace = await fs.readJSON(
-        join(appDir, '.next/server/pages/_app.js.nft.json')
-      )
-      expect(
-        appTrace.files.some((file) => file.includes('node_modules/next'))
-      ).toBe(true)
-      expect(
-        helloTrace.files.some((file) => file.includes('components/world.js'))
-      ).toBe(false)
-      expect(
-        helloTrace.files.some((file) => file.includes('react/index.js'))
-      ).toBe(true)
-    })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await nextBuild(appDir)
+        })
+        it('should trace correctly', async () => {
+          const helloTrace = await fs.readJSON(
+            join(appDir, '.next/server/pages/hello.js.nft.json')
+          )
+          expect(
+            helloTrace.files.some((file) =>
+              file.includes('components/world.js')
+            )
+          ).toBe(false)
+          expect(
+            helloTrace.files.some((file) => file.includes('react/index.js'))
+          ).toBe(true)
+        })
+      }
+    )
   })
 })

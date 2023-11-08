@@ -11,7 +11,7 @@ export function createServerReference(id: string) {
   // we use the default and let Webpack to resolve it to the correct version.
   // 1: https://github.com/vercel/next.js/blob/16eb80b0b0be13f04a6407943664b5efd8f3d7d0/packages/next/src/server/app-render/use-flight-response.tsx#L24-L26
   const { createServerReference: createServerReferenceImpl } = (
-    typeof window === 'undefined'
+    !!process.env.NEXT_RUNTIME
       ? // eslint-disable-next-line import/no-extraneous-dependencies
         require('react-server-dom-webpack/client.edge')
       : // eslint-disable-next-line import/no-extraneous-dependencies

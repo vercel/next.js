@@ -44,7 +44,8 @@ export function processEnv(
   loadedEnvFiles: LoadedEnvFiles,
   dir?: string,
   log: Log = console,
-  forceReload = false
+  forceReload = false,
+  onReload?: (envFilePath: string) => void
 ) {
   if (!initialEnv) {
     initialEnv = Object.assign({}, process.env)
@@ -76,7 +77,7 @@ export function processEnv(
             item.contents === envFile.contents && item.path === envFile.path
         )
       ) {
-        log.info(`Loaded env from ${path.join(dir || '', envFile.path)}`)
+        onReload?.(envFile.path)
       }
 
       for (const key of Object.keys(result.parsed || {})) {
@@ -109,7 +110,8 @@ export function loadEnvConfig(
   dir: string,
   dev?: boolean,
   log: Log = console,
-  forceReload = false
+  forceReload = false,
+  onReload?: (envFilePath: string) => void
 ): {
   combinedEnv: Env
   loadedEnvFiles: LoadedEnvFiles
@@ -160,6 +162,12 @@ export function loadEnvConfig(
       }
     }
   }
-  combinedEnv = processEnv(cachedLoadedEnvFiles, dir, log, forceReload)
+  combinedEnv = processEnv(
+    cachedLoadedEnvFiles,
+    dir,
+    log,
+    forceReload,
+    onReload
+  )
   return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
 }

@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "foundation-sites": "6.7.4",
+    "foundation-sites": "6.8.1",
     "next": "latest",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",

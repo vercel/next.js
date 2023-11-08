@@ -5,11 +5,13 @@ import { join } from 'path'
 const appDir = join(__dirname, '..')
 
 describe('Empty JSConfig Support', () => {
-  test('should compile successfully', async () => {
-    const { code, stdout } = await nextBuild(appDir, [], {
-      stdout: true,
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    test('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
     })
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
   })
 })

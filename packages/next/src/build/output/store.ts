@@ -8,6 +8,8 @@ import {
 } from '../swc'
 import * as Log from './log'
 
+const MAX_LOG_SKIP_DURATION = 500 // 500ms
+
 export type OutputState =
   | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
   | ({ bootstrap: false; appUrl: string | null; bindAddr: string | null } & (
@@ -18,7 +20,6 @@ export type OutputState =
       | {
           loading: false
           typeChecking: boolean
-          partial: 'client and server' | undefined
           totalModulesCount: number
           errors: string[] | null
           warnings: string[] | null
@@ -49,6 +50,8 @@ function hasStoreChanged(nextStore: OutputState) {
 }
 
 let startTime = 0
+let trigger = '' // default, use empty string for trigger
+let loadingLogTimer: NodeJS.Timeout | null = null
 
 store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
@@ -56,19 +59,20 @@ store.subscribe((state) => {
   }
 
   if (state.bootstrap) {
-    if (state.appUrl) {
-      Log.ready(`started server on ${state.bindAddr}, url: ${state.appUrl}`)
-    }
     return
   }
 
   if (state.loading) {
     if (state.trigger) {
-      if (state.trigger !== 'initial') {
-        Log.wait(`compiling ${state.trigger}...`)
+      trigger = state.trigger
+      if (trigger !== 'initial') {
+        if (!loadingLogTimer) {
+          // Only log compiling if compiled is not finished in 3 seconds
+          loadingLogTimer = setTimeout(() => {
+            Log.wait(`Compiling ${trigger} ...`)
+          }, MAX_LOG_SKIP_DURATION)
+        }
       }
-    } else {
-      Log.wait('compiling...')
     }
     if (startTime === 0) {
       startTime = Date.now()
@@ -107,17 +111,13 @@ store.subscribe((state) => {
     startTime = 0
 
     timeMessage =
-      time > 2000 ? ` in ${Math.round(time / 100) / 10}s` : ` in ${time} ms`
+      ' ' +
+      (time > 2000 ? `in ${Math.round(time / 100) / 10}s` : `in ${time}ms`)
   }
 
   let modulesMessage = ''
   if (state.totalModulesCount) {
     modulesMessage = ` (${state.totalModulesCount} modules)`
-  }
-
-  let partialMessage = ''
-  if (state.partial) {
-    partialMessage = ` ${state.partial}`
   }
 
   if (state.warnings) {
@@ -132,14 +132,24 @@ store.subscribe((state) => {
 
   if (state.typeChecking) {
     Log.info(
-      `bundled${partialMessage} successfully${timeMessage}${modulesMessage}, waiting for typecheck results...`
+      `bundled ${trigger}${timeMessage}${modulesMessage}, type checking...`
     )
     return
   }
 
-  Log.event(
-    `compiled${partialMessage} successfully${timeMessage}${modulesMessage}`
-  )
+  if (trigger === 'initial') {
+    trigger = ''
+  } else {
+    if (loadingLogTimer) {
+      clearTimeout(loadingLogTimer)
+      loadingLogTimer = null
+    }
+    Log.event(
+      `Compiled${trigger ? ' ' + trigger : ''}${timeMessage}${modulesMessage}`
+    )
+    trigger = ''
+  }
+
   // Ensure traces are flushed after each compile in development mode
   flushAllTraces()
   teardownTraceSubscriber()

@@ -1,4 +1,4 @@
-import { requestAsyncStorage } from './request-async-storage'
+import { requestAsyncStorage } from './request-async-storage.external'
 import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
 
 const REDIRECT_ERROR_CODE = 'NEXT_REDIRECT'
@@ -104,5 +104,5 @@ export function getRedirectTypeFromError<U extends string>(
     throw new Error('Not a redirect error')
   }
 
-  return error.digest.split(';', 3)[1] as RedirectType
+  return error.digest.split(';', 2)[1] as RedirectType
 }

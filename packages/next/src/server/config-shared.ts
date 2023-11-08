@@ -1,15 +1,15 @@
 import os from 'os'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
-import {
+import { imageConfigDefault } from '../shared/lib/image-config'
+import type {
   ImageConfig,
   ImageConfigComplete,
-  imageConfigDefault,
 } from '../shared/lib/image-config'
-import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
-import { WEB_VITALS } from '../shared/lib/utils'
+import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
+import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import { SizeLimit } from '../../types'
+import type { SizeLimit } from '../../types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -93,6 +93,13 @@ export type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
+export type TurboRule =
+  | TurboLoaderItem[]
+  | {
+      loaders: TurboLoaderItem[]
+      as: string
+    }
+
 export interface ExperimentalTurboOptions {
   /**
    * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
@@ -110,6 +117,13 @@ export interface ExperimentalTurboOptions {
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   loaders?: Record<string, TurboLoaderItem[]>
+
+  /**
+   * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
+   *
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   */
+  rules?: Record<string, TurboRule>
 }
 
 export interface WebpackConfigContext {
@@ -149,7 +163,6 @@ export interface ExperimentalConfig {
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
   deploymentId?: string
-  logging?: 'verbose'
   appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
@@ -171,7 +184,6 @@ export interface ExperimentalConfig {
   swcMinify?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
-  sharedPool?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
@@ -191,6 +203,11 @@ export interface ExperimentalConfig {
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
+  /**
+   * In-memory cache size in bytes.
+   *
+   * If `isrMemoryCacheSize: 0` disables in-memory caching.
+   */
   isrMemoryCacheSize?: number
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
@@ -201,10 +218,6 @@ export interface ExperimentalConfig {
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
 
-  /**
-   * This option is removed
-   */
-  swcMinifyDebugOptions?: never
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
   /**
@@ -231,6 +244,11 @@ export interface ExperimentalConfig {
    * Automatically apply the "modularizeImports" optimization to imports of the specified packages.
    */
   optimizePackageImports?: string[]
+
+  /**
+   * Optimize React APIs for server builds.
+   */
+  optimizeServerReact?: boolean
 
   turbo?: ExperimentalTurboOptions
   turbotrace?: {
@@ -259,7 +277,6 @@ export interface ExperimentalConfig {
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
-   * This option requires `appDir` to be enabled first.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
    */
   typedRoutes?: boolean
@@ -275,14 +292,29 @@ export interface ExperimentalConfig {
   instrumentationHook?: boolean
 
   /**
-   * Enable `react@experimental` channel for the `app` directory.
+   * Using this feature will enable the `react@experimental` for the `app` directory.
    */
-  serverActions?: boolean
+  ppr?: boolean
 
   /**
-   * Allows adjusting body parser size limit for server actions.
+   * Enables experimental taint APIs in React.
+   * Using this feature will enable the `react@experimental` for the `app` directory.
    */
-  serverActionsBodySizeLimit?: SizeLimit
+  taint?: boolean
+
+  serverActions?: {
+    /**
+     * Allows adjusting body parser size limit for server actions.
+     */
+    bodySizeLimit?: SizeLimit
+
+    /**
+     * Allowed domains that can bypass CSRF check.
+     * @example
+     * ["my-reverse-proxy.com"]
+     */
+    allowedForwardedHosts?: string[]
+  }
 
   /**
    * enables the minification of server code.
@@ -298,6 +330,16 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
+  /**
+   * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
+   */
+  bundlePagesExternals?: boolean
+  /**
+   * Uses an IPC server to dedupe build-time requests to the cache handler
+   */
+  staticWorkerRequestDeduping?: boolean
+
+  useWasmBinary?: boolean
 }
 
 export type ExportPathMap = {
@@ -549,6 +591,8 @@ export interface NextConfig extends Record<string, any> {
    * that are needed for deploying a production version of your application.
    *
    * @see [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
+   * @deprecated will be enabled by default and removed in Next.js 15
+   *
    */
   outputFileTracing?: boolean
 
@@ -563,12 +607,13 @@ export interface NextConfig extends Record<string, any> {
    * Add `"crossorigin"` attribute to generated `<script>` elements generated by `<Head />` or `<NextScript />` components
    *
    *
-   * @see [`crossorigin` attribute documentation](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/crossorigin)
+   * @see [`crossorigin` attribute documentation](https://developer.mozilla.org/docs/Web/HTML/Attributes/crossorigin)
    */
   crossOrigin?: false | 'anonymous' | 'use-credentials'
 
   /**
    * Use [SWC compiler](https://swc.rs) to minify the generated JavaScript
+   * @deprecated will be enabled by default and removed in Next.js 15
    *
    * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
    */
@@ -630,6 +675,12 @@ export interface NextConfig extends Record<string, any> {
     }
   >
 
+  logging?: {
+    fetches?: {
+      fullUrl?: boolean
+    }
+  }
+
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
@@ -689,7 +740,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    serverMinification: false,
+    serverMinification: true,
     serverSourceMaps: false,
     caseSensitiveRoutes: false,
     useDeploymentId: false,
@@ -708,7 +759,6 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     memoryBasedWorkersCount: false,
-    sharedPool: true,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -738,6 +788,7 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     instrumentationHook: false,
+    bundlePagesExternals: false,
   },
 }
 
@@ -747,20 +798,4 @@ export async function normalizeConfig(phase: string, config: any) {
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
-}
-
-export function validateConfig(userConfig: NextConfig): {
-  errors?: Array<any> | null
-} {
-  if (process.env.NEXT_MINIMAL) {
-    return {
-      errors: [],
-    }
-  } else {
-    const configValidator = require('next/dist/next-config-validate.js')
-    configValidator(userConfig)
-    return {
-      errors: configValidator.errors,
-    }
-  }
 }

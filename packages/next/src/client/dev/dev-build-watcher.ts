@@ -1,15 +1,22 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
+import type { HMR_ACTION_TYPES } from '../../server/dev/hot-reloader-types'
 import { addMessageListener } from './error-overlay/websocket'
 
 type VerticalPosition = 'top' | 'bottom'
 type HorizonalPosition = 'left' | 'right'
 
+export interface ShowHideHandler {
+  show: () => void
+  hide: () => void
+}
+
 export default function initializeBuildWatcher(
-  toggleCallback: (cb: (obj: Record<string, any>) => void) => void,
+  toggleCallback: (handlers: ShowHideHandler) => void,
   position = 'bottom-right'
 ) {
   const shadowHost = document.createElement('div')
-  const [verticalProperty, horizontalProperty] = position.split('-') as [
+  const [verticalProperty, horizontalProperty] = position.split('-', 2) as [
     VerticalPosition,
     HorizonalPosition
   ]
@@ -59,29 +66,45 @@ export default function initializeBuildWatcher(
     } catch {}
   })
 
-  function handleMessage(obj: Record<string, any>) {
+  function show() {
+    timeoutId && clearTimeout(timeoutId)
+    isVisible = true
+    isBuilding = true
+    updateContainer()
+  }
+
+  function hide() {
+    isBuilding = false
+    // Wait for the fade out transition to complete
+    timeoutId = setTimeout(() => {
+      isVisible = false
+      updateContainer()
+    }, 100)
+    updateContainer()
+  }
+
+  function handleMessage(obj: HMR_ACTION_TYPES) {
+    if (!('action' in obj)) {
+      return
+    }
+
     // eslint-disable-next-line default-case
     switch (obj.action) {
-      case 'building':
-        timeoutId && clearTimeout(timeoutId)
-        isVisible = true
-        isBuilding = true
-        updateContainer()
+      case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING:
+        show()
         break
-      case 'built':
-      case 'sync':
-        isBuilding = false
-        // Wait for the fade out transition to complete
-        timeoutId = setTimeout(() => {
-          isVisible = false
-          updateContainer()
-        }, 100)
-        updateContainer()
+      case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
+      case HMR_ACTIONS_SENT_TO_BROWSER.SYNC:
+      case HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING:
+        hide()
         break
     }
   }
 
-  toggleCallback(handleMessage)
+  toggleCallback({
+    show,
+    hide,
+  })
 
   function updateContainer() {
     if (isBuilding) {

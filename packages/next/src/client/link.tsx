@@ -6,18 +6,18 @@ import type {
 } from '../shared/lib/router/router'
 
 import React from 'react'
-import { UrlObject } from 'url'
-import { resolveHref } from '../shared/lib/router/utils/resolve-href'
+import type { UrlObject } from 'url'
+import { resolveHref } from './resolve-href'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { isAbsoluteUrl } from '../shared/lib/utils'
 import { addLocale } from './add-locale'
-import { RouterContext } from '../shared/lib/router-context'
-import {
-  AppRouterContext,
+import { RouterContext } from '../shared/lib/router-context.shared-runtime'
+import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
+import type {
   AppRouterInstance,
   PrefetchOptions as AppRouterPrefetchOptions,
-} from '../shared/lib/app-router-context'
+} from '../shared/lib/app-router-context.shared-runtime'
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'

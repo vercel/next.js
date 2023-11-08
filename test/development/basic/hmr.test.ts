@@ -10,7 +10,7 @@ import {
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { outdent } from 'outdent'
 
@@ -21,10 +21,7 @@ describe.each([[''], ['/docs']])(
 
     beforeAll(async () => {
       next = await createNext({
-        files: {
-          pages: new FileRef(join(__dirname, 'hmr/pages')),
-          components: new FileRef(join(__dirname, 'hmr/components')),
-        },
+        files: join(__dirname, 'hmr'),
         nextConfig: {
           basePath,
         },
@@ -96,7 +93,6 @@ describe.each([[''], ['/docs']])(
           const newContactPagePath = join('pages', 'hmr', '_contact.js')
           let browser
           try {
-            const start = next.cliOutput.length
             browser = await webdriver(next.url, basePath + '/hmr/contact')
             const text = await browser.elementByCss('p').text()
             expect(text).toBe('This is the contact page.')
@@ -118,13 +114,7 @@ describe.each([[''], ['/docs']])(
               /This is the contact page/
             )
 
-            expect(next.cliOutput.slice(start)).toContain('compiling...')
-            expect(next.cliOutput.slice(start)).toContain(
-              'compiling /hmr/contact (client and server)...'
-            )
-            expect(next.cliOutput).toContain(
-              'compiling /_error (client and server)...'
-            )
+            expect(next.cliOutput).toContain('Compiled /_error')
           } finally {
             if (browser) {
               await browser.close()
@@ -373,7 +363,6 @@ describe.each([[''], ['/docs']])(
         const newPage = join('pages', 'hmr', 'new-page.js')
 
         try {
-          const start = next.cliOutput.length
           browser = await webdriver(next.url, basePath + '/hmr/new-page')
 
           expect(await browser.elementByCss('body').text()).toMatch(
@@ -395,12 +384,7 @@ describe.each([[''], ['/docs']])(
             /This page could not be found/
           )
 
-          expect(next.cliOutput.slice(start)).toContain(
-            'compiling /hmr/new-page (client and server)...'
-          )
-          expect(next.cliOutput).toContain(
-            'compiling /_error (client and server)...'
-          )
+          expect(next.cliOutput).toContain('Compiled /_error')
         } catch (err) {
           await next.deleteFile(newPage)
           throw err
@@ -416,7 +400,6 @@ describe.each([[''], ['/docs']])(
         const newPage = join('pages', 'hmr', '[foo]', 'page.js')
 
         try {
-          const start = next.cliOutput.length
           browser = await webdriver(next.url, basePath + '/hmr/foo/page')
 
           expect(await browser.elementByCss('body').text()).toMatch(
@@ -438,12 +421,7 @@ describe.each([[''], ['/docs']])(
             /This page could not be found/
           )
 
-          expect(next.cliOutput.slice(start)).toContain(
-            'compiling /hmr/[foo]/page (client and server)...'
-          )
-          expect(next.cliOutput).toContain(
-            'compiling /_error (client and server)...'
-          )
+          expect(next.cliOutput).toContain('Compiled /_error')
         } catch (err) {
           await next.deleteFile(newPage)
           throw err
@@ -467,7 +445,7 @@ describe.each([[''], ['/docs']])(
               </div>
             )
           }
-          
+
           Error.getInitialProps = async ({ res, err }) => {
             const statusCode = res ? res.statusCode : err ? err.statusCode : 404
             console.log('getInitialProps called');
@@ -476,8 +454,8 @@ describe.each([[''], ['/docs']])(
               message: err ? err.message : 'Oops...',
             }
           }
-          
-          export default Error          
+
+          export default Error
         `
         )
 
@@ -506,7 +484,6 @@ describe.each([[''], ['/docs']])(
         const aboutPage = join('pages', 'hmr', 'about2.js')
         const aboutContent = await next.readFile(aboutPage)
         try {
-          const start = next.cliOutput.length
           browser = await webdriver(next.url, basePath + '/hmr/about2')
           await check(
             () => getBrowserBodyText(browser),
@@ -524,12 +501,8 @@ describe.each([[''], ['/docs']])(
             () => getBrowserBodyText(browser),
             /This is the about page/
           )
-          expect(next.cliOutput.slice(start)).toContain(
-            'compiling /hmr/about2 (client and server)...'
-          )
-          expect(next.cliOutput).toContain(
-            'compiling /_error (client and server)...'
-          )
+
+          expect(next.cliOutput).toContain('Compiled /_error')
         } catch (err) {
           await next.patchFile(aboutPage, aboutContent)
           if (browser) {
@@ -547,45 +520,51 @@ describe.each([[''], ['/docs']])(
         }
       })
 
-      it('should show the error on all pages', async () => {
-        const aboutPage = join('pages', 'hmr', 'about2.js')
-        const aboutContent = await next.readFile(aboutPage)
-        let browser
-        try {
-          await renderViaHTTP(next.url, basePath + '/hmr/about2')
+      if (!process.env.TURBOPACK) {
+        // Turbopack doesn't have this restriction
+        it('should show the error on all pages', async () => {
+          const aboutPage = join('pages', 'hmr', 'about2.js')
+          const aboutContent = await next.readFile(aboutPage)
+          let browser
+          try {
+            await renderViaHTTP(next.url, basePath + '/hmr/about2')
 
-          await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
+            await next.patchFile(
+              aboutPage,
+              aboutContent.replace('</div>', 'div')
+            )
 
-          // Ensure dev server has time to break:
-          await new Promise((resolve) => setTimeout(resolve, 2000))
+            // Ensure dev server has time to break:
+            await new Promise((resolve) => setTimeout(resolve, 2000))
 
-          browser = await webdriver(next.url, basePath + '/hmr/contact')
+            browser = await webdriver(next.url, basePath + '/hmr/contact')
 
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
+            expect(await hasRedbox(browser, true)).toBe(true)
+            expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
-          await next.patchFile(aboutPage, aboutContent)
+            await next.patchFile(aboutPage, aboutContent)
 
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the contact page/
-          )
-        } catch (err) {
-          await next.patchFile(aboutPage, aboutContent)
-          if (browser) {
             await check(
               () => getBrowserBodyText(browser),
               /This is the contact page/
             )
-          }
+          } catch (err) {
+            await next.patchFile(aboutPage, aboutContent)
+            if (browser) {
+              await check(
+                () => getBrowserBodyText(browser),
+                /This is the contact page/
+              )
+            }
 
-          throw err
-        } finally {
-          if (browser) {
-            await browser.close()
+            throw err
+          } finally {
+            if (browser) {
+              await browser.close()
+            }
           }
-        }
-      })
+        })
+      }
 
       it('should detect runtime errors on the module scope', async () => {
         let browser
@@ -689,7 +668,7 @@ describe.each([[''], ['/docs']])(
                       " 1 of 1 unhandled error
                       Server Error
 
-                      Error: The default export is not a React Component in page: \\"/hmr/about5\\"
+                      Error: The default export is not a React Component in page: "/hmr/about5"
 
                       This error happened while generating the page. Any console logs will be displayed in the terminal window."
                   `)
@@ -792,7 +771,7 @@ describe.each([[''], ['/docs']])(
                       " 1 of 1 unhandled error
                       Server Error
 
-                      Error: The default export is not a React Component in page: \\"/hmr/about7\\"
+                      Error: The default export is not a React Component in page: "/hmr/about7"
 
                       This error happened while generating the page. Any console logs will be displayed in the terminal window."
                   `)
@@ -1143,13 +1122,15 @@ describe.each([[''], ['/docs']])(
       })
     })
 
-    it('should have client HMR events in trace file', async () => {
-      const traceData = await next.readFile('.next/trace')
-      expect(traceData).toContain('client-hmr-latency')
-      expect(traceData).toContain('client-error')
-      expect(traceData).toContain('client-success')
-      expect(traceData).toContain('client-full-reload')
-    })
+    if (!process.env.TURBOPACK) {
+      it('should have client HMR events in trace file', async () => {
+        const traceData = await next.readFile('.next/trace')
+        expect(traceData).toContain('client-hmr-latency')
+        expect(traceData).toContain('client-error')
+        expect(traceData).toContain('client-success')
+        expect(traceData).toContain('client-full-reload')
+      })
+    }
 
     it('should have correct compile timing after fixing error', async () => {
       const pageName = 'pages/auto-export-is-ready.js'
@@ -1170,18 +1151,17 @@ describe.each([[''], ['/docs']])(
         await next.patchFile(pageName, originalContent)
         await check(
           () => next.cliOutput.substring(outputLength),
-          /compiled.*?successfully/i
+          /Compiled.*?/i
         )
-        const compileTime = next.cliOutput
-          .substring(outputLength)
-          .match(/compiled.*?successfully in ([\d.]{1,})\s?(?:s|ms)/i)
+        const compileTimeStr = next.cliOutput.substring(outputLength)
+
+        const matches = [
+          ...compileTimeStr.match(/Compiled.*? in ([\d.]{1,})\s?(?:s|ms)/i),
+        ]
+        const [, compileTime, timeUnit] = matches
 
         let compileTimeMs = parseFloat(compileTime[1])
-        if (
-          next.cliOutput
-            .substring(outputLength)
-            .match(/compiled.*?successfully in ([\d.]{1,})\s?s/)
-        ) {
+        if (timeUnit === 's') {
           compileTimeMs = compileTimeMs * 1000
         }
         expect(compileTimeMs).toBeLessThan(3000)

@@ -2,13 +2,11 @@ import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 createNextDescribe(
-  'app dir basepath',
+  'app dir - basepath',
   {
     files: __dirname,
     skipDeployment: true,
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
       sass: 'latest',
     },
   },
@@ -42,6 +40,15 @@ createNextDescribe(
         expect(await browser.url()).toBe(`${next.url}/base/another`)
         return 'success'
       }, 'success')
+    })
+
+    it('should render usePathname without the basePath', async () => {
+      const pathnames = ['/use-pathname', '/use-pathname-another']
+      const validatorPromises = pathnames.map(async (pathname) => {
+        const $ = await next.render$('/base' + pathname)
+        expect($('#pathname').data('pathname')).toBe(pathname)
+      })
+      await Promise.all(validatorPromises)
     })
   }
 )

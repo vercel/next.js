@@ -25,9 +25,9 @@ import type {
   ImageLoaderProps,
 } from '../shared/lib/image-config'
 import { imageConfigDefault } from '../shared/lib/image-config'
-import { ImageConfigContext } from '../shared/lib/image-config-context'
+import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../shared/lib/utils/warn-once'
-import { RouterContext } from '../shared/lib/router-context'
+import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
@@ -163,7 +163,7 @@ function handleLoading(
 function getDynamicProps(
   fetchPriority?: string
 ): Record<string, string | undefined> {
-  const [majorStr, minorStr] = version.split('.')
+  const [majorStr, minorStr] = version.split('.', 2)
   const major = parseInt(majorStr, 10)
   const minor = parseInt(minorStr, 10)
   if (major > 18 || (major === 18 && minor >= 3)) {

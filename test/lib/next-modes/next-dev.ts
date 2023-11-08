@@ -2,6 +2,7 @@ import spawn from 'cross-spawn'
 import { Span } from 'next/src/trace'
 import { NextInstance } from './base'
 import { getTurbopackFlag } from '../turbo'
+import stripAnsi from 'strip-ansi'
 
 export class NextDevInstance extends NextInstance {
   private _cliOutput: string = ''
@@ -36,6 +37,13 @@ export class NextDevInstance extends NextInstance {
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
+    }
+
+    if (process.env.NEXT_SKIP_ISOLATE) {
+      // without isolation yarn can't be used and pnpm must be used instead
+      if (startArgs[0] === 'yarn') {
+        startArgs[0] = 'pnpm'
+      }
     }
 
     console.log('running', startArgs.join(' '))
@@ -78,11 +86,9 @@ export class NextDevInstance extends NextInstance {
             )
           }
         })
+
         const readyCb = (msg) => {
-          if (msg.includes('started server on') && msg.includes('url:')) {
-            // turbo devserver emits stdout in rust directly, can contain unexpected chars with color codes
-            // strip out again for the safety
-            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
+          const resolveServer = () => {
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
@@ -93,6 +99,23 @@ export class NextDevInstance extends NextInstance {
             }
             // server might reload so we keep listening
             resolve()
+          }
+
+          const colorStrippedMsg = stripAnsi(msg)
+          if (colorStrippedMsg.includes('- Local:')) {
+            this._url = msg
+              .split('\n')
+              .find((line) => line.includes('- Local:'))
+              .split(/\s*- Local:/)
+              .pop()
+              .trim()
+            resolveServer()
+          } else if (
+            msg.includes('started server on') &&
+            msg.includes('url:')
+          ) {
+            this._url = msg.split('url: ').pop().split(/\s/, 1)[0].trim()
+            resolveServer()
           }
         }
         this.on('stdout', readyCb)

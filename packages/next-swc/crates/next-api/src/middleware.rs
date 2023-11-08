@@ -1,6 +1,5 @@
 use anyhow::{bail, Context, Result};
 use next_core::{
-    all_server_paths,
     middleware::get_middleware_module,
     mode::NextMode,
     next_edge::entry::wrap_edge_entry,
@@ -14,8 +13,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetContent,
-            changed::any_content_changed_of_output_assets,
-            chunk::{ChunkableModule, ChunkingContext},
+            chunk::ChunkingContext,
             context::AssetContext,
             module::Module,
             output::{OutputAsset, OutputAssets},
@@ -28,6 +26,7 @@ use turbopack_binding::{
 use crate::{
     project::Project,
     route::{Endpoint, WrittenEndpoint},
+    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
@@ -69,11 +68,8 @@ impl MiddlewareEndpoint {
         );
 
         let mut evaluatable_assets = get_server_runtime_entries(
-            self.project.project_path(),
-            self.project.env(),
             Value::new(ServerContextType::Middleware),
             NextMode::Development,
-            self.project.next_config(),
         )
         .resolve_entries(self.context)
         .await?
@@ -90,12 +86,10 @@ impl MiddlewareEndpoint {
         };
         evaluatable_assets.push(evaluatable);
 
-        let edge_chunking_context = self.project.edge_middleware_chunking_context();
+        let edge_chunking_context = self.project.edge_chunking_context();
 
-        let edge_files = edge_chunking_context.evaluated_chunk_group(
-            module.as_root_chunk(Vc::upcast(edge_chunking_context)),
-            Vc::cell(evaluatable_assets),
-        );
+        let edge_files = edge_chunking_context
+            .evaluated_chunk_group(module.ident(), Vc::cell(evaluatable_assets));
 
         Ok(edge_files)
     }
@@ -209,8 +203,8 @@ impl Endpoint for MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn server_changed(self: Vc<Self>) -> Vc<Completion> {
-        any_content_changed_of_output_assets(self.output_assets())
+    async fn server_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
+        Ok(self.await?.project.server_changed(self.output_assets()))
     }
 
     #[turbo_tasks::function]

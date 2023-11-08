@@ -1,10 +1,10 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightData,
   FlightSegmentPath,
 } from '../../../server/app-render/types'
-import { fetchServerResponse } from './fetch-server-response'
+import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
@@ -41,8 +41,7 @@ export interface Mutable {
 }
 
 export interface ServerActionMutable extends Mutable {
-  inFlightServerAction?: Promise<any> | null
-  globalMutable: { pendingNavigatePath?: string; refresh: () => void }
+  inFlightServerAction?: ThenableRecord<any> | null
   actionResultResolved?: boolean
 }
 
@@ -213,7 +212,7 @@ export type FocusAndScrollRef = {
 
 export type PrefetchCacheEntry = {
   treeAtTimeOfPrefetch: FlightRouterState
-  data: ReturnType<typeof fetchServerResponse> | null
+  data: ThenableRecord<FetchServerResponseResult> | null
   kind: PrefetchKind
   prefetchTime: number
   lastUsedTime: number | null
@@ -264,7 +263,7 @@ export type AppRouterState = {
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>
-export type ReducerState = AppRouterState
+export type ReducerState = Promise<AppRouterState> | AppRouterState
 export type ReducerActions = Readonly<
   | RefreshAction
   | NavigateAction
@@ -274,3 +273,37 @@ export type ReducerActions = Readonly<
   | FastRefreshAction
   | ServerActionAction
 >
+
+export interface PendingThenable<T> extends ThenableImpl<T> {
+  status: 'pending'
+}
+
+export interface FulfilledThenable<T> extends ThenableImpl<T> {
+  status: 'fulfilled'
+  value: T
+}
+
+export interface RejectedThenable<T> extends ThenableImpl<T> {
+  status: 'rejected'
+  reason: unknown
+}
+
+interface ThenableImpl<T> {
+  then<TResult1 = T, TResult2 = never>(
+    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
+  ): Promise<TResult1 | TResult2>
+}
+
+export type ThenableRecord<T> =
+  | PendingThenable<T>
+  | RejectedThenable<T>
+  | FulfilledThenable<T>
+
+export function isThenable(value: any): value is Promise<AppRouterState> {
+  return (
+    value &&
+    (typeof value === 'object' || typeof value === 'function') &&
+    typeof value.then === 'function'
+  )
+}

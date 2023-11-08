@@ -49,7 +49,7 @@ import * as entry from '${relativePath}.js'
 ${
   options.type === 'route'
     ? `import type { NextRequest } from 'next/server.js'`
-    : `import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface.js'`
+    : `import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
 type TEntry = typeof import('${relativePath}.js')
@@ -76,6 +76,8 @@ checkFields<Diff<{
       : `
   metadata?: any
   generateMetadata?: Function
+  viewport?: any
+  generateViewport?: Function
   `
   }
 }, TEntry, ''>>()
@@ -107,6 +109,25 @@ if ('${method}' in entry) {
       '${method}'
     >
   >()
+  ${
+    ''
+    // Adding void to support never return type without explicit return:
+    // e.g. notFound() will interrupt the execution but the handler return type is inferred as void.
+    // x-ref: https://github.com/microsoft/TypeScript/issues/16608#issuecomment-309327984
+  }
+  checkFields<
+    Diff<
+      {
+        __tag__: '${method}',
+        __return_type__: Response | void | never | Promise<Response | void | never>
+      },
+      {
+        __tag__: '${method}',
+        __return_type__: ReturnType<MaybeField<TEntry, '${method}'>>
+      },
+      '${method}'
+    >
+  >()
 }
 `
       ).join('')
@@ -121,6 +142,14 @@ if ('generateMetadata' in entry) {
     options.type === 'page' ? 'PageProps' : 'LayoutProps'
   }, FirstArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
   checkFields<Diff<ResolvingMetadata, SecondArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
+}
+
+// Check the arguments and return type of the generateViewport function
+if ('generateViewport' in entry) {
+  checkFields<Diff<${
+    options.type === 'page' ? 'PageProps' : 'LayoutProps'
+  }, FirstArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
+  checkFields<Diff<ResolvingViewport, SecondArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
 }
 `
 }
@@ -415,7 +444,7 @@ declare module 'next/link' {
   import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link.js'
   import type { AnchorHTMLAttributes, DetailedHTMLProps } from 'react'
   import type { UrlObject } from 'url'
-  
+
   type LinkRestProps = Omit<
     Omit<
       DetailedHTMLProps<
@@ -442,7 +471,7 @@ declare module 'next/link' {
 declare module 'next/navigation' {
   export * from 'next/dist/client/components/navigation.js'
 
-  import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context.js'
+  import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime.js'
   interface AppRouterInstance extends OriginalAppRouterInstance {
     /**
      * Navigate to the provided href.
@@ -575,8 +604,11 @@ export class NextTypesPlugin {
         }
         return
       }
-
-      if (mod.layer !== WEBPACK_LAYERS.reactServerComponents) return
+      if (
+        mod.layer !== WEBPACK_LAYERS.reactServerComponents &&
+        mod.layer !== WEBPACK_LAYERS.appRouteHandler
+      )
+        return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)

@@ -15,7 +15,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 
-describe('should set-up next', () => {
+describe('required server files', () => {
   let next: NextInstance
   let server
   let appPort
@@ -119,7 +119,7 @@ describe('should set-up next', () => {
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /ready started server on/,
+      /- Local:/,
       {
         ...process.env,
         ENV_FROM_HOST: 'FOOBAR',
@@ -1291,7 +1291,7 @@ describe('should set-up next', () => {
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /ready started server on/,
+      /- Local:/,
       {
         ...process.env,
         PORT: appPort,

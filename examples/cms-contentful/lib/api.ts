@@ -55,7 +55,7 @@ function extractPostEntries(fetchResponse: any): any[] {
   return fetchResponse?.data?.postCollection?.items
 }
 
-export async function getPreviewPostBySlug(slug: string): Promise<any> {
+export async function getPreviewPostBySlug(slug: string | null): Promise<any> {
   const entry = await fetchGraphQL(
     `query {
       postCollection(where: { slug: "${slug}" }, preview: true, limit: 1) {

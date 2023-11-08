@@ -1,8 +1,13 @@
+import type { ThenableRecord } from './router-reducer-types'
+
 /**
  * Create data fetching record for Promise.
  */
-// TODO-APP: change `any` to type inference.
-export function createRecordFromThenable(thenable: any) {
+
+export function createRecordFromThenable<T>(
+  promise: PromiseLike<T>
+): ThenableRecord<T> {
+  const thenable = promise as any
   thenable.status = 'pending'
   thenable.then(
     (value: any) => {
@@ -14,7 +19,7 @@ export function createRecordFromThenable(thenable: any) {
     (err: any) => {
       if (thenable.status === 'pending') {
         thenable.status = 'rejected'
-        thenable.value = err
+        thenable.reason = err
       }
     }
   )

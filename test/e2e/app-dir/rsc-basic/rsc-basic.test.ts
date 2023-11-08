@@ -22,6 +22,12 @@ createNextDescribe(
       'styled-components': 'latest',
       'server-only': 'latest',
     },
+    resolutions: {
+      '@babel/core': '7.22.18',
+      '@babel/parser': '7.22.16',
+      '@babel/types': '7.22.17',
+      '@babel/traverse': '7.22.18',
+    },
   },
   ({ next, isNextDev, isNextStart, isTurbopack }) => {
     if (isNextDev && !isTurbopack) {
@@ -30,19 +36,17 @@ createNextDescribe(
         await check(async () => {
           // Check that the client-side manifest is correct before any requests
           const clientReferenceManifest = JSON.parse(
-            JSON.parse(
-              (
-                await next.readFile(
-                  '.next/server/app/page_client-reference-manifest.js'
-                )
-              ).match(/]=(.+)$/)[1]
-            )
+            (
+              await next.readFile(
+                '.next/server/app/page_client-reference-manifest.js'
+              )
+            ).match(/]=(.+)$/)[1]
           )
           const clientModulesNames = Object.keys(
             clientReferenceManifest.clientModules
           )
           clientModulesNames.every((name) => {
-            const [, key] = name.split('#')
+            const [, key] = name.split('#', 2)
             return key === undefined || key === '' || key === 'default'
           })
 
@@ -327,7 +331,7 @@ createNextDescribe(
 
       // from styled-jsx
       expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-      expect(head).toMatch(/{color:(\s*)#ff69b4;?}/) // styled-jsx/css
+      expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
 
       // from styled-components
       expect(head).toMatch(/{color:(\s*)blue;?}/)
@@ -339,7 +343,7 @@ createNextDescribe(
 
       // from styled-jsx
       expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-      expect(head).toMatch(/{color:(\s*)#ff69b4;?}/) // styled-jsx/css
+      expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
 
       // from styled-components
       expect(head).toMatch(/{color:(\s*)blue;?}/)
@@ -450,8 +454,8 @@ createNextDescribe(
       expect(await res.text()).toBe('Hello from import-test.js')
     })
 
-    it('should use stable react for pages', async () => {
-      const ssrPaths = ['/pages-react', '/pages-react-edge']
+    it('should not use bundled react for pages with app', async () => {
+      const ssrPaths = ['/pages-react', '/edge-pages-react']
       const promises = ssrPaths.map(async (pathname) => {
         const resPages$ = await next.render$(pathname)
         const ssrPagesReactVersions = [
@@ -553,15 +557,19 @@ createNextDescribe(
       ).toBe('count: 1')
     })
 
-    it('should support webpack loader rules', async () => {
-      const browser = await next.browser('/loader-rule')
+    // Skip as Turbopack doesn't support webpack loaders.
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should support webpack loader rules',
+      async () => {
+        const browser = await next.browser('/loader-rule')
 
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('#red')).color`
-        )
-      ).toBe('rgb(255, 0, 0)')
-    })
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('#red')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      }
+    )
 
     if (isNextStart) {
       it('should generate edge SSR manifests for Node.js', async () => {
@@ -585,5 +593,54 @@ createNextDescribe(
         await Promise.all(promises)
       })
     }
+
+    describe('react@experimental', () => {
+      it.each([{ flag: 'ppr' }, { flag: 'taint' }])(
+        'should opt into the react@experimental when enabling $flag',
+        async ({ flag }) => {
+          await next.stop()
+          await next.patchFile(
+            'next.config.js',
+            `
+            module.exports = {
+              experimental: {
+                ${flag}: true
+              }
+            }
+            `
+          )
+
+          await next.start()
+          const resPages$ = await next.render$('/app-react')
+          const ssrPagesReactVersions = [
+            await resPages$('#react').text(),
+            await resPages$('#react-dom').text(),
+            await resPages$('#react-dom-server').text(),
+            await resPages$('#client-react').text(),
+            await resPages$('#client-react-dom').text(),
+            await resPages$('#client-react-dom-server').text(),
+          ]
+
+          ssrPagesReactVersions.forEach((version) => {
+            expect(version).toMatch('-experimental-')
+          })
+
+          const browser = await next.browser('/app-react')
+          const browserAppReactVersions = await browser.eval(`
+            [
+              document.querySelector('#react').innerText,
+              document.querySelector('#react-dom').innerText,
+              document.querySelector('#react-dom-server').innerText,
+              document.querySelector('#client-react').innerText,
+              document.querySelector('#client-react-dom').innerText,
+              document.querySelector('#client-react-dom-server').innerText,
+            ]
+          `)
+          browserAppReactVersions.forEach((version) =>
+            expect(version).toMatch('-experimental-')
+          )
+        }
+      )
+    })
   }
 )

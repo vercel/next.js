@@ -13,6 +13,7 @@ import {
   isInterceptionRouteAppPath,
 } from '../../../../server/future/helpers/interception-routes'
 import { NEXT_RSC_UNION_QUERY } from '../../../../client/components/app-router-headers'
+import { getCookieParser } from '../../../../server/api-utils/get-cookie-parser'
 
 /**
  * Ensure only a-zA-Z are used for param names for proper interpolating
@@ -64,7 +65,13 @@ export function matchHas(
         break
       }
       case 'cookie': {
-        value = (req as any).cookies[hasItem.key]
+        if ('cookies' in req) {
+          value = req.cookies[hasItem.key]
+        } else {
+          const cookies = getCookieParser(req.headers)()
+          value = cookies[hasItem.key]
+        }
+
         break
       }
       case 'query': {
@@ -74,7 +81,7 @@ export function matchHas(
       case 'host': {
         const { host } = req?.headers || {}
         // remove port from host if present
-        const hostname = host?.split(':')[0].toLowerCase()
+        const hostname = host?.split(':', 1)[0].toLowerCase()
         value = hostname
         break
       }
@@ -250,7 +257,7 @@ export function prepareDestination(args: {
   try {
     newUrl = destPathCompiler(args.params)
 
-    const [pathname, hash] = newUrl.split('#')
+    const [pathname, hash] = newUrl.split('#', 2)
     parsedDestination.hostname = destHostnameCompiler(args.params)
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`

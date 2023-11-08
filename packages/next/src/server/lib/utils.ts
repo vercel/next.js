@@ -18,31 +18,9 @@ export const getDebugPort = () => {
           localArg.startsWith('--inspect') ||
           localArg.startsWith('--inspect-brk')
       )
-      ?.split('=')[1] ??
+      ?.split('=', 2)[1] ??
     process.env.NODE_OPTIONS?.match?.(/--inspect(-brk)?(=(\S+))?( |$)/)?.[3]
   return debugPortStr ? parseInt(debugPortStr, 10) : 9229
-}
-
-export const genRouterWorkerExecArgv = async (
-  isNodeDebugging: boolean | 'brk'
-) => {
-  const execArgv = process.execArgv.filter((localArg) => {
-    return (
-      !localArg.startsWith('--inspect') && !localArg.startsWith('--inspect-brk')
-    )
-  })
-
-  if (isNodeDebugging) {
-    let debugPort = getDebugPort() + 1
-
-    // Process will log it's own debugger port
-
-    execArgv.push(
-      `--inspect${isNodeDebugging === 'brk' ? '-brk' : ''}=${debugPort}`
-    )
-  }
-
-  return execArgv
 }
 
 const NODE_INSPECT_RE = /--inspect(-brk)?(=\S+)?( |$)/
@@ -61,4 +39,34 @@ export function getPort(args: arg.Result<arg.Spec>): number {
   }
 
   return 3000
+}
+
+export const RESTART_EXIT_CODE = 77
+
+export function checkNodeDebugType() {
+  let nodeDebugType = undefined
+
+  if (
+    process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
+    process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
+  ) {
+    nodeDebugType = 'inspect'
+  }
+
+  if (
+    process.execArgv.some((localArg) => localArg.startsWith('--inspect-brk')) ||
+    process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
+  ) {
+    nodeDebugType = 'inspect-brk'
+  }
+
+  return nodeDebugType
+}
+
+export function getMaxOldSpaceSize() {
+  const maxOldSpaceSize = process.env.NODE_OPTIONS?.match(
+    /--max-old-space-size=(\d+)/
+  )?.[1]
+
+  return maxOldSpaceSize ? parseInt(maxOldSpaceSize, 10) : undefined
 }

@@ -1,8 +1,10 @@
-type WebSocketMessage = Record<string, any>
+import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
 
 let source: WebSocket
-const eventCallbacks: ((msg: WebSocketMessage) => void)[] = []
-let lastActivity = Date.now()
+
+type ActionCallback = (action: HMR_ACTION_TYPES) => void
+
+const eventCallbacks: Array<ActionCallback> = []
 
 function getSocketProtocol(assetPrefix: string): string {
   let protocol = location.protocol
@@ -15,8 +17,8 @@ function getSocketProtocol(assetPrefix: string): string {
   return protocol === 'http:' ? 'ws' : 'wss'
 }
 
-export function addMessageListener(cb: (msg: WebSocketMessage) => void) {
-  eventCallbacks.push(cb)
+export function addMessageListener(callback: ActionCallback) {
+  eventCallbacks.push(callback)
 }
 
 export function sendMessage(data: string) {
@@ -24,49 +26,41 @@ export function sendMessage(data: string) {
   return source.send(data)
 }
 
-export function connectHMR(options: {
-  path: string
-  assetPrefix: string
-  timeout?: number
-}) {
-  if (!options.timeout) {
-    options.timeout = 5 * 1000
-  }
+let reconnections = 0
 
+export function connectHMR(options: { path: string; assetPrefix: string }) {
   function init() {
     if (source) source.close()
 
     function handleOnline() {
+      reconnections = 0
       window.console.log('[HMR] connected')
-      lastActivity = Date.now()
     }
 
     function handleMessage(event: MessageEvent<string>) {
-      lastActivity = Date.now()
+      // Coerce into HMR_ACTION_TYPES as that is the format.
+      const msg: HMR_ACTION_TYPES = JSON.parse(event.data)
+      for (const eventCallback of eventCallbacks) {
+        eventCallback(msg)
+      }
+    }
 
-      // webpack's heartbeat event.
-      if (event.data === '\uD83D\uDC93') {
+    let timer: ReturnType<typeof setTimeout>
+    function handleDisconnect() {
+      source.onerror = null
+      source.onclose = null
+      source.close()
+      reconnections++
+      // After 25 reconnects we'll want to reload the page as it indicates the dev server is no longer running.
+      if (reconnections > 25) {
+        window.location.reload()
         return
       }
 
-      const msg = JSON.parse(event.data)
-      eventCallbacks.forEach((cb) => {
-        cb(msg)
-      })
+      clearTimeout(timer)
+      // Try again after 5 seconds
+      timer = setTimeout(init, reconnections > 5 ? 5000 : 1000)
     }
-
-    let timer: NodeJS.Timeout
-    function handleDisconnect() {
-      clearInterval(timer)
-      source.onerror = null
-      source.close()
-      setTimeout(init, options.timeout)
-    }
-    timer = setInterval(function () {
-      if (Date.now() - lastActivity > (options.timeout as any)) {
-        handleDisconnect()
-      }
-    }, (options.timeout as any) / 2)
 
     const { hostname, port } = location
     const protocol = getSocketProtocol(options.assetPrefix || '')
@@ -77,12 +71,13 @@ export function connectHMR(options: {
     }`
 
     if (assetPrefix.startsWith('http')) {
-      url = `${protocol}://${assetPrefix.split('://')[1]}`
+      url = `${protocol}://${assetPrefix.split('://', 2)[1]}`
     }
 
     source = new window.WebSocket(`${url}${options.path}`)
     source.onopen = handleOnline
     source.onerror = handleDisconnect
+    source.onclose = handleDisconnect
     source.onmessage = handleMessage
   }
 

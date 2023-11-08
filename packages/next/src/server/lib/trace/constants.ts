@@ -43,7 +43,6 @@ enum NextNodeServerSpan {
   generatePublicRoutes = 'NextNodeServer.generatePublicRoutes',
   generateImageRoutes = 'NextNodeServer.generateImageRoutes.route',
   sendRenderResult = 'NextNodeServer.sendRenderResult',
-  sendStatic = 'NextNodeServer.sendStatic',
   proxyRequest = 'NextNodeServer.proxyRequest',
   runApi = 'NextNodeServer.runApi',
   render = 'NextNodeServer.render',
@@ -100,6 +99,7 @@ enum AppRouteRouteHandlersSpan {
 
 enum ResolveMetadataSpan {
   generateMetadata = 'ResolveMetadata.generateMetadata',
+  generateViewport = 'ResolveMetadata.generateViewport',
 }
 
 type SpanTypes =
@@ -126,6 +126,7 @@ export const NextVanillaSpanAllowlist = [
   NodeSpan.runHandler,
   AppRouteRouteHandlersSpan.runHandler,
   ResolveMetadataSpan.generateMetadata,
+  ResolveMetadataSpan.generateViewport,
 ]
 
 export {
@@ -134,7 +135,6 @@ export {
   NextServerSpan,
   NextNodeServerSpan,
   StartServerSpan,
-  SpanTypes,
   RenderSpan,
   RouterSpan,
   AppRenderSpan,
@@ -142,3 +142,5 @@ export {
   AppRouteRouteHandlersSpan,
   ResolveMetadataSpan,
 }
+
+export type { SpanTypes }

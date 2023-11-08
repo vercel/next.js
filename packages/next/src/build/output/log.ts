@@ -1,13 +1,13 @@
-import chalk from '../../lib/chalk'
+import { bold, green, magenta, red, yellow, white } from '../../lib/picocolors'
 
 export const prefixes = {
-  wait: '- ' + chalk.cyan('wait'),
-  error: '- ' + chalk.red('error'),
-  warn: '- ' + chalk.yellow('warn'),
-  ready: '- ' + chalk.green('ready'),
-  info: '- ' + chalk.cyan('info'),
-  event: '- ' + chalk.magenta('event'),
-  trace: '- ' + chalk.magenta('trace'),
+  wait: white(bold('○')),
+  error: red(bold('⨯')),
+  warn: yellow(bold('⚠')),
+  ready: '▲', // no color
+  info: white(bold(' ')),
+  event: green(bold('✓')),
+  trace: magenta(bold('»')),
 } as const
 
 const LOGGING_METHOD = {
@@ -31,8 +31,12 @@ function prefixedLog(prefixType: keyof typeof prefixes, ...message: any[]) {
   if (message.length === 0) {
     console[consoleMethod]('')
   } else {
-    console[consoleMethod](prefix, ...message)
+    console[consoleMethod](' ' + prefix, ...message)
   }
+}
+
+export function bootstrap(...message: any[]) {
+  console.log(' ', ...message)
 }
 
 export function wait(...message: any[]) {

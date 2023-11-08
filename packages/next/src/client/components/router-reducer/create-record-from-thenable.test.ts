@@ -7,6 +7,10 @@ describe('createRecordFromThenable', () => {
     expect(record.status).toBe('pending')
     await thenable
     expect(record.status).toBe('fulfilled')
+    // typeguard
+    if (record.status !== 'fulfilled') {
+      throw new Error('Invalid Type')
+    }
     expect(record.value).toBe('success')
   })
 
@@ -16,6 +20,10 @@ describe('createRecordFromThenable', () => {
     expect(record.status).toBe('pending')
     await thenable.catch(() => {})
     expect(record.status).toBe('rejected')
-    expect(record.value).toBe('error')
+    // typeguard
+    if (record.status !== 'rejected') {
+      throw new Error('Invalid Type')
+    }
+    expect(record.reason).toBe('error')
   })
 })

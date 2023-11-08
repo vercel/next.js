@@ -24,7 +24,6 @@ __export(src_exports, {
   ResponseCookies: () => ResponseCookies,
   parseCookie: () => parseCookie,
   parseSetCookie: () => parseSetCookie,
-  splitCookiesString: () => splitCookiesString,
   stringifyCookie: () => stringifyCookie
 });
 module.exports = __toCommonJS(src_exports);
@@ -39,7 +38,8 @@ function stringifyCookie(c) {
     "domain" in c && c.domain && `Domain=${c.domain}`,
     "secure" in c && c.secure && "Secure",
     "httpOnly" in c && c.httpOnly && "HttpOnly",
-    "sameSite" in c && c.sameSite && `SameSite=${c.sameSite}`
+    "sameSite" in c && c.sameSite && `SameSite=${c.sameSite}`,
+    "priority" in c && c.priority && `Priority=${c.priority}`
   ].filter(Boolean);
   return `${c.name}=${encodeURIComponent((_a = c.value) != null ? _a : "")}; ${attrs.join("; ")}`;
 }
@@ -66,7 +66,16 @@ function parseSetCookie(setCookie) {
     return void 0;
   }
   const [[name, value], ...attributes] = parseCookie(setCookie);
-  const { domain, expires, httponly, maxage, path, samesite, secure } = Object.fromEntries(
+  const {
+    domain,
+    expires,
+    httponly,
+    maxage,
+    path,
+    samesite,
+    secure,
+    priority
+  } = Object.fromEntries(
     attributes.map(([key, value2]) => [key.toLowerCase(), value2])
   );
   const cookie = {
@@ -78,7 +87,8 @@ function parseSetCookie(setCookie) {
     ...typeof maxage === "string" && { maxAge: Number(maxage) },
     path,
     ...samesite && { sameSite: parseSameSite(samesite) },
-    ...secure && { secure: true }
+    ...secure && { secure: true },
+    ...priority && { priority: parsePriority(priority) }
   };
   return compact(cookie);
 }
@@ -95,6 +105,11 @@ var SAME_SITE = ["strict", "lax", "none"];
 function parseSameSite(string) {
   string = string.toLowerCase();
   return SAME_SITE.includes(string) ? string : void 0;
+}
+var PRIORITY = ["low", "medium", "high"];
+function parsePriority(string) {
+  string = string.toLowerCase();
+  return PRIORITY.includes(string) ? string : void 0;
 }
 function splitCookiesString(cookiesString) {
   if (!cookiesString)
@@ -234,10 +249,7 @@ var ResponseCookies = class {
     this._parsed = /* @__PURE__ */ new Map();
     var _a, _b, _c;
     this._headers = responseHeaders;
-    const setCookie = (
-      // @ts-expect-error See https://github.com/whatwg/fetch/issues/973
-      (_c = (_b = (_a = responseHeaders.getAll) == null ? void 0 : _a.call(responseHeaders, "set-cookie")) != null ? _b : responseHeaders.get("set-cookie")) != null ? _c : []
-    );
+    const setCookie = (_c = (_b = (_a = responseHeaders.getSetCookie) == null ? void 0 : _a.call(responseHeaders)) != null ? _b : responseHeaders.get("set-cookie")) != null ? _c : [];
     const cookieStrings = Array.isArray(setCookie) ? setCookie : splitCookiesString(setCookie);
     for (const cookieString of cookieStrings) {
       const parsed = parseSetCookie(cookieString);
@@ -316,6 +328,5 @@ function normalizeCookie(cookie = { name: "", value: "" }) {
   ResponseCookies,
   parseCookie,
   parseSetCookie,
-  splitCookiesString,
   stringifyCookie
 });

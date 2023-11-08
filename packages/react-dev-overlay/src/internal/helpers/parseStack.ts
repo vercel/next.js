@@ -1,6 +1,7 @@
-import { parse, StackFrame } from 'stacktrace-parser'
+import type { StackFrame } from 'stacktrace-parser'
+import { parse } from 'stacktrace-parser'
 
-const regexNextStatic = /\/_next(\/static\/.+)/g
+const regexNextStatic = /\/_next(\/static\/.+)/
 
 export function parseStack(stack: string): StackFrame[] {
   const frames = parse(stack)

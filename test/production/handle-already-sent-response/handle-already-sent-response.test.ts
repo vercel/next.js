@@ -7,7 +7,8 @@ createNextDescribe(
   },
   ({ next }) => {
     it('should work with fetch', async () => {
-      expect(next.cliOutput).toContain('ready started server')
+      expect(next.cliOutput).toContain('▲ Next.js')
+      expect(next.cliOutput).toContain('- Local:')
 
       let res = await next.fetch('/')
       let text = await res.text()

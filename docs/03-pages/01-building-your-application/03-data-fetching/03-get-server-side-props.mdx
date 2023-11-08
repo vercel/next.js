@@ -13,13 +13,13 @@ type Repo = {
   stargazers_count: number
 }
 
-export const getServerSideProps: GetServerSideProps<{
-  repo: Repo
-}> = async () => {
+export const getServerSideProps = (async (context) => {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
   return { props: { repo } }
-}
+}) satisfies GetServerSideProps<{
+  repo: Repo
+}>
 
 export default function Page({
   repo,
@@ -29,7 +29,7 @@ export default function Page({
 ```
 
 ```jsx filename="pages/index.js" switcher
-export const getServerSideProps = async () => {
+export async function getServerSideProps() {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
   return { props: { repo } }
@@ -99,10 +99,6 @@ This approach works well for user dashboard pages, for example. Because a dashbo
 The following example shows how to fetch data at request time and pre-render the result.
 
 ```jsx
-function Page({ data }) {
-  // Render data...
-}
-
 // This gets called on every request
 export async function getServerSideProps() {
   // Fetch data from external API
@@ -113,7 +109,9 @@ export async function getServerSideProps() {
   return { props: { data } }
 }
 
-export default Page
+export default function Page({ data }) {
+  // Render data...
+}
 ```
 
 ## Caching with Server-Side Rendering (SSR)

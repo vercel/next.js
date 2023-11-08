@@ -3,10 +3,14 @@ import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 
-describe('webpack config with extensionAlias setting', () => {
-  it('should run correctly with an tsx file import with .js extension', async () => {
-    const { code } = await nextBuild(appDir, [], {})
+// Skip webpack specific test in Turbopack
+;(process.env.TURBOPACK ? describe.skip : describe)(
+  'webpack config with extensionAlias setting',
+  () => {
+    it('should run correctly with an tsx file import with .js extension', async () => {
+      const { code } = await nextBuild(appDir, [], {})
 
-    expect(code).toBe(0)
-  })
-})
+      expect(code).toBe(0)
+    })
+  }
+)
