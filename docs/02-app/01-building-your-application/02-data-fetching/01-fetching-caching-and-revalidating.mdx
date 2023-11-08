@@ -211,28 +211,28 @@ You can also use the experimental [`unstable_cache` API](/docs/app/api-reference
 In the example below:
 
 - The `revalidate` option is set to `3600`, meaning the data will be cached and revalidated at most every hour.
-- The React `cache` function is used to [memoize](/docs/app/building-your-application/caching#request-memoization) data requests.
+- The Next.js `unstable_cache` function is used to [memoize](/docs/app/building-your-application/caching#request-memoization) data requests.
 
 ```ts filename="utils/get-item.ts" switcher
-import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 
-export const revalidate = 3600 // revalidate the data at most every hour
+const revalidate = 3600 // revalidate the data at most every hour
 
-export const getItem = cache(async (id: string) => {
+export const getItem = unstable_cache(async (id: string) => {
   const item = await db.item.findUnique({ id })
   return item
-})
+}, ['item-id'], { revalidate })
 ```
 
 ```js filename="utils/get-item.js" switcher
-import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 
 export const revalidate = 3600 // revalidate the data at most every hour
 
-export const getItem = cache(async (id) => {
+export const getItem = unstable_cache(async (id) => {
   const item = await db.item.findUnique({ id })
   return item
-})
+}, ['item-id'], { revalidate })
 ```
 
 Although the `getItem` function is called twice, only one query will be made to the database.
