@@ -136,10 +136,46 @@ impl CodeGenerateable for UrlAssetReference {
 
         match rewrite_behavior {
             UrlRewriteBehavior::Relative => {
-                unimplemented!(
-                    "UrlRewriteBehavior::Relative is not implemented yet for code generation"
-                );
+                let referenced_asset = self.get_referenced_asset().await?;
+                let ast_path = this.ast_path.await?;
+
+                match &*referenced_asset {
+                    ReferencedAsset::Some(asset) => {
+                        // We rewrite the first `new URL()` arguments to be a require() of the chunk
+                        // item, which exports the static asset path to the linked file.
+                        let id = asset
+                            .as_chunk_item(Vc::upcast(chunking_context))
+                            .id()
+                            .await?;
+
+                        visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                            if let Expr::New(NewExpr { args: Some(args), callee, .. }) = new_expr {
+                                *callee = Box::new(quote!("__turbopack_relative_url__" as Expr));
+                                if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
+                                    *expr = quote!(
+                                        "__turbopack_require__($id)" as Expr,
+                                        id: Expr = module_id_to_lit(&id),
+                                    );
+                                }
+                            }
+                        }));
+                    }
+                    ReferencedAsset::OriginalReferenceTypeExternal(request) => {
+                        let request = request.to_string();
+                        visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                            if let Expr::New(NewExpr { args: Some(args), callee, .. }) = new_expr {
+                                *callee = Box::new(quote!("__turbopack_relative_url__" as Expr));
+                                if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
+                                    *expr = request.as_str().into()
+                                }
+                            }
+                        }));
+                    }
+                    ReferencedAsset::None => {}
+                }
             }
+            // [TODO] This'll be revisited once next.js bumps up the turbopack, to avoid breaking
+            // changes.
             UrlRewriteBehavior::Full => {
                 let referenced_asset = self.get_referenced_asset().await?;
 
@@ -186,42 +222,38 @@ impl CodeGenerateable for UrlAssetReference {
                             .id()
                             .await?;
 
-                        visitors.push(
-                    create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
-                        if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
-                            if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
-                                *expr = quote!(
-                                    "__turbopack_require__($id)" as Expr,
-                                    id: Expr = module_id_to_lit(&id),
-                                );
-                            }
+                        visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                            if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
+                                if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
+                                    *expr = quote!(
+                                        "__turbopack_require__($id)" as Expr,
+                                        id: Expr = module_id_to_lit(&id),
+                                    );
+                                }
 
-                            if let Some(rewrite) = &rewrite {
-                                if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(1) {
-                                    *expr = rewrite.clone();
+                                if let Some(rewrite) = &rewrite {
+                                    if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(1) {
+                                        *expr = rewrite.clone();
+                                    }
                                 }
                             }
-                        }
-                    }),
-                );
+                        }));
                     }
                     ReferencedAsset::OriginalReferenceTypeExternal(request) => {
                         let request = request.to_string();
-                        visitors.push(
-                    create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
-                        if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
-                            if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
-                                *expr = request.as_str().into()
-                            }
+                        visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                            if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
+                                if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
+                                    *expr = request.as_str().into()
+                                }
 
-                            if let Some(rewrite) = &rewrite {
-                                if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(1) {
-                                    *expr = rewrite.clone();
+                                if let Some(rewrite) = &rewrite {
+                                    if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(1) {
+                                        *expr = rewrite.clone();
+                                    }
                                 }
                             }
-                        }
-                    }),
-                );
+                        }));
                     }
                     ReferencedAsset::None => {}
                 }

@@ -40,6 +40,7 @@ type ModuleCache = Record<ModuleId, Module>;
 type ModuleFactories = Record<ModuleId, ModuleFactory>;
 
 type ResolveAbsolutePath = (modulePath?: string) => string;
+type RelativeURL = (inputUrl: string) => void;
 
 type AsyncModule = (
   body: (

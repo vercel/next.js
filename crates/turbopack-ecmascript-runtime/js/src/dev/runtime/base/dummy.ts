@@ -14,6 +14,14 @@ declare var augmentContext: (
   context: TurbopackDevBaseContext
 ) => TurbopackDevContext;
 declare var commonJsRequireContext: CommonJsRequireContext;
-declare var loadWebAssembly: (source: SourceInfo, wasmChunkPath: ChunkPath, imports: WebAssembly.Imports) => Exports;
-declare var loadWebAssemblyModule: (source: SourceInfo, wasmChunkPath: ChunkPath) => WebAssembly.Module;
+declare var loadWebAssembly: (
+  source: SourceInfo,
+  wasmChunkPath: ChunkPath,
+  imports: WebAssembly.Imports
+) => Exports;
+declare var loadWebAssemblyModule: (
+  source: SourceInfo,
+  wasmChunkPath: ChunkPath
+) => WebAssembly.Module;
 declare var resolveAbsolutePath: (modulePath?: string) => string;
+declare var relativeURL: (inputUrl: string) => void;
