@@ -64,6 +64,7 @@ impl<T, H> CountHashSet<T, H> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum RemoveIfEntryResult {
     PartiallyRemoved,
     Removed,
@@ -73,6 +74,9 @@ pub enum RemoveIfEntryResult {
 impl<T: Eq + Hash, H: BuildHasher + Default> CountHashSet<T, H> {
     /// Returns true, when the value has become visible from outside
     pub fn add_count(&mut self, item: T, count: usize) -> bool {
+        if count == 0 {
+            return false;
+        }
         match self.inner.entry(item) {
             Entry::Occupied(mut e) => {
                 let value = e.get_mut();
@@ -133,6 +137,9 @@ impl<T: Eq + Hash, H: BuildHasher + Default> CountHashSet<T, H> {
 
     /// Returns true when the value is no longer visible from outside
     pub fn remove_count(&mut self, item: T, count: usize) -> bool {
+        if count == 0 {
+            return false;
+        }
         match self.inner.entry(item) {
             Entry::Occupied(mut e) => {
                 let value = e.get_mut();
@@ -168,6 +175,9 @@ impl<T: Eq + Hash, H: BuildHasher + Default> CountHashSet<T, H> {
         match self.inner.raw_entry_mut(item) {
             RawEntry::Occupied(mut e) => {
                 let value = e.get_mut();
+                if *value < 0 {
+                    return RemoveIfEntryResult::NotPresent;
+                }
                 *value -= 1;
                 if *value == 0 {
                     // It was positive and has become zero
@@ -191,6 +201,9 @@ impl<T: Eq + Hash, H: BuildHasher + Default> CountHashSet<T, H> {
 impl<T: Eq + Hash + Clone, H: BuildHasher + Default> CountHashSet<T, H> {
     /// Returns true, when the value has become visible from outside
     pub fn add_clonable_count(&mut self, item: &T, count: usize) -> bool {
+        if count == 0 {
+            return false;
+        }
         match self.inner.raw_entry_mut(item) {
             RawEntry::Occupied(mut e) => {
                 let value = e.get_mut();
@@ -228,6 +241,9 @@ impl<T: Eq + Hash + Clone, H: BuildHasher + Default> CountHashSet<T, H> {
 
     /// Returns true when the value is no longer visible from outside
     pub fn remove_clonable_count(&mut self, item: &T, count: usize) -> bool {
+        if count == 0 {
+            return false;
+        }
         match self.inner.raw_entry_mut(item) {
             RawEntry::Occupied(mut e) => {
                 let value = e.get_mut();
@@ -288,5 +304,157 @@ impl<'a, T> Iterator for CountHashSetIter<'a, T> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use nohash_hasher::BuildNoHashHasher;
+
+    use super::*;
+
+    #[test]
+    fn test_add_remove() {
+        let mut set: CountHashSet<i32, BuildNoHashHasher<i32>> = CountHashSet::new();
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+
+        assert!(set.add(1));
+        assert_eq!(set.len(), 1);
+        assert!(!set.is_empty());
+
+        assert!(!set.add(1));
+        assert_eq!(set.len(), 1);
+        assert!(!set.is_empty());
+
+        assert!(set.add(2));
+        assert_eq!(set.len(), 2);
+        assert!(!set.is_empty());
+
+        assert!(set.remove_count(2, 2));
+        assert_eq!(set.len(), 1);
+        assert!(!set.is_empty());
+
+        assert!(!set.remove_count(2, 1));
+        assert_eq!(set.len(), 1);
+        assert!(!set.is_empty());
+
+        assert!(!set.remove_count(1, 1));
+        assert_eq!(set.len(), 1);
+        assert!(!set.is_empty());
+
+        assert!(set.remove_count(1, 1));
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+
+        assert!(!set.add_count(2, 2));
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+
+        assert_eq!(
+            format!("{:?}", set),
+            "CountHashSet { inner: {}, negative_entries: 0 }"
+        );
+    }
+
+    #[test]
+    fn test_add_remove_cloneable() {
+        let mut set: CountHashSet<i32, BuildNoHashHasher<i32>> = CountHashSet::new();
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+
+        assert!(set.add_clonable(&1));
+        assert_eq!(set.len(), 1);
+        assert!(!set.is_empty());
+
+        assert!(!set.add_clonable(&1));
+        assert_eq!(set.len(), 1);
+        assert!(!set.is_empty());
+
+        assert!(set.add_clonable(&2));
+        assert_eq!(set.len(), 2);
+        assert!(!set.is_empty());
+
+        assert!(set.remove_clonable_count(&2, 2));
+        assert_eq!(set.len(), 1);
+        assert!(!set.is_empty());
+
+        assert!(!set.remove_clonable_count(&2, 1));
+        assert_eq!(set.len(), 1);
+        assert!(!set.is_empty());
+
+        assert!(!set.remove_clonable_count(&1, 1));
+        assert_eq!(set.len(), 1);
+        assert!(!set.is_empty());
+
+        assert!(set.remove_clonable_count(&1, 1));
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+
+        assert!(!set.add_clonable_count(&2, 2));
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+
+        assert_eq!(
+            format!("{:?}", set),
+            "CountHashSet { inner: {}, negative_entries: 0 }"
+        );
+    }
+
+    #[test]
+    fn test_add_remove_if_entry() {
+        let mut set: CountHashSet<i32, BuildNoHashHasher<i32>> = CountHashSet::new();
+
+        assert!(!set.add_if_entry(&1));
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+
+        assert!(set.add(1));
+
+        assert!(set.add_if_entry(&1));
+        assert_eq!(set.len(), 1);
+        assert!(!set.is_empty());
+
+        assert_eq!(
+            set.remove_if_entry(&1),
+            RemoveIfEntryResult::PartiallyRemoved
+        );
+        assert_eq!(set.len(), 1);
+        assert!(!set.is_empty());
+
+        assert_eq!(set.remove_if_entry(&1), RemoveIfEntryResult::Removed);
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+
+        assert_eq!(set.remove_if_entry(&1), RemoveIfEntryResult::NotPresent);
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+    }
+
+    #[test]
+    fn test_zero() {
+        let mut set: CountHashSet<i32, BuildNoHashHasher<i32>> = CountHashSet::new();
+
+        assert!(!set.add_count(1, 0));
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+
+        assert!(!set.remove_count(1, 0));
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+
+        assert!(!set.add_clonable_count(&1, 0));
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+
+        assert!(!set.remove_clonable_count(&1, 0));
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+
+        assert!(!set.remove_count(1, 1));
+        assert_eq!(set.len(), 0);
+        assert!(set.is_empty());
+
+        assert_eq!(set.remove_if_entry(&1), RemoveIfEntryResult::NotPresent);
     }
 }
