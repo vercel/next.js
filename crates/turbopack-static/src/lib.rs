@@ -13,21 +13,21 @@
 #![feature(async_fn_in_trait)]
 
 pub mod fixed;
+pub mod output_asset;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use turbo_tasks::{ValueToString, Vc};
-use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    output::{OutputAsset, OutputAssets},
+    output::OutputAsset,
     reference::{ModuleReferences, SingleOutputAssetReference},
     source::Source,
 };
-use turbopack_css::embed::{CssEmbed, CssEmbeddable};
+use turbopack_css::embed::CssEmbed;
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
@@ -35,6 +35,8 @@ use turbopack_ecmascript::{
     },
     utils::StringifyJs,
 };
+
+use self::output_asset::StaticAsset;
 
 #[turbo_tasks::function]
 fn modifier() -> Vc<String> {
@@ -63,10 +65,7 @@ impl StaticModuleAsset {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<StaticAsset>> {
-        Ok(StaticAsset::cell(StaticAsset {
-            chunking_context,
-            source: self.await?.source,
-        }))
+        Ok(StaticAsset::new(chunking_context, self.await?.source))
     }
 }
 
@@ -115,55 +114,6 @@ impl EcmascriptChunkPlaceable for StaticModuleAsset {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.into()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl CssEmbeddable for StaticModuleAsset {
-    #[turbo_tasks::function]
-    fn as_css_embed(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn CssEmbed>> {
-        Vc::upcast(StaticCssEmbed::cell(StaticCssEmbed {
-            static_asset: self.static_asset(chunking_context),
-        }))
-    }
-}
-
-#[turbo_tasks::value]
-struct StaticAsset {
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    source: Vc<Box<dyn Source>>,
-}
-
-#[turbo_tasks::value_impl]
-impl OutputAsset for StaticAsset {
-    #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let content = self.source.content();
-        let content_hash = if let AssetContent::File(file) = &*content.await? {
-            if let FileContent::Content(file) = &*file.await? {
-                turbo_tasks_hash::hash_xxh3_hash64(file.content())
-            } else {
-                return Err(anyhow!("StaticAsset::path: not found"));
-            }
-        } else {
-            return Err(anyhow!("StaticAsset::path: unsupported file content"));
-        };
-        let content_hash_b16 = turbo_tasks_hash::encode_hex(content_hash);
-        let asset_path = self
-            .chunking_context
-            .asset_path(content_hash_b16, self.source.ident());
-        Ok(AssetIdent::from_path(asset_path))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for StaticAsset {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
     }
 }
 
@@ -236,20 +186,10 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     }
 }
 
-#[turbo_tasks::value]
-struct StaticCssEmbed {
-    static_asset: Vc<StaticAsset>,
-}
-
 #[turbo_tasks::value_impl]
-impl CssEmbed for StaticCssEmbed {
+impl CssEmbed for ModuleChunkItem {
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        Ok(Vc::cell(vec![Vc::upcast(self.static_asset)]))
-    }
-
-    #[turbo_tasks::function]
-    fn embeddable_asset(&self) -> Vc<Box<dyn OutputAsset>> {
+    fn embedded_asset(&self) -> Vc<Box<dyn OutputAsset>> {
         Vc::upcast(self.static_asset)
     }
 }
