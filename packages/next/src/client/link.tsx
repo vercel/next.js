@@ -88,6 +88,11 @@ type InternalLinkProps = {
    */
   legacyBehavior?: boolean
   /**
+   * Enable native behavior - bypass the client-side navigation
+   * @defaultValue `false`
+   */
+  nativeBehavior?: boolean;
+  /**
    * Optional event handler for when the mouse pointer is moved onto Link
    */
   onMouseEnter?: React.MouseEventHandler<HTMLAnchorElement>
@@ -277,6 +282,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
       legacyBehavior = false,
+      nativeBehavior = false,
       ...restProps
     } = props
 
@@ -623,6 +629,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
         if (e.defaultPrevented) {
           return
+        }
+
+        if (nativeBehavior) {
+          return;
         }
 
         linkClicked(
