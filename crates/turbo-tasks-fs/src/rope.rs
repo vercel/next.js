@@ -107,12 +107,12 @@ impl Rope {
 
     /// Returns a String instance of all bytes.
     pub fn to_str(&self) -> Result<Cow<'_, str>> {
-        self.data.to_str()
+        self.data.to_str(self.length)
     }
 
     /// Returns a slice of all bytes
     pub fn to_bytes(&self) -> Result<Cow<'_, [u8]>> {
-        self.data.to_bytes()
+        self.data.to_bytes(self.length)
     }
 }
 
@@ -438,10 +438,10 @@ impl From<Vec<u8>> for Uncommitted {
 
 impl InnerRope {
     /// Returns a String instance of all bytes.
-    pub fn to_str(&self) -> Result<Cow<'_, str>> {
+    fn to_str(&self, len: usize) -> Result<Cow<'_, str>> {
         match &self[..] {
             [] => Ok(Cow::Borrowed("")),
-            [Shared(inner)] => inner.to_str(),
+            [Shared(inner)] => inner.to_str(len),
             [Local(bytes)] => {
                 let utf8 = std::str::from_utf8(bytes);
                 utf8.context("failed to convert rope into string")
@@ -449,7 +449,7 @@ impl InnerRope {
             }
             _ => {
                 let mut read = RopeReader::new(self, 0);
-                let mut string = String::with_capacity(self.len());
+                let mut string = String::with_capacity(len);
                 let res = read.read_to_string(&mut string);
                 res.context("failed to convert rope into string")?;
                 Ok(Cow::Owned(string))
@@ -458,14 +458,14 @@ impl InnerRope {
     }
 
     /// Returns a slice of all bytes.
-    pub fn to_bytes(&self) -> Result<Cow<'_, [u8]>> {
+    fn to_bytes(&self, len: usize) -> Result<Cow<'_, [u8]>> {
         match &self[..] {
             [] => Ok(Cow::Borrowed(EMPTY_BUF)),
-            [Shared(inner)] => inner.to_bytes(),
+            [Shared(inner)] => inner.to_bytes(len),
             [Local(bytes)] => Ok(Cow::Borrowed(bytes)),
             _ => {
                 let mut read = RopeReader::new(self, 0);
-                let mut buf = Vec::with_capacity(self.len());
+                let mut buf = Vec::with_capacity(len);
                 read.read_to_end(&mut buf)?;
                 Ok(Cow::Owned(buf))
             }
