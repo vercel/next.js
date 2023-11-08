@@ -1,0 +1,21 @@
+---
+title: Partial Prerendering
+description: Learn how to enable Partial Prerendering (experimental) in Next.js 14.
+---
+
+Partial Prerendering allows static portions of a route to be prerendered and served from the cache with dynamic holes streamed in, all in a single HTTP request.
+
+You can enable Partial Prerendering by setting the experimental `ppr` flag:
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    ppr: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+Learn more about Partial Prerendering in the [Next.js Learn course](/learn/dashboard-app/partial-prerendering).
