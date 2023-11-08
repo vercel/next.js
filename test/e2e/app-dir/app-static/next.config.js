@@ -5,6 +5,7 @@ module.exports = {
   },
   experimental: {
     incrementalCacheHandlerPath: process.env.CUSTOM_CACHE_HANDLER,
+    ppr: process.env.ENABLE_PPR === 'true',
   },
 
   rewrites: async () => {

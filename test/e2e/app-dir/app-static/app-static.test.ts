@@ -472,1210 +472,2875 @@ createNextDescribe(
     })
 
     if (isNextStart) {
-      it('should output HTML/RSC files for static paths', async () => {
-        const files = (
-          await glob('**/*', {
-            cwd: join(next.testDir, '.next/server/app'),
-          })
-        )
-          .filter((file) => file.match(/.*\.(js|html|rsc)$/))
-          .map((file) => {
-            return file.replace(
+      if (process.env.ENABLE_PPR) {
+        it('should output HTML/RSC files for static paths (ppr)', async () => {
+          const files = (
+            await glob('**/*', {
+              cwd: join(next.testDir, '.next/server/app'),
+            })
+          )
+            .filter((file) => file.match(/.*\.(js|html|rsc)$/))
+            .map((file) => {
+              return file.replace(
+                /partial-gen-params-no-additional-([\w]{1,})\/([\w]{1,})\/([\d]{1,})/,
+                'partial-gen-params-no-additional-$1/$2/RAND'
+              )
+            })
+
+          expect(files.sort()).toMatchInlineSnapshot(
+            [
+              'page.js',
+              'index.rsc',
+              'index.html',
+              'blog/seb.rsc',
+              'blog/tim.rsc',
+              '_not-found.js',
+              'blog/seb.html',
+              'blog/tim.html',
+              'isr-error-handling.rsc',
+              '_not-found.rsc',
+              '_not-found.html',
+              'blog/styfle.rsc',
+              'force-cache.rsc',
+              'blog/styfle.html',
+              'force-cache.html',
+              'isr-error-handling/page.js',
+              'ssg-draft-mode.rsc',
+              'ssr-forced/page.js',
+              'articles/works.rsc',
+              'custom.prefetch.rsc',
+              'force-cache/page.js',
+              'ssg-draft-mode.html',
+              'articles/works.html',
+              'no-store/static.rsc',
+              '(new)/custom/page.js',
+              'force-static/page.js',
+              'response-url/page.js',
+              'no-store/static.html',
+              'blog/[author]/page.js',
+              'default-cache/page.js',
+              'fetch-no-cache/page.js',
+              'force-no-store/page.js',
+              'force-static/first.rsc',
+              'api/draft-mode/route.js',
+              'blog/tim/first-post.rsc',
+              'force-static/first.html',
+              'force-static/second.rsc',
+              'ssg-draft-mode/test.rsc',
+              'ssr-forced.prefetch.rsc',
+              'isr-error-handling.html',
+              'articles/[slug]/page.js',
+              'no-store/static/page.js',
+              'blog/seb/second-post.rsc',
+              'blog/tim/first-post.html',
+              'force-static/second.html',
+              'ssg-draft-mode/test.html',
+              'no-store/dynamic/page.js',
+              'blog/seb/second-post.html',
+              'ssg-draft-mode/test-2.rsc',
+              'response-url.prefetch.rsc',
+              'blog/styfle/first-post.rsc',
+              'default-cache.prefetch.rsc',
+              'dynamic-error/[id]/page.js',
+              'ssg-draft-mode/test-2.html',
+              'blog/styfle/first-post.html',
+              'blog/styfle/second-post.rsc',
+              'fetch-no-cache.prefetch.rsc',
+              'force-no-store.prefetch.rsc',
+              'force-static/[slug]/page.js',
+              'hooks/use-pathname/slug.rsc',
+              'hooks/use-search-params.rsc',
+              'route-handler/post/route.js',
+              'blog/[author]/[slug]/page.js',
+              'blog/styfle/second-post.html',
+              'hooks/use-pathname/slug.html',
+              'hooks/use-search-params.html',
+              'flight/[slug]/[slug2]/page.js',
+              'variable-revalidate/cookie.rsc',
+              'hooks/use-search-params/page.js',
+              'ssr-auto/cache-no-store/page.js',
+              'variable-revalidate/cookie.html',
+              'api/revalidate-tag-edge/route.js',
+              'api/revalidate-tag-node/route.js',
+              'variable-revalidate/encoding.rsc',
+              'api/revalidate-path-edge/route.js',
+              'api/revalidate-path-node/route.js',
+              'gen-params-dynamic/[slug]/page.js',
+              'hooks/use-pathname/[slug]/page.js',
+              'page_client-reference-manifest.js',
+              'react-fetch-deduping-edge/page.js',
+              'react-fetch-deduping-node/page.js',
+              'variable-revalidate/encoding.html',
+              'variable-revalidate/cookie/page.js',
+              'gen-params-dynamic/one.prefetch.rsc',
+              'ssg-draft-mode/[[...route]]/page.js',
+              'variable-revalidate/post-method.rsc',
+              'stale-cache-serving/app-page/page.js',
+              'dynamic-no-gen-params/[slug]/page.js',
+              'ssr-auto/cache-no-store.prefetch.rsc',
+              'static-to-dynamic-error/[id]/page.js',
+              'variable-revalidate/encoding/page.js',
+              'variable-revalidate/no-store/page.js',
+              'variable-revalidate/post-method.html',
+              'variable-revalidate/revalidate-3.rsc',
+              'gen-params-dynamic-revalidate/one.rsc',
+              'route-handler/revalidate-360/route.js',
+              'route-handler/static-cookies/route.js',
+              'variable-revalidate-edge/body/page.js',
+              'variable-revalidate/authorization.rsc',
+              'variable-revalidate/revalidate-3.html',
+              'force-dynamic-prerender/[slug]/page.js',
+              'gen-params-dynamic-revalidate/one.html',
+              'react-fetch-deduping-node.prefetch.rsc',
+              'ssr-auto/fetch-revalidate-zero/page.js',
+              'variable-revalidate/authorization.html',
+              '_not-found_client-reference-manifest.js',
+              'force-dynamic-no-prerender/[id]/page.js',
+              'variable-revalidate/post-method/page.js',
+              'variable-revalidate/status-code/page.js',
+              'dynamic-no-gen-params-ssr/[slug]/page.js',
+              'hooks/use-search-params/force-static.rsc',
+              'partial-gen-params/[lang]/[slug]/page.js',
+              'variable-revalidate/headers-instance.rsc',
+              'variable-revalidate/revalidate-3/page.js',
+              'stale-cache-serving-edge/app-page/page.js',
+              'stale-cache-serving/app-page.prefetch.rsc',
+              'force-dynamic-catch-all/slug.prefetch.rsc',
+              'hooks/use-search-params/force-static.html',
+              'hooks/use-search-params/with-suspense.rsc',
+              'route-handler/revalidate-360-isr/route.js',
+              'variable-revalidate-edge/encoding/page.js',
+              'variable-revalidate-edge/no-store/page.js',
+              'variable-revalidate/authorization/page.js',
+              'variable-revalidate/headers-instance.html',
+              'variable-revalidate/no-store.prefetch.rsc',
+              'stale-cache-serving/route-handler/route.js',
+              'hooks/use-search-params/with-suspense.html',
+              'route-handler-edge/revalidate-360/route.js',
+              'variable-revalidate/revalidate-360-isr.rsc',
+              'variable-revalidate/revalidate-360/page.js',
+              'ssr-auto/fetch-revalidate-zero.prefetch.rsc',
+              'static-to-dynamic-error-forced/[id]/page.js',
+              'variable-config-revalidate/revalidate-3.rsc',
+              'variable-revalidate/revalidate-360-isr.html',
+              'isr-error-handling/page_client-reference-manifest.js',
+              'gen-params-dynamic-revalidate/[slug]/page.js',
+              'hooks/use-search-params/force-static/page.js',
+              'ssr-forced/page_client-reference-manifest.js',
+              'variable-config-revalidate/revalidate-3.html',
+              'variable-revalidate-edge/post-method/page.js',
+              'variable-revalidate/headers-instance/page.js',
+              'variable-revalidate/status-code.prefetch.rsc',
+              'force-cache/page_client-reference-manifest.js',
+              'hooks/use-search-params/with-suspense/page.js',
+              'variable-revalidate-edge/revalidate-3/page.js',
+              '(new)/custom/page_client-reference-manifest.js',
+              'force-static/page_client-reference-manifest.js',
+              'response-url/page_client-reference-manifest.js',
+              'variable-revalidate/revalidate-360-isr/page.js',
+              'stale-cache-serving-edge/route-handler/route.js',
+              'blog/[author]/page_client-reference-manifest.js',
+              'default-cache/page_client-reference-manifest.js',
+              'force-dynamic-prerender/frameworks.prefetch.rsc',
+              'variable-config-revalidate/revalidate-3/page.js',
+              'variable-revalidate/post-method-request/page.js',
+              'variable-revalidate/revalidate-360.prefetch.rsc',
+              'fetch-no-cache/page_client-reference-manifest.js',
+              'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
+              'force-no-store/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-lang/en/RAND.rsc',
+              'partial-gen-params-no-additional-lang/fr/RAND.rsc',
+              'partial-gen-params-no-additional-slug/en/RAND.rsc',
+              'partial-gen-params-no-additional-slug/fr/RAND.rsc',
+              'articles/[slug]/page_client-reference-manifest.js',
+              'no-store/static/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-lang/en/RAND.html',
+              'partial-gen-params-no-additional-lang/en/first.rsc',
+              'partial-gen-params-no-additional-lang/fr/RAND.html',
+              'partial-gen-params-no-additional-lang/fr/first.rsc',
+              'partial-gen-params-no-additional-slug/en/RAND.html',
+              'partial-gen-params-no-additional-slug/en/first.rsc',
+              'partial-gen-params-no-additional-slug/fr/RAND.html',
+              'partial-gen-params-no-additional-slug/fr/first.rsc',
+              'no-store/dynamic/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-lang/en/first.html',
+              'partial-gen-params-no-additional-lang/en/second.rsc',
+              'partial-gen-params-no-additional-lang/fr/first.html',
+              'partial-gen-params-no-additional-lang/fr/second.rsc',
+              'partial-gen-params-no-additional-slug/en/first.html',
+              'partial-gen-params-no-additional-slug/en/second.rsc',
+              'partial-gen-params-no-additional-slug/fr/first.html',
+              'partial-gen-params-no-additional-slug/fr/second.rsc',
+              'dynamic-error/[id]/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-lang/en/second.html',
+              'partial-gen-params-no-additional-lang/fr/second.html',
+              'partial-gen-params-no-additional-slug/en/second.html',
+              'partial-gen-params-no-additional-slug/fr/second.html',
+              'variable-revalidate/post-method-request.prefetch.rsc',
+              'variable-revalidate-edge/post-method-request/page.js',
+              'force-static/[slug]/page_client-reference-manifest.js',
+              'blog/[author]/[slug]/page_client-reference-manifest.js',
+              'flight/[slug]/[slug2]/page_client-reference-manifest.js',
+              'hooks/use-search-params/page_client-reference-manifest.js',
+              'ssr-auto/cache-no-store/page_client-reference-manifest.js',
+              'gen-params-dynamic/[slug]/page_client-reference-manifest.js',
+              'hooks/use-pathname/[slug]/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-lang/[lang]/[slug]/page.js',
+              'partial-gen-params-no-additional-slug/[lang]/[slug]/page.js',
+              'react-fetch-deduping-edge/page_client-reference-manifest.js',
+              'react-fetch-deduping-node/page_client-reference-manifest.js',
+              'variable-revalidate/cookie/page_client-reference-manifest.js',
+              'ssg-draft-mode/[[...route]]/page_client-reference-manifest.js',
+              'stale-cache-serving/app-page/page_client-reference-manifest.js',
+              'dynamic-no-gen-params/[slug]/page_client-reference-manifest.js',
+              'static-to-dynamic-error/[id]/page_client-reference-manifest.js',
+              'variable-revalidate/encoding/page_client-reference-manifest.js',
+              'variable-revalidate/no-store/page_client-reference-manifest.js',
+              'variable-revalidate-edge/body/page_client-reference-manifest.js',
+              'force-dynamic-prerender/[slug]/page_client-reference-manifest.js',
+              'ssr-auto/fetch-revalidate-zero/page_client-reference-manifest.js',
+              'force-dynamic-no-prerender/[id]/page_client-reference-manifest.js',
+              'variable-revalidate/post-method/page_client-reference-manifest.js',
+              'variable-revalidate/status-code/page_client-reference-manifest.js',
+              'dynamic-no-gen-params-ssr/[slug]/page_client-reference-manifest.js',
+              'partial-gen-params/[lang]/[slug]/page_client-reference-manifest.js',
+              'variable-revalidate/revalidate-3/page_client-reference-manifest.js',
+              'stale-cache-serving-edge/app-page/page_client-reference-manifest.js',
+              'variable-revalidate-edge/encoding/page_client-reference-manifest.js',
+              'variable-revalidate-edge/no-store/page_client-reference-manifest.js',
+              'variable-revalidate/authorization/page_client-reference-manifest.js',
+              'variable-revalidate/revalidate-360/page_client-reference-manifest.js',
+              'static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js',
+              'gen-params-dynamic-revalidate/[slug]/page_client-reference-manifest.js',
+              'hooks/use-search-params/force-static/page_client-reference-manifest.js',
+              'variable-revalidate-edge/post-method/page_client-reference-manifest.js',
+              'variable-revalidate/headers-instance/page_client-reference-manifest.js',
+              'hooks/use-search-params/with-suspense/page_client-reference-manifest.js',
+              'variable-revalidate-edge/revalidate-3/page_client-reference-manifest.js',
+              'variable-revalidate/revalidate-360-isr/page_client-reference-manifest.js',
+              'variable-config-revalidate/revalidate-3/page_client-reference-manifest.js',
+              'variable-revalidate/post-method-request/page_client-reference-manifest.js',
+              'force-dynamic-catch-all/[slug]/[[...id]]/page_client-reference-manifest.js',
+              'variable-revalidate-edge/post-method-request/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-lang/[lang]/[slug]/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-slug/[lang]/[slug]/page_client-reference-manifest.js',
+            ].sort()
+          )
+        })
+
+        it('should have correct prerender-manifest entries (ppr)', async () => {
+          const curManifest = JSON.parse(JSON.stringify(prerenderManifest))
+
+          for (const key of Object.keys(curManifest.dynamicRoutes)) {
+            const item = curManifest.dynamicRoutes[key]
+
+            if (item.dataRouteRegex) {
+              item.dataRouteRegex = normalizeRegEx(item.dataRouteRegex)
+            }
+            if (item.routeRegex) {
+              item.routeRegex = normalizeRegEx(item.routeRegex)
+            }
+          }
+
+          for (const key of Object.keys(curManifest.routes)) {
+            const newKey = key.replace(
               /partial-gen-params-no-additional-([\w]{1,})\/([\w]{1,})\/([\d]{1,})/,
               'partial-gen-params-no-additional-$1/$2/RAND'
             )
-          })
-
-        expect(files.sort()).toEqual(
-          [
-            'page.js',
-            'index.rsc',
-            'index.html',
-            'blog/seb.rsc',
-            'blog/tim.rsc',
-            '_not-found.js',
-            'blog/seb.html',
-            'blog/tim.html',
-            'isr-error-handling.rsc',
-            '_not-found.rsc',
-            '_not-found.html',
-            'blog/styfle.rsc',
-            'force-cache.rsc',
-            'blog/styfle.html',
-            'force-cache.html',
-            'isr-error-handling/page.js',
-            'ssg-draft-mode.rsc',
-            'ssr-forced/page.js',
-            'articles/works.rsc',
-            'custom.prefetch.rsc',
-            'force-cache/page.js',
-            'ssg-draft-mode.html',
-            'articles/works.html',
-            'no-store/static.rsc',
-            '(new)/custom/page.js',
-            'force-static/page.js',
-            'response-url/page.js',
-            'no-store/static.html',
-            'blog/[author]/page.js',
-            'default-cache/page.js',
-            'fetch-no-cache/page.js',
-            'force-no-store/page.js',
-            'force-static/first.rsc',
-            'api/draft-mode/route.js',
-            'blog/tim/first-post.rsc',
-            'force-static/first.html',
-            'force-static/second.rsc',
-            'ssg-draft-mode/test.rsc',
-            'ssr-forced.prefetch.rsc',
-            'isr-error-handling.html',
-            'articles/[slug]/page.js',
-            'no-store/static/page.js',
-            'blog/seb/second-post.rsc',
-            'blog/tim/first-post.html',
-            'force-static/second.html',
-            'ssg-draft-mode/test.html',
-            'no-store/dynamic/page.js',
-            'blog/seb/second-post.html',
-            'ssg-draft-mode/test-2.rsc',
-            'response-url.prefetch.rsc',
-            'blog/styfle/first-post.rsc',
-            'default-cache.prefetch.rsc',
-            'dynamic-error/[id]/page.js',
-            'ssg-draft-mode/test-2.html',
-            'blog/styfle/first-post.html',
-            'blog/styfle/second-post.rsc',
-            'fetch-no-cache.prefetch.rsc',
-            'force-no-store.prefetch.rsc',
-            'force-static/[slug]/page.js',
-            'hooks/use-pathname/slug.rsc',
-            'hooks/use-search-params.rsc',
-            'route-handler/post/route.js',
-            'blog/[author]/[slug]/page.js',
-            'blog/styfle/second-post.html',
-            'hooks/use-pathname/slug.html',
-            'hooks/use-search-params.html',
-            'flight/[slug]/[slug2]/page.js',
-            'variable-revalidate/cookie.rsc',
-            'hooks/use-search-params/page.js',
-            'ssr-auto/cache-no-store/page.js',
-            'variable-revalidate/cookie.html',
-            'api/revalidate-tag-edge/route.js',
-            'api/revalidate-tag-node/route.js',
-            'variable-revalidate/encoding.rsc',
-            'api/revalidate-path-edge/route.js',
-            'api/revalidate-path-node/route.js',
-            'gen-params-dynamic/[slug]/page.js',
-            'hooks/use-pathname/[slug]/page.js',
-            'page_client-reference-manifest.js',
-            'react-fetch-deduping-edge/page.js',
-            'react-fetch-deduping-node/page.js',
-            'variable-revalidate/encoding.html',
-            'variable-revalidate/cookie/page.js',
-            'gen-params-dynamic/one.prefetch.rsc',
-            'ssg-draft-mode/[[...route]]/page.js',
-            'variable-revalidate/post-method.rsc',
-            'stale-cache-serving/app-page/page.js',
-            'dynamic-no-gen-params/[slug]/page.js',
-            'ssr-auto/cache-no-store.prefetch.rsc',
-            'static-to-dynamic-error/[id]/page.js',
-            'variable-revalidate/encoding/page.js',
-            'variable-revalidate/no-store/page.js',
-            'variable-revalidate/post-method.html',
-            'variable-revalidate/revalidate-3.rsc',
-            'gen-params-dynamic-revalidate/one.rsc',
-            'route-handler/revalidate-360/route.js',
-            'route-handler/static-cookies/route.js',
-            'variable-revalidate-edge/body/page.js',
-            'variable-revalidate/authorization.rsc',
-            'variable-revalidate/revalidate-3.html',
-            'force-dynamic-prerender/[slug]/page.js',
-            'gen-params-dynamic-revalidate/one.html',
-            'react-fetch-deduping-node.prefetch.rsc',
-            'ssr-auto/fetch-revalidate-zero/page.js',
-            'variable-revalidate/authorization.html',
-            '_not-found_client-reference-manifest.js',
-            'force-dynamic-no-prerender/[id]/page.js',
-            'variable-revalidate/post-method/page.js',
-            'variable-revalidate/status-code/page.js',
-            'dynamic-no-gen-params-ssr/[slug]/page.js',
-            'hooks/use-search-params/force-static.rsc',
-            'partial-gen-params/[lang]/[slug]/page.js',
-            'variable-revalidate/headers-instance.rsc',
-            'variable-revalidate/revalidate-3/page.js',
-            'stale-cache-serving-edge/app-page/page.js',
-            'stale-cache-serving/app-page.prefetch.rsc',
-            'force-dynamic-catch-all/slug.prefetch.rsc',
-            'hooks/use-search-params/force-static.html',
-            'hooks/use-search-params/with-suspense.rsc',
-            'route-handler/revalidate-360-isr/route.js',
-            'variable-revalidate-edge/encoding/page.js',
-            'variable-revalidate-edge/no-store/page.js',
-            'variable-revalidate/authorization/page.js',
-            'variable-revalidate/headers-instance.html',
-            'variable-revalidate/no-store.prefetch.rsc',
-            'stale-cache-serving/route-handler/route.js',
-            'hooks/use-search-params/with-suspense.html',
-            'route-handler-edge/revalidate-360/route.js',
-            'variable-revalidate/revalidate-360-isr.rsc',
-            'variable-revalidate/revalidate-360/page.js',
-            'ssr-auto/fetch-revalidate-zero.prefetch.rsc',
-            'static-to-dynamic-error-forced/[id]/page.js',
-            'variable-config-revalidate/revalidate-3.rsc',
-            'variable-revalidate/revalidate-360-isr.html',
-            'isr-error-handling/page_client-reference-manifest.js',
-            'gen-params-dynamic-revalidate/[slug]/page.js',
-            'hooks/use-search-params/force-static/page.js',
-            'ssr-forced/page_client-reference-manifest.js',
-            'variable-config-revalidate/revalidate-3.html',
-            'variable-revalidate-edge/post-method/page.js',
-            'variable-revalidate/headers-instance/page.js',
-            'variable-revalidate/status-code.prefetch.rsc',
-            'force-cache/page_client-reference-manifest.js',
-            'hooks/use-search-params/with-suspense/page.js',
-            'variable-revalidate-edge/revalidate-3/page.js',
-            '(new)/custom/page_client-reference-manifest.js',
-            'force-static/page_client-reference-manifest.js',
-            'response-url/page_client-reference-manifest.js',
-            'variable-revalidate/revalidate-360-isr/page.js',
-            'stale-cache-serving-edge/route-handler/route.js',
-            'blog/[author]/page_client-reference-manifest.js',
-            'default-cache/page_client-reference-manifest.js',
-            'force-dynamic-prerender/frameworks.prefetch.rsc',
-            'variable-config-revalidate/revalidate-3/page.js',
-            'variable-revalidate/post-method-request/page.js',
-            'variable-revalidate/revalidate-360.prefetch.rsc',
-            'fetch-no-cache/page_client-reference-manifest.js',
-            'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
-            'force-no-store/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-lang/en/RAND.rsc',
-            'partial-gen-params-no-additional-lang/fr/RAND.rsc',
-            'partial-gen-params-no-additional-slug/en/RAND.rsc',
-            'partial-gen-params-no-additional-slug/fr/RAND.rsc',
-            'articles/[slug]/page_client-reference-manifest.js',
-            'no-store/static/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-lang/en/RAND.html',
-            'partial-gen-params-no-additional-lang/en/first.rsc',
-            'partial-gen-params-no-additional-lang/fr/RAND.html',
-            'partial-gen-params-no-additional-lang/fr/first.rsc',
-            'partial-gen-params-no-additional-slug/en/RAND.html',
-            'partial-gen-params-no-additional-slug/en/first.rsc',
-            'partial-gen-params-no-additional-slug/fr/RAND.html',
-            'partial-gen-params-no-additional-slug/fr/first.rsc',
-            'no-store/dynamic/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-lang/en/first.html',
-            'partial-gen-params-no-additional-lang/en/second.rsc',
-            'partial-gen-params-no-additional-lang/fr/first.html',
-            'partial-gen-params-no-additional-lang/fr/second.rsc',
-            'partial-gen-params-no-additional-slug/en/first.html',
-            'partial-gen-params-no-additional-slug/en/second.rsc',
-            'partial-gen-params-no-additional-slug/fr/first.html',
-            'partial-gen-params-no-additional-slug/fr/second.rsc',
-            'dynamic-error/[id]/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-lang/en/second.html',
-            'partial-gen-params-no-additional-lang/fr/second.html',
-            'partial-gen-params-no-additional-slug/en/second.html',
-            'partial-gen-params-no-additional-slug/fr/second.html',
-            'variable-revalidate/post-method-request.prefetch.rsc',
-            'variable-revalidate-edge/post-method-request/page.js',
-            'force-static/[slug]/page_client-reference-manifest.js',
-            'blog/[author]/[slug]/page_client-reference-manifest.js',
-            'flight/[slug]/[slug2]/page_client-reference-manifest.js',
-            'hooks/use-search-params/page_client-reference-manifest.js',
-            'ssr-auto/cache-no-store/page_client-reference-manifest.js',
-            'gen-params-dynamic/[slug]/page_client-reference-manifest.js',
-            'hooks/use-pathname/[slug]/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-lang/[lang]/[slug]/page.js',
-            'partial-gen-params-no-additional-slug/[lang]/[slug]/page.js',
-            'react-fetch-deduping-edge/page_client-reference-manifest.js',
-            'react-fetch-deduping-node/page_client-reference-manifest.js',
-            'variable-revalidate/cookie/page_client-reference-manifest.js',
-            'ssg-draft-mode/[[...route]]/page_client-reference-manifest.js',
-            'stale-cache-serving/app-page/page_client-reference-manifest.js',
-            'dynamic-no-gen-params/[slug]/page_client-reference-manifest.js',
-            'static-to-dynamic-error/[id]/page_client-reference-manifest.js',
-            'variable-revalidate/encoding/page_client-reference-manifest.js',
-            'variable-revalidate/no-store/page_client-reference-manifest.js',
-            'variable-revalidate-edge/body/page_client-reference-manifest.js',
-            'force-dynamic-prerender/[slug]/page_client-reference-manifest.js',
-            'ssr-auto/fetch-revalidate-zero/page_client-reference-manifest.js',
-            'force-dynamic-no-prerender/[id]/page_client-reference-manifest.js',
-            'variable-revalidate/post-method/page_client-reference-manifest.js',
-            'variable-revalidate/status-code/page_client-reference-manifest.js',
-            'dynamic-no-gen-params-ssr/[slug]/page_client-reference-manifest.js',
-            'partial-gen-params/[lang]/[slug]/page_client-reference-manifest.js',
-            'variable-revalidate/revalidate-3/page_client-reference-manifest.js',
-            'stale-cache-serving-edge/app-page/page_client-reference-manifest.js',
-            'variable-revalidate-edge/encoding/page_client-reference-manifest.js',
-            'variable-revalidate-edge/no-store/page_client-reference-manifest.js',
-            'variable-revalidate/authorization/page_client-reference-manifest.js',
-            'variable-revalidate/revalidate-360/page_client-reference-manifest.js',
-            'static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js',
-            'gen-params-dynamic-revalidate/[slug]/page_client-reference-manifest.js',
-            'hooks/use-search-params/force-static/page_client-reference-manifest.js',
-            'variable-revalidate-edge/post-method/page_client-reference-manifest.js',
-            'variable-revalidate/headers-instance/page_client-reference-manifest.js',
-            'hooks/use-search-params/with-suspense/page_client-reference-manifest.js',
-            'variable-revalidate-edge/revalidate-3/page_client-reference-manifest.js',
-            'variable-revalidate/revalidate-360-isr/page_client-reference-manifest.js',
-            'variable-config-revalidate/revalidate-3/page_client-reference-manifest.js',
-            'variable-revalidate/post-method-request/page_client-reference-manifest.js',
-            'force-dynamic-catch-all/[slug]/[[...id]]/page_client-reference-manifest.js',
-            'variable-revalidate-edge/post-method-request/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-lang/[lang]/[slug]/page_client-reference-manifest.js',
-            'partial-gen-params-no-additional-slug/[lang]/[slug]/page_client-reference-manifest.js',
-          ].sort()
-        )
-      })
-
-      it('should have correct prerender-manifest entries', async () => {
-        const curManifest = JSON.parse(JSON.stringify(prerenderManifest))
-
-        for (const key of Object.keys(curManifest.dynamicRoutes)) {
-          const item = curManifest.dynamicRoutes[key]
-
-          if (item.dataRouteRegex) {
-            item.dataRouteRegex = normalizeRegEx(item.dataRouteRegex)
-          }
-          if (item.routeRegex) {
-            item.routeRegex = normalizeRegEx(item.routeRegex)
-          }
-        }
-
-        for (const key of Object.keys(curManifest.routes)) {
-          const newKey = key.replace(
-            /partial-gen-params-no-additional-([\w]{1,})\/([\w]{1,})\/([\d]{1,})/,
-            'partial-gen-params-no-additional-$1/$2/RAND'
-          )
-          if (newKey !== key) {
-            const route = curManifest.routes[key]
-            delete curManifest.routes[key]
-            curManifest.routes[newKey] = {
-              ...route,
-              dataRoute: `${newKey}.rsc`,
+            if (newKey !== key) {
+              const route = curManifest.routes[key]
+              delete curManifest.routes[key]
+              curManifest.routes[newKey] = {
+                ...route,
+                dataRoute: `${newKey}.rsc`,
+              }
             }
           }
-        }
 
-        expect(curManifest.version).toBe(4)
-        expect(curManifest.routes).toMatchInlineSnapshot(`
-          {
-            "/": {
-              "dataRoute": "/index.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/",
-            },
-            "/articles/works": {
-              "dataRoute": "/articles/works.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 1,
-              "srcRoute": "/articles/[slug]",
-            },
-            "/blog/seb": {
-              "dataRoute": "/blog/seb.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 10,
-              "srcRoute": "/blog/[author]",
-            },
-            "/blog/seb/second-post": {
-              "dataRoute": "/blog/seb/second-post.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/blog/[author]/[slug]",
-            },
-            "/blog/styfle": {
-              "dataRoute": "/blog/styfle.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 10,
-              "srcRoute": "/blog/[author]",
-            },
-            "/blog/styfle/first-post": {
-              "dataRoute": "/blog/styfle/first-post.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/blog/[author]/[slug]",
-            },
-            "/blog/styfle/second-post": {
-              "dataRoute": "/blog/styfle/second-post.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/blog/[author]/[slug]",
-            },
-            "/blog/tim": {
-              "dataRoute": "/blog/tim.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 10,
-              "srcRoute": "/blog/[author]",
-            },
-            "/blog/tim/first-post": {
-              "dataRoute": "/blog/tim/first-post.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/blog/[author]/[slug]",
-            },
-            "/force-cache": {
-              "dataRoute": "/force-cache.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 3,
-              "srcRoute": "/force-cache",
-            },
-            "/force-static/first": {
-              "dataRoute": "/force-static/first.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/force-static/[slug]",
-            },
-            "/force-static/second": {
-              "dataRoute": "/force-static/second.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/force-static/[slug]",
-            },
-            "/gen-params-dynamic-revalidate/one": {
-              "dataRoute": "/gen-params-dynamic-revalidate/one.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 3,
-              "srcRoute": "/gen-params-dynamic-revalidate/[slug]",
-            },
-            "/hooks/use-pathname/slug": {
-              "dataRoute": "/hooks/use-pathname/slug.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/hooks/use-pathname/[slug]",
-            },
-            "/hooks/use-search-params": {
-              "dataRoute": "/hooks/use-search-params.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/hooks/use-search-params",
-            },
-            "/hooks/use-search-params/force-static": {
-              "dataRoute": "/hooks/use-search-params/force-static.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/hooks/use-search-params/force-static",
-            },
-            "/hooks/use-search-params/with-suspense": {
-              "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/hooks/use-search-params/with-suspense",
-            },
-            "/isr-error-handling": {
-              "dataRoute": "/isr-error-handling.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 3,
-              "srcRoute": "/isr-error-handling",
-            },
-            "/no-store/static": {
-              "dataRoute": "/no-store/static.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/no-store/static",
-            },
-            "/partial-gen-params-no-additional-lang/en/RAND": {
-              "dataRoute": "/partial-gen-params-no-additional-lang/en/RAND.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
-            },
-            "/partial-gen-params-no-additional-lang/en/first": {
-              "dataRoute": "/partial-gen-params-no-additional-lang/en/first.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
-            },
-            "/partial-gen-params-no-additional-lang/en/second": {
-              "dataRoute": "/partial-gen-params-no-additional-lang/en/second.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
-            },
-            "/partial-gen-params-no-additional-lang/fr/RAND": {
-              "dataRoute": "/partial-gen-params-no-additional-lang/fr/RAND.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
-            },
-            "/partial-gen-params-no-additional-lang/fr/first": {
-              "dataRoute": "/partial-gen-params-no-additional-lang/fr/first.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
-            },
-            "/partial-gen-params-no-additional-lang/fr/second": {
-              "dataRoute": "/partial-gen-params-no-additional-lang/fr/second.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
-            },
-            "/partial-gen-params-no-additional-slug/en/RAND": {
-              "dataRoute": "/partial-gen-params-no-additional-slug/en/RAND.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
-            },
-            "/partial-gen-params-no-additional-slug/en/first": {
-              "dataRoute": "/partial-gen-params-no-additional-slug/en/first.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
-            },
-            "/partial-gen-params-no-additional-slug/en/second": {
-              "dataRoute": "/partial-gen-params-no-additional-slug/en/second.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
-            },
-            "/partial-gen-params-no-additional-slug/fr/RAND": {
-              "dataRoute": "/partial-gen-params-no-additional-slug/fr/RAND.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
-            },
-            "/partial-gen-params-no-additional-slug/fr/first": {
-              "dataRoute": "/partial-gen-params-no-additional-slug/fr/first.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
-            },
-            "/partial-gen-params-no-additional-slug/fr/second": {
-              "dataRoute": "/partial-gen-params-no-additional-slug/fr/second.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
-            },
-            "/route-handler/revalidate-360-isr": {
-              "dataRoute": null,
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialHeaders": {
-                "content-type": "application/json",
-                "x-next-cache-tags": "thankyounext,_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr",
+          expect(curManifest.version).toBe(4)
+          expect(curManifest.routes).toMatchInlineSnapshot(`
+            {
+              "/": {
+                "dataRoute": "/index.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/index.prefetch.rsc",
+                "srcRoute": "/",
               },
-              "initialRevalidateSeconds": 10,
-              "srcRoute": "/route-handler/revalidate-360-isr",
-            },
-            "/route-handler/static-cookies": {
-              "dataRoute": null,
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialHeaders": {
-                "set-cookie": "theme=light; Path=/,my_company=ACME; Path=/",
-                "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/static-cookies/layout,_N_T_/route-handler/static-cookies/route,_N_T_/route-handler/static-cookies",
+              "/articles/works": {
+                "dataRoute": "/articles/works.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 1,
+                "prefetchDataRoute": "/articles/works.prefetch.rsc",
+                "srcRoute": "/articles/[slug]",
               },
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/route-handler/static-cookies",
-            },
-            "/ssg-draft-mode": {
-              "dataRoute": "/ssg-draft-mode.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
+              "/blog/seb": {
+                "dataRoute": "/blog/seb.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 10,
+                "prefetchDataRoute": "/blog/seb.prefetch.rsc",
+                "srcRoute": "/blog/[author]",
+              },
+              "/blog/seb/second-post": {
+                "dataRoute": "/blog/seb/second-post.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/blog/seb/second-post.prefetch.rsc",
+                "srcRoute": "/blog/[author]/[slug]",
+              },
+              "/blog/styfle": {
+                "dataRoute": "/blog/styfle.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 10,
+                "prefetchDataRoute": "/blog/styfle.prefetch.rsc",
+                "srcRoute": "/blog/[author]",
+              },
+              "/blog/styfle/first-post": {
+                "dataRoute": "/blog/styfle/first-post.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/blog/styfle/first-post.prefetch.rsc",
+                "srcRoute": "/blog/[author]/[slug]",
+              },
+              "/blog/styfle/second-post": {
+                "dataRoute": "/blog/styfle/second-post.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/blog/styfle/second-post.prefetch.rsc",
+                "srcRoute": "/blog/[author]/[slug]",
+              },
+              "/blog/tim": {
+                "dataRoute": "/blog/tim.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 10,
+                "prefetchDataRoute": "/blog/tim.prefetch.rsc",
+                "srcRoute": "/blog/[author]",
+              },
+              "/blog/tim/first-post": {
+                "dataRoute": "/blog/tim/first-post.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/blog/tim/first-post.prefetch.rsc",
+                "srcRoute": "/blog/[author]/[slug]",
+              },
+              "/default-cache": {
+                "dataRoute": "/default-cache.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/default-cache.prefetch.rsc",
+                "srcRoute": "/default-cache",
+              },
+              "/fetch-no-cache": {
+                "dataRoute": "/fetch-no-cache.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/fetch-no-cache.prefetch.rsc",
+                "srcRoute": "/fetch-no-cache",
+              },
+              "/force-cache": {
+                "dataRoute": "/force-cache.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 3,
+                "prefetchDataRoute": "/force-cache.prefetch.rsc",
+                "srcRoute": "/force-cache",
+              },
+              "/force-dynamic-catch-all/slug": {
+                "dataRoute": "/force-dynamic-catch-all/slug.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/force-dynamic-catch-all/slug.prefetch.rsc",
+                "srcRoute": "/force-dynamic-catch-all/[slug]/[[...id]]",
+              },
+              "/force-dynamic-prerender/frameworks": {
+                "dataRoute": "/force-dynamic-prerender/frameworks.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/force-dynamic-prerender/frameworks.prefetch.rsc",
+                "srcRoute": "/force-dynamic-prerender/[slug]",
+              },
+              "/force-no-store": {
+                "dataRoute": "/force-no-store.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/force-no-store.prefetch.rsc",
+                "srcRoute": "/force-no-store",
+              },
+              "/force-static": {
+                "dataRoute": "/force-static.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/force-static.prefetch.rsc",
+                "srcRoute": "/force-static",
+              },
+              "/force-static/first": {
+                "dataRoute": "/force-static/first.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/force-static/first.prefetch.rsc",
+                "srcRoute": "/force-static/[slug]",
+              },
+              "/force-static/second": {
+                "dataRoute": "/force-static/second.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/force-static/second.prefetch.rsc",
+                "srcRoute": "/force-static/[slug]",
+              },
+              "/gen-params-dynamic-revalidate/one": {
+                "dataRoute": "/gen-params-dynamic-revalidate/one.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 3,
+                "prefetchDataRoute": "/gen-params-dynamic-revalidate/one.prefetch.rsc",
+                "srcRoute": "/gen-params-dynamic-revalidate/[slug]",
+              },
+              "/gen-params-dynamic/one": {
+                "dataRoute": "/gen-params-dynamic/one.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/gen-params-dynamic/one.prefetch.rsc",
+                "srcRoute": "/gen-params-dynamic/[slug]",
+              },
+              "/hooks/use-pathname/slug": {
+                "dataRoute": "/hooks/use-pathname/slug.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/hooks/use-pathname/slug.prefetch.rsc",
+                "srcRoute": "/hooks/use-pathname/[slug]",
+              },
+              "/hooks/use-search-params": {
+                "dataRoute": "/hooks/use-search-params.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/hooks/use-search-params.prefetch.rsc",
+                "srcRoute": "/hooks/use-search-params",
+              },
+              "/hooks/use-search-params/force-static": {
+                "dataRoute": "/hooks/use-search-params/force-static.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/hooks/use-search-params/force-static.prefetch.rsc",
+                "srcRoute": "/hooks/use-search-params/force-static",
+              },
+              "/hooks/use-search-params/with-suspense": {
+                "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/hooks/use-search-params/with-suspense.prefetch.rsc",
+                "srcRoute": "/hooks/use-search-params/with-suspense",
+              },
+              "/isr-error-handling": {
+                "dataRoute": "/isr-error-handling.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 3,
+                "prefetchDataRoute": "/isr-error-handling.prefetch.rsc",
+                "srcRoute": "/isr-error-handling",
+              },
+              "/no-store/dynamic": {
+                "dataRoute": "/no-store/dynamic.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/no-store/dynamic.prefetch.rsc",
+                "srcRoute": "/no-store/dynamic",
+              },
+              "/no-store/static": {
+                "dataRoute": "/no-store/static.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/no-store/static.prefetch.rsc",
+                "srcRoute": "/no-store/static",
+              },
+              "/partial-gen-params-no-additional-lang/en/RAND": {
+                "dataRoute": "/partial-gen-params-no-additional-lang/en/RAND.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-lang/en/26.prefetch.rsc",
+                "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+              },
+              "/partial-gen-params-no-additional-lang/en/first": {
+                "dataRoute": "/partial-gen-params-no-additional-lang/en/first.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-lang/en/first.prefetch.rsc",
+                "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+              },
+              "/partial-gen-params-no-additional-lang/en/second": {
+                "dataRoute": "/partial-gen-params-no-additional-lang/en/second.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-lang/en/second.prefetch.rsc",
+                "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+              },
+              "/partial-gen-params-no-additional-lang/fr/RAND": {
+                "dataRoute": "/partial-gen-params-no-additional-lang/fr/RAND.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-lang/fr/26.prefetch.rsc",
+                "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+              },
+              "/partial-gen-params-no-additional-lang/fr/first": {
+                "dataRoute": "/partial-gen-params-no-additional-lang/fr/first.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-lang/fr/first.prefetch.rsc",
+                "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+              },
+              "/partial-gen-params-no-additional-lang/fr/second": {
+                "dataRoute": "/partial-gen-params-no-additional-lang/fr/second.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-lang/fr/second.prefetch.rsc",
+                "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+              },
+              "/partial-gen-params-no-additional-slug/en/RAND": {
+                "dataRoute": "/partial-gen-params-no-additional-slug/en/RAND.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-slug/en/87.prefetch.rsc",
+                "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+              },
+              "/partial-gen-params-no-additional-slug/en/first": {
+                "dataRoute": "/partial-gen-params-no-additional-slug/en/first.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-slug/en/first.prefetch.rsc",
+                "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+              },
+              "/partial-gen-params-no-additional-slug/en/second": {
+                "dataRoute": "/partial-gen-params-no-additional-slug/en/second.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-slug/en/second.prefetch.rsc",
+                "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+              },
+              "/partial-gen-params-no-additional-slug/fr/RAND": {
+                "dataRoute": "/partial-gen-params-no-additional-slug/fr/RAND.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-slug/fr/87.prefetch.rsc",
+                "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+              },
+              "/partial-gen-params-no-additional-slug/fr/first": {
+                "dataRoute": "/partial-gen-params-no-additional-slug/fr/first.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-slug/fr/first.prefetch.rsc",
+                "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+              },
+              "/partial-gen-params-no-additional-slug/fr/second": {
+                "dataRoute": "/partial-gen-params-no-additional-slug/fr/second.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-slug/fr/second.prefetch.rsc",
+                "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+              },
+              "/react-fetch-deduping-node": {
+                "dataRoute": "/react-fetch-deduping-node.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/react-fetch-deduping-node.prefetch.rsc",
+                "srcRoute": "/react-fetch-deduping-node",
+              },
+              "/response-url": {
+                "dataRoute": "/response-url.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/response-url.prefetch.rsc",
+                "srcRoute": "/response-url",
+              },
+              "/route-handler/revalidate-360-isr": {
+                "dataRoute": null,
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "initialHeaders": {
+                  "content-type": "application/json",
+                  "x-next-cache-tags": "thankyounext,_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr",
                 },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
+                "initialRevalidateSeconds": 10,
+                "srcRoute": "/route-handler/revalidate-360-isr",
+              },
+              "/route-handler/static-cookies": {
+                "dataRoute": null,
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "initialHeaders": {
+                  "set-cookie": "theme=light; Path=/,my_company=ACME; Path=/",
+                  "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/static-cookies/layout,_N_T_/route-handler/static-cookies/route,_N_T_/route-handler/static-cookies",
                 },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/ssg-draft-mode/[[...route]]",
-            },
-            "/ssg-draft-mode/test": {
-              "dataRoute": "/ssg-draft-mode/test.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/ssg-draft-mode/[[...route]]",
-            },
-            "/ssg-draft-mode/test-2": {
-              "dataRoute": "/ssg-draft-mode/test-2.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/ssg-draft-mode/[[...route]]",
-            },
-            "/variable-config-revalidate/revalidate-3": {
-              "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 3,
-              "srcRoute": "/variable-config-revalidate/revalidate-3",
-            },
-            "/variable-revalidate/authorization": {
-              "dataRoute": "/variable-revalidate/authorization.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 10,
-              "srcRoute": "/variable-revalidate/authorization",
-            },
-            "/variable-revalidate/cookie": {
-              "dataRoute": "/variable-revalidate/cookie.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 3,
-              "srcRoute": "/variable-revalidate/cookie",
-            },
-            "/variable-revalidate/encoding": {
-              "dataRoute": "/variable-revalidate/encoding.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 3,
-              "srcRoute": "/variable-revalidate/encoding",
-            },
-            "/variable-revalidate/headers-instance": {
-              "dataRoute": "/variable-revalidate/headers-instance.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 10,
-              "srcRoute": "/variable-revalidate/headers-instance",
-            },
-            "/variable-revalidate/post-method": {
-              "dataRoute": "/variable-revalidate/post-method.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 10,
-              "srcRoute": "/variable-revalidate/post-method",
-            },
-            "/variable-revalidate/revalidate-3": {
-              "dataRoute": "/variable-revalidate/revalidate-3.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 3,
-              "srcRoute": "/variable-revalidate/revalidate-3",
-            },
-            "/variable-revalidate/revalidate-360-isr": {
-              "dataRoute": "/variable-revalidate/revalidate-360-isr.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 10,
-              "srcRoute": "/variable-revalidate/revalidate-360-isr",
-            },
-          }
-        `)
-        expect(curManifest.dynamicRoutes).toMatchInlineSnapshot(`
-          {
-            "/articles/[slug]": {
-              "dataRoute": "/articles/[slug].rsc",
-              "dataRouteRegex": "^\\/articles\\/([^\\/]+?)\\.rsc$",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "fallback": null,
-              "routeRegex": "^\\/articles\\/([^\\/]+?)(?:\\/)?$",
-            },
-            "/blog/[author]": {
-              "dataRoute": "/blog/[author].rsc",
-              "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\.rsc$",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "fallback": false,
-              "routeRegex": "^\\/blog\\/([^\\/]+?)(?:\\/)?$",
-            },
-            "/blog/[author]/[slug]": {
-              "dataRoute": "/blog/[author]/[slug].rsc",
-              "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "fallback": null,
-              "routeRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
-            },
-            "/dynamic-error/[id]": {
-              "dataRoute": "/dynamic-error/[id].rsc",
-              "dataRouteRegex": "^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "fallback": null,
-              "routeRegex": "^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$",
-            },
-            "/force-static/[slug]": {
-              "dataRoute": "/force-static/[slug].rsc",
-              "dataRouteRegex": "^\\/force\\-static\\/([^\\/]+?)\\.rsc$",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "fallback": null,
-              "routeRegex": "^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$",
-            },
-            "/gen-params-dynamic-revalidate/[slug]": {
-              "dataRoute": "/gen-params-dynamic-revalidate/[slug].rsc",
-              "dataRouteRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)\\.rsc$",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "fallback": null,
-              "routeRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)(?:\\/)?$",
-            },
-            "/hooks/use-pathname/[slug]": {
-              "dataRoute": "/hooks/use-pathname/[slug].rsc",
-              "dataRouteRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "fallback": null,
-              "routeRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$",
-            },
-            "/partial-gen-params-no-additional-lang/[lang]/[slug]": {
-              "dataRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug].rsc",
-              "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "fallback": false,
-              "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
-            },
-            "/partial-gen-params-no-additional-slug/[lang]/[slug]": {
-              "dataRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug].rsc",
-              "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "fallback": false,
-              "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
-            },
-            "/ssg-draft-mode/[[...route]]": {
-              "dataRoute": "/ssg-draft-mode/[[...route]].rsc",
-              "dataRouteRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?\\.rsc$",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "fallback": null,
-              "routeRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$",
-            },
-            "/static-to-dynamic-error-forced/[id]": {
-              "dataRoute": "/static-to-dynamic-error-forced/[id].rsc",
-              "dataRouteRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)\\.rsc$",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "fallback": null,
-              "routeRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)(?:\\/)?$",
-            },
-          }
-        `)
-      })
+                "initialRevalidateSeconds": false,
+                "srcRoute": "/route-handler/static-cookies",
+              },
+              "/ssg-draft-mode": {
+                "dataRoute": "/ssg-draft-mode.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/ssg-draft-mode.prefetch.rsc",
+                "srcRoute": "/ssg-draft-mode/[[...route]]",
+              },
+              "/ssg-draft-mode/test": {
+                "dataRoute": "/ssg-draft-mode/test.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/ssg-draft-mode/test.prefetch.rsc",
+                "srcRoute": "/ssg-draft-mode/[[...route]]",
+              },
+              "/ssg-draft-mode/test-2": {
+                "dataRoute": "/ssg-draft-mode/test-2.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/ssg-draft-mode/test-2.prefetch.rsc",
+                "srcRoute": "/ssg-draft-mode/[[...route]]",
+              },
+              "/ssr-auto/cache-no-store": {
+                "dataRoute": "/ssr-auto/cache-no-store.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/ssr-auto/cache-no-store.prefetch.rsc",
+                "srcRoute": "/ssr-auto/cache-no-store",
+              },
+              "/ssr-auto/fetch-revalidate-zero": {
+                "dataRoute": "/ssr-auto/fetch-revalidate-zero.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": false,
+                "prefetchDataRoute": "/ssr-auto/fetch-revalidate-zero.prefetch.rsc",
+                "srcRoute": "/ssr-auto/fetch-revalidate-zero",
+              },
+              "/variable-config-revalidate/revalidate-3": {
+                "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 3,
+                "prefetchDataRoute": "/variable-config-revalidate/revalidate-3.prefetch.rsc",
+                "srcRoute": "/variable-config-revalidate/revalidate-3",
+              },
+              "/variable-revalidate/authorization": {
+                "dataRoute": "/variable-revalidate/authorization.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 10,
+                "prefetchDataRoute": "/variable-revalidate/authorization.prefetch.rsc",
+                "srcRoute": "/variable-revalidate/authorization",
+              },
+              "/variable-revalidate/cookie": {
+                "dataRoute": "/variable-revalidate/cookie.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 3,
+                "prefetchDataRoute": "/variable-revalidate/cookie.prefetch.rsc",
+                "srcRoute": "/variable-revalidate/cookie",
+              },
+              "/variable-revalidate/encoding": {
+                "dataRoute": "/variable-revalidate/encoding.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 3,
+                "prefetchDataRoute": "/variable-revalidate/encoding.prefetch.rsc",
+                "srcRoute": "/variable-revalidate/encoding",
+              },
+              "/variable-revalidate/headers-instance": {
+                "dataRoute": "/variable-revalidate/headers-instance.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 10,
+                "prefetchDataRoute": "/variable-revalidate/headers-instance.prefetch.rsc",
+                "srcRoute": "/variable-revalidate/headers-instance",
+              },
+              "/variable-revalidate/no-store": {
+                "dataRoute": "/variable-revalidate/no-store.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 10,
+                "prefetchDataRoute": "/variable-revalidate/no-store.prefetch.rsc",
+                "srcRoute": "/variable-revalidate/no-store",
+              },
+              "/variable-revalidate/post-method": {
+                "dataRoute": "/variable-revalidate/post-method.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 10,
+                "prefetchDataRoute": "/variable-revalidate/post-method.prefetch.rsc",
+                "srcRoute": "/variable-revalidate/post-method",
+              },
+              "/variable-revalidate/post-method-request": {
+                "dataRoute": "/variable-revalidate/post-method-request.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 10,
+                "prefetchDataRoute": "/variable-revalidate/post-method-request.prefetch.rsc",
+                "srcRoute": "/variable-revalidate/post-method-request",
+              },
+              "/variable-revalidate/revalidate-3": {
+                "dataRoute": "/variable-revalidate/revalidate-3.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 3,
+                "prefetchDataRoute": "/variable-revalidate/revalidate-3.prefetch.rsc",
+                "srcRoute": "/variable-revalidate/revalidate-3",
+              },
+              "/variable-revalidate/revalidate-360-isr": {
+                "dataRoute": "/variable-revalidate/revalidate-360-isr.rsc",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "initialRevalidateSeconds": 10,
+                "prefetchDataRoute": "/variable-revalidate/revalidate-360-isr.prefetch.rsc",
+                "srcRoute": "/variable-revalidate/revalidate-360-isr",
+              },
+            }
+          `)
+          expect(curManifest.dynamicRoutes).toMatchInlineSnapshot(`
+            {
+              "/articles/[slug]": {
+                "dataRoute": "/articles/[slug].rsc",
+                "dataRouteRegex": "^\\/articles\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": null,
+                "prefetchDataRoute": "/articles/[slug].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/articles/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/articles\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/blog/[author]": {
+                "dataRoute": "/blog/[author].rsc",
+                "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": false,
+                "prefetchDataRoute": "/blog/[author].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/blog/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/blog\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/blog/[author]/[slug]": {
+                "dataRoute": "/blog/[author]/[slug].rsc",
+                "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": null,
+                "prefetchDataRoute": "/blog/[author]/[slug].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/blog/([^/]+?)/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/dynamic-error/[id]": {
+                "dataRoute": "/dynamic-error/[id].rsc",
+                "dataRouteRegex": "^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": null,
+                "prefetchDataRoute": "/dynamic-error/[id].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/dynamic\\-error/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/dynamic-no-gen-params/[slug]": {
+                "dataRoute": "/dynamic-no-gen-params/[slug].rsc",
+                "dataRouteRegex": "^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": null,
+                "prefetchDataRoute": "/dynamic-no-gen-params/[slug].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/dynamic\\-no\\-gen\\-params/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/flight/[slug]/[slug2]": {
+                "dataRoute": "/flight/[slug]/[slug2].rsc",
+                "dataRouteRegex": "^\\/flight\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": null,
+                "prefetchDataRoute": "/flight/[slug]/[slug2].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/flight/([^/]+?)/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/flight\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/force-static/[slug]": {
+                "dataRoute": "/force-static/[slug].rsc",
+                "dataRouteRegex": "^\\/force\\-static\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": null,
+                "prefetchDataRoute": "/force-static/[slug].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/force\\-static/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/gen-params-dynamic-revalidate/[slug]": {
+                "dataRoute": "/gen-params-dynamic-revalidate/[slug].rsc",
+                "dataRouteRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": null,
+                "prefetchDataRoute": "/gen-params-dynamic-revalidate/[slug].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/gen\\-params\\-dynamic\\-revalidate/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/gen-params-dynamic/[slug]": {
+                "dataRoute": "/gen-params-dynamic/[slug].rsc",
+                "dataRouteRegex": "^\\/gen\\-params\\-dynamic\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": null,
+                "prefetchDataRoute": "/gen-params-dynamic/[slug].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/gen\\-params\\-dynamic/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/gen\\-params\\-dynamic\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/hooks/use-pathname/[slug]": {
+                "dataRoute": "/hooks/use-pathname/[slug].rsc",
+                "dataRouteRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": null,
+                "prefetchDataRoute": "/hooks/use-pathname/[slug].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/hooks/use\\-pathname/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/partial-gen-params-no-additional-lang/[lang]/[slug]": {
+                "dataRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug].rsc",
+                "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/partial\\-gen\\-params\\-no\\-additional\\-lang/([^/]+?)/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/partial-gen-params-no-additional-slug/[lang]/[slug]": {
+                "dataRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug].rsc",
+                "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": false,
+                "prefetchDataRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/partial\\-gen\\-params\\-no\\-additional\\-slug/([^/]+?)/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/partial-gen-params/[lang]/[slug]": {
+                "dataRoute": "/partial-gen-params/[lang]/[slug].rsc",
+                "dataRouteRegex": "^\\/partial\\-gen\\-params\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": null,
+                "prefetchDataRoute": "/partial-gen-params/[lang]/[slug].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/partial\\-gen\\-params/([^/]+?)/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/partial\\-gen\\-params\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/ssg-draft-mode/[[...route]]": {
+                "dataRoute": "/ssg-draft-mode/[[...route]].rsc",
+                "dataRouteRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": null,
+                "prefetchDataRoute": "/ssg-draft-mode/[[...route]].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/ssg\\-draft\\-mode(?:/(.+?))?\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$",
+              },
+              "/static-to-dynamic-error-forced/[id]": {
+                "dataRoute": "/static-to-dynamic-error-forced/[id].rsc",
+                "dataRouteRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": null,
+                "prefetchDataRoute": "/static-to-dynamic-error-forced/[id].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/static\\-to\\-dynamic\\-error\\-forced/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)(?:\\/)?$",
+              },
+              "/static-to-dynamic-error/[id]": {
+                "dataRoute": "/static-to-dynamic-error/[id].rsc",
+                "dataRouteRegex": "^\\/static\\-to\\-dynamic\\-error\\/([^\\/]+?)\\.rsc$",
+                "experimentalBypassFor": [
+                  {
+                    "key": "Next-Action",
+                    "type": "header",
+                  },
+                  {
+                    "key": "content-type",
+                    "type": "header",
+                    "value": "multipart/form-data",
+                  },
+                ],
+                "experimentalPPR": true,
+                "fallback": null,
+                "prefetchDataRoute": "/static-to-dynamic-error/[id].prefetch.rsc",
+                "prefetchDataRouteRegex": "^/static\\-to\\-dynamic\\-error/([^/]+?)\\.prefetch\\.rsc$",
+                "routeRegex": "^\\/static\\-to\\-dynamic\\-error\\/([^\\/]+?)(?:\\/)?$",
+              },
+            }
+          `)
+        })
+      } else {
+        it('should output HTML/RSC files for static paths', async () => {
+          const files = (
+            await glob('**/*', {
+              cwd: join(next.testDir, '.next/server/app'),
+            })
+          )
+            .filter((file) => file.match(/.*\.(js|html|rsc)$/))
+            .map((file) => {
+              return file.replace(
+                /partial-gen-params-no-additional-([\w]{1,})\/([\w]{1,})\/([\d]{1,})/,
+                'partial-gen-params-no-additional-$1/$2/RAND'
+              )
+            })
 
-      it('should output debug info for static bailouts', async () => {
-        const cleanedOutput = stripAnsi(next.cliOutput)
+          expect(files.sort()).toEqual(
+            [
+              'page.js',
+              'index.rsc',
+              'index.html',
+              'blog/seb.rsc',
+              'blog/tim.rsc',
+              '_not-found.js',
+              'blog/seb.html',
+              'blog/tim.html',
+              'isr-error-handling.rsc',
+              '_not-found.rsc',
+              '_not-found.html',
+              'blog/styfle.rsc',
+              'force-cache.rsc',
+              'blog/styfle.html',
+              'force-cache.html',
+              'isr-error-handling/page.js',
+              'ssg-draft-mode.rsc',
+              'ssr-forced/page.js',
+              'articles/works.rsc',
+              'custom.prefetch.rsc',
+              'force-cache/page.js',
+              'ssg-draft-mode.html',
+              'articles/works.html',
+              'no-store/static.rsc',
+              '(new)/custom/page.js',
+              'force-static/page.js',
+              'response-url/page.js',
+              'no-store/static.html',
+              'blog/[author]/page.js',
+              'default-cache/page.js',
+              'fetch-no-cache/page.js',
+              'force-no-store/page.js',
+              'force-static/first.rsc',
+              'api/draft-mode/route.js',
+              'blog/tim/first-post.rsc',
+              'force-static/first.html',
+              'force-static/second.rsc',
+              'ssg-draft-mode/test.rsc',
+              'ssr-forced.prefetch.rsc',
+              'isr-error-handling.html',
+              'articles/[slug]/page.js',
+              'no-store/static/page.js',
+              'blog/seb/second-post.rsc',
+              'blog/tim/first-post.html',
+              'force-static/second.html',
+              'ssg-draft-mode/test.html',
+              'no-store/dynamic/page.js',
+              'blog/seb/second-post.html',
+              'ssg-draft-mode/test-2.rsc',
+              'response-url.prefetch.rsc',
+              'blog/styfle/first-post.rsc',
+              'default-cache.prefetch.rsc',
+              'dynamic-error/[id]/page.js',
+              'ssg-draft-mode/test-2.html',
+              'blog/styfle/first-post.html',
+              'blog/styfle/second-post.rsc',
+              'fetch-no-cache.prefetch.rsc',
+              'force-no-store.prefetch.rsc',
+              'force-static/[slug]/page.js',
+              'hooks/use-pathname/slug.rsc',
+              'hooks/use-search-params.rsc',
+              'route-handler/post/route.js',
+              'blog/[author]/[slug]/page.js',
+              'blog/styfle/second-post.html',
+              'hooks/use-pathname/slug.html',
+              'hooks/use-search-params.html',
+              'flight/[slug]/[slug2]/page.js',
+              'variable-revalidate/cookie.rsc',
+              'hooks/use-search-params/page.js',
+              'ssr-auto/cache-no-store/page.js',
+              'variable-revalidate/cookie.html',
+              'api/revalidate-tag-edge/route.js',
+              'api/revalidate-tag-node/route.js',
+              'variable-revalidate/encoding.rsc',
+              'api/revalidate-path-edge/route.js',
+              'api/revalidate-path-node/route.js',
+              'gen-params-dynamic/[slug]/page.js',
+              'hooks/use-pathname/[slug]/page.js',
+              'page_client-reference-manifest.js',
+              'react-fetch-deduping-edge/page.js',
+              'react-fetch-deduping-node/page.js',
+              'variable-revalidate/encoding.html',
+              'variable-revalidate/cookie/page.js',
+              'gen-params-dynamic/one.prefetch.rsc',
+              'ssg-draft-mode/[[...route]]/page.js',
+              'variable-revalidate/post-method.rsc',
+              'stale-cache-serving/app-page/page.js',
+              'dynamic-no-gen-params/[slug]/page.js',
+              'ssr-auto/cache-no-store.prefetch.rsc',
+              'static-to-dynamic-error/[id]/page.js',
+              'variable-revalidate/encoding/page.js',
+              'variable-revalidate/no-store/page.js',
+              'variable-revalidate/post-method.html',
+              'variable-revalidate/revalidate-3.rsc',
+              'gen-params-dynamic-revalidate/one.rsc',
+              'route-handler/revalidate-360/route.js',
+              'route-handler/static-cookies/route.js',
+              'variable-revalidate-edge/body/page.js',
+              'variable-revalidate/authorization.rsc',
+              'variable-revalidate/revalidate-3.html',
+              'force-dynamic-prerender/[slug]/page.js',
+              'gen-params-dynamic-revalidate/one.html',
+              'react-fetch-deduping-node.prefetch.rsc',
+              'ssr-auto/fetch-revalidate-zero/page.js',
+              'variable-revalidate/authorization.html',
+              '_not-found_client-reference-manifest.js',
+              'force-dynamic-no-prerender/[id]/page.js',
+              'variable-revalidate/post-method/page.js',
+              'variable-revalidate/status-code/page.js',
+              'dynamic-no-gen-params-ssr/[slug]/page.js',
+              'hooks/use-search-params/force-static.rsc',
+              'partial-gen-params/[lang]/[slug]/page.js',
+              'variable-revalidate/headers-instance.rsc',
+              'variable-revalidate/revalidate-3/page.js',
+              'stale-cache-serving-edge/app-page/page.js',
+              'stale-cache-serving/app-page.prefetch.rsc',
+              'force-dynamic-catch-all/slug.prefetch.rsc',
+              'hooks/use-search-params/force-static.html',
+              'hooks/use-search-params/with-suspense.rsc',
+              'route-handler/revalidate-360-isr/route.js',
+              'variable-revalidate-edge/encoding/page.js',
+              'variable-revalidate-edge/no-store/page.js',
+              'variable-revalidate/authorization/page.js',
+              'variable-revalidate/headers-instance.html',
+              'variable-revalidate/no-store.prefetch.rsc',
+              'stale-cache-serving/route-handler/route.js',
+              'hooks/use-search-params/with-suspense.html',
+              'route-handler-edge/revalidate-360/route.js',
+              'variable-revalidate/revalidate-360-isr.rsc',
+              'variable-revalidate/revalidate-360/page.js',
+              'ssr-auto/fetch-revalidate-zero.prefetch.rsc',
+              'static-to-dynamic-error-forced/[id]/page.js',
+              'variable-config-revalidate/revalidate-3.rsc',
+              'variable-revalidate/revalidate-360-isr.html',
+              'isr-error-handling/page_client-reference-manifest.js',
+              'gen-params-dynamic-revalidate/[slug]/page.js',
+              'hooks/use-search-params/force-static/page.js',
+              'ssr-forced/page_client-reference-manifest.js',
+              'variable-config-revalidate/revalidate-3.html',
+              'variable-revalidate-edge/post-method/page.js',
+              'variable-revalidate/headers-instance/page.js',
+              'variable-revalidate/status-code.prefetch.rsc',
+              'force-cache/page_client-reference-manifest.js',
+              'hooks/use-search-params/with-suspense/page.js',
+              'variable-revalidate-edge/revalidate-3/page.js',
+              '(new)/custom/page_client-reference-manifest.js',
+              'force-static/page_client-reference-manifest.js',
+              'response-url/page_client-reference-manifest.js',
+              'variable-revalidate/revalidate-360-isr/page.js',
+              'stale-cache-serving-edge/route-handler/route.js',
+              'blog/[author]/page_client-reference-manifest.js',
+              'default-cache/page_client-reference-manifest.js',
+              'force-dynamic-prerender/frameworks.prefetch.rsc',
+              'variable-config-revalidate/revalidate-3/page.js',
+              'variable-revalidate/post-method-request/page.js',
+              'variable-revalidate/revalidate-360.prefetch.rsc',
+              'fetch-no-cache/page_client-reference-manifest.js',
+              'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
+              'force-no-store/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-lang/en/RAND.rsc',
+              'partial-gen-params-no-additional-lang/fr/RAND.rsc',
+              'partial-gen-params-no-additional-slug/en/RAND.rsc',
+              'partial-gen-params-no-additional-slug/fr/RAND.rsc',
+              'articles/[slug]/page_client-reference-manifest.js',
+              'no-store/static/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-lang/en/RAND.html',
+              'partial-gen-params-no-additional-lang/en/first.rsc',
+              'partial-gen-params-no-additional-lang/fr/RAND.html',
+              'partial-gen-params-no-additional-lang/fr/first.rsc',
+              'partial-gen-params-no-additional-slug/en/RAND.html',
+              'partial-gen-params-no-additional-slug/en/first.rsc',
+              'partial-gen-params-no-additional-slug/fr/RAND.html',
+              'partial-gen-params-no-additional-slug/fr/first.rsc',
+              'no-store/dynamic/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-lang/en/first.html',
+              'partial-gen-params-no-additional-lang/en/second.rsc',
+              'partial-gen-params-no-additional-lang/fr/first.html',
+              'partial-gen-params-no-additional-lang/fr/second.rsc',
+              'partial-gen-params-no-additional-slug/en/first.html',
+              'partial-gen-params-no-additional-slug/en/second.rsc',
+              'partial-gen-params-no-additional-slug/fr/first.html',
+              'partial-gen-params-no-additional-slug/fr/second.rsc',
+              'dynamic-error/[id]/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-lang/en/second.html',
+              'partial-gen-params-no-additional-lang/fr/second.html',
+              'partial-gen-params-no-additional-slug/en/second.html',
+              'partial-gen-params-no-additional-slug/fr/second.html',
+              'variable-revalidate/post-method-request.prefetch.rsc',
+              'variable-revalidate-edge/post-method-request/page.js',
+              'force-static/[slug]/page_client-reference-manifest.js',
+              'blog/[author]/[slug]/page_client-reference-manifest.js',
+              'flight/[slug]/[slug2]/page_client-reference-manifest.js',
+              'hooks/use-search-params/page_client-reference-manifest.js',
+              'ssr-auto/cache-no-store/page_client-reference-manifest.js',
+              'gen-params-dynamic/[slug]/page_client-reference-manifest.js',
+              'hooks/use-pathname/[slug]/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-lang/[lang]/[slug]/page.js',
+              'partial-gen-params-no-additional-slug/[lang]/[slug]/page.js',
+              'react-fetch-deduping-edge/page_client-reference-manifest.js',
+              'react-fetch-deduping-node/page_client-reference-manifest.js',
+              'variable-revalidate/cookie/page_client-reference-manifest.js',
+              'ssg-draft-mode/[[...route]]/page_client-reference-manifest.js',
+              'stale-cache-serving/app-page/page_client-reference-manifest.js',
+              'dynamic-no-gen-params/[slug]/page_client-reference-manifest.js',
+              'static-to-dynamic-error/[id]/page_client-reference-manifest.js',
+              'variable-revalidate/encoding/page_client-reference-manifest.js',
+              'variable-revalidate/no-store/page_client-reference-manifest.js',
+              'variable-revalidate-edge/body/page_client-reference-manifest.js',
+              'force-dynamic-prerender/[slug]/page_client-reference-manifest.js',
+              'ssr-auto/fetch-revalidate-zero/page_client-reference-manifest.js',
+              'force-dynamic-no-prerender/[id]/page_client-reference-manifest.js',
+              'variable-revalidate/post-method/page_client-reference-manifest.js',
+              'variable-revalidate/status-code/page_client-reference-manifest.js',
+              'dynamic-no-gen-params-ssr/[slug]/page_client-reference-manifest.js',
+              'partial-gen-params/[lang]/[slug]/page_client-reference-manifest.js',
+              'variable-revalidate/revalidate-3/page_client-reference-manifest.js',
+              'stale-cache-serving-edge/app-page/page_client-reference-manifest.js',
+              'variable-revalidate-edge/encoding/page_client-reference-manifest.js',
+              'variable-revalidate-edge/no-store/page_client-reference-manifest.js',
+              'variable-revalidate/authorization/page_client-reference-manifest.js',
+              'variable-revalidate/revalidate-360/page_client-reference-manifest.js',
+              'static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js',
+              'gen-params-dynamic-revalidate/[slug]/page_client-reference-manifest.js',
+              'hooks/use-search-params/force-static/page_client-reference-manifest.js',
+              'variable-revalidate-edge/post-method/page_client-reference-manifest.js',
+              'variable-revalidate/headers-instance/page_client-reference-manifest.js',
+              'hooks/use-search-params/with-suspense/page_client-reference-manifest.js',
+              'variable-revalidate-edge/revalidate-3/page_client-reference-manifest.js',
+              'variable-revalidate/revalidate-360-isr/page_client-reference-manifest.js',
+              'variable-config-revalidate/revalidate-3/page_client-reference-manifest.js',
+              'variable-revalidate/post-method-request/page_client-reference-manifest.js',
+              'force-dynamic-catch-all/[slug]/[[...id]]/page_client-reference-manifest.js',
+              'variable-revalidate-edge/post-method-request/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-lang/[lang]/[slug]/page_client-reference-manifest.js',
+              'partial-gen-params-no-additional-slug/[lang]/[slug]/page_client-reference-manifest.js',
+            ].sort()
+          )
+        })
 
-        expect(cleanedOutput).toContain(
-          'Static generation failed due to dynamic usage on /force-static, reason: headers'
-        )
-        expect(cleanedOutput).toContain(
-          'Static generation failed due to dynamic usage on /ssr-auto/cache-no-store, reason: no-store fetch'
-        )
-      })
+        it('should have correct prerender-manifest entries', async () => {
+          const curManifest = JSON.parse(JSON.stringify(prerenderManifest))
+
+          for (const key of Object.keys(curManifest.dynamicRoutes)) {
+            const item = curManifest.dynamicRoutes[key]
+
+            if (item.dataRouteRegex) {
+              item.dataRouteRegex = normalizeRegEx(item.dataRouteRegex)
+            }
+            if (item.routeRegex) {
+              item.routeRegex = normalizeRegEx(item.routeRegex)
+            }
+          }
+
+          for (const key of Object.keys(curManifest.routes)) {
+            const newKey = key.replace(
+              /partial-gen-params-no-additional-([\w]{1,})\/([\w]{1,})\/([\d]{1,})/,
+              'partial-gen-params-no-additional-$1/$2/RAND'
+            )
+            if (newKey !== key) {
+              const route = curManifest.routes[key]
+              delete curManifest.routes[key]
+              curManifest.routes[newKey] = {
+                ...route,
+                dataRoute: `${newKey}.rsc`,
+              }
+            }
+          }
+
+          expect(curManifest.version).toBe(4)
+          expect(curManifest.routes).toMatchInlineSnapshot(`
+                      {
+                        "/": {
+                          "dataRoute": "/index.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/",
+                        },
+                        "/articles/works": {
+                          "dataRoute": "/articles/works.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 1,
+                          "srcRoute": "/articles/[slug]",
+                        },
+                        "/blog/seb": {
+                          "dataRoute": "/blog/seb.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 10,
+                          "srcRoute": "/blog/[author]",
+                        },
+                        "/blog/seb/second-post": {
+                          "dataRoute": "/blog/seb/second-post.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/blog/[author]/[slug]",
+                        },
+                        "/blog/styfle": {
+                          "dataRoute": "/blog/styfle.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 10,
+                          "srcRoute": "/blog/[author]",
+                        },
+                        "/blog/styfle/first-post": {
+                          "dataRoute": "/blog/styfle/first-post.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/blog/[author]/[slug]",
+                        },
+                        "/blog/styfle/second-post": {
+                          "dataRoute": "/blog/styfle/second-post.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/blog/[author]/[slug]",
+                        },
+                        "/blog/tim": {
+                          "dataRoute": "/blog/tim.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 10,
+                          "srcRoute": "/blog/[author]",
+                        },
+                        "/blog/tim/first-post": {
+                          "dataRoute": "/blog/tim/first-post.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/blog/[author]/[slug]",
+                        },
+                        "/force-cache": {
+                          "dataRoute": "/force-cache.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 3,
+                          "srcRoute": "/force-cache",
+                        },
+                        "/force-static/first": {
+                          "dataRoute": "/force-static/first.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/force-static/[slug]",
+                        },
+                        "/force-static/second": {
+                          "dataRoute": "/force-static/second.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/force-static/[slug]",
+                        },
+                        "/gen-params-dynamic-revalidate/one": {
+                          "dataRoute": "/gen-params-dynamic-revalidate/one.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 3,
+                          "srcRoute": "/gen-params-dynamic-revalidate/[slug]",
+                        },
+                        "/hooks/use-pathname/slug": {
+                          "dataRoute": "/hooks/use-pathname/slug.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/hooks/use-pathname/[slug]",
+                        },
+                        "/hooks/use-search-params": {
+                          "dataRoute": "/hooks/use-search-params.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/hooks/use-search-params",
+                        },
+                        "/hooks/use-search-params/force-static": {
+                          "dataRoute": "/hooks/use-search-params/force-static.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/hooks/use-search-params/force-static",
+                        },
+                        "/hooks/use-search-params/with-suspense": {
+                          "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/hooks/use-search-params/with-suspense",
+                        },
+                        "/isr-error-handling": {
+                          "dataRoute": "/isr-error-handling.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 3,
+                          "srcRoute": "/isr-error-handling",
+                        },
+                        "/no-store/static": {
+                          "dataRoute": "/no-store/static.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/no-store/static",
+                        },
+                        "/partial-gen-params-no-additional-lang/en/RAND": {
+                          "dataRoute": "/partial-gen-params-no-additional-lang/en/RAND.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+                        },
+                        "/partial-gen-params-no-additional-lang/en/first": {
+                          "dataRoute": "/partial-gen-params-no-additional-lang/en/first.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+                        },
+                        "/partial-gen-params-no-additional-lang/en/second": {
+                          "dataRoute": "/partial-gen-params-no-additional-lang/en/second.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+                        },
+                        "/partial-gen-params-no-additional-lang/fr/RAND": {
+                          "dataRoute": "/partial-gen-params-no-additional-lang/fr/RAND.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+                        },
+                        "/partial-gen-params-no-additional-lang/fr/first": {
+                          "dataRoute": "/partial-gen-params-no-additional-lang/fr/first.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+                        },
+                        "/partial-gen-params-no-additional-lang/fr/second": {
+                          "dataRoute": "/partial-gen-params-no-additional-lang/fr/second.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+                        },
+                        "/partial-gen-params-no-additional-slug/en/RAND": {
+                          "dataRoute": "/partial-gen-params-no-additional-slug/en/RAND.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+                        },
+                        "/partial-gen-params-no-additional-slug/en/first": {
+                          "dataRoute": "/partial-gen-params-no-additional-slug/en/first.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+                        },
+                        "/partial-gen-params-no-additional-slug/en/second": {
+                          "dataRoute": "/partial-gen-params-no-additional-slug/en/second.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+                        },
+                        "/partial-gen-params-no-additional-slug/fr/RAND": {
+                          "dataRoute": "/partial-gen-params-no-additional-slug/fr/RAND.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+                        },
+                        "/partial-gen-params-no-additional-slug/fr/first": {
+                          "dataRoute": "/partial-gen-params-no-additional-slug/fr/first.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+                        },
+                        "/partial-gen-params-no-additional-slug/fr/second": {
+                          "dataRoute": "/partial-gen-params-no-additional-slug/fr/second.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+                        },
+                        "/route-handler/revalidate-360-isr": {
+                          "dataRoute": null,
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialHeaders": {
+                            "content-type": "application/json",
+                            "x-next-cache-tags": "thankyounext,_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr",
+                          },
+                          "initialRevalidateSeconds": 10,
+                          "srcRoute": "/route-handler/revalidate-360-isr",
+                        },
+                        "/route-handler/static-cookies": {
+                          "dataRoute": null,
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialHeaders": {
+                            "set-cookie": "theme=light; Path=/,my_company=ACME; Path=/",
+                            "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/static-cookies/layout,_N_T_/route-handler/static-cookies/route,_N_T_/route-handler/static-cookies",
+                          },
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/route-handler/static-cookies",
+                        },
+                        "/ssg-draft-mode": {
+                          "dataRoute": "/ssg-draft-mode.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/ssg-draft-mode/[[...route]]",
+                        },
+                        "/ssg-draft-mode/test": {
+                          "dataRoute": "/ssg-draft-mode/test.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/ssg-draft-mode/[[...route]]",
+                        },
+                        "/ssg-draft-mode/test-2": {
+                          "dataRoute": "/ssg-draft-mode/test-2.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": false,
+                          "srcRoute": "/ssg-draft-mode/[[...route]]",
+                        },
+                        "/variable-config-revalidate/revalidate-3": {
+                          "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 3,
+                          "srcRoute": "/variable-config-revalidate/revalidate-3",
+                        },
+                        "/variable-revalidate/authorization": {
+                          "dataRoute": "/variable-revalidate/authorization.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 10,
+                          "srcRoute": "/variable-revalidate/authorization",
+                        },
+                        "/variable-revalidate/cookie": {
+                          "dataRoute": "/variable-revalidate/cookie.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 3,
+                          "srcRoute": "/variable-revalidate/cookie",
+                        },
+                        "/variable-revalidate/encoding": {
+                          "dataRoute": "/variable-revalidate/encoding.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 3,
+                          "srcRoute": "/variable-revalidate/encoding",
+                        },
+                        "/variable-revalidate/headers-instance": {
+                          "dataRoute": "/variable-revalidate/headers-instance.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 10,
+                          "srcRoute": "/variable-revalidate/headers-instance",
+                        },
+                        "/variable-revalidate/post-method": {
+                          "dataRoute": "/variable-revalidate/post-method.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 10,
+                          "srcRoute": "/variable-revalidate/post-method",
+                        },
+                        "/variable-revalidate/revalidate-3": {
+                          "dataRoute": "/variable-revalidate/revalidate-3.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 3,
+                          "srcRoute": "/variable-revalidate/revalidate-3",
+                        },
+                        "/variable-revalidate/revalidate-360-isr": {
+                          "dataRoute": "/variable-revalidate/revalidate-360-isr.rsc",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "initialRevalidateSeconds": 10,
+                          "srcRoute": "/variable-revalidate/revalidate-360-isr",
+                        },
+                      }
+                  `)
+          expect(curManifest.dynamicRoutes).toMatchInlineSnapshot(`
+                      {
+                        "/articles/[slug]": {
+                          "dataRoute": "/articles/[slug].rsc",
+                          "dataRouteRegex": "^\\/articles\\/([^\\/]+?)\\.rsc$",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "fallback": null,
+                          "routeRegex": "^\\/articles\\/([^\\/]+?)(?:\\/)?$",
+                        },
+                        "/blog/[author]": {
+                          "dataRoute": "/blog/[author].rsc",
+                          "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\.rsc$",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "fallback": false,
+                          "routeRegex": "^\\/blog\\/([^\\/]+?)(?:\\/)?$",
+                        },
+                        "/blog/[author]/[slug]": {
+                          "dataRoute": "/blog/[author]/[slug].rsc",
+                          "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "fallback": null,
+                          "routeRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+                        },
+                        "/dynamic-error/[id]": {
+                          "dataRoute": "/dynamic-error/[id].rsc",
+                          "dataRouteRegex": "^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "fallback": null,
+                          "routeRegex": "^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$",
+                        },
+                        "/force-static/[slug]": {
+                          "dataRoute": "/force-static/[slug].rsc",
+                          "dataRouteRegex": "^\\/force\\-static\\/([^\\/]+?)\\.rsc$",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "fallback": null,
+                          "routeRegex": "^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$",
+                        },
+                        "/gen-params-dynamic-revalidate/[slug]": {
+                          "dataRoute": "/gen-params-dynamic-revalidate/[slug].rsc",
+                          "dataRouteRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)\\.rsc$",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "fallback": null,
+                          "routeRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)(?:\\/)?$",
+                        },
+                        "/hooks/use-pathname/[slug]": {
+                          "dataRoute": "/hooks/use-pathname/[slug].rsc",
+                          "dataRouteRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "fallback": null,
+                          "routeRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$",
+                        },
+                        "/partial-gen-params-no-additional-lang/[lang]/[slug]": {
+                          "dataRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug].rsc",
+                          "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "fallback": false,
+                          "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+                        },
+                        "/partial-gen-params-no-additional-slug/[lang]/[slug]": {
+                          "dataRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug].rsc",
+                          "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "fallback": false,
+                          "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+                        },
+                        "/ssg-draft-mode/[[...route]]": {
+                          "dataRoute": "/ssg-draft-mode/[[...route]].rsc",
+                          "dataRouteRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?\\.rsc$",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "fallback": null,
+                          "routeRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$",
+                        },
+                        "/static-to-dynamic-error-forced/[id]": {
+                          "dataRoute": "/static-to-dynamic-error-forced/[id].rsc",
+                          "dataRouteRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)\\.rsc$",
+                          "experimentalBypassFor": [
+                            {
+                              "key": "Next-Action",
+                              "type": "header",
+                            },
+                            {
+                              "key": "content-type",
+                              "type": "header",
+                              "value": "multipart/form-data",
+                            },
+                          ],
+                          "fallback": null,
+                          "routeRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)(?:\\/)?$",
+                        },
+                      }
+                  `)
+        })
+
+        it('should output debug info for static bailouts', async () => {
+          const cleanedOutput = stripAnsi(next.cliOutput)
+
+          expect(cleanedOutput).toContain(
+            'Static generation failed due to dynamic usage on /force-static, reason: headers'
+          )
+          expect(cleanedOutput).toContain(
+            'Static generation failed due to dynamic usage on /ssr-auto/cache-no-store, reason: no-store fetch'
+          )
+        })
+      }
 
       // build cache not leveraged for custom cache handler so not seeded
       if (!process.env.CUSTOM_CACHE_HANDLER) {
