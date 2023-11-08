@@ -4,4 +4,9 @@ module.exports = {
   logging: {
     fetches: {},
   },
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['localhost:41831'],
+    },
+  },
 }
