@@ -15,6 +15,7 @@ describe('required server files app router', () => {
   let next: NextInstance
   let server
   let appPort
+  let delayedPostpone
 
   const setupNext = async ({
     nextEnv,
@@ -49,6 +50,9 @@ describe('required server files app router', () => {
       },
     })
     await next.stop()
+
+    delayedPostpone = (await next.readJSON('.next/server/app/delayed.meta'))
+      .postponed
 
     await fs.move(
       join(next.testDir, '.next/standalone'),
@@ -104,6 +108,37 @@ describe('required server files app router', () => {
 
   it('should not fail caching', async () => {
     expect(next.cliOutput).not.toContain('ERR_INVALID_URL')
+  })
+
+  it('should properly stream resume', async () => {
+    const res = await fetchViaHTTP(appPort, '/delayed', undefined, {
+      headers: {
+        'x-matched-path': '/_next/postponed/resume/delayed',
+      },
+      method: 'POST',
+      body: delayedPostpone,
+    })
+
+    let chunks = []
+
+    for await (const chunk of res.body) {
+      chunks.push({
+        time: Date.now(),
+        chunk: chunk.toString(),
+      })
+    }
+
+    const firstSuspense = chunks.find((item) => item.chunk.includes('time'))
+    const secondSuspense = chunks.find((item) => item.chunk.includes('random'))
+
+    console.log({
+      firstSuspense,
+      secondSuspense,
+    })
+
+    expect(secondSuspense.time - firstSuspense.time).toBeGreaterThanOrEqual(
+      2 * 1000
+    )
   })
 
   it('should properly handle prerender for bot request', async () => {

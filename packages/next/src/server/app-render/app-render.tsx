@@ -611,12 +611,11 @@ async function renderToHTMLOrFlightImpl(
 
   const hasPostponed = typeof renderOpts.postponed === 'string'
 
-  let stringifiedFlightPayloadPromise =
-    isStaticGeneration || hasPostponed
-      ? generateFlight(ctx)
-          .then((renderResult) => renderResult.toUnchunkedString(true))
-          .catch(() => null)
-      : Promise.resolve(null)
+  let stringifiedFlightPayloadPromise = isStaticGeneration
+    ? generateFlight(ctx)
+        .then((renderResult) => renderResult.toUnchunkedString(true))
+        .catch(() => null)
+    : Promise.resolve(null)
 
   // Get the nonce from the incoming request if it has one.
   const csp = req.headers['content-security-policy']
