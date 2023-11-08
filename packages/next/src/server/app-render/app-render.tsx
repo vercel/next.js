@@ -1099,7 +1099,11 @@ export const renderToHTMLOrFlight: AppPageRender = (
     (requestStore) =>
       StaticGenerationAsyncStorageWrapper.wrap(
         renderOpts.ComponentMod.staticGenerationAsyncStorage,
-        { urlPathname: pathname, renderOpts },
+        {
+          urlPathname: pathname,
+          renderOpts,
+          postpone: React.unstable_postpone,
+        },
         (staticGenerationStore) =>
           renderToHTMLOrFlightImpl(req, res, pagePath, query, renderOpts, {
             requestStore,
