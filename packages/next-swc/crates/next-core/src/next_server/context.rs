@@ -72,6 +72,9 @@ pub enum ServerContextType {
     Pages {
         pages_dir: Vc<FileSystemPath>,
     },
+    PagesApi {
+        pages_dir: Vc<FileSystemPath>,
+    },
     PagesData {
         pages_dir: Vc<FileSystemPath>,
     },
@@ -133,6 +136,7 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::AppRoute { .. }
         | ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::Middleware { .. } => {}
     };
@@ -147,7 +151,9 @@ pub async fn get_server_resolve_options_context(
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
     let plugins = match ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(external_cjs_modules_plugin),
@@ -325,7 +331,9 @@ pub async fn get_server_module_options_context(
     ));
 
     let module_options_context = match ty.into_value() {
-        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
             let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
                 styled_components_transform_plugin,
                 styled_jsx_transform_plugin,
