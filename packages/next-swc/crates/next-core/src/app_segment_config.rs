@@ -179,7 +179,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<StyledString> {
-        StyledString::String(
+        StyledString::Text(
             "The exported configuration object in a source file need to have a very specific \
              format from which some properties can be statically parsed at compiled-time."
                 .to_string(),

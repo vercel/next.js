@@ -77,7 +77,7 @@ pub async fn maybe_add_babel_loader(
                             "Unable to resolve babel-loader, but a babel config is present"
                                 .to_owned(),
                         ),
-                        description: StyledString::String(
+                        description: StyledString::Text(
                             "Make sure babel-loader is installed via your package manager."
                                 .to_owned(),
                         )

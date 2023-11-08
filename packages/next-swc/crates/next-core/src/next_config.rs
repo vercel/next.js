@@ -968,6 +968,6 @@ impl Issue for OutdatedConfigIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<StyledString> {
-        StyledString::String(self.description.to_string()).cell()
+        StyledString::Text(self.description.to_string()).cell()
     }
 }

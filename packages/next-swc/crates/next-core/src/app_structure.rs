@@ -468,7 +468,7 @@ fn conflict_issue(
 
     DirectoryTreeIssue {
         app_dir,
-        message: StyledString::String(format!(
+        message: StyledString::Text(format!(
             "Conflicting {} at {}: {a} at {value_a} and {b} at {value_b}",
             item_names,
             e.key(),
@@ -782,7 +782,7 @@ async fn directory_tree_to_loader_tree(
                 // TODO: improve error message to have the full paths
                 DirectoryTreeIssue {
                     app_dir,
-                    message: StyledString::String(format!(
+                    message: StyledString::Text(format!(
                         "You cannot have two parallel pages that resolve to the same path. Route \
                          {} has multiple matches in {}",
                         for_app_path, app_page

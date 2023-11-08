@@ -86,7 +86,7 @@ pub(super) async fn get_font_fallback(
                             "Failed to find font override values for font `{}`",
                             &options.font_family,
                         )),
-                        description: StyledString::String(
+                        description: StyledString::Text(
                             "Skipping generating a fallback font.".to_owned(),
                         )
                         .cell(),

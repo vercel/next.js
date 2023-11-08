@@ -133,8 +133,9 @@ impl From<&PlainIssue> for NapiIssue {
 #[serde(tag = "type")]
 pub enum NapiStyledString {
     Line { value: Vec<NapiStyledString> },
-    String { value: String },
-    Pre { value: String },
+    Stack { value: Vec<NapiStyledString> },
+    Text { value: String },
+    Code { value: String },
     Strong { value: String },
 }
 
@@ -144,10 +145,13 @@ impl From<&StyledString> for NapiStyledString {
             StyledString::Line(parts) => NapiStyledString::Line {
                 value: parts.iter().map(|p| p.into()).collect(),
             },
-            StyledString::String(string) => NapiStyledString::String {
+            StyledString::Stack(parts) => NapiStyledString::Stack {
+                value: parts.iter().map(|p| p.into()).collect(),
+            },
+            StyledString::Text(string) => NapiStyledString::Text {
                 value: string.clone(),
             },
-            StyledString::Pre(string) => NapiStyledString::Pre {
+            StyledString::Code(string) => NapiStyledString::Code {
                 value: string.clone(),
             },
             StyledString::Strong(string) => NapiStyledString::Strong {
@@ -160,22 +164,19 @@ impl From<&StyledString> for NapiStyledString {
 #[napi(object)]
 pub struct NapiIssueSource {
     pub source: NapiSource,
-    pub start: NapiSourcePos,
-    pub end: NapiSourcePos,
+    pub range: Option<(NapiSourcePos, NapiSourcePos)>,
 }
 
 impl From<&PlainIssueSource> for NapiIssueSource {
     fn from(
         PlainIssueSource {
             asset: source,
-            start,
-            end,
+            range,
         }: &PlainIssueSource,
     ) -> Self {
         Self {
             source: (&**source).into(),
-            start: (*start).into(),
-            end: (*end).into(),
+            range: (*range).into(),
         }
     }
 }
