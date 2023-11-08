@@ -315,8 +315,8 @@ async function startWatcher(opts: SetupOpts) {
       } else {
         message = `${formattedTitle}`
       }
-      if (description) {
-        message += `\n${description.replace(/\n/g, '\n    ')}`
+      if (description && typeof description.value === 'string') {
+        message += `\n${description.value.replace(/\n/g, '\n    ')}`
       }
       if (detail) {
         message += `\n${detail.replace(/\n/g, '\n    ')}`
