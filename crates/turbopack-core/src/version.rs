@@ -88,7 +88,7 @@ impl VersionedAssetContent {
     #[turbo_tasks::function]
     /// Creates a new [Vc<VersionedAssetContent>] from a [Vc<FileContent>].
     pub async fn new(asset_content: Vc<AssetContent>) -> Result<Vc<Self>> {
-        let asset_content = asset_content.strongly_consistent().await?;
+        let asset_content = asset_content.await?;
         Ok(Self::cell(VersionedAssetContent { asset_content }))
     }
 }
