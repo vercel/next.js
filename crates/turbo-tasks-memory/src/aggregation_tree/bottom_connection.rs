@@ -44,11 +44,23 @@ impl<T: IsEnabled + Eq + Hash + Clone> DistanceCountMap<T> {
 
     pub fn add_clonable(&mut self, item: &T, distance: u8) -> bool {
         match self.map.raw_entry_mut(item) {
-            RawEntry::Occupied(e) => {
-                let info = e.into_mut();
+            RawEntry::Occupied(mut e) => {
+                let info = e.get_mut();
                 info.count += 1;
-                if distance < info.distance {
-                    info.distance = distance;
+                match info.count.cmp(&0) {
+                    std::cmp::Ordering::Equal => {
+                        e.remove();
+                    }
+                    std::cmp::Ordering::Greater => {
+                        if distance < info.distance {
+                            info.distance = distance;
+                        }
+                    }
+                    std::cmp::Ordering::Less => {
+                        // We only track that for negative count tracking and no
+                        // need to update the distance, it would reset anyway
+                        // once we reach 0.
+                    }
                 }
                 false
             }
