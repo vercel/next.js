@@ -13,9 +13,9 @@
   "devDependencies": {
     "@neshca/cache-handler": "latest",
     "@neshca/json-replacer-reviver": "latest",
-    "@types/node": "20.8.10",
-    "@types/react": "^18.2.34",
-    "@types/react-dom": "^18.2.14",
+    "@types/node": "^20.9.0",
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
     "redis": "latest",
     "typescript": "^5.2.2"
   }

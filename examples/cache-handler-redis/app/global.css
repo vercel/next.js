@@ -67,22 +67,26 @@ html {
   cursor: not-allowed;
 }
 
-.footer {
-  text-align: center;
+.footer,
+.header {
   padding: 10px;
   position: relative;
+  place-items: center;
+  grid-auto-flow: column;
   bottom: 0;
+  grid-gap: 20px;
   width: 100%;
-  color: white;
+  display: grid;
+  justify-content: center;
 }
 
-.external-link {
+.link {
   color: #09f;
   text-decoration: none;
   transition: color 0.3s ease;
 }
 
-.external-link:hover {
+.link:hover {
   color: #07c;
 }
 

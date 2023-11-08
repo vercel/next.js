@@ -1,12 +1,6 @@
 const { IncrementalCache } = require('@neshca/cache-handler')
 const { createClient } = require('redis')
 
-if (!process.env.REDIS_URL) {
-  console.warn(
-    'Make sure that REDIS_URL is added to the env. redis://localhost:6379 is used by default'
-  )
-}
-
 /** @type {import('@neshca/cache-handler').TagsManifest} */
 let localTagsManifest = {
   version: 1,
@@ -51,15 +45,18 @@ connectAndSetManifest(client).then(() => {
   console.log('Redis connected')
 })
 
-/**
- * You may prefer to use
- */
 IncrementalCache.onCreation(() => {
   return {
     cache: {
       async get(key) {
         try {
-          return (await client.json.get(key)) ?? null
+          const value = (await client.json.get(key)) ?? null
+
+          if (value && value.kind === 'ROUTE' && value.body.type === 'Buffer') {
+            value.body = Buffer.from(value.body)
+          }
+
+          return value
         } catch (error) {
           return null
         }
@@ -80,7 +77,7 @@ IncrementalCache.onCreation(() => {
             localTagsManifest = sharedTagsManifest
           }
 
-          return localTagsManifest
+          return sharedTagsManifest
         } catch (error) {
           return localTagsManifest
         }

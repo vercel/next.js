@@ -5,12 +5,6 @@ const {
 const { IncrementalCache } = require('@neshca/cache-handler')
 const { createClient } = require('redis')
 
-if (!process.env.REDIS_URL) {
-  console.warn(
-    'Make sure that REDIS_URL is added to the env. redis://localhost:6379 is used by default'
-  )
-}
-
 /** @type {import('@neshca/cache-handler').TagsManifest} */
 const localTagsManifest = {
   version: 1,

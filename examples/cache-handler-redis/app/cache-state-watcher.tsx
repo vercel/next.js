@@ -44,7 +44,7 @@ export function CacheStateWatcher({
       <div className={`cache-state ${cacheState}`}>
         Cache state: {cacheState}
       </div>
-      <div className="stale-after">Stale after: {countDown}</div>
+      <div className="stale-after">Stale in: {countDown}</div>
     </>
   )
 }

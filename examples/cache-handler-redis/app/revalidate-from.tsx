@@ -1,15 +1,16 @@
 'use client'
 
 import { useFormStatus } from 'react-dom'
-import revalidate from './actions'
+import revalidate from './server-actions'
 
-function SubmitButton() {
+function RevalidateButton() {
   const { pending } = useFormStatus()
 
   return (
     <button
       className="revalidate-from-button"
       type="submit"
+      disabled={pending}
       aria-disabled={pending}
     >
       Revalidate
@@ -20,7 +21,7 @@ function SubmitButton() {
 export function RevalidateFrom() {
   return (
     <form className="revalidate-from" action={revalidate}>
-      <SubmitButton />
+      <RevalidateButton />
     </form>
   )
 }
