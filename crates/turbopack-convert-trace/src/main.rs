@@ -313,7 +313,7 @@ fn main() {
                 let name: Cow<'_, str> = values
                     .remove("name")
                     .and_then(|v| v.as_str().map(|s| s.to_string().into()))
-                    .unwrap_or("".into());
+                    .unwrap_or("event".into());
                 let internal_parent =
                     parent.map_or(0, |id| ensure_span(&mut active_ids, &mut spans, id));
                 *name_counts.entry(name.clone()).or_default() += 1;
@@ -323,7 +323,7 @@ fn main() {
                     parent: internal_parent,
                     count: 1,
                     name,
-                    target: "".into(),
+                    target: "event".into(),
                     start,
                     end: ts,
                     self_start: None,

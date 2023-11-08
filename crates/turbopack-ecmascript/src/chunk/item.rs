@@ -66,7 +66,7 @@ impl EcmascriptChunkItemContent {
             },
             ..Default::default()
         }
-        .into())
+        .cell())
     }
 
     #[turbo_tasks::function]
