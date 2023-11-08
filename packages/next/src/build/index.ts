@@ -2301,6 +2301,13 @@ export default async function build(
                 hasEmptyPrelude,
               })
 
+              // update the page (eg /blog/[slug]) to also have the postpone metadata
+              pageInfos.set(page, {
+                ...(pageInfos.get(page) as PageInfo),
+                hasPostponed,
+                hasEmptyPrelude,
+              })
+
               if (revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route)
 
@@ -2386,6 +2393,9 @@ export default async function build(
               pageInfos.set(page, {
                 ...(pageInfos.get(page) as PageInfo),
                 isDynamicAppRoute: true,
+                // if PPR is turned on and the route contains a dynamic segment,
+                // we assume it'll be partially prerendered
+                hasPostponed: experimentalPPR,
               })
 
               // TODO: create a separate manifest to allow enforcing
