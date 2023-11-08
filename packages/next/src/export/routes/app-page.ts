@@ -1,6 +1,5 @@
 import type { ExportRouteResult, FileWriter } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
-import type { OutgoingHttpHeaders } from 'http'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 import type { RouteMetadata } from './types'
 
@@ -21,6 +20,7 @@ import {
 } from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
+import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -184,9 +184,10 @@ export async function exportAppPage(
       )
     }
 
-    let headers: OutgoingHttpHeaders | undefined
+    const headers = toNodeOutgoingHttpHeaders(res.headers)
+
     if (fetchTags) {
-      headers = { [NEXT_CACHE_TAGS_HEADER]: fetchTags }
+      headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
     }
 
     // Writing static HTML to a file.

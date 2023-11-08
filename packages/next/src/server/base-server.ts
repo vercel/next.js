@@ -2373,10 +2373,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // Add any fetch tags that were on the page to the response headers.
       const cacheTags = metadata.fetchTags
+
+      // Copy the headers from the response.
+      headers = { ...res.getHeaders() }
+
       if (cacheTags) {
-        headers = {
-          [NEXT_CACHE_TAGS_HEADER]: cacheTags,
-        }
+        headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
       }
 
       // Pull any fetch metrics from the render onto the request.
@@ -2767,6 +2769,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         throw new Error(
           'Invariant: postponed state should not be present on a resume request'
         )
+      }
+
+      if (cachedData.headers) {
+        const resHeaders = cachedData.headers
+        for (const key of Object.keys(resHeaders)) {
+          if (key === NEXT_CACHE_TAGS_HEADER) {
+            // Not sure if needs to be special.
+            continue
+          }
+          let v = resHeaders[key]
+          if (typeof v !== 'undefined') {
+            if (typeof v === 'number') {
+              v = v.toString()
+            }
+            res.setHeader(key, v)
+          }
+        }
       }
 
       if (
