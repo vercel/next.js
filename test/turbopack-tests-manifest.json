@@ -12119,9 +12119,7 @@
   },
   "test/integration/middleware-src/test/index.test.js": {
     "passed": [
-      "Middleware in src/ and / folders dev mode loads and runs only root middleware"
-    ],
-    "failed": [
+      "Middleware in src/ and / folders dev mode loads and runs only root middleware",
       "Middleware in src/ folder dev mode loads an runs src middleware"
     ],
     "pending": [
