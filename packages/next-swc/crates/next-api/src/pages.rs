@@ -319,6 +319,20 @@ impl PagesProject {
         )
     }
 
+    /// Returns a context specific to pages/api.
+    /// This mimics the current configuration in next-dev.
+    /// (https://github.com/vercel/next.js/blob/9b4b0847ed4a1025e73bec16a9ee11766e632e14/packages/next/src/build/webpack-config.ts#L1381-L1385)
+    #[turbo_tasks::function]
+    pub(super) fn api_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
+        ModuleAssetContext::new(
+            self.transitions(),
+            self.project().server_compile_time_info(),
+            self.api_module_options_context(),
+            self.ssr_resolve_options_context(),
+            Vc::cell("api".to_string()),
+        )
+    }
+
     #[turbo_tasks::function]
     pub(super) fn ssr_data_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         ModuleAssetContext::new(
@@ -342,6 +356,17 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn edge_api_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
+        ModuleAssetContext::new(
+            Default::default(),
+            self.project().edge_compile_time_info(),
+            self.api_module_options_context(),
+            self.edge_ssr_resolve_options_context(),
+            Vc::cell("edge_api".to_string()),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn edge_ssr_data_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         ModuleAssetContext::new(
             Default::default(),
@@ -359,6 +384,20 @@ impl PagesProject {
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::Pages {
+                pages_dir: self.pages_dir(),
+            }),
+            this.mode,
+            self.project().next_config(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn api_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let this = self.await?;
+        Ok(get_server_module_options_context(
+            self.project().project_path(),
+            self.project().execution_context(),
+            Value::new(ServerContextType::PagesApi {
                 pages_dir: self.pages_dir(),
             }),
             this.mode,
@@ -721,8 +760,8 @@ impl PageEndpoint {
                 .node_root()
                 .join("server".to_string()),
             this.pages_project.project().project_path(),
-            this.pages_project.ssr_module_context(),
-            this.pages_project.edge_ssr_module_context(),
+            this.pages_project.api_module_context(),
+            this.pages_project.edge_api_module_context(),
             this.pages_project.project().server_chunking_context(),
             this.pages_project.project().edge_chunking_context(),
             this.pages_project.ssr_runtime_entries(),
