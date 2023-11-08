@@ -736,9 +736,21 @@ async function renderToHTMLOrFlightImpl(
         hasPostponed,
       })
 
+      function onHeaders(headers: Headers): void {
+        // Copy headers created by React into the response object.
+        headers.forEach((value: string, key: string) => {
+          res.appendHeader(key, value)
+          if (!extraRenderResultMeta.extraHeaders) {
+            extraRenderResultMeta.extraHeaders = {}
+          }
+          extraRenderResultMeta.extraHeaders[key] = value
+        })
+      }
+
       try {
         const renderStream = await renderer.render(content, {
           onError: htmlRendererErrorHandler,
+          onHeaders: onHeaders,
           nonce,
           bootstrapScripts: [bootstrapScript],
           formState,
