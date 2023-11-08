@@ -1,6 +1,7 @@
 type StreamOptions = {
   onError?: (error: Error) => void
   onHeaders?: (headers: Headers) => void
+  maxHeadersLength?: number
   nonce?: string
   bootstrapScripts?: {
     src: string

@@ -751,6 +751,42 @@ createNextDescribe(
           'intercepted'
         )
       })
+
+      it('should support intercepting local dynamic sibling routes', async () => {
+        const browser = await next.browser('/intercepting-siblings')
+
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/intercepting-siblings/1"]')
+              .click()
+              .waitForElementByCss('#intercepted-sibling')
+              .text(),
+          '1'
+        )
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/intercepting-siblings/2"]')
+              .click()
+              .waitForElementByCss('#intercepted-sibling')
+              .text(),
+          '2'
+        )
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/intercepting-siblings/3"]')
+              .click()
+              .waitForElementByCss('#intercepted-sibling')
+              .text(),
+          '3'
+        )
+
+        await next.browser('/intercepting-siblings/1')
+
+        await check(() => browser.waitForElementByCss('#main-slot').text(), '1')
+      })
     })
   }
 )

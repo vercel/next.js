@@ -751,6 +751,7 @@ async function renderToHTMLOrFlightImpl(
         const renderStream = await renderer.render(content, {
           onError: htmlRendererErrorHandler,
           onHeaders: onHeaders,
+          maxHeadersLength: 600,
           nonce,
           bootstrapScripts: [bootstrapScript],
           formState,
@@ -1028,7 +1029,7 @@ async function renderToHTMLOrFlightImpl(
       // as we won't be able to generate the static part
       warn('')
       error(
-        `Postpone signal was caught while rendering ${urlPathname}. Check to see if you're try/catching a Next.js API such as headers / cookies, or a fetch with "no-store". Learn more: https://nextjs.org/docs/messages/ppr-postpone-errors`
+        `Postpone signal was caught while rendering ${urlPathname}. Check to see if you're try/catching a Next.js API such as headers / cookies, or a fetch with "no-store". Learn more: https://nextjs.org/docs/messages/ppr-postpone-error`
       )
 
       if (capturedErrors.length > 0) {
