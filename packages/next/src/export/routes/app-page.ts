@@ -1,6 +1,5 @@
 import type { ExportRouteResult, FileWriter } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
-import type { OutgoingHttpHeaders } from 'http'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 import type { RouteMetadata } from './types'
 
@@ -184,9 +183,10 @@ export async function exportAppPage(
       )
     }
 
-    let headers: OutgoingHttpHeaders | undefined
+    const headers = { ...metadata.extraHeaders }
+
     if (fetchTags) {
-      headers = { [NEXT_CACHE_TAGS_HEADER]: fetchTags }
+      headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
     }
 
     // Writing static HTML to a file.

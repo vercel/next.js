@@ -405,10 +405,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly localeNormalizer?: LocaleRouteNormalizer
 
   protected readonly normalizers: {
-    readonly postponed: PostponedPathnameNormalizer
-    readonly rsc: RSCPathnameNormalizer
-    readonly prefetchRSC: PrefetchRSCPathnameNormalizer
-    readonly data: NextDataPathnameNormalizer
+    readonly postponed: PostponedPathnameNormalizer | undefined
+    readonly rsc: RSCPathnameNormalizer | undefined
+    readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
+    readonly data: NextDataPathnameNormalizer | undefined
   }
 
   public constructor(options: ServerOptions) {
@@ -475,14 +475,28 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
     this.normalizers = {
-      postponed: new PostponedPathnameNormalizer(
-        this.enabledDirectories.app && this.nextConfig.experimental.ppr
-      ),
-      rsc: new RSCPathnameNormalizer(this.enabledDirectories.app),
-      prefetchRSC: new PrefetchRSCPathnameNormalizer(
-        this.enabledDirectories.app
-      ),
-      data: new NextDataPathnameNormalizer(this.buildId),
+      // We should normalize the pathname from the RSC prefix only in minimal
+      // mode as otherwise that route is not exposed external to the server as
+      // we instead only rely on the headers.
+      postponed:
+        this.enabledDirectories.app &&
+        this.nextConfig.experimental.ppr &&
+        this.minimalMode
+          ? new PostponedPathnameNormalizer()
+          : undefined,
+      rsc:
+        this.enabledDirectories.app && this.minimalMode
+          ? new RSCPathnameNormalizer()
+          : undefined,
+      prefetchRSC:
+        this.enabledDirectories.app &&
+        this.nextConfig.experimental.ppr &&
+        this.minimalMode
+          ? new PrefetchRSCPathnameNormalizer()
+          : undefined,
+      data: this.enabledDirectories.pages
+        ? new NextDataPathnameNormalizer(this.buildId)
+        : undefined,
     }
 
     this.nextFontManifest = this.getNextFontManifest()
@@ -567,7 +581,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private handleRSCRequest: RouteHandler = (req, _res, parsedUrl) => {
     if (!parsedUrl.pathname) return false
 
-    if (this.normalizers.prefetchRSC.match(parsedUrl.pathname)) {
+    if (this.normalizers.prefetchRSC?.match(parsedUrl.pathname)) {
       parsedUrl.pathname = this.normalizers.prefetchRSC.normalize(
         parsedUrl.pathname,
         true
@@ -578,7 +592,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
-    } else if (this.normalizers.rsc.match(parsedUrl.pathname)) {
+    } else if (this.normalizers.rsc?.match(parsedUrl.pathname)) {
       parsedUrl.pathname = this.normalizers.rsc.normalize(
         parsedUrl.pathname,
         true
@@ -958,32 +972,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             'http://localhost'
           )
 
-          if (this.normalizers.rsc.match(matchedPath)) {
-            matchedPath = this.normalizers.rsc.normalize(matchedPath, true)
-          } else if (this.normalizers.postponed.match(matchedPath)) {
-            matchedPath = this.normalizers.postponed.normalize(
-              matchedPath,
-              true
-            )
-          }
-
           const { pathname: urlPathname } = new URL(req.url, 'http://localhost')
 
           // For ISR  the URL is normalized to the prerenderPath so if
           // it's a data request the URL path will be the data URL,
           // basePath is already stripped by this point
-          if (
-            this.enabledDirectories.pages &&
-            this.normalizers.data.match(urlPathname)
-          ) {
+          if (this.normalizers.data?.match(urlPathname)) {
             parsedUrl.query.__nextDataReq = '1'
           }
           // In minimal mode, if PPR is enabled, then we should check to see if
           // the matched path is a postponed path, and if it is, handle it.
           else if (
-            this.minimalMode &&
-            this.renderOpts.experimental.ppr &&
-            this.normalizers.postponed.match(matchedPath) &&
+            this.normalizers.postponed?.match(matchedPath) &&
             req.method === 'POST'
           ) {
             // Decode the postponed state from the request body, it will come as
@@ -998,7 +998,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             addRequestMeta(req, 'postponed', postponed)
           }
 
-          matchedPath = this.stripNextDataPath(matchedPath, false)
+          matchedPath = this.normalize(matchedPath)
           const normalizedUrlPath = this.stripNextDataPath(urlPathname)
 
           // Perform locale detection and normalization.
@@ -1422,18 +1422,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private normalize = (pathname: string) => {
     const normalizers: Array<PathnameNormalizer> = []
 
-    if (this.enabledDirectories.pages) {
+    if (this.normalizers.data) {
       normalizers.push(this.normalizers.data)
     }
 
-    if (this.minimalMode && this.enabledDirectories.app) {
-      if (this.renderOpts.experimental.ppr) {
-        normalizers.push(this.normalizers.postponed)
-        // We have to put the prefetch normalizer before the RSC normalizer
-        // because the RSC normalizer will match the prefetch RSC routes too.
-        normalizers.push(this.normalizers.prefetchRSC)
-      }
+    if (this.normalizers.postponed) {
+      normalizers.push(this.normalizers.postponed)
+    }
 
+    // We have to put the prefetch normalizer before the RSC normalizer
+    // because the RSC normalizer will match the prefetch RSC routes too.
+    if (this.normalizers.prefetchRSC) {
+      normalizers.push(this.normalizers.prefetchRSC)
+    }
+
+    if (this.normalizers.rsc) {
       normalizers.push(this.normalizers.rsc)
     }
 
@@ -2370,10 +2373,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // Add any fetch tags that were on the page to the response headers.
       const cacheTags = metadata.fetchTags
+
+      headers = { ...metadata.extraHeaders }
+
       if (cacheTags) {
-        headers = {
-          [NEXT_CACHE_TAGS_HEADER]: cacheTags,
-        }
+        headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
       }
 
       // Pull any fetch metrics from the render onto the request.
@@ -2764,6 +2768,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         throw new Error(
           'Invariant: postponed state should not be present on a resume request'
         )
+      }
+
+      if (cachedData.headers) {
+        const resHeaders = cachedData.headers
+        for (const key of Object.keys(resHeaders)) {
+          if (key === NEXT_CACHE_TAGS_HEADER) {
+            // Not sure if needs to be special.
+            continue
+          }
+          let v = resHeaders[key]
+          if (typeof v !== 'undefined') {
+            if (typeof v === 'number') {
+              v = v.toString()
+            }
+            res.setHeader(key, v)
+          }
+        }
       }
 
       if (
