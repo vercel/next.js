@@ -24,7 +24,6 @@ import type {
   FlightData,
 } from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
-import { reducer } from './router-reducer/router-reducer'
 import {
   ACTION_FAST_REFRESH,
   ACTION_NAVIGATE,
@@ -33,8 +32,9 @@ import {
   ACTION_RESTORE,
   ACTION_SERVER_ACTION,
   ACTION_SERVER_PATCH,
-  Mutable,
   PrefetchKind,
+} from './router-reducer/router-reducer-types'
+import type {
   ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
@@ -45,12 +45,13 @@ import {
   SearchParamsContext,
   PathnameContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
-import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
-import { ErrorBoundary } from './error-boundary'
 import {
-  createInitialRouterState,
-  InitialRouterStateParameters,
-} from './router-reducer/create-initial-router-state'
+  useReducerWithReduxDevtools,
+  useUnwrapState,
+} from './use-reducer-with-devtools'
+import { ErrorBoundary } from './error-boundary'
+import { createInitialRouterState } from './router-reducer/create-initial-router-state'
+import type { InitialRouterStateParameters } from './router-reducer/create-initial-router-state'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -73,9 +74,9 @@ export function getServerActionDispatcher() {
   return globalServerActionDispatcher
 }
 
-let globalMutable: Mutable['globalMutable'] = {
-  refresh: () => {}, // noop until the router is initialized
-}
+const globalMutable: {
+  pendingMpaPath?: string
+} = {}
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -131,7 +132,7 @@ function HistoryUpdater({ tree, pushRef, canonicalUrl, sync }: any) {
   return null
 }
 
-const createEmptyCacheNode = () => ({
+export const createEmptyCacheNode = () => ({
   status: CacheStates.LAZY_INITIALIZED,
   data: null,
   subTreeData: null,
@@ -145,7 +146,7 @@ function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
         dispatch({
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
-          mutable: { globalMutable },
+          mutable: {},
           cache: createEmptyCacheNode(),
         })
       })
@@ -174,7 +175,7 @@ function useChangeByServerResponse(
           previousTree,
           overrideCanonicalUrl,
           cache: createEmptyCacheNode(),
-          mutable: { globalMutable },
+          mutable: {},
         })
       })
     },
@@ -186,7 +187,6 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
     (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
       const url = new URL(addBasePath(href), location.href)
-      globalMutable.pendingNavigatePath = createHrefFromUrl(url)
 
       return dispatch({
         type: ACTION_NAVIGATE,
@@ -197,7 +197,7 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         shouldScroll: shouldScroll ?? true,
         navigateType,
         cache: createEmptyCacheNode(),
-        mutable: { globalMutable },
+        mutable: {},
       })
     },
     [dispatch]
@@ -229,25 +229,15 @@ function Router({
       }),
     [buildId, children, initialCanonicalUrl, initialTree, initialHead]
   )
-  const [
-    {
-      tree,
-      cache,
-      prefetchCache,
-      pushRef,
-      focusAndScrollRef,
-      canonicalUrl,
-      nextUrl,
-    },
-    dispatch,
-    sync,
-  ] = useReducerWithReduxDevtools(reducer, initialState)
+  const [reducerState, dispatch, sync] =
+    useReducerWithReduxDevtools(initialState)
 
   useEffect(() => {
     // Ensure initialParallelRoutes is cleaned up from memory once it's used.
     initialParallelRoutes = null!
   }, [])
 
+  const { canonicalUrl } = useUnwrapState(reducerState)
   // Add memoized pathname/query for useSearchParams and usePathname.
   const { searchParams, pathname } = useMemo(() => {
     const url = new URL(
@@ -322,7 +312,7 @@ function Router({
           dispatch({
             type: ACTION_REFRESH,
             cache: createEmptyCacheNode(),
-            mutable: { globalMutable },
+            mutable: {},
             origin: window.location.origin,
           })
         })
@@ -338,7 +328,7 @@ function Router({
             dispatch({
               type: ACTION_FAST_REFRESH,
               cache: createEmptyCacheNode(),
-              mutable: { globalMutable },
+              mutable: {},
               origin: window.location.origin,
             })
           })
@@ -356,11 +346,10 @@ function Router({
     }
   }, [appRouter])
 
-  useEffect(() => {
-    globalMutable.refresh = appRouter.refresh
-  }, [appRouter.refresh])
-
   if (process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const { cache, prefetchCache, tree } = useUnwrapState(reducerState)
+
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
@@ -408,6 +397,7 @@ function Router({
   // probably safe because we know this is a singleton component and it's never
   // in <Offscreen>. At least I hope so. (It will run twice in dev strict mode,
   // but that's... fine?)
+  const { pushRef } = useUnwrapState(reducerState)
   if (pushRef.mpaNavigation) {
     // if there's a re-render, we don't want to trigger another redirect if one is already in flight to the same URL
     if (globalMutable.pendingMpaPath !== canonicalUrl) {
@@ -466,6 +456,9 @@ function Router({
     }
   }, [onPopState])
 
+  const { cache, tree, nextUrl, focusAndScrollRef } =
+    useUnwrapState(reducerState)
+
   const head = useMemo(() => {
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
@@ -513,7 +506,7 @@ function Router({
               <LayoutRouterContext.Provider
                 value={{
                   childNodes: cache.parallelRoutes,
-                  tree: tree,
+                  tree,
                   // Root node always has `url`
                   // Provided in AppTreeContext to ensure it can be overwritten in layout-router
                   url: canonicalUrl,

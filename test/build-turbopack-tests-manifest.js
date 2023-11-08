@@ -1,9 +1,14 @@
 const fetch = require('node-fetch')
 const fs = require('fs')
+const prettier = require('prettier')
+
+async function format(text) {
+  const options = await prettier.resolveConfig(__filename)
+  return prettier.format(text, { ...options, parser: 'json' })
+}
 
 const override = process.argv.includes('--override')
 
-// TODO: Switch to nextjs-integration-test-data branch once https://github.com/vercel/turbo/pull/5999 is merged.
 const RESULT_URL =
   'https://raw.githubusercontent.com/vercel/turbo/nextjs-integration-test-data/test-results/main/nextjs-test-results.json'
 const PASSING_JSON_PATH = `${__dirname}/turbopack-tests-manifest.json`
@@ -14,17 +19,73 @@ const INITIALIZING_TEST_CASES = [
   'should build successfully',
 ]
 
-const SKIPPED_TEST_SUITES = new Set([
-  'test/integration/router-rerender/test/index.test.js',
-  'test/e2e/basepath.test.ts',
-  'test/development/acceptance-app/ReactRefreshRequire.test.ts',
-  'test/integration/dynamic-routing/test/middleware.test.js',
-  'test/integration/css/test/css-modules.test.js',
-  'test/development/acceptance/ReactRefreshRequire.test.ts',
-  'test/integration/custom-routes/test/index.test.js',
-  'test/integration/absolute-assetprefix/test/index.test.js',
-  'test/e2e/middleware-rewrites/test/index.test.ts',
-])
+// please make sure this is sorted alphabetically when making changes.
+const SKIPPED_TEST_SUITES = {
+  'test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts': [
+    'ReactRefreshLogBox app turbo Module not found missing global CSS',
+  ],
+  'test/development/acceptance-app/ReactRefreshRegression.test.ts': [
+    'ReactRefreshRegression app can fast refresh a page with dynamic rendering',
+    'ReactRefreshRegression app can fast refresh a page with config',
+  ],
+  'test/development/acceptance-app/ReactRefreshRequire.test.ts': [
+    'ReactRefreshRequire app re-runs accepted modules',
+    'ReactRefreshRequire app propagates a hot update to closest accepted module',
+    'ReactRefreshRequire app propagates hot update to all inverse dependencies',
+  ],
+  'test/development/acceptance/ReactRefreshRequire.test.ts': [
+    'ReactRefreshRequire re-runs accepted modules',
+    'ReactRefreshRequire propagates a hot update to closest accepted module',
+    'ReactRefreshRequire propagates hot update to all inverse dependencies',
+  ],
+  'test/development/jsconfig-path-reloading/index.test.ts': [
+    /should automatically fast refresh content when path is added without error/,
+    /should recover from module not found when paths is updated/,
+  ],
+  'test/development/tsconfig-path-reloading/index.test.ts': [
+    /should automatically fast refresh content when path is added without error/,
+  ],
+  'test/e2e/basepath.test.ts': [
+    'basePath should 404 when manually adding basePath with router.push',
+    'basePath should 404 when manually adding basePath with router.replace',
+  ],
+  'test/e2e/middleware-rewrites/test/index.test.ts': [
+    'Middleware Rewrite should have props for afterFiles rewrite to SSG page',
+  ],
+  'test/integration/absolute-assetprefix/test/index.test.js': [
+    'absolute assetPrefix with path prefix should work with getStaticPaths prerendered',
+  ],
+  'test/integration/app-document-remove-hmr/test/index.test.js': [
+    '_app removal HMR should HMR when _document is removed',
+  ],
+  'test/integration/css/test/css-modules.test.js': [
+    'CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)',
+    'CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from index)',
+  ],
+  'test/integration/custom-error/test/index.test.js': [/Custom _error/],
+  'test/integration/dynamic-routing/test/index.test.js': [
+    'Dynamic Routing production mode should have correct cache entries on prefetch',
+    'Dynamic Routing production mode should render dynamic route with query',
+  ],
+  'test/integration/dynamic-routing/test/middleware.test.js': [
+    'Dynamic Routing dev mode should resolve dynamic route href for page added later',
+    'Dynamic Routing production mode should output a routes-manifest correctly',
+  ],
+  'test/integration/import-assertion/test/index.test.js': [
+    /should handle json assertions/,
+  ],
+  'test/integration/env-config/test/index.test.js': [
+    'Env Config dev mode with hot reload should provide env for SSG',
+    'Env Config dev mode with hot reload should provide env correctly for SSR',
+    'Env Config dev mode with hot reload should provide env correctly for API routes',
+  ],
+  'test/integration/app-document/test/index.test.js': [
+    'Document and App Client side should detect the changes to pages/_document.js and display it',
+  ],
+  'test/development/basic/hmr.test.ts': [
+    'basic HMR, basePath: "/docs" Error Recovery should show the error on all pages',
+  ],
+}
 
 async function updatePassingTests() {
   const passing = { __proto__: null }
@@ -35,42 +96,63 @@ async function updatePassingTests() {
     const runtimeError = result.data.numRuntimeErrorTestSuites > 0
     for (const testResult of result.data.testResults) {
       const filepath = stripWorkingPath(testResult.name)
-      for (const file of duplicateFileNames(filepath)) {
-        if (SKIPPED_TEST_SUITES.has(file)) continue
-        const fileResults = (passing[file] ??= {
-          passed: [],
-          failed: [],
-          pending: [],
-          runtimeError,
-        })
 
-        let initializationFailed = false
-        for (const testCase of testResult.assertionResults) {
-          let { fullName, status } = testCase
-          if (
-            status === 'failed' &&
-            INITIALIZING_TEST_CASES.some((name) => fullName.includes(name))
-          ) {
-            initializationFailed = true
-          } else if (initializationFailed) {
-            status = 'failed'
-          }
-          const statusArray = fileResults[status]
-          if (!statusArray) {
-            throw new Error(`unexpected status "${status}"`)
-          }
-          statusArray.push(fullName)
+      const fileResults = (passing[filepath] ??= {
+        passed: [],
+        failed: [],
+        pending: [],
+        flakey: [],
+        runtimeError,
+      })
+      const skips = SKIPPED_TEST_SUITES[filepath] ?? []
+
+      const skippedPassingNames = []
+
+      let initializationFailed = false
+      for (const testCase of testResult.assertionResults) {
+        let { fullName, status } = testCase
+
+        if (
+          status === 'failed' &&
+          INITIALIZING_TEST_CASES.some((name) => fullName.includes(name))
+        ) {
+          initializationFailed = true
+        } else if (initializationFailed) {
+          status = 'failed'
         }
+        if (shouldSkip(fullName, skips)) {
+          if (status === 'passed') skippedPassingNames.push(fullName)
+          status = 'flakey'
+        }
+
+        const statusArray = fileResults[status]
+        if (!statusArray) {
+          throw new Error(`unexpected status "${status}"`)
+        }
+        statusArray.push(fullName)
+      }
+
+      if (skippedPassingNames.length > 0) {
+        console.log(
+          `${filepath} has ${
+            skippedPassingNames.length
+          } passing tests that are marked as skipped: ${JSON.stringify(
+            skippedPassingNames,
+            0,
+            2
+          )}`
+        )
       }
     }
   }
 
   for (const info of Object.values(passing)) {
-    info.failed = [...new Set(info.failed)]
-    info.pending = [...new Set(info.pending)]
+    info.failed = [...new Set(info.failed)].sort()
+    info.pending = [...new Set(info.pending)].sort()
+    info.flakey = [...new Set(info.flakey)].sort()
     info.passed = [
       ...new Set(info.passed.filter((name) => !info.failed.includes(name))),
-    ]
+    ].sort()
   }
 
   if (!override) {
@@ -82,11 +164,9 @@ async function updatePassingTests() {
       const newData = passing[file]
       const oldData = oldPassingData[file]
       if (!newData) continue
-      // We only want to keep test cases from the old data that are still exiting
-      oldData.passed = oldData.passed.filter(
-        (name) => newData.failed.includes(name) || newData.passed.includes(name)
-      )
-      // Grab test cases that passed before, but fail now
+
+      // We want to find old passing tests that are now failing, and report them.
+      // Tests are allowed transition to skipped or flakey.
       const shouldPass = new Set(
         oldData.passed.filter((name) => newData.failed.includes(name))
       )
@@ -97,13 +177,45 @@ async function updatePassingTests() {
         )
       }
       // Merge the old passing tests with the new ones
-      newData.passed = [...new Set([...oldData.passed, ...newData.passed])]
+      newData.passed = [...new Set([...shouldPass, ...newData.passed])].sort()
       // but remove them also from the failed list
-      newData.failed = newData.failed.filter((name) => !shouldPass.has(name))
+      newData.failed = newData.failed
+        .filter((name) => !shouldPass.has(name))
+        .sort()
+
+      if (!oldData.runtimeError && newData.runtimeError) {
+        console.log(`${file} has a runtime error that is shouldn't have`)
+        newData.runtimeError = false
+      }
     }
   }
 
-  fs.writeFileSync(PASSING_JSON_PATH, JSON.stringify(passing, null, 2))
+  // JS keys are ordered, this ensures the tests are written in a consistent order
+  // https://stackoverflow.com/questions/5467129/sort-javascript-object-by-key
+  const ordered = Object.keys(passing)
+    .sort()
+    .reduce((obj, key) => {
+      obj[key] = passing[key]
+      return obj
+    }, {})
+
+  fs.writeFileSync(
+    PASSING_JSON_PATH,
+    await format(JSON.stringify(ordered, null, 2))
+  )
+}
+
+function shouldSkip(name, skips) {
+  for (const skip of skips) {
+    if (typeof skip === 'string') {
+      // exact match
+      if (name === skip) return true
+    } else {
+      // regex
+      if (skip.test(name)) return true
+    }
+  }
+  return false
 }
 
 function stripWorkingPath(path) {
@@ -113,16 +225,6 @@ function stripWorkingPath(path) {
     )
   }
   return path.slice(WORKING_PATH.length)
-}
-
-function duplicateFileNames(path) {
-  if (path.includes('/src/')) {
-    const dist = path.replace('/src/', '/dist/').replace(/.tsx?$/, '.js')
-    if (fs.existsSync(`${__dirname}/../${dist}`)) {
-      return [path, dist]
-    }
-  }
-  return [path]
 }
 
 updatePassingTests()

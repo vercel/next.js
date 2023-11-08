@@ -53,6 +53,7 @@ export const USE_SELENIUM = Boolean(
  * @param options.beforePageLoad the callback receiving page instance before loading page
  * @param options.locale browser locale
  * @param options.disableJavaScript disable javascript
+ * @param options.ignoreHttpsErrors ignore https errors
  * @returns thenable browser instance
  */
 export default async function webdriver(
@@ -66,6 +67,7 @@ export default async function webdriver(
     locale?: string
     disableJavaScript?: boolean
     headless?: boolean
+    ignoreHTTPSErrors?: boolean
   }
 ): Promise<BrowserInterface> {
   let CurrentInterface: new () => BrowserInterface
@@ -83,6 +85,7 @@ export default async function webdriver(
     beforePageLoad,
     locale,
     disableJavaScript,
+    ignoreHTTPSErrors,
     headless,
   } = options
 
@@ -107,6 +110,7 @@ export default async function webdriver(
     browserName,
     locale,
     !disableJavaScript,
+    ignoreHTTPSErrors,
     // allow headless to be overwritten for a particular test
     typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS
   )

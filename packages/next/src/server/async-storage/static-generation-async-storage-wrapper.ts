@@ -16,6 +16,8 @@ export type StaticGenerationContext = {
     fetchCache?: StaticGenerationStore['fetchCache']
     isDraftMode?: boolean
     isServerAction?: boolean
+    waitUntil?: Promise<any>
+    experimental: { ppr: boolean }
 
     /**
      * A hack around accessing the store value outside the context of the
@@ -74,6 +76,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
       isDraftMode: renderOpts.isDraftMode,
+      experimental: renderOpts.experimental,
     }
 
     // TODO: remove this when we resolve accessing the store outside the execution context

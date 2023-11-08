@@ -69,30 +69,23 @@ impl Drop for RootTask {
 
 #[napi]
 pub fn root_task_dispose(
-    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] _root_task: External<RootTask>,
+    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
 ) -> napi::Result<()> {
-    // TODO(alexkirsz) Implement. Not panicking here to avoid crashing the process
-    // when testing.
+    if let Some(task) = root_task.task_id.take() {
+        root_task.turbo_tasks.dispose_root_task(task);
+    }
     Ok(())
 }
 
 pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
-    let issues = source
-        .peek_issues_with_path()
-        .await?
-        .strongly_consistent()
-        .await?;
+    let issues = source.peek_issues_with_path().await?;
     issues.get_plain_issues().await
 }
 
 /// Collect [turbopack::core::diagnostics::Diagnostic] from given source,
 /// returns [turbopack::core::diagnostics::PlainDiagnostic]
 pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainDiagnostic>>> {
-    let captured_diags = source
-        .peek_diagnostics()
-        .await?
-        .strongly_consistent()
-        .await?;
+    let captured_diags = source.peek_diagnostics().await?;
 
     captured_diags
         .diagnostics

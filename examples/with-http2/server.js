@@ -1,6 +1,7 @@
 const next = require('next')
-const http2 = require('http2')
-const fs = require('fs')
+const http2 = require('node:http2')
+const { parse } = require('node:url')
+const fs = require('node:fs')
 
 const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
@@ -15,10 +16,13 @@ const server = http2.createSecureServer({
   cert: fs.readFileSync('localhost-cert.pem'),
 })
 
+const handler = app.getRequestHandler()
+
 app.prepare().then(() => {
   server.on('error', (err) => console.error(err))
   server.on('request', (req, res) => {
-    app.render(req, res, req.url || '/', req.query)
+    const parsedUrl = parse(req.url, true)
+    handler(req, res, parsedUrl)
   })
   server.listen(port)
 

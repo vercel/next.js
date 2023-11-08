@@ -5,8 +5,8 @@ import type {
   ProxyResponse,
 } from './proxy'
 import { ClientRequestInterceptor } from 'next/dist/compiled/@mswjs/interceptors/ClientRequest'
-import { WorkerRequestHandler } from '../../server/lib/setup-server-worker'
-import { NodeRequestHandler } from '../../server/next-server'
+import type { WorkerRequestHandler } from '../../server/lib/types'
+import type { NodeRequestHandler } from '../../server/next-server'
 
 interface TestReqInfo {
   url: string
@@ -99,6 +99,10 @@ async function handleFetch(
   const resp = await originalFetch(`http://localhost:${proxyPort}`, {
     method: 'POST',
     body: JSON.stringify(proxyRequest),
+    next: {
+      // @ts-ignore
+      internal: true,
+    },
   })
   if (!resp.ok) {
     throw new Error(`Proxy request failed: ${resp.status}`)
