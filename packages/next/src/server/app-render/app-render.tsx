@@ -751,6 +751,7 @@ async function renderToHTMLOrFlightImpl(
         const renderStream = await renderer.render(content, {
           onError: htmlRendererErrorHandler,
           onHeaders: onHeaders,
+          maxHeadersLength: 1000,
           nonce,
           bootstrapScripts: [bootstrapScript],
           formState,
