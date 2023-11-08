@@ -66,9 +66,9 @@ Since Next.js supports this [static export](/docs/app/building-your-application/
 
 Running as a [static export](/docs/app/building-your-application/deploying/static-exports) does not support Next.js features that require a server. [Learn more](/docs/app/building-your-application/deploying/static-exports#unsupported-features).
 
-**Good to know:**
-
-- [Server Components](/docs/app/building-your-application/rendering/server-components) are supported with static exports.
+> **Good to know:**
+>
+> - [Server Components](/docs/app/building-your-application/rendering/server-components) are supported with static exports.
 
 ## Features
 
@@ -78,11 +78,11 @@ Running as a [static export](/docs/app/building-your-application/deploying/stati
 
 Image Optimization can be used with a [static export](/docs/app/building-your-application/deploying/static-exports#image-optimization) by defining a custom image loader in `next.config.js`. Note that images are optimized at runtime, not during the build.
 
-**Good to know:**
-
-- When self-hosting, consider installing `sharp` for more performant [Image Optimization](/docs/pages/building-your-application/optimizing/images) in your production environment by running `npm install sharp` in your project directory. On Linux platforms, `sharp` may require [additional configuration](https://sharp.pixelplumbing.com/install#linux-memory-allocator) to prevent excessive memory usage.
-- Learn more about the [caching behavior of optimized images](/docs/app/api-reference/components/image#caching-behavior) and how to configure the TTL.
-- You can also [disable Image Optimization](/docs/app/api-reference/components/image#unoptimized) and still retain other benefits of using `next/image` if you prefer. For example, if you are optimizing images yourself separately.
+> **Good to know:**
+>
+> - When self-hosting, consider installing `sharp` for more performant [Image Optimization](/docs/pages/building-your-application/optimizing/images) in your production environment by running `npm install sharp` in your project directory. On Linux platforms, `sharp` may require [additional configuration](https://sharp.pixelplumbing.com/install#linux-memory-allocator) to prevent excessive memory usage.
+> - Learn more about the [caching behavior of optimized images](/docs/app/api-reference/components/image#caching-behavior) and how to configure the TTL.
+> - You can also [disable Image Optimization](/docs/app/api-reference/components/image#unoptimized) and still retain other benefits of using `next/image` if you prefer. For example, if you are optimizing images yourself separately.
 
 ### Middleware
 
@@ -113,10 +113,10 @@ export default function Component() {
 }
 ```
 
-**Good to know:**
-
-- You can run code on server startup using the `[register` function](/docs/app/building-your-application/optimizing/instrumentation).
-- We do not recommend using the [runtimeConfig](/docs/pages/api-reference/next-config-js/runtime-configuration) option, as this does not work with the standalone output mode. Instead, we recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router.
+> **Good to know:**
+>
+> - You can run code on server startup using the [`register` function](/docs/app/building-your-application/optimizing/instrumentation).
+> - We do not recommend using the [runtimeConfig](/docs/pages/api-reference/next-config-js/runtime-configuration) option, as this does not work with the standalone output mode. Instead, we recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router.
 
 ### Caching and ISR
 
@@ -192,9 +192,9 @@ module.exports = class CacheHandler {
 
 Using a custom cache handler will allow you to ensure consistency across all pods hosting your Next.js application.
 
-**Good to know:**
-
-- `revalidatePath` is a convenience layer on top of cache tags. Calling `revalidatePath` will call the `revalidateTag` function with a special default tag for the provided page.
+> **Good to know:**
+>
+> - `revalidatePath` is a convenience layer on top of cache tags. Calling `revalidatePath` will call the `revalidateTag` function with a special default tag for the provided page.
 
 ### Build Cache
 
