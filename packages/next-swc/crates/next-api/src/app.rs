@@ -9,6 +9,7 @@ use next_core::{
     get_edge_resolve_options_context,
     mode::NextMode,
     next_app::{
+        app_client_references_chunks::get_app_server_reference_modules,
         get_app_client_references_chunks, get_app_client_shared_chunks, get_app_page_entry,
         get_app_route_entry, metadata::route::get_app_metadata_route_entry, AppEntry, AppPage,
     },
@@ -168,7 +169,7 @@ impl AppProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".to_string()),
+            Vc::cell("app-client".to_string()),
         )
     }
 
@@ -272,7 +273,7 @@ impl AppProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".to_string()),
+            Vc::cell("app-client".to_string()),
         )
     }
 
@@ -823,7 +824,8 @@ impl AppEndpoint {
                 evaluatable_assets.push(evaluatable);
 
                 let (loader, manifest) = create_server_actions_manifest(
-                    app_entry.rsc_entry,
+                    Vc::upcast(app_entry.rsc_entry),
+                    get_app_server_reference_modules(client_reference_types),
                     node_root,
                     &app_entry.pathname,
                     &app_entry.original_name,
@@ -833,9 +835,7 @@ impl AppEndpoint {
                 )
                 .await?;
                 server_assets.push(manifest);
-                if let Some(loader) = loader {
-                    evaluatable_assets.push(loader);
-                }
+                evaluatable_assets.push(loader);
 
                 let files = chunking_context.evaluated_chunk_group(
                     app_entry.rsc_entry.ident(),
@@ -865,6 +865,7 @@ impl AppEndpoint {
                             async move {
                                 Ok(node_root_value
                                     .get_path_to(&*file.ident().path().await?)
+                                    .filter(|path| path.ends_with(".js"))
                                     .map(|path| path.to_string()))
                             }
                         }
@@ -882,6 +883,7 @@ impl AppEndpoint {
                         async move {
                             Ok(node_root_value
                                 .get_path_to(&*file.ident().path().await?)
+                                .filter(|path| path.ends_with(".js"))
                                 .map(|path| path.to_string()))
                         }
                     })
@@ -973,7 +975,8 @@ impl AppEndpoint {
                     this.app_project.rsc_runtime_entries().await?.clone_value();
 
                 let (loader, manifest) = create_server_actions_manifest(
-                    app_entry.rsc_entry,
+                    Vc::upcast(app_entry.rsc_entry),
+                    get_app_server_reference_modules(client_reference_types),
                     node_root,
                     &app_entry.pathname,
                     &app_entry.original_name,
@@ -983,9 +986,7 @@ impl AppEndpoint {
                 )
                 .await?;
                 server_assets.push(manifest);
-                if let Some(loader) = loader {
-                    evaluatable_assets.push(loader);
-                }
+                evaluatable_assets.push(loader);
 
                 let rsc_chunk = this
                     .app_project

@@ -277,7 +277,6 @@ export interface ExperimentalConfig {
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
-   * This option requires `appDir` to be enabled first.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
    */
   typedRoutes?: boolean
@@ -303,10 +302,19 @@ export interface ExperimentalConfig {
    */
   taint?: boolean
 
-  /**
-   * Allows adjusting body parser size limit for server actions.
-   */
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    /**
+     * Allows adjusting body parser size limit for server actions.
+     */
+    bodySizeLimit?: SizeLimit
+
+    /**
+     * Allowed domains that can bypass CSRF check.
+     * @example
+     * ["my-reverse-proxy.com"]
+     */
+    allowedForwardedHosts?: string[]
+  }
 
   /**
    * enables the minification of server code.
@@ -326,6 +334,12 @@ export interface ExperimentalConfig {
    * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
    */
   bundlePagesExternals?: boolean
+  /**
+   * Uses an IPC server to dedupe build-time requests to the cache handler
+   */
+  staticWorkerRequestDeduping?: boolean
+
+  useWasmBinary?: boolean
 }
 
 export type ExportPathMap = {
@@ -577,6 +591,8 @@ export interface NextConfig extends Record<string, any> {
    * that are needed for deploying a production version of your application.
    *
    * @see [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
+   * @deprecated will be enabled by default and removed in Next.js 15
+   *
    */
   outputFileTracing?: boolean
 
@@ -597,6 +613,7 @@ export interface NextConfig extends Record<string, any> {
 
   /**
    * Use [SWC compiler](https://swc.rs) to minify the generated JavaScript
+   * @deprecated will be enabled by default and removed in Next.js 15
    *
    * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
    */

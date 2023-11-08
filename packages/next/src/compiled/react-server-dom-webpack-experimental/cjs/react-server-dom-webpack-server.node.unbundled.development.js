@@ -59,6 +59,9 @@ function printWarning(level, format, args) {
   }
 }
 
+// -----------------------------------------------------------------------------
+var enablePostpone = true;
+
 function scheduleWork(callback) {
   setImmediate(callback);
 }
@@ -3096,11 +3099,19 @@ function abort(request, reason) {
     if (abortableTasks.size > 0) {
       // We have tasks to abort. We'll emit one error row and then emit a reference
       // to that row from every row that's still remaining.
-      var error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
-      var digest = logRecoverableError(request, error);
       request.pendingChunks++;
       var errorId = request.nextChunkId++;
-      emitErrorChunk(request, errorId, digest, error);
+
+      if (enablePostpone && typeof reason === 'object' && reason !== null && reason.$$typeof === REACT_POSTPONE_TYPE) {
+        var postponeInstance = reason;
+        logPostpone(request, postponeInstance.message);
+        emitPostponeChunk(request, errorId, postponeInstance);
+      } else {
+        var error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
+        var digest = logRecoverableError(request, error);
+        emitErrorChunk(request, errorId, digest, error);
+      }
+
       abortableTasks.forEach(function (task) {
         return abortTask(task, request, errorId);
       });
@@ -3944,8 +3955,9 @@ function decodeReply(body, webpackMap) {
   }
 
   var response = createResponse(webpackMap, '', body);
+  var root = getRoot(response);
   close(response);
-  return getRoot(response);
+  return root;
 }
 
 exports.createClientModuleProxy = createClientModuleProxy;

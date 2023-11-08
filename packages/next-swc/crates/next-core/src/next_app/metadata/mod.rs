@@ -258,7 +258,7 @@ fn djb2_hash(str: &str) -> u32 {
     })
 }
 
-// this is here to mirror next.js behaviour.
+// this is here to mirror next.js behaviour (`toString(36).slice(0, 6)`)
 fn format_radix(mut x: u32, radix: u32) -> String {
     let mut result = vec![];
 
@@ -273,7 +273,8 @@ fn format_radix(mut x: u32, radix: u32) -> String {
         }
     }
 
-    result.into_iter().rev().collect()
+    result.reverse();
+    result[..6].iter().collect()
 }
 
 /// If there's special convention like (...) or @ in the page path,
@@ -317,7 +318,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
     // /<metadata-route>/route.ts. If it's a metadata file route, we need to
     // append /[id]/route to the page.
     if !route.ends_with("/route") {
-        let is_static_metadata_file = is_static_metadata_route_file(&route);
+        let is_static_metadata_file = is_static_metadata_route_file(&page.to_string());
         let (base_name, ext) = split_extension(&route);
 
         let is_static_route = route.starts_with("/robots")

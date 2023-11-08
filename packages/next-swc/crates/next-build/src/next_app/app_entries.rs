@@ -40,6 +40,8 @@ use turbopack_binding::{
     },
 };
 
+const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
+
 #[turbo_tasks::value]
 pub struct AppEntries {
     /// All app entries.
@@ -112,7 +114,7 @@ pub async fn get_app_entries(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
-        Vc::cell("client".to_string()),
+        Vc::cell("app-client".to_string()),
     );
 
     let ssr_resolve_options_context = get_server_resolve_options_context(
@@ -139,8 +141,6 @@ pub async fn get_app_entries(
     );
 
     transitions.insert("next-ssr".to_string(), Vc::upcast(ssr_transition));
-
-    const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
 
     transitions.insert(
         ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
@@ -228,7 +228,7 @@ pub async fn get_app_entries(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
-        Vc::cell("client".to_string()),
+        Vc::cell("app-client".to_string()),
     );
 
     let client_runtime_entries = get_client_runtime_entries(

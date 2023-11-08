@@ -188,7 +188,7 @@ function printWarning(level, format, args) {
   }
 }
 
-var ReactVersion = '18.3.0-experimental-b8e47d988-20231023';
+var ReactVersion = '18.3.0-experimental-2983249dd-20231107';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -3089,9 +3089,9 @@ exports.isValidElement = isValidElement;
 exports.lazy = lazy;
 exports.memo = memo;
 exports.startTransition = startTransition;
+exports.unstable_Activity = REACT_OFFSCREEN_TYPE;
 exports.unstable_Cache = REACT_CACHE_TYPE;
 exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
-exports.unstable_Offscreen = REACT_OFFSCREEN_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.unstable_act = act;
 exports.unstable_getCacheForType = getCacheForType;

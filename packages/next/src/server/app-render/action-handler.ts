@@ -9,7 +9,7 @@ import type { SizeLimit } from '../../../types'
 
 import {
   ACTION,
-  RSC,
+  RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
@@ -36,15 +36,6 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
 import type { AppRenderContext, GenerateFlight } from './app-render'
-
-function nodeToWebReadableStream(nodeReadable: import('stream').Readable) {
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { Readable } = require('stream') as typeof import('stream')
-    return Readable.toWeb(nodeReadable) as ReadableStream
-  } else {
-    throw new Error('Invalid runtime')
-  }
-}
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -155,7 +146,7 @@ async function createRedirectRenderResult(
   // if we're redirecting to a relative path, we'll try to stream the response
   if (redirectUrl.startsWith('/')) {
     const forwardedHeaders = getForwardedHeaders(req, res)
-    forwardedHeaders.set(RSC, '1')
+    forwardedHeaders.set(RSC_HEADER, '1')
 
     const host = req.headers['host']
     const proto =
@@ -217,6 +208,29 @@ async function createRedirectRenderResult(
   return new RenderResult(JSON.stringify({}))
 }
 
+// Used to compare Host header and Origin header.
+const enum HostType {
+  XForwardedHost = 'x-forwarded-host',
+  Host = 'host',
+}
+type Host =
+  | {
+      type: HostType.XForwardedHost
+      value: string
+    }
+  | {
+      type: HostType.Host
+      value: string
+    }
+  | undefined
+
+/**
+ * Ensures the value of the header can't create long logs.
+ */
+function limitUntrustedHeaderValueForLogs(value: string) {
+  return value.length > 100 ? value.slice(0, 100) + '...' : value
+}
+
 export async function handleAction({
   req,
   res,
@@ -225,7 +239,7 @@ export async function handleAction({
   generateFlight,
   staticGenerationStore,
   requestStore,
-  serverActionsBodySizeLimit,
+  serverActions,
   ctx,
 }: {
   req: IncomingMessage
@@ -241,7 +255,10 @@ export async function handleAction({
   generateFlight: GenerateFlight
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedForwardedHosts?: string[]
+  }
   ctx: AppRenderContext
 }): Promise<
   | undefined
@@ -275,7 +292,22 @@ export async function handleAction({
     typeof req.headers['origin'] === 'string'
       ? new URL(req.headers['origin']).host
       : undefined
-  const host = req.headers['x-forwarded-host'] || req.headers['host']
+
+  const forwardedHostHeader = req.headers['x-forwarded-host'] as
+    | string
+    | undefined
+  const hostHeader = req.headers['host']
+  const host: Host = forwardedHostHeader
+    ? {
+        type: HostType.XForwardedHost,
+        value: forwardedHostHeader,
+      }
+    : hostHeader
+    ? {
+        type: HostType.Host,
+        value: hostHeader,
+      }
+    : undefined
 
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
@@ -285,33 +317,54 @@ export async function handleAction({
     console.warn(
       'Missing `origin` header from a forwarded Server Actions request.'
     )
-  } else if (!host || originHostname !== host) {
-    // This is an attack. We should not proceed the action.
-    console.error(
-      '`x-forwarded-host` and `host` headers do not match `origin` header from a forwarded Server Actions request. Aborting the action.'
-    )
-
-    const error = new Error('Invalid Server Actions request.')
-
-    if (isFetchAction) {
-      res.statusCode = 500
-      await Promise.all(staticGenerationStore.pendingRevalidates || [])
-      const promise = Promise.reject(error)
-      try {
-        await promise
-      } catch {}
-
-      return {
-        type: 'done',
-        result: await generateFlight(ctx, {
-          actionResult: promise,
-          // if the page was not revalidated, we can skip the rendering the flight tree
-          skipFlight: !staticGenerationStore.pathWasRevalidated,
-        }),
+  } else if (!host || originHostname !== host.value) {
+    // If the customer sets a list of allowed hosts, we'll allow the request.
+    // These can be their reverse proxies or other safe hosts.
+    if (
+      host &&
+      typeof host.value === 'string' &&
+      serverActions?.allowedForwardedHosts?.includes(host.value)
+    ) {
+      // Ignore it
+    } else {
+      if (host) {
+        // This is an attack. We should not proceed the action.
+        console.error(
+          `\`${!host.type}\` header with value \`${limitUntrustedHeaderValueForLogs(
+            host.value
+          )}\` does not match \`origin\` header with value \`${limitUntrustedHeaderValueForLogs(
+            originHostname
+          )}\` from a forwarded Server Actions request. Aborting the action.`
+        )
+      } else {
+        // This is an attack. We should not proceed the action.
+        console.error(
+          `\`x-forwarded-host\` or \`host\` headers are not provided. One of these is needed to compare the \`origin\` header from a forwarded Server Actions request. Aborting the action.`
+        )
       }
-    }
 
-    throw error
+      const error = new Error('Invalid Server Actions request.')
+
+      if (isFetchAction) {
+        res.statusCode = 500
+        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        const promise = Promise.reject(error)
+        try {
+          await promise
+        } catch {}
+
+        return {
+          type: 'done',
+          result: await generateFlight(ctx, {
+            actionResult: promise,
+            // if the page was not revalidated, we can skip the rendering the flight tree
+            skipFlight: !staticGenerationStore.pathWasRevalidated,
+          }),
+        }
+      }
+
+      throw error
+    }
   }
 
   // ensure we avoid caching server actions unexpectedly
@@ -389,13 +442,28 @@ export async function handleAction({
 
             bound = await decodeReplyFromBusboy(bb, serverModuleMap)
           } else {
+            // Convert the Node.js readable stream to a Web Stream.
+            const readableStream = new ReadableStream({
+              start(controller) {
+                req.on('data', (chunk) => {
+                  controller.enqueue(new Uint8Array(chunk))
+                })
+                req.on('end', () => {
+                  controller.close()
+                })
+                req.on('error', (err) => {
+                  controller.error(err)
+                })
+              },
+            })
+
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
             const fakeRequest = new Request('http://localhost', {
               method: 'POST',
               // @ts-expect-error
               headers: { 'Content-Type': contentType },
-              body: nodeToWebReadableStream(req),
+              body: readableStream,
               duplex: 'half',
             })
             const formData = await fakeRequest.formData()
@@ -415,15 +483,14 @@ export async function handleAction({
 
           const actionData = Buffer.concat(chunks).toString('utf-8')
 
-          const limit = require('next/dist/compiled/bytes').parse(
-            serverActionsBodySizeLimit ?? '1mb'
-          )
+          const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
+          const limit = require('next/dist/compiled/bytes').parse(readableLimit)
 
           if (actionData.length > limit) {
             const { ApiError } = require('../api-utils')
             throw new ApiError(
               413,
-              `Body exceeded ${serverActionsBodySizeLimit} limit.
+              `Body exceeded ${readableLimit} limit.
 To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation`
             )
           }

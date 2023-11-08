@@ -19,7 +19,7 @@ createNextDescribe(
       'server-only': 'latest',
     },
   },
-  ({ next, isNextDev, isNextStart, isNextDeploy }) => {
+  ({ next, isNextDev, isNextStart, isNextDeploy, isTurbopack }) => {
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
@@ -288,6 +288,27 @@ createNextDescribe(
       await check(() => browser.url(), `${next.url}/client`, true, 2)
     })
 
+    it('should trigger a refresh for a server action that gets discarded due to a navigation', async () => {
+      let browser = await next.browser('/client')
+      const initialRandomNumber = await browser
+        .elementByCss('#random-number')
+        .text()
+
+      await browser.elementByCss('#slow-inc').click()
+
+      // navigate to server
+      await browser.elementByCss('#navigate-server').click()
+
+      // wait for the action to be completed
+      await check(async () => {
+        const newRandomNumber = await browser
+          .elementByCss('#random-number')
+          .text()
+
+        return newRandomNumber === initialRandomNumber ? 'fail' : 'success'
+      }, 'success')
+    })
+
     it('should support next/dynamic with ssr: false', async () => {
       const browser = await next.browser('/dynamic-csr')
 
@@ -389,7 +410,24 @@ createNextDescribe(
         const pageBundle = await fs.readFile(
           join(next.testDir, '.next', 'server', 'app', 'client', 'page.js')
         )
-        expect(pageBundle.toString()).toContain('node_modules/nanoid/index.js')
+        if (isTurbopack) {
+          const chunkPaths = pageBundle
+            .toString()
+            .matchAll(/loadChunk\("([^"]*)"\)/g)
+          // @ts-ignore
+          const reads = [...chunkPaths].map(async (match) => {
+            const bundle = await fs.readFile(
+              join(next.testDir, '.next', ...match[1].split(/[\\/]/g))
+            )
+            return bundle.toString().includes('node_modules/nanoid/index.js')
+          })
+
+          expect(await Promise.all(reads)).toContain(true)
+        } else {
+          expect(pageBundle.toString()).toContain(
+            'node_modules/nanoid/index.js'
+          )
+        }
       })
     }
 
