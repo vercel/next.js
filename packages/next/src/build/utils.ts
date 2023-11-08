@@ -459,8 +459,13 @@ export async function printTreeView(
       } else if (isEdgeRuntime(pageInfo?.runtime)) {
         symbol = 'ℇ'
       } else if (pageInfo?.isPPR) {
-        // If the page has an empty prelude, then it's equivalent to a static page.
-        if (pageInfo?.hasEmptyPrelude || pageInfo.isDynamicAppRoute) {
+        if (
+          // If the page has an empty prelude, then it's equivalent to a dynamic page
+          pageInfo?.hasEmptyPrelude ||
+          // ensure we don't mark dynamic paths that postponed as being dynamic
+          // since in this case we're able to partially prerender it
+          (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
+        ) {
           symbol = 'λ'
         } else if (!pageInfo?.hasPostponed) {
           symbol = '○'
