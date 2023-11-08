@@ -7,9 +7,29 @@ const { randomBytes } = require('crypto')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
+const PREFER_OFFLINE = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
+
+async function installDependencies(cwd) {
+  const args = [
+    'install',
+    '--strict-peer-dependencies=false',
+    '--no-frozen-lockfile',
+  ]
+
+  if (PREFER_OFFLINE) {
+    args.push('--prefer-offline')
+  }
+
+  await execa('pnpm', args, {
+    cwd,
+    stdio: ['ignore', 'inherit', 'inherit'],
+    env: process.env,
+  })
+}
+
 async function createNextInstall({
-  parentSpan = null,
-  dependencies = null,
+  parentSpan,
+  dependencies = {},
   resolutions = null,
   installCommand = null,
   packageJson = {},
@@ -101,6 +121,7 @@ async function createNextInstall({
         pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
           linkPackages({
             repoDir: tmpRepoDir,
+            nextSwcVersion: null,
           })
         )
       }
@@ -148,23 +169,7 @@ async function createNextInstall({
       } else {
         await rootSpan
           .traceChild('run generic install command')
-          .traceAsyncFn(() => {
-            const args = [
-              'install',
-              '--strict-peer-dependencies=false',
-              '--no-frozen-lockfile',
-            ]
-
-            if (process.env.NEXT_TEST_PREFER_OFFLINE === '1') {
-              args.push('--prefer-offline')
-            }
-
-            return execa('pnpm', args, {
-              cwd: installDir,
-              stdio: ['ignore', 'inherit', 'inherit'],
-              env: process.env,
-            })
-          })
+          .traceAsyncFn(() => installDependencies(installDir))
       }
 
       if (!keepRepoDir && tmpRepoDir) {

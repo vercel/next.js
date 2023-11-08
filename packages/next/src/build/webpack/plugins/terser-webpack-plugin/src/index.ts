@@ -166,12 +166,7 @@ export class TerserPlugin {
                       }
                     : {}),
                   compress: true,
-                  // This is the same option as terser
-                  mangle: {
-                    toplevel: true,
-                    keep_classnames: true,
-                    keep_fnames: true,
-                  },
+                  mangle: true,
                 }
               )
 

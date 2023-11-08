@@ -3,8 +3,8 @@ name: Update Turbopack test manifest
 
 on:
   schedule:
-    # Every hour
-    - cron: '0 * * * *'
+    # Every day at 9AM https://crontab.guru/#0_9_*_*_*
+    - cron: '0 9 * * *'
   workflow_dispatch:
 
 jobs:
@@ -24,6 +24,12 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
+
+      - run: corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm i
 
       - name: Create Pull Request
         shell: bash
