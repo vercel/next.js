@@ -611,12 +611,11 @@ async function renderToHTMLOrFlightImpl(
 
   const hasPostponed = typeof renderOpts.postponed === 'string'
 
-  let stringifiedFlightPayloadPromise =
-    isStaticGeneration || hasPostponed
-      ? generateFlight(ctx)
-          .then((renderResult) => renderResult.toUnchunkedString(true))
-          .catch(() => null)
-      : Promise.resolve(null)
+  let stringifiedFlightPayloadPromise = isStaticGeneration
+    ? generateFlight(ctx)
+        .then((renderResult) => renderResult.toUnchunkedString(true))
+        .catch(() => null)
+    : Promise.resolve(null)
 
   // Get the nonce from the incoming request if it has one.
   const csp = req.headers['content-security-policy']
@@ -737,9 +736,21 @@ async function renderToHTMLOrFlightImpl(
         hasPostponed,
       })
 
+      function onHeaders(headers: Headers): void {
+        // Copy headers created by React into the response object.
+        headers.forEach((value: string, key: string) => {
+          res.appendHeader(key, value)
+          if (!extraRenderResultMeta.extraHeaders) {
+            extraRenderResultMeta.extraHeaders = {}
+          }
+          extraRenderResultMeta.extraHeaders[key] = value
+        })
+      }
+
       try {
         const renderStream = await renderer.render(content, {
           onError: htmlRendererErrorHandler,
+          onHeaders: onHeaders,
           nonce,
           bootstrapScripts: [bootstrapScript],
           formState,

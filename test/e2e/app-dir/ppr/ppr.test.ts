@@ -6,7 +6,17 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
+    if (isNextStart) {
+      describe('build output', () => {
+        it('correctly marks pages as being partially prerendered in the build output', () => {
+          expect(next.cliOutput).toContain('◐ /loading/nested/[slug]')
+          expect(next.cliOutput).toContain('◐ /suspense/node')
+          expect(next.cliOutput).toContain('◐ /suspense/node/gsp/[slug]')
+          expect(next.cliOutput).toContain('◐ /suspense/node/nested/[slug]')
+        })
+      })
+    }
     describe.each([
       { pathname: '/suspense/node' },
       { pathname: '/suspense/node/nested/1' },
