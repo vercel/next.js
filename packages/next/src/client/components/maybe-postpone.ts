@@ -22,8 +22,8 @@ export function maybePostpone(
   staticGenerationStore.postponeWasTriggered = true
 
   React.unstable_postpone(
-    `This page needs to opt out of static rendering at this point because it used ` +
-      `${reason}. React throws this special object to bail out. It should not be caught ` +
-      `by your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-postpone-error`
+    `This page needs to bail out of prerendering at this point because it used ${reason}. ` +
+      `React throws this special object to indicate where. It should not be caught by ` +
+      `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
   )
 }
