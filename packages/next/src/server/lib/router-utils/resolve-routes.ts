@@ -1,4 +1,3 @@
-import type { TLSSocket } from 'tls'
 import type { FsOutput } from './filesystem'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextConfigComplete } from '../../config-shared'
@@ -38,6 +37,7 @@ import {
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
 import { createRequestResponseMocks } from '../mock-request'
+import type { TLSSocket } from 'tls'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
@@ -294,11 +294,14 @@ export function getResolveRoutes(
     }
 
     const normalizers = {
-      basePath: new BasePathPathnameNormalizer(config.basePath),
+      basePath:
+        config.basePath && config.basePath !== '/'
+          ? new BasePathPathnameNormalizer(config.basePath)
+          : undefined,
       data: new NextDataPathnameNormalizer(fsChecker.buildId),
-      postponed: new PostponedPathnameNormalizer(
-        config.experimental.ppr === true
-      ),
+      postponed: config.experimental.ppr
+        ? new PostponedPathnameNormalizer()
+        : undefined,
     }
 
     async function handleRoute(
@@ -371,8 +374,8 @@ export function getResolveRoutes(
             let normalized = parsedUrl.pathname
 
             // Remove the base path if it exists.
-            const hadBasePath = normalizers.basePath.match(parsedUrl.pathname)
-            if (hadBasePath) {
+            const hadBasePath = normalizers.basePath?.match(parsedUrl.pathname)
+            if (hadBasePath && normalizers.basePath) {
               normalized = normalizers.basePath.normalize(normalized, true)
             }
 
@@ -381,7 +384,7 @@ export function getResolveRoutes(
               updated = true
               parsedUrl.query.__nextDataReq = '1'
               normalized = normalizers.data.normalize(normalized, true)
-            } else if (normalizers.postponed.match(normalized)) {
+            } else if (normalizers.postponed?.match(normalized)) {
               updated = true
               normalized = normalizers.postponed.normalize(normalized, true)
             }

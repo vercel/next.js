@@ -24,6 +24,7 @@ export function createErrorHandler({
   errorLogger,
   capturedErrors,
   allCapturedErrors,
+  silenceLogger,
 }: {
   _source: string
   dev?: boolean
@@ -31,6 +32,7 @@ export function createErrorHandler({
   errorLogger?: (err: any) => Promise<void>
   capturedErrors: Error[]
   allCapturedErrors?: Error[]
+  silenceLogger?: boolean
 }): ErrorHandler {
   return (err) => {
     if (allCapturedErrors) allCapturedErrors.push(err)
@@ -73,19 +75,21 @@ export function createErrorHandler({
         })
       }
 
-      if (errorLogger) {
-        errorLogger(err).catch(() => {})
-      } else {
-        // The error logger is currently not provided in the edge runtime.
-        // Use `log-app-dir-error` instead.
-        // It won't log the source code, but the error will be more useful.
-        if (process.env.NODE_ENV !== 'production') {
-          const { logAppDirError } =
-            require('../dev/log-app-dir-error') as typeof import('../dev/log-app-dir-error')
-          logAppDirError(err)
-        }
-        if (process.env.NODE_ENV === 'production') {
-          console.error(err)
+      if (!silenceLogger) {
+        if (errorLogger) {
+          errorLogger(err).catch(() => {})
+        } else {
+          // The error logger is currently not provided in the edge runtime.
+          // Use `log-app-dir-error` instead.
+          // It won't log the source code, but the error will be more useful.
+          if (process.env.NODE_ENV !== 'production') {
+            const { logAppDirError } =
+              require('../dev/log-app-dir-error') as typeof import('../dev/log-app-dir-error')
+            logAppDirError(err)
+          }
+          if (process.env.NODE_ENV === 'production') {
+            console.error(err)
+          }
         }
       }
     }

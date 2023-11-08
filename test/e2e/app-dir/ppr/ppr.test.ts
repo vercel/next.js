@@ -6,7 +6,17 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
+    if (isNextStart) {
+      describe('build output', () => {
+        it('correctly marks pages as being partially prerendered in the build output', () => {
+          expect(next.cliOutput).toContain('◐ /loading/nested/[slug]')
+          expect(next.cliOutput).toContain('◐ /suspense/node')
+          expect(next.cliOutput).toContain('◐ /suspense/node/gsp/[slug]')
+          expect(next.cliOutput).toContain('◐ /suspense/node/nested/[slug]')
+        })
+      })
+    }
     describe.each([
       { pathname: '/suspense/node' },
       { pathname: '/suspense/node/nested/1' },
@@ -143,5 +153,25 @@ createNextDescribe(
         })
       }
     )
+
+    describe('/no-suspense/node/gsp/[slug]', () => {
+      it('should serve the static & dynamic parts', async () => {
+        const $ = await next.render$('/no-suspense/node/gsp/foo')
+        expect($('#page').length).toBe(1)
+        expect($('#container > #dynamic > #state').length).toBe(1)
+      })
+    })
+
+    describe('/suspense/node/gsp/[slug]', () => {
+      it('should serve the static part first', async () => {
+        const $ = await next.render$('/suspense/node/gsp/foo')
+        expect($('#page').length).toBe(1)
+      })
+
+      it('should not have the dynamic part', async () => {
+        const $ = await next.render$('/suspense/node/gsp/foo')
+        expect($('#container > #dynamic > #state').length).toBe(0)
+      })
+    })
   }
 )

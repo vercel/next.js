@@ -282,11 +282,7 @@ export interface ExperimentalConfig {
   typedRoutes?: boolean
 
   /**
-   * Run the Webpack build in a separate process to optimize memory usage during build.
-   * Valid values are:
-   * - `false`: Disable the Webpack build worker
-   * - `true`: Enable the Webpack build worker
-   * - `undefined`: Enable the Webpack build worker only if the webpack config is not customized
+   * This option is to enable running the Webpack build in a worker thread.
    */
   webpackBuildWorker?: boolean
 
@@ -311,6 +307,14 @@ export interface ExperimentalConfig {
      * Allows adjusting body parser size limit for server actions.
      */
     bodySizeLimit?: SizeLimit
+
+    /**
+     * Allowed origins that can bypass Server Action's CSRF check. This is helpful
+     * when you have reverse proxy in front of your app.
+     * @example
+     * ["my-app.com"]
+     */
+    allowedOrigins?: string[]
   }
 
   /**
@@ -331,6 +335,12 @@ export interface ExperimentalConfig {
    * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
    */
   bundlePagesExternals?: boolean
+  /**
+   * Uses an IPC server to dedupe build-time requests to the cache handler
+   */
+  staticWorkerRequestDeduping?: boolean
+
+  useWasmBinary?: boolean
 }
 
 export type ExportPathMap = {
@@ -780,7 +790,6 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
-    webpackBuildWorker: undefined,
   },
 }
 

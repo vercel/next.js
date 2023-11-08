@@ -167,7 +167,7 @@ describe('Application Export Intent Output', () => {
 
         it('should build and export', async () => {
           const result = await nextBuild(appDir, [], { stderr: true })
-          expect(result.stderr).toMatch('A.getInitialProps()')
+          expect(result.stderr).toMatch('.getInitialProps()')
           expect(result.code).toBe(1)
         })
 
