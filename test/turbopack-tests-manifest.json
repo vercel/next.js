@@ -12122,6 +12122,7 @@
       "Middleware in src/ and / folders dev mode loads and runs only root middleware",
       "Middleware in src/ folder dev mode loads an runs src middleware"
     ],
+    "failed": [],
     "pending": [
       "Middleware in src/ and / folders production mode should warn about middleware on export",
       "Middleware in src/ folder production mode should warn about middleware on export"
