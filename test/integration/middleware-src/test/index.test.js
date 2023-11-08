@@ -9,7 +9,6 @@ import {
   launchApp,
   killApp,
   nextBuild,
-  nextStart,
 } from 'next-test-utils'
 
 let app
