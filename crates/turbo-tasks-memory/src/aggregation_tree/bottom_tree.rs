@@ -1,7 +1,7 @@
 use std::{hash::Hash, ops::ControlFlow, sync::Arc};
 
 use nohash_hasher::{BuildNoHashHasher, IsEnabled};
-use parking_lot::{RwLock, RwLockWriteGuard};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use ref_cast::RefCast;
 
 use super::{
@@ -555,6 +555,7 @@ impl<T, I: Clone + Eq + Hash + IsEnabled> BottomTree<T, I> {
     ) {
         let mut state = self.state.write();
         let change = aggregation_context.apply_change(&mut state.data, change);
+        let state = RwLockWriteGuard::downgrade(state);
         propagate_change_to_upper(&state, aggregation_context, change);
     }
 
@@ -627,7 +628,7 @@ fn propagate_new_following_to_uppers<C: AggregationContext>(
 }
 
 fn propagate_change_to_upper<C: AggregationContext>(
-    state: &RwLockWriteGuard<BottomTreeState<C::Info, C::ItemRef>>,
+    state: &RwLockReadGuard<BottomTreeState<C::Info, C::ItemRef>>,
     aggregation_context: &C,
     change: Option<C::ItemChange>,
 ) {
