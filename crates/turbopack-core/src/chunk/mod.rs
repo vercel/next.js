@@ -150,16 +150,18 @@ pub trait OutputChunk: Asset {
     Copy, Default, Clone, Hash, TraceRawVcs, Serialize, Deserialize, Eq, PartialEq, ValueDebugFormat,
 )]
 pub enum ChunkingType {
-    /// Asset is placed in the same chunk group and is loaded in parallel. It
+    /// Module is placed in the same chunk group and is loaded in parallel. It
     /// doesn't become an async module when the referenced module is async.
     #[default]
     Parallel,
-    /// Asset is placed in the same chunk group and is loaded in parallel. It
+    /// Module is placed in the same chunk group and is loaded in parallel. It
     /// becomes an async module when the referenced module is async.
     ParallelInheritAsync,
     /// An async loader is placed into the referencing chunk and loads the
-    /// separate chunk group in which the asset is placed.
+    /// separate chunk group in which the module is placed.
     Async,
+    /// Module not placed in chunk group, but its references are still followed.
+    Passthrough,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -217,10 +219,15 @@ enum InheritAsyncEdge {
 
 #[derive(Eq, PartialEq, Clone, Hash, Serialize, Deserialize, TraceRawVcs, Debug)]
 enum ChunkContentGraphNode {
-    // An asset not placed in the current chunk, but whose references we will
+    // A module not placed in the current chunk, but whose references we will
     // follow to find more graph nodes.
     PassthroughModule {
         module: Vc<Box<dyn Module>>,
+    },
+    // A chunk item not placed in the current chunk, but whose references we will
+    // follow to find more graph nodes.
+    PassthroughChunkItem {
+        item: Vc<Box<dyn ChunkItem>>,
     },
     // Chunk items that are placed into the current chunk group
     ChunkItem {
@@ -244,6 +251,7 @@ enum ChunkContentGraphNode {
 #[derive(Debug, Clone, Copy, TaskInput)]
 enum ChunkGraphNodeToReferences {
     PassthroughModule(Vc<Box<dyn Module>>),
+    PassthroughChunkItem(Vc<Box<dyn ChunkItem>>),
     ChunkItem(Vc<Box<dyn ChunkItem>>),
 }
 
@@ -271,6 +279,7 @@ async fn graph_node_to_referenced_nodes(
 ) -> Result<Vc<ChunkGraphEdges>> {
     let (parent, references) = match &node {
         ChunkGraphNodeToReferences::PassthroughModule(module) => (None, module.references()),
+        ChunkGraphNodeToReferences::PassthroughChunkItem(item) => (None, item.references()),
         ChunkGraphNodeToReferences::ChunkItem(item) => (Some(*item), item.references()),
     };
     let chunk_content_context = chunk_content_context.await?;
@@ -387,6 +396,22 @@ async fn graph_node_to_referenced_nodes(
                                 Some((chunk_item, InheritAsyncEdge::LocalModule)),
                             ))
                         }
+                        ChunkingType::Passthrough => {
+                            let chunk_item = chunkable_module
+                                .as_chunk_item(chunk_content_context.chunking_context)
+                                .resolve()
+                                .await?;
+
+                            Ok((
+                                Some(ChunkGraphEdge {
+                                    key: None,
+                                    node: ChunkContentGraphNode::PassthroughChunkItem {
+                                        item: chunk_item,
+                                    },
+                                }),
+                                None,
+                            ))
+                        }
                         ChunkingType::Async => Ok((
                             Some(ChunkGraphEdge {
                                 key: None,
@@ -449,7 +474,12 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
     fn visit(&mut self, edge: ChunkGraphEdge) -> VisitControlFlow<ChunkContentGraphNode, ()> {
         let ChunkGraphEdge { key, node } = edge;
         let Some(module) = key else {
-            return VisitControlFlow::Skip(node);
+            if matches!(node, ChunkContentGraphNode::PassthroughChunkItem { .. }) {
+                return VisitControlFlow::Continue(node);
+            } else {
+                // All other types don't have edges
+                return VisitControlFlow::Skip(node);
+            }
         };
 
         if !self.processed_modules.insert(module) {
@@ -468,6 +498,9 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
             let node = match node {
                 ChunkContentGraphNode::PassthroughModule { module } => {
                     ChunkGraphNodeToReferences::PassthroughModule(module)
+                }
+                ChunkContentGraphNode::PassthroughChunkItem { item } => {
+                    ChunkGraphNodeToReferences::PassthroughChunkItem(item)
                 }
                 ChunkContentGraphNode::ChunkItem { item, .. } => {
                     ChunkGraphNodeToReferences::ChunkItem(item)
@@ -548,6 +581,7 @@ async fn chunk_content_internal_parallel(
     for graph_node in graph_nodes {
         match graph_node {
             ChunkContentGraphNode::PassthroughModule { .. } => {}
+            ChunkContentGraphNode::PassthroughChunkItem { .. } => {}
             ChunkContentGraphNode::ChunkItem { item, .. } => {
                 chunk_items.insert(item);
             }
