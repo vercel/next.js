@@ -441,7 +441,9 @@ If you need to add more setup options before each test, it's common to add them 
 
 **Optional: Absolute Imports and Module Path Aliases**
 
-If your project is using [Module Path Aliases](/docs/pages/building-your-application/configuring/absolute-imports-and-module-aliases), you will need to configure Jest to resolve the imports by matching the paths option in the `jsconfig.json` file with the `moduleNameMapper` option in the `jest.config.js` file. For example:
+The path configuration (base URL or an alias) must match in both `tsconfig.json` and `jest.config.js` so that Jest can resolve the imports.
+
+If your project is using [Module Path Aliases](/docs/pages/building-your-application/configuring/absolute-imports-and-module-aliases), you will need to match the `paths` option with the `moduleNameMapper` option. For example:
 
 ```json filename="tsconfig.json or jsconfig.json"
 {
@@ -456,10 +458,26 @@ If your project is using [Module Path Aliases](/docs/pages/building-your-applica
 }
 ```
 
-```js filename="jest.config.js"
+```js filename="jest.config.js or jest.config.mjs" 
 moduleNameMapper: {
   '^@/components/(.*)$': '<rootDir>/components/$1',
 }
+```
+
+If your project is altering the base URL, you need to match the `baseUrl` option with the `modulePaths` option. For example:
+
+```json filename="tsconfig.json or jsconfig.json"
+{
+  "compilerOptions": {
+    ...
+    "baseUrl": "./app",
+    ...
+  }
+}
+```
+
+```js filename="jest.config.js or jest.config.mjs" 
+  modulePaths: ["<rootDir>/app"],
 ```
 
 ### Creating your tests:
