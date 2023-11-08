@@ -257,7 +257,7 @@ export async function handleAction({
   requestStore: RequestStore
   serverActions?: {
     bodySizeLimit?: SizeLimit
-    allowedForwardedHosts?: string[]
+    allowedOrigins?: string[]
   }
   ctx: AppRenderContext
 }): Promise<
@@ -288,7 +288,7 @@ export async function handleAction({
     return
   }
 
-  const originHostname =
+  const originDomain =
     typeof req.headers['origin'] === 'string'
       ? new URL(req.headers['origin']).host
       : undefined
@@ -311,29 +311,28 @@ export async function handleAction({
 
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
-  if (!originHostname) {
+  if (!originDomain) {
     // This might be an old browser that doesn't send `host` header. We ignore
     // this case.
     console.warn(
       'Missing `origin` header from a forwarded Server Actions request.'
     )
-  } else if (!host || originHostname !== host.value) {
-    // If the customer sets a list of allowed hosts, we'll allow the request.
-    // These can be their reverse proxies or other safe hosts.
-    if (
-      host &&
-      typeof host.value === 'string' &&
-      serverActions?.allowedForwardedHosts?.includes(host.value)
-    ) {
+  } else if (!host || originDomain !== host.value) {
+    // If the customer sets a list of allowed origins, we'll allow the request.
+    // These are considered safe but might be different from forwarded host set
+    // by the infra (i.e. reverse proxies).
+    if (serverActions?.allowedOrigins?.includes(originDomain)) {
       // Ignore it
     } else {
       if (host) {
-        // This is an attack. We should not proceed the action.
+        // This seems to be an CSRF attack. We should not proceed the action.
         console.error(
-          `\`${!host.type}\` header with value \`${limitUntrustedHeaderValueForLogs(
+          `\`${
+            host.type
+          }\` header with value \`${limitUntrustedHeaderValueForLogs(
             host.value
           )}\` does not match \`origin\` header with value \`${limitUntrustedHeaderValueForLogs(
-            originHostname
+            originDomain
           )}\` from a forwarded Server Actions request. Aborting the action.`
         )
       } else {
