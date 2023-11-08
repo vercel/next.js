@@ -344,6 +344,29 @@ const moduleCache = Object.create(null);
     }
     return ABSOLUTE_ROOT;
 }
+/**
+ * A pseudo, `fake` URL object to resolve to the its relative path.
+ * When urlrewritebehavior is set to relative, calls to the `new URL()` will construct url without base using this
+ * runtime function to generate context-agnostic urls between different rendering context, i.e ssr / client to avoid
+ * hydration mismatch.
+ *
+ * This is largely based on the webpack's existing implementation at
+ * https://github.com/webpack/webpack/blob/87660921808566ef3b8796f8df61bd79fc026108/lib/runtime/RelativeUrlRuntimeModule.js
+ */ var relativeURL = function(inputUrl) {
+    const realUrl = new URL(inputUrl, "x:/");
+    const values = {};
+    for(var key in realUrl)values[key] = realUrl[key];
+    values.href = inputUrl;
+    values.pathname = inputUrl.replace(/[?#].*/, "");
+    values.origin = values.protocol = "";
+    values.toString = values.toJSON = (..._args)=>inputUrl;
+    for(var key in values)Object.defineProperty(this, key, {
+        enumerable: true,
+        configurable: true,
+        value: values[key]
+    });
+};
+relativeURL.prototype = URL.prototype;
 function loadChunk(chunkData) {
     if (typeof chunkData === "string") {
         return loadChunkPath(chunkData);
@@ -449,6 +472,7 @@ function instantiateModule(id, source) {
             u: loadWebAssemblyModule,
             g: globalThis,
             p: resolveAbsolutePath,
+            U: relativeURL,
             __dirname: module1.id.replace(/(^|\/)[\/]+$/, "")
         });
     } catch (error) {
