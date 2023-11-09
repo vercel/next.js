@@ -309,11 +309,12 @@ export interface ExperimentalConfig {
     bodySizeLimit?: SizeLimit
 
     /**
-     * Allowed domains that can bypass CSRF check.
+     * Allowed origins that can bypass Server Action's CSRF check. This is helpful
+     * when you have reverse proxy in front of your app.
      * @example
-     * ["my-reverse-proxy.com"]
+     * ["my-app.com"]
      */
-    allowedForwardedHosts?: string[]
+    allowedOrigins?: string[]
   }
 
   /**
@@ -789,6 +790,7 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
+    ppr: false,
   },
 }
 
