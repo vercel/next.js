@@ -301,12 +301,12 @@ jobs:
 
       - name: 'check build cache status'
         id: check-did-build
-        run: if [[ ! -z $(ls packages/next-swc/native) ]]; then echo "DID_BUILD=yup" >> $GITHUB_OUTPUT; fi
+        run: if [[ ! -z $(ls packages/next-swc/native) ]]; then echo "DID_BUILD=true" >> $GITHUB_OUTPUT; fi
 
-      # Trying to upload metrics for the Turbopack to datadog's CI pipeline execution
+      # Try to upload metrics for Turbopack to datadog's CI pipeline execution
       - name: 'Collect turbopack build metrics'
         id: check-turbopack-bytesize
-        if: ${{ steps.check-did-build.outputs.DID_BUILD == 'yup' }}
+        if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
         continue-on-error: true
         run: |
           mkdir -p ./turbopack-bin-size
@@ -322,7 +322,7 @@ jobs:
           done
 
       - name: Upload turbopack bytesize artifact
-        if: ${{ steps.check-did-build.outputs.DID_BUILD == 'yup' }}
+        if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           name: turbopack-bytesize
@@ -492,23 +492,26 @@ jobs:
           NEXT_SKIP_NATIVE_POSTINSTALL: 1
 
   upload_turbopack_bytesize:
-    name: Upload Turbopack Bytesize trace to Datadog
+    name: Upload Turbopack Bytesize metrics to Datadog
     runs-on: ubuntu-latest
     needs: [build-native]
     env:
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
     steps:
-      - name: Collect bytesize traces
+      - name: Collect bytesize metrics
         uses: actions/download-artifact@v3
         with:
           name: turbopack-bytesize
           path: turbopack-bin-size
+
       - name: Upload to Datadog
         run: |
           ls -al turbopack-bin-size
-          npm install -g @datadog/datadog-ci@2.14.0 @aws-sdk/property-provider@3
+
           for filename in turbopack-bin-size/*; do
             export BYTESIZE+=" --metrics $(cat $filename)"
           done
+
           echo "Reporting $BYTESIZE"
-          datadog-ci metric --no-fail --level pipeline $BYTESIZE
+
+          npx @datadog/datadog-ci@2.23.1 metric --no-fail --level pipeline $BYTESIZE
