@@ -164,7 +164,7 @@ impl From<&StyledString> for NapiStyledString {
 #[napi(object)]
 pub struct NapiIssueSource {
     pub source: NapiSource,
-    pub range: Option<(NapiSourcePos, NapiSourcePos)>,
+    pub range: Option<NapiIssueSourceRange>,
 }
 
 impl From<&PlainIssueSource> for NapiIssueSource {
@@ -176,7 +176,22 @@ impl From<&PlainIssueSource> for NapiIssueSource {
     ) -> Self {
         Self {
             source: (&**source).into(),
-            range: (*range).into(),
+            range: range.as_ref().map(|range| range.into()),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct NapiIssueSourceRange {
+    pub start: NapiSourcePos,
+    pub end: NapiSourcePos,
+}
+
+impl From<&(SourcePos, SourcePos)> for NapiIssueSourceRange {
+    fn from((start, end): &(SourcePos, SourcePos)) -> Self {
+        Self {
+            start: (*start).into(),
+            end: (*end).into(),
         }
     }
 }

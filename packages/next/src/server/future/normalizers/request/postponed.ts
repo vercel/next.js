@@ -1,33 +1,25 @@
+import { denormalizePagePath } from '../../../../shared/lib/page-path/denormalize-page-path'
 import type { PathnameNormalizer } from './pathname-normalizer'
+
+import { PrefixPathnameNormalizer } from './prefix'
 
 const prefix = '/_next/postponed/resume'
 
-export class PostponedPathnameNormalizer implements PathnameNormalizer {
-  constructor(private readonly ppr: boolean | undefined) {}
-
-  public match(pathname: string) {
-    // If PPR isn't enabled, we don't match.
-    if (!this.ppr) return false
-
-    // If the pathname doesn't start with the prefix, we don't match.
-    if (!pathname.startsWith(prefix)) return false
-
-    return true
+export class PostponedPathnameNormalizer
+  extends PrefixPathnameNormalizer
+  implements PathnameNormalizer
+{
+  constructor() {
+    super(prefix)
   }
 
   public normalize(pathname: string, matched?: boolean): string {
-    // If PPR isn't enabled, we don't need to normalize.
-    if (!this.ppr) return pathname
-
     // If we're not matched and we don't match, we don't need to normalize.
     if (!matched && !this.match(pathname)) return pathname
 
     // Remove the prefix.
-    pathname = pathname.substring(prefix.length) || '/'
+    pathname = super.normalize(pathname, true)
 
-    // If the pathname is equal to `/index`, we normalize it to `/`.
-    if (pathname === '/index') return '/'
-
-    return pathname
+    return denormalizePagePath(pathname)
   }
 }

@@ -4,6 +4,7 @@ import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 
 import { DevAppNormalizers } from '../../normalizers/built/app'
+import { normalizeCatchAllRoutes } from '../../../../build/normalize-catchall-routes'
 
 export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
   private readonly expression: RegExp
@@ -55,6 +56,8 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       if (pathname in appPaths) appPaths[pathname].push(page)
       else appPaths[pathname] = [page]
     }
+
+    normalizeCatchAllRoutes(appPaths)
 
     const matchers: Array<AppPageRouteMatcher> = []
     for (const filename of routeFilenames) {

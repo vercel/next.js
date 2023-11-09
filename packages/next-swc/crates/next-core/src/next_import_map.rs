@@ -285,7 +285,9 @@ pub async fn get_next_server_import_map(
 
     import_map.insert_exact_alias("next/dist/server/require-hook", external);
     match ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
             import_map.insert_exact_alias("react", external);
             import_map.insert_wildcard_alias("react/", external);
             import_map.insert_exact_alias("react-dom", external);
@@ -402,7 +404,9 @@ pub async fn get_next_edge_import_map(
 
     let ty = ty.into_value();
     match ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {}
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
@@ -499,7 +503,7 @@ async fn insert_next_server_special_aliases(
         NextRuntime::NodeJs => external_request_to_import_mapping(request),
     };
     match ty {
-        ServerContextType::Pages { pages_dir } => {
+        ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
             import_map.insert_exact_alias(
                 "@opentelemetry/api",
                 // TODO(WEB-625) this actually need to prefer the local version of
@@ -558,7 +562,9 @@ async fn insert_next_server_special_aliases(
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
     match ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
             insert_exact_alias_map(
                 import_map,
                 project_path,

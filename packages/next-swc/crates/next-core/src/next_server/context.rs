@@ -17,7 +17,7 @@ use turbopack_binding::{
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
-        ecmascript::TransformPlugin,
+        ecmascript::{references::esm::UrlRewriteBehavior, TransformPlugin},
         ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
         node::execution_context::ExecutionContext,
         turbopack::{
@@ -70,6 +70,9 @@ use crate::{
 #[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
 pub enum ServerContextType {
     Pages {
+        pages_dir: Vc<FileSystemPath>,
+    },
+    PagesApi {
         pages_dir: Vc<FileSystemPath>,
     },
     PagesData {
@@ -133,6 +136,7 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::AppRoute { .. }
         | ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::Middleware { .. } => {}
     };
@@ -147,7 +151,9 @@ pub async fn get_server_resolve_options_context(
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
     let plugins = match ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(external_cjs_modules_plugin),
@@ -325,7 +331,9 @@ pub async fn get_server_module_options_context(
     ));
 
     let module_options_context = match ty.into_value() {
-        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
             let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
                 styled_components_transform_plugin,
                 styled_jsx_transform_plugin,
@@ -343,8 +351,18 @@ pub async fn get_server_module_options_context(
                 },
             ));
 
+            let url_rewrite_behavior = Some(
+                //https://github.com/vercel/next.js/blob/bbb730e5ef10115ed76434f250379f6f53efe998/packages/next/src/build/webpack-config.ts#L1384
+                if let ServerContextType::PagesApi { .. } = ty.into_value() {
+                    UrlRewriteBehavior::Full
+                } else {
+                    UrlRewriteBehavior::Relative
+                },
+            );
+
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
+                esm_url_rewrite_behavior: url_rewrite_behavior,
                 ..Default::default()
             };
 

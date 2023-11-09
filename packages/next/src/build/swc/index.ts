@@ -503,8 +503,10 @@ export interface Issue {
       ident: string
       content?: string
     }
-    start: { line: number; column: number }
-    end: { line: number; column: number }
+    range?: {
+      start: { line: number; column: number }
+      end: { line: number; column: number }
+    }
   }
   documentationLink: string
   subIssues: Issue[]
