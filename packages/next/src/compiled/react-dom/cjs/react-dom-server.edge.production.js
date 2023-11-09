@@ -12,7 +12,7 @@
 var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-canary-7508dcd5c-20231108';
+var ReactVersion = '18.3.0-canary-746890329-20231108';
 
 // A pure JS implementation of a string hashing function. We do not use it for
 // security or obfuscation purposes, only to create compact hashes. So we
@@ -2857,10 +2857,7 @@ function pushEndInstance(target, type, props, resumableState, formatContext) {
   target.push(endChunkForTag(type));
 }
 
-function writeBootstrap(destination, renderState, resumableState) {
-  resumableState.bootstrapScriptContent = undefined;
-  resumableState.bootstrapScripts = undefined;
-  resumableState.bootstrapModules = undefined;
+function writeBootstrap(destination, renderState) {
   const bootstrapChunks = renderState.bootstrapChunks;
   let i = 0;
 
@@ -2877,8 +2874,8 @@ function writeBootstrap(destination, renderState, resumableState) {
   return true;
 }
 
-function writeCompletedRoot(destination, renderState, resumableState) {
-  return writeBootstrap(destination, renderState, resumableState);
+function writeCompletedRoot(destination, renderState) {
+  return writeBootstrap(destination, renderState);
 } // Structural Nodes
 // A placeholder is a node inside a hidden partial tree that can be filled in later, but before
 // display. It's never visible to users. We use the template tag because it can be used in every
@@ -3221,7 +3218,7 @@ function writeCompletedBoundaryInstruction(destination, resumableState, renderSt
     writeMore = writeChunkAndReturn(destination, completeBoundaryDataEnd);
   }
 
-  return writeBootstrap(destination, renderState, resumableState) && writeMore;
+  return writeBootstrap(destination, renderState) && writeMore;
 }
 const clientRenderScript1Full = stringToPrecomputedChunk(clientRenderBoundary + ';$RX("');
 const clientRenderScript1Partial = stringToPrecomputedChunk('$RX("');
@@ -8322,7 +8319,7 @@ function flushCompletedQueues(request, destination) {
 
         flushSegment(request, destination, completedRootSegment);
         request.completedRootSegment = null;
-        writeCompletedRoot(destination, request.renderState, request.resumableState);
+        writeCompletedRoot(destination, request.renderState);
       } else {
         // We haven't flushed the root yet so we don't need to check any other branches further down
         return;
