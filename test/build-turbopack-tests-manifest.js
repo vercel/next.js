@@ -52,6 +52,12 @@ const SKIPPED_TEST_SUITES = {
   'test/e2e/middleware-rewrites/test/index.test.ts': [
     'Middleware Rewrite should have props for afterFiles rewrite to SSG page',
   ],
+  'test/e2e/skip-trailing-slash-redirect/index.test.ts': [
+    'skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (with slash)',
+    'skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (without slash)',
+    'skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to dynamic route correctly',
+    'skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to index correctly',
+  ],
   'test/integration/absolute-assetprefix/test/index.test.js': [
     'absolute assetPrefix with path prefix should work with getStaticPaths prerendered',
   ],

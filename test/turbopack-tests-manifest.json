@@ -2155,20 +2155,28 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/actions-navigation/index.test.ts": {
+  "test/e2e/app-dir/actions-allowed-origins/app-action-allowed-origins.test.ts": {
     "passed": [
-      "app-dir action handling should handle actions correctly after following a relative link",
-      "app-dir action handling should handle actions correctly after navigation / redirection events"
+      "app-dir action allowed origins should pass if localhost is set as a safe origin"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/actions/app-action-allowed-hosts.test.ts": {
+  "test/e2e/app-dir/actions-allowed-origins/app-action-disallowed-origins.test.ts": {
     "passed": [
-      "app-dir action allowed fowarding hosts should error if setting an invalid x-forwarded-host header",
-      "app-dir action allowed fowarding hosts should pass if using an allowed host"
+      "app-dir action disallowed origins should error if x-forwarded-host does not match the origin"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions-navigation/index.test.ts": {
+    "passed": [
+      "app-dir action handling should handle actions correctly after following a relative link",
+      "app-dir action handling should handle actions correctly after navigation / redirection events"
     ],
     "failed": [],
     "pending": [],
@@ -3666,6 +3674,7 @@
       "parallel-routes-and-interception route intercepting should render intercepted route",
       "parallel-routes-and-interception route intercepting should render intercepted route from a nested route",
       "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
+      "parallel-routes-and-interception route intercepting should support intercepting local dynamic sibling routes",
       "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites",
       "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
@@ -3702,6 +3711,7 @@
       "ppr build errors outside of a suspense boundary should fail the build for uncaught errors",
       "ppr build errors outside of a suspense boundary when a postpone call was made but missing postpone data should fail the build",
       "ppr build errors outside of a suspense boundary when a postpone call was made but missing postpone data should fail the build & surface any errors that were thrown by user code",
+      "ppr build errors when a postpone call is caught and logged it should should include a message telling why",
       "ppr build errors within a suspense boundary should fail the build for uncaught prerender errors",
       "ppr build errors within a suspense boundary when a postpone call was made but missing postpone data should fail the build",
       "ppr build errors within a suspense boundary when a postpone call was made but missing postpone data should fail the build & surface any errors that were thrown by user code"
@@ -3730,6 +3740,7 @@
       "ppr for /suspense/node/nested/2 should serve the static part",
       "ppr for /suspense/node/nested/3 should have the dynamic part",
       "ppr for /suspense/node/nested/3 should serve the static part",
+      "ppr should indicate the feature is experimental",
       "ppr with suspense for /suspense/edge should eventually render the dynamic part",
       "ppr with suspense for /suspense/node should eventually render the dynamic part",
       "ppr without suspense for /no-suspense should immediately render the dynamic part"
@@ -5565,11 +5576,7 @@
   "test/e2e/skip-trailing-slash-redirect/index.test.ts": {
     "passed": [
       "skip-trailing-slash-redirect app dir - skip trailing slash redirect should navigate client side correctly",
-      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (with slash)",
-      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (without slash)",
       "skip-trailing-slash-redirect app dir - skip trailing slash redirect should preserve original trailing slashes to links on client",
-      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to dynamic route correctly",
-      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to index correctly",
       "skip-trailing-slash-redirect pages dir should navigate client side correctly",
       "skip-trailing-slash-redirect pages dir should not apply trailing slash redirect (with slash)",
       "skip-trailing-slash-redirect pages dir should not apply trailing slash redirect (without slash)",
@@ -5596,7 +5603,12 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (with slash)",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (without slash)",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to dynamic route correctly",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to index correctly"
+    ],
     "runtimeError": false
   },
   "test/e2e/socket-io/index.test.js": {
