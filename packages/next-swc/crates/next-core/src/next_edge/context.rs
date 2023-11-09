@@ -115,6 +115,7 @@ pub async fn get_edge_resolve_options_context(
         ServerContextType::AppRoute { .. }
         | ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::Middleware { .. } => {}
     };

@@ -2,9 +2,15 @@ import { nextBuild } from 'next-test-utils'
 
 describe('ppr build errors', () => {
   let stderr: string
+  let stdout: string
 
   beforeAll(async () => {
-    stderr = (await nextBuild(__dirname, [], { stderr: true })).stderr
+    const output = await nextBuild(__dirname, [], {
+      stderr: true,
+      stdout: true,
+    })
+    stderr = output.stderr
+    stdout = output.stdout
   })
 
   describe('within a suspense boundary', () => {
@@ -17,14 +23,14 @@ describe('ppr build errors', () => {
     describe('when a postpone call was made but missing postpone data', () => {
       it('should fail the build', async () => {
         expect(stderr).toContain(
-          'Postpone signal was caught while rendering /. Check to see if you\'re try/catching a Next.js API such as headers / cookies, or a fetch with "no-store".'
+          'Prerendering / needs to partially bail out because something dynamic was used. '
         )
       })
 
       it('should fail the build & surface any errors that were thrown by user code', async () => {
         // in the case of catching a postpone and throwing a new error, we log the error that the user threw to help with debugging
         expect(stderr).toContain(
-          'Postpone signal was caught while rendering /re-throwing-error. Check to see if you\'re try/catching a Next.js API such as headers / cookies, or a fetch with "no-store".'
+          'Prerendering /re-throwing-error needs to partially bail out because something dynamic was used. '
         )
         expect(stderr).toContain(
           'The following error was thrown during build, and may help identify the source of the issue:'
@@ -51,7 +57,7 @@ describe('ppr build errors', () => {
     describe('when a postpone call was made but missing postpone data', () => {
       it('should fail the build', async () => {
         expect(stderr).toContain(
-          'Postpone signal was caught while rendering /no-suspense-boundary. Check to see if you\'re try/catching a Next.js API such as headers / cookies, or a fetch with "no-store".'
+          'Prerendering /no-suspense-boundary needs to partially bail out because something dynamic was used. '
         )
 
         // the regular pre-render error should not be thrown as well, as we've already logged a more specific error
@@ -63,7 +69,7 @@ describe('ppr build errors', () => {
       it('should fail the build & surface any errors that were thrown by user code', async () => {
         // in the case of catching a postpone and throwing a new error, we log the error that the user threw to help with debugging
         expect(stderr).toContain(
-          'Postpone signal was caught while rendering /no-suspense-boundary-re-throwing-error. Check to see if you\'re try/catching a Next.js API such as headers / cookies, or a fetch with "no-store".'
+          'Prerendering /no-suspense-boundary-re-throwing-error needs to partially bail out because something dynamic was used. '
         )
         expect(stderr).toContain(
           'The following error was thrown during build, and may help identify the source of the issue:'
@@ -77,6 +83,14 @@ describe('ppr build errors', () => {
           'Error occurred prerendering page "/no-suspense-boundary-re-throwing-error"'
         )
       })
+    })
+  })
+
+  describe('when a postpone call is caught and logged it should', () => {
+    it('should include a message telling why', async () => {
+      expect(stdout).toContain(
+        'Logged error: This page needs to bail out of prerendering at this point because it used cookies.'
+      )
     })
   })
 })

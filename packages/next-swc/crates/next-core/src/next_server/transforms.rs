@@ -31,7 +31,9 @@ pub async fn get_next_server_transforms_rules(
     rules.push(get_next_font_transform_rule());
 
     let (is_server_components, pages_dir) = match context_ty {
-        ServerContextType::Pages { pages_dir } => (false, Some(pages_dir)),
+        ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
+            (false, Some(pages_dir))
+        }
         ServerContextType::PagesData { pages_dir } => {
             rules.push(
                 get_next_pages_transforms_rule(pages_dir, ExportFilter::StripDefaultExport).await?,
@@ -74,6 +76,7 @@ pub async fn get_next_server_internal_transforms_rules(
 
     match context_ty {
         ServerContextType::Pages { .. } => {}
+        ServerContextType::PagesApi { .. } => {}
         ServerContextType::PagesData { .. } => {}
         ServerContextType::AppSSR { .. } => {}
         ServerContextType::AppRSC {
