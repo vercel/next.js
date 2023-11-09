@@ -13,7 +13,7 @@ use std::{
 };
 
 use anyhow::{bail, Result};
-use auto_hash_map::{AutoMap, AutoSet};
+use auto_hash_map::AutoMap;
 use dashmap::{mapref::entry::Entry, DashMap};
 use rustc_hash::FxHasher;
 use tokio::task::futures::TaskLocalFuture;
@@ -32,7 +32,7 @@ use crate::{
     cell::RecomputingCell,
     gc::GcQueue,
     output::Output,
-    task::{Task, TaskDependency, DEPENDENCIES_TO_TRACK},
+    task::{Task, TaskDependency, TaskDependencySet, DEPENDENCIES_TO_TRACK},
 };
 
 pub struct MemoryBackend {
@@ -276,13 +276,13 @@ impl Backend for MemoryBackend {
     }
 
     type ExecutionScopeFuture<T: Future<Output = Result<()>> + Send + 'static> =
-        TaskLocalFuture<RefCell<AutoSet<TaskDependency>>, T>;
+        TaskLocalFuture<RefCell<TaskDependencySet>, T>;
     fn execution_scope<T: Future<Output = Result<()>> + Send + 'static>(
         &self,
         _task: TaskId,
         future: T,
     ) -> Self::ExecutionScopeFuture<T> {
-        DEPENDENCIES_TO_TRACK.scope(Default::default(), future)
+        DEPENDENCIES_TO_TRACK.scope(RefCell::new(TaskDependencySet::with_hasher()), future)
     }
 
     fn try_start_task_execution(
