@@ -288,6 +288,27 @@ createNextDescribe(
       await check(() => browser.url(), `${next.url}/client`, true, 2)
     })
 
+    it('should trigger a refresh for a server action that gets discarded due to a navigation', async () => {
+      let browser = await next.browser('/client')
+      const initialRandomNumber = await browser
+        .elementByCss('#random-number')
+        .text()
+
+      await browser.elementByCss('#slow-inc').click()
+
+      // navigate to server
+      await browser.elementByCss('#navigate-server').click()
+
+      // wait for the action to be completed
+      await check(async () => {
+        const newRandomNumber = await browser
+          .elementByCss('#random-number')
+          .text()
+
+        return newRandomNumber === initialRandomNumber ? 'fail' : 'success'
+      }, 'success')
+    })
+
     it('should support next/dynamic with ssr: false', async () => {
       const browser = await next.browser('/dynamic-csr')
 

@@ -73,8 +73,8 @@ pub async fn get_swc_ecma_transform_plugin_impl(
             project_path,
             request,
             resolve_options,
-            None,
             IssueSeverity::Error.cell(),
+            None,
         )
         .await?;
         let Some(plugin_module) = *plugin_wasm_module_resolve_result.first_module().await? else {
