@@ -254,10 +254,11 @@ function assignDefaults(
 
   if (
     result.experimental?.ppr &&
-    !process.env.__NEXT_VERSION!.includes('canary')
+    !process.env.__NEXT_VERSION!.includes('canary') &&
+    !process.env.__NEXT_TEST_MODE
   ) {
-    Log.warn(
-      `The experimental.ppr feature is present in your current version but we recommend using the latest canary version for the best experience.`
+    throw new Error(
+      `The experimental.ppr preview feature can only be enabled when using the latest canary version of Next.js. See more info here: https://nextjs.org/docs/messages/ppr-preview`
     )
   }
 
