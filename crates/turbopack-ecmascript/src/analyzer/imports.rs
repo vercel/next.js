@@ -2,11 +2,16 @@ use std::{collections::BTreeMap, fmt::Display, mem::take};
 
 use indexmap::{IndexMap, IndexSet};
 use once_cell::sync::Lazy;
-use swc_core::ecma::{
-    ast::*,
-    atoms::{js_word, JsWord},
-    visit::{Visit, VisitWith},
+use swc_core::{
+    common::{source_map::Pos, Span},
+    ecma::{
+        ast::*,
+        atoms::{js_word, JsWord},
+        visit::{Visit, VisitWith},
+    },
 };
+use turbo_tasks::Vc;
+use turbopack_core::{issue::LazyIssueSource, source::Source};
 
 use super::{JsValue, ModuleValue};
 use crate::utils::unparen;
@@ -81,7 +86,7 @@ pub(crate) enum Reexport {
 
 /// The storage for all kinds of imports.
 ///
-/// Note that wHen it's initialized by calling `analyze`, it only contains ESM
+/// Note that when it's initialized by calling `analyze`, it only contains ESM
 /// import/exports.
 #[derive(Default, Debug)]
 pub(crate) struct ImportMap {
@@ -113,6 +118,7 @@ pub(crate) struct ImportMapReference {
     pub module_path: JsWord,
     pub imported_symbol: ImportedSymbol,
     pub annotations: ImportAnnotations,
+    pub issue_source: Option<Vc<LazyIssueSource>>,
 }
 
 impl ImportMap {
@@ -161,12 +167,13 @@ impl ImportMap {
     }
 
     /// Analyze ES import
-    pub(super) fn analyze(m: &Program) -> Self {
+    pub(super) fn analyze(m: &Program, source: Option<Vc<Box<dyn Source>>>) -> Self {
         let mut data = ImportMap::default();
 
         m.visit_with(&mut Analyzer {
             data: &mut data,
             current_annotations: ImportAnnotations::default(),
+            source,
         });
 
         data
@@ -176,18 +183,25 @@ impl ImportMap {
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
     current_annotations: ImportAnnotations,
+    source: Option<Vc<Box<dyn Source>>>,
 }
 
 impl<'a> Analyzer<'a> {
     fn ensure_reference(
         &mut self,
+        span: Span,
         module_path: JsWord,
         imported_symbol: ImportedSymbol,
         annotations: ImportAnnotations,
     ) -> usize {
+        let issue_source = self
+            .source
+            .map(|s| LazyIssueSource::from_swc_offsets(s, span.lo.to_usize(), span.hi.to_usize()));
+
         let r = ImportMapReference {
             module_path,
             imported_symbol,
+            issue_source,
             annotations,
         };
         if let Some(i) = self.data.references.get_index_of(&r) {
@@ -244,8 +258,8 @@ impl Visit for Analyzer<'_> {
 
     fn visit_import_decl(&mut self, import: &ImportDecl) {
         let annotations = take(&mut self.current_annotations);
-
         self.ensure_reference(
+            import.span,
             import.src.value.clone(),
             ImportedSymbol::ModuleEvaluation,
             annotations.clone(),
@@ -253,7 +267,12 @@ impl Visit for Analyzer<'_> {
 
         for s in &import.specifiers {
             let symbol = get_import_symbol_from_import(s);
-            let i = self.ensure_reference(import.src.value.clone(), symbol, annotations.clone());
+            let i = self.ensure_reference(
+                import.span,
+                import.src.value.clone(),
+                symbol,
+                annotations.clone(),
+            );
 
             let (local, orig_sym) = match s {
                 ImportSpecifier::Named(ImportNamedSpecifier {
@@ -278,11 +297,13 @@ impl Visit for Analyzer<'_> {
 
         let annotations = take(&mut self.current_annotations);
         self.ensure_reference(
+            export.span,
             export.src.value.clone(),
             ImportedSymbol::ModuleEvaluation,
             annotations.clone(),
         );
         let i = self.ensure_reference(
+            export.span,
             export.src.value.clone(),
             ImportedSymbol::Namespace,
             annotations,
@@ -296,6 +317,7 @@ impl Visit for Analyzer<'_> {
             let annotations = take(&mut self.current_annotations);
 
             self.ensure_reference(
+                export.span,
                 src.value.clone(),
                 ImportedSymbol::ModuleEvaluation,
                 annotations.clone(),
@@ -304,7 +326,12 @@ impl Visit for Analyzer<'_> {
             for spec in export.specifiers.iter() {
                 let symbol = get_import_symbol_from_export(spec);
 
-                let i = self.ensure_reference(src.value.clone(), symbol, annotations.clone());
+                let i = self.ensure_reference(
+                    export.span,
+                    src.value.clone(),
+                    symbol,
+                    annotations.clone(),
+                );
 
                 match spec {
                     ExportSpecifier::Namespace(n) => {

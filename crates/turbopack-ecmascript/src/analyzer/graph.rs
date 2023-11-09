@@ -12,6 +12,8 @@ use swc_core::{
         visit::{fields::*, VisitAstPath, VisitWithPath, *},
     },
 };
+use turbo_tasks::Vc;
+use turbopack_core::source::Source;
 
 use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind};
 use crate::{analyzer::is_unresolved, utils::unparen};
@@ -263,10 +265,14 @@ pub struct EvalContext {
 }
 
 impl EvalContext {
-    pub fn new(module: &Program, unresolved_mark: Mark) -> Self {
+    pub fn new(
+        module: &Program,
+        unresolved_mark: Mark,
+        source: Option<Vc<Box<dyn Source>>>,
+    ) -> Self {
         Self {
             unresolved_mark,
-            imports: ImportMap::analyze(module),
+            imports: ImportMap::analyze(module, source),
         }
     }
 

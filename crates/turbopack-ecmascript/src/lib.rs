@@ -272,6 +272,11 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
+    pub async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
+        Ok(self.await?.source)
+    }
+
+    #[turbo_tasks::function]
     pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
         analyze_ecmascript_module(self, None)
     }

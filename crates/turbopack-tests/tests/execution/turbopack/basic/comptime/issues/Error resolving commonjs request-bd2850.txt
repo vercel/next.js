@@ -1,10 +1,10 @@
-error - [resolve] [project]/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js  /crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js:4:5  Error resolving commonjs request
+error - [resolve] [project]/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js  /crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js:4:4  Error resolving commonjs request
        1 | it("importing a not existing file should throw", () => {
        2 |   // This is a check to make sure that the following tests would fail if they require("fail")
        3 |   expect(() => {
-         +      v----------------------------v
+         +     v----------------------------v
        4 +     require("./not-existing-file");
-         +      ^----------------------------^
+         +     ^----------------------------^
        5 |   }).toThrow();
        6 | });
        7 | 

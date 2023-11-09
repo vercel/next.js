@@ -124,6 +124,10 @@ type SourcePos = {
 
 type IssueSource = {
   asset: IssueAsset;
+  range?: IssueSourceRange;
+};
+
+type IssueSourceRange = {
   start: SourcePos;
   end: SourcePos;
 };

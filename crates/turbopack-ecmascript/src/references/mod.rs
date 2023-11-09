@@ -316,7 +316,7 @@ pub(crate) async fn analyze_ecmascript_module(
 
     let parsed = if let Some(part) = part {
         let parsed = parse(source, ty, transforms);
-        let split_data = split(path, parsed);
+        let split_data = split(path, source, parsed);
         part_of_module(split_data, part)
     } else {
         parse(source, ty, transforms)
@@ -435,6 +435,7 @@ pub(crate) async fn analyze_ecmascript_module(
         let r = EsmAssetReference::new(
             origin,
             Request::parse(Value::new(r.module_path.to_string().into())),
+            r.issue_source,
             Value::new(r.annotations.clone()),
             if options.import_parts {
                 match &r.imported_symbol {
@@ -962,7 +963,11 @@ pub(crate) async fn analyze_ecmascript_module(
                     Request::parse(Value::new(pat)),
                     compile_time_info.environment().rendering(),
                     Vc::cell(ast_path),
-                    LazyIssueSource::new(source, span.lo.to_usize(), span.hi.to_usize()),
+                    LazyIssueSource::from_swc_offsets(
+                        source,
+                        span.lo.to_usize(),
+                        span.hi.to_usize(),
+                    ),
                     in_try,
                     options
                         .url_rewrite_behavior
@@ -1759,6 +1764,11 @@ async fn handle_free_var_reference(
                     ))
                 }),
                 Request::parse(Value::new(request.clone().into())),
+                Some(LazyIssueSource::from_swc_offsets(
+                    state.source,
+                    span.lo.to_usize(),
+                    span.hi.to_usize(),
+                )),
                 Default::default(),
                 state
                     .import_parts
@@ -1783,7 +1793,7 @@ async fn handle_free_var_reference(
 }
 
 fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<LazyIssueSource> {
-    LazyIssueSource::new(source, span.lo.to_usize(), span.hi.to_usize())
+    LazyIssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
 fn analyze_amd_define(
