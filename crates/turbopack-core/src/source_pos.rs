@@ -22,7 +22,9 @@ const U8_CR: u8 = 0x0D;
     DeterministicHash,
 )]
 pub struct SourcePos {
+    /// The line, 0-indexed.
     pub line: usize,
+    /// The byte index of the column, 0-indexed.
     pub column: usize,
 }
 

@@ -341,7 +341,7 @@ async fn parse_content(
                 &mut swc_core::ecma::transforms::base::helpers::inject_helpers(unresolved_mark),
             );
 
-            let eval_context = EvalContext::new(&parsed_program, unresolved_mark);
+            let eval_context = EvalContext::new(&parsed_program, unresolved_mark, Some(source));
 
             Ok::<ParseResult, anyhow::Error>(ParseResult::Ok {
                 program: parsed_program,

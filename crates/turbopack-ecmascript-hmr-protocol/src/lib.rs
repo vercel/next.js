@@ -124,6 +124,11 @@ pub struct Asset<'a> {
 #[derive(Serialize)]
 pub struct IssueSource<'a> {
     pub asset: Asset<'a>,
+    pub range: Option<IssueSourceRange>,
+}
+
+#[derive(Serialize)]
+pub struct IssueSourceRange {
     pub start: SourcePos,
     pub end: SourcePos,
 }
@@ -151,8 +156,9 @@ impl<'a> From<&'a PlainIssue> for Issue<'a> {
             asset: Asset {
                 path: &source.asset.ident,
             },
-            start: source.start,
-            end: source.end,
+            range: source
+                .range
+                .map(|(start, end)| IssueSourceRange { start, end }),
         });
 
         Issue {

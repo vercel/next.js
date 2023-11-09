@@ -4,7 +4,10 @@ use rustc_hash::FxHashMap;
 use swc_core::ecma::ast::{Id, Module, Program};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::resolve::{origin::ResolveOrigin, ModulePart};
+use turbopack_core::{
+    resolve::{origin::ResolveOrigin, ModulePart},
+    source::Source,
+};
 
 use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModuleResult};
 use crate::{analyzer::graph::EvalContext, parse::ParseResult, EcmascriptModuleAsset};
@@ -296,12 +299,13 @@ impl PartialEq for SplitResult {
 
 #[turbo_tasks::function]
 pub(super) fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Vc<SplitResult> {
-    split(asset.origin_path(), asset.parse())
+    split(asset.origin_path(), asset.source(), asset.parse())
 }
 
 #[turbo_tasks::function]
 pub(super) async fn split(
     path: Vc<FileSystemPath>,
+    source: Vc<Box<dyn Source>>,
     parsed: Vc<ParseResult>,
 ) -> Result<Vc<SplitResult>> {
     let filename = path.await?.file_name().to_string();
@@ -330,7 +334,8 @@ pub(super) async fn split(
                 .into_iter()
                 .map(|module| {
                     let program = Program::Module(module);
-                    let eval_context = EvalContext::new(&program, eval_context.unresolved_mark);
+                    let eval_context =
+                        EvalContext::new(&program, eval_context.unresolved_mark, Some(source));
 
                     ParseResult::cell(ParseResult::Ok {
                         program,

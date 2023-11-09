@@ -79,13 +79,11 @@ fn severity_to_style(severity: IssueSeverity) -> Style {
 
 fn format_source_content(source: &PlainIssueSource, formatted_issue: &mut String) {
     if let FileLinesContent::Lines(lines) = source.asset.content.lines_ref() {
-        let start_line = source.start.line;
-        let end_line = source.end.line;
-        let start_column = source.start.column;
-        let end_column = source.end.column;
-        let lines = lines.iter().map(|l| l.content.as_str());
-        let ctx = get_source_context(lines, start_line, start_column, end_line, end_column);
-        format_source_context_lines(&ctx, formatted_issue);
+        if let Some((start, end)) = source.range {
+            let lines = lines.iter().map(|l| l.content.as_str());
+            let ctx = get_source_context(lines, start.line, start.column, end.line, end.column);
+            format_source_context_lines(&ctx, formatted_issue);
+        }
     }
 }
 
@@ -143,23 +141,8 @@ pub fn format_issue(
         .replace("/./", "/")
         .replace("\\\\?\\", "");
     let category = &plain_issue.category;
-    let title = &plain_issue.title;
 
-    let mut styled_issue = if let Some(source) = &plain_issue.source {
-        let mut styled_issue = format!(
-            "{}:{}:{}  {}",
-            context_path,
-            source.start.line + 1,
-            source.start.column,
-            title.bold()
-        );
-        styled_issue.push('\n');
-        format_source_content(source, &mut styled_issue);
-        styled_issue
-    } else {
-        format!("{}", title.bold())
-    };
-
+    let mut styled_issue = style_issue_source(plain_issue, &context_path);
     let description = &plain_issue.description;
     if !description.is_empty() {
         writeln!(styled_issue, "\n{description}").unwrap();
@@ -395,27 +378,12 @@ impl IssueReporter for ConsoleUi {
             let context_path =
                 make_relative_to_cwd(&plain_issue.file_path, project_dir, current_dir);
             let category = &plain_issue.category;
-            let title = &plain_issue.title;
             let processing_path = &*plain_issue.processing_path;
             let severity_map = grouped_issues.entry(severity).or_default();
             let category_map = severity_map.entry(category.clone()).or_default();
             let issues = category_map.entry(context_path.to_string()).or_default();
 
-            let mut styled_issue = if let Some(source) = &plain_issue.source {
-                let mut styled_issue = format!(
-                    "{}:{}:{}  {}",
-                    context_path,
-                    source.start.line + 1,
-                    source.start.column,
-                    title.bold()
-                );
-                styled_issue.push('\n');
-                format_source_content(source, &mut styled_issue);
-                styled_issue
-            } else {
-                format!("{}", title.bold())
-            };
-
+            let mut styled_issue = style_issue_source(&plain_issue, &context_path);
             let description = &plain_issue.description;
             if !description.is_empty() {
                 writeln!(&mut styled_issue, "\n{description}")?;
@@ -568,5 +536,27 @@ fn show_all_message_with_shown_count(
             "--show-all".bright_green()
         )
         .bold()
+    }
+}
+
+fn style_issue_source(plain_issue: &PlainIssue, context_path: &str) -> String {
+    let title = &plain_issue.title;
+
+    if let Some(source) = &plain_issue.source {
+        let mut styled_issue = match source.range {
+            Some((start, _)) => format!(
+                "{}:{}:{}  {}",
+                context_path,
+                start.line + 1,
+                start.column,
+                title.bold()
+            ),
+            None => format!("{}  {}", context_path, title.bold()),
+        };
+        styled_issue.push('\n');
+        format_source_content(source, &mut styled_issue);
+        styled_issue
+    } else {
+        format!("{}", title.bold())
     }
 }
