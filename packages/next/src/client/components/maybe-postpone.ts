@@ -8,10 +8,15 @@ export function maybePostpone(
   // we don't need to postpone.
   if (
     !staticGenerationStore.isStaticGeneration ||
-    !staticGenerationStore.experimental.ppr ||
-    !staticGenerationStore.postpone
+    !staticGenerationStore.experimental.ppr
   ) {
     return
+  }
+
+  if (!staticGenerationStore.postpone) {
+    throw new Error(
+      'Invariant: PPR is enabled but the postpone API is unavailable'
+    )
   }
 
   // Keep track of if the postpone API has been called.

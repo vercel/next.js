@@ -58,6 +58,8 @@ export function unstable_cache<T extends Callback>(
       )
     }
 
+    const React = require('react') as typeof import('react')
+
     const joinedKey = `${cb.toString()}-${
       Array.isArray(keyParts) && keyParts.join(',')
     }-${JSON.stringify(args)}`
@@ -78,6 +80,7 @@ export function unstable_cache<T extends Callback>(
         experimental: {
           ppr: store?.experimental?.ppr === true,
         },
+        postpone: React.unstable_postpone,
       },
       async () => {
         const tags = validateTags(
