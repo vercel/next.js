@@ -6,6 +6,7 @@ let initializeResult:
   | {
       ipcPort: number
       ipcValidationKey: string
+      ipcServer: import('http').Server
     }
 
 export async function initialize(
@@ -13,7 +14,7 @@ export async function initialize(
 ): Promise<NonNullable<typeof initializeResult>> {
   const incrementalCache = new IncrementalCache(...constructorArgs)
 
-  const { ipcPort, ipcValidationKey } = await createIpcServer({
+  const { ipcPort, ipcValidationKey, ipcServer } = await createIpcServer({
     async revalidateTag(
       ...args: Parameters<IncrementalCache['revalidateTag']>
     ) {
@@ -40,5 +41,6 @@ export async function initialize(
   return {
     ipcPort,
     ipcValidationKey,
+    ipcServer,
   }
 }
