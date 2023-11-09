@@ -530,12 +530,8 @@
   },
   "packages/next/src/server/future/normalizers/request/base-path.test.ts": {
     "passed": [
-      "BasePathPathnameNormalizer match should return false if the pathname does not start with the basePath",
-      "BasePathPathnameNormalizer match should return false if there is no basePath",
-      "BasePathPathnameNormalizer match should return true if the pathname starts with the basePath",
-      "BasePathPathnameNormalizer normalize should return the same pathname if there is no basePath",
-      "BasePathPathnameNormalizer normalize should return the same pathname if we are not matched and the pathname does not start with the basePath",
-      "BasePathPathnameNormalizer normalize should strip the basePath from the pathname when it matches"
+      "BasePathPathnameNormalizer should throw when provided with a basePath of \"/\"",
+      "BasePathPathnameNormalizer should throw when provided with a blank basePath"
     ],
     "failed": [],
     "pending": [],
@@ -559,42 +555,36 @@
   },
   "packages/next/src/server/future/normalizers/request/postponed.test.ts": {
     "passed": [
-      "PostponedPathnameNormalizer match should match if it is enabled",
+      "PostponedPathnameNormalizer match should match",
       "PostponedPathnameNormalizer match should not match for other pathnames",
-      "PostponedPathnameNormalizer match should not match if it is disabled",
       "PostponedPathnameNormalizer normalize should normalize `/index` to `/`",
-      "PostponedPathnameNormalizer normalize should normalize if it is enabled and matched",
-      "PostponedPathnameNormalizer normalize should not normalize if it is disabled",
-      "PostponedPathnameNormalizer normalize should not normalize if it is enabled but not matched"
+      "PostponedPathnameNormalizer normalize should normalize when matched",
+      "PostponedPathnameNormalizer normalize should not normalize but not matched"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/prefetch-rsc.test.ts": {
+  "packages/next/src/server/future/normalizers/request/prefix.test.ts": {
     "passed": [
-      "PrefetchRSCPathnameNormalizer match should return false if it is disabled but ends with .prefetch.rsc",
-      "PrefetchRSCPathnameNormalizer match should return false if it only ends in .rsc",
-      "PrefetchRSCPathnameNormalizer match should return false if the pathname does not end with `.prefetch.rsc`",
-      "PrefetchRSCPathnameNormalizer match should return true if it matches",
-      "PrefetchRSCPathnameNormalizer normalize should return the same pathname if it is disabled but ends with .prefetch.rsc",
-      "PrefetchRSCPathnameNormalizer normalize should return the same pathname if we are not matched and the pathname does not end with `.prefetch.rsc`",
-      "PrefetchRSCPathnameNormalizer normalize should strip the `.prefetch.rsc` extension from the pathname when it matches"
+      "PrefixPathnameNormalizer match should return false if the pathname does not start with the prefix",
+      "PrefixPathnameNormalizer match should return true if the pathname starts with the prefix",
+      "PrefixPathnameNormalizer normalize should return the same pathname if we are not matched and the pathname does not start with the prefix",
+      "PrefixPathnameNormalizer normalize should strip the prefix from the pathname when it matches",
+      "PrefixPathnameNormalizer should throw if the prefix ends with a slash"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/rsc.test.ts": {
+  "packages/next/src/server/future/normalizers/request/suffix.test.ts": {
     "passed": [
-      "RSCPathnameNormalizer match should return false if it is disabled but ends with .rsc",
-      "RSCPathnameNormalizer match should return false if the pathname does not end with `.rsc`",
-      "RSCPathnameNormalizer match should return true if it matches",
-      "RSCPathnameNormalizer normalize should return the same pathname if it is disabled but ends with .rsc",
-      "RSCPathnameNormalizer normalize should return the same pathname if we are not matched and the pathname does not end with `.rsc`",
-      "RSCPathnameNormalizer normalize should strip the `.rsc` extension from the pathname when it matches"
+      "SuffixPathnameNormalizer match should return false if the pathname does not end with `.rsc`",
+      "SuffixPathnameNormalizer match should return true if it matches",
+      "SuffixPathnameNormalizer normalize should return the same pathname if we are not matched and the pathname does not end with `.rsc`",
+      "SuffixPathnameNormalizer normalize should strip the `.rsc` extension from the pathname when it matches"
     ],
     "failed": [],
     "pending": [],
@@ -1342,13 +1332,13 @@
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
-      "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state"
+      "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state",
+      "ReactRefreshLogBox turbo stuck error"
     ],
     "failed": [
       "ReactRefreshLogBox turbo logbox: can recover from a component error",
       "ReactRefreshLogBox turbo logbox: can recover from a event handler error",
       "ReactRefreshLogBox turbo render error not shown right after syntax error",
-      "ReactRefreshLogBox turbo stuck error",
       "ReactRefreshLogBox turbo syntax > runtime error"
     ],
     "pending": [
@@ -2165,20 +2155,28 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/actions-navigation/index.test.ts": {
+  "test/e2e/app-dir/actions-allowed-origins/app-action-allowed-origins.test.ts": {
     "passed": [
-      "app-dir action handling should handle actions correctly after following a relative link",
-      "app-dir action handling should handle actions correctly after navigation / redirection events"
+      "app-dir action allowed origins should pass if localhost is set as a safe origin"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/actions/app-action-allowed-hosts.test.ts": {
+  "test/e2e/app-dir/actions-allowed-origins/app-action-disallowed-origins.test.ts": {
     "passed": [
-      "app-dir action allowed fowarding hosts should error if setting an invalid x-forwarded-host header",
-      "app-dir action allowed fowarding hosts should pass if using an allowed host"
+      "app-dir action disallowed origins should error if x-forwarded-host does not match the origin"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions-navigation/index.test.ts": {
+    "passed": [
+      "app-dir action handling should handle actions correctly after following a relative link",
+      "app-dir action handling should handle actions correctly after navigation / redirection events"
     ],
     "failed": [],
     "pending": [],
@@ -3368,12 +3366,10 @@
       "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
       "app dir - metadata dynamic routes text routes should handle robots.[ext] dynamic routes",
       "app dir - metadata dynamic routes text routes should handle sitemap.[ext] dynamic routes",
-      "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used",
-      "app dir - metadata dynamic routes should generate unique path for image routes under group routes",
-      "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime"
+      "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used"
     ],
     "failed": [
-      "app dir - should error if the default export of dynamic image is missing"
+      "app dir - metadata dynamic routes should error if the default export of dynamic image is missing"
     ],
     "pending": [],
     "flakey": [],
@@ -3679,6 +3675,7 @@
       "parallel-routes-and-interception route intercepting should render intercepted route",
       "parallel-routes-and-interception route intercepting should render intercepted route from a nested route",
       "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
+      "parallel-routes-and-interception route intercepting should support intercepting local dynamic sibling routes",
       "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites",
       "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
@@ -3715,6 +3712,7 @@
       "ppr build errors outside of a suspense boundary should fail the build for uncaught errors",
       "ppr build errors outside of a suspense boundary when a postpone call was made but missing postpone data should fail the build",
       "ppr build errors outside of a suspense boundary when a postpone call was made but missing postpone data should fail the build & surface any errors that were thrown by user code",
+      "ppr build errors when a postpone call is caught and logged it should should include a message telling why",
       "ppr build errors within a suspense boundary should fail the build for uncaught prerender errors",
       "ppr build errors within a suspense boundary when a postpone call was made but missing postpone data should fail the build",
       "ppr build errors within a suspense boundary when a postpone call was made but missing postpone data should fail the build & surface any errors that were thrown by user code"
@@ -3743,6 +3741,7 @@
       "ppr for /suspense/node/nested/2 should serve the static part",
       "ppr for /suspense/node/nested/3 should have the dynamic part",
       "ppr for /suspense/node/nested/3 should serve the static part",
+      "ppr should indicate the feature is experimental",
       "ppr with suspense for /suspense/edge should eventually render the dynamic part",
       "ppr with suspense for /suspense/node should eventually render the dynamic part",
       "ppr without suspense for /no-suspense should immediately render the dynamic part"
@@ -5578,7 +5577,11 @@
   "test/e2e/skip-trailing-slash-redirect/index.test.ts": {
     "passed": [
       "skip-trailing-slash-redirect app dir - skip trailing slash redirect should navigate client side correctly",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (with slash)",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (without slash)",
       "skip-trailing-slash-redirect app dir - skip trailing slash redirect should preserve original trailing slashes to links on client",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to dynamic route correctly",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to index correctly",
       "skip-trailing-slash-redirect pages dir should navigate client side correctly",
       "skip-trailing-slash-redirect pages dir should not apply trailing slash redirect (with slash)",
       "skip-trailing-slash-redirect pages dir should not apply trailing slash redirect (without slash)",
@@ -5603,12 +5606,7 @@
       "skip-trailing-slash-redirect should parse locale info for data request correctly",
       "skip-trailing-slash-redirect should provide original _next/data URL with skipMiddlewareUrlNormalize"
     ],
-    "failed": [
-      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (with slash)",
-      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (without slash)",
-      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to dynamic route correctly",
-      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to index correctly"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
