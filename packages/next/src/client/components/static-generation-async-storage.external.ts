@@ -28,7 +28,7 @@ export interface StaticGenerationStore {
   dynamicShouldError?: boolean
   pendingRevalidates?: Promise<any>[]
   postponeWasTriggered?: boolean
-  postpone: ((reason: string) => never) | undefined
+  postpone?: (reason: string) => never
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
