@@ -17,7 +17,7 @@ use turbopack_binding::{
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
-        ecmascript::TransformPlugin,
+        ecmascript::{references::esm::UrlRewriteBehavior, TransformPlugin},
         ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
         node::execution_context::ExecutionContext,
         turbopack::{
@@ -351,8 +351,18 @@ pub async fn get_server_module_options_context(
                 },
             ));
 
+            let url_rewrite_behavior = Some(
+                //https://github.com/vercel/next.js/blob/bbb730e5ef10115ed76434f250379f6f53efe998/packages/next/src/build/webpack-config.ts#L1384
+                if let ServerContextType::PagesApi { .. } = ty.into_value() {
+                    UrlRewriteBehavior::Full
+                } else {
+                    UrlRewriteBehavior::Relative
+                },
+            );
+
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
+                esm_url_rewrite_behavior: url_rewrite_behavior,
                 ..Default::default()
             };
 
