@@ -23,10 +23,7 @@ let devOutput
       () => {
         it('should not fail to build invalid usage of the Image component', async () => {
           const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-          const errors = stderr
-            .split('\n')
-            .filter((line: string) => line && !line.trim().startsWith('⚠'))
-          expect(errors).toEqual([])
+          expect(stderr).toBeFalsy()
           expect(code).toBe(0)
         })
       }

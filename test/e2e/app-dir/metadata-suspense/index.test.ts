@@ -1,7 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
-  'app dir - metadata dynamic routes',
+  'app dir - metadata dynamic routes suspense',
   {
     files: __dirname,
     skipDeployment: true,

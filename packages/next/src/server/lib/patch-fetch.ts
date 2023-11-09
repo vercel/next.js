@@ -92,7 +92,9 @@ export function addImplicitTags(staticGenerationStore: StaticGenerationStore) {
   }
 
   if (urlPathname) {
-    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${urlPathname}`
+    const parsedPathname = new URL(urlPathname, 'http://n').pathname
+
+    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${parsedPathname}`
     if (!staticGenerationStore.tags?.includes(tag)) {
       staticGenerationStore.tags.push(tag)
     }
@@ -520,7 +522,7 @@ export function patchFetch({
           const entry = staticGenerationStore.isOnDemandRevalidate
             ? null
             : await staticGenerationStore.incrementalCache.get(cacheKey, {
-                fetchCache: true,
+                kindHint: 'fetch',
                 revalidate,
                 fetchUrl,
                 fetchIdx,
