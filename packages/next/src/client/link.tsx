@@ -571,6 +571,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         return
       }
 
+      if (nativeBehavior) {
+        return
+      }
+
       // Prefetch the URL.
       prefetch(
         router,
@@ -672,6 +676,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
+        if (nativeBehavior) {
+          return;
+        }
+
         prefetch(
           router,
           href,
@@ -707,6 +715,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
         if (!prefetchEnabled && isAppRouter) {
           return
+        }
+
+        if (nativeBehavior) {
+          return;
         }
 
         prefetch(
