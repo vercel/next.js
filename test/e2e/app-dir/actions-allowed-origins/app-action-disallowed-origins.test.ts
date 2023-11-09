@@ -1,10 +1,11 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import { join } from 'path'
 
 createNextDescribe(
-  'app-dir action allowed fowarding hosts',
+  'app-dir action disallowed origins',
   {
-    files: __dirname,
+    files: join(__dirname, 'unsafe-origins'),
     skipDeployment: true,
     dependencies: {
       react: 'latest',
@@ -13,10 +14,10 @@ createNextDescribe(
     },
   },
   ({ next }) => {
-    it('should error if setting an invalid x-forwarded-host header', async function () {
-      const browser = await next.browser('/safe-hosts')
+    // Origin should be localhost
+    it('should error if x-forwarded-host does not match the origin', async function () {
+      const browser = await next.browser('/')
 
-      await browser.eval(`window.__override_forwarded_host = 'bad.com'`)
       await browser.elementByCss('button').click()
 
       await check(async () => {
@@ -27,17 +28,6 @@ createNextDescribe(
           ? 'yes'
           : 'no'
       }, 'yes')
-    })
-
-    it('should pass if using an allowed host', async function () {
-      const browser = await next.browser('/safe-hosts')
-
-      await browser.eval(`window.__override_forwarded_host = 'safe.com'`)
-      await browser.elementByCss('button').click()
-
-      await check(() => {
-        return browser.elementByCss('#res').text()
-      }, 'hi')
     })
   }
 )
