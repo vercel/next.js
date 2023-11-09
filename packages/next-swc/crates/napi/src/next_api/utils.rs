@@ -130,7 +130,7 @@ impl From<&PlainIssue> for NapiIssue {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "camelCase")]
 pub enum NapiStyledString {
     Line { value: Vec<NapiStyledString> },
     Stack { value: Vec<NapiStyledString> },

@@ -475,16 +475,20 @@ export interface TurboEngineOptions {
 
 export type StyledString =
   | {
-      type: 'string'
+      type: 'text'
       value: string
     }
   | {
-      type: 'pre'
+      type: 'code'
       value: string
     }
   | {
       type: 'strong'
       value: string
+    }
+  | {
+      type: 'stack'
+      value: StyledString[]
     }
   | {
       type: 'line'
