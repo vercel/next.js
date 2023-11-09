@@ -365,6 +365,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         onMouseEnter: true,
         onTouchStart: true,
         legacyBehavior: true,
+        nativeBehavior: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
         optionalPropsGuard
@@ -406,7 +407,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           key === 'shallow' ||
           key === 'passHref' ||
           key === 'prefetch' ||
-          key === 'legacyBehavior'
+          key === 'legacyBehavior' ||
+          key === 'nativeBehavior'
         ) {
           if (props[key] != null && valType !== 'boolean') {
             throw createPropError({
