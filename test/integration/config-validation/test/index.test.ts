@@ -74,7 +74,7 @@ describe('next.config.js validation', () => {
       await fs.remove(nextConfigPath)
 
       expect(result.stdout + result.stderr).not.toContain(
-        '"env.QUX" is missing, expected string'
+        '"env.QUX" is missing'
       )
     })
   })
