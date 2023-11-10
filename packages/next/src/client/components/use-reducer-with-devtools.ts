@@ -86,13 +86,13 @@ export function useUnwrapState(state: ReducerState): AppRouterState {
 
 function useReducerWithReduxDevtoolsNoop(
   initialState: AppRouterState
-): [ReducerState, Dispatch<ReducerActions>, () => void] {
-  return [initialState, () => {}, () => {}]
+): [ReducerState, Dispatch<ReducerActions>] {
+  return [initialState, () => {}]
 }
 
 function useReducerWithReduxDevtoolsImpl(
   initialState: AppRouterState
-): [ReducerState, Dispatch<ReducerActions>, () => void] {
+): [ReducerState, Dispatch<ReducerActions>] {
   const [state, setState] = React.useState<ReducerState>(initialState)
 
   const actionQueue = useContext(ActionQueueContext)
@@ -149,16 +149,7 @@ function useReducerWithReduxDevtoolsImpl(
     [actionQueue, initialState]
   )
 
-  const sync = useCallback(() => {
-    if (devtoolsConnectionRef.current) {
-      devtoolsConnectionRef.current.send(
-        { type: 'RENDER_SYNC' },
-        normalizeRouterState(state)
-      )
-    }
-  }, [state])
-
-  return [state, dispatch, sync]
+  return [state, dispatch]
 }
 
 export const useReducerWithReduxDevtools =
