@@ -188,7 +188,7 @@ function printWarning(level, format, args) {
   }
 }
 
-var ReactVersion = '18.3.0-experimental-7508dcd5c-20231108';
+var ReactVersion = '18.3.0-experimental-0e352ea01-20231109';
 
 // ATTENTION
 // When adding new symbols to this file,

@@ -7,11 +7,12 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
+
 'use strict';
 
 var React = require("next/dist/compiled/react-experimental");
 
-var ReactVersion = '18.3.0-experimental-7508dcd5c-20231108';
+var ReactVersion = '18.3.0-experimental-0e352ea01-20231109';
 
 const Internals = {
   usingClientEntryPoint: false,
