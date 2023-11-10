@@ -5784,6 +5784,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/weird-chars-in-scripts/weird-chars-in-scripts.test.ts": {
+    "passed": ["weird chars in scripts should load in the browser"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/yarn-pnp/test/with-eslint.test.ts": {
     "passed": [],
     "failed": [
