@@ -12,7 +12,9 @@ use turbopack_binding::turbopack::{
     ecmascript::{chunk::EcmascriptChunkingContext, utils::StringifyJs},
 };
 
-use super::{ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId};
+use super::{
+    utils::encode_url, ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId,
+};
 use crate::{
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceType, ClientReferences},
@@ -156,13 +158,13 @@ impl ClientReferenceManifest {
                         .map(|chunk| chunk.ident().path())
                         .try_join()
                         .await?;
-                    let client_chunks_paths: Vec<String> = client_chunks_paths
+                    let client_chunks_urls: Vec<String> = client_chunks_paths
                         .iter()
                         .filter_map(|chunk_path| client_relative_path.get_path_to(chunk_path))
-                        .map(ToString::to_string)
                         // It's possible that a chunk also emits CSS files, that will
                         // be handled separatedly.
                         .filter(|path| path.ends_with(".js"))
+                        .map(encode_url)
                         .collect::<Vec<_>>();
 
                     let ssr_chunks_paths = ssr_chunks
@@ -183,7 +185,7 @@ impl ClientReferenceManifest {
                         ManifestNodeEntry {
                             name: "*".to_string(),
                             id: (&*client_module_id).into(),
-                            chunks: client_chunks_paths.clone(),
+                            chunks: client_chunks_urls,
                             // TODO(WEB-434)
                             r#async: false,
                         },
@@ -200,7 +202,7 @@ impl ClientReferenceManifest {
                                 // loading chunks.
                                 vec![]
                             } else {
-                                ssr_chunks_paths.clone()
+                                ssr_chunks_paths
                             },
                             // TODO(WEB-434)
                             r#async: false,

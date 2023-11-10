@@ -96,7 +96,7 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
         nonce={props.nonce}
         crossOrigin={props.crossOrigin || crossOrigin}
         noModule={true}
-        src={`${assetPrefix}/_next/${polyfill}${assetQueryString}`}
+        src={`${assetPrefix}/_next/${encodeFile(polyfill)}${assetQueryString}`}
       />
     ))
 }
@@ -1102,7 +1102,9 @@ export class NextScript extends React.Component<OriginProps> {
           {ampDevFiles.map((file) => (
             <script
               key={file}
-              src={`${assetPrefix}/_next/${file}${assetQueryString}`}
+              src={`${assetPrefix}/_next/${encodeFile(
+                file
+              )}${assetQueryString}`}
               nonce={this.props.nonce}
               crossOrigin={this.props.crossOrigin || crossOrigin}
               data-ampdevmode
