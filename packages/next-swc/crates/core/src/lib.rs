@@ -202,7 +202,9 @@ where
                 turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
                     cm.clone(),
                     file.name.clone(),
-                    config,
+                    turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config{
+                        use_lightningcss: true,
+                    },
                 ),
             )
         } else {
