@@ -37,7 +37,7 @@ const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
 // Check env to see if test should continue even if some of test fails
 const shouldContinueTestsOnError = !!process.env.NEXT_TEST_CONTINUE_ON_ERROR
-// Check env to load a list of test paths to skip retry. This is to be used in conjuction with NEXT_TEST_CONTINUE_ON_ERROR,
+// Check env to load a list of test paths to skip retry. This is to be used in conjunction with NEXT_TEST_CONTINUE_ON_ERROR,
 // When try to run all of the tests regardless of pass / fail and want to skip retrying `known` failed tests.
 // manifest should be a json file with an array of test paths.
 const skipRetryTestManifest = process.env.NEXT_TEST_SKIP_RETRY_MANIFEST
@@ -435,7 +435,7 @@ ${ENDGROUP}`)
           ? []
           : [
               '--testNamePattern',
-              `^(?!${test.excludedCases.map(escapeRegexp).join('|')})$`,
+              `^(?!(?:${test.excludedCases.map(escapeRegexp).join('|')})$).`,
             ]),
       ]
       const env = {

@@ -13,10 +13,6 @@ import { navigateReducer } from './navigate-reducer'
 import { serverPatchReducer } from './server-patch-reducer'
 const buildId = 'development'
 
-const globalMutable = {
-  refresh: () => {},
-}
-
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [
@@ -181,7 +177,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     const newState = await runPromiseThrowChain(() =>
@@ -372,7 +368,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => serverPatchReducer(state, action))
@@ -511,7 +507,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     const state = createInitialRouterState({
@@ -553,7 +549,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     const newState = await runPromiseThrowChain(() =>

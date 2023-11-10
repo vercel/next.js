@@ -34,7 +34,7 @@ export function getRender({
   clientReferenceManifest,
   subresourceIntegrityManifest,
   serverActionsManifest,
-  serverActionsBodySizeLimit,
+  serverActions,
   config,
   buildId,
   nextFontManifest,
@@ -55,7 +55,10 @@ export function getRender({
   subresourceIntegrityManifest?: Record<string, string>
   clientReferenceManifest?: ClientReferenceManifest
   serverActionsManifest?: any
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedOrigins?: string[]
+  }
   config: NextConfigComplete
   buildId: string
   nextFontManifest: NextFontManifest
@@ -87,7 +90,7 @@ export function getRender({
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         serverActionsManifest,
-        serverActionsBodySizeLimit,
+        serverActions,
         nextFontManifest,
       },
       renderToHTML,

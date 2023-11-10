@@ -60,7 +60,7 @@ export async function exportAppRoute(
       notFoundRoutes: [],
     },
     renderOpts: {
-      ppr: false,
+      experimental: { ppr: false },
       originalPathname: page,
       nextExport: true,
       supportsDynamicHTML: false,

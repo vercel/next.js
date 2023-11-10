@@ -79,6 +79,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.scrollRestoration',
   'experimental.forceSwcTransforms',
   'experimental.serverActions.bodySizeLimit',
+  'experimental.serverActions.allowedOrigins',
   'experimental.memoryBasedWorkersCount',
   'experimental.clientRouterFilterRedirects',
   'experimental.webpackBuildWorker',
