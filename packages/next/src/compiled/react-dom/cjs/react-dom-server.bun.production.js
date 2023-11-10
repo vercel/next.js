@@ -1,5 +1,5 @@
 /**
-* @license React
+ * @license React
  * react-dom-server.bun.production.min.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
@@ -13,7 +13,7 @@
 var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-canary-746890329-20231108';
+var ReactVersion = '18.3.0-canary-0e352ea01-20231109';
 
 /* global Bun */
 function scheduleWork(callback) {
@@ -7625,7 +7625,7 @@ function completeAll(request) {
 }
 
 function queueCompletedSegment(boundary, segment) {
-  if (segment.chunks.length === 0 && segment.children.length === 1 && segment.children[0].boundary === null) {
+  if (segment.chunks.length === 0 && segment.children.length === 1 && segment.children[0].boundary === null && segment.children[0].id === -1) {
     // This is an empty segment. There's nothing to write, so we can instead transfer the ID
     // to the child. That way any existing references point to the child.
     const childSegment = segment.children[0];
