@@ -339,7 +339,13 @@ export default class FileSystemCache implements CacheHandler {
 
       await this.fs.writeFile(
         this.getFilePath(
-          `${key}.${isAppPath ? 'rsc' : 'json'}`,
+          `${key}${
+            isAppPath
+              ? this.experimental.ppr
+                ? RSC_PREFETCH_SUFFIX
+                : RSC_SUFFIX
+              : 'json'
+          }`,
           isAppPath ? 'app' : 'pages'
         ),
         isAppPath ? data.pageData : JSON.stringify(data.pageData)
