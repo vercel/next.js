@@ -13,6 +13,11 @@ createNextDescribe(
       async () => {
         const browser = await next.browser('/')
         expect(await browser.elementByCss('p').text()).toBe('hello world')
+        const scripts = await browser.elementsByCss('script')
+        for (const script of scripts) {
+          const src = await script.evaluate((script) => script.src)
+          expect(src).not.toContain('#')
+        }
       }
     )
   }
