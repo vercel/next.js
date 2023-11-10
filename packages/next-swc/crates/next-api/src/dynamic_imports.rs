@@ -202,8 +202,8 @@ async fn build_dynamic_imports_map_for_module(
             )),
             Request::parse(Value::new(Pattern::Constant(import.to_string()))),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-            None,
             IssueSeverity::Error.cell(),
+            None,
         )
         .first_module()
         .await?;

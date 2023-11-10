@@ -314,7 +314,7 @@ createNextDescribe(
         await browser.elementByCss('[href="/parallel-catchall/bar"]').click()
         await check(
           () => browser.waitForElementByCss('#main').text(),
-          'main catchall'
+          'bar slot'
         )
         await check(
           () => browser.waitForElementByCss('#slot-content').text(),
@@ -328,14 +328,14 @@ createNextDescribe(
           'foo slot'
         )
 
-        await browser.elementByCss('[href="/parallel-catchall/bar"]').click()
+        await browser.elementByCss('[href="/parallel-catchall/baz"]').click()
         await check(
           () => browser.waitForElementByCss('#main').text(),
           'main catchall'
         )
         await check(
           () => browser.waitForElementByCss('#slot-content').text(),
-          'slot catchall'
+          'baz slot'
         )
       })
 
@@ -750,6 +750,42 @@ createNextDescribe(
               .text(),
           'intercepted'
         )
+      })
+
+      it('should support intercepting local dynamic sibling routes', async () => {
+        const browser = await next.browser('/intercepting-siblings')
+
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/intercepting-siblings/1"]')
+              .click()
+              .waitForElementByCss('#intercepted-sibling')
+              .text(),
+          '1'
+        )
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/intercepting-siblings/2"]')
+              .click()
+              .waitForElementByCss('#intercepted-sibling')
+              .text(),
+          '2'
+        )
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/intercepting-siblings/3"]')
+              .click()
+              .waitForElementByCss('#intercepted-sibling')
+              .text(),
+          '3'
+        )
+
+        await next.browser('/intercepting-siblings/1')
+
+        await check(() => browser.waitForElementByCss('#main-slot').text(), '1')
       })
     })
   }
