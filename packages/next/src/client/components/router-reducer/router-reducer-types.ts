@@ -180,7 +180,7 @@ export interface PrefetchAction {
   kind: PrefetchKind
 }
 
-interface PushRef {
+export interface PushRef {
   /**
    * If the app-router should push a new history entry in app-router's useEffect()
    */
