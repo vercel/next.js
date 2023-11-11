@@ -121,14 +121,14 @@ function HistoryUpdater({
   sync: () => void
 }) {
   useInsertionEffect(() => {
-    // Identifier is shortened intentionally.
-    // __NA is used to identify if the history entry can be handled by the app-router.
-    // __N is used to identify if the history entry can be handled by the old router.
     const historyState = {
       // Keep existing history state to support navigation through e.g. pushState / replaceState outside of Next.js.
       ...(process.env.__NEXT_WINDOW_HISTORY_SUPPORT
         ? window.history.state
         : undefined),
+      // Identifier is shortened intentionally.
+      // __NA is used to identify if the history entry can be handled by the app-router.
+      // __N is used to identify if the history entry can be handled by the old router.
       __NA: true,
       __PRIVATE_NEXTJS_INTERNALS_TREE: tree,
     }
@@ -523,6 +523,7 @@ function Router({
           url?: string | URL | null
         ): void {
           copyNextJsInternalHistoryState(data)
+          data.__PRIVATE_NEXTJS_INTERNALS_CUSTOM_DATA = true
 
           if (url) {
             applyUrlFromHistoryPushReplace(url)
@@ -542,6 +543,7 @@ function Router({
           url?: string | URL | null
         ): void {
           copyNextJsInternalHistoryState(data)
+          data.__PRIVATE_NEXTJS_INTERNALS_CUSTOM_DATA = true
 
           if (url) {
             applyUrlFromHistoryPushReplace(url)
