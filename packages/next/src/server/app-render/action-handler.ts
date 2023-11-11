@@ -9,7 +9,7 @@ import type { SizeLimit } from '../../../types'
 
 import {
   ACTION,
-  RSC,
+  RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
@@ -146,7 +146,7 @@ async function createRedirectRenderResult(
   // if we're redirecting to a relative path, we'll try to stream the response
   if (redirectUrl.startsWith('/')) {
     const forwardedHeaders = getForwardedHeaders(req, res)
-    forwardedHeaders.set(RSC, '1')
+    forwardedHeaders.set(RSC_HEADER, '1')
 
     const host = req.headers['host']
     const proto =
@@ -257,7 +257,7 @@ export async function handleAction({
   requestStore: RequestStore
   serverActions?: {
     bodySizeLimit?: SizeLimit
-    allowedForwardedHosts?: string[]
+    allowedOrigins?: string[]
   }
   ctx: AppRenderContext
 }): Promise<
@@ -288,7 +288,7 @@ export async function handleAction({
     return
   }
 
-  const originHostname =
+  const originDomain =
     typeof req.headers['origin'] === 'string'
       ? new URL(req.headers['origin']).host
       : undefined
@@ -311,29 +311,28 @@ export async function handleAction({
 
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
-  if (!originHostname) {
+  if (!originDomain) {
     // This might be an old browser that doesn't send `host` header. We ignore
     // this case.
     console.warn(
       'Missing `origin` header from a forwarded Server Actions request.'
     )
-  } else if (!host || originHostname !== host.value) {
-    // If the customer sets a list of allowed hosts, we'll allow the request.
-    // These can be their reverse proxies or other safe hosts.
-    if (
-      host &&
-      typeof host.value === 'string' &&
-      serverActions?.allowedForwardedHosts?.includes(host.value)
-    ) {
+  } else if (!host || originDomain !== host.value) {
+    // If the customer sets a list of allowed origins, we'll allow the request.
+    // These are considered safe but might be different from forwarded host set
+    // by the infra (i.e. reverse proxies).
+    if (serverActions?.allowedOrigins?.includes(originDomain)) {
       // Ignore it
     } else {
       if (host) {
-        // This is an attack. We should not proceed the action.
+        // This seems to be an CSRF attack. We should not proceed the action.
         console.error(
-          `\`${!host.type}\` header with value \`${limitUntrustedHeaderValueForLogs(
+          `\`${
+            host.type
+          }\` header with value \`${limitUntrustedHeaderValueForLogs(
             host.value
           )}\` does not match \`origin\` header with value \`${limitUntrustedHeaderValueForLogs(
-            originHostname
+            originDomain
           )}\` from a forwarded Server Actions request. Aborting the action.`
         )
       } else {
@@ -491,7 +490,7 @@ export async function handleAction({
             throw new ApiError(
               413,
               `Body exceeded ${readableLimit} limit.
-To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation`
+To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation`
             )
           }
 

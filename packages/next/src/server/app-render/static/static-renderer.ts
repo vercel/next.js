@@ -1,5 +1,7 @@
 type StreamOptions = {
   onError?: (error: Error) => void
+  onHeaders?: (headers: Headers) => void
+  maxHeadersLength?: number
   nonce?: string
   bootstrapScripts?: {
     src: string
@@ -38,6 +40,10 @@ class StaticResumeRenderer implements Renderer {
   constructor(private readonly postponed: object) {}
 
   public async render(children: JSX.Element, streamOptions: StreamOptions) {
+    // TODO: Refactor StreamOptions because not all options apply to all React
+    // functions so this factoring of trying to reuse a single render() doesn't
+    // make sense. This is passing multiple invalid options that React should
+    // error for.
     const stream = await this.resume(children, this.postponed, streamOptions)
 
     return { stream }
