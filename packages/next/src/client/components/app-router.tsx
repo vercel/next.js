@@ -126,7 +126,9 @@ function HistoryUpdater({
     // __N is used to identify if the history entry can be handled by the old router.
     const historyState = {
       // Keep existing history state to support navigation through e.g. pushState / replaceState outside of Next.js.
-      ...window.history.state,
+      ...(process.env.__NEXT_WINDOW_HISTORY_SUPPORT
+        ? window.history.state
+        : undefined),
       __NA: true,
       __PRIVATE_NEXTJS_INTERNALS_TREE: tree,
     }
@@ -506,32 +508,34 @@ function Router({
   )
 
   useEffect(() => {
-    if (originalPushState) {
-      window.history.pushState = function pushState(
-        data: any,
-        _unused: string,
-        url?: string | URL | null
-      ): void {
-        copyNextJsInternalHistoryState(data)
+    if (process.env.__NEXT_WINDOW_HISTORY_SUPPORT) {
+      if (originalPushState) {
+        window.history.pushState = function pushState(
+          data: any,
+          _unused: string,
+          url?: string | URL | null
+        ): void {
+          copyNextJsInternalHistoryState(data)
 
-        if (url) {
-          applyUrlFromHistoryPushReplace(url)
+          if (url) {
+            applyUrlFromHistoryPushReplace(url)
+          }
+          return originalPushState(data, _unused, url)
         }
-        return originalPushState(data, _unused, url)
       }
-    }
-    if (originalReplaceState) {
-      window.history.replaceState = function replaceState(
-        data: any,
-        _unused: string,
-        url?: string | URL | null
-      ): void {
-        copyNextJsInternalHistoryState(data)
+      if (originalReplaceState) {
+        window.history.replaceState = function replaceState(
+          data: any,
+          _unused: string,
+          url?: string | URL | null
+        ): void {
+          copyNextJsInternalHistoryState(data)
 
-        if (url) {
-          applyUrlFromHistoryPushReplace(url)
+          if (url) {
+            applyUrlFromHistoryPushReplace(url)
+          }
+          return originalReplaceState(data, _unused, url)
         }
-        return originalReplaceState(data, _unused, url)
       }
     }
 
