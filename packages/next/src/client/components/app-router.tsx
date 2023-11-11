@@ -510,6 +510,11 @@ function Router({
   useEffect(() => {
     if (process.env.__NEXT_WINDOW_HISTORY_SUPPORT) {
       if (originalPushState) {
+        /**
+         * Patch pushState to ensure external changes to the history are reflected in the Next.js Router.
+         * Ensures Next.js internal history state is copied to the new history entry.
+         * Ensures usePathname and useSearchParams hold the newly provided url.
+         */
         window.history.pushState = function pushState(
           data: any,
           _unused: string,
@@ -524,6 +529,11 @@ function Router({
         }
       }
       if (originalReplaceState) {
+        /**
+         * Patch replaceState to ensure external changes to the history are reflected in the Next.js Router.
+         * Ensures Next.js internal history state is copied to the new history entry.
+         * Ensures usePathname and useSearchParams hold the newly provided url.
+         */
         window.history.replaceState = function replaceState(
           data: any,
           _unused: string,
