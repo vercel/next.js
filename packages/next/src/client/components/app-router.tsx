@@ -134,6 +134,8 @@ function HistoryUpdater({
     }
     if (
       pushRef.pendingPush &&
+      // Skip pushing an additional history entry if the canonicalUrl is the same as the current url.
+      // This mirrors the browser behavior for normal navigation.
       createHrefFromUrl(new URL(window.location.href)) !== canonicalUrl
     ) {
       // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
