@@ -9,23 +9,28 @@ import { AppPathnameNormalizer } from '../server/future/normalizers/built/app/ap
  */
 export function normalizeCatchAllRoutes(
   appPaths: Record<string, string[]>,
-  normalizer = new AppPathnameNormalizer()
+  normalizer = new AppPathnameNormalizer(),
+  basePath = ''
 ) {
   const catchAllRoutes = [
     ...new Set(Object.values(appPaths).flat().filter(isCatchAllRoute)),
   ]
 
   for (const appPath of Object.keys(appPaths)) {
+    const appPathWithoutBase = appPath.startsWith(basePath)
+      ? appPath.slice(basePath.length)
+      : appPath
+
     for (const catchAllRoute of catchAllRoutes) {
       const normalizedCatchAllRoute = normalizer.normalize(catchAllRoute)
       const normalizedCatchAllRouteBasePath = normalizedCatchAllRoute.slice(
         0,
         normalizedCatchAllRoute.indexOf('[')
-      )
+      );
 
       if (
         // first check if the appPath could match the catch-all
-        appPath.startsWith(normalizedCatchAllRouteBasePath) &&
+        appPathWithoutBase.startsWith(normalizedCatchAllRouteBasePath) &&
         // then check if there's not already a slot value that could match the catch-all
         !appPaths[appPath].some((path) => hasMatchedSlots(path, catchAllRoute))
       ) {

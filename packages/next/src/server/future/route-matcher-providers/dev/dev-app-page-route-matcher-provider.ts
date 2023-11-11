@@ -9,15 +9,19 @@ import { normalizeCatchAllRoutes } from '../../../../build/normalize-catchall-ro
 export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
   private readonly expression: RegExp
   private readonly normalizers: DevAppNormalizers
+  basePath: string
 
   constructor(
     appDir: string,
     extensions: ReadonlyArray<string>,
-    reader: FileReader
+    reader: FileReader,
+    basePath: string
   ) {
     super(appDir, reader)
 
     this.normalizers = new DevAppNormalizers(appDir, extensions)
+
+    this.basePath = basePath
 
     // Match any page file that ends with `/page.${extension}` under the app
     // directory.
@@ -57,7 +61,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       else appPaths[pathname] = [page]
     }
 
-    normalizeCatchAllRoutes(appPaths)
+    normalizeCatchAllRoutes(appPaths, undefined, basePath)
 
     const matchers: Array<AppPageRouteMatcher> = []
     for (const filename of routeFilenames) {

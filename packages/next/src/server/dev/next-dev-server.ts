@@ -247,7 +247,7 @@ export default class DevServer extends Server {
       )
 
       matchers.push(
-        new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
+        new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader, this.nextConfig.basePath)
       )
       matchers.push(
         new DevAppRouteRouteMatcherProvider(appDir, extensions, fileReader)
