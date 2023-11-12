@@ -424,6 +424,7 @@ function Router({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
         tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+        updateHistory: true,
       })
     }
 
@@ -472,6 +473,7 @@ function Router({
             type: ACTION_RESTORE,
             url: new URL(url ?? window.location.href),
             tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+            updateHistory: false,
           })
         })
       }
@@ -543,6 +545,7 @@ function Router({
           type: ACTION_RESTORE,
           url: new URL(window.location.href),
           tree: state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+          updateHistory: true,
         })
       })
     }

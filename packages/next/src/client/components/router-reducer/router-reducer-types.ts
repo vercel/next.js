@@ -140,6 +140,7 @@ export interface RestoreAction {
   type: typeof ACTION_RESTORE
   url: URL
   tree: FlightRouterState
+  updateHistory: boolean
 }
 
 /**
