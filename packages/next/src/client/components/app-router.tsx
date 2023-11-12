@@ -121,6 +121,10 @@ function HistoryUpdater({
   sync: () => void
 }) {
   useInsertionEffect(() => {
+    // When updateHistory is false skip updating the history.
+    if (!pushRef.updateHistory) {
+      return
+    }
     const historyState = {
       // Keep existing history state to support navigation through e.g. pushState / replaceState outside of Next.js.
       ...(process.env.__NEXT_WINDOW_HISTORY_SUPPORT
