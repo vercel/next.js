@@ -6,7 +6,6 @@ import type {
 } from '../../../../server/app-render/types'
 import { fetchServerResponse } from '../fetch-server-response'
 import type { FetchServerResponseResult } from '../fetch-server-response'
-import { createRecordFromThenable } from '../create-record-from-thenable'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { invalidateCacheBelowFlightSegmentPath } from '../invalidate-cache-below-flight-segmentpath'
 import { fillCacheWithDataProperty } from '../fill-cache-with-data-property'
@@ -19,7 +18,6 @@ import type {
   NavigateAction,
   ReadonlyReducerState,
   ReducerState,
-  ThenableRecord,
 } from '../router-reducer-types'
 import { PrefetchKind } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
@@ -77,7 +75,7 @@ function addRefetchToLeafSegments(
   currentCache: CacheNode,
   flightSegmentPath: FlightSegmentPath,
   treePatch: FlightRouterState,
-  data: () => ThenableRecord<FetchServerResponseResult>
+  data: () => Promise<FetchServerResponseResult>
 ) {
   let appliedPatch = false
 
@@ -158,12 +156,15 @@ export function navigateReducer(
     temporaryCacheNode.subTreeData = state.cache.subTreeData
     temporaryCacheNode.parallelRoutes = new Map(state.cache.parallelRoutes)
 
-    let data: ThenableRecord<FetchServerResponseResult> | null = null
+    let data: Promise<FetchServerResponseResult> | null = null
 
     const fetchResponse = () => {
       if (!data) {
-        data = createRecordFromThenable(
-          fetchServerResponse(url, optimisticTree, state.nextUrl, state.buildId)
+        data = fetchServerResponse(
+          url,
+          optimisticTree,
+          state.nextUrl,
+          state.buildId
         )
       }
       return data
@@ -198,7 +199,7 @@ export function navigateReducer(
       mutable.canonicalUrl = href
 
       state.prefetchCache.set(createHrefFromUrl(url, false), {
-        data: data ? createRecordFromThenable(Promise.resolve(data)) : null,
+        data: data ? data : null,
         // this will make sure that the entry will be discarded after 30s
         kind: PrefetchKind.TEMPORARY,
         prefetchTime: Date.now(),
@@ -212,20 +213,18 @@ export function navigateReducer(
 
   // If we don't have a prefetch value, we need to create one
   if (!prefetchValues) {
-    const data = createRecordFromThenable(
-      fetchServerResponse(
-        url,
-        state.tree,
-        state.nextUrl,
-        state.buildId,
-        // in dev, there's never gonna be a prefetch entry so we want to prefetch here
-        // in order to simulate the behavior of the prefetch cache
-        process.env.NODE_ENV === 'development' ? PrefetchKind.AUTO : undefined
-      )
+    const data = fetchServerResponse(
+      url,
+      state.tree,
+      state.nextUrl,
+      state.buildId,
+      // in dev, there's never gonna be a prefetch entry so we want to prefetch here
+      // in order to simulate the behavior of the prefetch cache
+      process.env.NODE_ENV === 'development' ? PrefetchKind.AUTO : undefined
     )
 
     const newPrefetchValue = {
-      data: createRecordFromThenable(Promise.resolve(data)),
+      data,
       // this will make sure that the entry will be discarded after 30s
       kind:
         process.env.NODE_ENV === 'development'
@@ -320,13 +319,11 @@ export function navigateReducer(
               treePatch,
               // eslint-disable-next-line no-loop-func
               () =>
-                createRecordFromThenable(
-                  fetchServerResponse(
-                    url,
-                    currentTree,
-                    state.nextUrl,
-                    state.buildId
-                  )
+                fetchServerResponse(
+                  url,
+                  currentTree,
+                  state.nextUrl,
+                  state.buildId
                 )
             )
           }

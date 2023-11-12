@@ -1,5 +1,4 @@
 import type { FetchServerResponseResult } from './fetch-server-response'
-import type { ThenableRecord } from './router-reducer-types'
 import type { FlightSegmentPath } from '../../../server/app-render/types'
 import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
@@ -12,7 +11,7 @@ export function fillCacheWithDataProperty(
   newCache: CacheNode,
   existingCache: CacheNode,
   flightSegmentPath: FlightSegmentPath,
-  fetchResponse: () => ThenableRecord<FetchServerResponseResult>,
+  fetchResponse: () => Promise<FetchServerResponseResult>,
   bailOnParallelRoutes: boolean = false
 ): { bailOptimistic: boolean } | undefined {
   const isLastEntry = flightSegmentPath.length <= 2

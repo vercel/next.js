@@ -274,37 +274,7 @@ describe('navigateReducer', () => {
         "nextUrl": "/linking/about",
         "prefetchCache": Map {
           "/linking/about" => {
-            "data": Promise {
-              "status": "fulfilled",
-              "value": [
-                [
-                  [
-                    "children",
-                    "linking",
-                    "children",
-                    "about",
-                    [
-                      "about",
-                      {
-                        "children": [
-                          "__PAGE__",
-                          {},
-                        ],
-                      },
-                    ],
-                    <h1>
-                      About Page!
-                    </h1>,
-                    <React.Fragment>
-                      <title>
-                        About page!
-                      </title>
-                    </React.Fragment>,
-                  ],
-                ],
-                undefined,
-              ],
-            },
+            "data": Promise {},
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
@@ -973,37 +943,7 @@ describe('navigateReducer', () => {
                       </React.Fragment>,
                     },
                     "about" => {
-                      "data": Promise {
-                        "status": "fulfilled",
-                        "value": [
-                          [
-                            [
-                              "children",
-                              "linking",
-                              "children",
-                              "about",
-                              [
-                                "about",
-                                {
-                                  "children": [
-                                    "__PAGE__",
-                                    {},
-                                  ],
-                                },
-                              ],
-                              <h1>
-                                About Page!
-                              </h1>,
-                              <React.Fragment>
-                                <title>
-                                  About page!
-                                </title>
-                              </React.Fragment>,
-                            ],
-                          ],
-                          undefined,
-                        ],
-                      },
+                      "data": Promise {},
                       "parallelRoutes": Map {},
                       "status": "DATAFETCH",
                       "subTreeData": null,
@@ -1422,37 +1362,7 @@ describe('navigateReducer', () => {
         "nextUrl": "/linking/about",
         "prefetchCache": Map {
           "/linking/about" => {
-            "data": Promise {
-              "status": "fulfilled",
-              "value": [
-                [
-                  [
-                    "children",
-                    "linking",
-                    "children",
-                    "about",
-                    [
-                      "about",
-                      {
-                        "children": [
-                          "__PAGE__",
-                          {},
-                        ],
-                      },
-                    ],
-                    <h1>
-                      About Page!
-                    </h1>,
-                    <React.Fragment>
-                      <title>
-                        About page!
-                      </title>
-                    </React.Fragment>,
-                  ],
-                ],
-                undefined,
-              ],
-            },
+            "data": Promise {},
             "kind": "auto",
             "lastUsedTime": null,
             "prefetchTime": 1690329600000,
@@ -2063,37 +1973,7 @@ describe('navigateReducer', () => {
         "nextUrl": "/linking/about",
         "prefetchCache": Map {
           "/linking/about" => {
-            "data": Promise {
-              "status": "fulfilled",
-              "value": [
-                [
-                  [
-                    "children",
-                    "linking",
-                    "children",
-                    "about",
-                    [
-                      "about",
-                      {
-                        "children": [
-                          "__PAGE__",
-                          {},
-                        ],
-                      },
-                    ],
-                    <h1>
-                      About Page!
-                    </h1>,
-                    <React.Fragment>
-                      <title>
-                        About page!
-                      </title>
-                    </React.Fragment>,
-                  ],
-                ],
-                undefined,
-              ],
-            },
+            "data": Promise {},
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
