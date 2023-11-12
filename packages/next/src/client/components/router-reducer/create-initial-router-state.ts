@@ -6,6 +6,7 @@ import { CacheStates } from '../../../shared/lib/app-router-context.shared-runti
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
+import type { AppRouterState } from './router-reducer-types'
 
 export interface InitialRouterStateParameters {
   buildId: string
@@ -27,7 +28,7 @@ export function createInitialRouterState({
   isServer,
   location,
   initialHead,
-}: InitialRouterStateParameters) {
+}: InitialRouterStateParameters): AppRouterState {
   const cache: CacheNode = {
     status: CacheStates.READY,
     data: null,
@@ -46,7 +47,7 @@ export function createInitialRouterState({
     tree: initialTree,
     cache,
     prefetchCache: new Map(),
-    pushRef: { pendingPush: false, mpaNavigation: false },
+    pushRef: { pendingPush: false, mpaNavigation: false, updateHistory: true },
     focusAndScrollRef: {
       apply: false,
       onlyHashChange: false,

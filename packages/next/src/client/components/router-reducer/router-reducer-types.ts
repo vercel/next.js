@@ -38,6 +38,7 @@ export interface Mutable {
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
   shouldScroll?: boolean
+  updateHistory?: boolean
 }
 
 export interface ServerActionMutable extends Mutable {
@@ -189,6 +190,10 @@ export interface PushRef {
    * Multi-page navigation through location.href.
    */
   mpaNavigation: boolean
+  /**
+   * Skip applying the router state to the browser history state.
+   */
+  updateHistory: boolean
 }
 
 export type FocusAndScrollRef = {
