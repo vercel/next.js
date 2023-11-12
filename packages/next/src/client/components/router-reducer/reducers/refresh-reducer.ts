@@ -28,6 +28,9 @@ export function refreshReducer(
     return handleMutable(state, mutable)
   }
 
+  // Update window.history
+  mutable.updateHistory = true
+
   if (!cache.data) {
     // TODO-APP: verify that `href` is not an external url.
     // Fetch data from the root of the tree.

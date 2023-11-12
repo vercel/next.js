@@ -126,10 +126,6 @@ function HistoryUpdater({
       return
     }
     const historyState = {
-      // Keep existing history state to support navigation through e.g. pushState / replaceState outside of Next.js.
-      ...(process.env.__NEXT_WINDOW_HISTORY_SUPPORT
-        ? window.history.state
-        : undefined),
       // Identifier is shortened intentionally.
       // __NA is used to identify if the history entry can be handled by the app-router.
       // __N is used to identify if the history entry can be handled by the old router.

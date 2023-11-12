@@ -33,6 +33,9 @@ export function serverPatchReducer(
     return handleMutable(state, mutable)
   }
 
+  // Update window.history
+  mutable.updateHistory = true
+
   // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
     return handleExternalUrl(

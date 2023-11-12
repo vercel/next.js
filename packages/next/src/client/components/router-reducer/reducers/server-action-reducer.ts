@@ -157,6 +157,9 @@ export function serverActionReducer(
     return handleMutable(state, mutable)
   }
 
+  // Update window.history
+  mutable.updateHistory = true
+
   mutable.inFlightServerAction = fetchServerAction(state, action)
 
   // suspends until the server action is resolved.
