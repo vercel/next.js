@@ -3226,7 +3226,7 @@ export declare function Borel<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin' | 'latin-ext'>
+  subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bowlby_One<
   T extends CssVariable | undefined = undefined
@@ -13785,7 +13785,7 @@ export declare function Noto_Sans_Cypriot<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'cypriot'>
+  subsets?: Array<'cypriot' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Cypro_Minoan<
   T extends CssVariable | undefined = undefined
@@ -14739,7 +14739,13 @@ export declare function Noto_Sans_Meroitic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin' | 'latin-ext' | 'meroitic'>
+  subsets?: Array<
+    | 'latin'
+    | 'latin-ext'
+    | 'meroitic'
+    | 'meroitic-cursive'
+    | 'meroitic-hieroglyphs'
+  >
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Miao<
   T extends CssVariable | undefined = undefined
@@ -15476,7 +15482,7 @@ export declare function Noto_Sans_Symbols_2<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<
-    'braille' | 'latin' | 'latin-ext' | 'mayan-numerals' | 'symbols'
+    'braille' | 'latin' | 'latin-ext' | 'math' | 'mayan-numerals' | 'symbols'
   >
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Syriac<

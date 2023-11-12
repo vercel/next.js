@@ -490,7 +490,7 @@ export async function handleAction({
             throw new ApiError(
               413,
               `Body exceeded ${readableLimit} limit.
-To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation`
+To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation`
             )
           }
 
