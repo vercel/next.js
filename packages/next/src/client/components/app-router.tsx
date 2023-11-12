@@ -463,54 +463,19 @@ function Router({
     use(createInfinitePromise())
   }
 
-  /**
-   * Handle popstate event, this is used to handle back/forward in the browser.
-   * By default dispatches ACTION_RESTORE, however if the history entry was not pushed/replaced by app-router it will reload the page.
-   * That case can happen when the old router injected the history entry.
-   */
-  const onPopState = useCallback(
-    ({ state }: PopStateEvent) => {
-      if (!state) {
-        // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
-        return
-      }
-
-      // This case happens when the history entry was pushed by the `pages` router.
-      if (!state.__NA) {
-        window.location.reload()
-        return
-      }
-
-      // @ts-ignore useTransition exists
-      // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
-      // Without startTransition works if the cache is there for this path
-      startTransition(() => {
-        dispatch({
-          type: ACTION_RESTORE,
-          url: new URL(window.location.href),
-          tree: state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-        })
-      })
-    },
-    [dispatch]
-  )
-
-  // Ensure the canonical URL in the Next.js Router is updated when the URL is changed so that `usePathname` and `useSearchParams` hold the pushed values.
-  const applyUrlFromHistoryPushReplace = useCallback(
-    (url: string | URL) => {
-      startTransition(() => {
-        dispatch({
-          type: ACTION_RESTORE,
-          url: new URL(url ?? window.location.href),
-          tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-        })
-      })
-    },
-    [dispatch]
-  )
-
   useEffect(() => {
     if (process.env.__NEXT_WINDOW_HISTORY_SUPPORT) {
+      // Ensure the canonical URL in the Next.js Router is updated when the URL is changed so that `usePathname` and `useSearchParams` hold the pushed values.
+      const applyUrlFromHistoryPushReplace = (url: string | URL) => {
+        startTransition(() => {
+          dispatch({
+            type: ACTION_RESTORE,
+            url: new URL(url ?? window.location.href),
+            tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+          })
+        })
+      }
+
       if (originalPushState) {
         /**
          * Patch pushState to ensure external changes to the history are reflected in the Next.js Router.
@@ -553,6 +518,35 @@ function Router({
       }
     }
 
+    /**
+     * Handle popstate event, this is used to handle back/forward in the browser.
+     * By default dispatches ACTION_RESTORE, however if the history entry was not pushed/replaced by app-router it will reload the page.
+     * That case can happen when the old router injected the history entry.
+     */
+    const onPopState = ({ state }: PopStateEvent) => {
+      if (!state) {
+        // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
+        return
+      }
+
+      // This case happens when the history entry was pushed by the `pages` router.
+      if (!state.__NA) {
+        window.location.reload()
+        return
+      }
+
+      // @ts-ignore useTransition exists
+      // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
+      // Without startTransition works if the cache is there for this path
+      startTransition(() => {
+        dispatch({
+          type: ACTION_RESTORE,
+          url: new URL(window.location.href),
+          tree: state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+        })
+      })
+    }
+
     // Register popstate event to call onPopstate.
     window.addEventListener('popstate', onPopState)
     return () => {
@@ -564,7 +558,7 @@ function Router({
       }
       window.removeEventListener('popstate', onPopState)
     }
-  }, [onPopState, applyUrlFromHistoryPushReplace])
+  }, [dispatch])
 
   const { cache, tree, nextUrl, focusAndScrollRef } =
     useUnwrapState(reducerState)
