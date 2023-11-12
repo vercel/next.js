@@ -161,6 +161,51 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           ></Script>
         );
       }`,
+      filename: 'vercel/next/eslint/somewhat/app/inner_app/layout.tsx',
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <Script
+            id="scriptBeforeInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+            strategy="beforeInteractive"
+          ></Script>
+        );
+      }`,
+      filename: 'vercel/next/eslint/src/app/inner_app/layout.tsx',
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <Script
+            id="scriptBeforeInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+            strategy="beforeInteractive"
+          ></Script>
+        );
+      }`,
+      filename: 'next/src/app/inner_app/layout.tsx',
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <Script
+            id="scriptBeforeInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+            strategy="beforeInteractive"
+          ></Script>
+        );
+      }`,
       filename: 'src/app/deep/randomFile.tsx',
     },
     {
