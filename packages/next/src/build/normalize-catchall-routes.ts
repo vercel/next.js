@@ -20,7 +20,7 @@ export function normalizeCatchAllRoutes(
       const normalizedCatchAllRoute = normalizer.normalize(catchAllRoute)
       const normalizedCatchAllRouteBasePath = normalizedCatchAllRoute.slice(
         0,
-        normalizedCatchAllRoute.indexOf('[')
+        normalizedCatchAllRoute.search(catchAllRouteRegex)
       )
 
       if (
@@ -47,6 +47,8 @@ function hasMatchedSlots(path1: string, path2: string): boolean {
 
   return true
 }
+
+const catchAllRouteRegex = /\[\.\.\./;
 
 function isCatchAllRoute(pathname: string): boolean {
   return pathname.includes('[...') || pathname.includes('[[...')
