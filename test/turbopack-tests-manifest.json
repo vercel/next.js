@@ -296,16 +296,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/client/components/router-reducer/read-record-value.test.ts": {
-    "passed": [
-      "readRecordValue rejecting promise",
-      "readRecordValue successful promise"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "packages/next/src/client/components/router-reducer/reducers/find-head-in-cache.test.tsx": {
     "passed": ["findHeadInCache should find the head"],
     "failed": [],
@@ -415,6 +405,7 @@
       "accumulateMetadata openGraph and twitter should convert string or URL images field to array, not only for basic og type",
       "accumulateMetadata openGraph and twitter should fill only the existing props from openGraph to twitter",
       "accumulateMetadata openGraph and twitter should fill twitter with partial existing openGraph metadata",
+      "accumulateMetadata openGraph and twitter should inherit metadata title description into openGraph or twitter if they are configured",
       "accumulateMetadata openGraph and twitter should override openGraph or twitter images when current layer specifies social images properties",
       "accumulateMetadata openGraph and twitter should resolve relative url starting with ./ with pathname for openGraph.url",
       "accumulateMetadata title should merge title with page title",
@@ -539,12 +530,8 @@
   },
   "packages/next/src/server/future/normalizers/request/base-path.test.ts": {
     "passed": [
-      "BasePathPathnameNormalizer match should return false if the pathname does not start with the basePath",
-      "BasePathPathnameNormalizer match should return false if there is no basePath",
-      "BasePathPathnameNormalizer match should return true if the pathname starts with the basePath",
-      "BasePathPathnameNormalizer normalize should return the same pathname if there is no basePath",
-      "BasePathPathnameNormalizer normalize should return the same pathname if we are not matched and the pathname does not start with the basePath",
-      "BasePathPathnameNormalizer normalize should strip the basePath from the pathname when it matches"
+      "BasePathPathnameNormalizer should throw when provided with a basePath of \"/\"",
+      "BasePathPathnameNormalizer should throw when provided with a blank basePath"
     ],
     "failed": [],
     "pending": [],
@@ -568,26 +555,36 @@
   },
   "packages/next/src/server/future/normalizers/request/postponed.test.ts": {
     "passed": [
-      "PostponedPathnameNormalizer match should match if it is enabled",
+      "PostponedPathnameNormalizer match should match",
       "PostponedPathnameNormalizer match should not match for other pathnames",
-      "PostponedPathnameNormalizer match should not match if it is disabled",
-      "PostponedPathnameNormalizer normalize should normalize if it is enabled and matched",
-      "PostponedPathnameNormalizer normalize should not normalize if it is disabled",
-      "PostponedPathnameNormalizer normalize should not normalize if it is enabled but not matched"
+      "PostponedPathnameNormalizer normalize should normalize `/index` to `/`",
+      "PostponedPathnameNormalizer normalize should normalize when matched",
+      "PostponedPathnameNormalizer normalize should not normalize but not matched"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/rsc.test.ts": {
+  "packages/next/src/server/future/normalizers/request/prefix.test.ts": {
     "passed": [
-      "RSCPathnameNormalizer match should return false if it is disabled but ends with .rsc",
-      "RSCPathnameNormalizer match should return false if the pathname does not end with `.rsc`",
-      "RSCPathnameNormalizer match should return true if it matches",
-      "RSCPathnameNormalizer normalize should return the same pathname if it is disabled but ends with .rsc",
-      "RSCPathnameNormalizer normalize should return the same pathname if we are not matched and the pathname does not end with `.rsc`",
-      "RSCPathnameNormalizer normalize should strip the `.rsc` extension from the pathname when it matches"
+      "PrefixPathnameNormalizer match should return false if the pathname does not start with the prefix",
+      "PrefixPathnameNormalizer match should return true if the pathname starts with the prefix",
+      "PrefixPathnameNormalizer normalize should return the same pathname if we are not matched and the pathname does not start with the prefix",
+      "PrefixPathnameNormalizer normalize should strip the prefix from the pathname when it matches",
+      "PrefixPathnameNormalizer should throw if the prefix ends with a slash"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/future/normalizers/request/suffix.test.ts": {
+    "passed": [
+      "SuffixPathnameNormalizer match should return false if the pathname does not end with `.rsc`",
+      "SuffixPathnameNormalizer match should return true if it matches",
+      "SuffixPathnameNormalizer normalize should return the same pathname if we are not matched and the pathname does not end with `.rsc`",
+      "SuffixPathnameNormalizer normalize should strip the `.rsc` extension from the pathname when it matches"
     ],
     "failed": [],
     "pending": [],
@@ -846,6 +843,28 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/trace/report/index.test.ts": {
+    "passed": [
+      "Trace Reporter JSON reporter should write the trace events to JSON file",
+      "Trace Reporter Telemetry reporter should record telemetry event"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/trace/trace.test.ts": {
+    "passed": [
+      "Trace Tracer traces a block of code",
+      "Trace Worker correctly reports trace data from multiple workers",
+      "Trace Worker exports and initializes trace state",
+      "Trace Worker trace data is serializable to a worker"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/acceptance-app/ReactRefresh.test.ts": {
     "passed": [
       "ReactRefresh app can edit a component without losing state",
@@ -861,7 +880,6 @@
     "failed": [
       "ReactRefreshLogBox app turbo Module not found",
       "ReactRefreshLogBox app turbo Module not found empty import trace",
-      "ReactRefreshLogBox app turbo Module not found missing global CSS",
       "ReactRefreshLogBox app turbo Node.js builtins"
     ],
     "pending": [
@@ -870,7 +888,9 @@
       "ReactRefreshLogBox app default Module not found missing global CSS",
       "ReactRefreshLogBox app default Node.js builtins"
     ],
-    "flakey": [],
+    "flakey": [
+      "ReactRefreshLogBox app turbo Module not found missing global CSS"
+    ],
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshLogBox-scss.test.ts": {
@@ -1196,8 +1216,8 @@
     "failed": [
       "ReactRefreshLogBox turbo Module not found",
       "ReactRefreshLogBox turbo Module not found (empty import trace)",
-      "ReactRefreshLogBox turbo Node.js builtins",
-      "ReactRefreshLogBox turbo Module not found (missing global CSS)"
+      "ReactRefreshLogBox turbo Module not found (missing global CSS)",
+      "ReactRefreshLogBox turbo Node.js builtins"
     ],
     "pending": [
       "ReactRefreshLogBox default Module not found",
@@ -1218,7 +1238,6 @@
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
     "passed": [
       "ReactRefreshLogBox turbo boundaries",
-      "ReactRefreshLogBox turbo conversion to class component (1)",
       "ReactRefreshLogBox turbo module init error not shown",
       "ReactRefreshLogBox turbo non-Error errors are handled properly",
       "ReactRefreshLogBox turbo should strip whitespace correctly with newline"
@@ -1240,7 +1259,7 @@
       "ReactRefreshLogBox default unterminated JSX",
       "ReactRefreshLogBox turbo internal package errors"
     ],
-    "flakey": [],
+    "flakey": ["ReactRefreshLogBox turbo conversion to class component (1)"],
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBoxMisc.test.ts": {
@@ -1312,13 +1331,13 @@
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
-      "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state"
+      "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state",
+      "ReactRefreshLogBox turbo stuck error"
     ],
     "failed": [
       "ReactRefreshLogBox turbo logbox: can recover from a component error",
       "ReactRefreshLogBox turbo logbox: can recover from a event handler error",
       "ReactRefreshLogBox turbo render error not shown right after syntax error",
-      "ReactRefreshLogBox turbo stuck error",
       "ReactRefreshLogBox turbo syntax > runtime error"
     ],
     "pending": [
@@ -1422,23 +1441,22 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/asset-prefix.test.ts": {
+  "test/development/basic/asset-prefix/asset-prefix.test.ts": {
     "passed": ["asset-prefix should load the app properly without reloading"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/barrel-optimization.test.ts": {
-    "passed": [
-      "optimizePackageImports should handle recursive wildcard exports",
-      "optimizePackageImports should not break \"use client\" directive in optimized packages"
-    ],
+  "test/development/basic/barrel-optimization/barrel-optimization.test.ts": {
+    "passed": [],
     "failed": [
       "optimizePackageImports app - should optimize recursive wildcard export mapping",
       "optimizePackageImports app - should render the icons correctly without creating all the modules",
       "optimizePackageImports pages - should optimize recursive wildcard export mapping",
       "optimizePackageImports pages - should render the icons correctly without creating all the modules",
+      "optimizePackageImports should handle recursive wildcard exports",
+      "optimizePackageImports should not break \"use client\" directive in optimized packages",
       "optimizePackageImports should support \"use client\" directive in barrel file",
       "optimizePackageImports should support visx"
     ],
@@ -1446,7 +1464,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/define-class-fields.test.ts": {
+  "test/development/basic/define-class-fields/define-class-fields.test.ts": {
     "passed": [
       "useDefineForClassFields SWC option Initializes resident to undefined after the call to 'super()' when with useDefineForClassFields enabled",
       "useDefineForClassFields SWC option set accessors from base classes won’t get triggered with useDefineForClassFields enabled",
@@ -1457,9 +1475,9 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/emotion-swc.test.ts": {
-    "passed": ["emotion SWC option should have styling from the css prop"],
-    "failed": [],
+  "test/development/basic/emotion-swc/emotion-swc.test.ts": {
+    "passed": [],
+    "failed": ["emotion SWC option should have styling from the css prop"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1490,6 +1508,7 @@
       "basic HMR, basePath: \"\" Error Recovery should detect syntax errors and recover",
       "basic HMR, basePath: \"\" Error Recovery should not continously poll a custom error page",
       "basic HMR, basePath: \"\" Error Recovery should recover after a bad return from the render function",
+      "basic HMR, basePath: \"\" Error Recovery should recover after an error reported via SSR",
       "basic HMR, basePath: \"\" Error Recovery should recover after exporting an invalid page",
       "basic HMR, basePath: \"\" Error Recovery should recover after undefined exported as default",
       "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added",
@@ -1507,6 +1526,7 @@
       "basic HMR, basePath: \"/docs\" Error Recovery should detect syntax errors and recover",
       "basic HMR, basePath: \"/docs\" Error Recovery should not continously poll a custom error page",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after a bad return from the render function",
+      "basic HMR, basePath: \"/docs\" Error Recovery should recover after an error reported via SSR",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after exporting an invalid page",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after undefined exported as default",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added",
@@ -1522,7 +1542,6 @@
       "basic HMR, basePath: \"/docs\" should show hydration error correctly"
     ],
     "failed": [
-      "basic HMR, basePath: \"\" Error Recovery should recover after an error reported via SSR",
       "basic HMR, basePath: \"\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"\" Error Recovery should recover after webpack parse error in an imported file",
       "basic HMR, basePath: \"\" Error Recovery should recover from errors in getInitialProps in client",
@@ -1530,7 +1549,6 @@
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - anonymous page function",
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - runtime-error",
       "basic HMR, basePath: \"\" should have correct compile timing after fixing error",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover after an error reported via SSR",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after webpack parse error in an imported file",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in getInitialProps in client",
@@ -1737,7 +1755,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/theme-ui.test.ts": {
+  "test/development/basic/theme-ui/theme-ui.test.ts": {
     "passed": ["theme-ui SWC option should have theme provided styling"],
     "failed": [],
     "pending": [],
@@ -2136,6 +2154,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/actions-allowed-origins/app-action-allowed-origins.test.ts": {
+    "passed": [
+      "app-dir action allowed origins should pass if localhost is set as a safe origin"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions-allowed-origins/app-action-disallowed-origins.test.ts": {
+    "passed": [
+      "app-dir action disallowed origins should error if x-forwarded-host does not match the origin"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/actions-navigation/index.test.ts": {
     "passed": [
       "app-dir action handling should handle actions correctly after following a relative link",
@@ -2222,7 +2258,8 @@
       "app-dir action handling should support notFound",
       "app-dir action handling should support notFound (javascript disabled)",
       "app-dir action handling should support setting cookies in route handlers with the correct overrides",
-      "app-dir action handling should support uploading files"
+      "app-dir action handling should support uploading files",
+      "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation"
     ],
     "failed": [],
     "pending": [
@@ -2315,7 +2352,6 @@
       "app dir - css css support css ordering should have inner layers take precedence over outer layers",
       "app dir - css css support page extensions should include css imported in MDX pages",
       "app dir - css css support server layouts should support css modules inside server layouts",
-      "app dir - css css support server layouts should support external css imports",
       "app dir - css css support server pages should not contain pages css in app dir page",
       "app dir - css css support server pages should support css modules inside server pages",
       "app dir - css css support server pages should support global css inside server pages",
@@ -2350,7 +2386,9 @@
       "app dir - css css support multiple entries should only load chunks for the css module that is used by the specific entrypoint",
       "app dir - css css support server layouts should support global css inside server layouts"
     ],
-    "flakey": [],
+    "flakey": [
+      "app dir - css css support server layouts should support external css imports"
+    ],
     "runtimeError": false
   },
   "test/e2e/app-dir/app-edge-root-layout/index.test.ts": {
@@ -2619,21 +2657,6 @@
       "app-simple-routes works with simple routes renders a node route"
     ],
     "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-static/app-fetch-logging.test.ts": {
-    "passed": [
-      "app-dir - data fetching with cache logging with default logging should not log fetch requests at all"
-    ],
-    "failed": [
-      "app-dir - data fetching with cache logging with verbose logging for edge runtime should not log fetch requests at all",
-      "app-dir - data fetching with cache logging with verbose logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
-      "app-dir - data fetching with cache logging with verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
-      "app-dir - data fetching with cache logging with verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
-      "app-dir - data fetching with cache logging with verbose logging should only log requests in dev mode"
-    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2925,6 +2948,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app/standalone-gsp.test.ts": {
+    "passed": ["should skip for non-next start"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app/standalone.test.ts": {
     "passed": ["should skip for non-next start"],
     "failed": [],
@@ -3188,11 +3218,9 @@
       "app dir - hooks from pages should have the correct hooks",
       "app dir - hooks useDraftMode should genenerate rand when draft mode enabled",
       "app dir - hooks useDraftMode should use initial rand when draft mode be disabled",
-      "app dir - hooks useRouter should allow access to the router"
-    ],
-    "failed": [
       "app dir - hooks usePathname should have the canonical url pathname on rewrite",
       "app dir - hooks usePathname should have the correct pathname",
+      "app dir - hooks useRouter should allow access to the router",
       "app dir - hooks useSearchParams should have the canonical url search params on rewrite",
       "app dir - hooks useSearchParams should have the correct search params",
       "app dir - hooks useSelectedLayoutSegment should have the correct layout segment at /hooks/use-selected-layout-segment/first",
@@ -3207,6 +3235,7 @@
       "app dir - hooks useSelectedLayoutSegments should have the correct layout segments at /hooks/use-selected-layout-segment/rewritten-middleware",
       "app dir - hooks useSelectedLayoutSegments should return an empty array in pages"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3251,13 +3280,13 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/interoperability-with-pages/navigation.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "navigation between pages and app dir It should be able to navigate app -> pages",
       "navigation between pages and app dir It should be able to navigate app -> pages and go back and forward",
       "navigation between pages and app dir It should be able to navigate pages -> app",
       "navigation between pages and app dir It should be able to navigate pages -> app and go back an forward"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3272,6 +3301,27 @@
       "app dir - layout params catchall params should give optional catchall params just to last layout"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/logging/index.test.ts": {
+    "passed": [
+      "app-dir - logging with default logging should not log fetch requests at all"
+    ],
+    "failed": [
+      "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with default logging should not contain trailing word page for app router routes",
+      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
+      "app-dir - logging with verbose logging for edge runtime should not log fetch requests at all",
+      "app-dir - logging with verbose logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
+      "app-dir - logging with verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
+      "app-dir - logging with verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
+      "app-dir - logging with verbose logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with verbose logging should not contain trailing word page for app router routes",
+      "app-dir - logging with verbose logging should only log requests in dev mode"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3301,24 +3351,25 @@
       "app dir - metadata dynamic routes icon image routes should render icon with dynamic routes",
       "app dir - metadata dynamic routes should error when id is missing in generateImageMetadata",
       "app dir - metadata dynamic routes should error when id is missing in generateSitemaps",
+      "app dir - metadata dynamic routes should generate unique path for image routes under group routes",
       "app dir - metadata dynamic routes should inject dynamic metadata properly to head",
       "app dir - metadata dynamic routes should pick configured metadataBase instead of deployment url for canonical url",
       "app dir - metadata dynamic routes should use localhost for local prod and fallback to deployment url when metadataBase is falsy",
       "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
+      "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
+      "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime",
       "app dir - metadata dynamic routes social image routes should handle manifest.[ext] dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
       "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
       "app dir - metadata dynamic routes social image routes should support generate multi sitemaps with generateSitemaps",
+      "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
       "app dir - metadata dynamic routes text routes should handle robots.[ext] dynamic routes",
       "app dir - metadata dynamic routes text routes should handle sitemap.[ext] dynamic routes",
-      "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used",
-      "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
-      "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
-      "app dir - metadata dynamic routes should generate unique path for image routes under group routes"
+      "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used"
     ],
     "failed": [
-      "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime"
+      "app dir - metadata dynamic routes should error if the default export of dynamic image is missing"
     ],
     "pending": [],
     "flakey": [],
@@ -3344,7 +3395,7 @@
   },
   "test/e2e/app-dir/metadata-suspense/index.test.ts": {
     "passed": [
-      "app dir - metadata dynamic routes should render metadata in head even root layout is wrapped with Suspense"
+      "app dir - metadata dynamic routes suspense should render metadata in head even root layout is wrapped with Suspense"
     ],
     "failed": [],
     "pending": [],
@@ -3369,7 +3420,6 @@
       "app dir - metadata basic should support title template",
       "app dir - metadata basic should support verification tags",
       "app dir - metadata basic should use parent layout title when no title is defined in page",
-      "app dir - metadata file based icons should handle updates to the file icon name and order",
       "app dir - metadata file based icons should not render if image file is not specified",
       "app dir - metadata file based icons should render icon and apple touch icon meta if their images are specified",
       "app dir - metadata icons should merge icons from layout if no static icons files are specified",
@@ -3385,23 +3435,25 @@
       "app dir - metadata opengraph should pick up opengraph-image and twitter-image as static metadata files",
       "app dir - metadata opengraph should support opengraph tags",
       "app dir - metadata opengraph should support opengraph with article type",
-      "app dir - metadata react cache should have same title and page value on initial load",
-      "app dir - metadata react cache should have same title and page value when navigating",
       "app dir - metadata should not effect metadata images convention like files under pages directory",
       "app dir - metadata static routes should have /favicon.ico as route",
-      "app dir - metadata static routes should have icons as route",
       "app dir - metadata static routes should support root dir robots.txt",
       "app dir - metadata static routes should support sitemap.xml under every routes",
-      "app dir - metadata static routes should support static manifest.webmanifest",
+      "app dir - metadata static routes should support static manifest.webmanifest"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [
+      "app dir - metadata file based icons should handle updates to the file icon name and order",
+      "app dir - metadata react cache should have same title and page value on initial load",
+      "app dir - metadata react cache should have same title and page value when navigating",
+      "app dir - metadata static routes should have icons as route",
       "app dir - metadata twitter should render twitter card summary when image is not present",
       "app dir - metadata twitter should support default twitter app card",
       "app dir - metadata twitter should support default twitter player card",
       "app dir - metadata twitter should support twitter card summary_large_image when image present",
       "app dir - metadata viewport should support dynamic viewport export"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/navigation/navigation.test.ts": {
@@ -3417,7 +3469,11 @@
       "app dir - navigation hash should scroll to the specified hash",
       "app dir - navigation hash-link-back-to-same-page should scroll to the specified hash",
       "app dir - navigation hash-with-scroll-offset should scroll to the specified hash",
+      "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from app to pages",
+      "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from pages to app",
+      "app dir - navigation navigation between pages and app should not omit the hash while navigating from app to pages",
       "app dir - navigation navigations when attaching a Proxy to `window.Promise` should navigate without issue",
+      "app dir - navigation nested navigation should load chunks correctly without double encoding of url",
       "app dir - navigation nested navigation should navigate to nested pages",
       "app dir - navigation not-found should trigger not-found client-side",
       "app dir - navigation not-found should trigger not-found in a client component",
@@ -3444,9 +3500,6 @@
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries"
     ],
     "failed": [
-      "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from app to pages",
-      "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from pages to app",
-      "app dir - navigation navigation between pages and app should not omit the hash while navigating from app to pages",
       "app dir - navigation query string useParams identity between renders should be stable in pages"
     ],
     "pending": [],
@@ -3541,16 +3594,15 @@
       "app dir - not-found - basic with default runtime should escalate notFound to parent layout if no not-found boundary present in current layer",
       "app dir - not-found - basic with default runtime should match dynamic route not-found boundary correctly",
       "app dir - not-found - basic with default runtime should not reload the page",
+      "app dir - not-found - basic with default runtime should render the 404 page when the file is removed, and restore the page when re-added",
       "app dir - not-found - basic with default runtime should use the not-found page for non-matching routes",
       "app dir - not-found - basic with runtime = edge should escalate notFound to parent layout if no not-found boundary present in current layer",
       "app dir - not-found - basic with runtime = edge should match dynamic route not-found boundary correctly",
       "app dir - not-found - basic with runtime = edge should not reload the page",
+      "app dir - not-found - basic with runtime = edge should render the 404 page when the file is removed, and restore the page when re-added",
       "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes"
     ],
-    "failed": [
-      "app dir - not-found - basic with default runtime should render the 404 page when the file is removed, and restore the page when re-added",
-      "app dir - not-found - basic with runtime = edge should render the 404 page when the file is removed, and restore the page when re-added"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3606,7 +3658,6 @@
   },
   "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
     "passed": [
-      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
       "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
       "parallel-routes-and-interception parallel routes should match parallel routes",
       "parallel-routes-and-interception parallel routes should match parallel routes in route groups",
@@ -3624,12 +3675,14 @@
       "parallel-routes-and-interception route intercepting should render intercepted route",
       "parallel-routes-and-interception route intercepting should render intercepted route from a nested route",
       "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
+      "parallel-routes-and-interception route intercepting should support intercepting local dynamic sibling routes",
       "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites",
       "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
     ],
     "failed": [
+      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
       "parallel-routes-and-interception parallel routes should throw an error when a route groups causes a conflict with a parallel segment"
     ],
     "pending": [],
@@ -3655,8 +3708,26 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/ppr-errors/ppr-errors.test.ts": {
+    "passed": [
+      "ppr build errors outside of a suspense boundary should fail the build for uncaught errors",
+      "ppr build errors outside of a suspense boundary when a postpone call was made but missing postpone data should fail the build",
+      "ppr build errors outside of a suspense boundary when a postpone call was made but missing postpone data should fail the build & surface any errors that were thrown by user code",
+      "ppr build errors when a postpone call is caught and logged it should should include a message telling why",
+      "ppr build errors within a suspense boundary should fail the build for uncaught prerender errors",
+      "ppr build errors within a suspense boundary when a postpone call was made but missing postpone data should fail the build",
+      "ppr build errors within a suspense boundary when a postpone call was made but missing postpone data should fail the build & surface any errors that were thrown by user code"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/ppr/ppr.test.ts": {
     "passed": [
+      "ppr /no-suspense/node/gsp/[slug] should serve the static & dynamic parts",
+      "ppr /suspense/node/gsp/[slug] should not have the dynamic part",
+      "ppr /suspense/node/gsp/[slug] should serve the static part first",
       "ppr for /loading/nested/1 should have the dynamic part",
       "ppr for /loading/nested/1 should serve the static part",
       "ppr for /loading/nested/2 should have the dynamic part",
@@ -3671,6 +3742,7 @@
       "ppr for /suspense/node/nested/2 should serve the static part",
       "ppr for /suspense/node/nested/3 should have the dynamic part",
       "ppr for /suspense/node/nested/3 should serve the static part",
+      "ppr should indicate the feature is experimental",
       "ppr with suspense for /suspense/edge should eventually render the dynamic part",
       "ppr with suspense for /suspense/node should eventually render the dynamic part",
       "ppr without suspense for /no-suspense should immediately render the dynamic part"
@@ -3719,13 +3791,12 @@
       "app-dir root layout Should do a mpa navigation when switching root layout should work with basic routes",
       "app-dir root layout Should do a mpa navigation when switching root layout should work with dynamic catchall routes",
       "app-dir root layout Should do a mpa navigation when switching root layout should work with dynamic routes",
+      "app-dir root layout Should do a mpa navigation when switching root layout should work with parallel routes",
+      "app-dir root layout Should do a mpa navigation when switching root layout should work with route groups",
       "app-dir root layout Should do a mpa navigation when switching root layout should work with static routes",
       "app-dir root layout should correctly handle navigation between multiple root layouts"
     ],
-    "failed": [
-      "app-dir root layout Should do a mpa navigation when switching root layout should work with parallel routes",
-      "app-dir root layout Should do a mpa navigation when switching root layout should work with route groups"
-    ],
+    "failed": [],
     "pending": [
       "app-dir root layout Missing required tags should error on page load",
       "app-dir root layout Missing required tags should error on page load on static generation",
@@ -4015,8 +4086,6 @@
       "basePath should handle query/hash correctly during query updating #hello? $search",
       "basePath should handle query/hash correctly during query updating #hello?world $search",
       "basePath should have basePath field on Router",
-      "basePath should have correct href for a link",
-      "basePath should have correct href for a link to /",
       "basePath should have correct router paths on first load of /",
       "basePath should have correct router paths on first load of /hello",
       "basePath should navigate an absolute local url with basePath",
@@ -4056,7 +4125,10 @@
       "basePath should work with nested folder with same name as basePath",
       "basePath should work with normal dynamic page"
     ],
-    "failed": [],
+    "failed": [
+      "basePath should have correct href for a link",
+      "basePath should have correct href for a link to /"
+    ],
     "pending": [
       "basePath should navigate back to a non-basepath 404 that starts with basepath",
       "basePath should navigate to nested index page with getStaticProps"
@@ -4140,11 +4212,10 @@
     "runtimeError": true
   },
   "test/e2e/conflicting-app-page-error/index.test.ts": {
-    "passed": [
-      "Conflict between app file and pages file should not show error overlay for non conflict pages under app or pages dir"
-    ],
+    "passed": [],
     "failed": [
       "Conflict between app file and pages file should error again when there is new conflict",
+      "Conflict between app file and pages file should not show error overlay for non conflict pages under app or pages dir",
       "Conflict between app file and pages file should show error overlay for /",
       "Conflict between app file and pages file should show error overlay for /another",
       "Conflict between app file and pages file should support hmr with conflicts"
@@ -5337,11 +5408,16 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "opentelemetry app router should handle RSC with fetch",
-      "opentelemetry app router should handle route handlers in app router",
-      "opentelemetry pages should handle api routes in pages",
-      "opentelemetry pages should handle getServerSideProps",
-      "opentelemetry pages should handle getStaticProps when fallback: 'blocking'"
+      "opentelemetry incoming context propagation app router should handle RSC with fetch",
+      "opentelemetry incoming context propagation app router should handle route handlers in app router",
+      "opentelemetry incoming context propagation pages should handle api routes in pages",
+      "opentelemetry incoming context propagation pages should handle getServerSideProps",
+      "opentelemetry incoming context propagation pages should handle getStaticProps when fallback: 'blocking'",
+      "opentelemetry root context app router should handle RSC with fetch",
+      "opentelemetry root context app router should handle route handlers in app router",
+      "opentelemetry root context pages should handle api routes in pages",
+      "opentelemetry root context pages should handle getServerSideProps",
+      "opentelemetry root context pages should handle getStaticProps when fallback: 'blocking'"
     ],
     "flakey": [],
     "runtimeError": false
@@ -5388,11 +5464,12 @@
     "runtimeError": false
   },
   "test/e2e/prerender-native-module.test.ts": {
-    "passed": ["prerender native module should render index correctly"],
-    "failed": [
+    "passed": [
       "prerender native module should render /blog/first correctly",
-      "prerender native module should render /blog/second correctly"
+      "prerender native module should render /blog/second correctly",
+      "prerender native module should render index correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5501,11 +5578,14 @@
   "test/e2e/skip-trailing-slash-redirect/index.test.ts": {
     "passed": [
       "skip-trailing-slash-redirect app dir - skip trailing slash redirect should navigate client side correctly",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (with slash)",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (without slash)",
       "skip-trailing-slash-redirect app dir - skip trailing slash redirect should preserve original trailing slashes to links on client",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to dynamic route correctly",
+      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to index correctly",
       "skip-trailing-slash-redirect pages dir should navigate client side correctly",
       "skip-trailing-slash-redirect pages dir should not apply trailing slash redirect (with slash)",
       "skip-trailing-slash-redirect pages dir should not apply trailing slash redirect (without slash)",
-      "skip-trailing-slash-redirect pages dir should preserve original trailing slashes to links on client",
       "skip-trailing-slash-redirect pages dir should respond to dynamic route correctly",
       "skip-trailing-slash-redirect pages dir should respond to index correctly",
       "skip-trailing-slash-redirect should allow response body from middleware with flag",
@@ -5527,10 +5607,7 @@
       "skip-trailing-slash-redirect should provide original _next/data URL with skipMiddlewareUrlNormalize"
     ],
     "failed": [
-      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (with slash)",
-      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should not apply trailing slash redirect (without slash)",
-      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to dynamic route correctly",
-      "skip-trailing-slash-redirect app dir - skip trailing slash redirect should respond to index correctly"
+      "skip-trailing-slash-redirect pages dir should preserve original trailing slashes to links on client"
     ],
     "pending": [],
     "flakey": [],
@@ -6290,7 +6367,6 @@
   "test/integration/app-document/test/index.test.js": {
     "passed": [
       "Document and App Client side It should share module state with pages",
-      "Document and App Client side should detect the changes to pages/_app.js and display it",
       "Document and App Client side should keep state between page navigations",
       "Document and App Rendering via HTTP _app It should share module state with pages",
       "Document and App Rendering via HTTP _app It should show valid error when thrown in _app getInitialProps",
@@ -6311,6 +6387,7 @@
     "failed": [],
     "pending": [],
     "flakey": [
+      "Document and App Client side should detect the changes to pages/_app.js and display it",
       "Document and App Client side should detect the changes to pages/_document.js and display it"
     ],
     "runtimeError": false
@@ -6479,11 +6556,12 @@
       "Build Activity Indicator Disabled with next.config.js Does not add the build indicator container",
       "Build Activity Indicator Enabled Adds the build indicator container",
       "Build Activity Indicator Enabled Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled Shows the build indicator when a page is built during navigation",
       "Build Activity Indicator should validate buildActivityPosition config"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "Build Activity Indicator Enabled webpack only Shows the build indicator when a page is built during navigation"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -7109,16 +7187,17 @@
   },
   "test/integration/css/test/css-modules.test.js": {
     "passed": [
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
+      "Ordering with Global CSS and Modules (dev) should not execute scripts in any order"
+    ],
+    "failed": [
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering)",
-      "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads",
-      "Ordering with Global CSS and Modules (dev) should not execute scripts in any order"
+      "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads"
     ],
-    "failed": [],
     "pending": [
       "Basic CSS Modules Ordering production mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering production mode should have correct color on index page (on load)",
@@ -7862,8 +7941,7 @@
       "Dynamic Routing dev mode should show error when interpolating fails for href",
       "Dynamic Routing dev mode should support long URLs for dynamic routes",
       "Dynamic Routing dev mode should update dynamic values on mount",
-      "Dynamic Routing dev mode should update with a hash in the URL",
-      "Dynamic Routing dev mode should work with HMR correctly"
+      "Dynamic Routing dev mode should update with a hash in the URL"
     ],
     "failed": [
       "Dynamic Routing dev mode should resolve dynamic route href for page added later"
@@ -7943,6 +8021,7 @@
       "Dynamic Routing production mode should update with a hash in the URL"
     ],
     "flakey": [
+      "Dynamic Routing dev mode should work with HMR correctly",
       "Dynamic Routing production mode should have correct cache entries on prefetch",
       "Dynamic Routing production mode should render dynamic route with query"
     ],
@@ -8665,7 +8744,8 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "bundle pages externals with config.experimental.bundlePagesExternals production mode should have no externals with the config set"
+      "bundle pages externals with config.experimental.bundlePagesExternals production mode should have no externals with the config set",
+      "bundle pages externals with config.experimental.bundlePagesExternals production mode should respect the serverComponentsExternals config"
     ],
     "flakey": [],
     "runtimeError": false
@@ -12040,11 +12120,10 @@
   },
   "test/integration/middleware-src/test/index.test.js": {
     "passed": [
-      "Middleware in src/ and / folders dev mode loads and runs only root middleware"
-    ],
-    "failed": [
+      "Middleware in src/ and / folders dev mode loads and runs only root middleware",
       "Middleware in src/ folder dev mode loads an runs src middleware"
     ],
+    "failed": [],
     "pending": [
       "Middleware in src/ and / folders production mode should warn about middleware on export",
       "Middleware in src/ folder production mode should warn about middleware on export"
@@ -14184,13 +14263,14 @@
     "runtimeError": false
   },
   "test/integration/server-side-dev-errors/test/index.test.js": {
-    "passed": [],
+    "passed": [
+      "server-side dev errors should show server-side error for dynamic gssp page correctly",
+      "server-side dev errors should show server-side error for gsp page correctly",
+      "server-side dev errors should show server-side error for gssp page correctly"
+    ],
     "failed": [
       "server-side dev errors should show server-side error for api route correctly",
       "server-side dev errors should show server-side error for dynamic api route correctly",
-      "server-side dev errors should show server-side error for dynamic gssp page correctly",
-      "server-side dev errors should show server-side error for gsp page correctly",
-      "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
       "server-side dev errors should show server-side error for uncaught exception correctly",
@@ -14802,15 +14882,16 @@
     "runtimeError": false
   },
   "test/integration/url/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Handle new URL asset references in next dev should client-render the /ssg page",
       "Handle new URL asset references in next dev should client-render the /ssr page",
       "Handle new URL asset references in next dev should client-render the /static page",
       "Handle new URL asset references in next dev should render the /ssg page",
       "Handle new URL asset references in next dev should render the /ssr page",
       "Handle new URL asset references in next dev should render the /static page",
-      "Handle new URL asset references in next dev should respond on basename api",
+      "Handle new URL asset references in next dev should respond on basename api"
+    ],
+    "failed": [
       "Handle new URL asset references in next dev should respond on size api"
     ],
     "pending": [

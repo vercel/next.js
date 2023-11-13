@@ -131,20 +131,32 @@ impl From<&PlainIssue> for NapiIssue {
 #[napi(object)]
 pub struct NapiIssueSource {
     pub source: NapiSource,
-    pub start: NapiSourcePos,
-    pub end: NapiSourcePos,
+    pub range: Option<NapiIssueSourceRange>,
 }
 
 impl From<&PlainIssueSource> for NapiIssueSource {
     fn from(
         PlainIssueSource {
             asset: source,
-            start,
-            end,
+            range,
         }: &PlainIssueSource,
     ) -> Self {
         Self {
             source: (&**source).into(),
+            range: range.as_ref().map(|range| range.into()),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct NapiIssueSourceRange {
+    pub start: NapiSourcePos,
+    pub end: NapiSourcePos,
+}
+
+impl From<&(SourcePos, SourcePos)> for NapiIssueSourceRange {
+    fn from((start, end): &(SourcePos, SourcePos)) -> Self {
+        Self {
             start: (*start).into(),
             end: (*end).into(),
         }

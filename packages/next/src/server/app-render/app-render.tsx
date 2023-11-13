@@ -32,9 +32,9 @@ import {
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
 import {
-  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE,
-  RSC,
+  RSC_HEADER,
 } from '../../client/components/app-router-headers'
 import { createMetadataComponents } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
@@ -45,7 +45,7 @@ import {
   isRedirectError,
 } from '../../client/components/redirect'
 import { getRedirectStatusCodeFromError } from '../../client/components/get-redirect-status-code-from-error'
-import { addImplicitTags, patchFetch } from '../lib/patch-fetch'
+import { addImplicitTags } from '../lib/patch-fetch'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
@@ -393,7 +393,6 @@ async function renderToHTMLOrFlightImpl(
   renderOpts: RenderOpts,
   baseCtx: AppRenderBaseContext
 ) {
-  const isFlight = req.headers[RSC.toLowerCase()] !== undefined
   const isNotFoundPath = pagePath === '/404'
 
   // A unique request timestamp used by development to ensure that it's
@@ -469,7 +468,8 @@ async function renderToHTMLOrFlightImpl(
   const isStaticGeneration = staticGenerationStore.isStaticGeneration
   // when static generation fails during PPR, we log the errors separately. We intentionally
   // silence the error logger in this case to avoid double logging.
-  const silenceStaticGenerationErrors = renderOpts.ppr && isStaticGeneration
+  const silenceStaticGenerationErrors =
+    renderOpts.experimental.ppr && isStaticGeneration
 
   const serverComponentsErrorHandler = createErrorHandler({
     _source: 'serverComponentsRenderer',
@@ -497,7 +497,7 @@ async function renderToHTMLOrFlightImpl(
     silenceLogger: silenceStaticGenerationErrors,
   })
 
-  patchFetch(ComponentMod)
+  ComponentMod.patchFetch()
 
   /**
    * Rules of Static & Dynamic HTML:
@@ -539,17 +539,21 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  const isPrefetch =
-    req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] !== undefined
+  const isRSCRequest = req.headers[RSC_HEADER.toLowerCase()] !== undefined
+
+  const isPrefetchRSCRequest =
+    isRSCRequest &&
+    req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
 
   /**
    * Router state provided from the client-side router. Used to handle rendering from the common layout down.
    */
-  let providedFlightRouterState = isFlight
-    ? parseAndValidateFlightRouterState(
-        req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-      )
-    : undefined
+  let providedFlightRouterState =
+    isRSCRequest && (!isPrefetchRSCRequest || !renderOpts.experimental.ppr)
+      ? parseAndValidateFlightRouterState(
+          req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+        )
+      : undefined
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -584,7 +588,7 @@ async function renderToHTMLOrFlightImpl(
     ...baseCtx,
     getDynamicParamFromSegment,
     query,
-    isPrefetch,
+    isPrefetch: isPrefetchRSCRequest,
     providedSearchParams,
     requestTimestamp,
     searchParamsProps,
@@ -601,18 +605,17 @@ async function renderToHTMLOrFlightImpl(
     res,
   }
 
-  if (isFlight && !isStaticGeneration) {
+  if (isRSCRequest && !isStaticGeneration) {
     return generateFlight(ctx)
   }
 
   const hasPostponed = typeof renderOpts.postponed === 'string'
 
-  let stringifiedFlightPayloadPromise =
-    isStaticGeneration || hasPostponed
-      ? generateFlight(ctx)
-          .then((renderResult) => renderResult.toUnchunkedString(true))
-          .catch(() => null)
-      : Promise.resolve(null)
+  let stringifiedFlightPayloadPromise = isStaticGeneration
+    ? generateFlight(ctx)
+        .then((renderResult) => renderResult.toUnchunkedString(true))
+        .catch(() => null)
+    : Promise.resolve(null)
 
   // Get the nonce from the incoming request if it has one.
   const csp = req.headers['content-security-policy']
@@ -701,7 +704,7 @@ async function renderToHTMLOrFlightImpl(
       )
 
       const renderer = createStaticRenderer({
-        ppr: renderOpts.ppr,
+        ppr: renderOpts.experimental.ppr,
         isStaticGeneration: staticGenerationStore.isStaticGeneration,
         postponed: renderOpts.postponed
           ? JSON.parse(renderOpts.postponed)
@@ -733,9 +736,22 @@ async function renderToHTMLOrFlightImpl(
         hasPostponed,
       })
 
+      function onHeaders(headers: Headers): void {
+        // Copy headers created by React into the response object.
+        headers.forEach((value: string, key: string) => {
+          res.appendHeader(key, value)
+          if (!extraRenderResultMeta.extraHeaders) {
+            extraRenderResultMeta.extraHeaders = {}
+          }
+          extraRenderResultMeta.extraHeaders[key] = value
+        })
+      }
+
       try {
         const renderStream = await renderer.render(content, {
           onError: htmlRendererErrorHandler,
+          onHeaders: onHeaders,
+          maxHeadersLength: 600,
           nonce,
           bootstrapScripts: [bootstrapScript],
           formState,
@@ -1003,7 +1019,7 @@ async function renderToHTMLOrFlightImpl(
 
     if (
       // if PPR is enabled
-      renderOpts.ppr &&
+      renderOpts.experimental.ppr &&
       // and a call to `maybePostpone` happened
       staticGenerationStore.postponeWasTriggered &&
       // but there's no postpone state
@@ -1013,7 +1029,10 @@ async function renderToHTMLOrFlightImpl(
       // as we won't be able to generate the static part
       warn('')
       error(
-        `Postpone signal was caught while rendering ${urlPathname}. Check to see if you're try/catching a Next.js API such as headers / cookies, or a fetch with "no-store". Learn more: https://nextjs.org/docs/messages/ppr-postpone-errors`
+        `Prerendering ${urlPathname} needs to partially bail out because something dynamic was used. ` +
+          `React throws a special object to indicate where we need to bail out but it was caught ` +
+          `by a try/catch or a Promise was not awaited. These special objects should not be caught ` +
+          `by your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
       )
 
       if (capturedErrors.length > 0) {
@@ -1083,7 +1102,11 @@ export const renderToHTMLOrFlight: AppPageRender = (
     (requestStore) =>
       StaticGenerationAsyncStorageWrapper.wrap(
         renderOpts.ComponentMod.staticGenerationAsyncStorage,
-        { urlPathname: pathname, renderOpts },
+        {
+          urlPathname: pathname,
+          renderOpts,
+          postpone: React.unstable_postpone,
+        },
         (staticGenerationStore) =>
           renderToHTMLOrFlightImpl(req, res, pagePath, query, renderOpts, {
             requestStore,
