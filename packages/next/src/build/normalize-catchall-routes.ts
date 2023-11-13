@@ -12,7 +12,7 @@ export function normalizeCatchAllRoutes(
   normalizer = new AppPathnameNormalizer()
 ) {
   const catchAllRoutes = [
-    ...new Set(Object.values(appPaths).flat().filter(isCatchAllRoute)),
+    ...new Set(Object.values(appPaths).flat().filter(isCatchAllRoute).sort((a,b)=> b.split("/").length - a.split("/").length)),
   ]
 
   for (const appPath of Object.keys(appPaths)) {
