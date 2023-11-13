@@ -314,7 +314,7 @@ createNextDescribe(
         await browser.elementByCss('[href="/parallel-catchall/bar"]').click()
         await check(
           () => browser.waitForElementByCss('#main').text(),
-          'main catchall'
+          'bar slot'
         )
         await check(
           () => browser.waitForElementByCss('#slot-content').text(),
@@ -328,14 +328,14 @@ createNextDescribe(
           'foo slot'
         )
 
-        await browser.elementByCss('[href="/parallel-catchall/bar"]').click()
+        await browser.elementByCss('[href="/parallel-catchall/baz"]').click()
         await check(
           () => browser.waitForElementByCss('#main').text(),
           'main catchall'
         )
         await check(
           () => browser.waitForElementByCss('#slot-content').text(),
-          'slot catchall'
+          'baz slot'
         )
       })
 

@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   'ppr',
@@ -7,9 +8,13 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next, isNextDev, isNextStart }) => {
-    it('should indicate the feature is experimental', () => {
-      expect(next.cliOutput).toContain('Experiments (use at your own risk)')
-      expect(next.cliOutput).toContain('ppr')
+    it('should indicate the feature is experimental', async () => {
+      await check(() => {
+        return next.cliOutput.includes('Experiments (use at your own risk)') &&
+          next.cliOutput.includes('ppr')
+          ? 'success'
+          : 'fail'
+      }, 'success')
     })
     if (isNextStart) {
       describe('build output', () => {
