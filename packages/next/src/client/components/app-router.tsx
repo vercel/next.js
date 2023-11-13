@@ -490,7 +490,6 @@ function Router({
           url?: string | URL | null
         ): void {
           copyNextJsInternalHistoryState(data)
-          data.__PRIVATE_NEXTJS_INTERNALS_CUSTOM_DATA = true
 
           applyUrlFromHistoryPushReplace(url)
 
@@ -509,7 +508,6 @@ function Router({
           url?: string | URL | null
         ): void {
           copyNextJsInternalHistoryState(data)
-          data.__PRIVATE_NEXTJS_INTERNALS_CUSTOM_DATA = true
 
           if (url) {
             applyUrlFromHistoryPushReplace(url)
