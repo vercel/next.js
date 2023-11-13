@@ -9,7 +9,7 @@ use turbopack_core::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingType, ChunkingTypeOption,
     },
     environment::Rendering,
-    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, LazyIssueSource},
+    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource},
     reference::ModuleReference,
     reference_type::UrlReferenceSubType,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
@@ -50,7 +50,7 @@ pub struct UrlAssetReference {
     request: Vc<Request>,
     rendering: Vc<Rendering>,
     ast_path: Vc<AstPath>,
-    issue_source: Vc<LazyIssueSource>,
+    issue_source: Vc<IssueSource>,
     in_try: bool,
     url_rewrite_behavior: Vc<UrlRewriteBehavior>,
 }
@@ -63,7 +63,7 @@ impl UrlAssetReference {
         request: Vc<Request>,
         rendering: Vc<Rendering>,
         ast_path: Vc<AstPath>,
-        issue_source: Vc<LazyIssueSource>,
+        issue_source: Vc<IssueSource>,
         in_try: bool,
         url_rewrite_behavior: Vc<UrlRewriteBehavior>,
     ) -> Vc<Self> {

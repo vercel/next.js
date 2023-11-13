@@ -26,7 +26,7 @@ use self::{
 };
 use crate::{
     file_source::FileSource,
-    issue::{resolve::ResolvingIssue, IssueExt, LazyIssueSource},
+    issue::{resolve::ResolvingIssue, IssueExt, IssueSource},
     module::{Module, Modules, OptionModule},
     output::{OutputAsset, OutputAssets},
     package_json::{read_package_json, PackageJsonIssue},
@@ -1931,7 +1931,7 @@ pub async fn handle_resolve_error(
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     severity: Vc<IssueSeverity>,
-    source: Option<Vc<LazyIssueSource>>,
+    source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     Ok(match result.is_unresolveable().await {
         Ok(unresolveable) => {

@@ -7,7 +7,7 @@ use swc_core::common::{
 };
 use turbo_tasks::Vc;
 use turbopack_core::{
-    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, LazyIssueSource},
+    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource},
     source::Source,
 };
 
@@ -41,7 +41,7 @@ impl Emitter for IssueEmitter {
         }
 
         let source = db.span.primary_span().map(|span| {
-            LazyIssueSource::from_swc_offsets(self.source, span.lo.to_usize(), span.hi.to_usize())
+            IssueSource::from_swc_offsets(self.source, span.lo.to_usize(), span.hi.to_usize())
         });
         // TODO add other primary and secondary spans with labels as sub_issues
 

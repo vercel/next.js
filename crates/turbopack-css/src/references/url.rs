@@ -10,7 +10,7 @@ use turbopack_core::{
         ChunkingTypeOption,
     },
     ident::AssetIdent,
-    issue::{IssueSeverity, LazyIssueSource},
+    issue::{IssueSeverity, IssueSource},
     output::OutputAsset,
     reference::ModuleReference,
     reference_type::UrlReferenceSubType,
@@ -37,7 +37,7 @@ pub struct UrlAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
     pub request: Vc<Request>,
     pub path: Vc<AstPath>,
-    pub issue_source: Vc<LazyIssueSource>,
+    pub issue_source: Vc<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
@@ -47,7 +47,7 @@ impl UrlAssetReference {
         origin: Vc<Box<dyn ResolveOrigin>>,
         request: Vc<Request>,
         path: Vc<AstPath>,
-        issue_source: Vc<LazyIssueSource>,
+        issue_source: Vc<IssueSource>,
     ) -> Vc<Self> {
         Self::cell(UrlAssetReference {
             origin,

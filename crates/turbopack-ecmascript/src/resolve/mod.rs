@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     context::AssetContext,
-    issue::{IssueSeverity, LazyIssueSource},
+    issue::{IssueSeverity, IssueSource},
     reference_type::{
         CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType,
         UrlReferenceSubType,
@@ -65,7 +65,7 @@ pub async fn esm_resolve(
     request: Vc<Request>,
     ty: Value<EcmaScriptModulesReferenceSubType>,
     issue_severity: Vc<IssueSeverity>,
-    issue_source: Option<Vc<LazyIssueSource>>,
+    issue_source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::EcmaScriptModules(ty.into_value()));
     let options = apply_esm_specific_options(origin.resolve_options(ty.clone()))
@@ -78,7 +78,7 @@ pub async fn esm_resolve(
 pub async fn cjs_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
-    issue_source: Option<Vc<LazyIssueSource>>,
+    issue_source: Option<Vc<IssueSource>>,
     issue_severity: Vc<IssueSeverity>,
 ) -> Result<Vc<ModuleResolveResult>> {
     // TODO pass CommonJsReferenceSubType
@@ -94,7 +94,7 @@ pub async fn url_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     ty: Value<UrlReferenceSubType>,
-    issue_source: Vc<LazyIssueSource>,
+    issue_source: Vc<IssueSource>,
     issue_severity: Vc<IssueSeverity>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::Url(ty.into_value()));
@@ -129,7 +129,7 @@ async fn specific_resolve(
     options: Vc<ResolveOptions>,
     reference_type: Value<ReferenceType>,
     issue_severity: Vc<IssueSeverity>,
-    issue_source: Option<Vc<LazyIssueSource>>,
+    issue_source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let result = origin.resolve_asset(request, options, reference_type.clone());
 

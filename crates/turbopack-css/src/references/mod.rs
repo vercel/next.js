@@ -12,7 +12,7 @@ use swc_core::{
 };
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
-    issue::{IssueSeverity, LazyIssueSource},
+    issue::{IssueSeverity, IssueSource},
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{
@@ -133,7 +133,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
             Request::parse(Value::new(src.to_string().into())),
             Vc::cell(as_parent_path(ast_path)),
             ImportAttributes::new_from_prelude(i).into(),
-            LazyIssueSource::from_swc_offsets(
+            IssueSource::from_swc_offsets(
                 Vc::upcast(self.source),
                 issue_span.lo.to_usize(),
                 issue_span.hi.to_usize(),
@@ -160,7 +160,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
                 self.origin,
                 Request::parse(Value::new(src.to_string().into())),
                 Vc::cell(as_parent_path(ast_path)),
-                LazyIssueSource::from_swc_offsets(
+                IssueSource::from_swc_offsets(
                     Vc::upcast(self.source),
                     issue_span.lo.to_usize(),
                     issue_span.hi.to_usize(),
@@ -177,7 +177,7 @@ pub async fn css_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     ty: Value<CssReferenceSubType>,
-    issue_source: Option<Vc<LazyIssueSource>>,
+    issue_source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::Css(ty.into_value()));
     let options = origin.resolve_options(ty.clone());

@@ -51,7 +51,7 @@ use turbo_tasks_fs::{FileJsonContent, FileSystemPath};
 use turbopack_core::{
     compile_time_info::{CompileTimeInfo, FreeVarReference},
     error::PrettyPrintError,
-    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, LazyIssueSource},
+    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource},
     module::Module,
     reference::{ModuleReference, ModuleReferences, SourceMapReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -963,11 +963,7 @@ pub(crate) async fn analyze_ecmascript_module(
                     Request::parse(Value::new(pat)),
                     compile_time_info.environment().rendering(),
                     Vc::cell(ast_path),
-                    LazyIssueSource::from_swc_offsets(
-                        source,
-                        span.lo.to_usize(),
-                        span.hi.to_usize(),
-                    ),
+                    IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize()),
                     in_try,
                     options
                         .url_rewrite_behavior
@@ -1764,7 +1760,7 @@ async fn handle_free_var_reference(
                     ))
                 }),
                 Request::parse(Value::new(request.clone().into())),
-                Some(LazyIssueSource::from_swc_offsets(
+                Some(IssueSource::from_swc_offsets(
                     state.source,
                     span.lo.to_usize(),
                     span.hi.to_usize(),
@@ -1792,8 +1788,8 @@ async fn handle_free_var_reference(
     Ok(true)
 }
 
-fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<LazyIssueSource> {
-    LazyIssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
+fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
+    IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
 fn analyze_amd_define(

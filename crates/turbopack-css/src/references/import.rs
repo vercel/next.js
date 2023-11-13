@@ -12,7 +12,7 @@ use swc_core::{
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
-    issue::LazyIssueSource,
+    issue::IssueSource,
     reference::ModuleReference,
     reference_type::CssReferenceSubType,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
@@ -187,7 +187,7 @@ pub struct ImportAssetReference {
     pub request: Vc<Request>,
     pub path: Vc<AstPath>,
     pub attributes: Vc<ImportAttributes>,
-    pub issue_source: Vc<LazyIssueSource>,
+    pub issue_source: Vc<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
@@ -198,7 +198,7 @@ impl ImportAssetReference {
         request: Vc<Request>,
         path: Vc<AstPath>,
         attributes: Vc<ImportAttributes>,
-        issue_source: Vc<LazyIssueSource>,
+        issue_source: Vc<IssueSource>,
     ) -> Vc<Self> {
         Self::cell(ImportAssetReference {
             origin,
