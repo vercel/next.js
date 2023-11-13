@@ -11,13 +11,21 @@ export default function Layout({ children, slot }) {
       </div>
 
       <div>
-        <Link href="/parallel-catchall/foo">foo</Link>
+        <Link href="/parallel-nested-catchall/foo">foo</Link>
       </div>
       <div>
-        <Link href="/parallel-catchall/bar">catchall bar</Link>
+        <Link href="/parallel-nested-catchall/bar">catchall bar</Link>
       </div>
       <div>
-        <Link href="/parallel-catchall/foo/123">catchall foo id</Link>
+        <Link href="/parallel-nested-catchall/foo/123">catchall foo id</Link>
+      </div>
+      <div>
+        <Link href="/parallel-nested-catchall/baz">optional catchall baz</Link>
+      </div>
+      <div>
+        <Link href="/parallel-nested-catchall/baz/123">
+          optional catchall baz id
+        </Link>
       </div>
     </div>
   )
