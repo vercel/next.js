@@ -65,9 +65,12 @@ describe('fillCacheWithDataProperty', () => {
       ]),
     }
 
-    fillCacheWithDataProperty(cache, existingCache, flightSegmentPath, () =>
-      fetchServerResponseMock()
-    )
+    fillCacheWithDataProperty({
+      newCache: cache,
+      existingCache,
+      flightSegmentPath,
+      dataFetch: () => fetchServerResponseMock(),
+    })
 
     expect(cache).toMatchInlineSnapshot(`
       {

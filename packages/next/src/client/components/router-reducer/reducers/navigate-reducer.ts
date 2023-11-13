@@ -75,7 +75,7 @@ function addRefetchToLeafSegments(
   currentCache: CacheNode,
   flightSegmentPath: FlightSegmentPath,
   treePatch: FlightRouterState,
-  data: () => Promise<FetchServerResponseResult>
+  dataFetch: () => Promise<FetchServerResponseResult>
 ) {
   let appliedPatch = false
 
@@ -88,12 +88,12 @@ function addRefetchToLeafSegments(
   )
 
   for (const segmentPaths of segmentPathsToFill) {
-    const res = fillCacheWithDataProperty(
+    const res = fillCacheWithDataProperty({
       newCache,
-      currentCache,
-      segmentPaths,
-      data
-    )
+      existingCache: currentCache,
+      flightSegmentPath: segmentPaths,
+      dataFetch,
+    })
     if (!res?.bailOptimistic) {
       appliedPatch = true
     }
@@ -181,13 +181,13 @@ export function navigateReducer(
 
     // Copy existing cache nodes as far as possible and fill in `data` property with the started data fetch.
     // The `data` property is used to suspend in layout-router during render if it hasn't resolved yet by the time it renders.
-    const res = fillCacheWithDataProperty(
-      temporaryCacheNode,
-      state.cache,
-      optimisticFlightSegmentPath,
-      fetchResponse,
-      true
-    )
+    const res = fillCacheWithDataProperty({
+      newCache: temporaryCacheNode,
+      existingCache: state.cache,
+      flightSegmentPath: optimisticFlightSegmentPath,
+      dataFetch: fetchResponse,
+      bailOnParallelRoutes: true,
+    })
 
     // If optimistic fetch couldn't happen it falls back to the non-optimistic case.
     if (!res?.bailOptimistic) {
