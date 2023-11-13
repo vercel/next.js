@@ -111,7 +111,6 @@ describe('serverPatchReducer', () => {
         null,
         true,
       ],
-      preserveCustomHistoryState: false,
     }
 
     const newState = await runPromiseThrowChain(() =>
@@ -124,7 +123,7 @@ describe('serverPatchReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
-        preserveCustomHistoryState: false,
+        preserveCustomHistoryState: true,
       },
       focusAndScrollRef: {
         apply: false,
@@ -278,7 +277,6 @@ describe('serverPatchReducer', () => {
         null,
         true,
       ],
-      preserveCustomHistoryState: false,
     }
 
     await runPromiseThrowChain(() => restoreReducer(state, action))
@@ -293,7 +291,7 @@ describe('serverPatchReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
-        preserveCustomHistoryState: false,
+        preserveCustomHistoryState: true,
       },
       focusAndScrollRef: {
         apply: false,

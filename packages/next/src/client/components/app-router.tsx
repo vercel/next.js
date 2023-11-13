@@ -424,8 +424,6 @@ function Router({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
         tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-        // Apply custom history state if it was set because pageShow can happen when navigating back/forward on MPA Navigation.
-        preserveCustomHistoryState: true,
       })
     }
 
@@ -476,8 +474,6 @@ function Router({
             type: ACTION_RESTORE,
             url: new URL(url ?? window.location.href),
             tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-            // Ensures that the custom history state that was set is preserved when applying this update.
-            preserveCustomHistoryState: true,
           })
         })
       }
@@ -548,8 +544,6 @@ function Router({
           type: ACTION_RESTORE,
           url: new URL(window.location.href),
           tree: state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-          // Apply custom history state if it was set with navigating back/forward.
-          preserveCustomHistoryState: true,
         })
       })
     }

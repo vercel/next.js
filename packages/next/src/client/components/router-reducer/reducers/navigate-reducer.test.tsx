@@ -1755,6 +1755,7 @@ describe('navigateReducer', () => {
         hashFragment: '#hash',
         pendingPush: true,
         shouldScroll: true,
+        preserveCustomHistoryState: false,
       },
     }
 
@@ -1810,7 +1811,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
-          "preserveCustomHistoryState": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
