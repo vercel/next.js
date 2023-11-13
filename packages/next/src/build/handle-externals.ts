@@ -223,7 +223,7 @@ export function makeExternalHandler({
       if (isExternal) {
         // it's important we return the path that starts with `next/dist/` here instead of the absolute path
         // otherwise NFT will get tripped up
-        return `commonjs ${localRes.replace(/.*?next[/\\]dist/, 'next/dist')}`
+        return `commonjs ${localRes.replace(/.*?next[/\\]dist/, "next/dist").replace(/\\/g, "/")}`
       }
     }
 
