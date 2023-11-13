@@ -151,7 +151,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
-        updateHistory: true,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,
@@ -315,7 +315,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
-        updateHistory: true,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,
@@ -503,7 +503,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
-        updateHistory: true,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,
@@ -740,7 +740,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
-        updateHistory: true,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,

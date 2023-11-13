@@ -9,7 +9,7 @@ export function restoreReducer(
   state: ReadonlyReducerState,
   action: RestoreAction
 ): ReducerState {
-  const { url, tree, updateHistory } = action
+  const { url, tree, preserveCustomHistoryState } = action
   const href = createHrefFromUrl(url)
 
   return {
@@ -19,7 +19,7 @@ export function restoreReducer(
     pushRef: {
       pendingPush: false,
       mpaNavigation: false,
-      updateHistory,
+      preserveCustomHistoryState,
     },
     focusAndScrollRef: state.focusAndScrollRef,
     cache: state.cache,

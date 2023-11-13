@@ -30,10 +30,10 @@ export function handleMutable(
         mutable.mpaNavigation != null
           ? mutable.mpaNavigation
           : state.pushRef.mpaNavigation,
-      updateHistory:
-        mutable.updateHistory != null
-          ? mutable.updateHistory
-          : state.pushRef.updateHistory,
+      preserveCustomHistoryState:
+        mutable.preserveCustomHistoryState != null
+          ? mutable.preserveCustomHistoryState
+          : state.pushRef.preserveCustomHistoryState,
     },
     // All navigation requires scroll and focus management to trigger.
     focusAndScrollRef: {

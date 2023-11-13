@@ -121,11 +121,11 @@ function HistoryUpdater({
   sync: () => void
 }) {
   useInsertionEffect(() => {
-    // When updateHistory is false skip updating the history.
-    if (!pushRef.updateHistory) {
-      return
-    }
     const historyState = {
+      ...(process.env.__NEXT_WINDOW_HISTORY_SUPPORT &&
+      pushRef.preserveCustomHistoryState
+        ? window.history.state
+        : {}),
       // Identifier is shortened intentionally.
       // __NA is used to identify if the history entry can be handled by the app-router.
       // __N is used to identify if the history entry can be handled by the old router.
@@ -424,7 +424,8 @@ function Router({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
         tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-        updateHistory: true,
+        // Apply custom history state if it was set because pageShow can happen when navigating back/forward on MPA Navigation.
+        preserveCustomHistoryState: true,
       })
     }
 
@@ -467,13 +468,16 @@ function Router({
   useEffect(() => {
     if (process.env.__NEXT_WINDOW_HISTORY_SUPPORT) {
       // Ensure the canonical URL in the Next.js Router is updated when the URL is changed so that `usePathname` and `useSearchParams` hold the pushed values.
-      const applyUrlFromHistoryPushReplace = (url: string | URL) => {
+      const applyUrlFromHistoryPushReplace = (
+        url: string | URL | null | undefined
+      ) => {
         startTransition(() => {
           dispatch({
             type: ACTION_RESTORE,
             url: new URL(url ?? window.location.href),
             tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-            updateHistory: false,
+            // Ensures that the custom history state that was set is preserved when applying this update.
+            preserveCustomHistoryState: true,
           })
         })
       }
@@ -492,9 +496,8 @@ function Router({
           copyNextJsInternalHistoryState(data)
           data.__PRIVATE_NEXTJS_INTERNALS_CUSTOM_DATA = true
 
-          if (url) {
-            applyUrlFromHistoryPushReplace(url)
-          }
+          applyUrlFromHistoryPushReplace(url)
+
           return originalPushState(data, _unused, url)
         }
       }
@@ -545,7 +548,8 @@ function Router({
           type: ACTION_RESTORE,
           url: new URL(window.location.href),
           tree: state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-          updateHistory: true,
+          // Apply custom history state if it was set with navigating back/forward.
+          preserveCustomHistoryState: true,
         })
       })
     }

@@ -101,7 +101,7 @@ describe('createInitialRouterState', () => {
       pushRef: {
         pendingPush: false,
         mpaNavigation: false,
-        updateHistory: true,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,

@@ -38,7 +38,7 @@ export interface Mutable {
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
   shouldScroll?: boolean
-  updateHistory?: boolean
+  preserveCustomHistoryState?: boolean
 }
 
 export interface ServerActionMutable extends Mutable {
@@ -140,7 +140,7 @@ export interface RestoreAction {
   type: typeof ACTION_RESTORE
   url: URL
   tree: FlightRouterState
-  updateHistory: boolean
+  preserveCustomHistoryState: boolean
 }
 
 /**
@@ -194,7 +194,7 @@ export interface PushRef {
   /**
    * Skip applying the router state to the browser history state.
    */
-  updateHistory: boolean
+  preserveCustomHistoryState: boolean
 }
 
 export type FocusAndScrollRef = {

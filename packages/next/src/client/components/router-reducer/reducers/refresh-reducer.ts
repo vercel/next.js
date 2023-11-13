@@ -28,8 +28,7 @@ export function refreshReducer(
     return handleMutable(state, mutable)
   }
 
-  // Update window.history
-  mutable.updateHistory = true
+  mutable.preserveCustomHistoryState = false
 
   if (!cache.data) {
     // TODO-APP: verify that `href` is not an external url.

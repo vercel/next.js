@@ -173,7 +173,7 @@ describe('prefetchReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
-        updateHistory: true,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,
@@ -329,7 +329,7 @@ describe('prefetchReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
-        updateHistory: true,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,

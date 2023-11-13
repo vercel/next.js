@@ -157,8 +157,7 @@ export function serverActionReducer(
     return handleMutable(state, mutable)
   }
 
-  // Update window.history
-  mutable.updateHistory = true
+  mutable.preserveCustomHistoryState = false
 
   mutable.inFlightServerAction = fetchServerAction(state, action)
 
