@@ -1210,7 +1210,7 @@ function createModuleHot(moduleId, hotData) {
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath) {
-    return `${CHUNK_BASE_PATH}${chunkPath}`;
+    return `${CHUNK_BASE_PATH}${chunkPath}`.split("/").map((p)=>encodeURIComponent(p)).join("/");
 }
 /**
  * Subscribes to chunk list updates from the update server and applies them.
@@ -1292,7 +1292,7 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
 }
 // [TODO] need to match behavior as similar to UrlAssetReference
 function resolveAbsolutePath(modulePath) {
-    throw new Error('resolveAbsolutePath is not implemented in the DOM runtime');
+    throw new Error("resolveAbsolutePath is not implemented in the DOM runtime");
 }
 (()=>{
     BACKEND = {
@@ -1325,7 +1325,7 @@ function resolveAbsolutePath(modulePath) {
             deleteResolver(chunkPath);
             const chunkUrl = getChunkRelativeUrl(chunkPath);
             if (chunkPath.endsWith(".css")) {
-                const links = document.querySelectorAll(`link[href="${chunkUrl}"]`);
+                const links = document.querySelectorAll(`link[href="${chunkUrl}"],link[href^="${chunkUrl}?"]`);
                 for (const link of Array.from(links)){
                     link.remove();
                 }
@@ -1334,7 +1334,7 @@ function resolveAbsolutePath(modulePath) {
                 // runtime once evaluated.
                 // However, we still want to remove the script tag from the DOM to keep
                 // the HTML somewhat consistent from the user's perspective.
-                const scripts = document.querySelectorAll(`script[src="${chunkUrl}"]`);
+                const scripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"]`);
                 for (const script of Array.from(scripts)){
                     script.remove();
                 }
@@ -1348,9 +1348,8 @@ function resolveAbsolutePath(modulePath) {
                     reject(new Error("The DOM backend can only reload CSS chunks"));
                     return;
                 }
-                const encodedChunkPath = chunkPath.split("/").map((p)=>encodeURIComponent(p)).join("/");
-                const chunkUrl = getChunkRelativeUrl(encodedChunkPath);
-                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href^="${chunkUrl}"]`);
+                const chunkUrl = getChunkRelativeUrl(chunkPath);
+                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"]`);
                 if (previousLinks.length == 0) {
                     reject(new Error(`No link element found for chunk ${chunkPath}`));
                     return;
@@ -1428,28 +1427,46 @@ function resolveAbsolutePath(modulePath) {
         }
         const chunkUrl = getChunkRelativeUrl(chunkPath);
         if (chunkPath.endsWith(".css")) {
-            const link = document.createElement("link");
-            link.rel = "stylesheet";
-            link.href = chunkUrl;
-            link.onerror = ()=>{
-                resolver.reject();
-            };
-            link.onload = ()=>{
+            const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"]`);
+            if (previousLinks.length > 0) {
                 // CSS chunks do not register themselves, and as such must be marked as
                 // loaded instantly.
                 resolver.resolve();
-            };
-            document.body.appendChild(link);
+            } else {
+                const link = document.createElement("link");
+                link.rel = "stylesheet";
+                link.href = chunkUrl;
+                link.onerror = ()=>{
+                    resolver.reject();
+                };
+                link.onload = ()=>{
+                    // CSS chunks do not register themselves, and as such must be marked as
+                    // loaded instantly.
+                    resolver.resolve();
+                };
+                document.body.appendChild(link);
+            }
         } else if (chunkPath.endsWith(".js")) {
-            const script = document.createElement("script");
-            script.src = chunkUrl;
-            // We'll only mark the chunk as loaded once the script has been executed,
-            // which happens in `registerChunk`. Hence the absence of `resolve()` in
-            // this branch.
-            script.onerror = ()=>{
-                resolver.reject();
-            };
-            document.body.appendChild(script);
+            const previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"]`);
+            if (previousScripts.length > 0) {
+                // There is this edge where the script already failed loading, but we
+                // can't detect that. The Promise will never resolve in this case.
+                for (const script of Array.from(previousScripts)){
+                    script.addEventListener("error", ()=>{
+                        resolver.reject();
+                    });
+                }
+            } else {
+                const script = document.createElement("script");
+                script.src = chunkUrl;
+                // We'll only mark the chunk as loaded once the script has been executed,
+                // which happens in `registerChunk`. Hence the absence of `resolve()` in
+                // this branch.
+                script.onerror = ()=>{
+                    resolver.reject();
+                };
+                document.body.appendChild(script);
+            }
         } else {
             throw new Error(`can't infer type of chunk from path ${chunkPath}`);
         }
