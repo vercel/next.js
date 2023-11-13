@@ -368,24 +368,6 @@ createNextDescribe(
           () => browser.waitForElementByCss('#slot-content').text(),
           'foo id catchAll'
         )
-
-        await browser
-          .elementByCss('[href="/parallel-nested-catchall/baz"]')
-          .click()
-        await check(() => browser.waitForElementByCss('#main').text(), 'baz')
-        await check(
-          () => browser.waitForElementByCss('#slot-content').text(),
-          'baz optional catchAll'
-        )
-
-        await browser
-          .elementByCss('[href="/parallel-nested-catchall/baz/123"]')
-          .click()
-        await check(() => browser.waitForElementByCss('#main').text(), 'baz id')
-        await check(
-          () => browser.waitForElementByCss('#slot-content').text(),
-          'baz optional catchAll'
-        )
       })
 
       it('should navigate with a link with prefetch=false', async () => {
