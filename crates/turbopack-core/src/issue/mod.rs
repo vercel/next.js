@@ -396,65 +396,18 @@ impl CapturedIssues {
     }
 }
 
-/// Use this to pass and store byte offsets for an AST node along with its
-/// source. When row/column is needed, this can be lazily converted into a
-/// proper `IssueSource` at that time using
-/// [LazyIssueSource::to_issue_source].
-#[turbo_tasks::value]
-#[derive(Clone, Debug)]
-pub struct LazyIssueSource {
-    pub source: Vc<Box<dyn Source>>,
-    pub start_end: Option<(usize, usize)>,
-}
-
-#[turbo_tasks::value_impl]
-impl LazyIssueSource {
-    /// Create a [`LazyIssueSource`] from byte offsets given by an swc ast node
-    /// span.
-    ///
-    /// Arguments:
-    ///
-    /// * `source`: The source code in which to look up the byte offsets.
-    /// * `start`: The start index of the span. Must use **1-based** indexing.
-    /// * `end`: The end index of the span. Must use **1-based** indexing.
-    #[turbo_tasks::function]
-    pub fn from_swc_offsets(source: Vc<Box<dyn Source>>, start: usize, end: usize) -> Vc<Self> {
-        match (start == 0, end == 0) {
-            (true, true) => Self::cell(LazyIssueSource {
-                source,
-                start_end: None,
-            }),
-            (false, false) => Self::cell(LazyIssueSource {
-                source,
-                start_end: Some((start - 1, end - 1)),
-            }),
-            (false, true) => Self::cell(LazyIssueSource {
-                source,
-                start_end: Some((start - 1, start - 1)),
-            }),
-            (true, false) => Self::cell(LazyIssueSource {
-                source,
-                start_end: Some((end - 1, end - 1)),
-            }),
-        }
-    }
-
-    #[turbo_tasks::function]
-    pub async fn to_issue_source(self: Vc<Self>) -> Result<Vc<IssueSource>> {
-        let this = &*self.await?;
-        Ok(if let Some((start, end)) = this.start_end {
-            IssueSource::from_byte_offset(this.source, start, end)
-        } else {
-            IssueSource::from_source_only(this.source)
-        })
-    }
-}
-
 #[turbo_tasks::value]
 #[derive(Clone, Debug)]
 pub struct IssueSource {
     source: Vc<Box<dyn Source>>,
-    range: Option<(SourcePos, SourcePos)>,
+    range: Option<Vc<SourceRange>>,
+}
+
+#[turbo_tasks::value]
+#[derive(Clone, Debug)]
+enum SourceRange {
+    LineColumn(SourcePos, SourcePos),
+    ByteOffset(usize, usize),
 }
 
 #[turbo_tasks::value_impl]
@@ -466,6 +419,27 @@ impl IssueSource {
         Self::cell(IssueSource {
             source,
             range: None,
+        })
+    }
+
+    /// Create a [`IssueSource`] from byte offsets given by an swc ast node
+    /// span.
+    ///
+    /// Arguments:
+    ///
+    /// * `source`: The source code in which to look up the byte offsets.
+    /// * `start`: The start index of the span. Must use **1-based** indexing.
+    /// * `end`: The end index of the span. Must use **1-based** indexing.
+    #[turbo_tasks::function]
+    pub fn from_swc_offsets(source: Vc<Box<dyn Source>>, start: usize, end: usize) -> Vc<Self> {
+        Self::cell(IssueSource {
+            source,
+            range: match (start == 0, end == 0) {
+                (true, true) => None,
+                (false, false) => Some(SourceRange::ByteOffset(start - 1, end - 1).cell()),
+                (false, true) => Some(SourceRange::ByteOffset(start - 1, start - 1).cell()),
+                (true, false) => Some(SourceRange::ByteOffset(end - 1, end - 1).cell()),
+            },
         })
     }
 
@@ -486,31 +460,12 @@ impl IssueSource {
         start: usize,
         end: usize,
     ) -> Result<Vc<Self>> {
-        fn find_line_and_column(lines: &[FileLine], offset: usize) -> SourcePos {
-            match lines.binary_search_by(|line| line.bytes_offset.cmp(&offset)) {
-                Ok(i) => SourcePos { line: i, column: 0 },
-                Err(i) => {
-                    if i == 0 {
-                        SourcePos {
-                            line: 0,
-                            column: offset,
-                        }
-                    } else {
-                        let line = &lines[i - 1];
-                        SourcePos {
-                            line: i - 1,
-                            column: min(line.content.len(), offset - line.bytes_offset),
-                        }
-                    }
-                }
-            }
-        }
         Ok(Self::cell(IssueSource {
             source,
             range: if let FileLinesContent::Lines(lines) = &*source.content().lines().await? {
                 let start = find_line_and_column(lines.as_ref(), start);
                 let end = find_line_and_column(lines.as_ref(), end);
-                Some((start, end))
+                Some(SourceRange::LineColumn(start, end).cell())
             } else {
                 None
             },
@@ -615,7 +570,23 @@ impl IssueSource {
         let this = self.await?;
         Ok(PlainIssueSource {
             asset: PlainSource::from_source(this.source).await?,
-            range: this.range,
+            range: match this.range {
+                Some(range) => match &*range.await? {
+                    SourceRange::LineColumn(start, end) => Some((*start, *end)),
+                    SourceRange::ByteOffset(start, end) => {
+                        if let FileLinesContent::Lines(lines) =
+                            &*this.source.content().lines().await?
+                        {
+                            let start = find_line_and_column(lines.as_ref(), *start);
+                            let end = find_line_and_column(lines.as_ref(), *end);
+                            Some((start, end))
+                        } else {
+                            None
+                        }
+                    }
+                },
+                _ => None,
+            },
         }
         .cell())
     }
@@ -828,5 +799,25 @@ pub async fn handle_issues<T: Send>(
         Err(anyhow!(message))
     } else {
         Ok(())
+    }
+}
+
+fn find_line_and_column(lines: &[FileLine], offset: usize) -> SourcePos {
+    match lines.binary_search_by(|line| line.bytes_offset.cmp(&offset)) {
+        Ok(i) => SourcePos { line: i, column: 0 },
+        Err(i) => {
+            if i == 0 {
+                SourcePos {
+                    line: 0,
+                    column: offset,
+                }
+            } else {
+                let line = &lines[i - 1];
+                SourcePos {
+                    line: i - 1,
+                    column: min(line.content.len(), offset - line.bytes_offset),
+                }
+            }
+        }
     }
 }

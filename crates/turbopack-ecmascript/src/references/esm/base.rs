@@ -11,7 +11,7 @@ use turbopack_core::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
         ChunkingTypeOption, ModuleId,
     },
-    issue::{IssueSeverity, LazyIssueSource},
+    issue::{IssueSeverity, IssueSource},
     module::Module,
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
@@ -103,7 +103,7 @@ pub struct EsmAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
     pub request: Vc<Request>,
     pub annotations: ImportAnnotations,
-    pub issue_source: Option<Vc<LazyIssueSource>>,
+    pub issue_source: Option<Vc<IssueSource>>,
     pub export_name: Option<Vc<ModulePart>>,
 }
 
@@ -127,7 +127,7 @@ impl EsmAssetReference {
     pub fn new(
         origin: Vc<Box<dyn ResolveOrigin>>,
         request: Vc<Request>,
-        issue_source: Option<Vc<LazyIssueSource>>,
+        issue_source: Option<Vc<IssueSource>>,
         annotations: Value<ImportAnnotations>,
         export_name: Option<Vc<ModulePart>>,
     ) -> Vc<Self> {
