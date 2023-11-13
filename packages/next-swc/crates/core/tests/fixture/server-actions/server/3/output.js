@@ -8,4 +8,4 @@ import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     myAction
 ]);
-createActionProxy("e10665baac148856374b2789aceb970f66fec33e", null, myAction);
+createActionProxy("e10665baac148856374b2789aceb970f66fec33e", myAction);
