@@ -339,6 +339,33 @@ createNextDescribe(
         )
       })
 
+      it('', async () => {
+        const browser = await next.browser('/parallel-nested-catchall')
+
+        await browser.elementByCss('[href="/parallel-catchall/foo"]').click()
+        await check(() => browser.waitForElementByCss('#main').text(), 'foo')
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'foo slot'
+        )
+
+        await browser.elementByCss('[href="/parallel-catchall/bar"]').click()
+        await check(() => browser.waitForElementByCss('#main').text(), 'bar')
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'slot catchall'
+        )
+
+        await browser
+          .elementByCss('[href="/parallel-catchall/foo/123"]')
+          .click()
+        await check(() => browser.waitForElementByCss('#main').text(), 'foo id')
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'foo id catchAll'
+        )
+      })
+
       it('should navigate with a link with prefetch=false', async () => {
         const browser = await next.browser('/parallel-prefetch-false')
 
