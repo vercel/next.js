@@ -16,6 +16,7 @@ export function normalizeCatchAllRoutes(
       Object.values(appPaths)
         .flat()
         .filter(isCatchAllRoute)
+        // Sorting is important because we want to match the most specific path.
         .sort((a, b) => b.split('/').length - a.split('/').length)
     ),
   ]
