@@ -2,52 +2,28 @@
 
 import type { ReactNode } from 'react'
 import React, {
-  startTransition,
   use,
-  useCallback,
   useEffect,
-  useInsertionEffect,
   useMemo,
+  useCallback,
+  startTransition,
+  useInsertionEffect,
 } from 'react'
-import type {
-  FlightData,
-  FlightRouterState,
-} from '../../server/app-render/types'
-import type {
-  AppRouterInstance,
-  CacheNode,
-} from '../../shared/lib/app-router-context.shared-runtime'
 import {
   AppRouterContext,
-  CacheStates,
-  GlobalLayoutRouterContext,
   LayoutRouterContext,
+  GlobalLayoutRouterContext,
+  CacheStates,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import {
-  PathnameContext,
-  SearchParamsContext,
-} from '../../shared/lib/hooks-client-context.shared-runtime'
-import { isBot } from '../../shared/lib/router/utils/is-bot'
-import { addBasePath } from '../add-base-path'
-import { hasBasePath } from '../has-base-path'
-import { removeBasePath } from '../remove-base-path'
-import { AppRouterAnnouncer } from './app-router-announcer'
-import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
-import type { ErrorComponent } from './error-boundary'
-import { ErrorBoundary } from './error-boundary'
-import { createInfinitePromise } from './infinite-promise'
-import { RedirectBoundary } from './redirect-boundary'
-import { createHrefFromUrl } from './router-reducer/create-href-from-url'
-import type { InitialRouterStateParameters } from './router-reducer/create-initial-router-state'
-import { createInitialRouterState } from './router-reducer/create-initial-router-state'
-import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import type {
-  AppRouterState,
-  ReducerActions,
-  RouterChangeByServerResponse,
-  RouterNavigate,
-  ServerActionDispatcher,
-} from './router-reducer/router-reducer-types'
+  CacheNode,
+  AppRouterInstance,
+} from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  FlightRouterState,
+  FlightData,
+} from '../../server/app-render/types'
+import type { ErrorComponent } from './error-boundary'
 import {
   ACTION_FAST_REFRESH,
   ACTION_NAVIGATE,
@@ -58,11 +34,35 @@ import {
   ACTION_SERVER_PATCH,
   PrefetchKind,
 } from './router-reducer/router-reducer-types'
+import type {
+  AppRouterState,
+  ReducerActions,
+  RouterChangeByServerResponse,
+  RouterNavigate,
+  ServerActionDispatcher,
+} from './router-reducer/router-reducer-types'
+import { createHrefFromUrl } from './router-reducer/create-href-from-url'
+import {
+  SearchParamsContext,
+  PathnameContext,
+} from '../../shared/lib/hooks-client-context.shared-runtime'
 import {
   useReducerWithReduxDevtools,
   useUnwrapState,
+  type ReduxDevtoolsSyncFn,
 } from './use-reducer-with-devtools'
-import type { ReduxDevtoolsSyncFn } from './use-reducer-with-devtools'
+import { ErrorBoundary } from './error-boundary'
+import { createInitialRouterState } from './router-reducer/create-initial-router-state'
+import type { InitialRouterStateParameters } from './router-reducer/create-initial-router-state'
+import { isBot } from '../../shared/lib/router/utils/is-bot'
+import { addBasePath } from '../add-base-path'
+import { AppRouterAnnouncer } from './app-router-announcer'
+import { RedirectBoundary } from './redirect-boundary'
+import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
+import { createInfinitePromise } from './infinite-promise'
+import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
+import { removeBasePath } from '../remove-base-path'
+import { hasBasePath } from '../has-base-path'
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
