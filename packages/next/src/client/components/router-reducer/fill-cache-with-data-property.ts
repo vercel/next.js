@@ -57,11 +57,11 @@ export function fillCacheWithDataProperty({
   if (!childCacheNode || !existingChildCacheNode) {
     for (const [key, cacheNode] of existingChildSegmentMap.entries()) {
       // the cache key might not be a valid segment -- coerce it into one if needed
-      const segment = extractSegmentFromCacheKey(key)
+      const segmentFromCacheKey = extractSegmentFromCacheKey(key)
       if (
         // if we come across a dynamic segment, our cache key lookup will miss
         // this attempts to match the dynamic segment and if it succeeds, it performs the lookup with that key instead
-        matchDynamicSegment(segment, segment)
+        matchDynamicSegment(segmentFromCacheKey, segment)
       ) {
         cacheKey = key
         existingChildCacheNode = cacheNode
