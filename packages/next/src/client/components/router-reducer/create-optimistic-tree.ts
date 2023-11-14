@@ -21,7 +21,7 @@ export function createOptimisticTree(
 
   if (existingSegment !== null) {
     // attempts to match a dynamic segment. Since "segment" is derived from the URL
-    // it won't pass the "matchSegment" check because, for ex, "en" won't ever match "lang|en|d".
+    // it won't pass the "matchSegment" check because, for ex, "en" won't ever match ['lang', 'en', 'd'].
     const matchedDynamicSegment = matchDynamicSegment(existingSegment, segment)
 
     if (matchedDynamicSegment) {
