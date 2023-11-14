@@ -338,16 +338,14 @@ function processMessage(
         })
       )
 
-      if (!process.env.TURBOPACK) {
-        const isHotUpdate =
-          obj.action !== HMR_ACTIONS_SENT_TO_BROWSER.SYNC &&
-          (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
-          isUpdateAvailable()
+      const isHotUpdate =
+        obj.action !== HMR_ACTIONS_SENT_TO_BROWSER.SYNC &&
+        (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
+        isUpdateAvailable()
 
-        // Attempt to apply hot updates or reload.
-        if (isHotUpdate) {
-          handleHotUpdate()
-        }
+      // Attempt to apply hot updates or reload.
+      if (isHotUpdate) {
+        handleHotUpdate()
       }
       return
     }
@@ -369,6 +367,13 @@ function processMessage(
         router.fastRefresh()
         dispatcher.onRefresh()
       })
+
+      if (process.env.__NEXT_TEST_MODE) {
+        if (self.__NEXT_HMR_CB) {
+          self.__NEXT_HMR_CB()
+          self.__NEXT_HMR_CB = null
+        }
+      }
 
       return
     }
@@ -443,16 +448,6 @@ export default function HotReload({
       },
     }
   }, [dispatch])
-
-  useEffect(() => {
-    if (process.env.__NEXT_TEST_MODE) {
-      if (self.__NEXT_HMR_CB) {
-        self.__NEXT_HMR_CB()
-        self.__NEXT_HMR_CB = null
-      }
-    }
-    // currentHmrObj will change when ACTION_REFRESH is dispatched.
-  }, [state.currentHmrObj])
 
   const handleOnUnhandledError = useCallback((error: Error): void => {
     // Component stack is added to the error in use-error-handler in case there was a hydration errror
