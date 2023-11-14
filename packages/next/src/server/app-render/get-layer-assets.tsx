@@ -101,7 +101,9 @@ export function getLayerAssets({
 
   const scripts = scriptTags
     ? scriptTags.map((href, index) => {
-        const fullSrc = `${ctx.assetPrefix}/_next/${encodeFile(href)}`
+        const fullSrc = `${ctx.assetPrefix}/_next/${encodeFile(
+          href
+        )}${getAssetQueryString(ctx, true)}`
 
         return <script src={fullSrc} async={true} key={`script-${index}`} />
       })

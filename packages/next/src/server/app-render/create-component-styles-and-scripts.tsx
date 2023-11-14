@@ -68,7 +68,9 @@ export async function createComponentStylesAndScripts({
   const scripts = jsHrefs
     ? jsHrefs.map((href) => (
         <script
-          src={`${ctx.assetPrefix}/_next/${encodeFile(href)}`}
+          src={`${ctx.assetPrefix}/_next/${encodeFile(
+            href
+          )}${getAssetQueryString(ctx, true)}`}
           async={true}
         />
       ))
