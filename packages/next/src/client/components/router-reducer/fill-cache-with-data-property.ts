@@ -3,10 +3,8 @@ import type { FlightSegmentPath } from '../../../server/app-render/types'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 
 import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
-import {
-  createRouterCacheKey,
-  isDynamicCacheKey,
-} from './create-router-cache-key'
+import { createRouterCacheKey } from './create-router-cache-key'
+import { matchDynamicSegment } from '../match-segments'
 
 /**
  * Kick off fetch based on the common layout between two routes. Fill cache with data property holding the in-progress fetch.
@@ -28,27 +26,13 @@ export function fillCacheWithDataProperty({
   const isLastEntry = flightSegmentPath.length <= 2
 
   const [parallelRouteKey, segment] = flightSegmentPath
-  const cacheKey = createRouterCacheKey(segment)
+  let cacheKey = createRouterCacheKey(segment)
 
   const existingChildSegmentMap =
     existingCache.parallelRoutes.get(parallelRouteKey)
-  let hasDynamicSegment = false
-
-  if (existingChildSegmentMap) {
-    for (const key of existingChildSegmentMap.keys()) {
-      // dynamic segments get inserted into the cache delimited by |
-      // in this case, we need to bail because `cacheKey` (derived from the URL)
-      // will never be found
-      if (isDynamicCacheKey(key)) {
-        hasDynamicSegment = true
-        break
-      }
-    }
-  }
 
   if (
     !existingChildSegmentMap ||
-    hasDynamicSegment ||
     (bailOnParallelRoutes && existingCache.parallelRoutes.size > 1)
   ) {
     // Bailout because the existing cache does not have the path to the leaf node
@@ -64,8 +48,21 @@ export function fillCacheWithDataProperty({
     newCache.parallelRoutes.set(parallelRouteKey, childSegmentMap)
   }
 
-  const existingChildCacheNode = existingChildSegmentMap.get(cacheKey)
+  let existingChildCacheNode = existingChildSegmentMap.get(cacheKey)
   let childCacheNode = childSegmentMap.get(cacheKey)
+
+  if (!childCacheNode || !existingChildCacheNode) {
+    for (const key of existingChildSegmentMap.keys()) {
+      // if we come across a dynamic segment, our cache key lookup will miss
+      // this attempts to match the dynamic segment and if it succeeds, it performs the lookup with that key instead
+      if (matchDynamicSegment(key, segment)) {
+        cacheKey = key
+        existingChildCacheNode = existingChildSegmentMap.get(cacheKey)
+        childCacheNode = childSegmentMap.get(cacheKey)
+        break
+      }
+    }
+  }
 
   // In case of last segment start off the fetch at this level and don't copy further down.
   if (isLastEntry) {

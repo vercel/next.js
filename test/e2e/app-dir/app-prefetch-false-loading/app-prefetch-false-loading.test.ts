@@ -21,9 +21,11 @@ createNextDescribe(
         .text()
       await browser.elementByCss('[href="/en/testing/test"]').click()
       expect(await browser.hasElementByCssSelector('#loading')).toBeFalsy()
-      expect(
-        await browser.hasElementByCssSelector('#nested-testing-page')
-      ).toBeTruthy()
+
+      await check(
+        () => browser.hasElementByCssSelector('#nested-testing-page'),
+        true
+      )
 
       const newRandomNumber = await browser.elementById('random-number').text()
 

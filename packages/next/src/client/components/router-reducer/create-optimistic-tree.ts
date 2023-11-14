@@ -1,5 +1,8 @@
-import type { FlightRouterState } from '../../../server/app-render/types'
-import { matchSegment } from '../match-segments'
+import type {
+  FlightRouterState,
+  Segment,
+} from '../../../server/app-render/types'
+import { matchDynamicSegment, matchSegment } from '../match-segments'
 
 /**
  * Create optimistic version of router state based on the existing router state and segments.
@@ -12,11 +15,24 @@ export function createOptimisticTree(
 ): FlightRouterState {
   const [existingSegment, existingParallelRoutes, url, refresh, isRootLayout] =
     flightRouterState || [null, {}]
-  const segment = segments[0]
+  let segment: Segment = segments[0]
+  let segmentMatches = false
   const isLastSegment = segments.length === 1
 
-  const segmentMatches =
-    existingSegment !== null && matchSegment(existingSegment, segment)
+  if (existingSegment !== null) {
+    // attempts to match a dynamic segment. Since "segment" is derived from the URL
+    // it won't pass the "matchSegment" check because, for ex, "en" won't ever match "lang|en|d".
+    const matchedDynamicSegment = matchDynamicSegment(existingSegment, segment)
+
+    if (matchedDynamicSegment) {
+      // if we do manage to match against a dynamic segment, update the segment key
+      // e.g. "en" -> ['lang', 'en', 'd']
+      segment = existingSegment
+    }
+
+    segmentMatches =
+      matchSegment(existingSegment, segment) || matchedDynamicSegment
+  }
 
   // if there are multiple parallel routes at this level, we need to refetch here
   // to ensure we get the correct tree. This is because we don't know which
