@@ -8,6 +8,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+
           'use strict';
 
 /* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
@@ -20607,7 +20608,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-canary-746890329-20231108';
+var ReactVersion = '18.3.0-canary-0e352ea01-20231109';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {

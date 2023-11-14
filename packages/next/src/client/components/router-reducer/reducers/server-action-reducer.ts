@@ -10,7 +10,6 @@ import {
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
-import { createRecordFromThenable } from '../create-record-from-thenable'
 // // eslint-disable-next-line import/no-extraneous-dependencies
 // import { createFromFetch } from 'react-server-dom-webpack/client'
 // // eslint-disable-next-line import/no-extraneous-dependencies
@@ -158,9 +157,8 @@ export function serverActionReducer(
     return handleMutable(state, mutable)
   }
 
-  mutable.inFlightServerAction = createRecordFromThenable(
-    fetchServerAction(state, action)
-  )
+  mutable.preserveCustomHistoryState = false
+  mutable.inFlightServerAction = fetchServerAction(state, action)
 
   // suspends until the server action is resolved.
 

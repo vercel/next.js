@@ -7,12 +7,13 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
+
 'use strict';
 
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-746890329-20231108';
+var ReactVersion = '18.3.0-experimental-0e352ea01-20231109';
 
 // Do not require this module directly! Use normal `invariant` calls with
 // template literal strings. The messages will be replaced with error codes
@@ -7628,11 +7629,19 @@ function trackPostpone(request, trackedPostpones, task, segment) {
     const children = [];
 
     if (boundaryKeyPath === keyPath && task.childIndex === -1) {
-      // Since we postponed directly in the Suspense boundary we can't have written anything
-      // to its segment. Therefore this will end up becoming the root segment.
-      segment.id = boundary.rootSegmentID; // We postponed directly inside the Suspense boundary so we mark this for resuming.
+      // Assign ID
+      if (segment.id === -1) {
+        if (segment.parentFlushed) {
+          // If this segment's parent was already flushed, it means we really just
+          // skipped the parent and this segment is now the root.
+          segment.id = boundary.rootSegmentID;
+        } else {
+          segment.id = request.nextSegmentId++;
+        }
+      } // We postponed directly inside the Suspense boundary so we mark this for resuming.
 
-      const boundaryNode = [boundaryKeyPath[1], boundaryKeyPath[2], children, boundary.rootSegmentID, fallbackReplayNode, boundary.rootSegmentID];
+
+      const boundaryNode = [boundaryKeyPath[1], boundaryKeyPath[2], children, segment.id, fallbackReplayNode, boundary.rootSegmentID];
       trackedPostpones.workingMap.set(boundaryKeyPath, boundaryNode);
       addToReplayParent(boundaryNode, boundaryKeyPath[0], trackedPostpones);
       return;
@@ -8112,7 +8121,7 @@ function completeAll(request) {
 }
 
 function queueCompletedSegment(boundary, segment) {
-  if (segment.chunks.length === 0 && segment.children.length === 1 && segment.children[0].boundary === null) {
+  if (segment.chunks.length === 0 && segment.children.length === 1 && segment.children[0].boundary === null && segment.children[0].id === -1) {
     // This is an empty segment. There's nothing to write, so we can instead transfer the ID
     // to the child. That way any existing references point to the child.
     const childSegment = segment.children[0];
