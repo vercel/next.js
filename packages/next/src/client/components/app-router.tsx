@@ -417,12 +417,14 @@ function Router({
       if (
         !event.persisted ||
         !window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
-      )
+      ) {
         return
+      }
 
+      const href = window.location.href
       dispatch({
         type: ACTION_RESTORE,
-        url: new URL(window.location.href, window.location.href),
+        url: new URL(href, href),
         tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
       })
     }
