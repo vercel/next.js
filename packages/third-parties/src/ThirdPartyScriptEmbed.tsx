@@ -18,12 +18,16 @@ export default function ThirdPartyScriptEmbed({
   dataNtpc = '',
 }: ScriptEmbed) {
   useEffect(() => {
-    // Useful for feature detection and measurement
-    performance.mark('mark_use_counter', {
-      detail: {
-        feature: `next-third-parties-${dataNtpc}`,
-      },
-    })
+    if (dataNtpc) {
+      // performance.mark is being used as a feature use signal. While it is traditionally used for performance
+      // benchmarking it is low overhead and thus considered safe to use in production and it is a widely available
+      // existing API.
+      performance.mark('mark_use_counter', {
+        detail: {
+          feature: `next-third-parties-${dataNtpc}`,
+        },
+      })
+    }
   }, [dataNtpc])
 
   return (
