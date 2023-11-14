@@ -73,6 +73,41 @@ impl Display for IssueSeverity {
     }
 }
 
+/// Represents a section of structured styled text. This can be interpreted and
+/// rendered by various UIs as appropriate, e.g. HTML for display on the web,
+/// ANSI sequences in TTYs.
+#[derive(Clone, Debug, DeterministicHash)]
+#[turbo_tasks::value(shared)]
+pub enum StyledString {
+    /// Multiple [StyledString]s concatenated into a single line. Each item is
+    /// considered as inline element. Items might contain line breaks, which
+    /// would be considered as soft line breaks.
+    Line(Vec<StyledString>),
+    /// Multiple [StyledString]s stacked vertically. They are considered as
+    /// block elements, just like the top level [StyledString].
+    Stack(Vec<StyledString>),
+    /// Some prose text.
+    Text(String),
+    /// Code snippet.
+    // TODO add language to support syntax hightlighting
+    Code(String),
+    /// Some important text.
+    Strong(String),
+}
+
+impl StyledString {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            StyledString::Line(parts) | StyledString::Stack(parts) => {
+                parts.iter().all(|part| part.is_empty())
+            }
+            StyledString::Text(string)
+            | StyledString::Code(string)
+            | StyledString::Strong(string) => string.is_empty(),
+        }
+    }
+}
+
 #[turbo_tasks::value_trait]
 pub trait Issue {
     /// Severity allows the user to filter out unimportant issues, with Bug
@@ -100,7 +135,7 @@ pub trait Issue {
     /// A more verbose message of the issue, appropriate for providing multiline
     /// information of the issue.
     // TODO add Vc<StyledString>
-    fn description(self: Vc<Self>) -> Vc<String>;
+    fn description(self: Vc<Self>) -> Vc<StyledString>;
 
     /// Full details of the issue, appropriate for providing debug level
     /// information. Only displayed if the user explicitly asks for detailed
@@ -484,7 +519,7 @@ pub struct PlainIssue {
     pub category: String,
 
     pub title: String,
-    pub description: String,
+    pub description: StyledString,
     pub detail: String,
     pub documentation_link: String,
 
@@ -498,10 +533,7 @@ fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: boo
     hasher.write_ref(&issue.file_path);
     hasher.write_ref(&issue.category);
     hasher.write_ref(&issue.title);
-    hasher.write_ref(
-        // Normalize syspaths from Windows. These appear in stack traces.
-        &issue.description.replace('\\', "/"),
-    );
+    hasher.write_ref(&issue.description);
     hasher.write_ref(&issue.detail);
     hasher.write_ref(&issue.documentation_link);
 

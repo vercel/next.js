@@ -9,7 +9,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity},
+    issue::{Issue, IssueExt, IssueSeverity, StyledString},
     reference::ModuleReference,
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
@@ -30,7 +30,7 @@ use turbopack_core::{
 pub struct TsConfigIssue {
     pub severity: Vc<IssueSeverity>,
     pub source_ident: Vc<AssetIdent>,
-    pub message: Vc<String>,
+    pub message: String,
 }
 
 #[turbo_tasks::function]
@@ -61,7 +61,7 @@ pub async fn read_tsconfigs(
                 TsConfigIssue {
                     severity: IssueSeverity::Error.into(),
                     source_ident: tsconfig.ident(),
-                    message: Vc::cell(message),
+                    message,
                 }
                 .cell()
                 .emit();
@@ -70,7 +70,7 @@ pub async fn read_tsconfigs(
                 TsConfigIssue {
                     severity: IssueSeverity::Error.into(),
                     source_ident: tsconfig.ident(),
-                    message: Vc::cell("tsconfig not found".into()),
+                    message: "tsconfig not found".into(),
                 }
                 .cell()
                 .emit();
@@ -87,7 +87,7 @@ pub async fn read_tsconfigs(
                         TsConfigIssue {
                             severity: IssueSeverity::Error.into(),
                             source_ident: tsconfig.ident(),
-                            message: Vc::cell("extends doesn't resolve correctly".to_string()),
+                            message: "extends doesn't resolve correctly".to_string(),
                         }
                         .cell()
                         .emit();
@@ -257,12 +257,12 @@ pub async fn tsconfig_resolve_options(
                         TsConfigIssue {
                             severity: IssueSeverity::Warning.cell(),
                             source_ident: source.ident(),
-                            message: Vc::cell(format!(
+                            message: format!(
                                 "compilerOptions.paths[{key}] doesn't contains an array as \
                                  expected\n{key}: {value:#}",
                                 key = serde_json::to_string(key)?,
                                 value = value
-                            )),
+                            ),
                         }
                         .cell()
                         .emit()
@@ -473,7 +473,7 @@ impl Issue for TsConfigIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        self.message
+    fn description(&self) -> Vc<StyledString> {
+        StyledString::Text(self.message.clone()).cell()
     }
 }

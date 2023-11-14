@@ -25,7 +25,7 @@ use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     error::PrettyPrintError,
-    issue::{Issue, IssueExt, IssueSeverity},
+    issue::{Issue, IssueExt, IssueSeverity, StyledString},
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap},
     SOURCE_MAP_ROOT_NAME,
@@ -395,11 +395,12 @@ impl Issue for ReadSourceIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(format!(
+    fn description(&self) -> Vc<StyledString> {
+        StyledString::Text(format!(
             "An unexpected error happened while trying to read the source code to parse: {}",
             self.error
         ))
+        .cell()
     }
 
     #[turbo_tasks::function]

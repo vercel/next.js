@@ -14,7 +14,7 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity},
+    issue::{Issue, IssueExt, IssueSeverity, StyledString},
     module::Module,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CssReferenceSubType, ReferenceType},
@@ -316,12 +316,12 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error.cell(),
                                 source: self.module.ident(),
-                                message: Vc::cell(formatdoc! {
+                                message: formatdoc! {
                                     r#"
                                         Module {from} referenced in `composes: ... from {from};` can't be resolved.
                                     "#,
                                     from = &*from.await?.request.to_string().await?
-                                }),
+                                },
                             }.cell().emit();
                             continue;
                         };
@@ -333,12 +333,12 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error.cell(),
                                 source: self.module.ident(),
-                                message: Vc::cell(formatdoc! {
+                                message: formatdoc! {
                                     r#"
                                         Module {from} referenced in `composes: ... from {from};` is not a CSS module.
                                     "#,
                                     from = &*from.await?.request.to_string().await?
-                                }),
+                                },
                             }.cell().emit();
                             continue;
                         };
@@ -412,7 +412,7 @@ fn generate_minimal_source_map(filename: String, source: String) -> Vc<ParseResu
 struct CssModuleComposesIssue {
     severity: Vc<IssueSeverity>,
     source: Vc<AssetIdent>,
-    message: Vc<String>,
+    message: String,
 }
 
 #[turbo_tasks::value_impl]
@@ -440,7 +440,7 @@ impl Issue for CssModuleComposesIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        self.message
+    fn description(&self) -> Vc<StyledString> {
+        StyledString::Text(self.message.clone()).cell()
     }
 }

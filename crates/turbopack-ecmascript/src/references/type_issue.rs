@@ -1,6 +1,6 @@
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, IssueSeverity};
+use turbopack_core::issue::{Issue, IssueSeverity, StyledString};
 
 use crate::SpecifiedModuleType;
 
@@ -38,9 +38,9 @@ impl Issue for SpecifiedModuleTypeIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        match self.specified_type {
-            SpecifiedModuleType::CommonJs => Vc::cell(
+    fn description(&self) -> Vc<StyledString> {
+        StyledString::Text(match self.specified_type {
+            SpecifiedModuleType::CommonJs => {
                 "The CommonJs module format was specified in the package.json that is affecting \
                  this source file or by using an special extension, but Ecmascript import/export \
                  syntax is used in the source code.\nThe module was automatically converted to an \
@@ -50,23 +50,23 @@ impl Issue for SpecifiedModuleTypeIssue {
                  EcmaScript import/export syntax is added by an transform and isn't actually part \
                  of the source code. In these cases revisit transformation options to inject the \
                  correct syntax."
-                    .to_string(),
-            ),
-            SpecifiedModuleType::EcmaScript => Vc::cell(
+                    .to_string()
+            }
+            SpecifiedModuleType::EcmaScript => {
                 "The EcmaScript module format was specified in the package.json that is affecting \
                  this source file or by using an special extension, but it looks like that \
-                 CommonJs syntax is used in the source code.\nExports made by CommonJs syntax \
-                 will lead to a runtime error, since the module is in EcmaScript mode. Either \
-                 change the \"type\" field in the package.json or replace CommonJs syntax with \
-                 EcmaScript import/export syntax in the source file."
-                    .to_string(),
-            ),
-            SpecifiedModuleType::Automatic => Vc::cell(
-                "The module format specified in the package.json file is not matching the module \
-                 format of the source code."
-                    .to_string(),
-            ),
-        }
+                 CommonJs syntax is used in the source code.\nExports made by CommonJs syntax will \
+                 lead to a runtime error, since the module is in EcmaScript mode. Either change \
+                 the \"type\" field in the package.json or replace CommonJs syntax with EcmaScript \
+                 import/export syntax in the source file."
+                    .to_string()
+            }
+            SpecifiedModuleType::Automatic => "The module format specified in the package.json \
+                                               file is not matching the module format of the \
+                                               source code."
+                .to_string(),
+        })
+        .cell()
     }
 
     #[turbo_tasks::function]

@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity},
+    issue::{Issue, IssueExt, IssueSeverity, StyledString},
     resolve::{
         parse::Request,
         plugin::{ResolvePlugin, ResolvePluginCondition},
@@ -86,7 +86,8 @@ impl Issue for UnsupportedSassModuleIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell("Turbopack does not yet support importing Sass modules.".to_string())
+    fn description(&self) -> Vc<StyledString> {
+        StyledString::Text("Turbopack does not yet support importing Sass modules.".to_string())
+            .cell()
     }
 }

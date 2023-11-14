@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSeverity};
+use super::{Issue, IssueSeverity, StyledString};
 
 #[turbo_tasks::value(shared)]
 pub struct UnsupportedModuleIssue {
@@ -34,10 +34,11 @@ impl Issue for UnsupportedModuleIssue {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(match &self.package_path {
+    async fn description(&self) -> Result<Vc<StyledString>> {
+        Ok(StyledString::Text(match &self.package_path {
             Some(path) => format!("The module {}{} is not yet supported", self.package, path),
             None => format!("The package {} is not yet supported", self.package),
-        }))
+        })
+        .cell())
     }
 }

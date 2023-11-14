@@ -12,7 +12,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     error::PrettyPrintError,
-    issue::IssueExt,
+    issue::{IssueExt, StyledString},
     module::Module,
 };
 use turbopack_dev_server::source::{Body, ProxyResult};
@@ -117,7 +117,7 @@ async fn proxy_error(
 
     RenderingIssue {
         file_path: path,
-        message: Vc::cell(message),
+        message: StyledString::Text(message).cell(),
         status: status.and_then(|status| status.code()),
     }
     .cell()

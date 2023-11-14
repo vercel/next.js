@@ -6,7 +6,7 @@ use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ReadRef, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 
 use super::issue::Issue;
-use crate::issue::IssueExt;
+use crate::issue::{IssueExt, StyledString};
 
 /// PackageJson wraps the parsed JSON content of a `package.json` file. The
 /// wrapper is necessary so that we can reference the [FileJsonContent]'s inner
@@ -79,7 +79,7 @@ impl Issue for PackageJsonIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(self.error_message.clone())
+    fn description(&self) -> Vc<StyledString> {
+        StyledString::Text(self.error_message.clone()).cell()
     }
 }

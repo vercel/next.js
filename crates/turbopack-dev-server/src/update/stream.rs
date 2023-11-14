@@ -11,6 +11,7 @@ use turbopack_core::{
     error::PrettyPrintError,
     issue::{
         Issue, IssueDescriptionExt, IssueSeverity, OptionIssueProcessingPathItems, PlainIssue,
+        StyledString,
     },
     server_fs::ServerFileSystem,
     version::{
@@ -55,7 +56,7 @@ async fn get_update_stream_item(
             plain_issues.push(
                 FatalStreamIssue {
                     resource: resource.to_string(),
-                    description: Vc::cell(format!("{}", PrettyPrintError(&e))),
+                    description: StyledString::Text(format!("{}", PrettyPrintError(&e))).cell(),
                 }
                 .cell()
                 .into_plain(OptionIssueProcessingPathItems::none())
@@ -279,7 +280,7 @@ pub enum UpdateStreamItem {
 
 #[turbo_tasks::value(serialization = "none")]
 struct FatalStreamIssue {
-    description: Vc<String>,
+    description: Vc<StyledString>,
     resource: String,
 }
 
@@ -306,7 +307,7 @@ impl Issue for FatalStreamIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
+    fn description(&self) -> Vc<StyledString> {
         self.description
     }
 }

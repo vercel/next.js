@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSeverity, IssueSource, OptionIssueSource};
+use super::{Issue, IssueSeverity, IssueSource, OptionIssueSource, StyledString};
 use crate::ident::AssetIdent;
 
 #[turbo_tasks::value(shared)]
@@ -10,7 +10,7 @@ pub struct AnalyzeIssue {
     pub severity: Vc<IssueSeverity>,
     pub source_ident: Vc<AssetIdent>,
     pub title: Vc<String>,
-    pub message: Vc<String>,
+    pub message: Vc<StyledString>,
     pub category: Vc<String>,
     pub code: Option<String>,
     pub source: Option<Vc<IssueSource>>,
@@ -43,7 +43,7 @@ impl Issue for AnalyzeIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
+    fn description(&self) -> Vc<StyledString> {
         self.message
     }
 

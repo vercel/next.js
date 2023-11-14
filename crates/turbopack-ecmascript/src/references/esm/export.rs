@@ -15,7 +15,7 @@ use swc_core::{
 };
 use turbo_tasks::{trace::TraceRawVcs, ValueToString, Vc};
 use turbopack_core::{
-    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity},
+    issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, StyledString},
     module::Module,
 };
 
@@ -66,13 +66,14 @@ async fn expand_star_exports(
             EcmascriptExports::None => AnalyzeIssue {
                 code: None,
                 category: Vc::cell("analyze".to_string()),
-                message: Vc::cell(format!(
+                message: StyledString::Text(format!(
                     "export * used with module {} which has no exports\nTypescript only: Did you \
                      want to export only types with `export type * from \"...\"`?\nNote: Using \
                      `export type` is more efficient than `export *` as it won't emit any runtime \
                      code.",
                     asset.ident().to_string().await?
-                )),
+                ))
+                .cell(),
                 source_ident: asset.ident(),
                 severity: IssueSeverity::Warning.into(),
                 source: None,
@@ -83,12 +84,13 @@ async fn expand_star_exports(
             EcmascriptExports::Value => AnalyzeIssue {
                 code: None,
                 category: Vc::cell("analyze".to_string()),
-                message: Vc::cell(format!(
+                message: StyledString::Text(format!(
                     "export * used with module {} which only has a default export (default export \
                      is not exported with export *)\nDid you want to use `export {{ default }} \
                      from \"...\";` instead?",
                     asset.ident().to_string().await?
-                )),
+                ))
+                .cell(),
                 source_ident: asset.ident(),
                 severity: IssueSeverity::Warning.into(),
                 source: None,
@@ -101,13 +103,14 @@ async fn expand_star_exports(
                 AnalyzeIssue {
                     code: None,
                     category: Vc::cell("analyze".to_string()),
-                    message: Vc::cell(format!(
+                    message: StyledString::Text(format!(
                         "export * used with module {} which is a CommonJS module with exports \
                          only available at runtime\nList all export names manually (`export {{ a, \
                          b, c }} from \"...\") or rewrite the module to ESM, to avoid the \
                          additional runtime code.`",
                         asset.ident().to_string().await?
-                    )),
+                    ))
+                    .cell(),
                     source_ident: asset.ident(),
                     severity: IssueSeverity::Warning.into(),
                     source: None,
