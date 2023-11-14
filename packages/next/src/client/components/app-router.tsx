@@ -207,13 +207,13 @@ function useChangeByServerResponse(
 function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
     (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
-      const url = new URL(addBasePath(href), location.href)
+      const url = new URL(addBasePath(href), window.location.href)
 
       return dispatch({
         type: ACTION_NAVIGATE,
         url,
         isExternalUrl: isExternalURL(url),
-        locationSearch: location.search,
+        locationSearch: window.location.search,
         forceOptimisticNavigation,
         shouldScroll: shouldScroll ?? true,
         navigateType,
@@ -317,7 +317,7 @@ function Router({
         ) {
           return
         }
-        const url = new URL(addBasePath(href), location.href)
+        const url = new URL(addBasePath(href), window.location.href)
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return
@@ -422,7 +422,7 @@ function Router({
 
       dispatch({
         type: ACTION_RESTORE,
-        url: new URL(window.location.href),
+        url: new URL(window.location.href, window.location.href),
         tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
       })
     }
@@ -469,10 +469,11 @@ function Router({
       const applyUrlFromHistoryPushReplace = (
         url: string | URL | null | undefined
       ) => {
+        const href = window.location.href
         startTransition(() => {
           dispatch({
             type: ACTION_RESTORE,
-            url: new URL(url ?? window.location.href),
+            url: new URL(url ?? href, href),
             tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
           })
         })
@@ -538,9 +539,10 @@ function Router({
       // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
       // Without startTransition works if the cache is there for this path
       startTransition(() => {
+        const href = window.location.href
         dispatch({
           type: ACTION_RESTORE,
-          url: new URL(window.location.href),
+          url: new URL(href, href),
           tree: state.__PRIVATE_NEXTJS_INTERNALS_TREE,
         })
       })

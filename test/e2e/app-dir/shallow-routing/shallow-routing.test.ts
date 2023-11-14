@@ -82,6 +82,38 @@ createNextDescribe(
           `${next.url}/pushstate-new-searchparams?query=foo-added`
         )
       })
+
+      it('should support setting a different url using a string', async () => {
+        const browser = await next.browser('/a')
+        expect(
+          await browser
+            .elementByCss('#to-pushstate-string-url')
+            .click()
+            .waitForElementByCss('#pushstate-string-url')
+            .text()
+        ).toBe('PushState String Url')
+
+        await browser.elementByCss('#push-string-url').click()
+
+        // Check useSearchParams value is the new searchparam
+        await check(() => browser.elementByCss('#my-data').text(), 'foo')
+
+        // Check current url is the new searchparams
+        expect(await browser.url()).toBe(
+          `${next.url}/pushstate-string-url?query=foo`
+        )
+
+        // Same cycle a second time
+        await browser.elementByCss('#push-string-url').click()
+
+        // Check useSearchParams value is the new searchparam
+        await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+
+        // Check current url is the new searchparams
+        expect(await browser.url()).toBe(
+          `${next.url}/pushstate-string-url?query=foo-added`
+        )
+      })
     })
 
     describe('replaceState', () => {
@@ -157,6 +189,38 @@ createNextDescribe(
         // Check current url is the new searchparams
         expect(await browser.url()).toBe(
           `${next.url}/replacestate-new-searchparams?query=foo-added`
+        )
+      })
+
+      it('should support setting a different url using a string', async () => {
+        const browser = await next.browser('/a')
+        expect(
+          await browser
+            .elementByCss('#to-replacestate-string-url')
+            .click()
+            .waitForElementByCss('#replacestate-string-url')
+            .text()
+        ).toBe('ReplaceState String Url')
+
+        await browser.elementByCss('#replace-string-url').click()
+
+        // Check useSearchParams value is the new searchparam
+        await check(() => browser.elementByCss('#my-data').text(), 'foo')
+
+        // Check current url is the new searchparams
+        expect(await browser.url()).toBe(
+          `${next.url}/replacestate-string-url?query=foo`
+        )
+
+        // Same cycle a second time
+        await browser.elementByCss('#replace-string-url').click()
+
+        // Check useSearchParams value is the new searchparam
+        await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+
+        // Check current url is the new searchparams
+        expect(await browser.url()).toBe(
+          `${next.url}/replacestate-string-url?query=foo-added`
         )
       })
     })
