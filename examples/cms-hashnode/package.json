@@ -45,6 +45,7 @@
     "@types/react": "^18.0.15",
     "@types/react-dom": "^18.0.6",
     "@types/rss": "^0.0.30",
+    "@types/sanitize-html": "2.9.0",
     "@types/slug": "^5.0.7",
     "@types/uuid": "^9.0.5",
     "@types/validator": "^13.1.3",

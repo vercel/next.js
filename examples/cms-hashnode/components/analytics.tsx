@@ -9,17 +9,6 @@ const BASE_PATH = process.env.NEXT_PUBLIC_BASE_URL || ''
 
 export const Analytics = () => {
   const { publication, post } = useAppContext()
-
-  useEffect(() => {
-    if (!isProd) return
-
-    _sendPageViewsToHashnodeGoogleAnalytics()
-    _sendViewsToHashnodeInternalAnalytics()
-    _sendViewsToHashnodeAnalyticsDashboard()
-  }, [])
-
-  if (!isProd) return null
-
   const _sendPageViewsToHashnodeGoogleAnalytics = () => {
     // @ts-ignore
     window.gtag('config', GA_TRACKING_ID, {
@@ -137,6 +126,16 @@ export const Analytics = () => {
       body: JSON.stringify({ data }),
     })
   }
+
+  useEffect(() => {
+    if (!isProd) return
+
+    _sendPageViewsToHashnodeGoogleAnalytics()
+    _sendViewsToHashnodeInternalAnalytics()
+    _sendViewsToHashnodeAnalyticsDashboard()
+  }, [])
+
+  if (!isProd) return null
 
   return null
 }
