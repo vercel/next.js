@@ -165,8 +165,6 @@ async function verifyTypeScript(opts: SetupOpts) {
   return usingTypeScript
 }
 
-class ModuleBuildError extends Error {}
-
 async function startWatcher(opts: SetupOpts) {
   const { nextConfig, appDir, pagesDir, dir } = opts
   const { useFileSystemPublicRoutes } = nextConfig
@@ -287,7 +285,8 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     function formatIssue(issue: Issue) {
-      const { filePath, title, description, source } = issue
+      const { filePath, title, description, source, detail } = issue
+      let formattedTitle = title.replace(/\n/g, '\n    ')
 
       let formattedFilePath = filePath
         .replace('[project]/', '')
@@ -303,17 +302,10 @@ async function startWatcher(opts: SetupOpts) {
             start.line + 1
           }:${start.column}`
         } else {
-          message = `${issue.severity} - ${formattedFilePath}`
+          message = `${issue.severity} - ${formattedFilePath}  ${formattedTitle}`
         }
       } else {
-        message = title.replace(/\n/g, '\n    ')
-      }
-
-      if (description) {
-        message += `\n${renderStyledStringToErrorAnsi(description).replace(
-          /\n/g,
-          '\n    '
-        )}`
+        message = `${formattedTitle}`
       }
 
       if (source?.range && source.source.content) {
@@ -334,8 +326,21 @@ async function startWatcher(opts: SetupOpts) {
           )
       }
 
+      if (description) {
+        message += `\n${renderStyledStringToErrorAnsi(description).replace(
+          /\n/g,
+          '\n    '
+        )}`
+      }
+
+      if (detail) {
+        message += `\n${detail.replace(/\n/g, '\n    ')}`
+      }
+
       return message
     }
+
+    class ModuleBuildError extends Error {}
 
     function processIssues(
       displayName: string,
@@ -355,7 +360,7 @@ async function startWatcher(opts: SetupOpts) {
         const key = issueKey(issue)
         const formatted = formatIssue(issue)
         if (!oldSet.has(key) && !newSet.has(key)) {
-          console.error(`  ⚠ ${displayName} ${formatted}\n\n`)
+          console.error(`  ⚠ ${displayName} ${key} ${formatted}\n\n`)
         }
         newSet.set(key, issue)
         relevantIssues.add(formatted)
@@ -2438,9 +2443,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     if (!usedOriginalStack) {
-      if (err instanceof ModuleBuildError) {
-        Log.error(err.message)
-      } else if (type === 'warning') {
+      if (type === 'warning') {
         Log.warn(err)
       } else if (type === 'app-dir') {
         logAppDirError(err)
