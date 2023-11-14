@@ -1,5 +1,4 @@
 import { fetchServerResponse } from '../fetch-server-response'
-import { createRecordFromThenable } from '../create-record-from-thenable'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
@@ -29,16 +28,16 @@ export function refreshReducer(
     return handleMutable(state, mutable)
   }
 
+  mutable.preserveCustomHistoryState = false
+
   if (!cache.data) {
     // TODO-APP: verify that `href` is not an external url.
     // Fetch data from the root of the tree.
-    cache.data = createRecordFromThenable(
-      fetchServerResponse(
-        new URL(href, origin),
-        [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
-        state.nextUrl,
-        state.buildId
-      )
+    cache.data = fetchServerResponse(
+      new URL(href, origin),
+      [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
+      state.nextUrl,
+      state.buildId
     )
   }
 

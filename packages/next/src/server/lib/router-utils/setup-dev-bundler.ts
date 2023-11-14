@@ -1203,7 +1203,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     const overlayMiddleware = getOverlayMiddleware(project)
-    const turbopackHotReloader: NextJsHotReloaderInterface = {
+    hotReloader = {
       turbopackProject: project,
       activeWebpackConfigs: undefined,
       serverStats: null,
@@ -1400,6 +1400,7 @@ async function startWatcher(opts: SetupOpts) {
           if (page === '/_app') return
           if (page === '/_document') return
           if (page === '/middleware') return
+          if (page === '/src/middleware') return
 
           throw new PageNotFoundError(`route not found ${page}`)
         }
@@ -1634,8 +1635,6 @@ async function startWatcher(opts: SetupOpts) {
         }
       },
     }
-
-    hotReloader = turbopackHotReloader
   } else {
     hotReloader = new HotReloader(opts.dir, {
       appDir,
