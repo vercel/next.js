@@ -35,7 +35,7 @@ import {
   PrefetchKind,
 } from './router-reducer/router-reducer-types'
 import type {
-  PushRef,
+  AppRouterState,
   ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
@@ -49,6 +49,7 @@ import {
 import {
   useReducerWithReduxDevtools,
   useUnwrapState,
+  type ReduxDevtoolsSyncFn,
 } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
 import { createInitialRouterState } from './router-reducer/create-initial-router-state'
@@ -109,18 +110,14 @@ function isExternalURL(url: URL) {
   return url.origin !== window.location.origin
 }
 
-function HistoryUpdater({
-  tree,
-  pushRef,
-  canonicalUrl,
-  sync,
-}: {
-  tree: FlightRouterState
-  pushRef: PushRef
-  canonicalUrl: string
-  sync: () => void
-}) {
+type HistoryUpdaterProps = {
+  appRouterState: AppRouterState
+  sync: ReduxDevtoolsSyncFn
+}
+
+function HistoryUpdater({ appRouterState, sync }: HistoryUpdaterProps) {
   useInsertionEffect(() => {
+    const { tree, pushRef, canonicalUrl } = appRouterState
     const historyState = {
       ...(process.env.__NEXT_WINDOW_HISTORY_SUPPORT &&
       pushRef.preserveCustomHistoryState
@@ -148,8 +145,8 @@ function HistoryUpdater({
         originalReplaceState(historyState, '', canonicalUrl)
       }
     }
-    sync()
-  }, [tree, pushRef, canonicalUrl, sync])
+    sync(appRouterState)
+  }, [appRouterState, sync])
   return null
 }
 
@@ -280,7 +277,9 @@ function Router({
     initialParallelRoutes = null!
   }, [])
 
-  const { canonicalUrl } = useUnwrapState(reducerState)
+  const appRouterState = useUnwrapState(reducerState)
+  const { canonicalUrl } = appRouterState
+
   // Add memoized pathname/query for useSearchParams and usePathname.
   const { searchParams, pathname } = useMemo(() => {
     const url = new URL(
@@ -391,7 +390,7 @@ function Router({
 
   if (process.env.NODE_ENV !== 'production') {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { cache, prefetchCache, tree } = useUnwrapState(reducerState)
+    const { cache, prefetchCache, tree } = appRouterState
 
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -444,7 +443,7 @@ function Router({
   // probably safe because we know this is a singleton component and it's never
   // in <Offscreen>. At least I hope so. (It will run twice in dev strict mode,
   // but that's... fine?)
-  const { pushRef } = useUnwrapState(reducerState)
+  const { pushRef } = appRouterState
   if (pushRef.mpaNavigation) {
     // if there's a re-render, we don't want to trigger another redirect if one is already in flight to the same URL
     if (globalMutable.pendingMpaPath !== canonicalUrl) {
@@ -559,8 +558,7 @@ function Router({
     }
   }, [dispatch])
 
-  const { cache, tree, nextUrl, focusAndScrollRef } =
-    useUnwrapState(reducerState)
+  const { cache, tree, nextUrl, focusAndScrollRef } = appRouterState
 
   const head = useMemo(() => {
     return findHeadInCache(cache, tree[1])
@@ -588,12 +586,7 @@ function Router({
 
   return (
     <>
-      <HistoryUpdater
-        tree={tree}
-        pushRef={pushRef}
-        canonicalUrl={canonicalUrl}
-        sync={sync}
-      />
+      <HistoryUpdater appRouterState={appRouterState} sync={sync} />
       <PathnameContext.Provider value={pathname}>
         <SearchParamsContext.Provider value={searchParams}>
           <GlobalLayoutRouterContext.Provider

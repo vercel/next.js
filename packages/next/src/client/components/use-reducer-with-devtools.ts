@@ -1,6 +1,11 @@
-import type { Dispatch } from 'react'
-import React, { use, useContext } from 'react'
-import { useRef, useEffect, useCallback } from 'react'
+import React, {
+  type Dispatch,
+  use,
+  useContext,
+  useRef,
+  useEffect,
+  useCallback,
+} from 'react'
 import {
   isThenable,
   type AppRouterState,
@@ -8,6 +13,8 @@ import {
   type ReducerState,
 } from './router-reducer/router-reducer-types'
 import { ActionQueueContext } from '../../shared/lib/router/action-queue'
+
+export type ReduxDevtoolsSyncFn = (state: AppRouterState) => void
 
 function normalizeRouterState(val: any): any {
   if (val instanceof Map) {
@@ -86,13 +93,13 @@ export function useUnwrapState(state: ReducerState): AppRouterState {
 
 function useReducerWithReduxDevtoolsNoop(
   initialState: AppRouterState
-): [ReducerState, Dispatch<ReducerActions>, () => void] {
+): [ReducerState, Dispatch<ReducerActions>, ReduxDevtoolsSyncFn] {
   return [initialState, () => {}, () => {}]
 }
 
 function useReducerWithReduxDevtoolsImpl(
   initialState: AppRouterState
-): [ReducerState, Dispatch<ReducerActions>, () => void] {
+): [ReducerState, Dispatch<ReducerActions>, ReduxDevtoolsSyncFn] {
   const [state, setState] = React.useState<ReducerState>(initialState)
 
   const actionQueue = useContext(ActionQueueContext)
@@ -149,14 +156,23 @@ function useReducerWithReduxDevtoolsImpl(
     [actionQueue, initialState]
   )
 
-  const sync = useCallback(() => {
-    if (devtoolsConnectionRef.current) {
-      devtoolsConnectionRef.current.send(
-        { type: 'RENDER_SYNC' },
-        normalizeRouterState(state)
-      )
-    }
-  }, [state])
+  // Sync is called after a state update in the HistoryUpdater,
+  // for debugging purposes. Since the reducer state may be a Promise,
+  // we let the app router use() it and sync on the resolved value if
+  // something changed.
+  // Using the `state` here would be referentially unstable and cause
+  // undesirable re-renders and history updates.
+  const sync = useCallback<ReduxDevtoolsSyncFn>(
+    (resolvedState: AppRouterState) => {
+      if (devtoolsConnectionRef.current) {
+        devtoolsConnectionRef.current.send(
+          { type: 'RENDER_SYNC' },
+          normalizeRouterState(resolvedState)
+        )
+      }
+    },
+    []
+  )
 
   return [state, dispatch, sync]
 }
