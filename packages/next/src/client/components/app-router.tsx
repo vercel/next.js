@@ -43,7 +43,6 @@ import { createInitialRouterState } from './router-reducer/create-initial-router
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import type {
   AppRouterState,
-  PushRef,
   ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
