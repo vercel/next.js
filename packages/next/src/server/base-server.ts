@@ -2776,18 +2776,24 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       if (cachedData.headers) {
-        const resHeaders = cachedData.headers
-        for (const key of Object.keys(resHeaders)) {
-          if (key === NEXT_CACHE_TAGS_HEADER) {
-            // Not sure if needs to be special.
-            continue
-          }
-          let v = resHeaders[key]
-          if (typeof v !== 'undefined') {
-            if (typeof v === 'number') {
-              v = v.toString()
+        const headers = { ...cachedData.headers }
+
+        if (!this.minimalMode || !isSSG) {
+          delete headers[NEXT_CACHE_TAGS_HEADER]
+        }
+
+        for (let [key, value] of Object.entries(headers)) {
+          if (typeof value === 'undefined') continue
+
+          if (Array.isArray(value)) {
+            for (const v of value) {
+              res.appendHeader(key, v)
             }
-            res.setHeader(key, v)
+          } else if (typeof value === 'number') {
+            value = value.toString()
+            res.appendHeader(key, value)
+          } else {
+            res.appendHeader(key, value)
           }
         }
       }
