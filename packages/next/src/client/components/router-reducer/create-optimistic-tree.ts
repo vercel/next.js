@@ -30,8 +30,7 @@ export function createOptimisticTree(
       segment = existingSegment
     }
 
-    segmentMatches =
-      matchSegment(existingSegment, segment) || matchedDynamicSegment
+    segmentMatches = matchSegment(existingSegment, segment)
   }
 
   // if there are multiple parallel routes at this level, we need to refetch here
