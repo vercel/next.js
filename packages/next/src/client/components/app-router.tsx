@@ -278,9 +278,7 @@ function Router({
     initialParallelRoutes = null!
   }, [])
 
-  const appRouterState = useUnwrapState(reducerState)
-
-  const { canonicalUrl } = appRouterState
+  const { canonicalUrl } = useUnwrapState(reducerState)
   // Add memoized pathname/query for useSearchParams and usePathname.
   const { searchParams, pathname } = useMemo(() => {
     const url = new URL(
@@ -391,7 +389,7 @@ function Router({
 
   if (process.env.NODE_ENV !== 'production') {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { cache, prefetchCache, tree } = appRouterState
+    const { cache, prefetchCache, tree } = useUnwrapState(reducerState)
 
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -444,7 +442,7 @@ function Router({
   // probably safe because we know this is a singleton component and it's never
   // in <Offscreen>. At least I hope so. (It will run twice in dev strict mode,
   // but that's... fine?)
-  const { pushRef } = appRouterState
+  const { pushRef } = useUnwrapState(reducerState)
   if (pushRef.mpaNavigation) {
     // if there's a re-render, we don't want to trigger another redirect if one is already in flight to the same URL
     if (globalMutable.pendingMpaPath !== canonicalUrl) {
@@ -559,7 +557,8 @@ function Router({
     }
   }, [dispatch])
 
-  const { cache, tree, nextUrl, focusAndScrollRef } = appRouterState
+  const { cache, tree, nextUrl, focusAndScrollRef } =
+    useUnwrapState(reducerState)
 
   const head = useMemo(() => {
     return findHeadInCache(cache, tree[1])
@@ -587,7 +586,10 @@ function Router({
 
   return (
     <>
-      <HistoryUpdater appRouterState={appRouterState} sync={sync} />
+      <HistoryUpdater
+        appRouterState={useUnwrapState(reducerState)}
+        sync={sync}
+      />
       <PathnameContext.Provider value={pathname}>
         <SearchParamsContext.Provider value={searchParams}>
           <GlobalLayoutRouterContext.Provider
