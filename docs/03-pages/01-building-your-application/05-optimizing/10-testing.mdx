@@ -487,7 +487,7 @@ Your project is now ready to run tests. Follow Jest's convention by adding tests
 
 For example, we can add a test to check if the `<Home />` component successfully renders a heading:
 
-```jsx filename="__tests__/index.test.js"
+```jsx filename="__tests__/index.test.jsx"
 import { render, screen } from '@testing-library/react'
 import Home from '../pages/index'
 import '@testing-library/jest-dom'
@@ -507,7 +507,7 @@ describe('Home', () => {
 
 Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Home />` component:
 
-```jsx filename="__tests__/snapshot.js"
+```jsx filename="__tests__/snapshot.jsx"
 import { render } from '@testing-library/react'
 import Home from '../pages/index'
 
