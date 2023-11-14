@@ -12,7 +12,13 @@ export function normalizeCatchAllRoutes(
   normalizer = new AppPathnameNormalizer()
 ) {
   const catchAllRoutes = [
-    ...new Set(Object.values(appPaths).flat().filter(isCatchAllRoute)),
+    ...new Set(
+      Object.values(appPaths)
+        .flat()
+        .filter(isCatchAllRoute)
+        // Sorting is important because we want to match the most specific path.
+        .sort((a, b) => b.split('/').length - a.split('/').length)
+    ),
   ]
 
   for (const appPath of Object.keys(appPaths)) {
@@ -20,7 +26,7 @@ export function normalizeCatchAllRoutes(
       const normalizedCatchAllRoute = normalizer.normalize(catchAllRoute)
       const normalizedCatchAllRouteBasePath = normalizedCatchAllRoute.slice(
         0,
-        normalizedCatchAllRoute.indexOf('[')
+        normalizedCatchAllRoute.search(catchAllRouteRegex)
       )
 
       if (
@@ -47,6 +53,8 @@ function hasMatchedSlots(path1: string, path2: string): boolean {
 
   return true
 }
+
+const catchAllRouteRegex = /\[?\[\.\.\./
 
 function isCatchAllRoute(pathname: string): boolean {
   return pathname.includes('[...') || pathname.includes('[[...')

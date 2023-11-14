@@ -74,7 +74,7 @@ export interface ReduxDevToolsInstance {
   init(initialState: any): void
 }
 
-export function useUnwrapState(state: ReducerState) {
+export function useUnwrapState(state: ReducerState): AppRouterState {
   // reducer actions can be async, so sometimes we need to suspend until the state is resolved
   if (isThenable(state)) {
     const result = use(state)
