@@ -211,16 +211,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/client/components/router-reducer/create-record-from-thenable.test.ts": {
-    "passed": [
-      "createRecordFromThenable rejecting promise",
-      "createRecordFromThenable successful promise"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "packages/next/src/client/components/router-reducer/create-router-cache-key.test.ts": {
     "passed": [
       "createRouterCacheKey should support catch all segment",
@@ -2454,6 +2444,7 @@
   },
   "test/e2e/app-dir/app-middleware/app-middleware.test.ts": {
     "passed": [
+      "app dir - middleware with middleware in src dir works without crashing when using requestAsyncStorage",
       "app dir - middleware without pages dir Updates headers",
       "app-dir with middleware Mutate request headers for Edge Functions Supports draft mode",
       "app-dir with middleware Mutate request headers for Serverless Functions Adds new headers",
@@ -2467,7 +2458,6 @@
       "app-dir with middleware should filter correctly after middleware rewrite"
     ],
     "failed": [
-      "app dir - middleware with middleware in src dir works without crashing when using requestAsyncStorage",
       "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
       "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
       "app-dir with middleware Mutate request headers for Edge Functions Updates headers"
@@ -2899,6 +2889,7 @@
       "app dir - basic server components should serve client component should serve client-side",
       "app dir - basic server components should serve client component should serve server-side",
       "app dir - basic server components should serve shared component",
+      "app dir - basic should encode chunk path correctly",
       "app dir - basic should ensure the </body></html> suffix is at the end of the stream",
       "app dir - basic should handle hash in initial url",
       "app dir - basic should have correct searchParams and params (client)",
@@ -2931,7 +2922,6 @@
       "app dir - basic template component should render the template that holds state in a client component and reset on navigation"
     ],
     "failed": [
-      "app dir - basic should encode chunk path correctly",
       "app dir - basic should serve polyfills for browsers that do not support modules"
     ],
     "pending": [
@@ -3682,6 +3672,7 @@
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
     ],
     "failed": [
+      "parallel-routes-and-interception parallel routes Should match the catch-all routes of the more specific path, If there is more than one catch-all route",
       "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
       "parallel-routes-and-interception parallel routes should throw an error when a route groups causes a conflict with a parallel segment"
     ],
@@ -3936,6 +3927,22 @@
     "pending": [],
     "flakey": [],
     "runtimeError": false
+  },
+  "test/e2e/app-dir/shallow-routing/shallow-routing.test.ts": {
+    "passed": [],
+    "failed": [
+      "shallow-routing back and forward client-side navigation should support setting a different pathname reflected on usePathname and then still support navigating back and forward",
+      "shallow-routing back and forward mpa navigation should support setting data and then still support navigating back and forward",
+      "shallow-routing pushState should support setting a different pathname reflected on usePathname",
+      "shallow-routing pushState should support setting a different searchParam reflected on useSearchParams",
+      "shallow-routing pushState should support setting data",
+      "shallow-routing replaceState should support setting a different pathname reflected on usePathname",
+      "shallow-routing replaceState should support setting a different searchParam reflected on useSearchParams",
+      "shallow-routing replaceState should support setting data"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": true
   },
   "test/e2e/app-dir/similar-pages-paths/similar-pages-paths.test.ts": {
     "passed": [
@@ -4212,10 +4219,11 @@
     "runtimeError": true
   },
   "test/e2e/conflicting-app-page-error/index.test.ts": {
-    "passed": [],
+    "passed": [
+      "Conflict between app file and pages file should not show error overlay for non conflict pages under app or pages dir"
+    ],
     "failed": [
       "Conflict between app file and pages file should error again when there is new conflict",
-      "Conflict between app file and pages file should not show error overlay for non conflict pages under app or pages dir",
       "Conflict between app file and pages file should show error overlay for /",
       "Conflict between app file and pages file should show error overlay for /another",
       "Conflict between app file and pages file should support hmr with conflicts"
