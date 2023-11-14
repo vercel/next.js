@@ -2516,11 +2516,11 @@ function renderStyledStringToErrorAnsi(string: StyledString): string {
       return line + '\n'
     }
     case 'stack':
-      let line = ''
+      let stack = ''
       for (const styled of string.value) {
-        line += renderStyledStringToErrorAnsi(styled) + '\n'
+        stack += renderStyledStringToErrorAnsi(styled) + '\n'
       }
-      return line + '\n'
+      return stack + '\n'
     default:
       throw new Error('Unknown StyledString type', string)
   }
