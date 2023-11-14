@@ -21,3 +21,11 @@ export function getShortDynamicParamType(
   }
   return short
 }
+
+export function isShortDynamicParam(
+  type: string
+): type is DynamicParamTypesShort {
+  return Object.values(dynamicParamTypes).includes(
+    type as DynamicParamTypesShort
+  )
+}

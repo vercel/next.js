@@ -1,6 +1,5 @@
 import { getSegmentParam } from '../../server/app-render/get-segment-param'
 import type { Segment } from '../../server/app-render/types'
-import { DYNAMIC_CACHE_KEY_DELIMITER } from './router-reducer/create-router-cache-key'
 
 export const matchSegment = (
   existingSegment: Segment,
@@ -21,27 +20,23 @@ export const matchSegment = (
   return existingSegment[0] === segment[0] && existingSegment[1] === segment[1]
 }
 
+/*
+ * This function takes an existing dynamic segment and attempts to match it against
+ * an incoming segment
+ */
 export const matchDynamicSegment = (
   existingSegment: Segment,
   segment: Segment
 ) => {
-  // If segment is dynamic (an array), we can't match
-  if (Array.isArray(segment)) {
+  if (!Array.isArray(existingSegment)) {
+    // This function is only meant to be used to match existing dynamic segments
+    // If we don't have one, we should not attempt to match it
     return false
   }
 
-  if (!Array.isArray(existingSegment)) {
-    // if we don't already have a dynamic segment, check if it's delimited by the dynamic cache key delimiter
-    // if it is, we can split based on that delimiter
-    if (existingSegment.includes(DYNAMIC_CACHE_KEY_DELIMITER)) {
-      existingSegment = existingSegment.split(
-        DYNAMIC_CACHE_KEY_DELIMITER
-      ) as Segment
-    } else {
-      // existingSegment should be an array if it's dynamic
-      // if we aren't able to get the dynamic params from it, we don't try to match
-      return false
-    }
+  // if segment is also an array, it can be matched by matchSegment
+  if (Array.isArray(segment)) {
+    return matchSegment(existingSegment, segment)
   }
 
   // dynamic segments are encoded as an array, e.g. `["lang", "en", "d"]` where "lang" is the

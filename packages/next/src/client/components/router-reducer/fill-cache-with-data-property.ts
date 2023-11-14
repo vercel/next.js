@@ -3,7 +3,10 @@ import type { FlightSegmentPath } from '../../../server/app-render/types'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 
 import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
-import { createRouterCacheKey } from './create-router-cache-key'
+import {
+  createRouterCacheKey,
+  extractSegmentFromCacheKey,
+} from './create-router-cache-key'
 import { matchDynamicSegment } from '../match-segments'
 
 /**
@@ -52,12 +55,16 @@ export function fillCacheWithDataProperty({
   let childCacheNode = childSegmentMap.get(cacheKey)
 
   if (!childCacheNode || !existingChildCacheNode) {
-    for (const key of existingChildSegmentMap.keys()) {
-      // if we come across a dynamic segment, our cache key lookup will miss
-      // this attempts to match the dynamic segment and if it succeeds, it performs the lookup with that key instead
-      if (matchDynamicSegment(key, segment)) {
+    for (const [key, cacheNode] of existingChildSegmentMap.entries()) {
+      // the cache key might not be a valid segment -- coerce it into one if needed
+      const segment = extractSegmentFromCacheKey(key)
+      if (
+        // if we come across a dynamic segment, our cache key lookup will miss
+        // this attempts to match the dynamic segment and if it succeeds, it performs the lookup with that key instead
+        matchDynamicSegment(segment, segment)
+      ) {
         cacheKey = key
-        existingChildCacheNode = existingChildSegmentMap.get(cacheKey)
+        existingChildCacheNode = cacheNode
         childCacheNode = childSegmentMap.get(cacheKey)
         break
       }
