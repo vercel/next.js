@@ -11,7 +11,7 @@ export default function Page() {
   return (
     <>
       <button onClick={setShallowSearchParams}>Click me first</button>
-      <Link href="/other" prefetch>
+      <Link href="/search-params/shallow/other" prefetch>
         Then hover me
       </Link>
     </>
