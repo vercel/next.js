@@ -293,24 +293,29 @@ async function startWatcher(opts: SetupOpts) {
         .replace('\\\\?\\', '')
 
       if (source) {
-        const { start, end } = source
-        message = `${issue.severity} - ${formattedFilePath}:${start.line + 1}:${
-          start.column
-        }  ${formattedTitle}`
-        if (source.source.content) {
-          const {
-            codeFrameColumns,
-          } = require('next/dist/compiled/babel/code-frame')
-          message +=
-            '\n\n' +
-            codeFrameColumns(
-              source.source.content,
-              {
-                start: { line: start.line + 1, column: start.column + 1 },
-                end: { line: end.line + 1, column: end.column + 1 },
-              },
-              { forceColor: true }
-            )
+        if (source.range) {
+          const { start, end } = source.range
+          message = `${issue.severity} - ${formattedFilePath}:${
+            start.line + 1
+          }:${start.column}  ${formattedTitle}`
+
+          if (source.source.content) {
+            const {
+              codeFrameColumns,
+            } = require('next/dist/compiled/babel/code-frame')
+            message +=
+              '\n\n' +
+              codeFrameColumns(
+                source.source.content,
+                {
+                  start: { line: start.line + 1, column: start.column + 1 },
+                  end: { line: end.line + 1, column: end.column + 1 },
+                },
+                { forceColor: true }
+              )
+          }
+        } else {
+          message = `${issue.severity} - ${formattedFilePath}  ${formattedTitle}`
         }
       } else {
         message = `${formattedTitle}`
@@ -1193,7 +1198,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     const overlayMiddleware = getOverlayMiddleware(project)
-    const turbopackHotReloader: NextJsHotReloaderInterface = {
+    hotReloader = {
       turbopackProject: project,
       activeWebpackConfigs: undefined,
       serverStats: null,
@@ -1390,6 +1395,7 @@ async function startWatcher(opts: SetupOpts) {
           if (page === '/_app') return
           if (page === '/_document') return
           if (page === '/middleware') return
+          if (page === '/src/middleware') return
 
           throw new PageNotFoundError(`route not found ${page}`)
         }
@@ -1624,8 +1630,6 @@ async function startWatcher(opts: SetupOpts) {
         }
       },
     }
-
-    hotReloader = turbopackHotReloader
   } else {
     hotReloader = new HotReloader(opts.dir, {
       appDir,
