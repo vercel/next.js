@@ -300,6 +300,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -492,6 +493,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -656,6 +658,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": true,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -815,6 +818,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": true,
           "pendingPush": false,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -977,6 +981,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -1140,6 +1145,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": true,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -1388,6 +1394,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -1640,6 +1647,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -1747,6 +1755,7 @@ describe('navigateReducer', () => {
         hashFragment: '#hash',
         pendingPush: true,
         shouldScroll: true,
+        preserveCustomHistoryState: false,
       },
     }
 
@@ -1802,6 +1811,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -1999,6 +2009,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",

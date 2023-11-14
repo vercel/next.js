@@ -26,6 +26,8 @@ function fastRefreshReducerImpl(
     return handleMutable(state, mutable)
   }
 
+  mutable.preserveCustomHistoryState = false
+
   if (!cache.data) {
     // TODO-APP: verify that `href` is not an external url.
     // Fetch data from the root of the tree.
