@@ -15,7 +15,7 @@ use turbo_tasks::{RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIter
 use turbo_tasks_fs::{source_context::get_source_context, FileLinesContent};
 use turbopack_core::issue::{
     CapturedIssues, Issue, IssueReporter, IssueSeverity, PlainIssue, PlainIssueProcessingPathItem,
-    PlainIssueSource,
+    PlainIssueSource, StyledString,
 };
 
 use crate::source_context::format_source_context_lines;
@@ -145,7 +145,12 @@ pub fn format_issue(
     let mut styled_issue = style_issue_source(plain_issue, &context_path);
     let description = &plain_issue.description;
     if !description.is_empty() {
-        writeln!(styled_issue, "\n{description}").unwrap();
+        writeln!(
+            styled_issue,
+            "\n{}",
+            render_styled_string_to_ansi(description)
+        )
+        .unwrap();
     }
 
     if log_detail {
@@ -386,7 +391,11 @@ impl IssueReporter for ConsoleUi {
             let mut styled_issue = style_issue_source(&plain_issue, &context_path);
             let description = &plain_issue.description;
             if !description.is_empty() {
-                writeln!(&mut styled_issue, "\n{description}")?;
+                writeln!(
+                    &mut styled_issue,
+                    "\n{}",
+                    render_styled_string_to_ansi(description)
+                )?;
             }
 
             if log_detail {
@@ -536,6 +545,30 @@ fn show_all_message_with_shown_count(
             "--show-all".bright_green()
         )
         .bold()
+    }
+}
+
+fn render_styled_string_to_ansi(styled_string: &StyledString) -> String {
+    match styled_string {
+        StyledString::Line(parts) => {
+            let mut string = String::new();
+            for part in parts {
+                string.push_str(&render_styled_string_to_ansi(part));
+            }
+            string.push('\n');
+            string
+        }
+        StyledString::Stack(parts) => {
+            let mut string = String::new();
+            for part in parts {
+                string.push_str(&render_styled_string_to_ansi(part));
+                string.push('\n');
+            }
+            string
+        }
+        StyledString::Text(string) => string.to_string(),
+        StyledString::Code(string) => string.blue().to_string(),
+        StyledString::Strong(string) => string.bold().to_string(),
     }
 }
 

@@ -13,7 +13,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     error::PrettyPrintError,
-    issue::IssueExt,
+    issue::{IssueExt, StyledString},
     module::Module,
 };
 use turbopack_dev_server::{
@@ -165,7 +165,7 @@ async fn static_error(
 
     let issue = RenderingIssue {
         file_path: path,
-        message: Vc::cell(error),
+        message: StyledString::Text(error).cell(),
         status: status.and_then(|status| status.code()),
     };
 

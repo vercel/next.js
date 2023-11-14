@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use turbopack_cli_utils::issue::{format_issue, LogOptions};
 use turbopack_core::{
-    issue::{IssueSeverity, PlainIssue},
+    issue::{IssueSeverity, PlainIssue, StyledString},
     source_pos::SourcePos,
 };
 
@@ -140,7 +140,7 @@ pub struct Issue<'a> {
     pub category: &'a str,
 
     pub title: &'a str,
-    pub description: &'a str,
+    pub description: &'a StyledString,
     pub detail: &'a str,
     pub documentation_link: &'a str,
 

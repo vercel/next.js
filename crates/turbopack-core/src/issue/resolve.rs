@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSource, OptionIssueSource};
+use super::{Issue, IssueSource, OptionIssueSource, StyledString};
 use crate::{
     error::PrettyPrintError,
     issue::IssueSeverity,
@@ -48,11 +48,19 @@ impl Issue for ResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "unable to resolve {module_name}",
-            module_name = self.request.to_string().await?
-        )))
+    async fn description(&self) -> Result<Vc<StyledString>> {
+        let module_not_found = StyledString::Strong("Module not found".to_string());
+
+        Ok(match self.request.await?.request() {
+            Some(request) => StyledString::Line(vec![
+                module_not_found,
+                StyledString::Text(": Can't resolve '".to_string()),
+                StyledString::Code(request),
+                StyledString::Text("'".to_string()),
+            ]),
+            None => module_not_found,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]

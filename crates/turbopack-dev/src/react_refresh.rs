@@ -3,7 +3,7 @@ use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity},
+    issue::{Issue, IssueExt, IssueSeverity, StyledString},
     resolve::parse::Request,
 };
 use turbopack_ecmascript::resolve::apply_cjs_specific_options;
@@ -89,11 +89,17 @@ impl Issue for ReactRefreshResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(
-            "React Refresh will be disabled.\nTo enable React Refresh, install the \
-             `react-refresh` and `@next/react-refresh-utils` modules."
-                .to_string(),
-        )
+    fn description(&self) -> Vc<StyledString> {
+        StyledString::Line(vec![
+            StyledString::Text(
+                "React Refresh will be disabled.\nTo enable React Refresh, install the "
+                    .to_string(),
+            ),
+            StyledString::Code("react-refresh".to_string()),
+            StyledString::Text(" and ".to_string()),
+            StyledString::Code("@next/react-refresh-utils".to_string()),
+            StyledString::Text(" modules.".to_string()),
+        ])
+        .cell()
     }
 }

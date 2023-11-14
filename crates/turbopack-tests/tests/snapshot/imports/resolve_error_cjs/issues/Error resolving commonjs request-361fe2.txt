@@ -6,7 +6,8 @@ error - [resolve] [project]/crates/turbopack-tests/tests/snapshot/imports/resolv
        3 | console.log(dne);
        4 | 
   
-  unable to resolve module "does-not-exist" with subpath "/path"
+  Module not found: Can't resolve 'does-not-exist/path'
+  
   
   | It was not possible to find the requested file.
   | Parsed request as written in source code: module "does-not-exist" with subpath "/path"

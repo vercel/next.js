@@ -26,7 +26,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity},
+    issue::{Issue, IssueExt, IssueSeverity, StyledString},
     module::Module,
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
@@ -503,8 +503,8 @@ impl Issue for EvaluationIssue {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(
+    async fn description(&self) -> Result<Vc<StyledString>> {
+        Ok(StyledString::Text(
             self.error
                 .print(
                     self.assets_for_source_mapping,
@@ -513,7 +513,8 @@ impl Issue for EvaluationIssue {
                     FormattingMode::Plain,
                 )
                 .await?,
-        ))
+        )
+        .cell())
     }
 }
 
@@ -547,11 +548,11 @@ impl Issue for BuildDependencyIssue {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(
+    async fn description(&self) -> Result<Vc<StyledString>> {
+        Ok(StyledString::Text(
             format!("The file at {} is a build dependency, which is not yet implemented.
 Changing this file or any dependency will not be recognized and might require restarting the server", self.path.to_string().await?)
-        ))
+        ).cell())
     }
 }
 
@@ -627,8 +628,8 @@ impl Issue for EvaluateEmittedErrorIssue {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(
+    async fn description(&self) -> Result<Vc<StyledString>> {
+        Ok(StyledString::Text(
             self.error
                 .print(
                     self.assets_for_source_mapping,
@@ -637,6 +638,7 @@ impl Issue for EvaluateEmittedErrorIssue {
                     FormattingMode::Plain,
                 )
                 .await?,
-        ))
+        )
+        .cell())
     }
 }

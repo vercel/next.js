@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use swc_core::ecma::ast::Program;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, IssueSeverity};
+use turbopack_core::issue::{Issue, IssueSeverity, StyledString};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 /// A wrapper around an SWC's ecma transform wasm plugin module bytes, allowing
@@ -82,12 +82,13 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(
+    fn description(&self) -> Vc<StyledString> {
+        StyledString::Text(
             "Turbopack does not yet support running SWC EcmaScript transform plugins on this \
              platform."
                 .to_string(),
         )
+        .cell()
     }
 }
 

@@ -39,7 +39,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
-    issue::{Issue, IssueExt},
+    issue::{Issue, IssueExt, StyledString},
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
@@ -67,7 +67,7 @@ use self::{
 struct ModuleIssue {
     ident: Vc<AssetIdent>,
     title: Vc<String>,
-    description: Vc<String>,
+    description: Vc<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
@@ -88,7 +88,7 @@ impl Issue for ModuleIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
+    fn description(&self) -> Vc<StyledString> {
         self.description
     }
 }
@@ -372,11 +372,12 @@ async fn process_default(
                                 ModuleIssue {
                                     ident,
                                     title: Vc::cell("Invalid module type".to_string()),
-                                    description: Vc::cell(
+                                    description: StyledString::Text(
                                         "The module type must be Ecmascript or Typescript to add \
                                          Ecmascript transforms"
                                             .to_string(),
-                                    ),
+                                    )
+                                    .cell(),
                                 }
                                 .cell()
                                 .emit();
@@ -386,11 +387,12 @@ async fn process_default(
                                 ModuleIssue {
                                     ident,
                                     title: Vc::cell("Missing module type".to_string()),
-                                    description: Vc::cell(
+                                    description: StyledString::Text(
                                         "The module type effect must be applied before adding \
                                          Ecmascript transforms"
                                             .to_string(),
-                                    ),
+                                    )
+                                    .cell(),
                                 }
                                 .cell()
                                 .emit();

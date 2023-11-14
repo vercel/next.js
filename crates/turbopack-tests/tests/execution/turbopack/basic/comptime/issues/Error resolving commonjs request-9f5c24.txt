@@ -10,7 +10,8 @@ error - [resolve] [project]/crates/turbopack-tests/tests/execution/turbopack/bas
        7 | 
        8 | function maybeReturn(x) {
   
-  unable to resolve relative "./not-existing-file"
+  Module not found: Can't resolve './not-existing-file'
+  
   
   | It was not possible to find the requested file.
   | Parsed request as written in source code: relative "./not-existing-file"

@@ -9,7 +9,7 @@ use turbopack_core::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingType, ChunkingTypeOption,
     },
     environment::Rendering,
-    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource},
+    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     reference::ModuleReference,
     reference_type::UrlReferenceSubType,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
@@ -193,11 +193,12 @@ impl CodeGenerateable for UrlAssetReference {
                             title: Vc::cell(
                                 "new URL(…) not implemented for this environment".to_string(),
                             ),
-                            message: Vc::cell(
+                            message: StyledString::Text(
                                 "new URL(…) is only currently supported for rendering \
                                  environments like Client-Side or Server-Side Rendering."
                                     .to_string(),
-                            ),
+                            )
+                            .cell(),
                             path: this.origin.origin_path(),
                         }
                         .cell()

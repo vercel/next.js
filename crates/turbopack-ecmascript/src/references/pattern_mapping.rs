@@ -7,7 +7,7 @@ use swc_core::{
 use turbo_tasks::{debug::ValueDebug, Value, Vc};
 use turbopack_core::{
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId},
-    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity},
+    issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
     resolve::{
         origin::ResolveOrigin, parse::Request, ModuleResolveResult, ModuleResolveResultItem,
     },
@@ -147,11 +147,12 @@ impl PatternMapping {
                     title: Vc::cell(
                         "pattern mapping is not implemented for this result".to_string(),
                     ),
-                    message: Vc::cell(format!(
+                    message: StyledString::Text(format!(
                         "the reference resolves to a non-trivial result, which is not supported \
                          yet: {:?}",
                         resolve_result.dbg().await?
-                    )),
+                    ))
+                    .cell(),
                     path: origin.origin_path(),
                 }
                 .cell()
@@ -181,9 +182,10 @@ impl PatternMapping {
         CodeGenerationIssue {
             severity: IssueSeverity::Bug.into(),
             title: Vc::cell("non-ecmascript placeable asset".to_string()),
-            message: Vc::cell(
+            message: StyledString::Text(
                 "asset is not placeable in ESM chunks, so it doesn't have a module id".to_string(),
-            ),
+            )
+            .cell(),
             path: origin.origin_path(),
         }
         .cell()

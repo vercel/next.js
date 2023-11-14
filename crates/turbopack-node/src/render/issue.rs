@@ -1,13 +1,13 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::Issue;
+use turbopack_core::issue::{Issue, StyledString};
 
 #[turbo_tasks::value(shared)]
 #[derive(Copy, Clone)]
 pub struct RenderingIssue {
     pub file_path: Vc<FileSystemPath>,
-    pub message: Vc<String>,
+    pub message: Vc<StyledString>,
     pub status: Option<i32>,
 }
 
@@ -29,7 +29,7 @@ impl Issue for RenderingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
+    fn description(&self) -> Vc<StyledString> {
         self.message
     }
 

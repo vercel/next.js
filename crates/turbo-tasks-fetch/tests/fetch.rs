@@ -4,7 +4,7 @@ use turbo_tasks::Vc;
 use turbo_tasks_fetch::{fetch, register, FetchErrorKind};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_testing::{register, run};
-use turbopack_core::issue::{Issue, IssueSeverity};
+use turbopack_core::issue::{Issue, IssueSeverity, StyledString};
 
 register!();
 
@@ -115,7 +115,7 @@ async fn errors_on_failed_connection() {
         let issue = err_vc.to_issue(IssueSeverity::Error.into(), get_issue_context());
         assert_eq!(*issue.severity().await?, IssueSeverity::Error);
         assert_eq!(*issue.category().await?, "fetch");
-        assert_eq!(*issue.description().await?, "There was an issue establishing a connection while requesting https://doesnotexist/foo.woff.");
+        assert_eq!(*issue.description().await?, StyledString::Text("There was an issue establishing a connection while requesting https://doesnotexist/foo.woff.".to_string()));
     }
 }
 
@@ -137,7 +137,7 @@ async fn errors_on_404() {
         let issue = err_vc.to_issue(IssueSeverity::Error.into(), get_issue_context());
         assert_eq!(*issue.severity().await?, IssueSeverity::Error);
         assert_eq!(*issue.category().await?, "fetch");
-        assert_eq!(*issue.description().await?, format!("Received response with status 404 when requesting {}", &resource_url));
+        assert_eq!(*issue.description().await?, StyledString::Text(format!("Received response with status 404 when requesting {}", &resource_url)));
     }
 }
 
