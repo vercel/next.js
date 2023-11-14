@@ -1,0 +1,50 @@
+fragment Publication on Publication {
+	id
+	title
+	displayTitle
+	url
+	metaTags
+	favicon
+	isTeam
+	followersCount
+	descriptionSEO
+	author {
+		name
+		username
+		profilePicture
+		followersCount
+	}
+	ogMetaData {
+		image
+	}
+	preferences {
+		logo
+		darkMode {
+			logo
+		}
+		navbarItems {
+			id
+			type
+			label
+			url
+		}
+	}
+	links {
+		twitter
+		github
+		linkedin
+		hashnode
+	}
+	integrations {
+		umamiWebsiteUUID
+		gaTrackingID
+		fbPixelID
+		hotjarSiteID
+		matomoURL
+		matomoSiteID
+		fathomSiteID
+		fathomCustomDomain
+		fathomCustomDomainEnabled
+		plausibleAnalyticsEnabled
+	}
+}

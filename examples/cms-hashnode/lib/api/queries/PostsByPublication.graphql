@@ -1,0 +1,37 @@
+query PostsByPublication($host: String!, $first: Int!, $after: String) {
+	publication(host: $host) {
+		...Publication
+		posts(first: $first, after: $after) {
+			totalDocuments
+			edges {
+				node {
+					...Post
+					comments(first: 0) {
+						totalDocuments
+					}
+				}
+			}
+			pageInfo {
+				...PageInfo
+			}
+		}
+	}
+}
+
+query MorePostsByPublication($host: String!, $first: Int!, $after: String) {
+	publication(host: $host) {
+		posts(first: $first, after: $after) {
+			edges {
+				node {
+					...Post
+					comments(first: 0) {
+						totalDocuments
+					}
+				}
+			}
+			pageInfo {
+				...PageInfo
+			}
+		}
+	}
+}

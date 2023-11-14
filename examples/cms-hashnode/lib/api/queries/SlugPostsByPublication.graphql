@@ -1,0 +1,12 @@
+query SlugPostsByPublication($host: String!, $first: Int!, $after: String) {
+  publication(host: $host) {
+    ...Publication
+    posts(first: $first, after: $after) {
+      edges {
+        node {
+          slug
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,2346 @@
+schema {
+  query: Query
+  mutation: Mutation
+}
+
+directive @constraint(contains: String, endsWith: String, exclusiveMax: Float, exclusiveMin: Float, format: String, max: Float, maxItems: Int, maxLength: Int, min: Float, minItems: Int, minLength: Int, multipleOf: Float, notContains: String, pattern: String, startsWith: String, uniqueTypeName: String) on ARGUMENT_DEFINITION | FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+directive @hidden on FIELD_DEFINITION | OBJECT
+
+directive @private on FIELD_DEFINITION | OBJECT
+
+directive @requireAuth(scopes: [Scope!]) on FIELD_DEFINITION | OBJECT
+
+input AddPostToSeriesInput {
+  """The ID of the post to be added to the series."""
+  postId: ObjectId!
+  """The ID of the series to which the post is to be added."""
+  seriesId: ObjectId!
+}
+
+type AddPostToSeriesPayload {
+  """The series to which the post was added."""
+  series: Series
+}
+
+"""
+Contains the flag indicating if the audio blog feature is enabled or not.
+User can enable or disable the audio blog feature from the publication settings.
+Shows audio player on blogs if enabled.
+"""
+type AudioBlogFeature implements Feature {
+  """A flag indicating if the audio blog feature is enabled or not."""
+  isEnabled: Boolean!
+  """The voice type for the audio blog."""
+  voiceType: AudioBlogVoiceType!
+}
+
+"""The voice type for the audio blog."""
+enum AudioBlogVoiceType {
+  """Enum for the female voice type of the audio blog."""
+  FEMALE
+  """Enum for the male voice type of the audio blog."""
+  MALE
+}
+
+"""
+Used when Audioblog feature is enabled. Contains URLs to the audioblog of the post.
+"""
+type AudioUrls {
+  """Female version of audio url of the post."""
+  female: String
+  """Male version of audio url of the post."""
+  male: String
+}
+
+"""The status of the backup i.e., success or failure."""
+enum BackupStatus {
+  """The backup failed."""
+  failed
+  """The backup was successful."""
+  success
+}
+
+"""A badge that the user has earned."""
+type Badge implements Node {
+  """The date the badge was earned."""
+  dateAssigned: DateTime
+  """The description of the badge."""
+  description: String
+  """The ID of the badge."""
+  id: ID!
+  """The image of the badge."""
+  image: String!
+  """Link to badge page on Hashnode."""
+  infoURL: String
+  """The name of the badge."""
+  name: String!
+  """A flag to determine if the badge is hidden."""
+  suppressed: Boolean
+}
+
+"""
+Contains basic information about the beta feature.
+A beta feature is a feature that is not yet released to all users.
+"""
+type BetaFeature implements Node {
+  """The description of the beta feature."""
+  description: String
+  """The date the beta feature was created."""
+  enabled: Boolean!
+  """The ID of the beta feature."""
+  id: ID!
+  """The key of the beta feature."""
+  key: String!
+  """The title of the beta feature."""
+  title: String
+  """The url of the beta feature."""
+  url: String
+}
+
+"""
+Contains basic information about the comment.
+A comment is a response to a post.
+"""
+type Comment implements Node {
+  """The author of the comment."""
+  author: User!
+  """The content of the comment in markdown and html format."""
+  content: Content!
+  """The date the comment was created."""
+  dateAdded: DateTime!
+  """The ID of the comment."""
+  id: ID!
+  """
+  Total number of reactions on the comment by the authenticated user. User must be authenticated to use this field.
+  """
+  myTotalReactions: Int!
+  """Returns a list of replies to the comment."""
+  replies(
+    """Returns the elements in the list that come after the specified cursor."""
+    after: String
+    """The number of replies to return. Max is 50."""
+    first: Int!
+  ): CommentReplyConnection!
+  """
+  A unique string identifying the comment. Used as element id in the DOM on hashnode blogs.
+  """
+  stamp: String
+  """
+  Total number of reactions on the comment. Reactions are hearts added to any comment.
+  """
+  totalReactions: Int!
+}
+
+"""
+Connection to get list of replies to a comment.
+Returns a list of edges which contains the posts in publication and cursor to the last item of the previous page.
+"""
+type CommentReplyConnection implements Connection {
+  """
+  A list of edges containing nodes in the connection.
+  A node contains a reply to a comment.
+  """
+  edges: [CommentReplyEdge!]!
+  """Information to aid in pagination."""
+  pageInfo: PageInfo!
+  """The total number of documents in the connection."""
+  totalDocuments: Int!
+}
+
+"""An edge that contains a node of type reply and cursor to the node."""
+type CommentReplyEdge implements Edge {
+  """A cursor to the last item of the previous page."""
+  cursor: String!
+  """The node containing a reply to a comment."""
+  node: Reply!
+}
+
+"""
+Connection to get list of top commenters. Contains a list of edges containing nodes.
+Each node is a user who commented recently.
+Page info contains information about pagination like hasNextPage and endCursor.
+"""
+type CommenterUserConnection implements Connection {
+  """A list of edges of commenters."""
+  edges: [UserEdge!]!
+  """Information to aid in pagination."""
+  pageInfo: PageInfo!
+}
+
+"""
+Connection to get list of items.
+Returns a list of edges which contains the items and cursor to the last item of the previous page.
+This is a common interface for all connections.
+"""
+interface Connection {
+  """A list of edges of items connection."""
+  edges: [Edge!]!
+  """Information to aid in pagination."""
+  pageInfo: PageInfo!
+}
+
+type Content {
+  """The HTML version of the content."""
+  html: String!
+  """The Markdown version of the content."""
+  markdown: String!
+  """
+  The text version from sanitized html content. HTML tags are stripped and only text is returned.
+  """
+  text: String!
+}
+
+"""
+Contains information about cover image options of the post. Like URL of the cover image, attribution, etc.
+"""
+input CoverImageOptionsInput {
+  """Information about the cover image attribution."""
+  coverImageAttribution: String
+  """
+  The name of the cover image photographer, used when cover was chosen from unsplash.
+  """
+  coverImagePhotographer: String
+  """The URL of the cover image."""
+  coverImageURL: String
+  """
+  A flag to indicate if the cover attribution is hidden, used when cover was chosen from unsplash.
+  """
+  isCoverAttributionHidden: Boolean
+  """A flag to indicate if the cover image is sticked to bottom."""
+  stickCoverToBottom: Boolean
+}
+
+type CustomCSS {
+  """Custom CSS that will be applied on the publication homepage."""
+  home: String
+  """The same as `home` but minified."""
+  homeMinified: String
+  """Custom CSS that will be applied on all posts of the publication."""
+  post: String
+  """The same as `post` but minified."""
+  postMinified: String
+  """
+  Custom CSS that will be applied on all static pages of the publication.
+  """
+  static: String
+  """The same as `static` but minified."""
+  staticMinified: String
+}
+
+type CustomCSSFeature implements Feature {
+  """CSS that is not published yet."""
+  draft: CustomCSS
+  """A flag indicating if the custom CSS feature is enabled or not."""
+  isEnabled: Boolean!
+  """CSS that is live."""
+  published: CustomCSS
+}
+
+"""Contains the publication's dark mode preferences."""
+type DarkModePreferences {
+  """A flag indicating if the dark mode is enabled for the publication."""
+  enabled: Boolean
+  """The custom dark mode logo of the publication."""
+  logo: String
+}
+
+"""
+A date-time string at UTC, such as 2007-12-03T10:15:30Z, compliant with the `date-time` format outlined in section 5.6 of the RFC 3339 profile of the ISO 8601 standard for representation of dates and times using the Gregorian calendar.
+"""
+scalar DateTime
+
+"""Contains the publication's domain information."""
+type DomainInfo {
+  """The domain of the publication."""
+  domain: DomainStatus
+  """
+  The subdomain of the publication on hashnode.dev.
+  
+  It will redirect to you custom domain if it is present and ready.
+  """
+  hashnodeSubdomain: String
+  """
+  The www prefixed domain of the publication. Says if redirect to www domain is configured.
+  """
+  wwwPrefixedDomain: DomainStatus
+}
+
+"""Contains the publication's domain status."""
+type DomainStatus {
+  """The host of the publication domain."""
+  host: String!
+  """A flag indicating if the publication domain is ready."""
+  ready: Boolean!
+}
+
+"""
+Contains basic information about the draft.
+A draft is a post that is not published yet.
+"""
+type Draft implements Node {
+  """The author of the draft."""
+  author: User!
+  canonicalUrl: String
+  """
+  Returns the user details of the co-authors of the post.
+  Hashnode users can add up to 4 co-authors as collaborators to their posts.
+  This functionality is limited to teams publication.
+  """
+  coAuthors: [User!]
+  """Content of the draft in HTML and markdown"""
+  content: Content
+  """
+  The cover image preference of the draft. Contains cover image URL and other details.
+  """
+  coverImage: DraftCoverImage
+  """The date the draft was updated."""
+  dateUpdated: DateTime! @deprecated(reason: "Use updatedAt instead. Will be removed on 26/12/2023.")
+  """Draft feature-related fields."""
+  features: DraftFeatures!
+  """The ID of the draft."""
+  id: ID!
+  """Information about the last backup of the draft."""
+  lastBackup: DraftBackup
+  """The date the draft last failed to back up."""
+  lastFailedBackupAt: DateTime
+  """The date the draft was last successfully backed up."""
+  lastSuccessfulBackupAt: DateTime
+  """
+  OG meta-data of the draft. Contains image url used in open graph meta tags.
+  """
+  ogMetaData: OpenGraphMetaData
+  readTimeInMinutes: Int!
+  """
+  SEO information of the draft. Contains title and description used in meta tags.
+  """
+  seo: SEO
+  """Information of the series the draft belongs to."""
+  series: Series
+  settings: DraftSettings!
+  slug: String!
+  """
+  The subtitle of the draft. It would become the subtitle of the post when published.
+  """
+  subtitle: String
+  """
+  Returns list of tags added to the draft. Contains tag id, name, slug, etc.
+  """
+  tags: [Tag!]!
+  """
+  The title of the draft. It would become the title of the post when published.
+  """
+  title: String
+  updatedAt: DateTime!
+}
+
+type DraftBackup {
+  """The date the backup was created."""
+  at: DateTime
+  """The status of the backup i.e., success or failure."""
+  status: BackupStatus
+}
+
+"""
+Connection to get list of drafts.
+Returns a list of edges which contains the draft and cursor to the last item of the previous page.
+"""
+type DraftConnection implements Connection {
+  """A list of edges of drafts connection."""
+  edges: [DraftEdge!]!
+  """Information to aid in pagination."""
+  pageInfo: PageInfo!
+  """The total number of documents in the connection."""
+  totalDocuments: Int!
+}
+
+"""Contains information about the cover image of the draft."""
+type DraftCoverImage {
+  """Provides attribution information for the cover image, if available."""
+  attribution: String
+  """True if the image attribution should be hidden."""
+  isAttributionHidden: Boolean!
+  """The name of the photographer who captured the cover image."""
+  photographer: String
+  """The URL of the cover image."""
+  url: String!
+}
+
+"""An edge that contains a node of type draft and cursor to the node."""
+type DraftEdge implements Edge {
+  """A cursor for use in pagination."""
+  cursor: String!
+  """A node in the connection containing a draft."""
+  node: Draft!
+}
+
+type DraftFeatures {
+  tableOfContents: TableOfContentsFeature!
+}
+
+type DraftSettings {
+  """A flag to indicate if the comments are disabled for the post."""
+  disableComments: Boolean!
+  """Wether or not the post is hidden from the Hashnode community."""
+  isDelisted: Boolean!
+  """
+  A flag to indicate if the cover image is shown below title of the post. Default position of cover is top of title.
+  """
+  stickCoverToBottom: Boolean!
+}
+
+"""
+An edge that contains a node and cursor to the node.
+This is a common interface for all edges.
+"""
+interface Edge {
+  """A cursor for use in pagination."""
+  cursor: String!
+  """A node in the connection."""
+  node: Node!
+}
+
+"""The input for the email import acknowledgement mutation."""
+type EmailCurrentImport {
+  """The number of subscribers that have attempted to import"""
+  attemptedToImport: Int
+  """The filename of the csv file containing emails"""
+  filename: String
+  """The date the import started"""
+  importStartedAt: DateTime!
+  """The status of the import"""
+  status: EmailImportStatus!
+  """The number of subscribers that have been successfully imported"""
+  successfullyImported: Int
+}
+
+"""Contains information about the email import."""
+type EmailImport {
+  """
+  Contains information about the current import example if it is in progress or has finished, date started, etc
+  """
+  currentImport: EmailCurrentImport
+}
+
+"""The status of the email import."""
+enum EmailImportStatus {
+  """There was an error during the import."""
+  FAILED
+  """The import has been acknowledged by the user."""
+  FINISHED
+  """Import has been initialized but is not yet in progress."""
+  INITIALIZED
+  """Import is in progress."""
+  IN_PROGRESS
+  """Import has to be reviewed by Hashnode. It is not yet reviewed."""
+  IN_REVIEW
+  """The has been rejected. Nothing has been imported."""
+  REJECTED
+  """Import was successful. New emails have been imported."""
+  SUCCESS
+}
+
+"""Common fields that describe a feature."""
+interface Feature {
+  """Whether the feature is enabled or not."""
+  isEnabled: Boolean!
+}
+
+input FeedFilter {
+  """
+  Adds a filter to return posts with maximum number of minutes required to read the post.
+  """
+  maxReadTime: Int
+  """
+  Adds a filter to return posts with minimum number of minutes required to read the post.
+  """
+  minReadTime: Int
+  """Adds a filter to return posts with tagged with provided tags only."""
+  tags: [ObjectId!]
+  """The type of feed to be returned."""
+  type: FeedType
+}
+
+"""
+Connection for posts within a feed. Contains a list of edges containing nodes.
+Each node is a post.
+Page info contains information about pagination like hasNextPage and endCursor.
+"""
+type FeedPostConnection implements Connection {
+  """A list of edges containing Post information"""
+  edges: [PostEdge!]!
+  """Information for pagination in Post connection."""
+  pageInfo: PageInfo!
+}
+
+"""Contains information about type of feed to be returned."""
+enum FeedType {
+  """
+  Returns posts which were bookmarked by the user, sorted based on recency.
+  """
+  BOOKMARKS
+  """Returns posts which were featured, sorted based on recency."""
+  FEATURED
+  """
+  Returns only posts of the users you follow or publications you have subscribed to.
+  
+  Note: You have to be authenticated to use this feed type.
+  """
+  FOLLOWING
+  """
+  Returns only posts based on users following and interactions.
+  
+  Personalised feed is curated per requesting user basis.
+  """
+  PERSONALIZED
+  """Returns posts which were viewed by the user, sorted based on recency."""
+  READING_HISTORY
+  """Returns posts which were published recently, sorted based on recency."""
+  RECENT
+  """Returns posts based on old personalization algorithm."""
+  RELEVANT
+}
+
+enum HttpRedirectionType {
+  """A permanent redirect that corresponds to the 308 HTTP status code."""
+  PERMANENT
+  """A temporary redirect that corresponds to the 307 HTTP status code."""
+  TEMPORARY
+}
+
+"""
+Contains basic information about the tag.
+A tag is a label that categorizes posts with similar topics.
+"""
+interface ITag {
+  """Total number of users following this tag."""
+  followersCount: Int!
+  """The ID of the tag."""
+  id: ID!
+  """
+  Information about the tag. Contains markdown html and text version of the tag's info.
+  """
+  info: Content
+  """The logo of the tag. Shown in tag page."""
+  logo: String
+  """The name of the tag. Shown in tag page."""
+  name: String!
+  """Alltime usage count of this tag in posts."""
+  postsCount: Int!
+  """
+  The slug of the tag. Used to access tags feed.  Example https://hashnode.com/n/graphql
+  """
+  slug: String!
+  """The tagline of the tag."""
+  tagline: String
+}
+
+"""Basic information about a user on Hashnode."""
+interface IUser {
+  """Whether or not the user is an ambassador."""
+  ambassador: Boolean!
+  """
+  The availability of the user based on tech stack and interests. Shown on the "I am available for" section in user's profile.
+  """
+  availableFor: String
+  """
+  Returns a list of badges that the user has earned. Shown on blogs /badges page. Example - https://iamshadmirza.com/badges
+  """
+  badges: [Badge!]!
+  """
+  The bio of the user. Visible in about me section of the user's profile.
+  """
+  bio: Content
+  """
+  The bio of the user. Visible in about me section of the user's profile.
+  """
+  bioV2: Content @deprecated(reason: "Will be removed on 26/10/2023. Use bio instead of bioV2")
+  """The date the user joined Hashnode."""
+  dateJoined: DateTime
+  """Whether or not the user is deactivated."""
+  deactivated: Boolean!
+  """
+  The number of users that follow the requested user. Visible in the user's profile.
+  """
+  followersCount: Int!
+  """
+  The number of users that this user is following. Visible in the user's profile.
+  """
+  followingsCount: Int!
+  """The ID of the user. It can be used to identify the user."""
+  id: ID!
+  """The location of the user."""
+  location: String
+  """The name of the user."""
+  name: String!
+  """The URL to the profile picture of the user."""
+  profilePicture: String
+  """
+  Publications associated with the user. Includes personal and team publications.
+  """
+  publications(
+    """The cursor to start the query from."""
+    after: String
+    """Filter to apply to the publications."""
+    filter: UserPublicationsConnectionFilter
+    """The maximum number of publications to return in a batch."""
+    first: Int!
+  ): UserPublicationsConnection!
+  """The social media links of the user. Shown on the user's profile."""
+  socialMediaLinks: SocialMediaLinks
+  """The tagline of the user. Shown on the user's profile below the name."""
+  tagline: String
+  """Returns a list of tags that the user follows."""
+  tagsFollowing: [Tag!]!
+  """
+  The username of the user. It is unique and tied with user's profile URL. Example - https://hashnode.com/@username
+  """
+  username: String!
+}
+
+"""
+Contains information about meta tags of the post. Used for SEO purpose.
+"""
+input MetaTagsInput {
+  """The description of the post used in og:description for SEO."""
+  description: String
+  """The image URL of the post used in og:image for SEO."""
+  image: String
+  """The title of the post used in og:title for SEO."""
+  title: String
+}
+
+type Mutation {
+  """Adds a post to a series."""
+  addPostToSeries(input: AddPostToSeriesInput!): AddPostToSeriesPayload!
+  """Creates a new post."""
+  publishPost(
+    """Information about the post to be published."""
+    input: PublishPostInput!
+  ): PublishPostPayload!
+  """Reschedule a post."""
+  reschedulePost(input: ReschedulePostInput!): ScheduledPostPayload
+  subscribeToNewsletter(input: SubscribeToNewsletterInput!): SubscribeToNewsletterPayload!
+  """
+  Update the follow state for the user that is provided via id or username.
+  If the authenticated user does not follow the user, the mutation will follow the user.
+  If the authenticated user already follows the user, the mutation will un-follow the user.
+  Only available to the authenticated user.
+  """
+  toggleFollowUser(id: ID, username: String): ToggleFollowUserPayload!
+  unsubscribeFromNewsletter(input: UnsubscribeFromNewsletterInput!): UnsubscribeFromNewsletterPayload!
+  updatePost(input: UpdatePostInput!): UpdatePostPayload!
+}
+
+"""
+Basic information about the authenticated user.
+User must be authenticated to use this type.
+"""
+type MyUser implements IUser & Node {
+  """Whether or not the user is an ambassador."""
+  ambassador: Boolean! @deprecated(reason: "Ambassadors program no longer active")
+  """
+  The availability of the user based on tech stack and interests. Shown on the "I am available for" section in user's profile.
+  """
+  availableFor: String
+  """
+  Returns a list of badges that the user has earned. Shown on blogs /badges page. Example - https://iamshadmirza.com/badges
+  """
+  badges: [Badge!]!
+  """
+  A list of beta features that the user has access to. Only available to the authenticated user.
+  """
+  betaFeatures: [BetaFeature!]!
+  """
+  The bio of the user. Visible in about me section of the user's profile.
+  """
+  bio: Content
+  """
+  The bio of the user. Visible in about me section of the user's profile.
+  """
+  bioV2: Content @deprecated(reason: "Will be removed on 26/10/2023. Use bio instead of bio.V2")
+  """The date the user joined Hashnode."""
+  dateJoined: DateTime
+  """Whether or not the user is deactivated."""
+  deactivated: Boolean!
+  """Email address of the user. Only available to the authenticated user."""
+  email: String
+  """
+  The number of users that follow the requested user. Visible in the user's profile.
+  """
+  followersCount: Int!
+  """
+  The number of users that this user is following. Visible in the user's profile.
+  """
+  followingsCount: Int!
+  """The ID of the user. It can be used to identify the user."""
+  id: ID!
+  """The location of the user."""
+  location: String
+  """The name of the user."""
+  name: String!
+  """The URL to the profile picture of the user."""
+  profilePicture: String
+  provider: String
+  """
+  Publications associated with the user. Includes personal and team publications.
+  """
+  publications(
+    """The cursor to start the query from."""
+    after: String
+    """Filter to apply to the publications."""
+    filter: UserPublicationsConnectionFilter
+    """The maximum number of publications to return in a batch."""
+    first: Int!
+  ): UserPublicationsConnection!
+  """The social media links of the user. Shown on the user's profile."""
+  socialMediaLinks: SocialMediaLinks
+  """The tagline of the user. Shown on the user's profile below the name."""
+  tagline: String
+  """Returns a list of tags that the user follows."""
+  tagsFollowing: [Tag!]!
+  """
+  Hashnode users are subscribed to a newsletter by default. This field can be used to unsubscribe from the newsletter. Only available to the authenticated user.
+  """
+  unsubscribeCode: String
+  """
+  The username of the user. It is unique and tied with user's profile URL. Example - https://hashnode.com/@username
+  """
+  username: String!
+}
+
+"""
+Contains the flag indicating if the newsletter feature is enabled or not.
+User can enable or disable the newsletter feature from the publication settings.
+Shows a newsletter prompt on blog if enabled.
+"""
+type NewsletterFeature implements Feature {
+  frequency: NewsletterFrequency
+  """A flag indicating if the newsletter feature is enabled or not."""
+  isEnabled: Boolean!
+}
+
+enum NewsletterFrequency {
+  asap
+  weekly
+}
+
+enum NewsletterSubscribeStatus {
+  PENDING
+}
+
+enum NewsletterUnsubscribeStatus {
+  UNSUBSCRIBED
+}
+
+"""
+Node is a common interface for all types example User, Post, Comment, etc.
+"""
+interface Node {
+  """The ID of the node."""
+  id: ID!
+}
+
+"""
+A field whose value conforms with the standard mongodb object Id as described here: https://docs.mongodb.com/manual/reference/method/ObjectId/#ObjectId. Example: 5e5677d71bdc2ae76344968c
+"""
+scalar ObjectId
+
+"""Information to help in open graph related meta tags."""
+type OpenGraphMetaData {
+  """The image used in og:image tag for SEO purposes."""
+  image: String
+}
+
+"""Contains information to help in pagination."""
+type PageInfo {
+  """
+  The cursor of the last item in the current page.
+  Use it as the after input to query the next page.
+  """
+  endCursor: String
+  """Indicates if there are more pages."""
+  hasNextPage: Boolean
+}
+
+"""
+Contains the preferences publication's autogenerated pages.
+Used to enable or disable pages like badge, newsletter and members.
+"""
+type PagesPreferences {
+  """A flag indicating if the publication's badge page is enabled."""
+  badges: Boolean
+  """A flag indicating if the publication's member page is enabled."""
+  members: Boolean
+  """A flag indicating if the publication's newsletter page is enabled."""
+  newsletter: Boolean
+}
+
+"""
+Contains basic information about the tag returned by popularTags query.
+"""
+type PopularTag implements ITag & Node {
+  """Total number of users following this tag."""
+  followersCount: Int!
+  """The ID of the tag."""
+  id: ID!
+  """
+  Information about the tag. Contains markdown html and text version of the tag's info.
+  """
+  info: Content
+  """The logo of the tag. Shown in tag page."""
+  logo: String
+  """The name of the tag. Shown in tag page."""
+  name: String!
+  """Alltime usage count of this tag in posts."""
+  postsCount: Int!
+  """The number of posts published in the given period that use this tag."""
+  postsCountInPeriod: Int!
+  """
+  The slug of the tag. Used to access tags feed.  Example https://hashnode.com/n/graphql
+  """
+  slug: String!
+  """The tagline of the tag."""
+  tagline: String
+}
+
+"""Contains a tag and a cursor for pagination."""
+type PopularTagEdge implements Edge {
+  """A cursor for use in pagination."""
+  cursor: String!
+  """The node holding the Tag information"""
+  node: PopularTag!
+}
+
+"""
+Contains basic information about the post.
+A post is a published article on Hashnode.
+"""
+type Post implements Node {
+  """
+  Returns male and female audio url of the post. Available in case the Audioblog is enabled.
+  """
+  audioUrls: AudioUrls
+  """Returns the user details of the author of the post."""
+  author: User!
+  """
+  Flag to indicate if the post is bookmarked by the requesting user.
+  
+  Returns `false` if the user is not authenticated.
+  """
+  bookmarked: Boolean!
+  """
+  Brief is a short description of the post extracted from the content of the post. It's 250 characters long sanitized string.
+  """
+  brief: String!
+  """Canonical URL set by author in case of republished posts."""
+  canonicalUrl: String
+  """
+  Returns the user details of the co-authors of the post.
+  Hashnode users can add up to 4 co-authors as collaborators to their posts.
+  This functionality is limited to teams publication.
+  """
+  coAuthors: [User!]
+  """List of users who have commented on the post."""
+  commenters(
+    """A cursor to the last item of the previous page."""
+    after: String
+    """The number of users to be returned per page."""
+    first: Int!
+    """
+    The sorting option for commenters. Used to sort commenters by popularity or recency.
+    """
+    sortBy: PostCommenterSortBy
+  ): PostCommenterConnection!
+  """A list of comments on the post."""
+  comments(
+    """A cursor to the last item of the previous page."""
+    after: String
+    """The number of comments to be returned per page."""
+    first: Int!
+    """
+    The sorting option for comments. Used to sort comments by top or recent.
+    """
+    sortBy: PostCommentSortBy
+  ): PostCommentConnection!
+  """
+  Content of the post. Contains HTML and Markdown version of the post content.
+  """
+  content: Content!
+  """
+  A list of contributors of the post. Contributors are users who have commented or replied to the post.
+  """
+  contributors: [User!]! @deprecated(reason: "Will be removed on 10th Oct 2023. Use `commenters` instead.")
+  """
+  The cover image preference of the post. Contains cover image URL and other details.
+  """
+  coverImage: PostCoverImage
+  """Unique ID to identify post, used internally by hashnode."""
+  cuid: String
+  """Flag to indicate if the post is featured on Hashnode feed."""
+  featured: Boolean!
+  """
+  The date and time the post was featured. Used along with featured flag to determine if the post is featured.
+  """
+  featuredAt: DateTime
+  """Post feature-related fields."""
+  features: PostFeatures!
+  """
+  A flag to indicate if the post contains LaTeX. Latex is used to write mathematical equations.
+  """
+  hasLatexInPost: Boolean!
+  """The ID of the post. Used to uniquely identify the post."""
+  id: ID!
+  """Wether or not the post has automatically been published via RSS feed."""
+  isAutoPublishedFromRSS: Boolean!
+  """
+  Wether or not the authenticated user is following this post.
+  
+  Returns `null` if the user is not authenticated.
+  """
+  isFollowed: Boolean
+  """A list of users who liked the post."""
+  likedBy(
+    """A cursor to the last item of the previous page."""
+    after: String
+    filter: PostLikerFilter
+    """The number of users to be returned per page."""
+    first: Int!
+  ): PostLikerConnection!
+  """
+  OG meta-data of the post. Contains image url used in open graph meta tags.
+  """
+  ogMetaData: OpenGraphMetaData
+  """
+  Preference settings for the post. Contains information about if the post is pinned to blog, comments are disabled, etc.
+  """
+  preferences: PostPreferences!
+  """The publication the post belongs to."""
+  publication: Publication
+  """The date and time the post was published."""
+  publishedAt: DateTime!
+  """The number of hearts on the post. Shows how many users liked the post."""
+  reactionCount: Int!
+  """The estimated time to read the post in minutes."""
+  readTimeInMinutes: Int!
+  """The number of replies on the post."""
+  replyCount: Int!
+  """The number of comments on the post."""
+  responseCount: Int!
+  """
+  SEO information of the post. Contains title and description used in meta tags.
+  """
+  seo: SEO
+  """Information of the series the post belongs to."""
+  series: Series
+  """
+  The slug of the post. Used as address of the post on blog. Example - https://johndoe.com/my-post-slug
+  """
+  slug: String!
+  """
+  The subtitle of the post. Subtitle is a short description of the post which is also used in SEO if meta tags are not provided.
+  """
+  subtitle: String
+  """
+  Returns list of tags added to the post. Contains tag id, name, slug, etc.
+  """
+  tags: [Tag!]
+  """The title of the post."""
+  title: String!
+  """The date and time the post was last updated."""
+  updatedAt: DateTime
+  """
+  Complete URL of the post including the domain name. Example - https://johndoe.com/my-post-slug
+  """
+  url: String!
+  """
+  The number of views on the post. Can be used to show the popularity of the post.
+  """
+  views: Int!
+}
+
+type PostBadge implements Node {
+  """Unique identifier."""
+  id: ID!
+  """The type of the badge."""
+  type: PostBadgeType!
+}
+
+enum PostBadgeType {
+  FEATURED_DAILY_DOT_DEV
+  FEATURED_HASHNODE
+}
+
+type PostBadgesFeature implements Feature {
+  """Wether or not the user has chosen to show badges on the post."""
+  isEnabled: Boolean!
+  items: [PostBadge!]!
+}
+
+"""
+Connection for comments. Contains a list of edges containing nodes.
+Each node holds a comment.
+Page info contains information about pagination like hasNextPage and endCursor.
+Total documents contains the total number of comments.
+"""
+type PostCommentConnection implements Connection {
+  """A list of edges containing comments as nodes."""
+  edges: [PostCommentEdge!]!
+  """Information about pagination in a connection."""
+  pageInfo: PageInfo!
+  """Total number of nodes available i.e. number of comments."""
+  totalDocuments: Int!
+}
+
+"""
+A comment on the post. Contains information about the content of the comment, user who commented, etc.
+"""
+type PostCommentEdge implements Edge {
+  """The cursor for this node used for pagination."""
+  cursor: String!
+  """The comment on the post."""
+  node: Comment!
+}
+
+"""Sorting options for comments. Used to sort comments by top or recent."""
+enum PostCommentSortBy {
+  """Sorts comments by recency."""
+  RECENT
+  """Sorts comments by popularity."""
+  TOP
+}
+
+"""
+Connection for commenters (users). Contains a list of edges containing nodes.
+Each node holds commenter.
+Page info contains information about pagination like hasNextPage and endCursor.
+Total documents contains the total number of commenters.
+"""
+type PostCommenterConnection implements Connection {
+  """A list of edges containing commenters as nodes."""
+  edges: [PostCommenterEdge!]!
+  """Information about pagination in a connection."""
+  pageInfo: PageInfo!
+  """Total number of nodes available i.e. number of commenters."""
+  totalDocuments: Int!
+}
+
+"""
+A commenter on the post. Contains information about the user who commented.
+"""
+type PostCommenterEdge implements Edge {
+  """The cursor for this node used for pagination."""
+  cursor: String!
+  """The commenter on the post."""
+  node: User!
+}
+
+"""
+Sorting options for commenters. Used to sort commenters by popularity or recency.
+"""
+enum PostCommenterSortBy {
+  """Sorts commenters by popularity."""
+  POPULAR
+  """Sorts commenters by recency."""
+  RECENT
+}
+
+"""Contains information about the cover image of the post."""
+type PostCoverImage {
+  """Provides attribution information for the cover image, if available."""
+  attribution: String
+  """True if the image attribution should be hidden."""
+  isAttributionHidden: Boolean!
+  """Indicates whether the cover image is in portrait orientation."""
+  isPortrait: Boolean!
+  """The name of the photographer who captured the cover image."""
+  photographer: String
+  """The URL of the cover image."""
+  url: String!
+}
+
+"""Contains a post and a cursor for pagination."""
+type PostEdge implements Edge {
+  """A cursor for use in pagination."""
+  cursor: String!
+  """The node holding the Post information"""
+  node: Post!
+}
+
+type PostFeatures {
+  badges: PostBadgesFeature!
+  tableOfContents: TableOfContentsFeature!
+}
+
+"""
+Connection for users who liked the post. Contains a list of edges containing nodes.
+Each node is a user who liked the post.
+Page info contains information about pagination like hasNextPage and endCursor.
+Total documents contains the total number of users who liked the post.
+"""
+type PostLikerConnection implements Connection {
+  """A list of edges containing users as nodes"""
+  edges: [PostLikerEdge!]!
+  """Information about pagination in a connection."""
+  pageInfo: PageInfo!
+  """
+  Total number of nodes available i.e. number of users who liked the post.
+  """
+  totalDocuments: Int!
+}
+
+"""
+A user who liked the post. Contains information about the user and number of reactions added by the user.
+"""
+type PostLikerEdge implements Edge {
+  """The cursor for this node used for pagination."""
+  cursor: String!
+  """The user who liked the post."""
+  node: User!
+  """The number of reaction added by the user."""
+  reactionCount: Int!
+}
+
+input PostLikerFilter {
+  """Only return likes from users with the given user IDs."""
+  userIds: [ID!]
+}
+
+"""
+Contains Post preferences. Used to determine if the post is pinned to blog, comments are disabled, or cover image is sticked to bottom.
+"""
+type PostPreferences {
+  """A flag to indicate if the comments are disabled for the post."""
+  disableComments: Boolean!
+  """Wether or not the post is hidden from the Hashnode community."""
+  isDelisted: Boolean!
+  """
+  A flag to indicate if the post is pinned to blog. Pinned post is shown on top of the blog.
+  """
+  pinnedToBlog: Boolean!
+  """
+  A flag to indicate if the cover image is shown below title of the post. Default position of cover is top of title.
+  """
+  stickCoverToBottom: Boolean!
+}
+
+"""
+Contains the publication's preferences for layout, theme and other personalisations.
+"""
+type Preferences {
+  """
+  The publication's darkmode preferences. Can be used to load blog in dark mode by default and add a custom dark mode logo.
+  """
+  darkMode: DarkModePreferences
+  """
+  A flag indicating if the hashnode's footer branding is disabled for the publication.
+  """
+  disableFooterBranding: Boolean
+  """An object containing pages enabled for the publication."""
+  enabledPages: PagesPreferences
+  """
+  A flag indicating if subscription popup needs to be shown to be shown for the publication
+  """
+  isSubscriptionModalDisabled: Boolean
+  """The selected publication's layout, can be stacked, grid or magazine."""
+  layout: PublicationLayout
+  """The publication's logo url."""
+  logo: String
+  """The items in the publication's navigation bar."""
+  navbarItems: [PublicationNavbarItem!]!
+}
+
+"""
+Contains basic information about the publication.
+A publication is a blog that can be created for a user or a team.
+"""
+type Publication implements Node {
+  """The about section of the publication."""
+  about: Content
+  """The author who owns the publication."""
+  author: User!
+  """The canonical URL of the publication."""
+  canonicalURL: String!
+  """The description of the publication, used in og:description meta tag."""
+  descriptionSEO: String
+  """The title of the publication. Shown in blog home page."""
+  displayTitle: String
+  """Domain information of the publication."""
+  domainInfo: DomainInfo!
+  """Returns the list of drafts in the publication."""
+  drafts(
+    """A cursor to the last item in the previous page."""
+    after: String
+    """The filters to be applied to the draft list."""
+    filter: PublicationDraftConnectionFilter
+    """The number of drafts to return."""
+    first: Int!
+  ): DraftConnection!
+  """Returns the publication's email imports, used with newsletter feature."""
+  emailImport: EmailImport
+  """The favicon of the publication. Used in browser tab."""
+  favicon: String
+  """
+  Object containing information about beta features enabled for the publication.
+  """
+  features: PublicationFeatures!
+  """Total number of followers of the publication."""
+  followersCount: Int
+  """Whether the publication has earned any badges or not."""
+  hasBadges: Boolean!
+  """
+  Color code of the header color of the publication. Used to style header of blog.
+  """
+  headerColor: String
+  """The ID of the publication."""
+  id: ID!
+  """
+  Summary of the contact information and information related to copyrights, usually used in German-speaking countries.
+  """
+  imprint: String
+  """The integrations connected to the publication."""
+  integrations: PublicationIntegrations
+  """
+  Returns true if GitHub backup is configured and active and false otherwise.
+  """
+  isGitHubBackupEnabled: Boolean!
+  """
+  A flag to indicate if the publication is using Headless CMS. This can be used to check if the post redirect needs authentication.
+  """
+  isHeadless: Boolean!
+  """True if the publication is a team publication and false otherwise."""
+  isTeam: Boolean!
+  """Links to the publication's social media profiles."""
+  links: PublicationLinks
+  """The meta tags associated with the publication."""
+  metaTags: String
+  """Information about the publication's Open Graph metadata i.e. image."""
+  ogMetaData: OpenGraphMetaData!
+  """Returns the pinned post of the publication."""
+  pinnedPost: Post
+  """Returns the post with the given slug."""
+  post(slug: String!): Post
+  """Returns the list of posts in the publication."""
+  posts(
+    """A cursor to the last item in the previous page."""
+    after: String
+    """The filters to be applied to the post list."""
+    filter: PublicationPostConnectionFilter
+    """The number of posts to return."""
+    first: Int!
+  ): PublicationPostConnection!
+  """
+  The publication preferences around layout, theme and other personalisations.
+  """
+  preferences: Preferences!
+  """Configured redirection rules for the publication."""
+  redirectionRules: [RedirectionRule!]!
+  """Returns the scheduled drafts of the publication."""
+  scheduledDrafts(
+    """A cursor to the last item in the previous page."""
+    after: String
+    """The filters to be applied to the draft list."""
+    filter: PublicationDraftConnectionFilter
+    """The number of scheduled drafts to return."""
+    first: Int!
+  ): DraftConnection!
+  """Returns series by slug in the publication."""
+  series(slug: String!): Series
+  """Returns the list of series in the publication."""
+  seriesList(
+    """A cursor to the last item in the previous page."""
+    after: String
+    """The number of series to return."""
+    first: Int!
+  ): SeriesConnection!
+  """Contains the publication's sponsorships information."""
+  sponsorship: PublicationSponsorship
+  """Returns the static page with the given slug."""
+  staticPage(
+    """The slug of the static page to retrieve."""
+    slug: String!
+  ): StaticPage
+  """Returns a list of static pages in the publication."""
+  staticPages(
+    """A cursor to the last item in the previous page."""
+    after: String
+    """The number of static pages to return."""
+    first: Int!
+  ): StaticPageConnection!
+  """Returns the list of submitted drafts in the publication."""
+  submittedDrafts(
+    """A cursor to the last item in the previous page."""
+    after: String
+    """The filters to be applied to the draft list."""
+    filter: PublicationDraftConnectionFilter
+    """The number of submitted drafts to return."""
+    first: Int!
+  ): DraftConnection!
+  """
+  The title of the publication.
+  Title is used as logo if logo is not provided.
+  """
+  title: String!
+  """
+  The domain of the publication. Used to access publication. Example https://johndoe.com
+  """
+  url: String!
+  """Determines the structure of the post URLs."""
+  urlPattern: UrlPattern!
+}
+
+"""
+Connection to get list of drafts in publications.
+Returns a list of edges which contains the drafts in publication and cursor to the last item of the previous page.
+"""
+input PublicationDraftConnectionFilter {
+  """Search filter will be applied to the title of a draft"""
+  search: String
+}
+
+"""Contains the publication's beta features."""
+type PublicationFeatures {
+  """Audio player for blog posts."""
+  audioBlog: AudioBlogFeature!
+  """Individual styling for the publication."""
+  customCSS: CustomCSSFeature!
+  """
+  Newsletter feature for the publication which adds a `/newsletter` route for collecting subscribers and allows sending out newsletters.
+  """
+  newsletter: NewsletterFeature!
+  """Show the read time for blog posts."""
+  readTime: ReadTimeFeature!
+  """
+  Widget that shows up if a text on a blog post is selected. Allows for easy sharing or copying of the selected text.
+  """
+  textSelectionSharer: TextSelectionSharerFeature!
+  """Show the view count for blog posts."""
+  viewCount: ViewCountFeature!
+}
+
+"""
+Contains the publication's integrations.
+Used to connect the publication with third party services like Google Analytics, Facebook Pixel, etc.
+"""
+type PublicationIntegrations {
+  """Custom domain for integration with Fathom Analytics."""
+  fathomCustomDomain: String
+  """
+  A flag indicating if the custom domain is enabled for integration with Fathom Analytics.
+  """
+  fathomCustomDomainEnabled: Boolean
+  """Fathom Analytics Site ID for integration with Fathom Analytics."""
+  fathomSiteID: String
+  """FB Pixel ID for integration with Facebook Pixel."""
+  fbPixelID: String
+  """Google Analytics Tracking ID for integration with Google Analytics."""
+  gaTrackingID: String
+  """Hotjar Site ID for integration with Hotjar."""
+  hotjarSiteID: String
+  """Matomo Site ID for integration with Matomo Analytics."""
+  matomoSiteID: String
+  """Matomo URL for integration with Matomo Analytics."""
+  matomoURL: String
+  """
+  A flag indicating if the custom domain is enabled for integration with Plausible Analytics.
+  """
+  plausibleAnalyticsEnabled: Boolean
+  """The ID for the Hashnode-provided Umami analytics instance."""
+  umamiWebsiteUUID: String
+  """
+  Web Monetization Payment Pointer for integration with Web Monetization.
+  """
+  wmPaymentPointer: String
+}
+
+"""Contains publication's layout choices."""
+enum PublicationLayout {
+  """Changes the layout of blog into grid 3 post cards per row."""
+  grid
+  """
+  Changes the layout of blog into magazine style.
+  This is the newest layout.
+  """
+  magazine
+  """Changes the layout of blog into stacked list of posts."""
+  stacked
+}
+
+"""Contains the publication's social media links."""
+type PublicationLinks {
+  """Daily.dev URL of the publication."""
+  dailydev: String
+  """GitHub URL of the publication."""
+  github: String
+  """Hashnode profile of author of the publication."""
+  hashnode: String
+  """Instagram URL of the publication."""
+  instagram: String
+  """LinkedIn URL of the publication."""
+  linkedin: String
+  """Mastodon URL of the publication."""
+  mastodon: String
+  """Twitter URL of the publication."""
+  twitter: String
+  """Website URL of the publication."""
+  website: String
+  """YouTube URL of the publication."""
+  youtube: String
+}
+
+"""Contains the publication's navbar items."""
+type PublicationNavbarItem {
+  """The unique identifier of the navbar item."""
+  id: ID!
+  """The label of the navbar item."""
+  label: String
+  """The static page added to the navbar item."""
+  page: StaticPage
+  """The order of the navbar item."""
+  priority: Int
+  """The series added to the navbar item."""
+  series: Series
+  """The type of the navbar item, can be series, link or page."""
+  type: PublicationNavigationType!
+  """The URL of the navbar item."""
+  url: String
+}
+
+"""The type of the navbar item, can be series, link or page."""
+enum PublicationNavigationType {
+  """The navbar item is a link."""
+  link
+  """The navbar item is a static page."""
+  page
+  """The navbar item is a series."""
+  series
+}
+
+"""
+Connection for posts within a publication. Contains a list of edges containing nodes.
+Each node is a post.
+Page info contains information about pagination like hasNextPage and endCursor.
+"""
+type PublicationPostConnection implements Connection {
+  """A list of edges containing Post information"""
+  edges: [PostEdge!]!
+  """Information for pagination in Post connection."""
+  pageInfo: PageInfo!
+  """The total number of documents in the connection."""
+  totalDocuments: Int!
+}
+
+"""
+Connection to get list of posts in publications.
+Returns a list of edges which contains the posts in publication and cursor to the last item of the previous page.
+"""
+input PublicationPostConnectionFilter {
+  """Remove pinned post from the result set."""
+  excludePinnedPost: Boolean
+  """
+  Filtering by tag slugs and tag IDs will return posts that match either of the filters.
+  
+  It is an "OR" filter and not an "AND" filter.
+  """
+  tagSlugs: [String!]
+  """
+  Filtering by tag slugs and tag IDs will return posts that match either of the filters.
+  
+  It is an "OR" filter and not an "AND" filter.
+  """
+  tags: [ObjectId!]
+}
+
+"""
+Contains the publication's Sponsorship information.
+User can sponsor their favorite publications and pay them directly using Stripe.
+"""
+type PublicationSponsorship {
+  """
+  The content shared by author of the publication to their sponsors.
+  This is used as note to inform that author is open for sponsorship.
+  """
+  content: Content
+  """The Stripe configuration of the publication's Sponsorship."""
+  stripe: StripeConfiguration
+}
+
+"""Contains information about the post to be published."""
+input PublishPostInput {
+  """Ids of the co-authors of the post."""
+  coAuthors: [ObjectId!]
+  """Content of the post in markdown format."""
+  contentMarkdown: String!
+  """Options for the cover image of the post."""
+  coverImageOptions: CoverImageOptionsInput
+  """A flag to indicate if the comments are disabled for the post."""
+  disableComments: Boolean
+  """The ID of the draft to be published."""
+  draftId: ObjectId!
+  """
+  Information about the meta tags added to the post, used for SEO purpose.
+  """
+  metaTags: MetaTagsInput
+  """
+  The URL of the original article if the post is imported from an external source.
+  """
+  originalArticleURL: String
+  """The ID of publication the post belongs to."""
+  publicationId: ObjectId!
+  """
+  Publish the post on behalf of another user who is a member of the publication.
+  
+  Only applicable for team publications.
+  """
+  publishAs: ObjectId
+  """Date when the post is published."""
+  publishedAt: DateTime
+  """Providing a seriesId will add the post to that series."""
+  seriesId: ObjectId
+  """
+  Settings for the post like table of contents and newsletter activation.
+  """
+  settings: PublishPostSettingsInput
+  """Slug of the post."""
+  slug: String
+  """The subtitle of the post."""
+  subtitle: String
+  """A list of tags added to the post."""
+  tags: [PublishPostTagInput!]!
+  """The title of the post."""
+  title: String!
+}
+
+type PublishPostPayload {
+  post: Post
+}
+
+input PublishPostSettingsInput {
+  """
+  A flag to indicate if the post is delisted, used to hide the post from public feed.
+  """
+  delisted: Boolean
+  """A flag to indicate if the post contains table of content"""
+  enableTableOfContent: Boolean
+  """Wether to send a newsletter for this post."""
+  isNewsletterActivated: Boolean
+  """A flag to indicate if the post is scheduled."""
+  scheduled: Boolean
+  """Flag to indicate if the slug is overridden by the user."""
+  slugOverridden: Boolean
+}
+
+input PublishPostTagInput {
+  """
+  A tag id that is referencing an existing tag.
+  
+  Either this or name and slug should be provided. If both are provided, the id will be used.
+  """
+  id: ObjectId
+  """
+  A name of a new tag to create.
+  
+  Either this and slug or id should be provided. If both are provided, the id will be used.
+  """
+  name: String
+  """
+  A slug of a new tag to create.
+  
+  Either this and name or id should be provided. If both are provided, the id will be used.
+  """
+  slug: String
+}
+
+type Query {
+  """
+  Returns a draft by ID.
+  Draft is a post that is not published yet.
+  """
+  draft(
+    """The ID of the draft to retrieve."""
+    id: ObjectId!
+  ): Draft
+  """
+  Returns a paginated list of posts based on the provided filter.
+  Used in Hashnode home feed.
+  """
+  feed(
+    """A cursor to the last item of the previous page."""
+    after: String
+    """Filters to be applied to the feed."""
+    filter: FeedFilter
+    """The number of items to be returned per page."""
+    first: Int!
+  ): FeedPostConnection!
+  """
+  Returns the current authenticated user. Only available to the authenticated user.
+  """
+  me: MyUser!
+  """
+  Returns the publication with the given ID or host.
+  User can pass anyone of them.
+  """
+  publication(
+    """The host of the publication."""
+    host: String
+    """The ID of the publication."""
+    id: ObjectId
+  ): Publication
+  """Get a scheduled post by ID."""
+  scheduledPost(
+    """The ID of the scheduled post to get."""
+    id: ObjectId
+  ): ScheduledPost
+  """
+  Returns a paginated list of posts based on search query for a particular publication id.
+  """
+  searchPostsOfPublication(
+    """A cursor to the last item of the previous page."""
+    after: String
+    """The filter to be applied to the search."""
+    filter: SearchPostsOfPublicationFilter!
+    """The number of items to be returned per page."""
+    first: Int!
+  ): SearchPostConnection!
+  """Returns tag details by its slug."""
+  tag(
+    """The slug of the tag to retrieve."""
+    slug: String!
+  ): Tag
+  """
+  Returns users who have most actively participated in discussions by commenting in the last 7 days.
+  """
+  topCommenters(
+    """A cursor to the last item of the previous page."""
+    after: String
+    """The maximum number of users to return."""
+    first: Int!
+  ): CommenterUserConnection!
+  """Returns the user with the username."""
+  user(
+    """The username of the user to retrieve."""
+    username: String!
+  ): User
+}
+
+type RSSImport implements Node {
+  id: ID!
+  """The URL pointing to the RSS feed."""
+  rssURL: String!
+}
+
+"""
+Contains the flag indicating if the read time feature is enabled or not.
+User can enable or disable the read time feature from the publication settings.
+Shows read time on blogs if enabled.
+"""
+type ReadTimeFeature implements Feature {
+  """A flag indicating if the read time feature is enabled or not."""
+  isEnabled: Boolean!
+}
+
+"""Contains a publication and a cursor for pagination."""
+type RecommendedPublicationEdge implements Edge {
+  """A cursor for use in pagination."""
+  cursor: String!
+  """The node holding the Publication information"""
+  node: Publication!
+}
+
+type RedirectionRule {
+  """The destination URL of the redirection rule."""
+  destination: String!
+  """The source URL of the redirection rule."""
+  source: String!
+  """The type of the redirection rule."""
+  type: HttpRedirectionType!
+}
+
+"""
+Contains basic information about the reply.
+A reply is a response to a comment.
+"""
+type Reply implements Node {
+  """The author of the reply."""
+  author: User!
+  """The content of the reply in markdown and html format."""
+  content: Content!
+  """The date the reply was created."""
+  dateAdded: DateTime!
+  """The ID of the reply."""
+  id: ID!
+  """
+  Total number of reactions on the reply by the authenticated user. User must be authenticated to use this field.
+  """
+  myTotalReactions: Int!
+  """
+  A unique string identifying the reply. Used as element id in the DOM on hashnode blogs.
+  It can be used to scroll to the reply in browser.
+  """
+  stamp: String
+  """
+  Total number of reactions on the reply. Reactions are hearts added to any reply.
+  """
+  totalReactions: Int!
+}
+
+input ReschedulePostInput {
+  """The Draft ID of the scheduled post."""
+  draftId: ObjectId!
+  """New scheduled date for the post to be rescheduled."""
+  scheduledDate: DateTime!
+}
+
+"""Information to help in seo related meta tags."""
+type SEO {
+  """The description used in og:description tag for SEO purposes."""
+  description: String
+  """The title used in og:title tag for SEO purposes."""
+  title: String
+}
+
+"""
+Contains basic information about the scheduled post.
+A scheduled post is a post that is scheduled to be published in the future.
+"""
+type ScheduledPost implements Node {
+  """The date the scheduled post was created."""
+  author: User!
+  """Returns the draft associated with the scheduled post."""
+  draft: Draft
+  """The ID of the scheduled post."""
+  id: ID!
+  """Returns the publication the post is scheduled for."""
+  publication: Publication!
+  """
+  Returns user who scheduled the post. This is usually the author of the post.
+  """
+  scheduledBy: User
+  """
+  The scheduled date for the post to be published. This is the date the post will be published.
+  """
+  scheduledDate: DateTime!
+}
+
+type ScheduledPostPayload {
+  """Payload returned in response of reschedulePost mutation."""
+  payload: ScheduledPost!
+}
+
+"""
+Enum of all the scopes that can be used with the @requireAuth directive.
+"""
+enum Scope {
+  acknowledge_email_import
+  active_pro_user
+  assign_pro_publications
+  change_pro_subscription
+  create_pro
+  import_subscribers_to_publication
+  publication_admin
+  publish_draft
+  recommend_publications
+  signup
+  update_post
+  webhook_admin
+  write_post
+  write_series
+}
+
+"""
+Connection for posts within a publication search. Contains a list of edges containing nodes.
+Each node is a post.
+Page info contains information about pagination like hasNextPage and endCursor.
+"""
+type SearchPostConnection implements Connection {
+  """A list of edges containing Post information"""
+  edges: [PostEdge!]!
+  """Information for pagination in Post connection."""
+  pageInfo: PageInfo!
+}
+
+input SearchPostsOfPublicationFilter {
+  """The ID of publications to search from."""
+  publicationId: ObjectId!
+  """The query to be searched in post."""
+  query: String!
+}
+
+"""
+Contains basic information about the series.
+A series is a collection of posts that are related to each other.
+"""
+type Series implements Node {
+  """Returns the user who is author of the series."""
+  author: User!
+  """The cover image of the series."""
+  coverImage: String
+  """The date and time the series was created."""
+  createdAt: DateTime!
+  """Unique identifier for the series."""
+  cuid: ID
+  """
+  The description of the series. Contains markdown and html version of the series's description.
+  """
+  description: Content
+  """The ID of the series."""
+  id: ID!
+  """The name of the series. Shown in series page."""
+  name: String!
+  """Returns a list of posts in the series."""
+  posts(
+    """The cursor after which the posts are to be returned."""
+    after: String
+    """The number of posts to return."""
+    first: Int!
+  ): SeriesPostConnection!
+  """
+  The slug of the series. Used to access series page.  Example https://johndoe.com/series/series-slug
+  """
+  slug: String!
+  """
+  The sort order of the series, determines if the latest posts should appear first or last in series.
+  """
+  sortOrder: SortOrder!
+}
+
+"""
+Connection for Series. Contains a list of edges containing nodes.
+Each node is a Series.
+Page info contains information about pagination like hasNextPage and endCursor.
+"""
+type SeriesConnection implements Connection {
+  """A list of edges containing Series information"""
+  edges: [SeriesEdge!]!
+  """Information for pagination in SeriesList connection."""
+  pageInfo: PageInfo!
+  """The total number of documents in the connection."""
+  totalDocuments: Int!
+}
+
+"""Contains a Series and a cursor for pagination."""
+type SeriesEdge implements Edge {
+  """A cursor for use in pagination."""
+  cursor: String!
+  """The node holding the Series information"""
+  node: Series!
+}
+
+"""
+Connection for posts within a series. Contains a list of edges containing nodes.
+Each node is a post.
+Page info contains information about pagination like hasNextPage and endCursor.
+"""
+type SeriesPostConnection implements Connection {
+  """A list of edges containing Post information"""
+  edges: [PostEdge!]!
+  """Information for pagination in Post connection."""
+  pageInfo: PageInfo!
+  """The total number of documents in the connection."""
+  totalDocuments: Int!
+}
+
+"""Available social media links."""
+type SocialMediaLinks {
+  """The user's Facebook profile."""
+  facebook: String
+  """The user's GitHub profile."""
+  github: String
+  """The user's Instagram profile."""
+  instagram: String
+  """The user's LinkedIn profile."""
+  linkedin: String
+  """The user's StackOverflow profile."""
+  stackoverflow: String
+  """The user's Twitter profile."""
+  twitter: String
+  """The user's website."""
+  website: String
+  """The user's YouTube profile."""
+  youtube: String
+}
+
+"""SortOrder is a common enum for all types that can be sorted."""
+enum SortOrder {
+  asc
+  dsc
+}
+
+"""
+Contains basic information about the static page.
+Static pages are pages that are written in markdown and can be added to blog.
+"""
+type StaticPage implements Node {
+  """
+  Content of the static page. Contains markdown and html version of the static page's content.
+  """
+  content: Content!
+  """
+  A flag to determine if the static page is hidden from public or not, this is used to hide the page instead of deleting it.
+  """
+  hidden: Boolean!
+  """The ID of the static page."""
+  id: ID!
+  """Information about the static page's Open Graph metadata i.e. image."""
+  ogMetaData: OpenGraphMetaData
+  """
+  Information about the static page's SEO metadata i.e. title and description.
+  """
+  seo: SEO
+  """
+  The slug of the static page. Used to access static page.  Example https://johndoe.com/my-page
+  """
+  slug: String!
+  """The title of the static page. Shown in nav bar."""
+  title: String!
+}
+
+"""
+Connection to get list of static pages.
+Returns a list of edges which contains the static page and cursor to the last item of the previous page.
+"""
+type StaticPageConnection implements Connection {
+  """A list of edges containing nodes in the connection."""
+  edges: [StaticPageEdge!]!
+  """Information to aid in pagination."""
+  pageInfo: PageInfo!
+  """The total number of documents in the connection."""
+  totalDocuments: Int!
+}
+
+"""
+An edge that contains a node of type static page and cursor to the node.
+"""
+type StaticPageEdge implements Edge {
+  """A cursor to the last item of the previous page."""
+  cursor: String!
+  """The node containing a static page."""
+  node: StaticPage!
+}
+
+"""Contains the publication's Stripe configuration."""
+type StripeConfiguration {
+  """The Stripe account ID of the publication."""
+  accountId: String
+  """A flag indicating if the publication is connected to Stripe."""
+  connected: Boolean!
+  """The country of origin of the publication."""
+  country: String
+}
+
+input SubscribeToNewsletterInput {
+  """The email of the subscriber."""
+  email: String!
+  """The ID of the publication to subscribe to."""
+  publicationId: ObjectId!
+}
+
+type SubscribeToNewsletterPayload {
+  status: NewsletterSubscribeStatus
+}
+
+type TableOfContentsFeature implements Feature {
+  """Wether or not ser has chosen to show a table of contents on the post."""
+  isEnabled: Boolean!
+  """The content of the table of contents."""
+  items: [TableOfContentsItem!]!
+}
+
+type TableOfContentsItem implements Node {
+  """Unique identifier."""
+  id: ID!
+  """The level of nesting. Refers to the heading level in the post."""
+  level: Int!
+  """
+  ID of the `TableOfContentsItem` that is one level higher in the hierarchy. `null` if this is a top level item.
+  """
+  parentId: ID
+  """The slug of the referenced headline."""
+  slug: String!
+  """The title of the referenced headline."""
+  title: String!
+}
+
+type Tag implements ITag & Node {
+  """Total number of users following this tag."""
+  followersCount: Int!
+  """The ID of the tag."""
+  id: ID!
+  """
+  Information about the tag. Contains markdown html and text version of the tag's info.
+  """
+  info: Content
+  """The logo of the tag. Shown in tag page."""
+  logo: String
+  """The name of the tag. Shown in tag page."""
+  name: String!
+  """Paginated list of posts published under this tag"""
+  posts(
+    """The cursor after which the posts are to be returned."""
+    after: String
+    """The cursor before which the posts are to be returned."""
+    filter: TagPostConnectionFilter!
+    """The number of posts in particular tag to return per page."""
+    first: Int!
+  ): FeedPostConnection!
+  """Alltime usage count of this tag in posts."""
+  postsCount: Int!
+  """
+  The slug of the tag. Used to access tags feed.  Example https://hashnode.com/n/graphql
+  """
+  slug: String!
+  """The tagline of the tag."""
+  tagline: String
+}
+
+"""Contains a tag and a cursor for pagination."""
+type TagEdge implements Edge {
+  """A cursor for use in pagination."""
+  cursor: String!
+  """The node holding the Tag information"""
+  node: Tag!
+}
+
+input TagPostConnectionFilter {
+  """Sort tag feed by recents, popular, or trending. Defaults to recents."""
+  sortBy: TagPostsSort
+}
+
+"""The field by which to sort the tag feed."""
+enum TagPostsSort {
+  """Sorts by popularity, used in Hot tag feed."""
+  popular
+  """
+  Determinate how to sort the results. Defaults to recents, used in New tag feed.
+  """
+  recent
+  """
+  Trending is particular used to fetch top posts trending within a week time under a tag
+  """
+  trending
+}
+
+"""
+Contains the flag indicating if the text selection sharer feature is enabled or not.
+User can enable or disable the text selection sharer feature from the publication settings.
+Shows a widget if a text on a blog post is selected. Allows for easy sharing or copying of the selected text.
+"""
+type TextSelectionSharerFeature implements Feature {
+  """
+  A flag indicating if the text selection sharer feature is enabled or not.
+  """
+  isEnabled: Boolean!
+}
+
+"""Payload for the toggleFollowingUser mutation."""
+type ToggleFollowUserPayload {
+  """The user that was followed/unfollowed."""
+  user: User
+}
+
+input UnsubscribeFromNewsletterInput {
+  """The email that is currently subscribed."""
+  email: String!
+  """The ID of the publication to unsubscribe from."""
+  publicationId: ObjectId!
+}
+
+type UnsubscribeFromNewsletterPayload {
+  status: NewsletterUnsubscribeStatus
+}
+
+input UpdatePostInput {
+  """
+  Update co-authors of the post.
+  Must be a member of the publication.
+  """
+  coAuthors: [ObjectId!]
+  """The publication the post is published to."""
+  contentMarkdown: String
+  """Options for the cover image of the post."""
+  coverImageOptions: CoverImageOptionsInput
+  """The id of the post to update."""
+  id: ID!
+  """
+  Information about the meta tags added to the post, used for SEO purpose.
+  """
+  metaTags: MetaTagsInput
+  """Canonical URL of the original article."""
+  originalArticleURL: String
+  """If the publication should be changed this is the new Publication ID"""
+  publicationId: ObjectId
+  """
+  Set a different author for the post than the requesting user.
+  Must be a member of the publication.
+  """
+  publishAs: ObjectId
+  """Backdated publish date."""
+  publishedAt: DateTime
+  """
+  Providing a seriesId will add the post to that series.
+  Must be a series of the publication.
+  """
+  seriesId: ObjectId
+  """Whether or not to enable the table of content."""
+  settings: UpdatePostSettingsInput
+  """
+  Slug of the post. Only if you want to override the slug that will be generated based on the title.
+  """
+  slug: String
+  """The subtitle of the post"""
+  subtitle: String
+  """
+  Tags to add to the post. New tags will be created if they don't exist. It overrides the existing tags.
+  """
+  tags: [PublishPostTagInput!]
+  """The new title of the post"""
+  title: String
+}
+
+type UpdatePostPayload {
+  post: Post
+}
+
+input UpdatePostSettingsInput {
+  """
+  A flag to indicate if the post is delisted, used to hide the post from public feed.
+  """
+  delisted: Boolean
+  """Whether or not comments should be disabled."""
+  disableComments: Boolean
+  """A flag to indicate if the post contains table of content"""
+  isTableOfContentEnabled: Boolean
+  """Pin the post to the blog homepage."""
+  pinToBlog: Boolean
+}
+
+enum UrlPattern {
+  """
+  Post URLs contain the slug (for example `my slug`) and a random id (like `1234`) , e.g. "/my-slug-1234".
+  """
+  DEFAULT
+  """Post URLs only contain the slug, e.g. "/my-slug"."""
+  SIMPLE
+}
+
+"""Basic information about a user on Hashnode."""
+type User implements IUser & Node {
+  """Whether or not the user is an ambassador."""
+  ambassador: Boolean! @deprecated(reason: "Ambassadors program no longer active")
+  """
+  The availability of the user based on tech stack and interests. Shown on the "I am available for" section in user's profile.
+  """
+  availableFor: String
+  """
+  Returns a list of badges that the user has earned. Shown on blogs /badges page. Example - https://iamshadmirza.com/badges
+  """
+  badges: [Badge!]!
+  """
+  The bio of the user. Visible in about me section of the user's profile.
+  """
+  bio: Content
+  """
+  The bio of the user. Visible in about me section of the user's profile.
+  """
+  bioV2: Content @deprecated(reason: "Will be removed on 26/10/2023. Use bio instead of bioV2")
+  """The date the user joined Hashnode."""
+  dateJoined: DateTime
+  """Whether or not the user is deactivated."""
+  deactivated: Boolean!
+  """
+  The number of users that follow the requested user. Visible in the user's profile.
+  """
+  followersCount: Int!
+  """
+  Wether or not the authenticated user follows this user.
+  Returns false if the authenticated user this user.
+  """
+  following: Boolean!
+  """
+  The number of users that this user is following. Visible in the user's profile.
+  """
+  followingsCount: Int!
+  """
+  Wether or not this user follows the authenticated user.
+  Returns false if the authenticated user this user.
+  """
+  followsBack: Boolean!
+  """The ID of the user. It can be used to identify the user."""
+  id: ID!
+  """Wether or not this is a pro user."""
+  isPro: Boolean!
+  """The location of the user."""
+  location: String
+  """The name of the user."""
+  name: String!
+  """The URL to the profile picture of the user."""
+  profilePicture: String
+  """
+  Publications associated with the user. Includes personal and team publications.
+  """
+  publications(
+    """The cursor to start the query from."""
+    after: String
+    """Filter to apply to the publications."""
+    filter: UserPublicationsConnectionFilter
+    """The maximum number of publications to return in a batch."""
+    first: Int!
+  ): UserPublicationsConnection!
+  """The social media links of the user. Shown on the user's profile."""
+  socialMediaLinks: SocialMediaLinks
+  """The tagline of the user. Shown on the user's profile below the name."""
+  tagline: String
+  """Returns a list of tags that the user follows."""
+  tagsFollowing: [Tag!]!
+  """
+  The username of the user. It is unique and tied with user's profile URL. Example - https://hashnode.com/@username
+  """
+  username: String!
+}
+
+"""Contains a node of type user and cursor for pagination."""
+type UserEdge implements Edge {
+  """The cursor for use in pagination."""
+  cursor: String!
+  """The node containing User information"""
+  node: User!
+}
+
+"""The role of the user in the publication."""
+enum UserPublicationRole {
+  """
+  Contributors can join the publication and contribute an article. They cannot directly publish a new article.
+  """
+  CONTRIBUTOR
+  """
+  The editor has access to the publication dashboard to customize the blog and approve/reject posts.
+  They also have access to the member panel to add/modify/remove members. Editors cannot remove other editors or update their roles.
+  """
+  EDITOR
+  """
+  The owner is the creator of the publication and can do all things, including delete publication.
+  """
+  OWNER
+}
+
+"""
+Connection to get list of publications.
+Returns a list of edges which contains the publications and cursor to the last item of the previous page.
+"""
+type UserPublicationsConnection implements Connection {
+  """A list of edges of publications connection."""
+  edges: [UserPublicationsEdge!]!
+  """Information to aid in pagination."""
+  pageInfo: PageInfo!
+  """The total amount of publications taking into account the filter."""
+  totalDocuments: Int!
+}
+
+"""Filter to apply to the publications."""
+input UserPublicationsConnectionFilter {
+  """Only return pro publications."""
+  isPro: Boolean
+  """
+  Only include publication in which the user has one of the provided roles.
+  """
+  roles: [UserPublicationRole!]
+}
+
+"""
+An edge that contains a node of type publication and cursor to the node.
+"""
+type UserPublicationsEdge implements Edge {
+  """The cursor to the node."""
+  cursor: String!
+  """Node containing the publication."""
+  node: Publication!
+  """The role of the user in the publication."""
+  role: UserPublicationRole!
+}
+
+"""
+Contains the flag indicating if the view count feature is enabled or not.
+User can enable or disable the view count feature from the publication settings.
+Shows total views on blogs if enabled.
+"""
+type ViewCountFeature implements Feature {
+  """A flag indicating if the view count feature is enabled or not."""
+  isEnabled: Boolean!
+}
+
+type Webhook implements Node {
+  createdAt: DateTime!
+  events: [WebhookEvent!]!
+  """The ID of the post. Used to uniquely identify the post."""
+  id: ID!
+  """
+  Messages that has been sent via this webhook.
+  Messages include the request and eventual response.
+  """
+  messages(
+    """A cursor to the last item of the previous page."""
+    after: String
+    """The number of items to be returned per page."""
+    first: Int!
+  ): WebhookMessageConnection!
+  publication: Publication!
+  secret: String!
+  updatedAt: DateTime
+  url: String!
+}
+
+enum WebhookEvent {
+  POST_DELETED
+  POST_PUBLISHED
+  POST_UPDATED
+}
+
+type WebhookMessage implements Node {
+  createdAt: DateTime!
+  event: WebhookEvent!
+  id: ID!
+  """
+  True if either the request failed or the response status code was not 2xx.
+  """
+  isError: Boolean!
+  """True if the message was resent."""
+  isResent: Boolean!
+  """True if the message was sent as a test."""
+  isTest: Boolean!
+  request: WebhookMessageRequest!
+  response: WebhookMessageResponse
+  url: String!
+}
+
+type WebhookMessageConnection implements Connection {
+  edges: [WebhookMessageEdge!]!
+  pageInfo: PageInfo!
+}
+
+type WebhookMessageEdge implements Edge {
+  cursor: String!
+  node: WebhookMessage!
+}
+
+type WebhookMessageRequest {
+  body: String!
+  error: WebhookMessageRequestError
+  headers: String!
+  """Unique identifier of the request. Can be used to deduplicate requests."""
+  uuid: String!
+}
+
+type WebhookMessageRequestError {
+  code: String!
+  message: String!
+}
+
+type WebhookMessageResponse {
+  body: String
+  headers: String
+  httpStatus: Int!
+  """
+  The time it took from the moment the request has been send until the first byte of the response has been received.
+  """
+  timeToFirstByteMilliseconds: Int
+}
