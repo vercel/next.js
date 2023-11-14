@@ -578,6 +578,7 @@ export default async function build(
       const rootPaths = (await getFilesInDir(rootDir))
         .filter((file) => includes.some((include) => include.test(file)))
         .sort(sortByPageExts(config.pageExtensions))
+        .map((file) => `${path.sep}${file}`)
 
       const hasInstrumentationHook = rootPaths.some((p) =>
         p.includes(INSTRUMENTATION_HOOK_FILENAME)
