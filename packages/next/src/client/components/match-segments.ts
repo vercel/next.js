@@ -27,7 +27,7 @@ export const matchSegment = (
 export const matchDynamicSegment = (
   existingSegment: Segment,
   segment: Segment
-) => {
+): boolean => {
   if (!Array.isArray(existingSegment)) {
     // This function is only meant to be used to match existing dynamic segments
     // If we don't have one, we should not attempt to match it
