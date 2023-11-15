@@ -308,7 +308,6 @@
       "navigateReducer should apply navigation",
       "navigateReducer should apply navigation for external url (push)",
       "navigateReducer should apply navigation for external url (replace)",
-      "navigateReducer should apply navigation for forceOptimisticNavigation",
       "navigateReducer should apply navigation for hash fragments within a different tree",
       "navigateReducer should apply navigation for hash fragments within the same tree",
       "navigateReducer should apply navigation for scroll",
