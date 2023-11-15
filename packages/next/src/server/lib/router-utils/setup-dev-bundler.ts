@@ -279,9 +279,7 @@ async function startWatcher(opts: SetupOpts) {
     const issues = new Map<string, Map<string, Issue>>()
 
     function issueKey(issue: Issue): string {
-      return `${issue.severity} - ${issue.filePath} - ${
-        issue.title
-      } - ${JSON.stringify(issue.description)}`
+      return `${issue.severity} - ${issue.filePath} - ${issue.title}\n${issue.description}\n\n`
     }
 
     function formatIssue(issue: Issue) {
@@ -352,7 +350,7 @@ async function startWatcher(opts: SetupOpts) {
         const key = issueKey(issue)
         const formatted = formatIssue(issue)
         if (!oldSet.has(key) && !newSet.has(key)) {
-          console.error(`  ⚠ ${displayName} ${formatted}\n\n`)
+          console.error(`  ⚠ ${displayName} ${key} ${formatted}\n\n`)
         }
         newSet.set(key, issue)
         relevantIssues.add(formatted)
