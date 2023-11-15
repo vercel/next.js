@@ -115,7 +115,8 @@ export type ResponseCacheEntry = {
  */
 export type ResponseGenerator = (
   hasResolved: boolean,
-  previousCacheEntry?: IncrementalCacheItem
+  previousCacheEntry?: IncrementalCacheItem,
+  isRevalidating?: boolean
 ) => Promise<ResponseCacheEntry | null>
 
 export type IncrementalCacheItem = {
