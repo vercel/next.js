@@ -98,19 +98,3 @@ exports[`ReactRefreshLogBox app default should strip whitespace correctly with n
   10 |   click me
   11 | </a>"
 `;
-
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
-
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 2`] = `"http://nextjs.org/"`;
-
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 3`] = `"Error: http://nextjs.org start"`;
-
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 4`] = `"http://nextjs.org/"`;
-
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 5`] = `"Error: middle http://nextjs.org end"`;
-
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 6`] = `"http://nextjs.org/"`;
-
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 8`] = `"http://nextjs.org/"`;
-
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 9`] = `"http://example.com/"`;
