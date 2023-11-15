@@ -140,7 +140,7 @@ export default class FileSystemCache implements CacheHandler {
     let data = memoryCache?.get(key)
 
     if (this.debug) {
-      console.log('get', key, tags, kindHint)
+      console.log('get', key, tags, kindHint, !!data)
     }
 
     // let's check the disk for seed data
@@ -196,7 +196,7 @@ export default class FileSystemCache implements CacheHandler {
           }
 
           if (data.value?.kind === 'FETCH') {
-            const storedTags = data.value?.data?.tags
+            const storedTags = data.value?.tags
 
             // update stored tags if a new one is being added
             // TODO: remove this when we can send the tags
@@ -321,7 +321,7 @@ export default class FileSystemCache implements CacheHandler {
       lastModified: Date.now(),
     })
     if (this.debug) {
-      console.log('set', key, !!data)
+      console.log('set', key)
     }
 
     if (!this.flushToDisk) return
