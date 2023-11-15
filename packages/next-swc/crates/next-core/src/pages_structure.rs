@@ -377,7 +377,7 @@ async fn get_pages_structure_for_directory(
 }
 
 fn page_basename<'a>(name: &'a str, page_extensions: &'a [String]) -> Option<&'a str> {
-    if let Some((basename, extension)) = name.rsplit_once('.') {
+    if let Some((basename, extension)) = name.split_once('.') {
         if page_extensions.iter().any(|allowed| allowed == extension) {
             return Some(basename);
         }
