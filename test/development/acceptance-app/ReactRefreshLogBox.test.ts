@@ -222,7 +222,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
       next.normalizeSnapshot(`
         "./index.js
-        Error: 
+        Error:
           x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
            ,-[TEST_DIR/index.js:4:1]
          4 |       <p>lol</p>
@@ -373,7 +373,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           }, [])
           return (
             <main>
-              <button onClick={boom}>Boom!</button>
+              <button onClick={boom}>Boom 1!</button>
             </main>
           )
         }
@@ -381,10 +381,14 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
+    console.log('here0')
     await session.waitForAndOpenRuntimeError()
+    console.log('here1')
 
     const header = await session.getRedboxDescription()
+    console.log('here2', header)
     expect(header).toMatchSnapshot()
+    console.log('here3')
     expect(
       await session.evaluate(
         () =>
@@ -394,6 +398,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
             .length
       )
     ).toBe(1)
+    console.log('here4')
     expect(
       await session.evaluate(
         () =>
@@ -406,6 +411,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           ).href
       )
     ).toMatchSnapshot()
+    console.log('here5')
 
     await session.patch(
       'index.js',
@@ -418,18 +424,24 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           }, [])
           return (
             <main>
-              <button onClick={boom}>Boom!</button>
+              <button onClick={boom}>Boom 2!</button>
             </main>
           )
         }
       `
     )
+    console.log('here6')
 
     await session.evaluate(() => document.querySelector('button').click())
+    console.log('here7')
+    // await new Promise((resolve) => setTimeout(resolve, 10000000))
     await session.waitForAndOpenRuntimeError()
+    console.log('here8')
 
     const header2 = await session.getRedboxDescription()
+    console.log('here9')
     expect(header2).toMatchSnapshot()
+    console.log('here10')
     expect(
       await session.evaluate(
         () =>
@@ -439,6 +451,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
             .length
       )
     ).toBe(1)
+    console.log('here11')
     expect(
       await session.evaluate(
         () =>
