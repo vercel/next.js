@@ -30,6 +30,7 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
       files: {
         app: new FileRef(join(__dirname, fixture)),
         fonts: new FileRef(join(__dirname, 'fonts')),
+        node_modules: new FileRef(join(__dirname, 'node_modules')),
         'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
       },
       dependencies: {
@@ -103,6 +104,17 @@ describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
             style: {
               fontFamily: expect.stringMatching(/^'__font6_.{6}'$/),
             },
+          })
+        })
+
+        it('should transform code in node_modules', async () => {
+          const $ = await next.render$('/third-party')
+          expect(JSON.parse($('#third-party-page').text())).toEqual({
+            className: '__className_3953ad',
+            style: {
+              fontFamily: "'__font1_3953ad'",
+            },
+            variable: '__variable_3953ad',
           })
         })
       })
