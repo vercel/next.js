@@ -3,20 +3,7 @@
 import React, { useEffect } from 'react'
 import Script from 'next/script'
 
-declare global {
-  interface Window {
-    dataLayer?: Object[]
-    [key: string]: any
-  }
-}
-
-type GTMParams = {
-  gtmId: string
-  dataLayer?: string[]
-  dataLayerName?: string
-  auth?: string
-  preview?: string
-}
+import type { GTMParams } from '../types/google'
 
 let currDataLayerName: string | undefined = undefined
 
