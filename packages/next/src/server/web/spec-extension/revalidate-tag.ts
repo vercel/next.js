@@ -2,7 +2,7 @@ import type {
   StaticGenerationAsyncStorage,
   StaticGenerationStore,
 } from '../../../client/components/static-generation-async-storage.external'
-import { staticGenerationBailout } from '../../app-render/entry-base'
+import { staticGenerationBailout } from '../../../client/components/static-generation-bailout'
 
 export function revalidateTag(tag: string) {
   const staticGenerationAsyncStorage = (
