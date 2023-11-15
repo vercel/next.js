@@ -23,7 +23,6 @@ import {
 } from '../shared/lib/utils'
 import type { PreviewData, ServerRuntime, SizeLimit } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { OutgoingHttpHeaders } from 'http'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type {
   ManifestRewriteRoute,
@@ -2166,8 +2165,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // HTML (it's dynamic).
         isDynamicRSCRequest
 
-      let headers: OutgoingHttpHeaders | undefined
-
       const origQuery = parseUrl(req.url || '', true).query
 
       // clear any dynamic route params so they aren't in
@@ -2261,7 +2258,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               const blob = await response.blob()
 
               // Copy the headers from the response.
-              headers = toNodeOutgoingHttpHeaders(response.headers)
+              const headers = toNodeOutgoingHttpHeaders(response.headers)
 
               if (cacheTags) {
                 headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
@@ -2371,10 +2368,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       const { metadata } = result
 
-      // Add any fetch tags that were on the page to the response headers.
-      const cacheTags = metadata.fetchTags
-
-      headers = { ...metadata.extraHeaders }
+      const {
+        headers = {},
+        // Add any fetch tags that were on the page to the response headers.
+        fetchTags: cacheTags,
+      } = metadata
 
       if (cacheTags) {
         headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
