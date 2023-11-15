@@ -35,7 +35,7 @@ import {
   PrefetchKind,
 } from './router-reducer/router-reducer-types'
 import type {
-  PushRef,
+  AppRouterState,
   ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
@@ -49,6 +49,7 @@ import {
 import {
   useReducerWithReduxDevtools,
   useUnwrapState,
+  type ReduxDevtoolsSyncFn,
 } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
 import { createInitialRouterState } from './router-reducer/create-initial-router-state'
@@ -110,17 +111,14 @@ function isExternalURL(url: URL) {
 }
 
 function HistoryUpdater({
-  tree,
-  pushRef,
-  canonicalUrl,
+  appRouterState,
   sync,
 }: {
-  tree: FlightRouterState
-  pushRef: PushRef
-  canonicalUrl: string
-  sync: () => void
+  appRouterState: AppRouterState
+  sync: ReduxDevtoolsSyncFn
 }) {
   useInsertionEffect(() => {
+    const { tree, pushRef, canonicalUrl } = appRouterState
     const historyState = {
       ...(process.env.__NEXT_WINDOW_HISTORY_SUPPORT &&
       pushRef.preserveCustomHistoryState
@@ -148,8 +146,8 @@ function HistoryUpdater({
         originalReplaceState(historyState, '', canonicalUrl)
       }
     }
-    sync()
-  }, [tree, pushRef, canonicalUrl, sync])
+    sync(appRouterState)
+  }, [appRouterState, sync])
   return null
 }
 
@@ -589,9 +587,7 @@ function Router({
   return (
     <>
       <HistoryUpdater
-        tree={tree}
-        pushRef={pushRef}
-        canonicalUrl={canonicalUrl}
+        appRouterState={useUnwrapState(reducerState)}
         sync={sync}
       />
       <PathnameContext.Provider value={pathname}>
