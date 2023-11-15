@@ -73,7 +73,7 @@ import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './action-encryption-utils'
 import { createStaticRenderer } from './static/static-renderer'
 import { MissingPostponeDataError } from './is-missing-postpone-error'
-import { Waiter } from '../../lib/waiter'
+import { DetachedPromise } from '../../lib/detached-promise'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -656,9 +656,10 @@ async function renderToHTMLOrFlightImpl(
 
   getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
 
-  // Create a waiter that will help us signal when the headers have been written
-  // to the metadata.
-  let onHeadersFinished: Waiter | undefined
+  // Create a promise that will help us signal when the headers have been
+  // written to the metadata for static generation as they aren't written to the
+  // response directly.
+  const onHeadersFinished = new DetachedPromise<void>()
 
   const renderToStream = getTracer().wrap(
     AppRenderSpan.getBodyResult,
@@ -734,17 +735,9 @@ async function renderToHTMLOrFlightImpl(
         hasPostponed,
       })
 
-      // In situations where we should be collecting the headers, ensure we wait
-      // until the headers have been emitted before continuing.
-      if (staticGenerationStore.isStaticGeneration) {
-        onHeadersFinished = new Waiter(
-          'Timeout waiting for headers to be emitted, this is a bug in Next.js'
-        )
-      }
-
       const renderer = createStaticRenderer({
         ppr: renderOpts.experimental.ppr,
-        isStaticGeneration: staticGenerationStore.isStaticGeneration,
+        isStaticGeneration,
         // If provided, the postpone state should be parsed as JSON so it can be
         // provided to React.
         postponed: renderOpts.postponed
@@ -756,14 +749,14 @@ async function renderToHTMLOrFlightImpl(
             // If this is during static generation, we shouldn't write to the
             // headers object directly, instead we should add to the render
             // result.
-            if (staticGenerationStore.isStaticGeneration) {
+            if (isStaticGeneration) {
               headers.forEach((value, key) => {
                 extraRenderResultMeta.headers ??= {}
                 extraRenderResultMeta.headers[key] = value
               })
 
               // Resolve the promise to continue the stream.
-              onHeadersFinished?.done()
+              onHeadersFinished.resolve()
             } else {
               headers.forEach((value, key) => {
                 res.appendHeader(key, value)
@@ -1051,7 +1044,21 @@ async function renderToHTMLOrFlightImpl(
     // longer than this it's more likely that the stream has stalled and
     // there is a React bug. The headers will then be updated in the render
     // result below when the metadata is re-added to the new render result.
-    await onHeadersFinished?.wait(1500)
+    const onTimeout = new DetachedPromise<never>()
+    const timeout = setTimeout(() => {
+      onTimeout.reject(
+        new Error(
+          'Timeout waiting for headers to be emitted, this is a bug in Next.js'
+        )
+      )
+    }, 1500)
+
+    // Race against the timeout and the headers being written.
+    await Promise.race([onHeadersFinished.promise, onTimeout.promise])
+
+    // It got here, which means it did not reject, so clear the timeout to avoid
+    // it from rejecting again (which is a no-op anyways).
+    clearTimeout(timeout)
 
     if (
       // if PPR is enabled
