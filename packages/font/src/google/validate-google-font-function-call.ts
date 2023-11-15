@@ -130,7 +130,7 @@ export function validateGoogleFontFunctionCall(
   if (!allowedDisplayValues.includes(display)) {
     nextFontError(
       `Invalid display value \`${display}\` for font \`${fontFamily}\`.\nAvailable display values: ${formatAvailableValues(
-        allowedDisplayValues
+        allowedDisplayValues.map((item) => item)
       )}`
     )
   }

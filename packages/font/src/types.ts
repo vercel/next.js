@@ -1,6 +1,5 @@
+export type { Display } from './constants'
 export type CssVariable = `--${string}`
-
-export type Display = 'auto' | 'block' | 'swap' | 'fallback' | 'optional'
 
 export type NextFont = {
   className: string
