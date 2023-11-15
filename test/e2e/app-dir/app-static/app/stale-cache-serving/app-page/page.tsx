@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic'
-
 const delay = 3000
 
 export default async function Page(props) {

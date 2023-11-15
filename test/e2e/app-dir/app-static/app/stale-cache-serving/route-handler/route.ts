@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-export const dynamic = 'force-dynamic'
-
 const delay = 3000
 
 export async function GET(req: NextRequest) {

@@ -561,6 +561,7 @@ createNextDescribe(
             'variable-revalidate/cookie.html',
             'api/revalidate-tag-edge/route.js',
             'api/revalidate-tag-node/route.js',
+            'stale-cache-serving/app-page.rsc',
             'variable-revalidate/encoding.rsc',
             'api/revalidate-path-edge/route.js',
             'api/revalidate-path-node/route.js',
@@ -569,6 +570,7 @@ createNextDescribe(
             'page_client-reference-manifest.js',
             'react-fetch-deduping-edge/page.js',
             'react-fetch-deduping-node/page.js',
+            'stale-cache-serving/app-page.html',
             'variable-revalidate/encoding.html',
             'variable-revalidate/cookie/page.js',
             'gen-params-dynamic/one.prefetch.rsc',
@@ -598,12 +600,12 @@ createNextDescribe(
             'variable-revalidate/post-method/page.js',
             'variable-revalidate/status-code/page.js',
             'dynamic-no-gen-params-ssr/[slug]/page.js',
+            'force-dynamic-no-with-revalidate/page.js',
             'hooks/use-search-params/force-static.rsc',
             'partial-gen-params/[lang]/[slug]/page.js',
             'variable-revalidate/headers-instance.rsc',
             'variable-revalidate/revalidate-3/page.js',
             'stale-cache-serving-edge/app-page/page.js',
-            'stale-cache-serving/app-page.prefetch.rsc',
             'force-dynamic-catch-all/slug.prefetch.rsc',
             'hooks/use-search-params/force-static.html',
             'hooks/use-search-params/with-suspense.rsc',
@@ -631,6 +633,7 @@ createNextDescribe(
             'variable-revalidate/headers-instance/page.js',
             'variable-revalidate/status-code.prefetch.rsc',
             'force-cache/page_client-reference-manifest.js',
+            'force-dynamic-no-with-revalidate.prefetch.rsc',
             'hooks/use-search-params/with-suspense/page.js',
             'variable-revalidate-edge/revalidate-3/page.js',
             '(new)/custom/page_client-reference-manifest.js',
@@ -702,6 +705,7 @@ createNextDescribe(
             'variable-revalidate/post-method/page_client-reference-manifest.js',
             'variable-revalidate/status-code/page_client-reference-manifest.js',
             'dynamic-no-gen-params-ssr/[slug]/page_client-reference-manifest.js',
+            'force-dynamic-no-with-revalidate/page_client-reference-manifest.js',
             'partial-gen-params/[lang]/[slug]/page_client-reference-manifest.js',
             'variable-revalidate/revalidate-3/page_client-reference-manifest.js',
             'stale-cache-serving-edge/app-page/page_client-reference-manifest.js',
@@ -1342,6 +1346,42 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/ssg-draft-mode/[[...route]]",
+            },
+            "/stale-cache-serving/app-page": {
+              "dataRoute": "/stale-cache-serving/app-page.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/stale-cache-serving/app-page",
+            },
+            "/stale-cache-serving/route-handler": {
+              "dataRoute": null,
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialHeaders": {
+                "content-type": "application/json",
+                "x-next-cache-tags": "_N_T_/layout,_N_T_/stale-cache-serving/layout,_N_T_/stale-cache-serving/route-handler/layout,_N_T_/stale-cache-serving/route-handler/route,_N_T_/stale-cache-serving/route-handler",
+              },
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/stale-cache-serving/route-handler",
             },
             "/variable-config-revalidate/revalidate-3": {
               "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
@@ -2527,6 +2567,24 @@ createNextDescribe(
           expect($('#cookie-result').text()).toBe('no cookie')
         }
       }
+    })
+
+    it('should force no store with force-dynamic', async () => {
+      const res = await next.fetch('/force-dynamic-no-with-revalidate')
+      const html = await res.text()
+      expect(res.status).toBe(200)
+      const initData = cheerio.load(html)('#data').text()
+
+      await check(async () => {
+        const res2 = await next.fetch('/force-dynamic-no-with-revalidate')
+
+        expect(res2.status).toBe(200)
+
+        const $ = cheerio.load(await res2.text())
+        expect($('#data').text()).toBeTruthy()
+        expect($('#data').text()).not.toBe(initData)
+        return 'success'
+      }, 'success')
     })
 
     it('should not error with generateStaticParams and dynamic data', async () => {
