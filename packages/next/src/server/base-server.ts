@@ -2453,10 +2453,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ssgCacheKey,
       async (
         hasResolved,
-        previousCacheEntry
+        previousCacheEntry,
+        isRevalidating
       ): Promise<ResponseCacheEntry | null> => {
-        // If this is a resume request, get the postponed.
-        const postponed = resumed ? resumed.postponed : undefined
         const isProduction = !this.renderOpts.dev
         const didRespond = hasResolved || res.sent
 
@@ -2493,6 +2492,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (previousCacheEntry?.isStale === -1) {
           isOnDemandRevalidate = true
         }
+
+        // Only requests that aren't revalidating can be resumed.
+        const postponed =
+          !isOnDemandRevalidate && !isRevalidating && resumed
+            ? resumed.postponed
+            : undefined
 
         // only allow on-demand revalidate for fallback: true/blocking
         // or for prerendered fallback: false paths
@@ -2603,7 +2608,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       {
         routeKind: routeModule?.definition.kind,
         incrementalCache,
-        isOnDemandRevalidate: isOnDemandRevalidate,
+        isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
       }
     )
