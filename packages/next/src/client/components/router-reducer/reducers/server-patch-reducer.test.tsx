@@ -254,6 +254,7 @@ describe('serverPatchReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": false,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -425,6 +426,7 @@ describe('serverPatchReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": false,
+          "preserveCustomHistoryState": true,
         },
         "tree": [
           "",
@@ -686,6 +688,7 @@ describe('serverPatchReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",

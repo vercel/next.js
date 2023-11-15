@@ -226,6 +226,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z
       .strictObject({
+        windowHistorySupport: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
         adjustFontFallbacks: z.boolean().optional(),
         adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
