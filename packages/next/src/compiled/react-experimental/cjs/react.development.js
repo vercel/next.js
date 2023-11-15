@@ -188,7 +188,7 @@ function printWarning(level, format, args) {
   }
 }
 
-var ReactVersion = '18.3.0-experimental-0e352ea01-20231109';
+var ReactVersion = '18.3.0-experimental-593ecee66-20231114';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -1180,6 +1180,7 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
 
 function mapChildren(children, func, context) {
   if (children == null) {
+    // $FlowFixMe limitation refining abstract types in Flow
     return children;
   }
 
