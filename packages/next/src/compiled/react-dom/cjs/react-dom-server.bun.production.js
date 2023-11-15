@@ -13,7 +13,7 @@
 var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-canary-0e352ea01-20231109';
+var ReactVersion = '18.3.0-canary-593ecee66-20231114';
 
 /* global Bun */
 function scheduleWork(callback) {
