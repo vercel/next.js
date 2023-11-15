@@ -318,9 +318,7 @@ const nextDev: CliCommand = async (args) => {
     }
   }
 
-  await trace('start-dev-server').traceAsyncFn(async (_) => {
-    await runDevServer(false)
-  })
+  await runDevServer(false)
 }
 
 function cleanup() {
