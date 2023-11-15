@@ -12,7 +12,7 @@ export function fillCacheWithDataProperty(
   existingCache: CacheNode,
   flightSegmentPath: FlightSegmentPath,
   fetchResponse: () => Promise<FetchServerResponseResult>
-) {
+): void {
   const isLastEntry = flightSegmentPath.length <= 2
 
   const [parallelRouteKey, segment] = flightSegmentPath
