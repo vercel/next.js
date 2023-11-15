@@ -55,7 +55,7 @@ function printWarning(level, format, args) {
   }
 }
 
-var ReactVersion = '18.3.0-experimental-a41957507-20231017';
+var ReactVersion = '18.3.0-experimental-0e352ea01-20231109';
 
 var Internals = {
   usingClientEntryPoint: false,

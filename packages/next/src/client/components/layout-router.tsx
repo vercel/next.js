@@ -27,7 +27,6 @@ import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
-import { createRecordFromThenable } from './router-reducer/create-record-from-thenable'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -379,13 +378,11 @@ function InnerLayoutRouter({
 
     childNode = {
       status: CacheStates.DATA_FETCH,
-      data: createRecordFromThenable(
-        fetchServerResponse(
-          new URL(url, location.origin),
-          refetchTree,
-          context.nextUrl,
-          buildId
-        )
+      data: fetchServerResponse(
+        new URL(url, location.origin),
+        refetchTree,
+        context.nextUrl,
+        buildId
       ),
       subTreeData: null,
       head:
@@ -466,11 +463,13 @@ function LoadingBoundary({
   children,
   loading,
   loadingStyles,
+  loadingScripts,
   hasLoading,
 }: {
   children: React.ReactNode
   loading?: React.ReactNode
   loadingStyles?: React.ReactNode
+  loadingScripts?: React.ReactNode
   hasLoading: boolean
 }): JSX.Element {
   if (hasLoading) {
@@ -479,6 +478,7 @@ function LoadingBoundary({
         fallback={
           <>
             {loadingStyles}
+            {loadingScripts}
             {loading}
           </>
         }
@@ -501,9 +501,12 @@ export default function OuterLayoutRouter({
   childProp,
   error,
   errorStyles,
+  errorScripts,
   templateStyles,
+  templateScripts,
   loading,
   loadingStyles,
+  loadingScripts,
   hasLoading,
   template,
   notFound,
@@ -515,10 +518,13 @@ export default function OuterLayoutRouter({
   childProp: ChildProp
   error: ErrorComponent
   errorStyles: React.ReactNode | undefined
+  errorScripts: React.ReactNode | undefined
   templateStyles: React.ReactNode | undefined
+  templateScripts: React.ReactNode | undefined
   template: React.ReactNode
   loading: React.ReactNode | undefined
   loadingStyles: React.ReactNode | undefined
+  loadingScripts: React.ReactNode | undefined
   hasLoading: boolean
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
@@ -580,11 +586,16 @@ export default function OuterLayoutRouter({
             key={createRouterCacheKey(preservedSegment, true)}
             value={
               <ScrollAndFocusHandler segmentPath={segmentPath}>
-                <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
+                <ErrorBoundary
+                  errorComponent={error}
+                  errorStyles={errorStyles}
+                  errorScripts={errorScripts}
+                >
                   <LoadingBoundary
                     hasLoading={hasLoading}
                     loading={loading}
                     loadingStyles={loadingStyles}
+                    loadingScripts={loadingScripts}
                   >
                     <NotFoundBoundary
                       notFound={notFound}
@@ -611,6 +622,7 @@ export default function OuterLayoutRouter({
             }
           >
             {templateStyles}
+            {templateScripts}
             {template}
           </TemplateContext.Provider>
         )

@@ -25,14 +25,15 @@ pub async fn get_next_server_transforms_rules(
     let mut rules = vec![];
 
     let modularize_imports_config = &next_config.await?.modularize_imports;
-    let enable_server_actions = *next_config.enable_server_actions().await?;
     if let Some(modularize_imports_config) = modularize_imports_config {
         rules.push(get_next_modularize_imports_rule(modularize_imports_config));
     }
     rules.push(get_next_font_transform_rule());
 
     let (is_server_components, pages_dir) = match context_ty {
-        ServerContextType::Pages { pages_dir } => (false, Some(pages_dir)),
+        ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
+            (false, Some(pages_dir))
+        }
         ServerContextType::PagesData { pages_dir } => {
             rules.push(
                 get_next_pages_transforms_rule(pages_dir, ExportFilter::StripDefaultExport).await?,
@@ -40,17 +41,14 @@ pub async fn get_next_server_transforms_rules(
             (false, Some(pages_dir))
         }
         ServerContextType::AppSSR { .. } => {
-            if enable_server_actions {
-                rules.push(get_server_actions_transform_rule(ActionsTransform::Server));
-            }
+            // Yah, this is SSR, but this is still treated as a Client transform layer.
+            rules.push(get_server_actions_transform_rule(ActionsTransform::Client));
             (false, None)
         }
         ServerContextType::AppRSC {
             client_transition, ..
         } => {
-            if enable_server_actions {
-                rules.push(get_server_actions_transform_rule(ActionsTransform::Server));
-            }
+            rules.push(get_server_actions_transform_rule(ActionsTransform::Server));
             if let Some(client_transition) = client_transition {
                 rules.push(get_next_css_client_reference_transforms_rule(
                     client_transition,
@@ -78,6 +76,7 @@ pub async fn get_next_server_internal_transforms_rules(
 
     match context_ty {
         ServerContextType::Pages { .. } => {}
+        ServerContextType::PagesApi { .. } => {}
         ServerContextType::PagesData { .. } => {}
         ServerContextType::AppSSR { .. } => {}
         ServerContextType::AppRSC {

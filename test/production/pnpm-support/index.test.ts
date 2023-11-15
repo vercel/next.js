@@ -79,7 +79,6 @@ describe('pnpm support', () => {
         },
       },
       buildCommand: 'pnpm run build',
-      installCommand: '',
     })
     await next.stop()
     expect(next.cliOutput).toMatch(/Compiled successfully/)

@@ -132,9 +132,14 @@ export interface RenderOptsPartial {
     rawConfig?: boolean,
     silent?: boolean
   ) => Promise<NextConfigComplete>
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedOrigins?: string[]
+  }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
+  experimental: { ppr: boolean }
+  postponed?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

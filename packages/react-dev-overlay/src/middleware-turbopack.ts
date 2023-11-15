@@ -1,5 +1,4 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { StackFrame } from 'stacktrace-parser'
 import type { ParsedUrlQuery } from 'querystring'
 import type { OriginalStackFrameResponse } from './middleware'
 
@@ -10,29 +9,30 @@ import { launchEditor } from './internal/helpers/launchEditor'
 
 interface Project {
   getSourceForAsset(filePath: string): Promise<string | null>
-  traceSource(stackFrame: RustStackFrame): Promise<RustStackFrame | null>
+  traceSource(
+    stackFrame: TurbopackStackFrame
+  ): Promise<TurbopackStackFrame | null>
 }
 
-interface RustStackFrame {
-  file: string
-  methodName: string | null
-  line: number
+interface TurbopackStackFrame {
   column: number | null
+  file: string
+  isServer: boolean
+  line: number
+  methodName: string | null
 }
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
-async function batchedTraceSource(project: Project, frame: StackFrame) {
-  const file = frame.file
+async function batchedTraceSource(
+  project: Project,
+  frame: TurbopackStackFrame
+) {
+  const file = frame.file ? decodeURIComponent(frame.file) : undefined
   if (!file) {
     return
   }
 
-  const sourceFrame = await project.traceSource({
-    file,
-    methodName: frame.methodName,
-    line: frame.lineNumber ?? 0,
-    column: frame.column,
-  })
+  const sourceFrame = await project.traceSource(frame)
 
   if (!sourceFrame) {
     return
@@ -60,7 +60,7 @@ async function batchedTraceSource(project: Project, frame: StackFrame) {
       file: sourceFrame.file,
       lineNumber: sourceFrame.line,
       column: sourceFrame.column,
-      methodName: sourceFrame.methodName ?? frame.methodName,
+      methodName: sourceFrame.methodName ?? frame.methodName ?? '<unknown>',
       arguments: [],
     },
     source: source ?? null,
@@ -69,7 +69,7 @@ async function batchedTraceSource(project: Project, frame: StackFrame) {
 
 export async function createOriginalStackFrame(
   project: Project,
-  frame: StackFrame
+  frame: TurbopackStackFrame
 ): Promise<OriginalStackFrameResponse | null> {
   const traced = await batchedTraceSource(project, frame)
   if (!traced) {
@@ -94,17 +94,15 @@ export async function createOriginalStackFrame(
   }
 }
 
-function stackFrameFromQuery(query: ParsedUrlQuery): StackFrame {
+function stackFrameFromQuery(query: ParsedUrlQuery): TurbopackStackFrame {
   return {
     file: query.file as string,
     methodName: query.methodName as string,
-    arguments: query.arguments as string[],
-    lineNumber:
-      typeof query.lineNumber === 'string'
-        ? parseInt(query.lineNumber, 10)
-        : null,
+    line:
+      typeof query.lineNumber === 'string' ? parseInt(query.lineNumber, 10) : 0,
     column:
       typeof query.column === 'string' ? parseInt(query.column, 10) : null,
+    isServer: query.isServer === 'true',
   }
 }
 
@@ -158,7 +156,7 @@ export function getOverlayMiddleware(project: Project) {
       }
 
       try {
-        launchEditor(filePath, frame.lineNumber ?? 1, frame.column ?? 1)
+        launchEditor(filePath, frame.line, frame.column ?? 1)
       } catch (err) {
         console.log('Failed to launch editor:', err)
         res.statusCode = 500
