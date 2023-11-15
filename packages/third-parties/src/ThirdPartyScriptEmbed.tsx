@@ -22,7 +22,7 @@ export default function ThirdPartyScriptEmbed({
       // performance.mark is being used as a feature use signal. While it is traditionally used for performance
       // benchmarking it is low overhead and thus considered safe to use in production and it is a widely available
       // existing API.
-      performance.mark('mark_use_counter', {
+      performance.mark('mark_feature_usage', {
         detail: {
           feature: `next-third-parties-${dataNtpc}`,
         },
