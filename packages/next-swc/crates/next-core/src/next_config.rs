@@ -442,7 +442,7 @@ pub struct ExperimentalConfig {
     pub optimize_css: Option<serde_json::Value>,
     pub next_script_workers: Option<bool>,
     pub web_vitals_attribution: Option<Vec<String>>,
-    pub server_actions: Option<ServerActions>,
+    pub server_actions: Option<ServerActionsOrLegacyBool>,
     pub sri: Option<SubResourceIntegrity>,
 
     // ---
@@ -511,7 +511,18 @@ pub struct SubResourceIntegrity {
     pub algorithm: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum ServerActionsOrLegacyBool {
+    /// The current way to configure server actions sub behaviors.
+    ServerActionsConfig(ServerActions),
+
+    /// The legacy way to disable server actions. This is no longer used, server
+    /// actions is always enabled.
+    LegacyBool(bool),
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerActions {
     /// Allows adjusting body parser size limit for server actions.

@@ -1,22 +1,9 @@
 'use client'
 // TODO: Evaluate import 'client only'
-import React from 'react'
+import React, { useEffect } from 'react'
 import Script from 'next/script'
 
-declare global {
-  interface Window {
-    dataLayer?: Object[]
-    [key: string]: any
-  }
-}
-
-type GTMParams = {
-  gtmId: string
-  dataLayer?: string[]
-  dataLayerName?: string
-  auth?: string
-  preview?: string
-}
+import type { GTMParams } from '../types/google'
 
 let currDataLayerName: string | undefined = undefined
 
@@ -30,6 +17,18 @@ export function GoogleTagManager(props: GTMParams) {
   const gtmLayer = dataLayerName !== 'dataLayer' ? `$l=${dataLayerName}` : ''
   const gtmAuth = auth ? `&gtm_auth=${auth}` : ''
   const gtmPreview = preview ? `&gtm_preview=${preview}&gtm_cookies_win=x` : ''
+
+  useEffect(() => {
+    // performance.mark is being used as a feature use signal. While it is traditionally used for performance
+    // benchmarking it is low overhead and thus considered safe to use in production and it is a widely available
+    // existing API.
+
+    performance.mark('mark_feature_usage', {
+      detail: {
+        feature: 'next-third-parties-gtm',
+      },
+    })
+  }, [])
 
   return (
     <>
@@ -46,6 +45,7 @@ export function GoogleTagManager(props: GTMParams) {
       />
       <Script
         id="_next-gtm"
+        data-ntpc="GTM"
         src={`https://www.googletagmanager.com/gtm.js?id=${gtmId}${gtmLayer}${gtmAuth}${gtmPreview}`}
       />
     </>
