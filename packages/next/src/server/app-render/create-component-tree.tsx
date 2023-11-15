@@ -311,7 +311,14 @@ export async function createComponentTree({
             <LayoutRouter
               parallelRouterKey={parallelRouteKey}
               segmentPath={createSegmentPath(currentSegmentPath)}
-              loading={Loading ? <Loading /> : undefined}
+              loading={
+                Loading ? (
+                  <Loading
+                    params={currentParams}
+                    searchParams={searchParamsProps.searchParams}
+                  />
+                ) : undefined
+              }
               loadingStyles={loadingStyles}
               loadingScripts={loadingScripts}
               // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
