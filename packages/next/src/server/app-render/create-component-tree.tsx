@@ -301,39 +301,6 @@ export async function createComponentTree({
         const notFoundComponent =
           NotFound && isChildrenRouteKey ? <NotFound /> : undefined
 
-        function getParallelRoutePair(
-          currentChildProp: ChildProp,
-          currentStyles: React.ReactNode
-        ): [string, React.ReactNode] {
-          // This is turned back into an object below.
-          return [
-            parallelRouteKey,
-            <LayoutRouter
-              parallelRouterKey={parallelRouteKey}
-              segmentPath={createSegmentPath(currentSegmentPath)}
-              loading={Loading ? <Loading /> : undefined}
-              loadingStyles={loadingStyles}
-              loadingScripts={loadingScripts}
-              // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
-              hasLoading={Boolean(Loading)}
-              error={ErrorComponent}
-              errorStyles={errorStyles}
-              errorScripts={errorScripts}
-              template={
-                <Template>
-                  <RenderFromTemplateContext />
-                </Template>
-              }
-              templateStyles={templateStyles}
-              templateScripts={templateScripts}
-              notFound={notFoundComponent}
-              notFoundStyles={notFoundStyles}
-              childProp={currentChildProp}
-              styles={currentStyles}
-            />,
-          ]
-        }
-
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
         // We also want to bail out if there's no Loading component in the tree.
@@ -375,7 +342,33 @@ export async function createComponentTree({
           segment: childPropSegment,
         }
 
-        return getParallelRoutePair(childProp, currentStyles)
+        // This is turned back into an object below.
+        return [
+          parallelRouteKey,
+          <LayoutRouter
+            parallelRouterKey={parallelRouteKey}
+            segmentPath={createSegmentPath(currentSegmentPath)}
+            loading={Loading ? <Loading /> : undefined}
+            loadingStyles={loadingStyles}
+            loadingScripts={loadingScripts}
+            // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
+            hasLoading={Boolean(Loading)}
+            error={ErrorComponent}
+            errorStyles={errorStyles}
+            errorScripts={errorScripts}
+            template={
+              <Template>
+                <RenderFromTemplateContext />
+              </Template>
+            }
+            templateStyles={templateStyles}
+            templateScripts={templateScripts}
+            notFound={notFoundComponent}
+            notFoundStyles={notFoundStyles}
+            childProp={childProp}
+            styles={currentStyles}
+          />,
+        ]
       }
     )
   )
