@@ -134,9 +134,8 @@ export interface RenderOptsPartial {
   ) => Promise<NextConfigComplete>
   serverActions?: {
     bodySizeLimit?: SizeLimit
-    allowedForwardedHosts?: string[]
+    allowedOrigins?: string[]
   }
-  allowedForwardedHosts?: string[]
   params?: ParsedUrlQuery
   isPrefetch?: boolean
   experimental: { ppr: boolean }
