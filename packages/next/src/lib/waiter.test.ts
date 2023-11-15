@@ -1,9 +1,11 @@
+import { TimeOutError } from './time-out-after'
 import { Waiter } from './waiter'
 
 describe('Waiter', () => {
   describe("it will time out if promise doesn't resolve in time", () => {
     it.each([100, 50, 10])('for %dms', async (ms) => {
-      const waiter = new Waiter('Time out')
+      const errorMessage = 'Time out: ' + Math.random().toString()
+      const waiter = new Waiter(errorMessage)
 
       setTimeout(
         () => {
@@ -13,7 +15,8 @@ describe('Waiter', () => {
         ms + 10
       )
 
-      await expect(() => waiter.wait(ms)).rejects.toThrow()
+      await expect(() => waiter.wait(ms)).rejects.toThrowError(errorMessage)
+      await expect(() => waiter.wait(ms)).rejects.toThrowError(TimeOutError)
     })
   })
 

@@ -1,5 +1,7 @@
 import { DetachedPromise } from './detached-promise'
 
+export class TimeOutError extends Error {}
+
 type Options = {
   timeoutAfterMs: number
   onTimeout?: (err: Error) => never
@@ -23,7 +25,7 @@ export async function timeOutAfter<T = void>(
   // This timeout will reject the promise if it is not aborted before the
   // timeout is reached.
   const timeout = setTimeout(() => {
-    detached.reject(new Error(`Timed out after ${timeoutAfterMs}ms`))
+    detached.reject(new TimeOutError(`Timed out after ${timeoutAfterMs}ms`))
   }, timeoutAfterMs)
 
   // Race the work promise and the timeout promise. If the work promise finishes
