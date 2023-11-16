@@ -274,6 +274,8 @@ pub async fn get_client_module_options_context(
         ..module_options_context.clone()
     };
 
+    let use_lightningcss = *next_config.use_lightningcss().await?;
+
     let module_options_context = ModuleOptionsContext {
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
@@ -302,6 +304,7 @@ pub async fn get_client_module_options_context(
             ),
         ],
         custom_rules,
+        use_lightningcss,
         ..module_options_context
     }
     .cell();

@@ -360,9 +360,12 @@ pub async fn get_server_module_options_context(
                 },
             );
 
+            let use_lightningcss = *next_config.use_lightningcss().await?;
+
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
                 esm_url_rewrite_behavior: url_rewrite_behavior,
+                use_lightningcss,
                 ..Default::default()
             };
 
