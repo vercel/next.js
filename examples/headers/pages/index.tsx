@@ -24,7 +24,7 @@ export default function Index() {
           <ul className={styles.list}>
             <li>
               <a href="/about">
-                <a>Visit /about (it contains a X-About-Custom-Header)</a>
+                Visit /about (it contains a X-About-Custom-Header)
               </a>
             </li>
             <li>

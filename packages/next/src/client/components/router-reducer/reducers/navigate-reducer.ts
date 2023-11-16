@@ -127,6 +127,8 @@ export function navigateReducer(
     return handleMutable(state, mutable)
   }
 
+  mutable.preserveCustomHistoryState = false
+
   if (isExternalUrl) {
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
