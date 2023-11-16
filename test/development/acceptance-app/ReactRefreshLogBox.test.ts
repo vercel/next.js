@@ -246,34 +246,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         Import trace for requested module:
         ./index.js
         ./app/page.js"
-      `),
-      `
-      "./index.js
-      Error: 
-        x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-         ,-[4:1]
-       4 |       <p>lol</p>
-       5 |     div
-       6 |   )
-       7 | }
-         : ^
-         \`----
-
-        x Unexpected eof
-         ,-[4:1]
-       4 |       <p>lol</p>
-       5 |     div
-       6 |   )
-       7 | }
-         \`----
-
-      Caused by:
-          Syntax Error
-
-      Import trace for requested module:
-      ./index.js
-      ./app/page.js"
-    `
+      `)
     )
 
     await cleanup()
