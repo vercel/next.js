@@ -12,7 +12,7 @@ export default function Page() {
           const previousQuery = new URL(window.location.href).searchParams.get(
             'query'
           )
-          const url = `${window.location.pathname}?query=${
+          const url = `?query=${
             previousQuery ? previousQuery + '-added' : 'foo'
           }`
 

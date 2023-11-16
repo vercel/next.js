@@ -232,6 +232,7 @@ const originalReplaceState =
     : null
 
 function copyNextJsInternalHistoryState(data: any) {
+  if (data == null || data === undefined) data = {}
   const currentState = window.history.state
   const __NA = currentState?.__NA
   if (__NA) {
@@ -242,6 +243,8 @@ function copyNextJsInternalHistoryState(data: any) {
   if (__PRIVATE_NEXTJS_INTERNALS_TREE) {
     data.__PRIVATE_NEXTJS_INTERNALS_TREE = __PRIVATE_NEXTJS_INTERNALS_TREE
   }
+
+  return data
 }
 
 /**
@@ -411,7 +414,7 @@ function Router({
       const href = window.location.href
       dispatch({
         type: ACTION_RESTORE,
-        url: new URL(href, href),
+        url: new URL(href),
         tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
       })
     }
@@ -479,7 +482,7 @@ function Router({
           _unused: string,
           url?: string | URL | null
         ): void {
-          copyNextJsInternalHistoryState(data)
+          data = copyNextJsInternalHistoryState(data)
 
           applyUrlFromHistoryPushReplace(url)
 
@@ -497,7 +500,7 @@ function Router({
           _unused: string,
           url?: string | URL | null
         ): void {
-          copyNextJsInternalHistoryState(data)
+          data = copyNextJsInternalHistoryState(data)
 
           if (url) {
             applyUrlFromHistoryPushReplace(url)
@@ -531,7 +534,7 @@ function Router({
         const href = window.location.href
         dispatch({
           type: ACTION_RESTORE,
-          url: new URL(href, href),
+          url: new URL(href),
           tree: state.__PRIVATE_NEXTJS_INTERNALS_TREE,
         })
       })
