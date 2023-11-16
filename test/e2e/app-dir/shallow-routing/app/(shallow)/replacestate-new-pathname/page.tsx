@@ -9,9 +9,7 @@ export default function Page() {
       <pre id="my-data">{pathname}</pre>
       <button
         onClick={() => {
-          const url = new URL(window.location.href)
-          url.pathname = '/my-non-existent-path'
-          window.history.replaceState({}, '', url)
+          window.history.replaceState(null, '', '/my-non-existent-path')
         }}
         id="replace-pathname"
       >

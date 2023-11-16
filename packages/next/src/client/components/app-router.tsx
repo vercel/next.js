@@ -231,7 +231,8 @@ const originalReplaceState =
     ? window.history.replaceState.bind(window.history)
     : null
 
-function copyNextJsInternalHistoryState(data: any) {
+function copyNextJsInternalHistoryState(data: any): any {
+  if (data == null || data === undefined) data = {}
   const currentState = window.history.state
   const __NA = currentState?.__NA
   if (__NA) {
@@ -242,6 +243,7 @@ function copyNextJsInternalHistoryState(data: any) {
   if (__PRIVATE_NEXTJS_INTERNALS_TREE) {
     data.__PRIVATE_NEXTJS_INTERNALS_TREE = __PRIVATE_NEXTJS_INTERNALS_TREE
   }
+  return data
 }
 
 /**
@@ -459,7 +461,7 @@ function Router({
         startTransition(() => {
           dispatch({
             type: ACTION_RESTORE,
-            url: new URL(url ?? window.location.href),
+            url: new URL(url ?? '', window.location.href),
             tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
           })
         })
@@ -476,7 +478,7 @@ function Router({
           _unused: string,
           url?: string | URL | null
         ): void {
-          copyNextJsInternalHistoryState(data)
+          data = copyNextJsInternalHistoryState(data)
 
           applyUrlFromHistoryPushReplace(url)
 
@@ -494,7 +496,7 @@ function Router({
           _unused: string,
           url?: string | URL | null
         ): void {
-          copyNextJsInternalHistoryState(data)
+          data = copyNextJsInternalHistoryState(data)
 
           if (url) {
             applyUrlFromHistoryPushReplace(url)
