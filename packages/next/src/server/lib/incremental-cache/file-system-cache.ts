@@ -1,10 +1,7 @@
 import type { RouteMetadata } from '../../../export/routes/types'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 import type { CacheFs } from '../../../shared/lib/utils'
-import type {
-  CachedFetchValue,
-  IncrementalCacheKindHint,
-} from '../../response-cache'
+import type { CachedFetchValue } from '../../response-cache'
 
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from '../../../shared/lib/isomorphic/path'
@@ -120,18 +117,9 @@ export default class FileSystemCache implements CacheHandler {
     }
   }
 
-  public async get(
-    key: string,
-    {
-      tags,
-      softTags,
-      kindHint,
-    }: {
-      tags?: string[]
-      softTags?: string[]
-      kindHint?: IncrementalCacheKindHint
-    } = {}
-  ) {
+  public async get(...args: Parameters<CacheHandler['get']>) {
+    const [key, ctx = {}] = args
+    const { tags, softTags, kindHint } = ctx
     let data = memoryCache?.get(key)
 
     // let's check the disk for seed data
@@ -302,13 +290,8 @@ export default class FileSystemCache implements CacheHandler {
     return data ?? null
   }
 
-  public async set(
-    key: string,
-    data: CacheHandlerValue['value'],
-    ctx: {
-      tags?: string[]
-    }
-  ) {
+  public async set(...args: Parameters<CacheHandler['set']>) {
+    const [key, data, ctx] = args
     memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
