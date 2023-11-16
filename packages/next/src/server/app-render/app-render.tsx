@@ -73,6 +73,7 @@ import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './action-encryption-utils'
 import { createStaticRenderer } from './static/static-renderer'
 import { MissingPostponeDataError } from './is-missing-postpone-error'
+import { DetachedPromise } from '../../lib/detached-promise'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -654,7 +655,13 @@ async function renderToHTMLOrFlightImpl(
     createServerInsertedHTML()
 
   getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
-  const bodyResult = getTracer().wrap(
+
+  // Create a promise that will help us signal when the headers have been
+  // written to the metadata for static generation as they aren't written to the
+  // response directly.
+  const onHeadersFinished = new DetachedPromise<void>()
+
+  const renderToStream = getTracer().wrap(
     AppRenderSpan.getBodyResult,
     {
       spanName: `render route (app) ${pagePath}`,
@@ -703,21 +710,13 @@ async function renderToHTMLOrFlightImpl(
         nonce
       )
 
-      const renderer = createStaticRenderer({
-        ppr: renderOpts.experimental.ppr,
-        isStaticGeneration: staticGenerationStore.isStaticGeneration,
-        postponed: renderOpts.postponed
-          ? JSON.parse(renderOpts.postponed)
-          : null,
-      })
-
       const ServerComponentsRenderer = createServerComponentsRenderer(tree, {
         ctx,
         preinitScripts,
         options: serverComponentsRenderOpts,
       })
 
-      const content = (
+      const children = (
         <HeadManagerContext.Provider
           value={{
             appDir: true,
@@ -736,34 +735,51 @@ async function renderToHTMLOrFlightImpl(
         hasPostponed,
       })
 
-      function onHeaders(headers: Headers): void {
-        // Copy headers created by React into the response object.
-        headers.forEach((value: string, key: string) => {
-          res.appendHeader(key, value)
-          if (!extraRenderResultMeta.extraHeaders) {
-            extraRenderResultMeta.extraHeaders = {}
-          }
-          extraRenderResultMeta.extraHeaders[key] = value
-        })
-      }
-
-      try {
-        const renderStream = await renderer.render(content, {
+      const renderer = createStaticRenderer({
+        ppr: renderOpts.experimental.ppr,
+        isStaticGeneration,
+        // If provided, the postpone state should be parsed as JSON so it can be
+        // provided to React.
+        postponed: renderOpts.postponed
+          ? JSON.parse(renderOpts.postponed)
+          : null,
+        streamOptions: {
           onError: htmlRendererErrorHandler,
-          onHeaders: onHeaders,
+          onHeaders: (headers: Headers) => {
+            // If this is during static generation, we shouldn't write to the
+            // headers object directly, instead we should add to the render
+            // result.
+            if (isStaticGeneration) {
+              headers.forEach((value, key) => {
+                extraRenderResultMeta.headers ??= {}
+                extraRenderResultMeta.headers[key] = value
+              })
+
+              // Resolve the promise to continue the stream.
+              onHeadersFinished.resolve()
+            } else {
+              headers.forEach((value, key) => {
+                res.appendHeader(key, value)
+              })
+            }
+          },
           maxHeadersLength: 600,
           nonce,
           bootstrapScripts: [bootstrapScript],
           formState,
-        })
+        },
+      })
 
-        const { stream, postponed } = renderStream
+      try {
+        let { stream, postponed } = await renderer.render(children)
 
+        // If the stream was postponed, we need to add the result to the
+        // metadata so that it can be resumed later.
         if (postponed) {
           extraRenderResultMeta.postponed = JSON.stringify(postponed)
 
-          // If this render generated a postponed state, we don't want to add
-          // any other data to the response.
+          // We don't need to "continue" this stream now as it's continued when
+          // we resume the stream.
           return stream
         }
 
@@ -786,10 +802,10 @@ async function renderToHTMLOrFlightImpl(
         }
 
         if (renderOpts.postponed) {
-          return continuePostponedFizzStream(stream, options)
+          return await continuePostponedFizzStream(stream, options)
         }
 
-        return continueFizzStream(stream, options)
+        return await continueFizzStream(stream, options)
       } catch (err: any) {
         if (
           err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
@@ -967,8 +983,8 @@ async function renderToHTMLOrFlightImpl(
     ComponentMod,
     serverModuleMap,
     generateFlight,
-    staticGenerationStore: staticGenerationStore,
-    requestStore: requestStore,
+    staticGenerationStore,
+    requestStore,
     serverActions,
     ctx,
   })
@@ -978,7 +994,7 @@ async function renderToHTMLOrFlightImpl(
     if (actionRequestResult.type === 'not-found') {
       const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
       return new RenderResult(
-        await bodyResult({
+        await renderToStream({
           asNotFound: true,
           tree: notFoundLoaderTree,
           formState,
@@ -996,15 +1012,20 @@ async function renderToHTMLOrFlightImpl(
   }
 
   const renderResult = new RenderResult(
-    await bodyResult({
+    await renderToStream({
       asNotFound: isNotFoundPath,
       tree: loaderTree,
       formState,
     }),
     {
       ...extraRenderResultMeta,
+      // Wait for and collect the flight payload data if we don't have it
+      // already.
       pageData: await stringifiedFlightPayloadPromise,
-      waitUntil: Promise.all(staticGenerationStore.pendingRevalidates || []),
+      // If we have pending revalidates, wait until they are all resolved.
+      waitUntil: staticGenerationStore.pendingRevalidates
+        ? Promise.all(staticGenerationStore.pendingRevalidates)
+        : undefined,
     }
   )
 
@@ -1015,7 +1036,29 @@ async function renderToHTMLOrFlightImpl(
   })
 
   if (staticGenerationStore.isStaticGeneration) {
+    // Collect the entire render result to a string (by streaming it to a
+    // string).
     const htmlResult = await renderResult.toUnchunkedString(true)
+
+    // Timeout after 1.5 seconds for the headers to write. If it takes
+    // longer than this it's more likely that the stream has stalled and
+    // there is a React bug. The headers will then be updated in the render
+    // result below when the metadata is re-added to the new render result.
+    const onTimeout = new DetachedPromise<never>()
+    const timeout = setTimeout(() => {
+      onTimeout.reject(
+        new Error(
+          'Timeout waiting for headers to be emitted, this is a bug in Next.js'
+        )
+      )
+    }, 1500)
+
+    // Race against the timeout and the headers being written.
+    await Promise.race([onHeadersFinished.promise, onTimeout.promise])
+
+    // It got here, which means it did not reject, so clear the timeout to avoid
+    // it from rejecting again (which is a no-op anyways).
+    clearTimeout(timeout)
 
     if (
       // if PPR is enabled
