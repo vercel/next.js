@@ -13,10 +13,6 @@ import { navigateReducer } from './navigate-reducer'
 import { serverPatchReducer } from './server-patch-reducer'
 const buildId = 'development'
 
-const globalMutable = {
-  refresh: () => {},
-}
-
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [
@@ -181,7 +177,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     const newState = await runPromiseThrowChain(() =>
@@ -258,6 +254,7 @@ describe('serverPatchReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": false,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -372,7 +369,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => serverPatchReducer(state, action))
@@ -429,6 +426,7 @@ describe('serverPatchReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": false,
+          "preserveCustomHistoryState": true,
         },
         "tree": [
           "",
@@ -511,7 +509,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     const state = createInitialRouterState({
@@ -553,7 +551,7 @@ describe('serverPatchReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     const newState = await runPromiseThrowChain(() =>
@@ -659,37 +657,7 @@ describe('serverPatchReducer', () => {
         "nextUrl": "/linking/somewhere-else",
         "prefetchCache": Map {
           "/linking/about" => {
-            "data": Promise {
-              "status": "fulfilled",
-              "value": [
-                [
-                  [
-                    "children",
-                    "linking",
-                    "children",
-                    "about",
-                    [
-                      "about",
-                      {
-                        "children": [
-                          "",
-                          {},
-                        ],
-                      },
-                    ],
-                    <h1>
-                      About Page!
-                    </h1>,
-                    <React.Fragment>
-                      <title>
-                        About page!
-                      </title>
-                    </React.Fragment>,
-                  ],
-                ],
-                undefined,
-              ],
-            },
+            "data": Promise {},
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
@@ -720,6 +688,7 @@ describe('serverPatchReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",

@@ -498,6 +498,21 @@ export async function ncc_next__react_dev_overlay(task, opts) {
     .source(
       relative(
         __dirname,
+        require.resolve('@next/react-dev-overlay/dist/middleware-turbopack')
+      )
+    )
+    .ncc({
+      precompiled: false,
+      packageName: '@next/react-dev-overlay',
+      externals: overlayExternals,
+      target: 'es5',
+    })
+    .target('dist/compiled/@next/react-dev-overlay/dist')
+
+  await task
+    .source(
+      relative(
+        __dirname,
         require.resolve('@next/react-dev-overlay/dist/client')
       )
     )
@@ -1375,7 +1390,13 @@ externals['jsonwebtoken'] = 'next/dist/compiled/jsonwebtoken'
 export async function ncc_jsonwebtoken(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('jsonwebtoken')))
-    .ncc({ packageName: 'jsonwebtoken', externals })
+    .ncc({
+      packageName: 'jsonwebtoken',
+      externals: {
+        ...externals,
+        semver: 'next/dist/lib/semver-noop',
+      },
+    })
     .target('src/compiled/jsonwebtoken')
 }
 // eslint-disable-next-line camelcase

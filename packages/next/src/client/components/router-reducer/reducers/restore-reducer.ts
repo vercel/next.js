@@ -16,7 +16,12 @@ export function restoreReducer(
     buildId: state.buildId,
     // Set canonical url
     canonicalUrl: href,
-    pushRef: state.pushRef,
+    pushRef: {
+      pendingPush: false,
+      mpaNavigation: false,
+      // Ensures that the custom history state that was set is preserved when applying this update.
+      preserveCustomHistoryState: true,
+    },
     focusAndScrollRef: state.focusAndScrollRef,
     cache: state.cache,
     prefetchCache: state.prefetchCache,

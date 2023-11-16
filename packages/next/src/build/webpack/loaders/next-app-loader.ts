@@ -6,7 +6,7 @@ import path from 'path'
 import { stringify } from 'querystring'
 import { bold } from '../../../lib/picocolors'
 import { getModuleBuildInfo } from './get-module-build-info'
-import { verifyRootLayout } from '../../../lib/verifyRootLayout'
+import { verifyRootLayout } from '../../../lib/verify-root-layout'
 import * as Log from '../../output/log'
 import { APP_DIR_ALIAS, WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import {
