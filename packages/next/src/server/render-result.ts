@@ -1,4 +1,4 @@
-import type { ServerResponse } from 'http'
+import type { OutgoingHttpHeaders, ServerResponse } from 'http'
 import type { StaticGenerationStore } from '../client/components/static-generation-async-storage.external'
 import type { Revalidate } from './lib/revalidate'
 
@@ -23,6 +23,7 @@ export type RenderResultMetadata = {
   isRedirect?: boolean
   fetchMetrics?: StaticGenerationStore['fetchMetrics']
   fetchTags?: string
+  extraHeaders?: OutgoingHttpHeaders
   waitUntil?: Promise<any>
   postponed?: string
 }

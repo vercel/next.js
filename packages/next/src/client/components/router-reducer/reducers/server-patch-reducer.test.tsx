@@ -254,6 +254,7 @@ describe('serverPatchReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": false,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -425,6 +426,7 @@ describe('serverPatchReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": false,
+          "preserveCustomHistoryState": true,
         },
         "tree": [
           "",
@@ -655,37 +657,7 @@ describe('serverPatchReducer', () => {
         "nextUrl": "/linking/somewhere-else",
         "prefetchCache": Map {
           "/linking/about" => {
-            "data": Promise {
-              "status": "fulfilled",
-              "value": [
-                [
-                  [
-                    "children",
-                    "linking",
-                    "children",
-                    "about",
-                    [
-                      "about",
-                      {
-                        "children": [
-                          "",
-                          {},
-                        ],
-                      },
-                    ],
-                    <h1>
-                      About Page!
-                    </h1>,
-                    <React.Fragment>
-                      <title>
-                        About page!
-                      </title>
-                    </React.Fragment>,
-                  ],
-                ],
-                undefined,
-              ],
-            },
+            "data": Promise {},
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
@@ -716,6 +688,7 @@ describe('serverPatchReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",

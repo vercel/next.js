@@ -5,15 +5,25 @@ import { IncrementalCache } from '../../server/lib/incremental-cache'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { nodeFs } from '../../server/lib/node-fs-methods'
 
-export function createIncrementalCache(
-  incrementalCacheHandlerPath: string | undefined,
-  isrMemoryCacheSize: number | undefined,
-  fetchCacheKeyPrefix: string | undefined,
-  distDir: string,
-  dir: string,
-  enabledDirectories: NextEnabledDirectories,
+export function createIncrementalCache({
+  incrementalCacheHandlerPath,
+  isrMemoryCacheSize,
+  fetchCacheKeyPrefix,
+  distDir,
+  dir,
+  enabledDirectories,
+  experimental,
+  flushToDisk,
+}: {
+  incrementalCacheHandlerPath?: string
+  isrMemoryCacheSize?: number
+  fetchCacheKeyPrefix?: string
+  distDir: string
+  dir: string
+  enabledDirectories: NextEnabledDirectories
   experimental: { ppr: boolean }
-) {
+  flushToDisk?: boolean
+}) {
   // Custom cache handler overrides.
   let CacheHandler: any
   if (incrementalCacheHandlerPath) {
@@ -26,7 +36,7 @@ export function createIncrementalCache(
   const incrementalCache = new IncrementalCache({
     dev: false,
     requestHeaders: {},
-    flushToDisk: true,
+    flushToDisk,
     fetchCache: true,
     maxMemoryCacheSize: isrMemoryCacheSize,
     fetchCacheKeyPrefix,

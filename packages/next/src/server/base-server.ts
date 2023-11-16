@@ -250,7 +250,7 @@ type BaseRenderOpts = {
   clientReferenceManifest?: ClientReferenceManifest
   serverActions?: {
     bodySizeLimit?: SizeLimit
-    allowedForwardedHosts?: string[]
+    allowedOrigins?: string[]
   }
   serverActionsManifest?: any
   nextFontManifest?: NextFontManifest
@@ -405,10 +405,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly localeNormalizer?: LocaleRouteNormalizer
 
   protected readonly normalizers: {
-    readonly postponed: PostponedPathnameNormalizer
-    readonly rsc: RSCPathnameNormalizer
-    readonly prefetchRSC: PrefetchRSCPathnameNormalizer
-    readonly data: NextDataPathnameNormalizer
+    readonly postponed: PostponedPathnameNormalizer | undefined
+    readonly rsc: RSCPathnameNormalizer | undefined
+    readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
+    readonly data: NextDataPathnameNormalizer | undefined
   }
 
   public constructor(options: ServerOptions) {
@@ -475,14 +475,28 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
     this.normalizers = {
-      postponed: new PostponedPathnameNormalizer(
-        this.enabledDirectories.app && this.nextConfig.experimental.ppr
-      ),
-      rsc: new RSCPathnameNormalizer(this.enabledDirectories.app),
-      prefetchRSC: new PrefetchRSCPathnameNormalizer(
-        this.enabledDirectories.app
-      ),
-      data: new NextDataPathnameNormalizer(this.buildId),
+      // We should normalize the pathname from the RSC prefix only in minimal
+      // mode as otherwise that route is not exposed external to the server as
+      // we instead only rely on the headers.
+      postponed:
+        this.enabledDirectories.app &&
+        this.nextConfig.experimental.ppr &&
+        this.minimalMode
+          ? new PostponedPathnameNormalizer()
+          : undefined,
+      rsc:
+        this.enabledDirectories.app && this.minimalMode
+          ? new RSCPathnameNormalizer()
+          : undefined,
+      prefetchRSC:
+        this.enabledDirectories.app &&
+        this.nextConfig.experimental.ppr &&
+        this.minimalMode
+          ? new PrefetchRSCPathnameNormalizer()
+          : undefined,
+      data: this.enabledDirectories.pages
+        ? new NextDataPathnameNormalizer(this.buildId)
+        : undefined,
     }
 
     this.nextFontManifest = this.getNextFontManifest()
@@ -567,7 +581,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private handleRSCRequest: RouteHandler = (req, _res, parsedUrl) => {
     if (!parsedUrl.pathname) return false
 
-    if (this.normalizers.prefetchRSC.match(parsedUrl.pathname)) {
+    if (this.normalizers.prefetchRSC?.match(parsedUrl.pathname)) {
       parsedUrl.pathname = this.normalizers.prefetchRSC.normalize(
         parsedUrl.pathname,
         true
@@ -578,7 +592,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
       addRequestMeta(req, 'isRSCRequest', true)
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
-    } else if (this.normalizers.rsc.match(parsedUrl.pathname)) {
+    } else if (this.normalizers.rsc?.match(parsedUrl.pathname)) {
       parsedUrl.pathname = this.normalizers.rsc.normalize(
         parsedUrl.pathname,
         true
@@ -958,21 +972,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             'http://localhost'
           )
 
+          const { pathname: urlPathname } = new URL(req.url, 'http://localhost')
+
           // For ISR  the URL is normalized to the prerenderPath so if
           // it's a data request the URL path will be the data URL,
           // basePath is already stripped by this point
-          if (
-            this.enabledDirectories.pages &&
-            this.normalizers.data.match(parsedUrl.pathname)
-          ) {
+          if (this.normalizers.data?.match(urlPathname)) {
             parsedUrl.query.__nextDataReq = '1'
           }
           // In minimal mode, if PPR is enabled, then we should check to see if
           // the matched path is a postponed path, and if it is, handle it.
           else if (
-            this.minimalMode &&
-            this.renderOpts.experimental.ppr &&
-            this.normalizers.postponed.match(matchedPath) &&
+            this.normalizers.postponed?.match(matchedPath) &&
             req.method === 'POST'
           ) {
             // Decode the postponed state from the request body, it will come as
@@ -988,7 +999,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
 
           matchedPath = this.normalize(matchedPath)
-          const normalizedUrlPath = this.normalize(parsedUrl.pathname)
+          const normalizedUrlPath = this.stripNextDataPath(urlPathname)
 
           // Perform locale detection and normalization.
           const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
@@ -1411,18 +1422,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private normalize = (pathname: string) => {
     const normalizers: Array<PathnameNormalizer> = []
 
-    if (this.enabledDirectories.pages) {
+    if (this.normalizers.data) {
       normalizers.push(this.normalizers.data)
     }
 
-    if (this.minimalMode && this.enabledDirectories.app) {
-      if (this.renderOpts.experimental.ppr) {
-        normalizers.push(this.normalizers.postponed)
-        // We have to put the prefetch normalizer before the RSC normalizer
-        // because the RSC normalizer will match the prefetch RSC routes too.
-        normalizers.push(this.normalizers.prefetchRSC)
-      }
+    if (this.normalizers.postponed) {
+      normalizers.push(this.normalizers.postponed)
+    }
 
+    // We have to put the prefetch normalizer before the RSC normalizer
+    // because the RSC normalizer will match the prefetch RSC routes too.
+    if (this.normalizers.prefetchRSC) {
+      normalizers.push(this.normalizers.prefetchRSC)
+    }
+
+    if (this.normalizers.rsc) {
       normalizers.push(this.normalizers.rsc)
     }
 
@@ -1888,7 +1902,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // we can use this fact to only generate the flight data for the request
     // because we can't cache the HTML (as it's also dynamic).
     const isDynamicRSCRequest =
-      this.renderOpts.experimental.ppr && isRSCRequest && !isPrefetchRSCRequest
+      opts.experimental.ppr && isRSCRequest && !isPrefetchRSCRequest
 
     // For pages we need to ensure the correct Vary header is set too, to avoid
     // caching issues when navigating between pages and app
@@ -2138,31 +2152,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const doRender: Renderer = async (postponed) => {
       // In development, we always want to generate dynamic HTML.
-      const supportsDynamicHTML =
+      const supportsDynamicHTML: boolean =
         // If this isn't a data request and we're not in development, then we
         // support dynamic HTML.
-        (!isDataReq && opts.dev) ||
+        (!isDataReq && opts.dev === true) ||
         // If this is not SSG or does not have static paths, then it supports
         // dynamic HTML.
-        !(isSSG || hasStaticPaths) ||
+        (!isSSG && !hasStaticPaths) ||
         // If this request has provided postponed data, it supports dynamic
         // HTML.
         !!postponed ||
         // If this is a dynamic RSC request, then this render supports dynamic
         // HTML (it's dynamic).
         isDynamicRSCRequest
-
-      // Ensure we bail if a prefetch RSC request is made while PPR is
-      // enabled that has dynamic HTML enabled.
-      if (
-        this.renderOpts.experimental.ppr &&
-        isPrefetchRSCRequest &&
-        supportsDynamicHTML
-      ) {
-        throw new Error(
-          "Invariant: prefetch RSC requests can't support dynamic HTML"
-        )
-      }
 
       let headers: OutgoingHttpHeaders | undefined
 
@@ -2317,7 +2319,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         } else if (isAppPageRouteModule(routeModule)) {
           if (
-            !this.renderOpts.experimental.ppr &&
+            !opts.experimental.ppr &&
             isPrefetchRSCRequest &&
             process.env.NODE_ENV === 'production' &&
             !this.minimalMode
@@ -2371,10 +2373,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // Add any fetch tags that were on the page to the response headers.
       const cacheTags = metadata.fetchTags
+
+      headers = { ...metadata.extraHeaders }
+
       if (cacheTags) {
-        headers = {
-          [NEXT_CACHE_TAGS_HEADER]: cacheTags,
-        }
+        headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
       }
 
       // Pull any fetch metrics from the render onto the request.
@@ -2450,10 +2453,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ssgCacheKey,
       async (
         hasResolved,
-        previousCacheEntry
+        previousCacheEntry,
+        isRevalidating
       ): Promise<ResponseCacheEntry | null> => {
-        // If this is a resume request, get the postponed.
-        const postponed = resumed ? resumed.postponed : undefined
         const isProduction = !this.renderOpts.dev
         const didRespond = hasResolved || res.sent
 
@@ -2490,6 +2492,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (previousCacheEntry?.isStale === -1) {
           isOnDemandRevalidate = true
         }
+
+        // Only requests that aren't revalidating can be resumed.
+        const postponed =
+          !isOnDemandRevalidate && !isRevalidating && resumed
+            ? resumed.postponed
+            : undefined
 
         // only allow on-demand revalidate for fallback: true/blocking
         // or for prerendered fallback: false paths
@@ -2600,7 +2608,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       {
         routeKind: routeModule?.definition.kind,
         incrementalCache,
-        isOnDemandRevalidate: isOnDemandRevalidate,
+        isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
       }
     )
@@ -2655,7 +2663,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       this.minimalMode &&
       isRSCRequest &&
       !isPrefetchRSCRequest &&
-      this.renderOpts.experimental.ppr
+      opts.experimental.ppr
     ) {
       revalidate = 0
     } else if (
@@ -2765,6 +2773,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         throw new Error(
           'Invariant: postponed state should not be present on a resume request'
         )
+      }
+
+      if (cachedData.headers) {
+        const resHeaders = cachedData.headers
+        for (const key of Object.keys(resHeaders)) {
+          if (key === NEXT_CACHE_TAGS_HEADER) {
+            // Not sure if needs to be special.
+            continue
+          }
+          let v = resHeaders[key]
+          if (typeof v !== 'undefined') {
+            if (typeof v === 'number') {
+              v = v.toString()
+            }
+            res.setHeader(key, v)
+          }
+        }
       }
 
       if (
