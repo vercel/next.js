@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+export const revalidate = 0
+
 const delay = 3000
 
 export async function GET(req: NextRequest) {

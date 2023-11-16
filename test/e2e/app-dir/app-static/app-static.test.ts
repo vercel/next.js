@@ -561,7 +561,6 @@ createNextDescribe(
             'variable-revalidate/cookie.html',
             'api/revalidate-tag-edge/route.js',
             'api/revalidate-tag-node/route.js',
-            'stale-cache-serving/app-page.rsc',
             'variable-revalidate/encoding.rsc',
             'api/revalidate-path-edge/route.js',
             'api/revalidate-path-node/route.js',
@@ -570,7 +569,7 @@ createNextDescribe(
             'page_client-reference-manifest.js',
             'react-fetch-deduping-edge/page.js',
             'react-fetch-deduping-node/page.js',
-            'stale-cache-serving/app-page.html',
+            'stale-cache-serving/app-page.prefetch.rsc',
             'variable-revalidate/encoding.html',
             'variable-revalidate/cookie/page.js',
             'gen-params-dynamic/one.prefetch.rsc',
@@ -1346,42 +1345,6 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/ssg-draft-mode/[[...route]]",
-            },
-            "/stale-cache-serving/app-page": {
-              "dataRoute": "/stale-cache-serving/app-page.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": 3,
-              "srcRoute": "/stale-cache-serving/app-page",
-            },
-            "/stale-cache-serving/route-handler": {
-              "dataRoute": null,
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialHeaders": {
-                "content-type": "application/json",
-                "x-next-cache-tags": "_N_T_/layout,_N_T_/stale-cache-serving/layout,_N_T_/stale-cache-serving/route-handler/layout,_N_T_/stale-cache-serving/route-handler/route,_N_T_/stale-cache-serving/route-handler",
-              },
-              "initialRevalidateSeconds": 3,
-              "srcRoute": "/stale-cache-serving/route-handler",
             },
             "/variable-config-revalidate/revalidate-3": {
               "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
