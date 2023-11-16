@@ -24,7 +24,6 @@ import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../telemetry/ci-info'
-import { version } from 'next/package.json'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -253,9 +252,13 @@ function assignDefaults(
 
   const result = { ...defaultConfig, ...config }
 
-  if (result.experimental?.ppr && !version.includes('canary')) {
-    Log.warn(
-      `The experimental.ppr feature is present in your current version but we recommend using the latest canary version for the best experience.`
+  if (
+    result.experimental?.ppr &&
+    !process.env.__NEXT_VERSION!.includes('canary') &&
+    !process.env.__NEXT_TEST_MODE
+  ) {
+    throw new Error(
+      `The experimental.ppr preview feature can only be enabled when using the latest canary version of Next.js. See more info here: https://nextjs.org/docs/messages/ppr-preview`
     )
   }
 
@@ -417,13 +420,15 @@ function assignDefaults(
     }
   }
 
-  // TODO: Remove this warning in Next.js 15
-  warnOptionHasBeenDeprecated(
-    result,
-    'experimental.serverActions',
-    'Server Actions are available by default now, `experimental.serverActions` option can be safely removed.',
-    silent
-  )
+  if (typeof result.experimental?.serverActions === 'boolean') {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.serverActions',
+      'Server Actions are available by default now, `experimental.serverActions` option can be safely removed.',
+      silent
+    )
+  }
 
   if (result.swcMinify === false) {
     // TODO: Remove this warning in Next.js 15
@@ -498,7 +503,7 @@ function assignDefaults(
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
+        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation'
       )
     }
   }
@@ -787,7 +792,7 @@ function assignDefaults(
       },
     },
     antd: {
-      transform: 'antd/lib/{{kebabCase member}}',
+      transform: 'antd/es/{{kebabCase member}}',
     },
     ahooks: {
       transform: {

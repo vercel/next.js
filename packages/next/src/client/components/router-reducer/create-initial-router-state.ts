@@ -46,7 +46,13 @@ export function createInitialRouterState({
     tree: initialTree,
     cache,
     prefetchCache: new Map(),
-    pushRef: { pendingPush: false, mpaNavigation: false },
+    pushRef: {
+      pendingPush: false,
+      mpaNavigation: false,
+      // First render needs to preserve the previous window.history.state
+      // to avoid it being overwritten on navigation back/forward with MPA Navigation.
+      preserveCustomHistoryState: true,
+    },
     focusAndScrollRef: {
       apply: false,
       onlyHashChange: false,

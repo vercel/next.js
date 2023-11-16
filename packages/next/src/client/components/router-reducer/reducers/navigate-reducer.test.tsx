@@ -102,10 +102,6 @@ const getInitialRouterStateTree = (): FlightRouterState => [
   true,
 ]
 
-const globalMutable = {
-  refresh: () => {},
-}
-
 async function runPromiseThrowChain(fn: any): Promise<any> {
   try {
     return await fn()
@@ -194,7 +190,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     const newState = await runPromiseThrowChain(() =>
@@ -278,37 +274,7 @@ describe('navigateReducer', () => {
         "nextUrl": "/linking/about",
         "prefetchCache": Map {
           "/linking/about" => {
-            "data": Promise {
-              "status": "fulfilled",
-              "value": [
-                [
-                  [
-                    "children",
-                    "linking",
-                    "children",
-                    "about",
-                    [
-                      "about",
-                      {
-                        "children": [
-                          "__PAGE__",
-                          {},
-                        ],
-                      },
-                    ],
-                    <h1>
-                      About Page!
-                    </h1>,
-                    <React.Fragment>
-                      <title>
-                        About page!
-                      </title>
-                    </React.Fragment>,
-                  ],
-                ],
-                undefined,
-              ],
-            },
+            "data": Promise {},
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
@@ -334,6 +300,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -438,7 +405,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -526,6 +493,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -633,7 +601,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -690,6 +658,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": true,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -792,7 +761,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -849,6 +818,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": true,
           "pendingPush": false,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -948,7 +918,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -977,37 +947,7 @@ describe('navigateReducer', () => {
                       </React.Fragment>,
                     },
                     "about" => {
-                      "data": Promise {
-                        "status": "fulfilled",
-                        "value": [
-                          [
-                            [
-                              "children",
-                              "linking",
-                              "children",
-                              "about",
-                              [
-                                "about",
-                                {
-                                  "children": [
-                                    "__PAGE__",
-                                    {},
-                                  ],
-                                },
-                              ],
-                              <h1>
-                                About Page!
-                              </h1>,
-                              <React.Fragment>
-                                <title>
-                                  About page!
-                                </title>
-                              </React.Fragment>,
-                            ],
-                          ],
-                          undefined,
-                        ],
-                      },
+                      "data": Promise {},
                       "parallelRoutes": Map {},
                       "status": "DATAFETCH",
                       "subTreeData": null,
@@ -1041,6 +981,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -1147,7 +1088,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -1204,6 +1145,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": true,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -1317,7 +1259,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -1426,37 +1368,7 @@ describe('navigateReducer', () => {
         "nextUrl": "/linking/about",
         "prefetchCache": Map {
           "/linking/about" => {
-            "data": Promise {
-              "status": "fulfilled",
-              "value": [
-                [
-                  [
-                    "children",
-                    "linking",
-                    "children",
-                    "about",
-                    [
-                      "about",
-                      {
-                        "children": [
-                          "__PAGE__",
-                          {},
-                        ],
-                      },
-                    ],
-                    <h1>
-                      About Page!
-                    </h1>,
-                    <React.Fragment>
-                      <title>
-                        About page!
-                      </title>
-                    </React.Fragment>,
-                  ],
-                ],
-                undefined,
-              ],
-            },
+            "data": Promise {},
             "kind": "auto",
             "lastUsedTime": null,
             "prefetchTime": 1690329600000,
@@ -1482,6 +1394,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -1630,7 +1543,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     await runPromiseThrowChain(() => navigateReducer(state, action))
@@ -1734,6 +1647,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -1841,7 +1755,7 @@ describe('navigateReducer', () => {
         hashFragment: '#hash',
         pendingPush: true,
         shouldScroll: true,
-        globalMutable,
+        preserveCustomHistoryState: false,
       },
     }
 
@@ -1897,6 +1811,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -1984,7 +1899,7 @@ describe('navigateReducer', () => {
         subTreeData: null,
         parallelRoutes: new Map(),
       },
-      mutable: { globalMutable },
+      mutable: {},
     }
 
     const newState = await runPromiseThrowChain(() =>
@@ -2068,37 +1983,7 @@ describe('navigateReducer', () => {
         "nextUrl": "/linking/about",
         "prefetchCache": Map {
           "/linking/about" => {
-            "data": Promise {
-              "status": "fulfilled",
-              "value": [
-                [
-                  [
-                    "children",
-                    "linking",
-                    "children",
-                    "about",
-                    [
-                      "about",
-                      {
-                        "children": [
-                          "__PAGE__",
-                          {},
-                        ],
-                      },
-                    ],
-                    <h1>
-                      About Page!
-                    </h1>,
-                    <React.Fragment>
-                      <title>
-                        About page!
-                      </title>
-                    </React.Fragment>,
-                  ],
-                ],
-                undefined,
-              ],
-            },
+            "data": Promise {},
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
@@ -2124,6 +2009,7 @@ describe('navigateReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",

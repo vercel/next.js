@@ -126,3 +126,43 @@ Using Azure Pipelines' [Cache task](https://docs.microsoft.com/en-us/azure/devop
     key: next | $(Agent.OS) | yarn.lock
     path: '$(System.DefaultWorkingDirectory)/.next/cache'
 ```
+
+## Jenkins (Pipeline)
+
+Using Jenkins' [Job Cacher](https://www.jenkins.io/doc/pipeline/steps/jobcacher/) plugin, add the following build step to your `Jenkinsfile` where you would normally run `next build` or `npm install`:
+
+```yaml
+stage("Restore npm packages") {
+    steps {
+        // Writes lock-file to cache based on the GIT_COMMIT hash
+        writeFile file: "next-lock.cache", text: "$GIT_COMMIT"
+
+        cache(caches: [
+            arbitraryFileCache(
+                path: "node_modules",
+                includes: "**/*",
+                cacheValidityDecidingFile: "package-lock.json"
+            )
+        ]) {
+            sh "npm install"
+        }
+    }
+}
+stage("Build") {
+    steps {
+        // Writes lock-file to cache based on the GIT_COMMIT hash
+        writeFile file: "next-lock.cache", text: "$GIT_COMMIT"
+
+        cache(caches: [
+            arbitraryFileCache(
+                path: ".next/cache",
+                includes: "**/*",
+                cacheValidityDecidingFile: "next-lock.cache"
+            )
+        ]) {
+            // aka `next build`
+            sh "npm run build"
+        }
+    }
+}
+```

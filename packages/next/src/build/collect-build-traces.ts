@@ -193,7 +193,9 @@ export async function collectBuildTraces({
   const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
 
   await nextBuildSpan
-    .traceChild('node-file-trace-build')
+    .traceChild('node-file-trace-build', {
+      isTurbotrace: Boolean(config.experimental.turbotrace) ? 'true' : 'false',
+    })
     .traceAsyncFn(async () => {
       const nextServerTraceOutput = path.join(
         distDir,
@@ -264,7 +266,6 @@ export async function collectBuildTraces({
 
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
-        '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
         isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
         '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
         '**/node_modules/webpack5/**/*',
@@ -292,6 +293,7 @@ export async function collectBuildTraces({
 
       const serverIgnores = [
         ...sharedIgnores,
+        '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
         '**/*.d.ts',
         '**/*.map',
         '**/next/dist/pages/**/*',
