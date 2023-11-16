@@ -12,7 +12,7 @@ use turbopack_binding::{
             context::AssetContext,
             file_source::FileSource,
             ident::AssetIdent,
-            issue::{Issue, IssueDescriptionExt, IssueExt, IssueSeverity},
+            issue::{Issue, IssueDescriptionExt, IssueExt, IssueSeverity, StyledString},
             reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
             resolve::{
                 find_context_file,
@@ -978,7 +978,7 @@ impl Issue for OutdatedConfigIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(self.description.to_string())
+    fn description(&self) -> Vc<StyledString> {
+        StyledString::Text(self.description.to_string()).cell()
     }
 }
