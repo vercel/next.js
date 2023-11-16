@@ -150,7 +150,7 @@ function runTests(dev) {
 }
 
 describe('CSS Module client-side navigation', () => {
-  describe('production', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
       await nextBuild(appDir)

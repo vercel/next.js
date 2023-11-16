@@ -1,7 +1,8 @@
 import { TYPE_UNHANDLED_ERROR, TYPE_UNHANDLED_REJECTION } from '../bus'
-import { SupportedErrorEvent } from '../container/Errors'
+import type { SupportedErrorEvent } from '../container/Errors'
 import { getErrorSource } from './nodeStackFrames'
-import { getOriginalStackFrames, OriginalStackFrame } from './stack-frame'
+import type { OriginalStackFrame } from './stack-frame'
+import { getOriginalStackFrames } from './stack-frame'
 
 export type ReadyRuntimeError = {
   id: number

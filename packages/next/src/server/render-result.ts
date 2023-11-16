@@ -1,21 +1,38 @@
-import { StaticGenerationStore } from '../client/components/static-generation-async-storage.external'
-import { pipeReadable, PipeTarget } from './pipe-readable'
+import type { OutgoingHttpHeaders, ServerResponse } from 'http'
+import type { StaticGenerationStore } from '../client/components/static-generation-async-storage.external'
+import type { Revalidate } from './lib/revalidate'
+
+import {
+  chainStreams,
+  streamFromString,
+  streamToString,
+} from './stream-utils/node-web-streams-helper'
+import { isAbortError, pipeToNodeResponse } from './pipe-readable'
 
 type ContentTypeOption = string | undefined
 
 export type RenderResultMetadata = {
   pageData?: any
-  revalidate?: any
-  staticBailoutInfo?: any
+  revalidate?: Revalidate
+  staticBailoutInfo?: {
+    stack?: string
+    description?: string
+  }
   assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
   fetchMetrics?: StaticGenerationStore['fetchMetrics']
   fetchTags?: string
+  extraHeaders?: OutgoingHttpHeaders
   waitUntil?: Promise<any>
+  postponed?: string
 }
 
-type RenderResultResponse = ReadableStream<Uint8Array> | string | null
+type RenderResultResponse =
+  | ReadableStream<Uint8Array>[]
+  | ReadableStream<Uint8Array>
+  | string
+  | null
 
 export default class RenderResult {
   /**
@@ -36,7 +53,7 @@ export default class RenderResult {
    * dynamic response. If it's null, then the response was not found or was
    * already sent.
    */
-  private readonly response: RenderResultResponse
+  private response: RenderResultResponse
 
   /**
    * Creates a new RenderResult instance from a static response.
@@ -87,31 +104,116 @@ export default class RenderResult {
   }
 
   /**
-   * Returns true if the response is a stream. If the page was dynamic, this
-   * will throw an error.
+   * Returns the response if it is a string. If the page was dynamic, this will
+   * return a promise if the `stream` option is true, or it will throw an error.
    *
+   * @param stream Whether or not to return a promise if the response is dynamic
    * @returns The response as a string
    */
-  public toUnchunkedString(): string {
+  public toUnchunkedString(stream?: false): string
+  public toUnchunkedString(stream: true): Promise<string>
+  public toUnchunkedString(stream = false): Promise<string> | string {
+    if (this.response === null) {
+      throw new Error('Invariant: null responses cannot be unchunked')
+    }
+
     if (typeof this.response !== 'string') {
-      throw new Error(
-        'Invariant: dynamic responses cannot be unchunked. This is a bug in Next.js'
-      )
+      if (!stream) {
+        throw new Error(
+          'Invariant: dynamic responses cannot be unchunked. This is a bug in Next.js'
+        )
+      }
+
+      return streamToString(this.readable)
     }
 
     return this.response
   }
 
-  public async pipe(res: PipeTarget<Uint8Array>): Promise<void> {
+  /**
+   * Returns the response if it is a stream, or throws an error if it is a
+   * string.
+   */
+  private get readable(): ReadableStream<Uint8Array> {
+    if (this.response === null) {
+      throw new Error('Invariant: null responses cannot be streamed')
+    }
+    if (typeof this.response === 'string') {
+      throw new Error('Invariant: static responses cannot be streamed')
+    }
+
+    // If the response is an array of streams, then chain them together.
+    if (Array.isArray(this.response)) {
+      return chainStreams(...this.response)
+    }
+
+    return this.response
+  }
+
+  /**
+   * Chains a new stream to the response. This will convert the response to an
+   * array of streams if it is not already one and will add the new stream to
+   * the end. When this response is piped, all of the streams will be piped
+   * one after the other.
+   *
+   * @param readable The new stream to chain
+   */
+  public chain(readable: ReadableStream<Uint8Array>) {
     if (this.response === null) {
       throw new Error('Invariant: response is null. This is a bug in Next.js')
     }
+
+    // If the response is not an array of streams already, make it one.
+    let responses: ReadableStream<Uint8Array>[]
     if (typeof this.response === 'string') {
-      throw new Error(
-        'Invariant: static responses cannot be piped. This is a bug in Next.js'
-      )
+      responses = [streamFromString(this.response)]
+    } else if (Array.isArray(this.response)) {
+      responses = this.response
+    } else {
+      responses = [this.response]
     }
 
-    return await pipeReadable(this.response, res, this.waitUntil)
+    // Add the new stream to the array.
+    responses.push(readable)
+
+    // Update the response.
+    this.response = responses
+  }
+
+  /**
+   * Pipes the response to a writable stream. This will close/cancel the
+   * writable stream if an error is encountered.
+   *
+   * @param writable Writable stream to pipe the response to
+   */
+  public async pipeTo(writable: WritableStream<Uint8Array>): Promise<void> {
+    try {
+      await this.readable.pipeTo(writable)
+    } catch (err) {
+      // If this isn't a client abort, then re-throw the error.
+      if (!isAbortError(err)) {
+        throw err
+      }
+    } finally {
+      if (this.waitUntil) {
+        await this.waitUntil
+      }
+    }
+  }
+
+  /**
+   * Pipes the response to a node response. This will close/cancel the node
+   * response if an error is encountered.
+   *
+   * @param res
+   */
+  public async pipeToNodeResponse(res: ServerResponse) {
+    try {
+      await pipeToNodeResponse(this.readable, res)
+    } finally {
+      if (this.waitUntil) {
+        await this.waitUntil
+      }
+    }
   }
 }

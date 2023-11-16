@@ -65,6 +65,16 @@ export class NextStartInstance extends NextInstance {
       startArgs = this.startCommand.split(' ')
     }
 
+    if (process.env.NEXT_SKIP_ISOLATE) {
+      // without isolation yarn can't be used and pnpm must be used instead
+      if (buildArgs[0] === 'yarn') {
+        buildArgs[0] = 'pnpm'
+      }
+      if (startArgs[0] === 'yarn') {
+        startArgs[0] = 'pnpm'
+      }
+    }
+
     console.log('running', buildArgs.join(' '))
     await new Promise<void>((resolve, reject) => {
       try {
@@ -167,37 +177,6 @@ export class NextStartInstance extends NextInstance {
         )
       }
 
-      console.log('running', exportArgs.join(' '))
-
-      this.childProcess = spawn(
-        exportArgs[0],
-        exportArgs.slice(1),
-        this.spawnOpts
-      )
-      this.handleStdio(this.childProcess)
-
-      this.childProcess.on('exit', (code, signal) => {
-        this.childProcess = undefined
-        resolve({
-          exitCode: signal || code,
-          cliOutput: this.cliOutput.slice(curOutput),
-        })
-      })
-    })
-  }
-
-  public async export(...[args]: Parameters<NextInstance['export']>) {
-    return new Promise((resolve) => {
-      const curOutput = this._cliOutput.length
-      const exportArgs = ['pnpm', 'next', 'export']
-
-      if (args?.outdir) exportArgs.push('--outdir', args.outdir)
-
-      if (this.childProcess) {
-        throw new Error(
-          `can not run export while server is running, use next.stop() first`
-        )
-      }
       console.log('running', exportArgs.join(' '))
 
       this.childProcess = spawn(

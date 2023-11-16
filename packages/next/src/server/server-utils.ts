@@ -3,8 +3,9 @@ import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from './config'
 import type { BaseNextRequest } from './base-http'
 import type { ParsedUrlQuery } from 'querystring'
+import type { UrlWithParsedQuery } from 'url'
 
-import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
+import { format as formatUrl, parse as parseUrl } from 'url'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -14,7 +15,7 @@ import {
   prepareDestination,
 } from '../shared/lib/router/utils/prepare-destination'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import { normalizeRscPath } from '../shared/lib/router/utils/app-paths'
+import { normalizeRscURL } from '../shared/lib/router/utils/app-paths'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 
 export function normalizeVercelUrl(
@@ -336,12 +337,12 @@ export function getUtils({
       let value: string | string[] | undefined = params[key]
 
       if (typeof value === 'string') {
-        value = normalizeRscPath(value, true)
+        value = normalizeRscURL(value)
       }
       if (Array.isArray(value)) {
         value = value.map((val) => {
           if (typeof val === 'string') {
-            val = normalizeRscPath(val, true)
+            val = normalizeRscURL(val)
           }
           return val
         })

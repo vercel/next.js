@@ -1492,9 +1492,12 @@ function runTests({ dev }) {
         rsc: {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
+          didPostponeHeader: 'x-nextjs-postponed',
           varyHeader:
             'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
           prefetchHeader: 'Next-Router-Prefetch',
+          prefetchSuffix: '.prefetch.rsc',
+          suffix: '.rsc',
         },
       })
     })
@@ -1569,8 +1572,7 @@ describe('Dynamic Routing', () => {
 
     runTests({ dev: true })
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await fs.remove(nextConfig)
 

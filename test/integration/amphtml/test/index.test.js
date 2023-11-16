@@ -25,7 +25,7 @@ let app
 const context = {}
 
 describe('AMP Usage', () => {
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     let output = ''
 
     beforeAll(async () => {

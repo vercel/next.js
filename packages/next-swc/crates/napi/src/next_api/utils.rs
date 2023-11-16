@@ -13,7 +13,7 @@ use turbopack_binding::{
     turbopack::core::{
         diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
         error::PrettyPrintError,
-        issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource},
+        issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource, StyledString},
         source_pos::SourcePos,
     },
 };
@@ -69,30 +69,23 @@ impl Drop for RootTask {
 
 #[napi]
 pub fn root_task_dispose(
-    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] _root_task: External<RootTask>,
+    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
 ) -> napi::Result<()> {
-    // TODO(alexkirsz) Implement. Not panicking here to avoid crashing the process
-    // when testing.
+    if let Some(task) = root_task.task_id.take() {
+        root_task.turbo_tasks.dispose_root_task(task);
+    }
     Ok(())
 }
 
 pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
-    let issues = source
-        .peek_issues_with_path()
-        .await?
-        .strongly_consistent()
-        .await?;
+    let issues = source.peek_issues_with_path().await?;
     issues.get_plain_issues().await
 }
 
 /// Collect [turbopack::core::diagnostics::Diagnostic] from given source,
 /// returns [turbopack::core::diagnostics::PlainDiagnostic]
 pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainDiagnostic>>> {
-    let captured_diags = source
-        .peek_diagnostics()
-        .await?
-        .strongly_consistent()
-        .await?;
+    let captured_diags = source.peek_diagnostics().await?;
 
     captured_diags
         .diagnostics
@@ -108,7 +101,7 @@ pub struct NapiIssue {
     pub category: String,
     pub file_path: String,
     pub title: String,
-    pub description: String,
+    pub description: serde_json::Value,
     pub detail: String,
     pub source: Option<NapiIssueSource>,
     pub documentation_link: String,
@@ -118,7 +111,8 @@ pub struct NapiIssue {
 impl From<&PlainIssue> for NapiIssue {
     fn from(issue: &PlainIssue) -> Self {
         Self {
-            description: issue.description.clone(),
+            description: serde_json::to_value(Into::<NapiStyledString>::into(&issue.description))
+                .unwrap(),
             category: issue.category.clone(),
             file_path: issue.file_path.clone(),
             detail: issue.detail.clone(),
@@ -135,23 +129,67 @@ impl From<&PlainIssue> for NapiIssue {
     }
 }
 
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum NapiStyledString {
+    Line { value: Vec<NapiStyledString> },
+    Stack { value: Vec<NapiStyledString> },
+    Text { value: String },
+    Code { value: String },
+    Strong { value: String },
+}
+
+impl From<&StyledString> for NapiStyledString {
+    fn from(value: &StyledString) -> Self {
+        match value {
+            StyledString::Line(parts) => NapiStyledString::Line {
+                value: parts.iter().map(|p| p.into()).collect(),
+            },
+            StyledString::Stack(parts) => NapiStyledString::Stack {
+                value: parts.iter().map(|p| p.into()).collect(),
+            },
+            StyledString::Text(string) => NapiStyledString::Text {
+                value: string.clone(),
+            },
+            StyledString::Code(string) => NapiStyledString::Code {
+                value: string.clone(),
+            },
+            StyledString::Strong(string) => NapiStyledString::Strong {
+                value: string.clone(),
+            },
+        }
+    }
+}
+
 #[napi(object)]
 pub struct NapiIssueSource {
     pub source: NapiSource,
-    pub start: NapiSourcePos,
-    pub end: NapiSourcePos,
+    pub range: Option<NapiIssueSourceRange>,
 }
 
 impl From<&PlainIssueSource> for NapiIssueSource {
     fn from(
         PlainIssueSource {
             asset: source,
-            start,
-            end,
+            range,
         }: &PlainIssueSource,
     ) -> Self {
         Self {
             source: (&**source).into(),
+            range: range.as_ref().map(|range| range.into()),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct NapiIssueSourceRange {
+    pub start: NapiSourcePos,
+    pub end: NapiSourcePos,
+}
+
+impl From<&(SourcePos, SourcePos)> for NapiIssueSourceRange {
+    fn from((start, end): &(SourcePos, SourcePos)) -> Self {
+        Self {
             start: (*start).into(),
             end: (*end).into(),
         }

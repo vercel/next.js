@@ -4,9 +4,18 @@ import Link from 'next/link'
 // eslint-disable-next-line no-unused-vars
 import next from 'next'
 
-export default () => (
-  <div>
-    <Link href="/about">About Page</Link>
-    <p className="index-page">Hello World</p>
-  </div>
-)
+// prevent static generation for build trace test
+export function getServerSideProps() {
+  return {
+    props: {},
+  }
+}
+
+export default function Page() {
+  return (
+    <div>
+      <Link href="/about">About Page</Link>
+      <p className="index-page">Hello World</p>
+    </div>
+  )
+}
