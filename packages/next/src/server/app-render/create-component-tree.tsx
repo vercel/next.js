@@ -1,4 +1,4 @@
-import type { ChildProp, FlightSegmentPath } from './types'
+import type { FlightSegmentPath } from './types'
 import React from 'react'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
@@ -305,7 +305,7 @@ export async function createComponentTree({
         // otherwise we keep rendering for the prefetch.
         // We also want to bail out if there's no Loading component in the tree.
         let currentStyles = undefined
-        let childElement = null
+        let initialChildNode = null
         const childPropSegment = addSearchParamsIfPageSegment(
           childSegmentParam ? childSegmentParam.treeSegment : childSegment,
           query
@@ -334,12 +334,7 @@ export async function createComponentTree({
             })
 
           currentStyles = childComponentStyles
-          childElement = <ChildComponent />
-        }
-
-        const childProp: ChildProp = {
-          current: childElement,
-          segment: childPropSegment,
+          initialChildNode = <ChildComponent />
         }
 
         // This is turned back into an object below.
@@ -365,7 +360,11 @@ export async function createComponentTree({
             templateScripts={templateScripts}
             notFound={notFoundComponent}
             notFoundStyles={notFoundStyles}
-            childProp={childProp}
+            // TODO: This prop will soon by removed and instead we'll return all
+            // the child nodes in the entire tree at the top level of the
+            // Flight response.
+            initialChildNode={initialChildNode}
+            childPropSegment={childPropSegment}
             styles={currentStyles}
           />,
         ]
