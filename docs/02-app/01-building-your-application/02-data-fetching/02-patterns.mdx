@@ -63,7 +63,7 @@ If you have nested components, and each component fetches its own data, then dat
 
 For example, the `Playlists` component will only start fetching data once the `Artist` component has finished fetching data because `Playlists` depends on the `artistID` prop:
 
-```tsx filename="app/artist/page.tsx" switcher
+```tsx filename="app/artist/[username]/page.tsx" switcher
 // ...
 
 async function Playlists({ artistID }: { artistID: string }) {
@@ -98,7 +98,7 @@ export default async function Page({
 }
 ```
 
-```jsx filename="app/artist/page.js" switcher
+```jsx filename="app/artist/[username]/page.js" switcher
 // ...
 
 async function Playlists({ artistID }) {
