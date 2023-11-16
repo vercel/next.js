@@ -97,7 +97,7 @@ export function getLayerAssets({
     ? scriptTags.map((href, index) => {
         const fullSrc = `${ctx.assetPrefix}/_next/${href}`
 
-        return <script src={fullSrc} async={true} key={index} />
+        return <script src={fullSrc} async={true} key={`script-${index}`} />
       })
     : []
 

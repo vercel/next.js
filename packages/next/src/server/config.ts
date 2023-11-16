@@ -254,7 +254,8 @@ function assignDefaults(
 
   if (
     result.experimental?.ppr &&
-    !process.env.__NEXT_VERSION!.includes('canary')
+    !process.env.__NEXT_VERSION!.includes('canary') &&
+    !process.env.__NEXT_TEST_MODE
   ) {
     throw new Error(
       `The experimental.ppr preview feature can only be enabled when using the latest canary version of Next.js. See more info here: https://nextjs.org/docs/messages/ppr-preview`
@@ -502,7 +503,7 @@ function assignDefaults(
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
+        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation'
       )
     }
   }
@@ -791,7 +792,7 @@ function assignDefaults(
       },
     },
     antd: {
-      transform: 'antd/lib/{{kebabCase member}}',
+      transform: 'antd/es/{{kebabCase member}}',
     },
     ahooks: {
       transform: {
