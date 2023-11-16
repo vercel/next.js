@@ -876,10 +876,12 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts": {
-    "passed": [],
+    "passed": [
+      "ReactRefreshLogBox app turbo Module not found empty import trace",
+      "ReactRefreshLogBox app turbo Module not found missing global CSS"
+    ],
     "failed": [
       "ReactRefreshLogBox app turbo Module not found",
-      "ReactRefreshLogBox app turbo Module not found empty import trace",
       "ReactRefreshLogBox app turbo Node.js builtins"
     ],
     "pending": [
@@ -888,9 +890,7 @@
       "ReactRefreshLogBox app default Module not found missing global CSS",
       "ReactRefreshLogBox app default Node.js builtins"
     ],
-    "flakey": [
-      "ReactRefreshLogBox app turbo Module not found missing global CSS"
-    ],
+    "flakey": [],
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshLogBox-scss.test.ts": {
@@ -1212,10 +1212,11 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBox-builtins.test.ts": {
-    "passed": [],
+    "passed": [
+      "ReactRefreshLogBox turbo Module not found (empty import trace)"
+    ],
     "failed": [
       "ReactRefreshLogBox turbo Module not found",
-      "ReactRefreshLogBox turbo Module not found (empty import trace)",
       "ReactRefreshLogBox turbo Module not found (missing global CSS)",
       "ReactRefreshLogBox turbo Node.js builtins"
     ],

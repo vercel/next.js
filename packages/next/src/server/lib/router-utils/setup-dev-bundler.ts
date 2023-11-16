@@ -23,6 +23,7 @@ import type {
   HMR_ACTION_TYPES,
   NextJsHotReloaderInterface,
   ReloadPageAction,
+  SyncAction,
   TurbopackConnectedAction,
 } from '../../dev/hot-reloader-types'
 
@@ -165,6 +166,8 @@ async function verifyTypeScript(opts: SetupOpts) {
   return usingTypeScript
 }
 
+class ModuleBuildError extends Error {}
+
 async function startWatcher(opts: SetupOpts) {
   const { nextConfig, appDir, pagesDir, dir } = opts
   const { useFileSystemPublicRoutes } = nextConfig
@@ -290,27 +293,40 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     function formatIssue(issue: Issue) {
-      const { filePath, title, description, source, detail } = issue
-      let formattedTitle = title.replace(/\n/g, '\n    ')
+      const { filePath, title, description, source } = issue
+      let { documentationLink } = issue
 
       let formattedFilePath = filePath
-        .replace('[project]/', '')
+        .replace('[project]/', './')
         .replaceAll('/./', '/')
         .replace('\\\\?\\', '')
 
-      let message
+      let message, ignoreColumns
 
       if (source) {
         if (source.range) {
           const { start } = source.range
-          message = `${issue.severity} - ${formattedFilePath}:${
-            start.line + 1
-          }:${start.column}`
+          message = `${formattedFilePath}:${start.line + 1}:${start.column}`
         } else {
-          message = `${issue.severity} - ${formattedFilePath}  ${formattedTitle}`
+          message = formattedFilePath
         }
       } else {
-        message = `${formattedTitle}`
+        message = title.replace(/\n/g, '\n    ')
+      }
+
+      if (description) {
+        const rendered = renderStyledStringToErrorAnsi(description)
+        message += `\n${rendered}`
+
+        // TODO: Use error codes to identify these
+        // TODO: Generalize adapting Turbopack errors to Next.js errors
+        if (rendered.includes('Module not found')) {
+          // For compatiblity with webpack
+          // TODO: include columns in webpack errors.
+          ignoreColumns = true
+          documentationLink =
+            'https://nextjs.org/docs/messages/module-not-found'
+        }
       }
 
       if (source?.range && source.source.content) {
@@ -319,33 +335,28 @@ async function startWatcher(opts: SetupOpts) {
           codeFrameColumns,
         } = require('next/dist/compiled/babel/code-frame')
 
-        message +=
-          '\n\n' +
-          codeFrameColumns(
-            source.source.content,
-            {
-              start: { line: start.line + 1, column: start.column + 1 },
-              end: { line: end.line + 1, column: end.column + 1 },
+        message += codeFrameColumns(
+          source.source.content,
+          {
+            start: {
+              line: start.line + 1,
+              column: ignoreColumns ? null : start.column + 1,
             },
-            { forceColor: true }
-          )
+            end: {
+              line: end.line + 1,
+              column: ignoreColumns ? null : end.column + 1,
+            },
+          },
+          { forceColor: true }
+        ).trim()
       }
-
-      if (description) {
-        message += `\n${renderStyledStringToErrorAnsi(description).replace(
-          /\n/g,
-          '\n    '
-        )}`
+      if (documentationLink) {
+        message += `\n\n${documentationLink}`
       }
-
-      if (detail) {
-        message += `\n${detail.replace(/\n/g, '\n    ')}`
-      }
+      // TODO: Include a trace from the issue.
 
       return message
     }
-
-    class ModuleBuildError extends Error {}
 
     function processIssues(
       displayName: string,
@@ -1304,6 +1315,26 @@ async function startWatcher(opts: SetupOpts) {
             type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
           }
           client.send(JSON.stringify(turbopackConnected))
+
+          const errors = []
+          for (const pageIssues of issues.values()) {
+            for (const issue of pageIssues.values()) {
+              errors.push({ file: '', message: formatIssue(issue) })
+            }
+          }
+
+          const sync: SyncAction = {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+            errors,
+            warnings: [],
+            hash: '',
+            versionInfo: {
+              installed: '0.0.0',
+              staleness: 'unknown',
+            },
+          }
+
+          this.send(sync)
         })
       },
 
@@ -1326,8 +1357,22 @@ async function startWatcher(opts: SetupOpts) {
       async stop() {
         // Not implemented yet.
       },
-      async getCompilationErrors(_page) {
-        return []
+      async getCompilationErrors(page) {
+        const thisPageIssues = issues.get(page)
+        if (thisPageIssues !== undefined && thisPageIssues.size > 0) {
+          // If there is an error related to the requesting page we display it instead of the first error
+          return [...thisPageIssues.values()].map(
+            (issue) => new Error(formatIssue(issue))
+          )
+        }
+
+        const errors = []
+        for (const pageIssues of issues.values()) {
+          for (const issue of pageIssues.values()) {
+            errors.push(new Error(formatIssue(issue)))
+          }
+        }
+        return errors
       },
       invalidate(/* Unused parameter: { reloadAfterInvalidation } */) {
         // Not implemented yet.
@@ -2448,7 +2493,9 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     if (!usedOriginalStack) {
-      if (type === 'warning') {
+      if (err instanceof ModuleBuildError) {
+        Log.error(err.message)
+      } else if (type === 'warning') {
         Log.warn(err)
       } else if (type === 'app-dir') {
         logAppDirError(err)

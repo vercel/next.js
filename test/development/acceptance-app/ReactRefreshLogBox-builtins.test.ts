@@ -51,7 +51,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
     expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-      "./node_modules/my-package/index.js (1:0)
+      "./node_modules/my-package/index.js:1:0
       Module not found: Can't resolve 'dns'
 
       https://nextjs.org/docs/messages/module-not-found
@@ -85,7 +85,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
     const source = await session.getRedboxSource()
     expect(source).toMatchInlineSnapshot(`
-      "./index.js (1:0)
+      "./index.js:1:0
       Module not found: Can't resolve 'b'
       > 1 | import Comp from 'b'
         2 | export default function Oops() {
@@ -123,7 +123,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
     const source = await session.getRedboxSource()
     expect(source).toMatchInlineSnapshot(`
-      "./app/page.js (2:0)
+      "./app/page.js:2:0
       Module not found: Can't resolve 'b'
         1 | 'use client'
       > 2 | import Comp from 'b'
