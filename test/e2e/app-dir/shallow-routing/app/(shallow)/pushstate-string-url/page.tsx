@@ -22,6 +22,38 @@ export default function Page() {
       >
         Push searchParam using string url
       </button>
+
+      <button
+        onClick={() => {
+          const previousQuery = new URL(window.location.href).searchParams.get(
+            'query'
+          )
+          const url = `?query=${
+            previousQuery ? previousQuery + '-added' : 'foo'
+          }`
+
+          window.history.replaceState(null, '', url)
+        }}
+        id="push-string-url-null"
+      >
+        Push searchParam with null data param
+      </button>
+
+      <button
+        onClick={() => {
+          const previousQuery = new URL(window.location.href).searchParams.get(
+            'query'
+          )
+          const url = `?query=${
+            previousQuery ? previousQuery + '-added' : 'foo'
+          }`
+
+          window.history.replaceState(undefined, '', url)
+        }}
+        id="push-string-url-undefined"
+      >
+        Push searchParam with undefined data param
+      </button>
     </>
   )
 }
