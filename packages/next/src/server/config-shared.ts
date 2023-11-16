@@ -159,6 +159,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  windowHistorySupport?: boolean
   caseSensitiveRoutes?: boolean
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
@@ -741,6 +742,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    windowHistorySupport: false,
     serverMinification: true,
     serverSourceMaps: false,
     caseSensitiveRoutes: false,
@@ -790,6 +792,7 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
+    ppr: false,
   },
 }
 

@@ -1302,7 +1302,8 @@ export async function buildAppStaticPaths({
         supportsDynamicHTML: true,
         isRevalidate: false,
         isBot: false,
-        experimental: { ppr },
+        // building static paths should never postpone
+        experimental: { ppr: false },
       },
     },
     async () => {

@@ -9,7 +9,6 @@ import { ACTION_PREFETCH, PrefetchKind } from '../router-reducer-types'
 import type { PrefetchAction } from '../router-reducer-types'
 import { prefetchReducer } from './prefetch-reducer'
 import { fetchServerResponse } from '../fetch-server-response'
-import { createRecordFromThenable } from '../create-record-from-thenable'
 
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
@@ -142,7 +141,6 @@ describe('prefetchReducer', () => {
     )
 
     const prom = Promise.resolve(serverResponse)
-    const record = createRecordFromThenable(prom)
     await prom
 
     const expectedState: ReturnType<typeof prefetchReducer> = {
@@ -151,7 +149,7 @@ describe('prefetchReducer', () => {
         [
           '/linking/about',
           {
-            data: record,
+            data: prom,
             kind: PrefetchKind.AUTO,
             lastUsedTime: null,
             prefetchTime: expect.any(Number),
@@ -175,6 +173,7 @@ describe('prefetchReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: true,
       },
       focusAndScrollRef: {
         apply: false,
@@ -298,7 +297,6 @@ describe('prefetchReducer', () => {
     )
 
     const prom = Promise.resolve(serverResponse)
-    const record = createRecordFromThenable(prom)
     await prom
 
     const expectedState: ReturnType<typeof prefetchReducer> = {
@@ -307,7 +305,7 @@ describe('prefetchReducer', () => {
         [
           '/linking/about',
           {
-            data: record,
+            data: prom,
             prefetchTime: expect.any(Number),
             kind: PrefetchKind.AUTO,
             lastUsedTime: null,
@@ -331,6 +329,7 @@ describe('prefetchReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: true,
       },
       focusAndScrollRef: {
         apply: false,

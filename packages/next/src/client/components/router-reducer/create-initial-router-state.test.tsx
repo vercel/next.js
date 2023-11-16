@@ -98,7 +98,11 @@ describe('createInitialRouterState', () => {
       tree: initialTree,
       canonicalUrl: initialCanonicalUrl,
       prefetchCache: new Map(),
-      pushRef: { pendingPush: false, mpaNavigation: false },
+      pushRef: {
+        pendingPush: false,
+        mpaNavigation: false,
+        preserveCustomHistoryState: true,
+      },
       focusAndScrollRef: {
         apply: false,
         onlyHashChange: false,

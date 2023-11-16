@@ -1885,7 +1885,7 @@
   "Borel": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin", "latin-ext"]
+    "subsets": ["latin", "latin-ext", "math", "symbols", "vietnamese"]
   },
   "Bowlby One": {
     "weights": ["400"],
@@ -7638,7 +7638,7 @@
   "Noto Sans Cypriot": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["cypriot"]
+    "subsets": ["cypriot", "latin", "latin-ext"]
   },
   "Noto Sans Cypro Minoan": {
     "weights": ["400"],
@@ -8363,7 +8363,13 @@
   "Noto Sans Meroitic": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin", "latin-ext", "meroitic"]
+    "subsets": [
+      "latin",
+      "latin-ext",
+      "meroitic",
+      "meroitic-cursive",
+      "meroitic-hieroglyphs"
+    ]
   },
   "Noto Sans Miao": {
     "weights": ["400"],
@@ -8787,7 +8793,14 @@
   "Noto Sans Symbols 2": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["braille", "latin", "latin-ext", "mayan-numerals", "symbols"]
+    "subsets": [
+      "braille",
+      "latin",
+      "latin-ext",
+      "math",
+      "mayan-numerals",
+      "symbols"
+    ]
   },
   "Noto Sans Syriac": {
     "weights": [
