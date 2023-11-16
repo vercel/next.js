@@ -411,10 +411,9 @@ function Router({
         return
       }
 
-      const href = window.location.href
       dispatch({
         type: ACTION_RESTORE,
-        url: new URL(href),
+        url: new URL(window.location.href),
         tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
       })
     }
@@ -531,10 +530,9 @@ function Router({
       // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
       // Without startTransition works if the cache is there for this path
       startTransition(() => {
-        const href = window.location.href
         dispatch({
           type: ACTION_RESTORE,
-          url: new URL(href),
+          url: new URL(window.location.href),
           tree: state.__PRIVATE_NEXTJS_INTERNALS_TREE,
         })
       })
