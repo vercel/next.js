@@ -218,14 +218,19 @@ async function exportPageImpl(
     // cache instance for this page.
     const incrementalCache =
       isAppDir && fetchCache
-        ? createIncrementalCache(
+        ? createIncrementalCache({
             incrementalCacheHandlerPath,
             isrMemoryCacheSize,
             fetchCacheKeyPrefix,
             distDir,
             dir,
-            enabledDirectories
-          )
+            enabledDirectories,
+            // PPR is not available for Pages.
+            experimental: { ppr: false },
+            // skip writing to disk in minimal mode for now, pending some
+            // changes to better support it
+            flushToDisk: !hasNextSupport,
+          })
         : undefined
 
     // Handle App Routes.

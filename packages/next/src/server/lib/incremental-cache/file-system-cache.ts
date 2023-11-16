@@ -1,14 +1,17 @@
 import type { RouteMetadata } from '../../../export/routes/types'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 import type { CacheFs } from '../../../shared/lib/utils'
-import type {
-  CachedFetchValue,
-  IncrementalCacheKindHint,
-} from '../../response-cache'
+import type { CachedFetchValue } from '../../response-cache'
 
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from '../../../shared/lib/isomorphic/path'
-import { NEXT_CACHE_TAGS_HEADER } from '../../../lib/constants'
+import {
+  NEXT_CACHE_TAGS_HEADER,
+  NEXT_DATA_SUFFIX,
+  NEXT_META_SUFFIX,
+  RSC_PREFETCH_SUFFIX,
+  RSC_SUFFIX,
+} from '../../../lib/constants'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -16,6 +19,7 @@ type FileSystemCacheContext = Omit<
 > & {
   fs: CacheFs
   serverDistDir: string
+  experimental: { ppr: boolean }
 }
 
 type TagsManifest = {
@@ -33,6 +37,7 @@ export default class FileSystemCache implements CacheHandler {
   private pagesDir: boolean
   private tagsManifestPath?: string
   private revalidatedTags: string[]
+  private readonly experimental: { ppr: boolean }
 
   constructor(ctx: FileSystemCacheContext) {
     this.fs = ctx.fs
@@ -41,6 +46,7 @@ export default class FileSystemCache implements CacheHandler {
     this.appDir = !!ctx._appDir
     this.pagesDir = !!ctx._pagesDir
     this.revalidatedTags = ctx.revalidatedTags
+    this.experimental = ctx.experimental
 
     if (ctx.maxMemoryCacheSize && !memoryCache) {
       memoryCache = new LRUCache({
@@ -111,18 +117,9 @@ export default class FileSystemCache implements CacheHandler {
     }
   }
 
-  public async get(
-    key: string,
-    {
-      tags,
-      softTags,
-      kindHint,
-    }: {
-      tags?: string[]
-      softTags?: string[]
-      kindHint?: IncrementalCacheKindHint
-    } = {}
-  ) {
+  public async get(...args: Parameters<CacheHandler['get']>) {
+    const [key, ctx = {}] = args
+    const { tags, softTags, kindHint } = ctx
     let data = memoryCache?.get(key)
 
     // let's check the disk for seed data
@@ -133,7 +130,10 @@ export default class FileSystemCache implements CacheHandler {
         const { mtime } = await this.fs.stat(filePath)
 
         const meta = JSON.parse(
-          await this.fs.readFile(filePath.replace(/\.body$/, '.meta'), 'utf8')
+          await this.fs.readFile(
+            filePath.replace(/\.body$/, NEXT_META_SUFFIX),
+            'utf8'
+          )
         )
 
         const cacheEntry: CacheHandlerValue = {
@@ -187,12 +187,17 @@ export default class FileSystemCache implements CacheHandler {
         } else {
           const pageData = isAppPath
             ? await this.fs.readFile(
-                this.getFilePath(`${key}.rsc`, 'app'),
+                this.getFilePath(
+                  `${key}${
+                    this.experimental.ppr ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX
+                  }`,
+                  'app'
+                ),
                 'utf8'
               )
             : JSON.parse(
                 await this.fs.readFile(
-                  this.getFilePath(`${key}.json`, 'pages'),
+                  this.getFilePath(`${key}${NEXT_DATA_SUFFIX}`, 'pages'),
                   'utf8'
                 )
               )
@@ -203,7 +208,7 @@ export default class FileSystemCache implements CacheHandler {
             try {
               meta = JSON.parse(
                 await this.fs.readFile(
-                  filePath.replace(/\.html$/, '.meta'),
+                  filePath.replace(/\.html$/, NEXT_META_SUFFIX),
                   'utf8'
                 )
               )
@@ -285,13 +290,8 @@ export default class FileSystemCache implements CacheHandler {
     return data ?? null
   }
 
-  public async set(
-    key: string,
-    data: CacheHandlerValue['value'],
-    ctx: {
-      tags?: string[]
-    }
-  ) {
+  public async set(...args: Parameters<CacheHandler['set']>) {
+    const [key, data, ctx] = args
     memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
@@ -310,7 +310,7 @@ export default class FileSystemCache implements CacheHandler {
       }
 
       await this.fs.writeFile(
-        filePath.replace(/\.body$/, '.meta'),
+        filePath.replace(/\.body$/, NEXT_META_SUFFIX),
         JSON.stringify(meta, null, 2)
       )
       return
@@ -327,7 +327,13 @@ export default class FileSystemCache implements CacheHandler {
 
       await this.fs.writeFile(
         this.getFilePath(
-          `${key}.${isAppPath ? 'rsc' : 'json'}`,
+          `${key}${
+            isAppPath
+              ? this.experimental.ppr
+                ? RSC_PREFETCH_SUFFIX
+                : RSC_SUFFIX
+              : NEXT_DATA_SUFFIX
+          }`,
           isAppPath ? 'app' : 'pages'
         ),
         isAppPath ? data.pageData : JSON.stringify(data.pageData)
@@ -341,7 +347,7 @@ export default class FileSystemCache implements CacheHandler {
         }
 
         await this.fs.writeFile(
-          htmlPath.replace(/\.html$/, '.meta'),
+          htmlPath.replace(/\.html$/, NEXT_META_SUFFIX),
           JSON.stringify(meta)
         )
       }
