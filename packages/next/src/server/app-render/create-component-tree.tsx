@@ -1,4 +1,4 @@
-import type { ChildProp, FlightSegmentPath } from './types'
+import type { FlightSegmentPath } from './types'
 import React from 'react'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
@@ -301,44 +301,11 @@ export async function createComponentTree({
         const notFoundComponent =
           NotFound && isChildrenRouteKey ? <NotFound /> : undefined
 
-        function getParallelRoutePair(
-          currentChildProp: ChildProp,
-          currentStyles: React.ReactNode
-        ): [string, React.ReactNode] {
-          // This is turned back into an object below.
-          return [
-            parallelRouteKey,
-            <LayoutRouter
-              parallelRouterKey={parallelRouteKey}
-              segmentPath={createSegmentPath(currentSegmentPath)}
-              loading={Loading ? <Loading /> : undefined}
-              loadingStyles={loadingStyles}
-              loadingScripts={loadingScripts}
-              // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
-              hasLoading={Boolean(Loading)}
-              error={ErrorComponent}
-              errorStyles={errorStyles}
-              errorScripts={errorScripts}
-              template={
-                <Template>
-                  <RenderFromTemplateContext />
-                </Template>
-              }
-              templateStyles={templateStyles}
-              templateScripts={templateScripts}
-              notFound={notFoundComponent}
-              notFoundStyles={notFoundStyles}
-              childProp={currentChildProp}
-              styles={currentStyles}
-            />,
-          ]
-        }
-
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
         // We also want to bail out if there's no Loading component in the tree.
         let currentStyles = undefined
-        let childElement = null
+        let initialChildNode = null
         const childPropSegment = addSearchParamsIfPageSegment(
           childSegmentParam ? childSegmentParam.treeSegment : childSegment,
           query
@@ -367,15 +334,40 @@ export async function createComponentTree({
             })
 
           currentStyles = childComponentStyles
-          childElement = <ChildComponent />
+          initialChildNode = <ChildComponent />
         }
 
-        const childProp: ChildProp = {
-          current: childElement,
-          segment: childPropSegment,
-        }
-
-        return getParallelRoutePair(childProp, currentStyles)
+        // This is turned back into an object below.
+        return [
+          parallelRouteKey,
+          <LayoutRouter
+            parallelRouterKey={parallelRouteKey}
+            segmentPath={createSegmentPath(currentSegmentPath)}
+            loading={Loading ? <Loading /> : undefined}
+            loadingStyles={loadingStyles}
+            loadingScripts={loadingScripts}
+            // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
+            hasLoading={Boolean(Loading)}
+            error={ErrorComponent}
+            errorStyles={errorStyles}
+            errorScripts={errorScripts}
+            template={
+              <Template>
+                <RenderFromTemplateContext />
+              </Template>
+            }
+            templateStyles={templateStyles}
+            templateScripts={templateScripts}
+            notFound={notFoundComponent}
+            notFoundStyles={notFoundStyles}
+            // TODO: This prop will soon by removed and instead we'll return all
+            // the child nodes in the entire tree at the top level of the
+            // Flight response.
+            initialChildNode={initialChildNode}
+            childPropSegment={childPropSegment}
+            styles={currentStyles}
+          />,
+        ]
       }
     )
   )
