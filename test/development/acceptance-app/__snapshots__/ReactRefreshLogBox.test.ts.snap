@@ -52,7 +52,7 @@ exports[`ReactRefreshLogBox app default conversion to class component (1) 1`] = 
 `;
 
 exports[`ReactRefreshLogBox app default css syntax errors 1`] = `
-"./index.module.css (1:1)
+"./index.module.css:1:1
 Syntax error: Selector "button" is not pure (pure selectors must contain at least one local class or id)
 
 > 1 | button {}
