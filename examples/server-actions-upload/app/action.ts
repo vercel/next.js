@@ -8,15 +8,12 @@ const writeFile = promisify(fs.writeFile)
 
 export async function saveData(formData: FormData) {
   const file = formData.get('file') as File
-  const filePath = path.join('./', file.name)
-
-  const buffer = await file.arrayBuffer()
-
-  await writeFile(filePath, Buffer.from(buffer))
+  const fileBuffer = await file.arrayBuffer()
+  const filePath = path.join(`/tmp/${file.name}`)
+  await writeFile(filePath, Buffer.from(fileBuffer))
 
   const payload = {
     email: formData.get('email'),
-    file: filePath,
   }
 
   console.log('payload', payload)
