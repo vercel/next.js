@@ -35,7 +35,7 @@ import {
   PrefetchKind,
 } from './router-reducer/router-reducer-types'
 import type {
-  PushRef,
+  AppRouterState,
   ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
@@ -49,6 +49,7 @@ import {
 import {
   useReducerWithReduxDevtools,
   useUnwrapState,
+  type ReduxDevtoolsSyncFn,
 } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
 import { createInitialRouterState } from './router-reducer/create-initial-router-state'
@@ -110,17 +111,14 @@ function isExternalURL(url: URL) {
 }
 
 function HistoryUpdater({
-  tree,
-  pushRef,
-  canonicalUrl,
+  appRouterState,
   sync,
 }: {
-  tree: FlightRouterState
-  pushRef: PushRef
-  canonicalUrl: string
-  sync: () => void
+  appRouterState: AppRouterState
+  sync: ReduxDevtoolsSyncFn
 }) {
   useInsertionEffect(() => {
+    const { tree, pushRef, canonicalUrl } = appRouterState
     const historyState = {
       ...(process.env.__NEXT_WINDOW_HISTORY_SUPPORT &&
       pushRef.preserveCustomHistoryState
@@ -148,8 +146,8 @@ function HistoryUpdater({
         originalReplaceState(historyState, '', canonicalUrl)
       }
     }
-    sync()
-  }, [tree, pushRef, canonicalUrl, sync])
+    sync(appRouterState)
+  }, [appRouterState, sync])
   return null
 }
 
@@ -206,7 +204,7 @@ function useChangeByServerResponse(
 
 function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
-    (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
+    (href, navigateType, shouldScroll) => {
       const url = new URL(addBasePath(href), location.href)
 
       return dispatch({
@@ -214,7 +212,6 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         url,
         isExternalUrl: isExternalURL(url),
         locationSearch: location.search,
-        forceOptimisticNavigation,
         shouldScroll: shouldScroll ?? true,
         navigateType,
         cache: createEmptyCacheNode(),
@@ -332,22 +329,12 @@ function Router({
       },
       replace: (href, options = {}) => {
         startTransition(() => {
-          navigate(
-            href,
-            'replace',
-            Boolean(options.forceOptimisticNavigation),
-            options.scroll ?? true
-          )
+          navigate(href, 'replace', options.scroll ?? true)
         })
       },
       push: (href, options = {}) => {
         startTransition(() => {
-          navigate(
-            href,
-            'push',
-            Boolean(options.forceOptimisticNavigation),
-            options.scroll ?? true
-          )
+          navigate(href, 'push', options.scroll ?? true)
         })
       },
       refresh: () => {
@@ -589,9 +576,7 @@ function Router({
   return (
     <>
       <HistoryUpdater
-        tree={tree}
-        pushRef={pushRef}
-        canonicalUrl={canonicalUrl}
+        appRouterState={useUnwrapState(reducerState)}
         sync={sync}
       />
       <PathnameContext.Provider value={pathname}>
