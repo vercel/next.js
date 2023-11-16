@@ -232,7 +232,7 @@ const originalReplaceState =
     : null
 
 function copyNextJsInternalHistoryState(data: any) {
-  if (data == null || data === undefined) data = {}
+  if (data == null) data = {}
   const currentState = window.history.state
   const __NA = currentState?.__NA
   if (__NA) {
