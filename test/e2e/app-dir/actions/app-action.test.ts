@@ -323,6 +323,20 @@ createNextDescribe(
       }, '1')
     })
 
+    it('should support next/dynamic with ssr: false (edge)', async () => {
+      const browser = await next.browser('/dynamic-csr/edge')
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '0')
+
+      await browser.elementByCss('button').click()
+
+      await check(() => {
+        return browser.elementByCss('button').text()
+      }, '1')
+    })
+
     it('should only submit action once when resubmitting an action after navigation', async () => {
       let requestCount = 0
 
