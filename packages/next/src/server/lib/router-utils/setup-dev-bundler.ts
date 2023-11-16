@@ -6,6 +6,7 @@ import type {
   WrittenEndpoint,
   Issue,
   Project,
+  StyledString,
 } from '../../../build/swc'
 import type { Socket } from 'net'
 import type { FilesystemDynamicRoute } from './filesystem'
@@ -126,6 +127,7 @@ import type { ActionManifest } from '../../../build/webpack/plugins/flight-clien
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import type { LoadableManifest } from '../../load-components'
 import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
+import { bold, green, red } from '../../../lib/picocolors'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -279,50 +281,63 @@ async function startWatcher(opts: SetupOpts) {
     const issues = new Map<string, Map<string, Issue>>()
 
     function issueKey(issue: Issue): string {
-      return `${issue.severity} - ${issue.filePath} - ${issue.title}\n${issue.description}\n\n`
+      return [
+        issue.severity,
+        issue.filePath,
+        issue.title,
+        JSON.stringify(issue.description),
+      ].join('-')
     }
 
     function formatIssue(issue: Issue) {
       const { filePath, title, description, source, detail } = issue
       let formattedTitle = title.replace(/\n/g, '\n    ')
-      let message = ''
 
       let formattedFilePath = filePath
         .replace('[project]/', '')
         .replaceAll('/./', '/')
         .replace('\\\\?\\', '')
 
+      let message
+
       if (source) {
         if (source.range) {
-          const { start, end } = source.range
+          const { start } = source.range
           message = `${issue.severity} - ${formattedFilePath}:${
             start.line + 1
-          }:${start.column}  ${formattedTitle}`
-
-          if (source.source.content) {
-            const {
-              codeFrameColumns,
-            } = require('next/dist/compiled/babel/code-frame')
-            message +=
-              '\n\n' +
-              codeFrameColumns(
-                source.source.content,
-                {
-                  start: { line: start.line + 1, column: start.column + 1 },
-                  end: { line: end.line + 1, column: end.column + 1 },
-                },
-                { forceColor: true }
-              )
-          }
+          }:${start.column}`
         } else {
           message = `${issue.severity} - ${formattedFilePath}  ${formattedTitle}`
         }
       } else {
         message = `${formattedTitle}`
       }
-      if (description) {
-        message += `\n${description.replace(/\n/g, '\n    ')}`
+
+      if (source?.range && source.source.content) {
+        const { start, end } = source.range
+        const {
+          codeFrameColumns,
+        } = require('next/dist/compiled/babel/code-frame')
+
+        message +=
+          '\n\n' +
+          codeFrameColumns(
+            source.source.content,
+            {
+              start: { line: start.line + 1, column: start.column + 1 },
+              end: { line: end.line + 1, column: end.column + 1 },
+            },
+            { forceColor: true }
+          )
       }
+
+      if (description) {
+        message += `\n${renderStyledStringToErrorAnsi(description).replace(
+          /\n/g,
+          '\n    '
+        )}`
+      }
+
       if (detail) {
         message += `\n${detail.replace(/\n/g, '\n    ')}`
       }
@@ -350,7 +365,7 @@ async function startWatcher(opts: SetupOpts) {
         const key = issueKey(issue)
         const formatted = formatIssue(issue)
         if (!oldSet.has(key) && !newSet.has(key)) {
-          console.error(`  ⚠ ${displayName} ${key} ${formatted}\n\n`)
+          console.error(`  ⚠ ${displayName} ${formatted}\n\n`)
         }
         newSet.set(key, issue)
         relevantIssues.add(formatted)
@@ -2489,3 +2504,29 @@ export async function setupDevBundler(opts: SetupOpts) {
 }
 
 export type DevBundler = Awaited<ReturnType<typeof setupDevBundler>>
+
+function renderStyledStringToErrorAnsi(string: StyledString): string {
+  switch (string.type) {
+    case 'text':
+      return string.value
+    case 'strong':
+      return bold(red(string.value))
+    case 'code':
+      return green(string.value)
+    case 'line': {
+      let line = ''
+      for (const styled of string.value) {
+        line += renderStyledStringToErrorAnsi(styled)
+      }
+      return line + '\n'
+    }
+    case 'stack':
+      let stack = ''
+      for (const styled of string.value) {
+        stack += renderStyledStringToErrorAnsi(styled) + '\n'
+      }
+      return stack + '\n'
+    default:
+      throw new Error('Unknown StyledString type', string)
+  }
+}

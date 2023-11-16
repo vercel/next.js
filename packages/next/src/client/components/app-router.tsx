@@ -204,7 +204,7 @@ function useChangeByServerResponse(
 
 function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
-    (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
+    (href, navigateType, shouldScroll) => {
       const url = new URL(addBasePath(href), location.href)
 
       return dispatch({
@@ -212,7 +212,6 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         url,
         isExternalUrl: isExternalURL(url),
         locationSearch: location.search,
-        forceOptimisticNavigation,
         shouldScroll: shouldScroll ?? true,
         navigateType,
         cache: createEmptyCacheNode(),
@@ -330,22 +329,12 @@ function Router({
       },
       replace: (href, options = {}) => {
         startTransition(() => {
-          navigate(
-            href,
-            'replace',
-            Boolean(options.forceOptimisticNavigation),
-            options.scroll ?? true
-          )
+          navigate(href, 'replace', options.scroll ?? true)
         })
       },
       push: (href, options = {}) => {
         startTransition(() => {
-          navigate(
-            href,
-            'push',
-            Boolean(options.forceOptimisticNavigation),
-            options.scroll ?? true
-          )
+          navigate(href, 'push', options.scroll ?? true)
         })
       },
       refresh: () => {

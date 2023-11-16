@@ -14,7 +14,7 @@ var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-canary-0e352ea01-20231109';
+var ReactVersion = '18.3.0-canary-593ecee66-20231114';
 
 // A pure JS implementation of a string hashing function. We do not use it for
 // security or obfuscation purposes, only to create compact hashes. So we
