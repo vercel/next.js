@@ -1,18 +1,18 @@
-import { NextResponse, NextRequest } from "next/server";
-import { withSession } from "../../sessionUtils";
-import SuperTokens from "supertokens-node";
+import { NextResponse, NextRequest } from 'next/server'
+import { withSession } from '../../sessionUtils'
+import SuperTokens from 'supertokens-node'
 
 export function GET(request: NextRequest) {
-    return withSession(request, async (session) => {
-        if (!session) {
-            return new NextResponse("Authentication required", { status: 401 });
-        }
+  return withSession(request, async (session) => {
+    if (!session) {
+      return new NextResponse('Authentication required', { status: 401 })
+    }
 
-        return NextResponse.json({
-            note: "Fetch any data from your application for authenticated user after using verifySession middleware",
-            userId: session.getUserId(),
-            sessionHandle: session.getHandle(),
-            accessTokenPayload: session.getAccessTokenPayload(),
-        });
-    });
+    return NextResponse.json({
+      note: 'Fetch any data from your application for authenticated user after using verifySession middleware',
+      userId: session.getUserId(),
+      sessionHandle: session.getHandle(),
+      accessTokenPayload: session.getAccessTokenPayload(),
+    })
+  })
 }
