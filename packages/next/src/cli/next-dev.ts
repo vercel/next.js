@@ -27,7 +27,6 @@ import { createSelfSignedCertificate } from '../lib/mkcert'
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
-import { trace } from '../trace'
 import { fork } from 'child_process'
 import {
   getReservedPortExplanation,
