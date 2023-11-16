@@ -67,7 +67,7 @@ export function useMDXComponents(components) {
 Update the `next.config.js` file at your project's root to configure it to use MDX:
 
 ```js filename="next.config.js"
-const withMDX = require('@next/mdx')()
+const nextMDX = require('@next/mdx')()
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -76,7 +76,7 @@ const nextConfig = {
   // Optionally, add any other Next.js config below
 }
 
-module.exports = withMDX(nextConfig)
+module.exports = nextMDX()(nextConfig)
 ```
 
 <AppOnly>
