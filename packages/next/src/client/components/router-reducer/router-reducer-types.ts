@@ -4,11 +4,6 @@ import type {
   FlightData,
   FlightSegmentPath,
 } from '../../../server/app-render/types'
-import type {
-  FulfilledThenable,
-  PendingThenable,
-  RejectedThenable,
-} from 'react'
 import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
@@ -43,15 +38,11 @@ export interface Mutable {
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
   shouldScroll?: boolean
-  globalMutable: {
-    pendingNavigatePath?: string
-    pendingMpaPath?: string
-    refresh: () => void
-  }
+  preserveCustomHistoryState?: boolean
 }
 
 export interface ServerActionMutable extends Mutable {
-  inFlightServerAction?: ThenableRecord<any> | null
+  inFlightServerAction?: Promise<any> | null
   actionResultResolved?: boolean
 }
 
@@ -190,7 +181,7 @@ export interface PrefetchAction {
   kind: PrefetchKind
 }
 
-interface PushRef {
+export interface PushRef {
   /**
    * If the app-router should push a new history entry in app-router's useEffect()
    */
@@ -199,6 +190,10 @@ interface PushRef {
    * Multi-page navigation through location.href.
    */
   mpaNavigation: boolean
+  /**
+   * Skip applying the router state to the browser history state.
+   */
+  preserveCustomHistoryState: boolean
 }
 
 export type FocusAndScrollRef = {
@@ -222,7 +217,7 @@ export type FocusAndScrollRef = {
 
 export type PrefetchCacheEntry = {
   treeAtTimeOfPrefetch: FlightRouterState
-  data: ThenableRecord<FetchServerResponseResult> | null
+  data: Promise<FetchServerResponseResult> | null
   kind: PrefetchKind
   prefetchTime: number
   lastUsedTime: number | null
@@ -273,7 +268,7 @@ export type AppRouterState = {
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>
-export type ReducerState = AppRouterState
+export type ReducerState = Promise<AppRouterState> | AppRouterState
 export type ReducerActions = Readonly<
   | RefreshAction
   | NavigateAction
@@ -284,7 +279,14 @@ export type ReducerActions = Readonly<
   | ServerActionAction
 >
 
-export type ThenableRecord<T> =
-  | PendingThenable<T>
-  | RejectedThenable<T>
-  | FulfilledThenable<T>
+export function isThenable(value: any): value is Promise<AppRouterState> {
+  // TODO: We don't gain anything from this abstraction. It's unsound, and only
+  // makes sense in the specific places where we use it. So it's better to keep
+  // the type coercion inline, instead of leaking this to other places in
+  // the codebase.
+  return (
+    value &&
+    (typeof value === 'object' || typeof value === 'function') &&
+    typeof value.then === 'function'
+  )
+}

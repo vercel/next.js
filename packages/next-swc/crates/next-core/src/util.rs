@@ -12,7 +12,7 @@ use turbopack_binding::{
             asset::AssetContent,
             environment::{ServerAddr, ServerInfo},
             ident::AssetIdent,
-            issue::{Issue, IssueExt, IssueSeverity},
+            issue::{Issue, IssueExt, IssueSeverity, StyledString},
             module::Module,
             source::Source,
             virtual_source::VirtualSource,
@@ -191,12 +191,13 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(
+    fn description(&self) -> Vc<StyledString> {
+        StyledString::Text(
             "The exported configuration object in a source file need to have a very specific \
              format from which some properties can be statically parsed at compiled-time."
                 .to_string(),
         )
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -354,13 +355,12 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
 
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
 /// sure there are none left over.
-// TODO: should this be a turbo tasks function?
-// #[turbo_tasks::function]
 pub async fn load_next_js_template(
     path: &str,
     project_path: Vc<FileSystemPath>,
     replacements: IndexMap<&'static str, String>,
     injections: IndexMap<&'static str, String>,
+    imports: IndexMap<&'static str, Option<String>>,
 ) -> Result<Vc<Box<dyn Source>>> {
     let path = virtual_next_js_template_path(project_path, path.to_string());
 
@@ -529,6 +529,70 @@ pub async fn load_next_js_template(
 
         bail!(
             "Invariant: Expected to inject all injections, missing {} in template",
+            difference.join(", "),
+        )
+    }
+
+    // Replace the optional imports.
+    let mut imports_added = IndexSet::new();
+    for (key, import_path) in &imports {
+        let mut full = format!("// OPTIONAL_IMPORT:{}", key);
+        let namespace = if !content.contains(&full) {
+            full = format!("// OPTIONAL_IMPORT:* as {}", key);
+            if content.contains(&full) {
+                true
+            } else {
+                continue;
+            }
+        } else {
+            false
+        };
+
+        // Track all the imports to ensure that we're not missing any.
+        imports_added.insert(*key);
+
+        if let Some(path) = import_path {
+            content = content.replace(
+                &full,
+                &format!(
+                    "import {}{} from {}",
+                    if namespace { "* as " } else { "" },
+                    key,
+                    &StringifyJs(&path).to_string()
+                ),
+            );
+        } else {
+            content = content.replace(&full, &format!("const {} = null", key));
+        }
+    }
+
+    // Check to see if there's any remaining imports.
+    let regex = lazy_regex::regex!("// OPTIONAL_IMPORT:(\\* as )?[A-Za-z0-9_]+");
+    let matches = regex
+        .find_iter(&content)
+        .map(|m| m.as_str().to_string())
+        .collect::<Vec<_>>();
+
+    if !matches.is_empty() {
+        bail!(
+            "Invariant: Expected to inject all imports, found {}",
+            matches.join(", "),
+        )
+    }
+
+    // Check to see if any import was provided but not used.
+    if imports_added.len() != imports.len() {
+        // Find the difference between the provided imports and the injected
+        // imports. This will let us notify the user of any imports that were
+        // not used but were provided.
+        let difference = imports
+            .keys()
+            .filter(|k| !imports_added.contains(*k))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        bail!(
+            "Invariant: Expected to inject all imports, missing {} in template",
             difference.join(", "),
         )
     }

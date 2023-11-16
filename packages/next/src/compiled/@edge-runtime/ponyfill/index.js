@@ -26,6 +26,8 @@ function edge() {
     ReadableStreamDefaultReader,
     Request,
     Response,
+    setInterval,
+    setTimeout,
     structuredClone,
     SubtleCrypto,
     TextDecoder,

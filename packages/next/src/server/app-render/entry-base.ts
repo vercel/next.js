@@ -16,6 +16,7 @@ import { staticGenerationBailout } from '../../client/components/static-generati
 import StaticGenerationSearchParamsBailoutProvider from '../../client/components/static-generation-searchparams-bailout-provider'
 import { createSearchParamsBailoutProxy } from '../../client/components/searchparams-bailout-proxy'
 import * as serverHooks from '../../client/components/hooks-server-context'
+import { patchFetch as _patchFetch } from '../lib/patch-fetch'
 
 import {
   preloadStyle,
@@ -23,8 +24,16 @@ import {
   preconnect,
 } from '../../server/app-render/rsc/preloads'
 
+import { taintObjectReference } from '../../server/app-render/rsc/taint'
+
 const { NotFoundBoundary } =
   require('next/dist/client/components/not-found-boundary') as typeof import('../../client/components/not-found-boundary')
+
+// patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
+// in the experimental channel of React, so export it from here so that it comes from the bundled runtime
+function patchFetch() {
+  return _patchFetch({ serverHooks, staticGenerationAsyncStorage })
+}
 
 export {
   AppRouter,
@@ -39,6 +48,8 @@ export {
   preloadStyle,
   preloadFont,
   preconnect,
+  taintObjectReference,
   StaticGenerationSearchParamsBailoutProvider,
   NotFoundBoundary,
+  patchFetch,
 }

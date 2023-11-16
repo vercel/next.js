@@ -9,8 +9,8 @@ on:
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.10.9
-  NODE_MAINTENANCE_VERSION: 16
-  NODE_LTS_VERSION: 18
+  NODE_MAINTENANCE_VERSION: 18
+  NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
@@ -135,7 +135,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/development)/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY}
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY}
     secrets: inherit
 
   test-turbopack-integration:
@@ -147,7 +147,7 @@ jobs:
         group: [1, 2, 3, 4, 5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 16
+      nodeVersion: 18.17.0
       skipForDocsOnly: 'yes'
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type integration
     secrets: inherit
@@ -165,9 +165,12 @@ jobs:
     name: test unit
     strategy:
       fail-fast: false
+      matrix:
+        node: [18, 20] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      nodeVersion: ${{ matrix.node }}
       skipForDocsOnly: 'yes'
       afterBuild: node run-tests.js -c ${TEST_CONCURRENCY} --type unit
 
@@ -212,7 +215,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 16
+      nodeVersion: 18.17.0
       skipForDocsOnly: 'yes'
       afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
     secrets: inherit

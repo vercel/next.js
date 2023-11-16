@@ -1,13 +1,14 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath},
     turbopack::core::{
         resolve::{
             find_context_file,
-            node::node_cjs_resolve_options,
+            node::{node_cjs_resolve_options, node_esm_resolve_options},
             package_json,
             parse::Request,
+            pattern::Pattern,
             plugin::{ResolvePlugin, ResolvePluginCondition},
             resolve, FindContextFileResult, ResolveResult, ResolveResultItem, ResolveResultOption,
         },
@@ -58,8 +59,17 @@ async fn is_node_resolveable(
     context: Vc<FileSystemPath>,
     request: Vc<Request>,
     expected: Vc<FileSystemPath>,
+    is_esm: bool,
 ) -> Result<Vc<bool>> {
-    let node_resolve_result = resolve(context, request, node_cjs_resolve_options(context.root()));
+    let node_resolve_result = resolve(
+        context,
+        request,
+        if is_esm {
+            node_esm_resolve_options(context.root())
+        } else {
+            node_cjs_resolve_options(context.root())
+        },
+    );
     let primary_node_assets = node_resolve_result.primary_sources().await?;
     let Some(&node_asset) = primary_node_assets.first() else {
         // can't resolve request with node.js options
@@ -151,13 +161,45 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
             return Ok(ResolveResultOption::none());
         }
 
+        // We don't know if this is a ESM reference, so also check if it is resolveable
+        // as ESM.
+        let is_esm_resolveable =
+            *is_node_resolveable(self.project_path, request, fs_path, true).await?;
+        let is_cjs_resolveable =
+            *is_node_resolveable(self.project_path, request, fs_path, false).await?;
+
+        if !is_cjs_resolveable && !is_esm_resolveable {
+            // can't resolve request with node.js options
+            return Ok(ResolveResultOption::none());
+        }
+
         // check if we can resolve the package from the project dir with node.js resolve
         // options (might be hidden by pnpm)
-        if *is_node_resolveable(self.project_path, request, fs_path).await? {
+        if is_cjs_resolveable {
             // mark as external
             return Ok(ResolveResultOption::some(
                 ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
             ));
+        }
+
+        // When it's not resolveable as ESM, there is maybe an extension missing, try
+        // .js
+        if let Some(mut request_str) = request.await?.request() {
+            if !request_str.ends_with(".js") {
+                request_str += ".js";
+                let request = Request::parse(Value::new(Pattern::Constant(request_str.clone())));
+                if *is_node_resolveable(self.project_path, request, fs_path, false).await?
+                    && *is_node_resolveable(self.project_path, request, fs_path, true).await?
+                {
+                    // mark as external, but with .js extension
+                    return Ok(ResolveResultOption::some(
+                        ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
+                            request_str,
+                        ))
+                        .cell(),
+                    ));
+                }
+            }
         }
 
         Ok(ResolveResultOption::none())

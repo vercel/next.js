@@ -217,7 +217,10 @@ The following example sends a JSON response with the status code `200` (`OK`) an
 ```ts filename="pages/api/hello.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
     const result = await someAsyncOperation()
     res.status(200).json({ result })
@@ -228,7 +231,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 ```
 
 ```js filename="pages/api/hello.js" switcher
-export default function handler(req, res) {
+export default async function handler(req, res) {
   try {
     const result = await someAsyncOperation()
     res.status(200).json({ result })
@@ -247,7 +250,10 @@ The following example sends a HTTP response with the status code `200` (`OK`) an
 ```ts filename="pages/api/hello.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
     const result = await someAsyncOperation()
     res.status(200).send({ result })
@@ -258,7 +264,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 ```
 
 ```js filename="pages/api/hello.js" switcher
-export default function handler(req, res) {
+export default async function handler(req, res) {
   try {
     const result = await someAsyncOperation()
     res.status(200).send({ result })
@@ -277,7 +283,10 @@ The following example redirects the client to the `/` path if the form is succes
 ```ts filename="pages/api/hello.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const { name, message } = req.body
 
   try {
@@ -290,7 +299,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 ```
 
 ```js filename="pages/api/hello.js" switcher
-export default function handler(req, res) {
+export default async function handler(req, res) {
   const { name, message } = req.body
 
   try {
