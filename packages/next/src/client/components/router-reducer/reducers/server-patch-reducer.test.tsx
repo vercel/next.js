@@ -254,6 +254,7 @@ describe('serverPatchReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": false,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",
@@ -425,6 +426,7 @@ describe('serverPatchReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": false,
+          "preserveCustomHistoryState": true,
         },
         "tree": [
           "",
@@ -500,7 +502,6 @@ describe('serverPatchReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      forceOptimisticNavigation: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
         data: null,
@@ -686,6 +687,7 @@ describe('serverPatchReducer', () => {
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
+          "preserveCustomHistoryState": false,
         },
         "tree": [
           "",

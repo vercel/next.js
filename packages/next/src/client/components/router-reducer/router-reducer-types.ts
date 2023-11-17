@@ -23,7 +23,6 @@ export type RouterChangeByServerResponse = (
 export type RouterNavigate = (
   href: string,
   navigateType: 'push' | 'replace',
-  forceOptimisticNavigation: boolean,
   shouldScroll: boolean
 ) => void
 
@@ -38,6 +37,7 @@ export interface Mutable {
   prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
   shouldScroll?: boolean
+  preserveCustomHistoryState?: boolean
 }
 
 export interface ServerActionMutable extends Mutable {
@@ -101,11 +101,6 @@ export interface ServerActionAction {
  *    - The cache is reused
  *    - If any cache nodes are missing they'll be fetched in layout-router and trigger the SERVER_PATCH action
  * - page was not prefetched
- *  - The navigate was called from `next/link` with `prefetch={false}`. This case is called `forceOptimisticNavigation`. It triggers an optimistic navigation so that loading spinners can be shown early if any.
- *    - Creates an optimistic router tree based on the provided url
- *    - Adds a cache node to the cache with a Flight data fetch that was eagerly started in the reducer
- *    - Flight data fetch is suspended in the layout-router
- *    - Triggers SERVER_PATCH action when the data comes back, this will apply the data to the cache and router state, at that point the optimistic router tree is replaced by the actual router tree.
  *  - The navigate was called from `next/router` (`router.push()` / `router.replace()`) / `next/link` without prefetched data available (e.g. the prefetch didn't come back from the server before clicking the link)
  *    - Flight data is fetched in the reducer (suspends the reducer)
  *    - Router state tree is created based on Flight data
@@ -122,7 +117,6 @@ export interface NavigateAction {
   isExternalUrl: boolean
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
-  forceOptimisticNavigation: boolean
   shouldScroll: boolean
   cache: CacheNode
   mutable: Mutable
@@ -180,7 +174,7 @@ export interface PrefetchAction {
   kind: PrefetchKind
 }
 
-interface PushRef {
+export interface PushRef {
   /**
    * If the app-router should push a new history entry in app-router's useEffect()
    */
@@ -189,6 +183,10 @@ interface PushRef {
    * Multi-page navigation through location.href.
    */
   mpaNavigation: boolean
+  /**
+   * Skip applying the router state to the browser history state.
+   */
+  preserveCustomHistoryState: boolean
 }
 
 export type FocusAndScrollRef = {

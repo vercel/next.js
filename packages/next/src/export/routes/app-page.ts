@@ -15,6 +15,7 @@ import {
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
+  NEXT_META_SUFFIX,
   RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
 } from '../../lib/constants'
@@ -183,7 +184,7 @@ export async function exportAppPage(
       )
     }
 
-    const headers = { ...metadata.extraHeaders }
+    const headers = { ...metadata.headers }
 
     if (fetchTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
@@ -206,7 +207,7 @@ export async function exportAppPage(
 
     await fileWriter(
       ExportedAppPageFiles.META,
-      htmlFilepath.replace(/\.html$/, '.meta'),
+      htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
       JSON.stringify(meta, null, 2)
     )
 
