@@ -346,7 +346,7 @@ function createServerComponentsRenderer(
       appUsingSizeAdjustment: appUsingSizeAdjustment,
     })
 
-    const { Component: ComponentTree, styles } = await createComponentTree({
+    const { seedData, styles } = await createComponentTree({
       ctx,
       createSegmentPath: (child) => child,
       loaderTree: loaderTreeToRender,
@@ -359,7 +359,7 @@ function createServerComponentsRenderer(
       asNotFound: props.asNotFound,
       metadataOutlet: <MetadataOutlet />,
     })
-
+    const componentTree = seedData[2]
     return (
       <>
         {styles}
@@ -367,7 +367,15 @@ function createServerComponentsRenderer(
           buildId={ctx.renderOpts.buildId}
           assetPrefix={ctx.assetPrefix}
           initialCanonicalUrl={urlPathname}
+          // This is the router state tree.
           initialTree={initialTree}
+          // This is the tree of React nodes that are seeded into the cache
+          // TODO: This will be passed as a prop in a later PR. Then we will use
+          // this prop to populate the cache nodes as soon as the app router
+          // receives the response. This will replace the `initialChildNode`
+          // that's currently passed to Layout Router.
+          //
+          // cacheNodeSeedData={seedData}
           initialHead={
             <>
               {ctx.res.statusCode > 400 && (
@@ -379,7 +387,7 @@ function createServerComponentsRenderer(
           }
           globalErrorComponent={GlobalError}
         >
-          <ComponentTree />
+          {componentTree}
         </AppRouter>
       </>
     )
