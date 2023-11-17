@@ -2454,6 +2454,7 @@
   "test/e2e/app-dir/app-middleware/app-middleware.test.ts": {
     "passed": [
       "app dir - middleware without pages dir Updates headers",
+      "app dir - middleware with middleware in src dir works without crashing when using requestAsyncStorage",
       "app-dir with middleware Mutate request headers for Edge Functions Supports draft mode",
       "app-dir with middleware Mutate request headers for Serverless Functions Adds new headers",
       "app-dir with middleware Mutate request headers for Serverless Functions Deletes headers",
@@ -2463,14 +2464,12 @@
       "app-dir with middleware Mutate request headers for next/headers Deletes headers",
       "app-dir with middleware Mutate request headers for next/headers Supports draft mode",
       "app-dir with middleware Mutate request headers for next/headers Updates headers",
-      "app-dir with middleware should filter correctly after middleware rewrite"
-    ],
-    "failed": [
-      "app dir - middleware with middleware in src dir works without crashing when using requestAsyncStorage",
       "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
       "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
-      "app-dir with middleware Mutate request headers for Edge Functions Updates headers"
+      "app-dir with middleware Mutate request headers for Edge Functions Updates headers",
+      "app-dir with middleware should filter correctly after middleware rewrite"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
