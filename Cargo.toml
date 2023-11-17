@@ -14,7 +14,7 @@ members = [
   "packages/next-swc/crates/next-transform-strip-page-exports",
 ]
 
-[lints.clippy]
+[workspace.lints.clippy]
 too_many_arguments = "allow"
 
 # This is a workaround for wasm timeout issue
