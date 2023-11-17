@@ -198,517 +198,6 @@
         },
         in_try: false,
     },
-    Member {
-        obj: Member(
-            3,
-            FreeVar(
-                "process",
-            ),
-            Constant(
-                Str(
-                    Atom(
-                        "env",
-                    ),
-                ),
-            ),
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "NEXT_RUNTIME",
-                ),
-            ),
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                53,
-            ),
-            hi: BytePos(
-                77,
-            ),
-            ctxt: #0,
-        },
-        in_try: false,
-    },
-    Member {
-        obj: FreeVar(
-            "process",
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "env",
-                ),
-            ),
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                53,
-            ),
-            hi: BytePos(
-                64,
-            ),
-            ctxt: #0,
-        },
-        in_try: false,
-    },
-    FreeVar {
-        var: FreeVar(
-            "process",
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                53,
-            ),
-            hi: BytePos(
-                60,
-            ),
-            ctxt: #1,
-        },
-        in_try: false,
-    },
-    Conditional {
-        condition: Binary(
-            7,
-            Member(
-                5,
-                Member(
-                    3,
-                    FreeVar(
-                        "process",
-                    ),
-                    Constant(
-                        Str(
-                            Atom(
-                                "env",
-                            ),
-                        ),
-                    ),
-                ),
-                Constant(
-                    Str(
-                        Atom(
-                            "NEXT_RUNTIME",
-                        ),
-                    ),
-                ),
-            ),
-            StrictEqual,
-            Constant(
-                Str(
-                    Word(
-                        "edge",
-                    ),
-                ),
-            ),
-        ),
-        kind: Ternary {
-            then: EffectsBlock {
-                effects: [],
-                ast_path: [
-                    Program(
-                        Script,
-                    ),
-                    Script(
-                        Body(
-                            1,
-                        ),
-                    ),
-                    Stmt(
-                        Decl,
-                    ),
-                    Decl(
-                        Var,
-                    ),
-                    VarDecl(
-                        Decls(
-                            0,
-                        ),
-                    ),
-                    VarDeclarator(
-                        Init,
-                    ),
-                    Expr(
-                        Call,
-                    ),
-                    CallExpr(
-                        Args(
-                            0,
-                        ),
-                    ),
-                    ExprOrSpread(
-                        Expr,
-                    ),
-                    Expr(
-                        Cond,
-                    ),
-                    CondExpr(
-                        Cons,
-                    ),
-                ],
-            },
-            else: EffectsBlock {
-                effects: [],
-                ast_path: [
-                    Program(
-                        Script,
-                    ),
-                    Script(
-                        Body(
-                            1,
-                        ),
-                    ),
-                    Stmt(
-                        Decl,
-                    ),
-                    Decl(
-                        Var,
-                    ),
-                    VarDecl(
-                        Decls(
-                            0,
-                        ),
-                    ),
-                    VarDeclarator(
-                        Init,
-                    ),
-                    Expr(
-                        Call,
-                    ),
-                    CallExpr(
-                        Args(
-                            0,
-                        ),
-                    ),
-                    ExprOrSpread(
-                        Expr,
-                    ),
-                    Expr(
-                        Cond,
-                    ),
-                    CondExpr(
-                        Alt,
-                    ),
-                ],
-            },
-        },
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Cond,
-            ),
-            CondExpr(
-                Test,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                53,
-            ),
-            hi: BytePos(
-                188,
-            ),
-            ctxt: #0,
-        },
-        in_try: false,
-    },
-    Call {
-        func: FreeVar(
-            "import",
-        ),
-        args: [
-            Value(
-                Tenary(
-                    10,
-                    Binary(
-                        7,
-                        Member(
-                            5,
-                            Member(
-                                3,
-                                FreeVar(
-                                    "process",
-                                ),
-                                Constant(
-                                    Str(
-                                        Atom(
-                                            "env",
-                                        ),
-                                    ),
-                                ),
-                            ),
-                            Constant(
-                                Str(
-                                    Atom(
-                                        "NEXT_RUNTIME",
-                                    ),
-                                ),
-                            ),
-                        ),
-                        StrictEqual,
-                        Constant(
-                            Str(
-                                Word(
-                                    "edge",
-                                ),
-                            ),
-                        ),
-                    ),
-                    Constant(
-                        Str(
-                            Word(
-                                "next/dist/compiled/@vercel/og/index.edge.js",
-                            ),
-                        ),
-                    ),
-                    Constant(
-                        Str(
-                            Word(
-                                "next/dist/compiled/@vercel/og/index.node.js",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                46,
-            ),
-            hi: BytePos(
-                189,
-            ),
-            ctxt: #0,
-        },
-        in_try: false,
-    },
     Conditional {
         condition: Constant(
             True,
@@ -737,7 +226,7 @@
                             ),
                             Script(
                                 Body(
-                                    3,
+                                    2,
                                 ),
                             ),
                             Stmt(
@@ -772,10 +261,10 @@
                         ],
                         span: Span {
                             lo: BytePos(
-                                216,
+                                63,
                             ),
                             hi: BytePos(
-                                227,
+                                74,
                             ),
                             ctxt: #0,
                         },
@@ -788,7 +277,7 @@
                     ),
                     Script(
                         Body(
-                            3,
+                            2,
                         ),
                     ),
                     Stmt(
@@ -822,7 +311,7 @@
                             ),
                             Script(
                                 Body(
-                                    3,
+                                    2,
                                 ),
                             ),
                             Stmt(
@@ -857,10 +346,10 @@
                         ],
                         span: Span {
                             lo: BytePos(
-                                243,
+                                90,
                             ),
                             hi: BytePos(
-                                254,
+                                101,
                             ),
                             ctxt: #0,
                         },
@@ -873,7 +362,7 @@
                     ),
                     Script(
                         Body(
-                            3,
+                            2,
                         ),
                     ),
                     Stmt(
@@ -891,7 +380,7 @@
             ),
             Script(
                 Body(
-                    3,
+                    2,
                 ),
             ),
             Stmt(
@@ -903,10 +392,10 @@
         ],
         span: Span {
             lo: BytePos(
-                198,
+                45,
             ),
             hi: BytePos(
-                256,
+                103,
             ),
             ctxt: #0,
         },

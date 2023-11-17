@@ -77,7 +77,7 @@
 
 *anonymous function 16713* = (...) => {"type": "number_constant", "value": FreeVar(Number)(text())}
 
-*anonymous function 16837* = (...) => (head ? ???*0* : [])
+*anonymous function 16837* = (...) => (???*0* | [])
 - *0* spread is not supported
 
 *anonymous function 16925* = (...) => subquery
@@ -143,7 +143,7 @@
 
 *anonymous function 6458* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args}
 
-*anonymous function 6748* = (...) => {"type": "scalar_object_expression", "properties": (head ? ???*0* : [])}
+*anonymous function 6748* = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
 - *0* spread is not supported
 
 *anonymous function 702* = (...) => `"${literalEscape(expectation["text"])}"`
@@ -160,10 +160,10 @@
 
 *anonymous function 7869* = (...) => {
     "type": "number_constant",
-    "value": (hex ? FreeVar(parseInt)(text(), 16) : FreeVar(parseFloat)(text()))
+    "value": (FreeVar(parseInt)(text(), 16) | FreeVar(parseFloat)(text()))
 }
 
-*anonymous function 804* = (...) => `[${(expectation["inverted"] ? "^" : "")}${escapedParts}]`
+*anonymous function 804* = (...) => `[${("^" | "")}${escapedParts}]`
 
 *anonymous function 8139* = (...) => {"type": "string_constant", "value": chars["join"]("")}
 
@@ -251,7 +251,7 @@ describeExpected = (...) => (
 - *0* unsupported expression
 - *1* unsupported expression
 
-describeFound = (...) => (found ? `"${literalEscape(found)}"` : "end of input")
+describeFound = (...) => (`"${literalEscape(found)}"` | "end of input")
 
 description#105 = arguments[0]
 
@@ -282,10 +282,12 @@ escapedParts = (
   | ""
   | (
       + escapedParts
-      + (???*0* ? `${classEscape(expectation["parts"][i][0])}-${classEscape(expectation["parts"][i][1])}` : classEscape(expectation["parts"][i]))
+      + (
+          | `${classEscape(expectation["parts"][i][0])}-${classEscape(expectation["parts"][i][1])}`
+          | classEscape(expectation["parts"][i])
+        )
     )
 )
-- *0* unsupported expression
 
 expectation#11 = arguments[0]
 
@@ -412,17 +414,9 @@ list = arguments[1]
 
 literalEscape = (...) => s["replace"](/\\/g, "\\\\")["replace"](/"/g, "\\\"")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)
 
-location#105 = (
-  | arguments[1]
-  | ((location !== ???*0*) ? location : peg$computeLocation(peg$savedPos, peg$currPos))
-)
-- *0* unsupported expression
+location#105 = (arguments[1] | location | peg$computeLocation(peg$savedPos, peg$currPos))
 
-location#106 = (
-  | arguments[1]
-  | ((location !== ???*0*) ? location : peg$computeLocation(peg$savedPos, peg$currPos))
-)
-- *0* unsupported expression
+location#106 = (arguments[1] | location | peg$computeLocation(peg$savedPos, peg$currPos))
 
 location#123 = arguments[1]
 
@@ -458,8 +452,7 @@ operator#1802 = ???*0*
 
 operator#87 = arguments[0]
 
-options = (arguments[1] | ((options !== ???*0*) ? options : {}))
-- *0* unsupported expression
+options = (arguments[1] | options | {})
 
 order = arguments[1]
 
