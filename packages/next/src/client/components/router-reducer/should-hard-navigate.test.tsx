@@ -39,6 +39,7 @@ describe('shouldHardNavigate', () => {
           <>
             <title>About page!</title>
           </>,
+          null,
         ],
       ]
     }
@@ -50,7 +51,7 @@ describe('shouldHardNavigate', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    const flightSegmentPath = flightDataPath.slice(0, -3)
+    const flightSegmentPath = flightDataPath.slice(0, -4)
 
     const result = shouldHardNavigate(
       ['', ...flightSegmentPath],
@@ -96,6 +97,7 @@ describe('shouldHardNavigate', () => {
           ],
           null,
           null,
+          null,
         ],
       ]
     }
@@ -107,7 +109,7 @@ describe('shouldHardNavigate', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    const flightSegmentPath = flightDataPath.slice(0, -3)
+    const flightSegmentPath = flightDataPath.slice(0, -4)
 
     const result = shouldHardNavigate(
       ['', ...flightSegmentPath],
@@ -153,6 +155,7 @@ describe('shouldHardNavigate', () => {
           ],
           null,
           null,
+          null,
         ],
       ]
     }
@@ -164,7 +167,7 @@ describe('shouldHardNavigate', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    const flightSegmentPath = flightDataPath.slice(0, -3)
+    const flightSegmentPath = flightDataPath.slice(0, -4)
 
     const result = shouldHardNavigate(
       ['', ...flightSegmentPath],
