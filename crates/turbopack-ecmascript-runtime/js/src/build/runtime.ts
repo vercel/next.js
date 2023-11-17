@@ -83,7 +83,7 @@ function resolveAbsolutePath(modulePath?: string): string {
  * https://github.com/webpack/webpack/blob/87660921808566ef3b8796f8df61bd79fc026108/lib/runtime/RelativeUrlRuntimeModule.js
  */
 var relativeURL = function (this: any, inputUrl: string) {
-  const outputUrl = inputUrl.replace(ASSET_PREFIX, OUTPUT_ROOT);
+  const outputUrl = inputUrl;
   const realUrl = new URL(outputUrl, "x:/");
   const values: Record<string, any> = {};
   for (var key in realUrl) values[key] = (realUrl as any)[key];
