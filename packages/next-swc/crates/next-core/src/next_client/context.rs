@@ -237,12 +237,14 @@ pub async fn get_client_module_options_context(
         .cell()
     });
 
+    let use_lightningcss = *next_config.use_lightningcss().await?;
+
     let source_transforms = vec![
         *get_swc_ecma_transform_plugin(project_path, next_config).await?,
         *get_relay_transform_plugin(next_config).await?,
         *get_emotion_transform_plugin(next_config).await?,
         *get_styled_components_transform_plugin(next_config).await?,
-        *get_styled_jsx_transform_plugin().await?,
+        *get_styled_jsx_transform_plugin(use_lightningcss).await?,
     ]
     .into_iter()
     .flatten()
@@ -273,8 +275,6 @@ pub async fn get_client_module_options_context(
         enable_postcss_transform: postcss_transform_options.clone(),
         ..module_options_context.clone()
     };
-
-    let use_lightningcss = *next_config.use_lightningcss().await?;
 
     let module_options_context = ModuleOptionsContext {
         // We don't need to resolve React Refresh for each module. Instead,

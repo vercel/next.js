@@ -291,10 +291,12 @@ pub async fn get_server_module_options_context(
         .cell()
     });
 
+    let use_lightningcss = *next_config.use_lightningcss().await?;
+
     // EcmascriptTransformPlugins for custom transforms
     let styled_components_transform_plugin =
         *get_styled_components_transform_plugin(next_config).await?;
-    let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin().await?;
+    let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin(use_lightningcss).await?;
 
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
@@ -359,8 +361,6 @@ pub async fn get_server_module_options_context(
                     UrlRewriteBehavior::Relative
                 },
             );
-
-            let use_lightningcss = *next_config.use_lightningcss().await?;
 
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
