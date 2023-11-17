@@ -11,15 +11,14 @@ export function applyFlightData(
   wasPrefetched: boolean = false
 ): boolean {
   // The one before last item is the router state tree patch
-  const [treePatch, subTreeData, head /* , cacheNodeSeedData */] =
-    flightDataPath.slice(-4)
+  const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
 
   // Handles case where prefetch only returns the router tree patch without rendered components.
   if (subTreeData === null) {
     return false
   }
 
-  if (flightDataPath.length === 4) {
+  if (flightDataPath.length === 3) {
     cache.status = CacheStates.READY
     cache.subTreeData = subTreeData
     fillLazyItemsTillLeafWithHead(

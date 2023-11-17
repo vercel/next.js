@@ -175,10 +175,10 @@ export function navigateReducer(
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
           0,
-          -5
+          -4
         ) as unknown as FlightSegmentPath
         // The one before last item is the router state tree patch
-        const treePatch = flightDataPath.slice(-4)[0] as FlightRouterState
+        const treePatch = flightDataPath.slice(-3)[0] as FlightRouterState
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
