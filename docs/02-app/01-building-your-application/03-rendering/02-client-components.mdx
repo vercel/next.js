@@ -54,7 +54,7 @@ export default function Counter() {
 }
 ```
 
-The diagram below shows nested components, using `onClick` and `useState` in `toggle.js` will cause an error if the `"use client"` directive is not defined. This is because, by default, the components are rendered on the server where these APIs are not available. By defining the `"use client"` directive to `toggle.js`, you can tell React to render the component and its children on the client, where the APIs are available.
+The diagram below shows that using `onClick` and `useState` in a nested component (`toggle.js`) will cause an error if the `"use client"` directive is not defined. This is because, by default, the components are rendered on the server where these APIs are not available. By defining the `"use client"` directive in `toggle.js`, you can tell React to render the component and its children on the client, where the APIs are available.
 
 <Image
   alt="Use Client Directive and Network Boundary"

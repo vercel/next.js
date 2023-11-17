@@ -792,7 +792,7 @@ function assignDefaults(
       },
     },
     antd: {
-      transform: 'antd/lib/{{kebabCase member}}',
+      transform: 'antd/es/{{kebabCase member}}',
     },
     ahooks: {
       transform: {

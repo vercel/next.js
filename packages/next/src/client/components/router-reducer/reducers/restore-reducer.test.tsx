@@ -123,6 +123,7 @@ describe('serverPatchReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: true,
       },
       focusAndScrollRef: {
         apply: false,
@@ -290,6 +291,7 @@ describe('serverPatchReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: true,
       },
       focusAndScrollRef: {
         apply: false,
