@@ -1,6 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { withSession } from '../../sessionUtils'
-import SuperTokens from 'supertokens-node'
 
 export function GET(request: NextRequest) {
   return withSession(request, async (session) => {

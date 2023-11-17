@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, redirect } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Session from 'supertokens-auth-react/recipe/session'
 import SuperTokens from 'supertokens-auth-react'
 
@@ -21,7 +21,7 @@ export const TryRefreshComponent = () => {
       .catch(() => {
         setDidError(true)
       })
-  }, [])
+  }, [router])
 
   if (didError) {
     return <div>Something went wrong, please reload the page</div>
