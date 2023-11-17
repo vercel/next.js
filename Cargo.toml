@@ -15,7 +15,7 @@ members = [
 ]
 
 [workspace.lints.clippy]
-# too_many_arguments = "allow"
+too_many_arguments = "allow"
 
 # This is a workaround for wasm timeout issue
 [profile.dev.package."*"]
