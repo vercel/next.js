@@ -160,6 +160,9 @@ Parallel Routing can be used to render modals.
 
 The `@auth` slot renders a `<Modal>` component that can be shown by navigating to a matching route, for example `/login`.
 
+DISCLAIMER:. When you use the structure above, a `<Modal>` followed by `@auth` and finally accessed by `/login`, you need to comprehend due the nature of parallel, the whole context passed until now, if have some will node be referenced.
+
+
 ```tsx filename="app/layout.tsx" switcher
 export default async function Layout(props: {
   // ...
