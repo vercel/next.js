@@ -27,7 +27,6 @@ jest.mock('../fetch-server-response', () => {
       <>
         <title>About page!</title>
       </>,
-      null,
     ],
   ]
   return {
