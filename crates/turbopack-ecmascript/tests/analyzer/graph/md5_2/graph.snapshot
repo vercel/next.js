@@ -145,16 +145,73 @@
     (
         "*anonymous function 5685*",
         Function(
-            11,
+            22,
             5685,
-            Alternatives(
-                10,
-                [
-                    Variable(
-                        (
-                            "digestbytes",
-                            #11,
+            Tenary(
+                21,
+                Logical(
+                    5,
+                    And,
+                    [
+                        Variable(
+                            (
+                                "options",
+                                #11,
+                            ),
                         ),
+                        Member(
+                            3,
+                            Variable(
+                                (
+                                    "options",
+                                    #11,
+                                ),
+                            ),
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "asBytes",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Variable(
+                    (
+                        "digestbytes",
+                        #11,
+                    ),
+                ),
+                Tenary(
+                    14,
+                    Logical(
+                        5,
+                        And,
+                        [
+                            Variable(
+                                (
+                                    "options",
+                                    #11,
+                                ),
+                            ),
+                            Member(
+                                3,
+                                Variable(
+                                    (
+                                        "options",
+                                        #11,
+                                    ),
+                                ),
+                                Constant(
+                                    Str(
+                                        Atom(
+                                            "asString",
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ],
                     ),
                     MemberCall(
                         4,
@@ -204,7 +261,7 @@
                             ),
                         ],
                     ),
-                ],
+                ),
             ),
         ),
     ),
