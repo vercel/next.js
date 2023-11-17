@@ -6,14 +6,7 @@ import { useRef } from 'react'
 
 function Submit() {
   const { pending } = useFormStatus()
-  return (
-    <button
-      disabled={pending}
-      className="border rounded py-2 px-4 bg-indigo-500 text-white mt-8"
-    >
-      {pending ? 'Submitting' : 'Submit'}
-    </button>
-  )
+  return <button disabled={pending}>{pending ? 'Submitting' : 'Submit'}</button>
 }
 
 export default function UploadForm() {
@@ -26,19 +19,18 @@ export default function UploadForm() {
   }
 
   return (
-    <form action={formAction} ref={formRef} className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Upload Demo</h1>
+    <form action={formAction} ref={formRef}>
+      <h1>Upload Demo</h1>
 
       <div>Email</div>
-      <input
-        type="email"
-        name="email"
-        required
-        className="border py-2 px-2 min-w-full rounded mb-4"
-      />
+      <input type="email" name="email" required />
+      <br />
+      <br />
 
       <div>Select file</div>
       <input type="file" name="file" required />
+      <br />
+      <br />
       <br />
       <Submit />
     </form>
