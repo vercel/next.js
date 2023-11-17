@@ -57,8 +57,8 @@ export function refreshReducer(
       cache.data = null
 
       for (const flightDataPath of flightData) {
-        // FlightDataPath with more than four items means unexpected Flight data was returned
-        if (flightDataPath.length !== 4) {
+        // FlightDataPath with more than two items means unexpected Flight data was returned
+        if (flightDataPath.length !== 3) {
           // TODO-APP: handle this case better
           console.log('REFRESH FAILED')
           return state
@@ -95,7 +95,7 @@ export function refreshReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [subTreeData, head] = flightDataPath.slice(-3)
+        const [subTreeData, head] = flightDataPath.slice(-2)
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (subTreeData !== null) {
