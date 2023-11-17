@@ -289,7 +289,7 @@ export async function createComponentTree({
   // TODO: Once we're done refactoring the Flight response type so that all the
   // tree nodes are passed at the root of the response, we'll no longer need to
   // do anything extra to preload the nested layouts; all of the child nodes will
-  // automatically by rendered in parallel by React. Then, to simplify the code,
+  // automatically be rendered in parallel by React. Then, to simplify the code,
   // we should combine this `map` traversal with the loop below that turns
   // the array into an object.
   const parallelRouteMap = await Promise.all(
