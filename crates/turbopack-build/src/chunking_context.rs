@@ -147,6 +147,11 @@ impl BuildChunkingContext {
         this.into_value().cell()
     }
 
+    #[turbo_tasks::function]
+    pub fn asset_prefix(&self) -> Vc<Option<String>> {
+        self.asset_prefix
+    }
+
     /// Generates an output chunk that:
     /// * evaluates the given assets; and
     /// * exports the result of evaluating the given module as a CommonJS

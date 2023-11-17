@@ -970,7 +970,7 @@ pub(crate) async fn analyze_ecmascript_module(
                     in_try,
                     options
                         .url_rewrite_behavior
-                        .unwrap_or(UrlRewriteBehavior::Full)
+                        .unwrap_or(UrlRewriteBehavior::Relative)
                         .cell(),
                 ));
             }

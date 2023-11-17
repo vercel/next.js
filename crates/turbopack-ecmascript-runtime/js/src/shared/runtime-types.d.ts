@@ -41,6 +41,7 @@ type ModuleFactories = Record<ModuleId, ModuleFactory>;
 
 type ResolveAbsolutePath = (modulePath?: string) => string;
 type RelativeURL = (inputUrl: string) => void;
+type ResolvePathFromModule = (moduleId: string) => string;
 
 type AsyncModule = (
   body: (
