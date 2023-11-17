@@ -1,5 +1,5 @@
 import type { NextApiResponse } from 'next'
-import LRU from 'lru-cache'
+import { LRUCache } from 'lru-cache'
 
 type Options = {
   uniqueTokenPerInterval?: number
