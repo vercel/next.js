@@ -433,7 +433,11 @@ impl EvalContext {
                         self.eval(alt)
                     }
                 } else {
-                    JsValue::alternatives(vec![self.eval(cons), self.eval(alt)])
+                    JsValue::tenary(
+                        Box::new(test),
+                        Box::new(self.eval(cons)),
+                        Box::new(self.eval(alt)),
+                    )
                 }
             }
 

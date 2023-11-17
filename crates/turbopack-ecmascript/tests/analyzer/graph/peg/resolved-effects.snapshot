@@ -270,7 +270,7 @@
 
 0 -> 88 member call = {
     "literal": (...) => `"${literalEscape(expectation["text"])}"`,
-    "class": (...) => `[${("^" | "")}${escapedParts}]`,
+    "class": (...) => `[${(expectation["inverted"] ? "^" : "")}${escapedParts}]`,
     "any": (...) => "any character",
     "end": (...) => "end of input",
     "other": (...) => expectation["description"]
@@ -331,16 +331,14 @@
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 118 call = (...) => (`"${literalEscape(found)}"` | "end of input")(???*0*)
+0 -> 118 call = (...) => (found ? `"${literalEscape(found)}"` : "end of input")(???*0*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 119 conditional = ((???*0* | ???*1* | {}) !== ???*2*)
+0 -> 119 conditional = ((???*0* | {}) !== ???*1*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* options
-  ⚠️  circular variable reference
-- *2* unsupported expression
+- *1* unsupported expression
 
 0 -> 120 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("*", false)
 
@@ -1678,7 +1676,7 @@
 571 -> 577 conditional = ???*0*
 - *0* max number of linking steps reached
 
-577 -> 578 call = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}(???*1*, (???*2* | []))
+577 -> 578 call = (...) => {"type": "scalar_object_expression", "properties": (head ? ???*0* : [])}(???*1*, (???*2* | []))
 - *0* spread is not supported
 - *1* max number of linking steps reached
 - *2* s4
@@ -1848,9 +1846,9 @@
 0 -> 633 conditional = ((???*0* | "-" | {} | null | {"type": "number_constant", "value": ???*1*}) !== {})
 - *0* s1
   ⚠️  pattern without value
-- *1* ???*2*(text(), 16)
+- *1* ???*2*(text())
   ⚠️  unknown callee
-- *2* FreeVar(parseInt)
+- *2* FreeVar(parseFloat)
   ⚠️  unknown global
 
 633 -> 635 member call = ???*0*["substr"](???*1*, 2)
@@ -2052,7 +2050,7 @@
 
 689 -> 690 call = (...) => {
     "type": "number_constant",
-    "value": (FreeVar(parseInt)(text(), 16) | FreeVar(parseFloat)(text()))
+    "value": (hex ? FreeVar(parseInt)(text(), 16) : FreeVar(parseFloat)(text()))
 }((???*0* | "0x" | {} | null))
 - *0* s2
   ⚠️  pattern without value
@@ -7109,7 +7107,7 @@
 - *0* s2
   ⚠️  pattern without value
 
-2212 -> 2213 call = (...) => (???*0* | [])(???*1*, (???*2* | []))
+2212 -> 2213 call = (...) => (head ? ???*0* : [])(???*1*, (???*2* | []))
 - *0* spread is not supported
 - *1* max number of linking steps reached
 - *2* s2
@@ -7224,12 +7222,8 @@
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
 
-2237 -> 2248 call = (...) => ???*0*([], (???*1* | null), ???*3*)
+2237 -> 2248 call = (...) => ???*0*([], null, ???*1*)
 - *0* unknown new expression
-- *1* ???*2*["charAt"](peg$maxFailPos)
-  ⚠️  unknown callee object
-- *2* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *3* max number of linking steps reached
+- *1* max number of linking steps reached
 
 0 -> 2250 free var = FreeVar(module)
