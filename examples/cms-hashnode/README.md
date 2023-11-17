@@ -5,6 +5,28 @@ wired with [Hashnode](https://hashnode.com).
 
 We've used [Hashnode API's](https://apidocs.hashnode.com) and integrated them with this blog starter kit.
 
+## Deploy your own
+
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-hashnode&project-name=cms-hashnode&repository-name=cms-hashnode)
+
+## How to use
+
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+
+```bash
+npx create-next-app --example cms-hashnode cms-hashnode-app
+```
+
+```bash
+yarn create next-app --example cms-hashnode cms-hashnode-app
+```
+
+```bash
+pnpm create next-app --example cms-hashnode cms-hashnode-app
+```
+
 ## Version Requirements:
 
     Node.js 18.17+
