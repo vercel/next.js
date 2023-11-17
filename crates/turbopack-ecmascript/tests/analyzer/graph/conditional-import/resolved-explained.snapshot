@@ -3,5 +3,3 @@ a = module<"a", {}>
 b = (???*0* | module<"a", {}> | module<"b", {}>)
 - *0* b
   ⚠️  pattern without value
-
-c = module<"next/dist/compiled/@vercel/og/index.node.js", {}>

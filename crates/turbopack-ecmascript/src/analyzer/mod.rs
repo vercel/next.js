@@ -428,9 +428,6 @@ pub enum JsValue {
     /// A member access `obj[prop]`
     /// `(total_node_count, obj, prop)`
     Member(usize, Box<JsValue>, Box<JsValue>),
-    /// A tenary operator `test ? cons : alt`
-    /// `(total_node_count, test, cons, alt)`
-    Tenary(usize, Box<JsValue>, Box<JsValue>, Box<JsValue>),
 
     // PLACEHOLDERS
     // ----------------------------
@@ -576,7 +573,6 @@ impl Display for JsValue {
                     .join(op.joiner())
             ),
             JsValue::Binary(_, a, op, b) => write!(f, "({}{}{})", a, op.joiner(), b),
-            JsValue::Tenary(_, test, cons, alt) => write!(f, "({} ? {} : {})", test, cons, alt),
             JsValue::Call(_, callee, list) => write!(
                 f,
                 "{}({})",
@@ -689,7 +685,6 @@ impl JsValue {
             | JsValue::Binary(..)
             | JsValue::Call(..)
             | JsValue::SuperCall(..)
-            | JsValue::Tenary(..)
             | JsValue::MemberCall(..) => JsValueMetaKind::Operation,
             JsValue::Variable(..)
             | JsValue::Argument(..)
@@ -726,15 +721,6 @@ impl JsValue {
             1 + total_nodes(&list),
             LogicalOperator::NullishCoalescing,
             list,
-        )
-    }
-
-    pub fn tenary(test: Box<JsValue>, cons: Box<JsValue>, alt: Box<JsValue>) -> Self {
-        Self::Tenary(
-            1 + test.total_nodes() + cons.total_nodes() + alt.total_nodes(),
-            test,
-            cons,
-            alt,
         )
     }
 
@@ -878,7 +864,6 @@ impl JsValue {
             | JsValue::Not(c, _)
             | JsValue::Logical(c, _, _)
             | JsValue::Binary(c, _, _, _)
-            | JsValue::Tenary(c, _, _, _)
             | JsValue::Call(c, _, _)
             | JsValue::SuperCall(c, _)
             | JsValue::MemberCall(c, _, _, _)
@@ -913,9 +898,6 @@ impl JsValue {
 
             JsValue::Binary(c, a, _, b) => {
                 *c = 1 + a.total_nodes() + b.total_nodes();
-            }
-            JsValue::Tenary(c, test, cons, alt) => {
-                *c = 1 + test.total_nodes() + cons.total_nodes() + alt.total_nodes();
             }
             JsValue::Not(c, r) => {
                 *c = 1 + r.total_nodes();
@@ -1025,10 +1007,6 @@ impl JsValue {
                 }
                 JsValue::MemberCall(_, o, p, args) => {
                     make_max_unknown([&mut **o, &mut **p].into_iter().chain(args.iter_mut()));
-                    self.update_total_nodes();
-                }
-                JsValue::Tenary(_, test, cons, alt) => {
-                    make_max_unknown([&mut **test, &mut **cons, &mut **alt].into_iter());
                     self.update_total_nodes();
                 }
                 JsValue::Member(_, o, p) => {
@@ -1245,12 +1223,6 @@ impl JsValue {
                 a.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
                 op.joiner(),
                 b.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
-            ),
-            JsValue::Tenary(_, test, cons, alt) => format!(
-                "({} ? {} : {})",
-                test.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
-                cons.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
-                alt.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
             ),
             JsValue::Not(_, value) => format!(
                 "!({})",
@@ -1901,7 +1873,6 @@ impl JsValue {
             | JsValue::Call(..)
             | JsValue::MemberCall(..)
             | JsValue::Member(..)
-            | JsValue::Tenary(..)
             | JsValue::SuperCall(..) => None,
         }
     }
@@ -2156,16 +2127,6 @@ macro_rules! for_each_children_async {
                 *b = v;
                 $value.update_total_nodes();
                 ($value, m1 || m2)
-            }
-            JsValue::Tenary(_, box test, box cons, box alt) => {
-                let (v, m1) = $visit_fn(take(test), $($args),+).await?;
-                *test = v;
-                let (v, m2) = $visit_fn(take(cons), $($args),+).await?;
-                *cons = v;
-                let (v, m3) = $visit_fn(take(alt), $($args),+).await?;
-                *alt = v;
-                $value.update_total_nodes();
-                ($value, m1 || m2 || m3)
             }
             JsValue::Member(_, box obj, box prop) => {
                 let (v, m1) = $visit_fn(take(obj), $($args),+).await?;
@@ -2437,16 +2398,6 @@ impl JsValue {
                 }
                 modified
             }
-            JsValue::Tenary(_, test, cons, alt) => {
-                let m1 = visitor(test);
-                let m2 = visitor(cons);
-                let m3 = visitor(alt);
-                let modified = m1 || m2 || m3;
-                if modified {
-                    self.update_total_nodes();
-                }
-                modified
-            }
             JsValue::Member(_, obj, prop) => {
                 let m1 = visitor(obj);
                 let m2 = visitor(prop);
@@ -2606,11 +2557,6 @@ impl JsValue {
             JsValue::Binary(_, a, _, b) => {
                 visitor(a);
                 visitor(b);
-            }
-            JsValue::Tenary(_, test, cons, alt) => {
-                visitor(test);
-                visitor(cons);
-                visitor(alt);
             }
             JsValue::Constant(_)
             | JsValue::FreeVar(_)
@@ -2946,11 +2892,6 @@ impl JsValue {
                 a.similar_hash(state, depth - 1);
                 o.hash(state);
                 b.similar_hash(state, depth - 1);
-            }
-            JsValue::Tenary(_, test, cons, alt) => {
-                test.similar_hash(state, depth - 1);
-                cons.similar_hash(state, depth - 1);
-                alt.similar_hash(state, depth - 1);
             }
             JsValue::Module(ModuleValue {
                 module: v,
