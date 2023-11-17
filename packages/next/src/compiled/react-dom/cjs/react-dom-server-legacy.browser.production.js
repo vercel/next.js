@@ -26,7 +26,7 @@ function formatProdErrorMessage(code) {
   return "Minified React error #" + code + "; visit " + url + " for the full message or " + 'use the non-minified dev environment for full errors and additional ' + 'helpful warnings.';
 }
 
-var ReactVersion = '18.3.0-canary-593ecee66-20231114';
+var ReactVersion = '18.3.0-canary-2c338b16f-20231116';
 
 // A pure JS implementation of a string hashing function. We do not use it for
 // security or obfuscation purposes, only to create compact hashes. So we
@@ -4752,6 +4752,9 @@ function emitEarlyPreloads(renderState, resumableState, shellComplete) {
     const headers = renderState.headers;
 
     if (headers) {
+      // Even if onHeaders throws we don't want to call this again so
+      // we drop the headers state from this point onwards.
+      renderState.headers = null;
       let linkHeader = headers.preconnects;
 
       if (headers.fontPreloads) {
@@ -4822,7 +4825,6 @@ function emitEarlyPreloads(renderState, resumableState, shellComplete) {
         onHeaders({});
       }
 
-      renderState.headers = null;
       return;
     }
   }
@@ -7757,6 +7759,15 @@ function abortTask(task, request, error) {
   if (request.allPendingTasks === 0) {
     completeAll(request);
   }
+}
+
+function safelyEmitEarlyPreloads(request, shellComplete) {
+  try {
+    emitEarlyPreloads(request.renderState, request.resumableState, shellComplete);
+  } catch (error) {
+    // We assume preloads are optimistic and thus non-fatal if errored.
+    logRecoverableError(request, error);
+  }
 } // I extracted this function out because we want to ensure we consistently emit preloads before
 // transitioning to the next request stage and this transition can happen in multiple places in this
 // implementation.
@@ -7770,7 +7781,7 @@ function completeShell(request) {
     // we should only be calling completeShell when the shell is complete so we
     // just use a literal here
     const shellComplete = true;
-    emitEarlyPreloads(request.renderState, request.resumableState, shellComplete);
+    safelyEmitEarlyPreloads(request, shellComplete);
   } // We have completed the shell so the shell can't error anymore.
 
 
@@ -7790,7 +7801,7 @@ function completeAll(request) {
   const shellComplete = request.trackedPostpones === null ? // Render, we assume it is completed
   true : // Prerender Request, we use the state of the root segment
   request.completedRootSegment === null || request.completedRootSegment.status !== POSTPONED;
-  emitEarlyPreloads(request.renderState, request.resumableState, shellComplete);
+  safelyEmitEarlyPreloads(request, shellComplete);
   const onAllReady = request.onAllReady;
   onAllReady();
 }
@@ -8467,7 +8478,7 @@ function startWork(request) {
 
 function enqueueEarlyPreloadsAfterInitialWork(request) {
   const shellComplete = request.pendingRootTasks === 0;
-  emitEarlyPreloads(request.renderState, request.resumableState, shellComplete);
+  safelyEmitEarlyPreloads(request, shellComplete);
 }
 
 function enqueueFlush(request) {

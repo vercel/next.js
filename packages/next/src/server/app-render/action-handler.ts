@@ -353,10 +353,17 @@ export async function handleAction({
       if (isFetchAction) {
         res.statusCode = 500
         await Promise.all(staticGenerationStore.pendingRevalidates || [])
+
         const promise = Promise.reject(error)
         try {
+          // we need to await the promise to trigger the rejection early
+          // so that it's already handled by the time we call
+          // the RSC runtime. Otherwise, it will throw an unhandled
+          // promise rejection error in the renderer.
           await promise
-        } catch {}
+        } catch {
+          // swallow error, it's gonna be handled on the client
+        }
 
         return {
           type: 'done',
@@ -608,8 +615,14 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       if (isFetchAction) {
         const promise = Promise.reject(err)
         try {
+          // we need to await the promise to trigger the rejection early
+          // so that it's already handled by the time we call
+          // the RSC runtime. Otherwise, it will throw an unhandled
+          // promise rejection error in the renderer.
           await promise
-        } catch {}
+        } catch {
+          // swallow error, it's gonna be handled on the client
+        }
         return {
           type: 'done',
           result: await generateFlight(ctx, {
@@ -629,8 +642,14 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       await Promise.all(staticGenerationStore.pendingRevalidates || [])
       const promise = Promise.reject(err)
       try {
+        // we need to await the promise to trigger the rejection early
+        // so that it's already handled by the time we call
+        // the RSC runtime. Otherwise, it will throw an unhandled
+        // promise rejection error in the renderer.
         await promise
-      } catch {}
+      } catch {
+        // swallow error, it's gonna be handled on the client
+      }
 
       return {
         type: 'done',

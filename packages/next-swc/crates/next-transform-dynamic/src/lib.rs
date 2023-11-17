@@ -8,12 +8,12 @@ use swc_core::{
     common::{errors::HANDLER, FileName, Span, DUMMY_SP},
     ecma::{
         ast::{
-            ArrayLit, ArrowExpr, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr, ExprOrSpread,
-            ExprStmt, Id, Ident, ImportDecl, ImportDefaultSpecifier, ImportNamedSpecifier,
-            ImportSpecifier, KeyValueProp, Lit, ModuleDecl, ModuleItem, Null, ObjectLit, Prop,
-            PropName, PropOrSpread, Stmt, Str, Tpl,
+            op, ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee,
+            Expr, ExprOrSpread, ExprStmt, Id, Ident, ImportDecl, ImportDefaultSpecifier,
+            ImportNamedSpecifier, ImportSpecifier, KeyValueProp, Lit, ModuleDecl, ModuleItem,
+            ObjectLit, Prop, PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp,
         },
-        utils::{private_ident, ExprFactory},
+        utils::{private_ident, quote_ident, ExprFactory},
         visit::{Fold, FoldWith},
     },
     quote,
@@ -236,12 +236,12 @@ impl Fold for NextDynamicPatcher {
                                             rel_filename(self.pages_dir.as_deref(), &self.filename)
                                         )
                                         .into(),
-                                        right: Expr = dynamically_imported_specifier.into(),
+                                        right: Expr = dynamically_imported_specifier.clone().into(),
                                     ))
                                 } else {
                                     webpack_options(quote!(
                                         "require.resolveWeak($id)" as Expr,
-                                        id: Expr = dynamically_imported_specifier.into()
+                                        id: Expr = dynamically_imported_specifier.clone().into()
                                     ))
                                 }
                             }
@@ -259,7 +259,7 @@ impl Fold for NextDynamicPatcher {
                                         imports.push(TurbopackImport::DevelopmentTransition {
                                             id_ident: id_ident.clone(),
                                             chunks_ident: chunks_ident.clone(),
-                                            specifier: dynamically_imported_specifier,
+                                            specifier: dynamically_imported_specifier.clone(),
                                         });
 
                                         // On the server, the key needs to be serialized because it
@@ -280,7 +280,7 @@ impl Fold for NextDynamicPatcher {
                                     (true, false) => {
                                         imports.push(TurbopackImport::DevelopmentId {
                                             id_ident: id_ident.clone(),
-                                            specifier: dynamically_imported_specifier,
+                                            specifier: dynamically_imported_specifier.clone(),
                                         });
 
                                         // On the client, we only need the target module ID, which
@@ -365,11 +365,54 @@ impl Fold for NextDynamicPatcher {
                         }
                     }
 
-                    // Also don't strip the `loader` argument for server components (both
-                    // server/client layers), since they're aliased to a
-                    // React.lazy implementation.
-                    if has_ssr_false && self.is_server_compiler && !self.is_react_server_layer {
-                        expr.args[0] = Lit::Null(Null { span: DUMMY_SP }).as_arg();
+                    if has_ssr_false
+                        && self.is_server_compiler
+                        && !self.is_react_server_layer
+                        // Only use `require.resolveWebpack` to decouple modules for webpack,
+                        // turbopack doesn't need this
+                        && self.state == NextDynamicPatcherState::Webpack
+                    {
+                        // if it's server components SSR layer
+                        // Transform 1st argument `expr.args[0]` aka the module loader from:
+                        // dynamic(() => import('./client-mod'), { ssr: false }))`
+                        // into:
+                        // dynamic(async () => {
+                        //   require.resolveWeak('./client-mod')
+                        // }, { ssr: false }))`
+
+                        let require_resolve_weak_expr = Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: quote_ident!("require.resolveWeak").as_callee(),
+                            args: vec![ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Lit(Lit::Str(Str {
+                                    span: DUMMY_SP,
+                                    value: dynamically_imported_specifier.clone().into(),
+                                    raw: None,
+                                }))),
+                            }],
+                            type_args: Default::default(),
+                        });
+
+                        let side_effect_free_loader_arg = Expr::Arrow(ArrowExpr {
+                            span: DUMMY_SP,
+                            params: vec![],
+                            body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                span: DUMMY_SP,
+                                stmts: vec![Stmt::Expr(ExprStmt {
+                                    span: DUMMY_SP,
+                                    expr: Box::new(exec_expr_when_resolve_weak_available(
+                                        &require_resolve_weak_expr,
+                                    )),
+                                })],
+                            })),
+                            is_async: true,
+                            is_generator: false,
+                            type_params: None,
+                            return_type: None,
+                        });
+
+                        expr.args[0] = side_effect_free_loader_arg.as_arg();
                     }
 
                     let second_arg = ExprOrSpread {
@@ -560,6 +603,37 @@ impl NextDynamicPatcher {
 
         std::mem::swap(&mut new_items, items)
     }
+}
+
+fn exec_expr_when_resolve_weak_available(expr: &Expr) -> Expr {
+    let undefined_str_literal = Expr::Lit(Lit::Str(Str {
+        span: DUMMY_SP,
+        value: "undefined".into(),
+        raw: None,
+    }));
+
+    let typeof_expr = Expr::Unary(UnaryExpr {
+        span: DUMMY_SP,
+        op: UnaryOp::TypeOf, // 'typeof' operator
+        arg: Box::new(Expr::Ident(Ident {
+            span: DUMMY_SP,
+            sym: quote_ident!("require.resolveWeak").sym,
+            optional: false,
+        })),
+    });
+
+    // typeof require.resolveWeak !== 'undefined' && <expression>
+    Expr::Bin(BinExpr {
+        span: DUMMY_SP,
+        left: Box::new(Expr::Bin(BinExpr {
+            span: DUMMY_SP,
+            op: op!("!=="),
+            left: Box::new(typeof_expr),
+            right: Box::new(undefined_str_literal),
+        })),
+        op: op!("&&"),
+        right: Box::new(expr.clone()),
+    })
 }
 
 fn rel_filename(base: Option<&Path>, file: &FileName) -> String {

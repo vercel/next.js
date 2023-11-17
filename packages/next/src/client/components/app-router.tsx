@@ -232,6 +232,7 @@ const originalReplaceState =
     : null
 
 function copyNextJsInternalHistoryState(data: any) {
+  if (data == null) data = {}
   const currentState = window.history.state
   const __NA = currentState?.__NA
   if (__NA) {
@@ -242,6 +243,8 @@ function copyNextJsInternalHistoryState(data: any) {
   if (__PRIVATE_NEXTJS_INTERNALS_TREE) {
     data.__PRIVATE_NEXTJS_INTERNALS_TREE = __PRIVATE_NEXTJS_INTERNALS_TREE
   }
+
+  return data
 }
 
 /**
@@ -314,7 +317,7 @@ function Router({
         ) {
           return
         }
-        const url = new URL(addBasePath(href), location.href)
+        const url = new URL(addBasePath(href), window.location.href)
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return
@@ -404,8 +407,9 @@ function Router({
       if (
         !event.persisted ||
         !window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
-      )
+      ) {
         return
+      }
 
       dispatch({
         type: ACTION_RESTORE,
@@ -456,10 +460,11 @@ function Router({
       const applyUrlFromHistoryPushReplace = (
         url: string | URL | null | undefined
       ) => {
+        const href = window.location.href
         startTransition(() => {
           dispatch({
             type: ACTION_RESTORE,
-            url: new URL(url ?? window.location.href),
+            url: new URL(url ?? href, href),
             tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
           })
         })
@@ -476,7 +481,7 @@ function Router({
           _unused: string,
           url?: string | URL | null
         ): void {
-          copyNextJsInternalHistoryState(data)
+          data = copyNextJsInternalHistoryState(data)
 
           applyUrlFromHistoryPushReplace(url)
 
@@ -494,7 +499,7 @@ function Router({
           _unused: string,
           url?: string | URL | null
         ): void {
-          copyNextJsInternalHistoryState(data)
+          data = copyNextJsInternalHistoryState(data)
 
           if (url) {
             applyUrlFromHistoryPushReplace(url)
