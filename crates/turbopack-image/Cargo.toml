@@ -15,6 +15,9 @@ bench = false
 avif = ["image/avif-decoder", "image/avif-encoder"]
 webp = ["image/webp", "image/webp-encoder"]
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 base64 = "0.21.0"

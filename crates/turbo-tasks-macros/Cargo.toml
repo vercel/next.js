@@ -9,6 +9,9 @@ edition = "2021"
 proc-macro = true
 bench = false
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 convert_case = "0.6.0"

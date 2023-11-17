@@ -13,6 +13,9 @@ name = "xtask"
 path = "src/main.rs"
 bench = false
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = "1.0.65"
 cargo-lock = "8.0.2"

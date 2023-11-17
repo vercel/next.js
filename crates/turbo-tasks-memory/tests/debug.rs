@@ -1,5 +1,4 @@
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 use std::sync::Mutex;
 
@@ -100,6 +99,8 @@ async fn struct_ignore_debug() {
 #[turbo_tasks::value(transparent, shared)]
 struct Transparent(u32);
 
+// Allow Enum::Enum
+#[allow(clippy::enum_variant_names)]
 #[turbo_tasks::value(shared)]
 enum Enum {
     None,

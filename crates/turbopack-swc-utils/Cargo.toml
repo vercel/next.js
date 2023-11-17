@@ -9,6 +9,9 @@ autobenches = false
 [lib]
 bench = false
 
+[lints]
+workspace = true
+
 [dependencies]
 turbo-tasks = { workspace = true }
 turbopack-core = { workspace = true }

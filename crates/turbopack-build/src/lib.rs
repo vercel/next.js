@@ -1,7 +1,6 @@
 #![feature(lint_reasons)]
 #![feature(iter_intersperse)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 pub(crate) mod chunking_context;
 pub(crate) mod ecmascript;

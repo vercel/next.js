@@ -3,7 +3,6 @@
 #![feature(iter_intersperse)]
 #![feature(int_roundings)]
 #![feature(slice_group_by)]
-#![feature(async_fn_in_trait)]
 #![feature(arbitrary_self_types)]
 #![recursion_limit = "256"]
 

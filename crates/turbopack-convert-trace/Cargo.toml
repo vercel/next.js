@@ -11,6 +11,9 @@ name = "turbopack-convert-trace"
 path = "src/main.rs"
 bench = false
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true, features = ["backtrace"] }
 clap = { workspace = true, features = ["derive", "env"] }

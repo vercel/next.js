@@ -2,7 +2,7 @@ use std::{
     cmp::min,
     collections::{hash_map::RandomState, BinaryHeap},
     fmt::Debug,
-    hash::{BuildHasher, Hash, Hasher},
+    hash::{BuildHasher, Hash},
 };
 
 use once_cell::sync::OnceCell;
@@ -57,11 +57,9 @@ impl<K: Hash + Eq, V: Ord + Clone + Debug, H: BuildHasher + Clone>
     }
 
     fn shard(&self, key: &K) -> MutexGuard<PriorityQueue<K, V, H>> {
-        let mut hash = self.hasher.build_hasher();
-        key.hash(&mut hash);
         // Leave the high 7 bits for the HashBrown SIMD tag.
         // see https://github.com/xacrimon/dashmap/blob/0b2a2269b2d368494eeb41d4218da1b142da8e77/src/lib.rs#L374
-        let index = ((hash.finish() as usize) << 7) >> shift();
+        let index = ((self.hasher.hash_one(key) as usize) << 7) >> shift();
         unsafe { self.shards.get_unchecked(index) }.lock()
     }
 

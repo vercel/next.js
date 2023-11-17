@@ -21,6 +21,9 @@ tokio_console = [
 node-api = []
 custom_allocator = ["turbo-tasks-malloc", "turbo-tasks-malloc/custom_allocator"]
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true, optional = true, features = ["derive"] }

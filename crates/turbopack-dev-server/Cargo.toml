@@ -12,6 +12,9 @@ bench = false
 [features]
 log_request_stats = []
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 async-compression = { workspace = true }

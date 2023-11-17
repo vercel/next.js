@@ -2,7 +2,6 @@
 #![feature(iter_intersperse)]
 #![feature(int_roundings)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 pub(crate) mod chunking_context;
 pub(crate) mod ecmascript;

@@ -5,6 +5,9 @@ description = "TBD"
 license = "MPL-2.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 smallvec = { workspace = true }

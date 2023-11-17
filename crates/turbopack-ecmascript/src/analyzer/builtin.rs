@@ -332,7 +332,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             }
                             // The Array.prototype.map method
                             "map" => {
-                                if let Some(func) = args.get(0) {
+                                if let Some(func) = args.first() {
                                     *value = JsValue::array(
                                         take(items)
                                             .into_iter()

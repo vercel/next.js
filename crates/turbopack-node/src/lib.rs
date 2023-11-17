@@ -2,7 +2,6 @@
 #![feature(min_specialization)]
 #![feature(lint_reasons)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 use std::{collections::HashMap, iter::once, thread::available_parallelism};
 

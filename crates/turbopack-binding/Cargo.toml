@@ -179,6 +179,9 @@ __swc_transform_modularize_imports = [
 ]
 __swc_testing = ["__swc", "testing"]
 
+[lints]
+workspace = true
+
 [dependencies]
 mdxjs = { optional = true, workspace = true }
 modularize_imports = { optional = true, workspace = true }

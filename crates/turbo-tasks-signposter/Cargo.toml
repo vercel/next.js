@@ -12,6 +12,9 @@ bench = false
 default = ["global"]
 global = ["dep:once_cell"]
 
+[lints]
+workspace = true
+
 [dependencies]
 once_cell = { workspace = true, optional = true }
 signposter-sys = { workspace = true }

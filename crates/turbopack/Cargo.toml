@@ -13,6 +13,9 @@ bench = false
 test_persistent_cache = []
 bench_against_node_nft = []
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 async-recursion = { workspace = true }

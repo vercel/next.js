@@ -1,5 +1,4 @@
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 pub(crate) mod asset_context;
 pub(crate) mod build_runtime;
