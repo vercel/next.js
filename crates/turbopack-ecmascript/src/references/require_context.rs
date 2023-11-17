@@ -37,7 +37,7 @@ use crate::{
     code_gen::CodeGeneration,
     create_visitor,
     references::{
-        pattern_mapping::{PatternMapping, ResolveType::Cjs},
+        pattern_mapping::{PatternMapping, ResolveType},
         AstPath,
     },
     resolve::{cjs_resolve, try_to_severity},
@@ -439,7 +439,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
                 self.origin,
                 Vc::upcast(self.chunking_context),
                 entry.result,
-                Value::new(Cjs),
+                Value::new(ResolveType::ChunkItem),
             )
             .await?;
 

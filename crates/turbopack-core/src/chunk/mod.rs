@@ -39,6 +39,7 @@ pub use self::{
 };
 use crate::{
     asset::Asset,
+    environment::ChunkLoading,
     ident::AssetIdent,
     module::Module,
     output::OutputAssets,
@@ -412,15 +413,47 @@ async fn graph_node_to_referenced_nodes(
                                 None,
                             ))
                         }
-                        ChunkingType::Async => Ok((
-                            Some(ChunkGraphEdge {
-                                key: None,
-                                node: ChunkContentGraphNode::AsyncModule {
-                                    module: chunkable_module,
-                                },
-                            }),
-                            None,
-                        )),
+                        ChunkingType::Async => {
+                            let chunk_loading = chunk_content_context
+                                .chunking_context
+                                .environment()
+                                .chunk_loading()
+                                .await?;
+                            if matches!(*chunk_loading, ChunkLoading::None) {
+                                let chunk_item = chunkable_module
+                                    .as_chunk_item(chunk_content_context.chunking_context)
+                                    .resolve()
+                                    .await?;
+                                if let Some(available_chunk_items) = chunk_content_context
+                                    .availability_info
+                                    .available_chunk_items()
+                                {
+                                    if available_chunk_items.get(chunk_item).await?.is_some() {
+                                        return Ok((None, None));
+                                    }
+                                }
+                                Ok((
+                                    Some(ChunkGraphEdge {
+                                        key: Some(module),
+                                        node: ChunkContentGraphNode::ChunkItem {
+                                            item: chunk_item,
+                                            ident: module.ident().to_string().await?,
+                                        },
+                                    }),
+                                    None,
+                                ))
+                            } else {
+                                Ok((
+                                    Some(ChunkGraphEdge {
+                                        key: None,
+                                        node: ChunkContentGraphNode::AsyncModule {
+                                            module: chunkable_module,
+                                        },
+                                    }),
+                                    None,
+                                ))
+                            }
+                        }
                     }
                 })
                 .try_join()

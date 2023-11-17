@@ -20,7 +20,7 @@ use turbopack_core::{
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
 
-use super::pattern_mapping::{PatternMapping, ResolveType::Cjs};
+use super::pattern_mapping::{PatternMapping, ResolveType::ChunkItem};
 use crate::{
     chunk::EcmascriptChunkingContext,
     code_gen::{CodeGenerateable, CodeGeneration},
@@ -159,7 +159,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                                     Some(self.issue_source),
                                     try_to_severity(self.in_try),
                                 ),
-                                Value::new(Cjs),
+                                Value::new(ChunkItem),
                             )
                             .await?,
                             request.await?.request(),
