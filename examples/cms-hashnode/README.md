@@ -5,27 +5,36 @@ wired with [Hashnode](https://hashnode.com).
 
 We've used [Hashnode API's](https://apidocs.hashnode.com) and integrated them with this blog starter kit.
 
+## Version Requirements:
+
+    Node.js 18.17+
+
+## Running Locally
+
+- cd into `examples/cms-hashnode`
+- Copy `.env.example` to `.env.local`
+- `npm install`
+- `npm run dev`
+
+Visit http://localhost:3000!
+
 ## Want to have your own?
 
-Fork it and change the environment variable `NEXT_PUBLIC_HASHNODE_PUBLICATION_HOST` to your host (engineering.hashnode.dev is the host in the example) and deploy it to Vercel.
+Change the environment variable `NEXT_PUBLIC_HASHNODE_PUBLICATION_HOST` in the `.env.local` file to your host (victoria.hashnode.dev is the host in the example)
 That's it! You now have your own frontend. You can still use Hashnode for writing your Articles.
 
-## Demo
+## APIs
 
-[https://next-blog-starter.vercel.app/](https://next-blog-starter.vercel.app/)
+If you prefer to build your frontend from scratch, you can use our public GraphQL APIs to do so:
 
-## Deploy your own
+- [Docs](https://apidocs.hashnode.com)
+- [GraphQL Playground](https://gql.hashnode.com)
+- [Generate queries/mutations by talking to AI](https://chatgql.com/chat?url=https://gql.hashnode.com)
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/blog-starter)
+# Live Demos
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/blog-starter&project-name=blog-starter&repository-name=blog-starter)
+- [Personal Blog](https://sandeep.dev/blog)
 
-# Notes
+# Hashnode Blog Starter Kit
 
-`blog-starter` uses [Tailwind CSS](https://tailwindcss.com) [(v3.0)](https://tailwindcss.com/blog/tailwindcss-v3).
-
-## To-Do
-
-- [ ] Pagination
-- [ ] Vercel Deploy Button
-- [ ] Submit as Template
+[Blog Starter Kit](https://github.com/Hashnode/starter-kit) lets you instantly deploy a Next.js and Tailwind powered frontend for your Hashnode blog. It consumes [Hashnode's Public APIs](https://apidocs.hashnode.com), and gives you a fully customizable blog that can be deployed anywhere, including a subpath of a custom domain. Combined with [Hashnode's headless mode](https://hashnode.com/headless), it unlocks entirely new possibilities. You can now use Hashnode's [world class editor](https://hashnode.com/neptune) and dashboard to author content and collaborate. And use blog starter kit to customize the frontend to your liking.
