@@ -2041,6 +2041,7 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 test: /\.m?js/,
+                type: 'javascript/auto',
                 resolve: {
                   fullySpecified: false,
                 },
