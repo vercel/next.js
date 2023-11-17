@@ -59,8 +59,8 @@ pub(crate) enum PatternMapping {
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 #[turbo_tasks::value(serialization = "auto_for_input")]
 pub(crate) enum ResolveType {
-    EsmAsync,
-    Cjs,
+    AsyncChunkLoader,
+    ChunkItem,
 }
 
 impl PatternMapping {
@@ -165,13 +165,13 @@ impl PatternMapping {
             Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
         {
             match *resolve_type {
-                ResolveType::EsmAsync => {
+                ResolveType::AsyncChunkLoader => {
                     let loader_id = chunking_context.async_loader_chunk_item_id(chunkable);
                     return Ok(PatternMapping::cell(PatternMapping::SingleLoader(
                         loader_id.await?.clone_value(),
                     )));
                 }
-                ResolveType::Cjs => {
+                ResolveType::ChunkItem => {
                     let chunk_item = chunkable.as_chunk_item(chunking_context);
                     return Ok(PatternMapping::cell(PatternMapping::Single(
                         chunk_item.id().await?.clone_value(),
