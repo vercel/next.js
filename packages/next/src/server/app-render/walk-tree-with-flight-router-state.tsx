@@ -178,6 +178,7 @@ export async function walkTreeWithFlightRouterState({
                 </>
               )
             })(),
+        null,
       ],
     ]
   }

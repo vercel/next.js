@@ -23,8 +23,16 @@ export type RenderResultMetadata = {
   isRedirect?: boolean
   fetchMetrics?: StaticGenerationStore['fetchMetrics']
   fetchTags?: string
-  extraHeaders?: OutgoingHttpHeaders
   waitUntil?: Promise<any>
+
+  /**
+   * The headers to set on the response that were added by the render.
+   */
+  headers?: OutgoingHttpHeaders
+
+  /**
+   * The postponed state if the render had postponed and needs to be resumed.
+   */
   postponed?: string
 }
 

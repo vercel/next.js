@@ -72,7 +72,8 @@ export type FlightDataPath =
       /* segment of the rendered slice: */ Segment,
       /* treePatch */ FlightRouterState,
       /* subTreeData: */ React.ReactNode | null, // Can be null during prefetch if there's no loading component
-      /* head */ React.ReactNode | null
+      /* head */ React.ReactNode | null,
+      /* cacheNodeSeedData */ null
     ]
 
 /**
@@ -90,17 +91,6 @@ export type ActionFlightResponse =
   | [ActionResult, [buildId: string, flightData: FlightData | null]]
   // This case happens when `redirect()` is called in a server action.
   | NextFlightResponse
-
-/**
- * Property holding the current subTreeData.
- */
-export type ChildProp = {
-  /**
-   * Null indicates that the tree is partial
-   */
-  current: React.ReactNode | null
-  segment: Segment
-}
 
 export interface RenderOptsPartial {
   err?: Error | null

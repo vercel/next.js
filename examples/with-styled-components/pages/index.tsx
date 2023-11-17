@@ -5,8 +5,8 @@ import {
   Title,
   Description,
   CodeTag,
-} from '../components/sharedstyles'
-import Cards from '../components/cards'
+} from '@/components/sharedstyles'
+import Cards from '@/components/cards'
 
 export default function Home() {
   return (

@@ -199,8 +199,7 @@ function linkClicked(
   shallow?: boolean,
   scroll?: boolean,
   locale?: string | false,
-  isAppRouter?: boolean,
-  prefetchEnabled?: boolean
+  isAppRouter?: boolean
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -230,7 +229,6 @@ function linkClicked(
       })
     } else {
       router[replace ? 'replace' : 'push'](as || href, {
-        forceOptimisticNavigation: !prefetchEnabled,
         scroll: routerScroll,
       })
     }
@@ -634,8 +632,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           shallow,
           scroll,
           locale,
-          isAppRouter,
-          prefetchEnabled
+          isAppRouter
         )
       },
       onMouseEnter(e) {
