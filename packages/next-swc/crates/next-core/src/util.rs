@@ -12,7 +12,7 @@ use turbopack_binding::{
             asset::AssetContent,
             environment::{ServerAddr, ServerInfo},
             ident::AssetIdent,
-            issue::{Issue, IssueExt, IssueSeverity},
+            issue::{Issue, IssueExt, IssueSeverity, StyledString},
             module::Module,
             source::Source,
             virtual_source::VirtualSource,
@@ -191,12 +191,13 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(
+    fn description(&self) -> Vc<StyledString> {
+        StyledString::Text(
             "The exported configuration object in a source file need to have a very specific \
              format from which some properties can be statically parsed at compiled-time."
                 .to_string(),
         )
+        .cell()
     }
 
     #[turbo_tasks::function]
