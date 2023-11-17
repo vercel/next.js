@@ -25,10 +25,12 @@ Route Handlers allow you to create custom request handlers for a given route usi
 Route Handlers are defined in a [`route.js|ts` file](/docs/app/api-reference/file-conventions/route) inside the `app` directory:
 
 ```ts filename="app/api/route.ts" switcher
+export const dynamic = 'force-dynamic' // defaults to force-static
 export async function GET(request: Request) {}
 ```
 
 ```js filename="app/api/route.js" switcher
+export const dynamic = 'force-dynamic' // defaults to force-static
 export async function GET(request) {}
 ```
 
@@ -397,73 +399,49 @@ export function GET(request) {
 Streaming is commonly used in combination with Large Language Models (LLMs), such as OpenAI, for AI-generated content. Learn more about the [AI SDK](https://sdk.vercel.ai/docs).
 
 ```ts filename="app/api/chat/route.ts" switcher
-import { Configuration, OpenAIApi } from 'openai-edge'
+import OpenAI from 'openai'
 import { OpenAIStream, StreamingTextResponse } from 'ai'
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+})
 
 export const runtime = 'edge'
 
-const apiConfig = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY!,
-})
-
-const openai = new OpenAIApi(apiConfig)
-
 export async function POST(req: Request) {
-  // Extract the `messages` from the body of the request
   const { messages } = await req.json()
-
-  // Request the OpenAI API for the response based on the prompt
-  const response = await openai.createChatCompletion({
+  const response = await openai.chat.completions.create({
     model: 'gpt-3.5-turbo',
     stream: true,
-    messages: messages,
-    max_tokens: 500,
-    temperature: 0.7,
-    top_p: 1,
-    frequency_penalty: 1,
-    presence_penalty: 1,
+    messages,
   })
 
-  // Convert the response into a friendly text-stream
   const stream = OpenAIStream(response)
 
-  // Respond with the stream
   return new StreamingTextResponse(stream)
 }
 ```
 
 ```js filename="app/api/chat/route.js" switcher
-import { Configuration, OpenAIApi } from 'openai-edge'
+import OpenAI from 'openai'
 import { OpenAIStream, StreamingTextResponse } from 'ai'
 
-export const runtime = 'edge'
-
-const apiConfig = new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
-const openai = new OpenAIApi(apiConfig)
+export const runtime = 'edge'
 
 export async function POST(req) {
-  // Extract the `messages` from the body of the request
   const { messages } = await req.json()
-
-  // Request the OpenAI API for the response based on the prompt
-  const response = await openai.createChatCompletion({
+  const response = await openai.chat.completions.create({
     model: 'gpt-3.5-turbo',
     stream: true,
-    messages: messages,
-    max_tokens: 500,
-    temperature: 0.7,
-    top_p: 1,
-    frequency_penalty: 1,
-    presence_penalty: 1,
+    messages,
   })
 
-  // Convert the response into a friendly text-stream
   const stream = OpenAIStream(response)
 
-  // Respond with the stream
   return new StreamingTextResponse(stream)
 }
 ```
@@ -597,6 +575,8 @@ Since `formData` data are all strings, you may want to use [`zod-form-data`](htt
 You can set CORS headers on a `Response` using the standard Web API methods:
 
 ```ts filename="app/api/route.ts" switcher
+export const dynamic = 'force-dynamic' // defaults to force-static
+
 export async function GET(request: Request) {
   return new Response('Hello, Next.js!', {
     status: 200,
@@ -610,6 +590,8 @@ export async function GET(request: Request) {
 ```
 
 ```js filename="app/api/route.js" switcher
+export const dynamic = 'force-dynamic' // defaults to force-static
+
 export async function GET(request) {
   return new Response('Hello, Next.js!', {
     status: 200,
@@ -637,6 +619,8 @@ export const runtime = 'edge' // 'nodejs' is the default
 You can use Route Handlers to return non-UI content. Note that [`sitemap.xml`](/docs/app/api-reference/file-conventions/metadata/sitemap#generate-a-sitemap), [`robots.txt`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file), [`app icons`](/docs/app/api-reference/file-conventions/metadata/app-icons#generate-icons-using-code-js-ts-tsx), and [open graph images](/docs/app/api-reference/file-conventions/metadata/opengraph-image) all have built-in support.
 
 ```ts filename="app/rss.xml/route.ts" switcher
+export const dynamic = 'force-dynamic' // defaults to force-static
+
 export async function GET() {
   return new Response(`<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
@@ -652,6 +636,8 @@ export async function GET() {
 ```
 
 ```js filename="app/rss.xml/route.js" switcher
+export const dynamic = 'force-dynamic' // defaults to force-static
+
 export async function GET() {
   return new Response(`<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
