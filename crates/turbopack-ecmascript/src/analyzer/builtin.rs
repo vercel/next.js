@@ -465,6 +465,17 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 true
             }
         }
+        JsValue::Tenary(_, test, cons, alt) => {
+            if test.is_truthy() == Some(true) {
+                *value = take(cons);
+                true
+            } else if test.is_falsy() == Some(true) {
+                *value = take(alt);
+                true
+            } else {
+                false
+            }
+        }
         // match a binary operator like `a == b`
         JsValue::Binary(..) => {
             if let Some(v) = value.is_truthy() {

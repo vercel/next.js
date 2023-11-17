@@ -12,7 +12,7 @@
 *anonymous function 5454* = (...) => (???*0* + b)
 - *0* unsupported expression
 
-*anonymous function 5685* = (...) => (digestbytes | bin["bytesToString"](digestbytes) | crypt["bytesToHex"](digestbytes))
+*anonymous function 5685* = (...) => ((options && options["asBytes"]) ? digestbytes : ((options && options["asString"]) ? bin["bytesToString"](digestbytes) : crypt["bytesToHex"](digestbytes)))
 
 FF = (...) => crypt["endian"]([a, b, c, d])["_ff"]
 

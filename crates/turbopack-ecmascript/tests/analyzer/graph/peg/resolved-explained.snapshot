@@ -77,7 +77,7 @@
 
 *anonymous function 16713* = (...) => {"type": "number_constant", "value": FreeVar(Number)(text())}
 
-*anonymous function 16837* = (...) => (???*0* | [])
+*anonymous function 16837* = (...) => (head ? ???*0* : [])
 - *0* spread is not supported
 
 *anonymous function 16925* = (...) => subquery
@@ -143,7 +143,7 @@
 
 *anonymous function 6458* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args}
 
-*anonymous function 6748* = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
+*anonymous function 6748* = (...) => {"type": "scalar_object_expression", "properties": (head ? ???*0* : [])}
 - *0* spread is not supported
 
 *anonymous function 702* = (...) => `"${literalEscape(expectation["text"])}"`
@@ -160,10 +160,10 @@
 
 *anonymous function 7869* = (...) => {
     "type": "number_constant",
-    "value": (FreeVar(parseInt)(text(), 16) | FreeVar(parseFloat)(text()))
+    "value": (hex ? FreeVar(parseInt)(text(), 16) : FreeVar(parseFloat)(text()))
 }
 
-*anonymous function 804* = (...) => `[${("^" | "")}${escapedParts}]`
+*anonymous function 804* = (...) => `[${(expectation["inverted"] ? "^" : "")}${escapedParts}]`
 
 *anonymous function 8139* = (...) => {"type": "string_constant", "value": chars["join"]("")}
 
@@ -192,7 +192,7 @@
 
 DESCRIBE_EXPECTATION_FNS = {
     "literal": (...) => `"${literalEscape(expectation["text"])}"`,
-    "class": (...) => `[${("^" | "")}${escapedParts}]`,
+    "class": (...) => `[${(expectation["inverted"] ? "^" : "")}${escapedParts}]`,
     "any": (...) => "any character",
     "end": (...) => "end of input",
     "other": (...) => expectation["description"]
@@ -287,7 +287,7 @@ describeExpected = (...) => (
 - *0* unsupported expression
 - *1* unsupported expression
 
-describeFound = (...) => (`"${literalEscape(found)}"` | "end of input")
+describeFound = (...) => (found ? `"${literalEscape(found)}"` : "end of input")
 
 description#105 = ???*0*
 - *0* arguments[0]
@@ -356,60 +356,54 @@ endPosDetails = (undefined | {"line": 1, "column": 1} | ???*0* | {"line": ???*2*
 
 error = (...) => undefined
 
-escapedParts = ("" | (("" | ???*0*) + (???*13* | ???*22*)))
-- *0* (???*1* + (???*2* | ???*9*))
+escapedParts = ("" | (("" | ???*0*) + ???*12*))
+- *0* (???*1* + ???*2*)
   ⚠️  nested operation
 - *1* escapedParts
   ⚠️  circular variable reference
-- *2* `${???*3*}-${???*6*}`
+- *2* (???*3* ? ???*4* : ???*9*)
   ⚠️  nested operation
-- *3* ???*4*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+- *3* unsupported expression
+- *4* `${???*5*}-${???*7*}`
+  ⚠️  nested operation
+- *5* ???*6*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
   ⚠️  unknown callee object
-- *4* ???*5*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+- *6* ???["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
   ⚠️  unknown callee object
-- *5* ???["replace"](/\r/g, "\\r")
+- *7* ???*8*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
   ⚠️  unknown callee object
-- *6* ???*7*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
-  ⚠️  unknown callee object
-- *7* ???*8*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
-  ⚠️  unknown callee object
-- *8* ???["replace"](/\r/g, "\\r")
+- *8* ???["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
   ⚠️  unknown callee object
 - *9* ???*10*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
   ⚠️  unknown callee object
 - *10* ???*11*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
   ⚠️  unknown callee object
-- *11* ???*12*["replace"](/\r/g, "\\r")
+- *11* ???["replace"](/\r/g, "\\r")
   ⚠️  unknown callee object
-- *12* ???["replace"](/\n/g, "\\n")
-  ⚠️  unknown callee object
-- *13* `${???*14*}-${???*18*}`
+- *12* (???*13* ? ???*14* : ???*21*)
   ⚠️  nested operation
-- *14* ???*15*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+- *13* unsupported expression
+- *14* `${???*15*}-${???*18*}`
+  ⚠️  nested operation
+- *15* ???*16*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
   ⚠️  unknown callee object
-- *15* ???*16*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+- *16* ???*17*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
   ⚠️  unknown callee object
-- *16* ???*17*["replace"](/\r/g, "\\r")
-  ⚠️  unknown callee object
-- *17* ???["replace"](/\n/g, "\\n")
+- *17* ???["replace"](/\r/g, "\\r")
   ⚠️  unknown callee object
 - *18* ???*19*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
   ⚠️  unknown callee object
 - *19* ???*20*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
   ⚠️  unknown callee object
-- *20* ???*21*["replace"](/\r/g, "\\r")
+- *20* ???["replace"](/\r/g, "\\r")
   ⚠️  unknown callee object
-- *21* ???["replace"](/\n/g, "\\n")
+- *21* ???*22*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
   ⚠️  unknown callee object
-- *22* ???*23*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+- *22* ???*23*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
   ⚠️  unknown callee object
-- *23* ???*24*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+- *23* ???*24*["replace"](/\r/g, "\\r")
   ⚠️  unknown callee object
-- *24* ???*25*["replace"](/\r/g, "\\r")
-  ⚠️  unknown callee object
-- *25* ???*26*["replace"](/\n/g, "\\n")
-  ⚠️  unknown callee object
-- *26* ???["replace"](/\t/g, "\\t")
+- *24* ???["replace"](/\n/g, "\\n")
   ⚠️  unknown callee object
 
 expectation#11 = ???*0*
@@ -697,10 +691,33 @@ operator#87 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-options = (???*0* | ???*1* | {})
+options = (???*0* | (???*1* ? (???*9* | ???*10*) : {}))
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* options
+- *1* ((???*2* | ???*3*) !== ???*8*)
+  ⚠️  nested operation
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *3* (???*4* ? ???*7* : {})
+  ⚠️  nested operation
+- *4* (???*5* !== ???*6*)
+  ⚠️  nested operation
+- *5* options
+  ⚠️  circular variable reference
+- *6* unsupported expression
+- *7* options
+  ⚠️  circular variable reference
+- *8* unsupported expression
+- *9* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *10* (???*11* ? ???*14* : {})
+  ⚠️  nested operation
+- *11* (???*12* !== ???*13*)
+  ⚠️  nested operation
+- *12* options
+  ⚠️  circular variable reference
+- *13* unsupported expression
+- *14* options
   ⚠️  circular variable reference
 
 order = ???*0*
@@ -1005,7 +1022,7 @@ peg$c211 = (...) => {"type": "top_specification", "value": value}
 
 peg$c212 = (...) => {"type": "number_constant", "value": FreeVar(Number)(text())}
 
-peg$c213 = (...) => (???*0* | [])
+peg$c213 = (...) => (head ? ???*0* : [])
 - *0* spread is not supported
 
 peg$c214 = (...) => subquery
@@ -1038,7 +1055,7 @@ peg$c33 = "}"
 
 peg$c34 = {"type": "literal", "text": "}", "ignoreCase": false}
 
-peg$c35 = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
+peg$c35 = (...) => {"type": "scalar_object_expression", "properties": (head ? ???*0* : [])}
 - *0* spread is not supported
 
 peg$c36 = "["
@@ -1088,7 +1105,7 @@ peg$c52 = {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCas
 
 peg$c53 = (...) => {
     "type": "number_constant",
-    "value": (FreeVar(parseInt)(text(), 16) | FreeVar(parseFloat)(text()))
+    "value": (hex ? FreeVar(parseInt)(text(), 16) : FreeVar(parseFloat)(text()))
 }
 
 peg$c54 = "\""
@@ -1904,12 +1921,27 @@ s1#448 = ???*0*
 s1#450 = ???*0*
 - *0* max number of linking steps reached
 
-s1#454 = (???*0* | "-" | {} | null | {"type": "number_constant", "value": ???*1*})
+s1#454 = (
+  | ???*0*
+  | "-"
+  | {}
+  | null
+  | {
+        "type": "number_constant",
+        "value": ((???*1* | "0x" | {} | null) ? ???*2* : ???*4*)
+    }
+)
 - *0* s1
   ⚠️  pattern without value
-- *1* ???*2*(text(), 16)
+- *1* s2
+  ⚠️  pattern without value
+- *2* ???*3*(text(), 16)
   ⚠️  unknown callee
-- *2* FreeVar(parseInt)
+- *3* FreeVar(parseInt)
+  ⚠️  unknown global
+- *4* ???*5*(text())
+  ⚠️  unknown callee
+- *5* FreeVar(parseFloat)
   ⚠️  unknown global
 
 s1#497 = (
