@@ -91,17 +91,6 @@ export type ActionFlightResponse =
   // This case happens when `redirect()` is called in a server action.
   | NextFlightResponse
 
-/**
- * Property holding the current subTreeData.
- */
-export type ChildProp = {
-  /**
-   * Null indicates that the tree is partial
-   */
-  current: React.ReactNode | null
-  segment: Segment
-}
-
 export interface RenderOptsPartial {
   err?: Error | null
   dev?: boolean
@@ -134,9 +123,8 @@ export interface RenderOptsPartial {
   ) => Promise<NextConfigComplete>
   serverActions?: {
     bodySizeLimit?: SizeLimit
-    allowedForwardedHosts?: string[]
+    allowedOrigins?: string[]
   }
-  allowedForwardedHosts?: string[]
   params?: ParsedUrlQuery
   isPrefetch?: boolean
   experimental: { ppr: boolean }

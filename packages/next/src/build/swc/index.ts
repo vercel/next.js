@@ -208,8 +208,10 @@ export async function loadBindings(
       (triple: any) =>
         !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
     )
+    const isWebContainer = process.versions.webcontainer
     const shouldLoadWasmFallbackFirst =
-      !disableWasmFallback && unsupportedPlatform && useWasmBinary
+      (!disableWasmFallback && unsupportedPlatform && useWasmBinary) ||
+      isWebContainer
 
     if (!unsupportedPlatform && useWasmBinary) {
       Log.warn(
@@ -471,20 +473,44 @@ export interface TurboEngineOptions {
   memoryLimit?: number
 }
 
+export type StyledString =
+  | {
+      type: 'text'
+      value: string
+    }
+  | {
+      type: 'code'
+      value: string
+    }
+  | {
+      type: 'strong'
+      value: string
+    }
+  | {
+      type: 'stack'
+      value: StyledString[]
+    }
+  | {
+      type: 'line'
+      value: StyledString[]
+    }
+
 export interface Issue {
   severity: string
   category: string
   filePath: string
   title: string
-  description: string
+  description: StyledString
   detail: string
   source?: {
     source: {
       ident: string
       content?: string
     }
-    start: { line: number; column: number }
-    end: { line: number; column: number }
+    range?: {
+      start: { line: number; column: number }
+      end: { line: number; column: number }
+    }
   }
   documentationLink: string
   subIssues: Issue[]

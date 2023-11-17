@@ -1,6 +1,5 @@
 import type { ExportRouteResult, FileWriter } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
-import type { OutgoingHttpHeaders } from 'http'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 import type { RouteMetadata } from './types'
 
@@ -16,6 +15,7 @@ import {
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
+  NEXT_META_SUFFIX,
   RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
 } from '../../lib/constants'
@@ -184,9 +184,10 @@ export async function exportAppPage(
       )
     }
 
-    let headers: OutgoingHttpHeaders | undefined
+    const headers = { ...metadata.headers }
+
     if (fetchTags) {
-      headers = { [NEXT_CACHE_TAGS_HEADER]: fetchTags }
+      headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
     }
 
     // Writing static HTML to a file.
@@ -206,7 +207,7 @@ export async function exportAppPage(
 
     await fileWriter(
       ExportedAppPageFiles.META,
-      htmlFilepath.replace(/\.html$/, '.meta'),
+      htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
       JSON.stringify(meta, null, 2)
     )
 

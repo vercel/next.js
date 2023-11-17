@@ -114,7 +114,7 @@ pub async fn get_app_entries(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
-        Vc::cell("client".to_string()),
+        Vc::cell("app-client".to_string()),
     );
 
     let ssr_resolve_options_context = get_server_resolve_options_context(
@@ -228,7 +228,7 @@ pub async fn get_app_entries(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
-        Vc::cell("client".to_string()),
+        Vc::cell("app-client".to_string()),
     );
 
     let client_runtime_entries = get_client_runtime_entries(
