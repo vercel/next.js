@@ -9,6 +9,9 @@ autobenches = false
 [lib]
 bench = false
 
+[lints]
+workspace = true
+
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }

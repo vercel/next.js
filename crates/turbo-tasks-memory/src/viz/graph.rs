@@ -167,7 +167,7 @@ fn visualize_stats_references_internal<'a>(
     }
     if !far_types.is_empty() {
         if far_types.len() == 1 {
-            let (ty, label) = far_types.get(0).unwrap();
+            let (ty, label) = far_types.first().unwrap();
             let target_id = global_data.get_id(ty);
             writeln!(
                 &mut global_data.output,

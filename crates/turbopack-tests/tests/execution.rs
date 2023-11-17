@@ -1,6 +1,5 @@
 #![cfg(test)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 mod util;
 

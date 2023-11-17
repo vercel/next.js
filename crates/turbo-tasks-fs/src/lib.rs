@@ -4,7 +4,6 @@
 #![feature(iter_advance_by)]
 #![feature(io_error_more)]
 #![feature(round_char_boundary)]
-#![feature(async_fn_in_trait)]
 #![feature(arbitrary_self_types)]
 
 pub mod attach;

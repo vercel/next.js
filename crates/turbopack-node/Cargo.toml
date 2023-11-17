@@ -13,6 +13,9 @@ bench = false
 # enable "HMR" for embedded assets
 dynamic_embed_contents = ["turbo-tasks-fs/dynamic_embed_contents"]
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 async-stream = "0.3.4"

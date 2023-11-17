@@ -352,10 +352,12 @@ pub enum Iter<'a, K, V> {
 impl<'a, K, V> Iterator for Iter<'a, K, V> {
     type Item = (&'a K, &'a V);
 
+    // This clippy lint doesn't account for lifetimes
+    #[allow(clippy::map_identity)]
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             Iter::List(iter) => iter.next().map(|(k, v)| (k, v)),
-            Iter::Map(iter) => iter.next().map(|(k, v)| (k, v)),
+            Iter::Map(iter) => iter.next(),
         }
     }
 
@@ -387,7 +389,7 @@ impl<'a, K, V> Iterator for IterMut<'a, K, V> {
     fn next(&mut self) -> Option<Self::Item> {
         match self {
             IterMut::List(iter) => iter.next().map(|(k, v)| (&*k, v)),
-            IterMut::Map(iter) => iter.next().map(|(k, v)| (k, v)),
+            IterMut::Map(iter) => iter.next(),
         }
     }
 

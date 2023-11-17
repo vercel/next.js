@@ -9,6 +9,9 @@ autobenches = false
 [lib]
 bench = false
 
+[lints]
+workspace = true
+
 [dependencies]
 base16 = "0.2.1"
 hex = "0.4.3"

@@ -6,7 +6,6 @@
 #![feature(hash_set_entry)]
 #![recursion_limit = "256"]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 pub mod condition;
 pub mod evaluate_context;

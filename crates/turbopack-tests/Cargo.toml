@@ -9,6 +9,9 @@ autobenches = false
 # don't publish this crate
 publish = false
 
+[lints]
+workspace = true
+
 [dependencies]
 turbopack = { workspace = true }
 

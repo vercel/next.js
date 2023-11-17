@@ -3,7 +3,6 @@
 #![feature(round_char_boundary)]
 #![feature(thread_id_value)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 pub mod exit;
 pub mod issue;

@@ -1459,7 +1459,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpressSet) => {
             let args = linked_args(args).await?;
             if args.len() == 2 {
-                if let Some(s) = args.get(0).and_then(|arg| arg.as_str()) {
+                if let Some(s) = args.first().and_then(|arg| arg.as_str()) {
                     let pkg_or_dir = args.get(1).unwrap();
                     let pat = js_value_to_pattern(pkg_or_dir);
                     if !pat.has_constant_parts() {
@@ -1531,7 +1531,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         }
         JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir) => {
             let args = linked_args(args).await?;
-            if let Some(p) = args.get(0).and_then(|arg| arg.as_str()) {
+            if let Some(p) = args.first().and_then(|arg| arg.as_str()) {
                 let abs_pattern = if p.starts_with("/ROOT/") {
                     Pattern::Constant(format!("{p}/intl"))
                 } else {

@@ -8,6 +8,9 @@ edition = "2021"
 [lib]
 bench = false
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 cargo-lock = "8.0.2"

@@ -15,6 +15,9 @@ tokio_tracing = ["tokio/tracing"]
 log_function_stats = []
 hanging_detection = []
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }

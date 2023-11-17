@@ -13,6 +13,9 @@ bench = false
 name = "mod"
 harness = false
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true, features = ["backtrace"] }
 chromiumoxide = { workspace = true, features = [

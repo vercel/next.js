@@ -1,5 +1,4 @@
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 use criterion::{criterion_group, criterion_main, Criterion};
 

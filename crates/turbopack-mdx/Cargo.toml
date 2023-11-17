@@ -9,6 +9,9 @@ autobenches = false
 [lib]
 bench = false
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 serde = { workspace = true }

@@ -8,6 +8,9 @@ edition = "2021"
 [lib]
 bench = false
 
+[lints]
+workspace = true
+
 [dependencies]
 proc-macro2 = { workspace = true }
 quote = { workspace = true }

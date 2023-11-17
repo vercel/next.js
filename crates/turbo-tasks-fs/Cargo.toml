@@ -18,6 +18,9 @@ harness = false
 # path will be embedded into the binary.
 dynamic_embed_contents = []
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 auto-hash-map = { workspace = true }

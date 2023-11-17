@@ -15,6 +15,9 @@ default = ["native-tls"]
 native-tls = ["reqwest/native-tls"]
 rustls-tls = ["reqwest/rustls-tls"]
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 indexmap = { workspace = true }

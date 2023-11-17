@@ -4,7 +4,6 @@
 #![feature(iter_intersperse)]
 #![feature(str_split_remainder)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 pub mod html;
 mod http;

@@ -31,7 +31,6 @@
 #![feature(error_generic_member_access)]
 #![feature(new_uninit)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 #![feature(type_alias_impl_trait)]
 #![feature(never_type)]
 
@@ -119,10 +118,4 @@ pub mod test_helpers {
 
 pub fn register() {
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}
-
-/// Helper for derive macros
-#[doc(hidden)]
-mod turbo_tasks {
-    pub use crate::macro_helpers;
 }
