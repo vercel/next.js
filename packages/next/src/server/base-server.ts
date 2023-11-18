@@ -23,7 +23,6 @@ import {
 } from '../shared/lib/utils'
 import type { PreviewData, ServerRuntime, SizeLimit } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { OutgoingHttpHeaders } from 'http'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type {
   ManifestRewriteRoute,
@@ -911,7 +910,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         )
       }
 
-      req.headers['x-forwarded-host'] ??= `${this.hostname}:${this.port}`
+      req.headers['x-forwarded-host'] ??= req.headers['host'] ?? this.hostname
       req.headers['x-forwarded-port'] ??= this.port?.toString()
       const { originalRequest } = req as NodeNextRequest
       req.headers['x-forwarded-proto'] ??= (originalRequest.socket as TLSSocket)
@@ -2166,8 +2165,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // HTML (it's dynamic).
         isDynamicRSCRequest
 
-      let headers: OutgoingHttpHeaders | undefined
-
       const origQuery = parseUrl(req.url || '', true).query
 
       // clear any dynamic route params so they aren't in
@@ -2261,7 +2258,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               const blob = await response.blob()
 
               // Copy the headers from the response.
-              headers = toNodeOutgoingHttpHeaders(response.headers)
+              const headers = toNodeOutgoingHttpHeaders(response.headers)
 
               if (cacheTags) {
                 headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
@@ -2371,10 +2368,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       const { metadata } = result
 
-      // Add any fetch tags that were on the page to the response headers.
-      const cacheTags = metadata.fetchTags
-
-      headers = { ...metadata.extraHeaders }
+      const {
+        headers = {},
+        // Add any fetch tags that were on the page to the response headers.
+        fetchTags: cacheTags,
+      } = metadata
 
       if (cacheTags) {
         headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
@@ -2776,18 +2774,24 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       if (cachedData.headers) {
-        const resHeaders = cachedData.headers
-        for (const key of Object.keys(resHeaders)) {
-          if (key === NEXT_CACHE_TAGS_HEADER) {
-            // Not sure if needs to be special.
-            continue
-          }
-          let v = resHeaders[key]
-          if (typeof v !== 'undefined') {
-            if (typeof v === 'number') {
-              v = v.toString()
+        const headers = { ...cachedData.headers }
+
+        if (!this.minimalMode || !isSSG) {
+          delete headers[NEXT_CACHE_TAGS_HEADER]
+        }
+
+        for (let [key, value] of Object.entries(headers)) {
+          if (typeof value === 'undefined') continue
+
+          if (Array.isArray(value)) {
+            for (const v of value) {
+              res.appendHeader(key, v)
             }
-            res.setHeader(key, v)
+          } else if (typeof value === 'number') {
+            value = value.toString()
+            res.appendHeader(key, value)
+          } else {
+            res.appendHeader(key, value)
           }
         }
       }

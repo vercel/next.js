@@ -27,22 +27,16 @@ const Card = styled.div`
   }
 `
 
-const StyledA = styled.a`
+const StyledLink = styled(Link)`
   margin: 0 0 1rem 0;
   font-size: 1.5rem;
 `
-
-const StyledLink = ({ href, name }) => (
-  <Link href={href} passHref legacyBehavior>
-    <StyledA>{name}</StyledA>
-  </Link>
-)
 
 export default function Cards() {
   return (
     <FlexContainer>
       <Card>
-        <StyledLink href="/about" name="About Page &rarr;" />
+        <StyledLink href="/about">About Page &rarr;</StyledLink>
       </Card>
     </FlexContainer>
   )
