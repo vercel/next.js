@@ -204,23 +204,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/client/components/router-reducer/create-optimistic-tree.test.ts": {
-    "passed": ["createOptimisticTree should create an optimistic tree"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/create-record-from-thenable.test.ts": {
-    "passed": [
-      "createRecordFromThenable rejecting promise",
-      "createRecordFromThenable successful promise"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "packages/next/src/client/components/router-reducer/create-router-cache-key.test.ts": {
     "passed": [
       "createRouterCacheKey should support catch all segment",
@@ -1839,7 +1822,9 @@
       "middleware - development errors when middleware contains an unhandled rejection logs the error correctly",
       "middleware - development errors when middleware throws synchronously renders the error correctly and recovers",
       "middleware - development errors when running invalid dynamic code with eval logs the error correctly",
+      "middleware - development errors when there is a compilation error after boot logs the error correctly",
       "middleware - development errors when there is a compilation error after boot renders the error correctly and recovers",
+      "middleware - development errors when there is a compilation error from boot logs the error correctly",
       "middleware - development errors when there is an unhandled rejection while loading a dependency does not render the error",
       "middleware - development errors when there is an unhandled rejection while loading a dependency logs the error correctly",
       "middleware - development errors when there is an unhandled rejection while loading the module does not render the error",
@@ -1848,8 +1833,6 @@
     "failed": [
       "middleware - development errors when middleware throws synchronously logs the error correctly",
       "middleware - development errors when running invalid dynamic code with eval renders the error correctly and recovers",
-      "middleware - development errors when there is a compilation error after boot logs the error correctly",
-      "middleware - development errors when there is a compilation error from boot logs the error correctly",
       "middleware - development errors when there is a compilation error from boot renders the error correctly and recovers",
       "middleware - development errors when throwing while loading the module logs the error correctly",
       "middleware - development errors when throwing while loading the module renders the error correctly and recovers"
@@ -2254,6 +2237,7 @@
       "app-dir action handling should support importing actions in client components",
       "app-dir action handling should support importing the same action module instance in both server and action layers",
       "app-dir action handling should support next/dynamic with ssr: false",
+      "app-dir action handling should support next/dynamic with ssr: false (edge)",
       "app-dir action handling should support notFound",
       "app-dir action handling should support notFound (javascript disabled)",
       "app-dir action handling should support setting cookies in route handlers with the correct overrides",
@@ -2453,9 +2437,12 @@
   },
   "test/e2e/app-dir/app-middleware/app-middleware.test.ts": {
     "passed": [
-      "app dir - middleware without pages dir Updates headers",
       "app dir - middleware with middleware in src dir works without crashing when using requestAsyncStorage",
+      "app dir - middleware without pages dir Updates headers",
+      "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
+      "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
       "app-dir with middleware Mutate request headers for Edge Functions Supports draft mode",
+      "app-dir with middleware Mutate request headers for Edge Functions Updates headers",
       "app-dir with middleware Mutate request headers for Serverless Functions Adds new headers",
       "app-dir with middleware Mutate request headers for Serverless Functions Deletes headers",
       "app-dir with middleware Mutate request headers for Serverless Functions Supports draft mode",
@@ -2464,10 +2451,17 @@
       "app-dir with middleware Mutate request headers for next/headers Deletes headers",
       "app-dir with middleware Mutate request headers for next/headers Supports draft mode",
       "app-dir with middleware Mutate request headers for next/headers Updates headers",
-      "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
-      "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
-      "app-dir with middleware Mutate request headers for Edge Functions Updates headers",
       "app-dir with middleware should filter correctly after middleware rewrite"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-prefetch-false-loading/app-prefetch-false-loading.test.ts": {
+    "passed": [
+      "app-prefetch-false-loading should not re-trigger loading state when navigating between pages that share a dynamic layout",
+      "app-prefetch-false-loading should render loading for the inital render"
     ],
     "failed": [],
     "pending": [],
@@ -2688,6 +2682,7 @@
       "app-dir static/dynamic handling should correctly skip caching POST fetch for POST handler",
       "app-dir static/dynamic handling should error correctly for invalid params from generateStaticParams",
       "app-dir static/dynamic handling should force SSR correctly for headers usage",
+      "app-dir static/dynamic handling should force no store with force-dynamic",
       "app-dir static/dynamic handling should handle dynamicParams: false correctly",
       "app-dir static/dynamic handling should handle dynamicParams: true correctly",
       "app-dir static/dynamic handling should handle partial-gen-params with default dynamicParams correctly",
@@ -2761,6 +2756,7 @@
       "app-dir static/dynamic handling should correctly skip caching POST fetch for POST handler",
       "app-dir static/dynamic handling should error correctly for invalid params from generateStaticParams",
       "app-dir static/dynamic handling should force SSR correctly for headers usage",
+      "app-dir static/dynamic handling should force no store with force-dynamic",
       "app-dir static/dynamic handling should handle dynamicParams: false correctly",
       "app-dir static/dynamic handling should handle dynamicParams: true correctly",
       "app-dir static/dynamic handling should handle partial-gen-params with default dynamicParams correctly",
@@ -2897,6 +2893,7 @@
       "app dir - basic server components should serve client component should serve client-side",
       "app dir - basic server components should serve client component should serve server-side",
       "app dir - basic server components should serve shared component",
+      "app dir - basic should encode chunk path correctly",
       "app dir - basic should ensure the </body></html> suffix is at the end of the stream",
       "app dir - basic should handle hash in initial url",
       "app dir - basic should have correct searchParams and params (client)",
@@ -2929,7 +2926,6 @@
       "app dir - basic template component should render the template that holds state in a client component and reset on navigation"
     ],
     "failed": [
-      "app dir - basic should encode chunk path correctly",
       "app dir - basic should serve polyfills for browsers that do not support modules"
     ],
     "pending": [
@@ -3087,6 +3083,8 @@
   },
   "test/e2e/app-dir/dynamic/dynamic.test.ts": {
     "passed": [
+      "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components",
+      "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime",
       "app dir - next/dynamic should generate correct client manifest for dynamic chunks",
       "app dir - next/dynamic should handle next/dynamic in SSR correctly",
       "app dir - next/dynamic should handle next/dynamic in hydration correctly",
@@ -3303,7 +3301,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/logging/index.test.ts": {
+  "test/e2e/app-dir/logging/fetch-logging.test.ts": {
     "passed": [
       "app-dir - logging with default logging should not log fetch requests at all"
     ],
@@ -3320,6 +3318,17 @@
       "app-dir - logging with verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging should only log requests in dev mode"
     ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/logging/fetch-warning.test.ts": {
+    "passed": [
+      "app-dir - fetch warnings should log when request input is a Request instance",
+      "app-dir - fetch warnings should log when request input is a string",
+      "app-dir - fetch warnings should not log when overriding cache within the Request object"
+    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3374,10 +3383,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/metadata-edge/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - Metadata API on the Edge runtime should render OpenGraph image meta tag correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3478,6 +3487,7 @@
       "app dir - navigation not-found should trigger not-found in a server component",
       "app dir - navigation not-found should trigger not-found while streaming",
       "app dir - navigation query string should handle unicode search params",
+      "app dir - navigation query string should not reset shallow url updates on prefetch",
       "app dir - navigation query string should set query correctly",
       "app dir - navigation query string useParams identity between renders should be stable in app",
       "app dir - navigation redirect components should redirect client-side",
@@ -3521,12 +3531,14 @@
       "app app dir - next-font computed styles should have correct styles at /client",
       "app app dir - next-font import values should have correct values at /",
       "app app dir - next-font import values should have correct values at /client",
+      "app app dir - next-font import values should transform code in node_modules",
       "app app dir - next-font navigation should not have duplicate preload tags on navigation",
       "app-old app dir - next-font Dev errors should recover on font loader error",
       "app-old app dir - next-font computed styles should have correct styles at /",
       "app-old app dir - next-font computed styles should have correct styles at /client",
       "app-old app dir - next-font import values should have correct values at /",
       "app-old app dir - next-font import values should have correct values at /client",
+      "app-old app dir - next-font import values should transform code in node_modules",
       "app-old app dir - next-font navigation should not have duplicate preload tags on navigation"
     ],
     "pending": [],
@@ -3680,8 +3692,8 @@
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
     ],
     "failed": [
-      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
       "parallel-routes-and-interception parallel routes Should match the catch-all routes of the more specific path, If there is more than one catch-all route",
+      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
       "parallel-routes-and-interception parallel routes should throw an error when a route groups causes a conflict with a parallel segment"
     ],
     "pending": [],
@@ -3745,6 +3757,16 @@
       "ppr with suspense for /suspense/edge should eventually render the dynamic part",
       "ppr with suspense for /suspense/node should eventually render the dynamic part",
       "ppr without suspense for /no-suspense should immediately render the dynamic part"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts": {
+    "passed": [
+      "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-path",
+      "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-tag"
     ],
     "failed": [],
     "pending": [],
@@ -3924,17 +3946,38 @@
   "test/e2e/app-dir/set-cookies/set-cookies.test.ts": {
     "passed": [
       "set-cookies for edge runtime for /app should set two set-cookie headers",
+      "set-cookies for edge runtime for /pages should set two set-cookie headers",
       "set-cookies for experimental-edge runtime for /app should set two set-cookie headers",
+      "set-cookies for experimental-edge runtime for /pages should set two set-cookie headers",
       "set-cookies for node runtime for /app should set two set-cookie headers",
       "set-cookies for node runtime for /pages should set two set-cookie headers"
     ],
-    "failed": [
-      "set-cookies for edge runtime for /pages should set two set-cookie headers",
-      "set-cookies for experimental-edge runtime for /pages should set two set-cookie headers"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
+  },
+  "test/e2e/app-dir/shallow-routing/shallow-routing.test.ts": {
+    "passed": [],
+    "failed": [
+      "shallow-routing back and forward client-side navigation should support setting a different pathname reflected on usePathname and then still support navigating back and forward",
+      "shallow-routing back and forward mpa navigation should support setting data and then still support navigating back and forward",
+      "shallow-routing pushState should support setting a different pathname reflected on usePathname",
+      "shallow-routing pushState should support setting a different searchParam reflected on useSearchParams",
+      "shallow-routing pushState should support setting a different url using a string",
+      "shallow-routing pushState should support setting data",
+      "shallow-routing pushState should work when given a null state value",
+      "shallow-routing replaceState should support setting a different pathname reflected on usePathname",
+      "shallow-routing replaceState should support setting a different searchParam reflected on useSearchParams",
+      "shallow-routing replaceState should support setting a different url using a string",
+      "shallow-routing replaceState should support setting data",
+      "shallow-routing replaceState should work when given a null state value",
+      "shallow-routing replaceState should work when given an undefined state value",
+      "shallow-routing should work when given an undefined state value"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": true
   },
   "test/e2e/app-dir/similar-pages-paths/similar-pages-paths.test.ts": {
     "passed": [
@@ -4045,7 +4088,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/x-forwarded-headers/x-forwarded-headers.test.ts": {
-    "passed": ["x-forwarded-headers should include x-forwarded-* headers"],
+    "passed": [
+      "x-forwarded-headers already assigned should not override existing x-forwarded-* headers",
+      "x-forwarded-headers host header exists should include x-forwarded-* headers relative to host",
+      "x-forwarded-headers should include x-forwarded-* headers"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -4211,10 +4258,11 @@
     "runtimeError": true
   },
   "test/e2e/conflicting-app-page-error/index.test.ts": {
-    "passed": [],
+    "passed": [
+      "Conflict between app file and pages file should not show error overlay for non conflict pages under app or pages dir"
+    ],
     "failed": [
       "Conflict between app file and pages file should error again when there is new conflict",
-      "Conflict between app file and pages file should not show error overlay for non conflict pages under app or pages dir",
       "Conflict between app file and pages file should show error overlay for /",
       "Conflict between app file and pages file should show error overlay for /another",
       "Conflict between app file and pages file should support hmr with conflicts"
@@ -5613,10 +5661,10 @@
     "runtimeError": false
   },
   "test/e2e/socket-io/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "socket-io should support socket.io without falling back to polling"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7290,11 +7338,11 @@
     "runtimeError": false
   },
   "test/integration/custom-page-extension/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Custom page extension dev mode should work dynamic page",
       "Custom page extension dev mode should work with normal page"
     ],
+    "failed": [],
     "pending": [
       "Custom page extension production mode should work dynamic page",
       "Custom page extension production mode should work with normal page"
@@ -14250,10 +14298,10 @@
     "runtimeError": false
   },
   "test/integration/server-asset-modules/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "serverside asset modules dev mode should enable reading local files in api routes"
     ],
+    "failed": [],
     "pending": [
       "serverside asset modules production mode should enable reading local files in api routes"
     ],
