@@ -59,6 +59,7 @@ const FILE_TYPES = {
   layout: 'layout',
   template: 'template',
   error: 'error',
+  glue: 'glue',
   loading: 'loading',
   'not-found': 'not-found',
 } as const
