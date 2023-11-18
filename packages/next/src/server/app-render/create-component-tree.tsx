@@ -106,7 +106,14 @@ async function createComponentTreeInternal({
   const { page, layoutOrPagePath, segment, components, parallelRoutes } =
     parseLoaderTree(tree)
 
-  const { layout, template, error, loading, 'not-found': notFound } = components
+  const {
+    layout,
+    template,
+    error,
+    glue,
+    loading,
+    'not-found': notFound,
+  } = components
 
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
   const injectedJSWithCurrentLayout = new Set(injectedJS)
@@ -121,6 +128,16 @@ async function createComponentTreeInternal({
     injectedJS: injectedJSWithCurrentLayout,
     injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
   })
+
+  const [GlueComponent, glueStyles, glueScripts] = glue
+    ? await createComponentStylesAndScripts({
+        ctx,
+        filePath: glue[1],
+        getComponent: glue[0],
+        injectedCSS: injectedCSSWithCurrentLayout,
+        injectedJS: injectedJSWithCurrentLayout,
+      })
+    : [React.Fragment]
 
   const [Template, templateStyles, templateScripts] = template
     ? await createComponentStylesAndScripts({
@@ -469,6 +486,9 @@ async function createComponentTreeInternal({
             templateScripts={templateScripts}
             notFound={notFoundComponent}
             notFoundStyles={notFoundStyles}
+            glue={GlueComponent}
+            glueStyles={glueStyles}
+            glueScripts={glueScripts}
             styles={currentStyles}
           />,
           childCacheNodeSeedData,

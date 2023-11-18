@@ -532,7 +532,8 @@ export default function OuterLayoutRouter({
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
   glue: React.ComponentType<{ children: React.JSX.Element[] }>
-  glueStyles?: React.ReactNode | undefined
+  glueStyles: React.ReactNode | undefined
+  glueScripts: React.ReactNode | undefined
   styles?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
