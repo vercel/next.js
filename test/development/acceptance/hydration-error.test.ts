@@ -37,12 +37,12 @@ describe('Error overlay for hydration errors', () => {
     expect(await session.hasRedbox(true)).toBe(true)
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Error: Text content does not match server-rendered HTML.
+      "Error: Text content does not match server-rendered HTML.
 
-        Warning: Text content did not match. Server: \\"server\\" Client: \\"client\\"
+      Warning: Text content did not match. Server: "server" Client: "client"
 
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+    `)
 
     await cleanup()
   })

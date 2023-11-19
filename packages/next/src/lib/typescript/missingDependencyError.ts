@@ -1,7 +1,7 @@
 import { bold, cyan, red } from '../picocolors'
 
 import { getOxfordCommaList } from '../oxford-comma-list'
-import { MissingDependency } from '../has-necessary-dependencies'
+import type { MissingDependency } from '../has-necessary-dependencies'
 import { FatalError } from '../fatal-error'
 import { getPkgManager } from '../helpers/get-pkg-manager'
 

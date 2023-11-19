@@ -9,7 +9,7 @@
     "@next/mdx": "latest",
     "@types/mdx": "2.0.3",
     "@types/node": "18.11.18",
-    "@types/react": "18.0.27",
+    "@types/react": "18.2.8",
     "@types/react-dom": "18.0.10",
     "next": "latest",
     "react": "18.2.0",

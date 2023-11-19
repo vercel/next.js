@@ -1,7 +1,7 @@
 import { createHrefFromUrl } from '../create-href-from-url'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import {
+import type {
   ServerPatchAction,
   ReducerState,
   ReadonlyReducerState,
@@ -33,6 +33,8 @@ export function serverPatchReducer(
     return handleMutable(state, mutable)
   }
 
+  mutable.preserveCustomHistoryState = false
+
   // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
     return handleExternalUrl(
@@ -47,10 +49,10 @@ export function serverPatchReducer(
   let currentCache = state.cache
 
   for (const flightDataPath of flightData) {
-    // Slices off the last segment (which is at -4) as it doesn't exist in the tree yet
-    const flightSegmentPath = flightDataPath.slice(0, -4)
+    // Slices off the last segment (which is at -5) as it doesn't exist in the tree yet
+    const flightSegmentPath = flightDataPath.slice(0, -5)
 
-    const [treePatch] = flightDataPath.slice(-3, -2)
+    const [treePatch] = flightDataPath.slice(-4, -3)
     const newTree = applyRouterStatePatchToTree(
       // TODO-APP: remove ''
       ['', ...flightSegmentPath],

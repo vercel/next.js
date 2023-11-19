@@ -6,9 +6,15 @@ import type { NextParsedUrlQuery } from '../../server/request-meta'
 
 import RenderResult from '../../server/render-result'
 import { join } from 'path'
-import { MockedRequest, MockedResponse } from '../../server/lib/mock-request'
+import type {
+  MockedRequest,
+  MockedResponse,
+} from '../../server/lib/mock-request'
 import { isInAmpMode } from '../../shared/lib/amp-mode'
-import { SERVER_PROPS_EXPORT_ERROR } from '../../lib/constants'
+import {
+  NEXT_DATA_SUFFIX,
+  SERVER_PROPS_EXPORT_ERROR,
+} from '../../lib/constants'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { FileType, fileExists } from '../../lib/file-exists'
@@ -184,7 +190,7 @@ export async function exportPages(
   if (metadata.pageData) {
     const dataFile = join(
       pagesDataDir,
-      htmlFilename.replace(/\.html$/, '.json')
+      htmlFilename.replace(/\.html$/, NEXT_DATA_SUFFIX)
     )
 
     await fileWriter(
@@ -211,7 +217,7 @@ export async function exportPages(
 
   return {
     ampValidations,
-    revalidate: metadata.revalidate,
+    revalidate: metadata.revalidate ?? false,
     ssgNotFound,
   }
 }

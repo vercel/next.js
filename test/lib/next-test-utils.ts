@@ -49,13 +49,7 @@ export function initNextServerScript(
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [
-        ...((opts && opts.nodeArgs) || []),
-        '-r',
-        require.resolve('./mocks-require-hook'),
-        '--no-deprecation',
-        scriptPath,
-      ],
+      [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
       {
         env,
         cwd: opts && opts.cwd,
@@ -225,14 +219,7 @@ export function runNextCommand(
     console.log(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
-      [
-        ...(options.nodeArgs || []),
-        '-r',
-        require.resolve('./mocks-require-hook'),
-        '--no-deprecation',
-        nextBin,
-        ...argv,
-      ],
+      [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
       {
         ...options.spawnOptions,
         cwd,
@@ -354,14 +341,7 @@ export function runNextCommandDev(
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [
-        ...nodeArgs,
-        '-r',
-        require.resolve('./mocks-require-hook'),
-        '--no-deprecation',
-        nextBin,
-        ...argv,
-      ],
+      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
       {
         cwd,
         env,
@@ -462,14 +442,6 @@ export function nextBuild(
   opts: NextOptions = {}
 ) {
   return runNextCommand(['build', dir, ...args], opts)
-}
-
-export function nextExport(dir: string, { outdir }, opts: NextOptions = {}) {
-  return runNextCommand(['export', dir, '--outdir', outdir], opts)
-}
-
-export function nextExportDefault(dir: string, opts: NextOptions = {}) {
-  return runNextCommand(['export', dir], opts)
 }
 
 export function nextLint(
@@ -1037,6 +1009,24 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
   return shouldSkip ? describe.skip : describe
 }
 
+export async function getRedboxComponentStack(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss(
+    '[data-nextjs-component-stack-frame]',
+    30000
+  )
+  // TODO: the type for elementsByCss is incorrect
+  const componentStackFrameElements: any = await browser.elementsByCss(
+    '[data-nextjs-component-stack-frame]'
+  )
+  const componentStackFrameTexts = await Promise.all(
+    componentStackFrameElements.map((f) => f.innerText())
+  )
+
+  return componentStackFrameTexts.join('\n')
+}
+
 /**
  * For better editor support, pass in the variants this should run on (`default` and/or `turbo`) as cases.
  *
@@ -1044,7 +1034,7 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
  */
 export const describeVariants = {
   each(variants: TestVariants[]) {
-    return (name: string, fn: (...args: TestVariants[]) => any) => {
+    return (name: string, fn: (variants: TestVariants) => any) => {
       if (
         !Array.isArray(variants) ||
         !variants.every((val) => typeof val === 'string')

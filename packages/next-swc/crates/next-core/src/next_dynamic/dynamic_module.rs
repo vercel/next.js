@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkableModule, ChunkingContext},
+    chunk::{ChunkableModule, ChunkingContext, ChunkingContextExt},
     ident::AssetIdent,
     module::Module,
     output::OutputAssets,
@@ -41,8 +41,7 @@ impl NextDynamicEntryModule {
             bail!("dynamic client asset must be chunkable");
         };
 
-        let client_entry_chunk = client_entry_module.as_root_chunk(client_chunking_context);
-        Ok(client_chunking_context.chunk_group(client_entry_chunk))
+        Ok(client_chunking_context.root_chunk_group(client_entry_module))
     }
 }
 

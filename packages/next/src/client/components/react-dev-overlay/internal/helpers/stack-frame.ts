@@ -1,4 +1,4 @@
-import { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 // import type { OriginalStackFrameResponse } from '../../middleware'
 
 export type OriginalStackFrame =
@@ -85,10 +85,9 @@ export function getOriginalStackFrame(
   }
 
   if (
-    !(
-      source.file?.startsWith('webpack-internal:') ||
-      source.file?.startsWith('file:')
-    )
+    source.file === '<anonymous>' ||
+    source.file?.match(/^node:/) ||
+    source.file?.match(/https?:\/\//)
   ) {
     return Promise.resolve({
       error: false,

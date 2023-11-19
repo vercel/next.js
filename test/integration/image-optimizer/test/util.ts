@@ -147,6 +147,28 @@ export function runTests(ctx) {
     slowImageServer.stop()
   })
 
+  if (!isDev && ctx.isSharp && ctx.nextConfigImages) {
+    it('should handle custom sharp usage', async () => {
+      const res = await fetchViaHTTP(ctx.appPort, '/api/custom-sharp')
+
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ success: true })
+      const traceFile = await fs.readJson(
+        join(
+          ctx.appDir,
+          '.next',
+          'server',
+          'pages',
+          'api',
+          'custom-sharp.js.nft.json'
+        )
+      )
+      expect(traceFile.files.some((file) => file.includes('sharp/build'))).toBe(
+        true
+      )
+    })
+  }
+
   if (domains.length > 0) {
     it('should normalize invalid status codes', async () => {
       const url = `http://localhost:${
@@ -1435,6 +1457,20 @@ export const setupTests = (ctx) => {
         })
         curCtx.nextOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
+
+        if (curCtx.isSharp) {
+          await fs.writeFile(
+            join(curCtx.appDir, 'pages', 'api', 'custom-sharp.js'),
+            `
+            import sharp from 'sharp'
+            export default function handler(req, res) {
+              console.log(sharp)
+              res.json({ success: true })
+            }
+          `
+          )
+        }
+
         await nextBuild(curCtx.appDir)
         await cleanImagesDir(ctx)
         curCtx.appPort = await findPort()
@@ -1452,6 +1488,11 @@ export const setupTests = (ctx) => {
       })
       afterAll(async () => {
         nextConfig.restore()
+        if (curCtx.isSharp) {
+          await fs.remove(
+            join(curCtx.appDir, 'pages', 'api', 'custom-sharp.js')
+          )
+        }
         if (curCtx.app) await killApp(curCtx.app)
       })
 

@@ -1,9 +1,7 @@
 import React from 'react'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
-import {
-  CacheStates,
-  CacheNode,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightData } from '../../../server/app-render/types'
 
 const getFlightData = (): FlightData => {
@@ -32,6 +30,7 @@ const getFlightData = (): FlightData => {
       <>
         <title>About page!</title>
       </>,
+      null,
     ],
   ]
 }
@@ -90,7 +89,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [treePatch, _subTreeData, head] = flightDataPath.slice(-3)
+    const [treePatch, _subTreeData, head] = flightDataPath.slice(-4)
     fillLazyItemsTillLeafWithHead(cache, existingCache, treePatch, head)
 
     const expectedCache: CacheNode = {

@@ -6,7 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
-import { COMPILER_NAMES } from './constants'
+import type { COMPILER_NAMES } from './constants'
 import type fs from 'fs'
 
 export type NextComponentType<
@@ -448,6 +448,7 @@ export class MiddlewareNotFoundError extends Error {
 }
 
 export interface CacheFs {
+  existsSync: typeof fs.existsSync
   readFile: typeof fs.promises.readFile
   readFileSync: typeof fs.readFileSync
   writeFile(f: string, d: any): Promise<void>

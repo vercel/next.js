@@ -1,7 +1,5 @@
-import {
-  CacheNode,
-  CacheStates,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightDataPath } from '../../../server/app-render/types'
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
@@ -16,7 +14,7 @@ export function fillCacheWithNewSubTreeData(
   flightDataPath: FlightDataPath,
   wasPrefetched?: boolean
 ): void {
-  const isLastEntry = flightDataPath.length <= 5
+  const isLastEntry = flightDataPath.length <= 6
   const [parallelRouteKey, segment] = flightDataPath
 
   const cacheKey = createRouterCacheKey(segment)

@@ -1,9 +1,7 @@
 import React from 'react'
 import type { FlightRouterState } from '../../../server/app-render/types'
-import {
-  CacheNode,
-  CacheStates,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from './create-initial-router-state'
 
 const buildId = 'development'
@@ -100,7 +98,11 @@ describe('createInitialRouterState', () => {
       tree: initialTree,
       canonicalUrl: initialCanonicalUrl,
       prefetchCache: new Map(),
-      pushRef: { pendingPush: false, mpaNavigation: false },
+      pushRef: {
+        pendingPush: false,
+        mpaNavigation: false,
+        preserveCustomHistoryState: true,
+      },
       focusAndScrollRef: {
         apply: false,
         onlyHashChange: false,

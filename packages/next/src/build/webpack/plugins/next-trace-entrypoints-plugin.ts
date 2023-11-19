@@ -1,11 +1,9 @@
 import nodePath from 'path'
-import { Span } from '../../../trace'
+import type { Span } from '../../../trace'
 import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
-import {
-  nodeFileTrace,
-  NodeFileTraceReasons,
-} from 'next/dist/compiled/@vercel/nft'
+import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
+import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
   TRACE_OUTPUT_VERSION,
@@ -15,7 +13,7 @@ import {
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
 } from '../../webpack-config'
-import { NextConfigComplete } from '../../../server/config-shared'
+import type { NextConfigComplete } from '../../../server/config-shared'
 import { loadBindings } from '../../swc'
 import { isMatch } from 'next/dist/compiled/micromatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
@@ -745,7 +743,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             context,
             request,
             isEsmRequested,
-            !!this.appDirEnabled,
             (options) => (_: string, resRequest: string) => {
               return getResolve(options)(parent, resRequest, job)
             },

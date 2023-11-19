@@ -6,15 +6,15 @@ import type {
 } from '../shared/lib/router/router'
 
 import React from 'react'
-import { UrlObject } from 'url'
+import type { UrlObject } from 'url'
 import { resolveHref } from './resolve-href'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { isAbsoluteUrl } from '../shared/lib/utils'
 import { addLocale } from './add-locale'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
-import {
-  AppRouterContext,
+import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
+import type {
   AppRouterInstance,
   PrefetchOptions as AppRouterPrefetchOptions,
 } from '../shared/lib/app-router-context.shared-runtime'
@@ -199,8 +199,7 @@ function linkClicked(
   shallow?: boolean,
   scroll?: boolean,
   locale?: string | false,
-  isAppRouter?: boolean,
-  prefetchEnabled?: boolean
+  isAppRouter?: boolean
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -230,7 +229,6 @@ function linkClicked(
       })
     } else {
       router[replace ? 'replace' : 'push'](as || href, {
-        forceOptimisticNavigation: !prefetchEnabled,
         scroll: routerScroll,
       })
     }
@@ -634,8 +632,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           shallow,
           scroll,
           locale,
-          isAppRouter,
-          prefetchEnabled
+          isAppRouter
         )
       },
       onMouseEnter(e) {

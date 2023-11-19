@@ -32,11 +32,11 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  CompilerNameValues,
   COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
 } from '../shared/lib/constants'
-import { __ApiPreviewProps } from '../server/api-utils'
+import type { CompilerNameValues } from '../shared/lib/constants'
+import type { __ApiPreviewProps } from '../server/api-utils'
 import { warn } from './output/log'
 import {
   isMiddlewareFile,
@@ -46,10 +46,10 @@ import {
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { ServerRuntime } from '../../types'
+import type { ServerRuntime } from '../../types'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
-import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
+import type { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
@@ -60,6 +60,7 @@ import {
 import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/future/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
+import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 
 export function sortByPageExts(pageExtensions: string[]) {
   return (a: string, b: string) => {
@@ -356,6 +357,7 @@ export function getEdgeServerEntry(opts: {
       layer: WEBPACK_LAYERS.reactServerComponents,
     }
   }
+
   if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
@@ -416,12 +418,11 @@ export function getEdgeServerEntry(opts: {
     middlewareConfig: Buffer.from(
       JSON.stringify(opts.middlewareConfig || {})
     ).toString('base64'),
-    serverActionsBodySizeLimit:
-      opts.config.experimental.serverActionsBodySizeLimit,
+    serverActions: opts.config.experimental.serverActions,
   }
 
   return {
-    import: `next-edge-ssr-loader?${stringify(loaderParams)}!`,
+    import: `next-edge-ssr-loader?${JSON.stringify(loaderParams)}!`,
     // The Edge bundle includes the server in its entrypoint, so it has to
     // be in the SSR layer — we later convert the page request to the RSC layer
     // via a webpack rule.
@@ -545,6 +546,9 @@ export async function createEntrypoints(
       )
     }
 
+    // TODO: find a better place to do this
+    normalizeCatchAllRoutes(appPathsPerRoute)
+
     // Make sure to sort parallel routes to make the result deterministic.
     appPathsPerRoute = Object.fromEntries(
       Object.entries(appPathsPerRoute).map(([k, v]) => [k, v.sort()])
@@ -590,6 +594,7 @@ export async function createEntrypoints(
         page,
       })
 
+      // TODO(timneutkens): remove this
       const isServerComponent =
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 

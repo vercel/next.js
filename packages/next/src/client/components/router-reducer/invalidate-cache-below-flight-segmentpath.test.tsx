@@ -1,10 +1,8 @@
 import React from 'react'
 import type { FlightData } from '../../../server/app-render/types'
 import { invalidateCacheBelowFlightSegmentPath } from './invalidate-cache-below-flight-segmentpath'
-import {
-  CacheStates,
-  CacheNode,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 
 const getFlightData = (): FlightData => {
@@ -24,6 +22,7 @@ const getFlightData = (): FlightData => {
       <>
         <title>About page!</title>
       </>,
+      null,
     ],
   ]
 }
@@ -81,7 +80,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    const flightSegmentPath = flightDataPath.slice(0, -3)
+    const flightSegmentPath = flightDataPath.slice(0, -4)
 
     // @ts-expect-error TODO-APP: investigate why this is not a TS error in router-reducer.
     cache.status = CacheStates.READY
