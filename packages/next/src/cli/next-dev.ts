@@ -27,7 +27,6 @@ import { createSelfSignedCertificate } from '../lib/mkcert'
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
-import { trace } from '../trace'
 import { fork } from 'child_process'
 import {
   getReservedPortExplanation,
@@ -318,9 +317,7 @@ const nextDev: CliCommand = async (args) => {
     }
   }
 
-  await trace('start-dev-server').traceAsyncFn(async (_) => {
-    await runDevServer(false)
-  })
+  await runDevServer(false)
 }
 
 function cleanup() {
