@@ -1,0 +1,12 @@
+.clock {
+  padding: 15px;
+  display: inline-block;
+  color: #82fa58;
+  font: 50px menlo, monaco, monospace;
+  background-color: #000;
+  border-radius: 4px;
+}
+
+.light {
+  background-color: #333;
+}

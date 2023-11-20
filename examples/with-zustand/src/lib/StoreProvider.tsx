@@ -1,10 +1,16 @@
 'use client'
 
 import { type PropsWithChildren, useRef } from 'react'
-import type { StoreType } from './store'
+import type { StoreInterface, StoreType } from './store'
 import { initializeStore, Provider } from './store'
 
-const StoreProvider = ({ children, ...props }: PropsWithChildren) => {
+export interface PreloadedStoreInterface
+  extends Pick<StoreInterface, 'lastUpdate'> {}
+
+export default function StoreProvider({
+  children,
+  ...props
+}: PropsWithChildren<PreloadedStoreInterface>) {
   const storeRef = useRef<StoreType>()
 
   if (!storeRef.current) {
@@ -13,5 +19,3 @@ const StoreProvider = ({ children, ...props }: PropsWithChildren) => {
 
   return <Provider value={storeRef.current}>{children}</Provider>
 }
-
-export default StoreProvider
