@@ -149,7 +149,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         }
 
         let is_esm = ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
-            .includes(&*reference_type);
+            .includes(&reference_type);
 
         // node.js only supports these file extensions
         // mjs is an esm module and we can't bundle that yet
