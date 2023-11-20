@@ -110,6 +110,9 @@ export class EdgeRouteModuleWrapper {
 
     // Get the response from the handler.
     const res = await this.routeModule.handle(request, context)
+    if (res === 'Upgraded') {
+      throw new Error('Unreachable - Edge routes cannot be upgraded')
+    }
 
     const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
     if (context.renderOpts.waitUntil) {

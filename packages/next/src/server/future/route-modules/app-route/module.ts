@@ -1,8 +1,11 @@
 import type { NextConfig } from '../../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppConfig } from '../../../../build/utils'
-import type { NextRequest } from '../../../web/spec-extension/request'
 import type { PrerenderManifest } from '../../../../build'
+import {
+  isUpgradeError,
+  type NextRequest,
+} from '../../../web/spec-extension/request'
 
 import {
   RouteModule,
@@ -453,7 +456,7 @@ export class AppRouteRouteModule extends RouteModule<
   public async handle(
     request: NextRequest,
     context: AppRouteRouteHandlerContext
-  ): Promise<Response> {
+  ): Promise<Response | 'Upgraded'> {
     try {
       // Execute the route to get the response.
       const response = await this.execute(request, context)
@@ -461,6 +464,10 @@ export class AppRouteRouteModule extends RouteModule<
       // The response was handled, return it.
       return response
     } catch (err) {
+      if (isUpgradeError(err)) {
+        return 'Upgraded'
+      }
+
       // Try to resolve the error to a response, else throw it again.
       const response = resolveHandlerError(err)
       if (!response) throw err

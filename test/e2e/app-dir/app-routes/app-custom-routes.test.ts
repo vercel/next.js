@@ -1,6 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { Readable } from 'stream'
+import { WebSocket } from 'ws'
 
 import {
   withRequestMeta,
@@ -14,6 +15,7 @@ createNextDescribe(
   'app-custom-routes',
   {
     files: __dirname,
+    dependencies: require('./package.json').dependencies,
   },
   ({ next, isNextDeploy, isNextDev, isNextStart }) => {
     describe('works with api prefix correctly', () => {
@@ -195,6 +197,40 @@ createNextDescribe(
           expect(await res.json()).toEqual(meta)
         })
       })
+    })
+
+    describe('websocket route', () => {
+      //  this is necessary for the timeout to function
+      // eslint-disable-next-line jest/no-done-callback
+      it('accepts websocket connections', async () => {
+        const port = next.appPort
+        const wsUrl = new URL(
+          basePath + '/api/websocket',
+          `ws://localhost:${port}`
+        )
+        const ws = new WebSocket(wsUrl)
+
+        const response = await new Promise<string>((resolve, reject) => {
+          ws.on('open', () => {
+            ws.send('ping')
+          })
+
+          let response: string
+          ws.on('message', (message) => {
+            response = message.toString('utf8')
+            ws.close()
+          })
+
+          ws.on('error', (err) => {
+            reject(err)
+          })
+
+          ws.on('close', () => {
+            resolve(response)
+          })
+        })
+        expect(response).toEqual('pong')
+      }, 10_000)
     })
 
     describe('body', () => {

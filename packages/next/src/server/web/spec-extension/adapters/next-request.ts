@@ -102,6 +102,7 @@ export class NextRequestAdapter {
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
       duplex: 'half',
       signal,
+      rawRequest: request.originalRequest,
       // geo
       // ip
       // nextConfig

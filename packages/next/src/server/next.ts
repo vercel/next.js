@@ -7,7 +7,7 @@ import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextUrlWithParsedQuery } from './request-meta'
-import type { WorkerRequestHandler, WorkerUpgradeHandler } from './lib/types'
+import type { WorkerRequestHandler } from './lib/types'
 
 import './require-hook'
 import './node-polyfill-crypto'
@@ -268,8 +268,6 @@ class NextCustomServer extends NextServer {
 
   // @ts-expect-error These are initialized in prepare()
   protected requestHandler: WorkerRequestHandler
-  // @ts-expect-error These are initialized in prepare()
-  protected upgradeHandler: WorkerUpgradeHandler
 
   async prepare() {
     const { getRequestHandlers } =
@@ -277,7 +275,7 @@ class NextCustomServer extends NextServer {
 
     const isNodeDebugging = !!checkNodeDebugType()
 
-    const initResult = await getRequestHandlers({
+    this.requestHandler = await getRequestHandlers({
       dir: this.options.dir!,
       port: this.options.port || 3000,
       isDev: !!this.options.dev,
@@ -285,24 +283,6 @@ class NextCustomServer extends NextServer {
       minimalMode: this.options.minimalMode,
       isNodeDebugging: !!isNodeDebugging,
     })
-    this.requestHandler = initResult[0]
-    this.upgradeHandler = initResult[1]
-  }
-
-  private setupWebSocketHandler(
-    customServer?: import('http').Server,
-    _req?: IncomingMessage
-  ) {
-    if (!this.didWebSocketSetup) {
-      this.didWebSocketSetup = true
-      customServer = customServer || (_req?.socket as any)?.server
-
-      if (customServer) {
-        customServer.on('upgrade', async (req, socket, head) => {
-          this.upgradeHandler(req, socket, head)
-        })
-      }
-    }
   }
 
   getRequestHandler() {
@@ -311,8 +291,6 @@ class NextCustomServer extends NextServer {
       res: ServerResponse,
       parsedUrl?: UrlWithParsedQuery
     ) => {
-      this.setupWebSocketHandler(this.options.httpServer, req)
-
       if (parsedUrl) {
         req.url = formatUrl(parsedUrl)
       }
@@ -323,7 +301,6 @@ class NextCustomServer extends NextServer {
 
   async render(...args: Parameters<Server['render']>) {
     let [req, res, pathname, query, parsedUrl] = args
-    this.setupWebSocketHandler(this.options.httpServer, req as any)
 
     if (!pathname.startsWith('/')) {
       console.error(`Cannot render page with path "${pathname}"`)
