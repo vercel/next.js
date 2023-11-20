@@ -21,9 +21,6 @@ const INITIALIZING_TEST_CASES = [
 
 // please make sure this is sorted alphabetically when making changes.
 const SKIPPED_TEST_SUITES = {
-  'test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts': [
-    'ReactRefreshLogBox app turbo Module not found missing global CSS',
-  ],
   'test/development/acceptance-app/ReactRefreshRegression.test.ts': [
     'ReactRefreshRegression app can fast refresh a page with dynamic rendering',
     'ReactRefreshRegression app can fast refresh a page with config',

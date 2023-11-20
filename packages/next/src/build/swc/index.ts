@@ -507,7 +507,7 @@ export interface Issue {
       ident: string
       content?: string
     }
-    range: null | {
+    range?: {
       start: { line: number; column: number }
       end: { line: number; column: number }
     }
