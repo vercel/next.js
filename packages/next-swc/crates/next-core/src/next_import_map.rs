@@ -7,6 +7,7 @@ use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileSystem, FileSystemPath},
     turbopack::{
         core::{
+            reference_type::{CommonJsReferenceSubType, ReferenceType},
             resolve::{
                 options::{ConditionValue, ImportMap, ImportMapping, ResolveOptions, ResolvedMap},
                 parse::Request,
@@ -880,6 +881,7 @@ async fn package_lookup_resolve_options(
 pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
     let result = resolve(
         context_directory,
+        Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
         Request::parse(Value::new(Pattern::Constant(
             "next/package.json".to_string(),
         ))),
