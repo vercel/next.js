@@ -32,6 +32,7 @@ const flightData: FlightData = [
     <>
       <title>About page!</title>
     </>,
+    null,
   ],
 ]
 
@@ -63,6 +64,7 @@ const demographicsFlightData: FlightData = [
     <>
       <title>Demographics Head</title>
     </>,
+    null,
   ],
 ]
 

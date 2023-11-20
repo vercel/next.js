@@ -4,7 +4,6 @@
 #![feature(str_split_remainder)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 mod app_segment_config;
 pub mod app_structure;
