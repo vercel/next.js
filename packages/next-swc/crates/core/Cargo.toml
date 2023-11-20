@@ -7,6 +7,9 @@ publish = false
 [features]
 plugin = ["turbopack-binding/__swc_core_binding_napi_plugin"]
 
+[lints]
+workspace = true
+
 [dependencies]
 chrono = "0.4"
 convert_case = "0.5.0"
