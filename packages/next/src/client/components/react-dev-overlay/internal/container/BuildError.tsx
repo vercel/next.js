@@ -1,72 +1,89 @@
 import * as React from 'react'
-import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogHeader,
-} from '../components/Dialog'
-import { Overlay } from '../components/Overlay'
+
+import { DialogBody } from '../components/Dialog'
 import { Terminal } from '../components/Terminal'
-import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
+import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
+import type { DialogBodyProps } from '../components/Dialog'
+
 import { noop as css } from '../helpers/noop-template'
+import { clsx } from '../helpers/clsx'
 
-export type BuildErrorProps = { message: string; versionInfo?: VersionInfo }
+import { usePagination } from '../hooks/use-pagination'
 
-export const BuildError: React.FC<BuildErrorProps> = function BuildError({
+import type { BuildError } from './Errors'
+
+type BuildErrorDialogBodyProps = {
+  items: BuildError[]
+  message: string
+  'data-hidden'?: boolean
+}
+
+export function BuildErrorsDialogBody({
+  items: buildErrors,
   message,
-  versionInfo,
-}) {
-  const noop = React.useCallback(() => {}, [])
+  'data-hidden': hidden = false,
+  className,
+  ...rest
+}: BuildErrorDialogBodyProps &
+  Omit<DialogBodyProps, 'children'>): React.ReactNode {
+  const [activeError, { previous, next }, activeIdx] =
+    usePagination(buildErrors)
+
+  if (buildErrors.length < 1 || activeError == null) {
+    return (
+      <DialogBody
+        {...rest}
+        data-hidden={hidden}
+        className={clsx('build-errors', className)}
+      />
+    )
+  }
+
   return (
-    <Overlay fixed>
-      <Dialog
-        type="error"
-        aria-labelledby="nextjs__container_build_error_label"
-        aria-describedby="nextjs__container_build_error_desc"
-        onClose={noop}
-      >
-        <DialogContent>
-          <DialogHeader className="nextjs-container-build-error-header">
-            <h4 id="nextjs__container_build_error_label">Failed to compile</h4>
-            {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
-          </DialogHeader>
-          <DialogBody className="nextjs-container-build-error-body">
-            <Terminal content={message} />
-            <footer>
-              <p id="nextjs__container_build_error_desc">
-                <small>
-                  This error occurred during the build process and can only be
-                  dismissed by fixing the error.
-                </small>
-              </p>
-            </footer>
-          </DialogBody>
-        </DialogContent>
-      </Dialog>
-    </Overlay>
+    <DialogBody
+      {...rest}
+      data-hidden={hidden}
+      className={clsx('build-errors', className)}
+    >
+      <div className="title-pagination">
+        <h1 id="nextjs__container_errors_label">{message}</h1>
+
+        <LeftRightDialogHeader
+          hidden={hidden}
+          previous={activeIdx > 0 ? previous : null}
+          next={activeIdx < buildErrors.length - 1 ? next : null}
+          severity="error"
+        >
+          <small>
+            <span>{activeIdx + 1}</span> of <span>{buildErrors.length}</span>
+          </small>
+        </LeftRightDialogHeader>
+      </div>
+
+      <Terminal content={activeError.message} />
+
+      <footer>
+        <p id="nextjs__container_errors_desc">
+          <small>
+            This error occurred during the build process and can only be
+            dismissed by fixing the error.
+          </small>
+        </p>
+      </footer>
+    </DialogBody>
   )
 }
 
 export const styles = css`
-  .nextjs-container-build-error-header {
-    display: flex;
-    align-items: center;
-  }
-  .nextjs-container-build-error-header > h4 {
-    line-height: 1.5;
-    margin: 0;
-    padding: 0;
-  }
-
-  .nextjs-container-build-error-body footer {
+  .build-errors footer {
     margin-top: var(--size-gap);
   }
-  .nextjs-container-build-error-body footer p {
+
+  .build-errors footer p {
     margin: 0;
   }
 
-  .nextjs-container-build-error-body small {
+  .build-errors small {
     color: #757575;
   }
 `

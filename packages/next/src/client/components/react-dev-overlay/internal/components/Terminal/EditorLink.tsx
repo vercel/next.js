@@ -1,4 +1,5 @@
-import React from 'react'
+import * as React from 'react'
+
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 
 type EditorLinkProps = {
@@ -9,7 +10,12 @@ type EditorLinkProps = {
     column: number
   }
 }
-export function EditorLink({ file, isSourceFile, location }: EditorLinkProps) {
+
+export function EditorLink({
+  file,
+  isSourceFile,
+  location,
+}: EditorLinkProps): React.ReactNode {
   const open = useOpenInEditor({
     file,
     lineNumber: location?.line ?? 1,

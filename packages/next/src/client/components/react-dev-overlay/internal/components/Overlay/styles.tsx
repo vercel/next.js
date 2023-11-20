@@ -1,7 +1,7 @@
 import { noop as css } from '../../helpers/noop-template'
 
 const styles = css`
-  [data-nextjs-dialog-overlay] {
+  .dialog-overlay {
     position: fixed;
     top: 0;
     right: 0;
@@ -18,23 +18,23 @@ const styles = css`
   }
 
   @media (max-height: 812px) {
-    [data-nextjs-dialog-overlay] {
+    .dialog-overlay {
       padding: 15px 15px 0;
     }
   }
 
-  [data-nextjs-dialog-backdrop] {
+  .dialog-backdrop {
     position: fixed;
     top: 0;
     right: 0;
     bottom: 0;
     left: 0;
-    background-color: rgba(17, 17, 17, 0.2);
+    background-color: var(--color-backdrop);
     pointer-events: all;
     z-index: -1;
   }
 
-  [data-nextjs-dialog-backdrop-fixed] {
+  .dialog-backdrop[data-dialog-backdrop-fixed] {
     cursor: not-allowed;
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);

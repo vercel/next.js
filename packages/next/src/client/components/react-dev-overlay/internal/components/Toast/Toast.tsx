@@ -1,19 +1,28 @@
 import * as React from 'react'
 
-export type ToastProps = {
-  children?: React.ReactNode
+import { clsx } from '../../helpers/clsx'
+
+export type ToastProps = React.PropsWithChildren & {
   onClick?: (ev: React.MouseEvent<HTMLDivElement, MouseEvent>) => void
   className?: string
 }
 
-export const Toast: React.FC<ToastProps> = function Toast({
+export function Toast({
   onClick,
   children,
   className,
-}) {
+  ...rest
+}: ToastProps & React.HTMLProps<HTMLDivElement>): React.ReactNode {
   return (
-    <div data-nextjs-toast onClick={onClick} className={className}>
-      <div data-nextjs-toast-wrapper>{children}</div>
+    <div
+      {...rest}
+      data-nextjs-toast
+      onClick={onClick}
+      className={clsx('toast', className)}
+    >
+      <div data-nextjs-toast-wrapper className="toast-wrapper">
+        {children}
+      </div>
     </div>
   )
 }

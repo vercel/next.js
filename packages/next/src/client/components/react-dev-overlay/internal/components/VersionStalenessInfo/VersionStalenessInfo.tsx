@@ -1,12 +1,16 @@
-import React from 'react'
+import * as React from 'react'
+
 import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 
-export function VersionStalenessInfo(props: VersionInfo) {
+export function VersionStalenessInfo(props: VersionInfo): React.ReactNode {
   if (!props) return null
+
   const { staleness, installed, expected } = props
+
   let text = ''
   let title = ''
   let indicatorClass = ''
+
   switch (staleness) {
     case 'fresh':
       text = 'Next.js is up to date'

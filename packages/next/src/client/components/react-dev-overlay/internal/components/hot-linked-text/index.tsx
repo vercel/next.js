@@ -3,9 +3,7 @@ import { getWordsAndWhitespaces } from './get-words-and-whitespaces'
 
 const linkRegex = /https?:\/\/[^\s/$.?#].[^\s"]*/i
 
-export const HotlinkedText: React.FC<{
-  text: string
-}> = function HotlinkedText(props) {
+export function HotlinkedText(props: { text: string }): React.ReactNode {
   const { text } = props
 
   const wordsAndWhitespaces = getWordsAndWhitespaces(text)
