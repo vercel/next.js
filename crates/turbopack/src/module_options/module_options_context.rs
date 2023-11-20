@@ -165,6 +165,8 @@ pub struct ModuleOptionsContext {
     pub placeholder_for_future_extensions: (),
     pub enable_tree_shaking: bool,
     pub esm_url_rewrite_behavior: Option<UrlRewriteBehavior>,
+
+    pub use_lightningcss: bool,
 }
 
 #[turbo_tasks::value_impl]

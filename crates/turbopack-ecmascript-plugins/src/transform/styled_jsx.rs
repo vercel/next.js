@@ -10,17 +10,13 @@ use swc_core::{
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[derive(Debug)]
-pub struct StyledJsxTransformer;
-
-impl StyledJsxTransformer {
-    pub fn new() -> Self {
-        Self
-    }
+pub struct StyledJsxTransformer {
+    use_lightningcss: bool,
 }
 
-impl Default for StyledJsxTransformer {
-    fn default() -> Self {
-        Self::new()
+impl StyledJsxTransformer {
+    pub fn new(use_lightningcss: bool) -> Self {
+        Self { use_lightningcss }
     }
 }
 
@@ -33,7 +29,8 @@ impl CustomTransformer for StyledJsxTransformer {
             // styled_jsx don't really use that in a relevant way
             FileName::Anon,
             styled_jsx::visitor::Config {
-                use_lightningcss: false,
+                use_lightningcss: self.use_lightningcss,
+                ..Default::default()
             },
         ));
 

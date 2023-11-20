@@ -3,10 +3,8 @@ use std::{fmt::Write, iter::once, sync::Arc};
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use indoc::formatdoc;
-use swc_core::{
-    common::{BytePos, FileName, LineCol, SourceMap},
-    css::modules::CssClassName,
-};
+use lightningcss::css_modules::CssModuleReference;
+use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -31,7 +29,7 @@ use turbopack_ecmascript::{
 };
 
 use crate::{
-    parse::{ParseCss, ParseCssResult},
+    process::{CssWithPlaceholderResult, ProcessCss},
     references::{compose::CssModuleComposeReference, internal::InternalCssAssetReference},
 };
 
@@ -153,32 +151,42 @@ impl ModuleCssAsset {
     async fn classes(self: Vc<Self>) -> Result<Vc<ModuleCssClasses>> {
         let inner = self.inner();
 
-        let Some(inner) = Vc::try_resolve_sidecast::<Box<dyn ParseCss>>(inner).await? else {
-            bail!("inner asset should be CSS parseable");
+        let Some(inner) = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(inner).await? else {
+            bail!("inner asset should be CSS processable");
         };
 
-        let parse_result = inner.parse_css().await?;
+        let result = inner.get_css_with_placeholder().await?;
         let mut classes = IndexMap::default();
 
         // TODO(alexkirsz) Should we report an error on parse error here?
-        if let ParseCssResult::Ok { exports, .. } = &*parse_result {
+        if let CssWithPlaceholderResult::Ok {
+            exports: Some(exports),
+            ..
+        } = &*result
+        {
             for (class_name, export_class_names) in exports {
                 let mut export = Vec::default();
 
-                for export_class_name in export_class_names {
+                export.push(ModuleCssClass::Local {
+                    name: export_class_names.name.clone(),
+                });
+
+                for export_class_name in &export_class_names.composes {
                     export.push(match export_class_name {
-                        CssClassName::Import { from, name } => ModuleCssClass::Import {
-                            original: name.value.to_string(),
-                            from: CssModuleComposeReference::new(
-                                Vc::upcast(self),
-                                Request::parse(Value::new(from.to_string().into())),
-                            ),
+                        CssModuleReference::Dependency { specifier, name } => {
+                            ModuleCssClass::Import {
+                                original: name.to_string(),
+                                from: CssModuleComposeReference::new(
+                                    Vc::upcast(self),
+                                    Request::parse(Value::new(specifier.to_string().into())),
+                                ),
+                            }
+                        }
+                        CssModuleReference::Local { name } => ModuleCssClass::Local {
+                            name: name.to_string(),
                         },
-                        CssClassName::Local { name } => ModuleCssClass::Local {
-                            name: name.value.to_string(),
-                        },
-                        CssClassName::Global { name } => ModuleCssClass::Global {
-                            name: name.value.to_string(),
+                        CssModuleReference::Global { name } => ModuleCssClass::Global {
+                            name: name.to_string(),
                         },
                     })
                 }
