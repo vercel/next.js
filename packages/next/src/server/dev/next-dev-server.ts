@@ -675,7 +675,7 @@ export default class DevServer extends Server {
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
           maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
-          ppr: this.nextConfig.experimental.ppr === true,
+          ppr: this.renderOpts.experimental.ppr,
         })
         return pathsResult
       } finally {

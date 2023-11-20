@@ -183,7 +183,9 @@ jobs:
       fail-fast: false
       matrix:
         group: [1, 2, 3]
-
+        ppr: ['true', 'false']
+    env:
+      __NEXT_EXPERIMENTAL_PPR: ${{ matrix.ppr }}
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
@@ -198,7 +200,9 @@ jobs:
       fail-fast: false
       matrix:
         group: [1, 2, 3, 4, 5]
-
+        ppr: ['true', 'false']
+    env:
+      __NEXT_EXPERIMENTAL_PPR: ${{ matrix.ppr }}
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
@@ -212,7 +216,9 @@ jobs:
       fail-fast: false
       matrix:
         group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-
+        ppr: ['true', 'false']
+    env:
+      __NEXT_EXPERIMENTAL_PPR: ${{ matrix.ppr }}
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.17.0

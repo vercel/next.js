@@ -263,6 +263,23 @@ function assignDefaults(
     )
   }
 
+  // TODO: remove once we've made PPR default
+  // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
+  // has been set to `true`, enable the experimental PPR feature so long as it
+  // wasn't explicitly disabled in the config.
+  if (
+    process.env.__NEXT_TEST_MODE &&
+    process.env.____NEXT_EXPERIMENTAL_PPR === 'true' &&
+    result.experimental?.ppr === undefined
+  ) {
+    result.experimental ??= {}
+    result.experimental.ppr = true
+
+    Log.warn(
+      `\`experimental.ppr\` has been set to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
+    )
+  }
+
   if (result.output === 'export') {
     if (result.i18n) {
       throw new Error(
