@@ -4,7 +4,7 @@ use turbopack_binding::{
     turbo::tasks_fs::{FileSystemEntryType, FileSystemPath},
     turbopack::{
         core::{
-            issue::{Issue, IssueExt, IssueSeverity, StyledString},
+            issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
             resolve::{parse::Request, pattern::Pattern, resolve},
         },
         node::transforms::webpack::WebpackLoaderItem,
@@ -73,10 +73,11 @@ pub async fn maybe_add_babel_loader(
                 {
                     BabelIssue {
                         path: project_root,
-                        title: Vc::cell(
+                        title: StyledString::Text(
                             "Unable to resolve babel-loader, but a babel config is present"
                                 .to_owned(),
-                        ),
+                        )
+                        .cell(),
                         description: StyledString::Text(
                             "Make sure babel-loader is installed via your package manager."
                                 .to_owned(),
@@ -143,7 +144,7 @@ pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Resu
 #[turbo_tasks::value]
 struct BabelIssue {
     path: Vc<FileSystemPath>,
-    title: Vc<String>,
+    title: Vc<StyledString>,
     description: Vc<StyledString>,
     severity: Vc<IssueSeverity>,
 }
@@ -166,12 +167,12 @@ impl Issue for BabelIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
+    fn title(&self) -> Vc<StyledString> {
         self.title
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        self.description
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.description))
     }
 }

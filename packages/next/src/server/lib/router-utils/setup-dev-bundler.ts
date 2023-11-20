@@ -291,7 +291,10 @@ async function startWatcher(opts: SetupOpts) {
 
     function formatIssue(issue: Issue) {
       const { filePath, title, description, source, detail } = issue
-      let formattedTitle = title.replace(/\n/g, '\n    ')
+      let formattedTitle = renderStyledStringToErrorAnsi(title).replace(
+        /\n/g,
+        '\n    '
+      )
 
       let formattedFilePath = filePath
         .replace('[project]/', '')
@@ -341,7 +344,10 @@ async function startWatcher(opts: SetupOpts) {
       }
 
       if (detail) {
-        message += `\n${detail.replace(/\n/g, '\n    ')}`
+        message += `\n${renderStyledStringToErrorAnsi(detail).replace(
+          /\n/g,
+          '\n    '
+        )}`
       }
 
       return message
@@ -502,7 +508,9 @@ async function startWatcher(opts: SetupOpts) {
 
           errors.set(key, {
             message,
-            details: issue.detail,
+            details: issue.detail
+              ? renderStyledStringToErrorAnsi(issue.detail)
+              : undefined,
           })
         }
       }

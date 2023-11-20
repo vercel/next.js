@@ -100,9 +100,9 @@ pub struct NapiIssue {
     pub severity: String,
     pub category: String,
     pub file_path: String,
-    pub title: String,
+    pub title: serde_json::Value,
     pub description: serde_json::Value,
-    pub detail: String,
+    pub detail: serde_json::Value,
     pub source: Option<NapiIssueSource>,
     pub documentation_link: String,
     pub sub_issues: Vec<NapiIssue>,
@@ -111,15 +111,24 @@ pub struct NapiIssue {
 impl From<&PlainIssue> for NapiIssue {
     fn from(issue: &PlainIssue) -> Self {
         Self {
-            description: serde_json::to_value(Into::<NapiStyledString>::into(&issue.description))
-                .unwrap(),
+            description: issue
+                .description
+                .as_ref()
+                .map_or(serde_json::Value::Null, |styled| {
+                    serde_json::to_value(Into::<NapiStyledString>::into(styled)).unwrap()
+                }),
             category: issue.category.clone(),
             file_path: issue.file_path.clone(),
-            detail: issue.detail.clone(),
+            detail: issue
+                .detail
+                .as_ref()
+                .map_or(serde_json::Value::Null, |styled| {
+                    serde_json::to_value(Into::<NapiStyledString>::into(styled)).unwrap()
+                }),
             documentation_link: issue.documentation_link.clone(),
             severity: issue.severity.as_str().to_string(),
             source: issue.source.as_deref().map(|source| source.into()),
-            title: issue.title.clone(),
+            title: serde_json::to_value(Into::<NapiStyledString>::into(&issue.title)).unwrap(),
             sub_issues: issue
                 .sub_issues
                 .iter()
