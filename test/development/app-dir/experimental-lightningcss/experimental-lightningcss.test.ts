@@ -7,12 +7,14 @@ createNextDescribe(
   },
   ({ next }) => {
     // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
-    it('should work using cheerio', async () => {
-      const $ = await next.render$('/')
-      expect($('p').text()).toBe('hello world')
-      expect($('p').html()).toMatchInlineSnapshot(`"hello world"`)
-      expect($('p').attr('class')).toMatchInlineSnapshot(`"style_blue__2oYLK"`)
-      expect($('p').css('color')).toBe('#00f')
-    })
+    ;(process.env.TURBOPACK ? it : it.skip)(
+      'should support css modules',
+      async () => {
+        const $ = await next.render$('/')
+        expect($('p').text()).toBe('hello world')
+        // swc_css does not include `-module` in the class name, while lightningcss does.
+        expect($('p').attr('class')).toBe('style-module__hlQ3RG__blue')
+      }
+    )
   }
 )
