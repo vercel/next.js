@@ -95,10 +95,11 @@ export function refreshReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [subTreeData, head] = flightDataPath.slice(-2)
+        const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
-        if (subTreeData !== null) {
+        if (cacheNodeSeedData !== null) {
+          const subTreeData = cacheNodeSeedData[2]
           cache.status = CacheStates.READY
           cache.subTreeData = subTreeData
           fillLazyItemsTillLeafWithHead(

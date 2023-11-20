@@ -144,7 +144,6 @@ export async function walkTreeWithFlightRouterState({
         // TODO: Not sure why this ts error started happening, after a
         // seemingly innocuous change. But I'm also not sure why this extra
         // wrapper element exists. We should just remove it.
-        // @ts-expect-error: Type is referenced directly or indirectly in the fulfillment callback of its own 'then' method.
         React.createElement(async () => {
           const { seedData } = await createComponentTree(
             // This ensures flightRouterPath is valid and filters down the tree
@@ -163,8 +162,11 @@ export async function walkTreeWithFlightRouterState({
               metadataOutlet,
             }
           )
-          const componentNode = seedData[2]
-          return componentNode
+          // TODO: Pass full data for entire tree.
+          const [seedDataSegment, , componentTree] = seedData
+          const shallowSeedData = [seedDataSegment, null, componentTree]
+
+          return shallowSeedData
         }),
         (() => {
           const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)

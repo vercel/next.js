@@ -7,6 +7,7 @@ import type {
   FlightSegmentPath,
   RenderOpts,
   Segment,
+  CacheNodeSeedData,
 } from './types'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
@@ -359,7 +360,7 @@ function createServerComponentsRenderer(
       asNotFound: props.asNotFound,
       metadataOutlet: <MetadataOutlet />,
     })
-    const componentTree = seedData[2]
+    const [seedDataSegment, , componentTree] = seedData
     return (
       <>
         {styles}
@@ -386,9 +387,9 @@ function createServerComponentsRenderer(
             </>
           }
           globalErrorComponent={GlobalError}
-        >
-          {componentTree}
-        </AppRouter>
+          // TODO: Pass full data for entire tree.
+          initialSeedData={[seedDataSegment, null, componentTree]}
+        />
       </>
     )
   }, options)
@@ -923,6 +924,14 @@ async function renderToHTMLOrFlightImpl(
 
             // For metadata notFound error there's no global not found boundary on top
             // so we create a not found page with AppRouter
+            const initialSeedData: CacheNodeSeedData = [
+              initialTree[0],
+              null,
+              <html id="__next_error__">
+                <head></head>
+                <body></body>
+              </html>,
+            ]
             return (
               <AppRouter
                 buildId={buildId}
@@ -931,12 +940,8 @@ async function renderToHTMLOrFlightImpl(
                 initialTree={initialTree}
                 initialHead={head}
                 globalErrorComponent={GlobalError}
-              >
-                <html id="__next_error__">
-                  <head></head>
-                  <body></body>
-                </html>
-              </AppRouter>
+                initialSeedData={initialSeedData}
+              />
             )
           },
           {
