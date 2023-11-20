@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type { FlightRouterState } from '../../../server/app-render/types'
+import type {
+  FlightRouterState,
+  CacheNodeSeedData,
+} from '../../../server/app-render/types'
 
 import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import { createHrefFromUrl } from './create-href-from-url'
@@ -11,7 +14,7 @@ export interface InitialRouterStateParameters {
   buildId: string
   initialTree: FlightRouterState
   initialCanonicalUrl: string
-  children: ReactNode
+  initialSeedData: CacheNodeSeedData
   initialParallelRoutes: CacheNode['parallelRoutes']
   isServer: boolean
   location: Location | null
@@ -21,17 +24,19 @@ export interface InitialRouterStateParameters {
 export function createInitialRouterState({
   buildId,
   initialTree,
-  children,
+  initialSeedData,
   initialCanonicalUrl,
   initialParallelRoutes,
   isServer,
   location,
   initialHead,
 }: InitialRouterStateParameters) {
+  const subTreeData = initialSeedData[2]
+
   const cache: CacheNode = {
     status: CacheStates.READY,
     data: null,
-    subTreeData: children,
+    subTreeData: subTreeData,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
   }
