@@ -1305,7 +1305,7 @@ dependencies = [
  "cssparser-macros",
  "dtoa-short",
  "itoa",
- "phf 0.11.2",
+ "phf 0.10.1",
  "serde",
  "smallvec",
 ]
@@ -4019,7 +4019,9 @@ version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fabbf1ead8a5bcbc20f5f8b939ee3f5b0f6f281b6ad3468b84656b658b455259"
 dependencies = [
+ "phf_macros 0.10.0",
  "phf_shared 0.10.0",
+ "proc-macro-hack",
 ]
 
 [[package]]
@@ -4028,7 +4030,7 @@ version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ade2d8b8f33c7333b51bcf0428d37e217e9f32192ae4772156f65063b8ce03dc"
 dependencies = [
- "phf_macros",
+ "phf_macros 0.11.2",
  "phf_shared 0.11.2",
 ]
 
@@ -4060,6 +4062,20 @@ checksum = "48e4cc64c2ad9ebe670cb8fd69dd50ae301650392e81c05f9bfcb2d5bdbc24b0"
 dependencies = [
  "phf_shared 0.11.2",
  "rand",
+]
+
+[[package]]
+name = "phf_macros"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58fdf3184dd560f160dd73922bea2d5cd6e8f064bf4b13110abd81b03697b4e0"
+dependencies = [
+ "phf_generator 0.10.0",
+ "phf_shared 0.10.0",
+ "proc-macro-hack",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -6024,9 +6040,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_minifier"
-version = "0.116.15"
+version = "0.116.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f758a030c634a2dfd78c44ebefbb64c9155e086a72d15784ad3ee91c1fa66485"
+checksum = "efcc0624eeb73b6312d0646d608a089ce3370d61f7eef030372d7dd0a65a49bf"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -6067,9 +6083,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_prefixer"
-version = "0.153.17"
+version = "0.153.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18ee513d43dca0debd04de9f2df55292778f982ec27d02bc503203bb644e409d"
+checksum = "270792f8684826e41221b1b12d1f73afb5ba631d7389b839e36f3b1a3a860b29"
 dependencies = [
  "once_cell",
  "preset_env_base",
