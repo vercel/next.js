@@ -1,12 +1,4 @@
 use anyhow::Result;
-use swc_core::{
-    common::{Globals, GLOBALS},
-    css::{
-        ast::{AtRule, AtRulePrelude, Rule},
-        codegen::{writer::basic::BasicCssWriter, CodeGenerator, Emit},
-        visit::{VisitMutWith, VisitMutWithPath},
-    },
-};
 use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -23,12 +15,11 @@ use turbopack_core::{
 use crate::{
     chunk::{CssChunkItem, CssChunkItemContent, CssChunkPlaceable, CssChunkType, CssImport},
     code_gen::CodeGenerateable,
-    parse::{parse_css, ParseCss, ParseCssResult, ParseCssResultSourceMap},
-    path_visitor::ApplyVisitors,
-    references::{
-        analyze_css_stylesheet, compose::CssModuleComposeReference, import::ImportAssetReference,
+    process::{
+        finalize_css, parse_css, process_css_with_placeholder, CssWithPlaceholderResult,
+        FinalCssResult, ParseCss, ParseCssResult, ProcessCss,
     },
-    transform::CssInputTransforms,
+    references::{compose::CssModuleComposeReference, import::ImportAssetReference},
     CssModuleAssetType,
 };
 
@@ -42,8 +33,8 @@ fn modifier() -> Vc<String> {
 pub struct CssModuleAsset {
     source: Vc<Box<dyn Source>>,
     asset_context: Vc<Box<dyn AssetContext>>,
-    transforms: Vc<CssInputTransforms>,
     ty: CssModuleAssetType,
+    use_lightningcss: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -53,14 +44,14 @@ impl CssModuleAsset {
     pub fn new(
         source: Vc<Box<dyn Source>>,
         asset_context: Vc<Box<dyn AssetContext>>,
-        transforms: Vc<CssInputTransforms>,
         ty: CssModuleAssetType,
+        use_lightningcss: bool,
     ) -> Vc<Self> {
         Self::cell(CssModuleAsset {
             source,
             asset_context,
-            transforms,
             ty,
+            use_lightningcss,
         })
     }
 
@@ -74,8 +65,35 @@ impl CssModuleAsset {
 #[turbo_tasks::value_impl]
 impl ParseCss for CssModuleAsset {
     #[turbo_tasks::function]
-    fn parse_css(&self) -> Vc<ParseCssResult> {
-        parse_css(self.source, self.ty, self.transforms)
+    async fn parse_css(self: Vc<Self>) -> Result<Vc<ParseCssResult>> {
+        let this = self.await?;
+
+        Ok(parse_css(
+            this.source,
+            Vc::upcast(self),
+            this.ty,
+            this.use_lightningcss,
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ProcessCss for CssModuleAsset {
+    #[turbo_tasks::function]
+    async fn get_css_with_placeholder(self: Vc<Self>) -> Result<Vc<CssWithPlaceholderResult>> {
+        let parse_result = self.parse_css();
+
+        Ok(process_css_with_placeholder(parse_result))
+    }
+
+    #[turbo_tasks::function]
+    async fn finalize_css(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Vc<FinalCssResult>> {
+        let process_result = self.get_css_with_placeholder();
+
+        Ok(finalize_css(process_result, chunking_context))
     }
 }
 
@@ -91,14 +109,14 @@ impl Module for CssModuleAsset {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let this = self.await?;
+        let result = self.parse_css().await?;
         // TODO: include CSS source map
-        Ok(analyze_css_stylesheet(
-            this.source,
-            Vc::upcast(self),
-            this.ty,
-            this.transforms,
-        ))
+
+        match &*result {
+            ParseCssResult::Ok { references, .. } => Ok(*references),
+            ParseCssResult::Unparseable => Ok(ModuleReferences::empty()),
+            ParseCssResult::NotFound => Ok(ModuleReferences::empty()),
+        }
     }
 }
 
@@ -238,72 +256,24 @@ impl CssChunkItem for CssModuleChunkItem {
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
         // TOOD use interval tree with references into "code_gens"
-        let mut visitors = Vec::new();
-        let mut root_visitors = Vec::new();
         for code_gen in code_gens {
             for import in &code_gen.imports {
                 imports.push(import.clone());
             }
-
-            for (path, visitor) in code_gen.visitors.iter() {
-                if path.is_empty() {
-                    root_visitors.push(&**visitor);
-                } else {
-                    visitors.push((path, &**visitor));
-                }
-            }
         }
 
-        let parsed = self.module.parse_css().await?;
+        let result = self.module.finalize_css(chunking_context).await?;
 
-        if let ParseCssResult::Ok {
-            stylesheet,
+        if let FinalCssResult::Ok {
+            output_code,
             source_map,
             ..
-        } = &*parsed
+        } = &*result
         {
-            let mut stylesheet = stylesheet.clone();
-
-            let globals = Globals::new();
-            GLOBALS.set(&globals, || {
-                if !visitors.is_empty() {
-                    stylesheet.visit_mut_with_path(
-                        &mut ApplyVisitors::new(visitors),
-                        &mut Default::default(),
-                    );
-                }
-                for visitor in root_visitors {
-                    stylesheet.visit_mut_with(&mut visitor.create());
-                }
-            });
-
-            // remove imports
-            stylesheet.rules.retain(|r| {
-                !matches!(
-                    r,
-                    &Rule::AtRule(box AtRule {
-                        prelude: Some(box AtRulePrelude::ImportPrelude(_)),
-                        ..
-                    })
-                )
-            });
-
-            let mut code_string = String::new();
-            let mut srcmap = vec![];
-
-            let mut code_gen = CodeGenerator::new(
-                BasicCssWriter::new(&mut code_string, Some(&mut srcmap), Default::default()),
-                Default::default(),
-            );
-
-            code_gen.emit(&stylesheet)?;
-
-            let srcmap = ParseCssResultSourceMap::new(source_map.clone(), srcmap).cell();
-
             Ok(CssChunkItemContent {
-                inner_code: code_string.into(),
+                inner_code: output_code.to_owned().into(),
                 imports,
-                source_map: Some(srcmap),
+                source_map: Some(*source_map),
             }
             .into())
         } else {

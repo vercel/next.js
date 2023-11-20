@@ -457,6 +457,18 @@ impl IssueSource {
         })
     }
 
+    #[turbo_tasks::function]
+    pub fn from_line_col(
+        source: Vc<Box<dyn Source>>,
+        start: SourcePos,
+        end: SourcePos,
+    ) -> Vc<Self> {
+        Self::cell(IssueSource {
+            source,
+            range: Some(SourceRange::LineColumn(start, end).cell()),
+        })
+    }
+
     /// Create a [`IssueSource`] from byte offsets given by an swc ast node
     /// span.
     ///

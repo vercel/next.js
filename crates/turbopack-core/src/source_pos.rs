@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use turbo_tasks::trace::TraceRawVcs;
+use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 use turbo_tasks_hash::DeterministicHash;
 
 /// LINE FEED (LF), one of the basic JS line terminators.
@@ -16,6 +16,7 @@ const U8_CR: u8 = 0x0D;
     Clone,
     PartialOrd,
     Ord,
+    TaskInput,
     TraceRawVcs,
     Serialize,
     Deserialize,

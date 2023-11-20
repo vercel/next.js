@@ -5,7 +5,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     reference_type::ReferenceType, source::Source, source_transform::SourceTransforms,
 };
-use turbopack_css::{CssInputTransforms, CssModuleAssetType};
+use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{EcmascriptInputTransforms, EcmascriptOptions};
 use turbopack_mdx::MdxTransformOptions;
 use turbopack_wasm::source::WebAssemblySourceType;
@@ -122,7 +122,7 @@ pub enum ModuleType {
     CssModule,
     Css {
         ty: CssModuleAssetType,
-        transforms: Vc<CssInputTransforms>,
+        use_lightningcss: bool,
     },
     Static,
     WebAssembly {

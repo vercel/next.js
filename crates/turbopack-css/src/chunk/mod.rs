@@ -29,7 +29,7 @@ use turbopack_core::{
 use writer::expand_imports;
 
 use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
-use crate::{parse::ParseCssResultSourceMap, util::stringify_js, ImportAssetReference};
+use crate::{process::ParseCssResultSourceMap, util::stringify_js, ImportAssetReference};
 
 #[turbo_tasks::value]
 pub struct CssChunk {
