@@ -342,6 +342,11 @@ export interface ExperimentalConfig {
   staticWorkerRequestDeduping?: boolean
 
   useWasmBinary?: boolean
+
+  /**
+   * Use lightningcss instead of swc_css
+   */
+  useLightningcss?: boolean
 }
 
 export type ExportPathMap = {

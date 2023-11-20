@@ -6,6 +6,9 @@ import type {
 } from 'http'
 import type { WebNextRequest } from '../base-http/web'
 import type { SizeLimit } from '../../../types'
+import type { RequestStore } from '../../client/components/request-async-storage.external'
+import type { AppRenderContext, GenerateFlight } from './app-render'
+import type { AppPageModule } from '../../server/future/route-modules/app-page/module'
 
 import {
   ACTION,
@@ -20,7 +23,6 @@ import {
 import RenderResult from '../render-result'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
-import type { ActionAsyncStorage } from '../../client/components/action-async-storage.external'
 import {
   filterReqHeaders,
   actionsForbiddenHeaders,
@@ -30,12 +32,10 @@ import {
   getModifiedCookieValues,
 } from '../web/spec-extension/adapters/request-cookies'
 
-import type { RequestStore } from '../../client/components/request-async-storage.external'
 import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
-import type { AppRenderContext, GenerateFlight } from './app-render'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -244,7 +244,7 @@ export async function handleAction({
 }: {
   req: IncomingMessage
   res: ServerResponse
-  ComponentMod: any
+  ComponentMod: AppPageModule
   serverModuleMap: {
     [id: string]: {
       id: string
@@ -286,6 +286,12 @@ export async function handleAction({
   // If it's not a Server Action, skip handling.
   if (!(isFetchAction || isURLEncodedAction || isMultipartAction)) {
     return
+  }
+
+  if (staticGenerationStore.isStaticGeneration) {
+    throw new Error(
+      "Invariant: server actions can't be handled during static rendering"
+    )
   }
 
   const originDomain =
@@ -347,10 +353,17 @@ export async function handleAction({
       if (isFetchAction) {
         res.statusCode = 500
         await Promise.all(staticGenerationStore.pendingRevalidates || [])
+
         const promise = Promise.reject(error)
         try {
+          // we need to await the promise to trigger the rejection early
+          // so that it's already handled by the time we call
+          // the RSC runtime. Otherwise, it will throw an unhandled
+          // promise rejection error in the renderer.
           await promise
-        } catch {}
+        } catch {
+          // swallow error, it's gonna be handled on the client
+        }
 
         return {
           type: 'done',
@@ -373,9 +386,7 @@ export async function handleAction({
   )
   let bound = []
 
-  const { actionAsyncStorage } = ComponentMod as {
-    actionAsyncStorage: ActionAsyncStorage
-  }
+  const { actionAsyncStorage } = ComponentMod
 
   let actionResult: RenderResult | undefined
   let formState: any | undefined
@@ -604,8 +615,14 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       if (isFetchAction) {
         const promise = Promise.reject(err)
         try {
+          // we need to await the promise to trigger the rejection early
+          // so that it's already handled by the time we call
+          // the RSC runtime. Otherwise, it will throw an unhandled
+          // promise rejection error in the renderer.
           await promise
-        } catch {}
+        } catch {
+          // swallow error, it's gonna be handled on the client
+        }
         return {
           type: 'done',
           result: await generateFlight(ctx, {
@@ -625,8 +642,14 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       await Promise.all(staticGenerationStore.pendingRevalidates || [])
       const promise = Promise.reject(err)
       try {
+        // we need to await the promise to trigger the rejection early
+        // so that it's already handled by the time we call
+        // the RSC runtime. Otherwise, it will throw an unhandled
+        // promise rejection error in the renderer.
         await promise
-      } catch {}
+      } catch {
+        // swallow error, it's gonna be handled on the client
+      }
 
       return {
         type: 'done',
