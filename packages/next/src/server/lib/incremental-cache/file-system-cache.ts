@@ -38,6 +38,7 @@ export default class FileSystemCache implements CacheHandler {
   private tagsManifestPath?: string
   private revalidatedTags: string[]
   private readonly experimental: { ppr: boolean }
+  private debug: boolean
 
   constructor(ctx: FileSystemCacheContext) {
     this.fs = ctx.fs
@@ -47,8 +48,13 @@ export default class FileSystemCache implements CacheHandler {
     this.pagesDir = !!ctx._pagesDir
     this.revalidatedTags = ctx.revalidatedTags
     this.experimental = ctx.experimental
+    this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
 
     if (ctx.maxMemoryCacheSize && !memoryCache) {
+      if (this.debug) {
+        console.log('using memory store for fetch cache')
+      }
+
       memoryCache = new LRUCache({
         max: ctx.maxMemoryCacheSize,
         length({ value }) {
@@ -69,7 +75,10 @@ export default class FileSystemCache implements CacheHandler {
           )
         },
       })
+    } else if (this.debug) {
+      console.log('not using memory store for fetch cache')
     }
+
     if (this.serverDistDir && this.fs) {
       this.tagsManifestPath = path.join(
         this.serverDistDir,
@@ -91,9 +100,14 @@ export default class FileSystemCache implements CacheHandler {
     } catch (err: any) {
       tagsManifest = { version: 1, items: {} }
     }
+    if (this.debug) console.log('loadTagsManifest', tagsManifest)
   }
 
   public async revalidateTag(tag: string) {
+    if (this.debug) {
+      console.log('revalidateTag', tag)
+    }
+
     // we need to ensure the tagsManifest is refreshed
     // since separate workers can be updating it at the same
     // time and we can't flush out of sync data
@@ -112,6 +126,9 @@ export default class FileSystemCache implements CacheHandler {
         this.tagsManifestPath,
         JSON.stringify(tagsManifest || {})
       )
+      if (this.debug) {
+        console.log('Updated tags manifest', tagsManifest)
+      }
     } catch (err: any) {
       console.warn('Failed to update tags manifest.', err)
     }
@@ -121,6 +138,10 @@ export default class FileSystemCache implements CacheHandler {
     const [key, ctx = {}] = args
     const { tags, softTags, kindHint } = ctx
     let data = memoryCache?.get(key)
+
+    if (this.debug) {
+      console.log('get', key, tags, kindHint, !!data)
+    }
 
     // let's check the disk for seed data
     if (!data && process.env.NEXT_RUNTIME !== 'edge') {
@@ -175,12 +196,15 @@ export default class FileSystemCache implements CacheHandler {
           }
 
           if (data.value?.kind === 'FETCH') {
-            const storedTags = data.value?.data?.tags
+            const storedTags = data.value?.tags
 
             // update stored tags if a new one is being added
             // TODO: remove this when we can send the tags
             // via header on GET same as SET
             if (!tags?.every((tag) => storedTags?.includes(tag))) {
+              if (this.debug) {
+                console.log('tags vs storedTags mismatch', tags, storedTags)
+              }
               await this.set(key, data.value, { tags })
             }
           }
@@ -296,6 +320,10 @@ export default class FileSystemCache implements CacheHandler {
       value: data,
       lastModified: Date.now(),
     })
+    if (this.debug) {
+      console.log('set', key)
+    }
+
     if (!this.flushToDisk) return
 
     if (data?.kind === 'ROUTE') {

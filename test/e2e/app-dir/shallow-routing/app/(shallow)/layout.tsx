@@ -54,6 +54,11 @@ export default function ShallowLayout({ children }) {
           </Link>
         </div>
         <div>
+          <Link href="/pushstate-string-url" id="to-pushstate-string-url">
+            To PushState String Url
+          </Link>
+        </div>
+        <div>
           <Link href="/replacestate-data" id="to-replacestate-data">
             To ReplaceState Data
           </Link>
@@ -72,6 +77,11 @@ export default function ShallowLayout({ children }) {
             id="to-replacestate-new-pathname"
           >
             To ReplaceState new pathname
+          </Link>
+        </div>
+        <div>
+          <Link href="/replacestate-string-url" id="to-replacestate-string-url">
+            To ReplaceState String Url
           </Link>
         </div>
       </div>

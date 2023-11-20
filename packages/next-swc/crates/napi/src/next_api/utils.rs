@@ -13,7 +13,7 @@ use turbopack_binding::{
     turbopack::core::{
         diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
         error::PrettyPrintError,
-        issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource},
+        issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource, StyledString},
         source_pos::SourcePos,
     },
 };
@@ -101,7 +101,7 @@ pub struct NapiIssue {
     pub category: String,
     pub file_path: String,
     pub title: String,
-    pub description: String,
+    pub description: serde_json::Value,
     pub detail: String,
     pub source: Option<NapiIssueSource>,
     pub documentation_link: String,
@@ -111,7 +111,8 @@ pub struct NapiIssue {
 impl From<&PlainIssue> for NapiIssue {
     fn from(issue: &PlainIssue) -> Self {
         Self {
-            description: issue.description.clone(),
+            description: serde_json::to_value(Into::<NapiStyledString>::into(&issue.description))
+                .unwrap(),
             category: issue.category.clone(),
             file_path: issue.file_path.clone(),
             detail: issue.detail.clone(),
@@ -124,6 +125,38 @@ impl From<&PlainIssue> for NapiIssue {
                 .iter()
                 .map(|issue| (&**issue).into())
                 .collect(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum NapiStyledString {
+    Line { value: Vec<NapiStyledString> },
+    Stack { value: Vec<NapiStyledString> },
+    Text { value: String },
+    Code { value: String },
+    Strong { value: String },
+}
+
+impl From<&StyledString> for NapiStyledString {
+    fn from(value: &StyledString) -> Self {
+        match value {
+            StyledString::Line(parts) => NapiStyledString::Line {
+                value: parts.iter().map(|p| p.into()).collect(),
+            },
+            StyledString::Stack(parts) => NapiStyledString::Stack {
+                value: parts.iter().map(|p| p.into()).collect(),
+            },
+            StyledString::Text(string) => NapiStyledString::Text {
+                value: string.clone(),
+            },
+            StyledString::Code(string) => NapiStyledString::Code {
+                value: string.clone(),
+            },
+            StyledString::Strong(string) => NapiStyledString::Strong {
+                value: string.clone(),
+            },
         }
     }
 }

@@ -184,7 +184,7 @@ export async function exportAppPage(
       )
     }
 
-    const headers = { ...metadata.extraHeaders }
+    const headers = { ...metadata.headers }
 
     if (fetchTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
