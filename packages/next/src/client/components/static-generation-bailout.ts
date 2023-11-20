@@ -45,7 +45,7 @@ export const staticGenerationBailout: StaticGenerationBailout = (
     link: 'https://nextjs.org/docs/messages/dynamic-server-error',
   })
 
-  maybePostpone(staticGenerationStore, message)
+  maybePostpone(staticGenerationStore, reason)
 
   // As this is a bailout, we don't want to revalidate, so set the revalidate
   // to 0.

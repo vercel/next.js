@@ -36,6 +36,7 @@ jest.mock('../fetch-server-response', () => {
       <>
         <title>Linking page!</title>
       </>,
+      null,
     ],
   ]
   return {
@@ -151,6 +152,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,
@@ -314,6 +316,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,
@@ -501,6 +504,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,
@@ -737,6 +741,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,

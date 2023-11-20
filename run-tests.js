@@ -435,7 +435,7 @@ ${ENDGROUP}`)
           ? []
           : [
               '--testNamePattern',
-              `^(?!${test.excludedCases.map(escapeRegexp).join('|')})$`,
+              `^(?!(?:${test.excludedCases.map(escapeRegexp).join('|')})$).`,
             ]),
       ]
       const env = {

@@ -10,7 +10,6 @@ import {
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
-import { createRecordFromThenable } from '../create-record-from-thenable'
 // // eslint-disable-next-line import/no-extraneous-dependencies
 // import { createFromFetch } from 'react-server-dom-webpack/client'
 // // eslint-disable-next-line import/no-extraneous-dependencies
@@ -158,9 +157,8 @@ export function serverActionReducer(
     return handleMutable(state, mutable)
   }
 
-  mutable.inFlightServerAction = createRecordFromThenable(
-    fetchServerAction(state, action)
-  )
+  mutable.preserveCustomHistoryState = false
+  mutable.inFlightServerAction = fetchServerAction(state, action)
 
   // suspends until the server action is resolved.
 
@@ -208,7 +206,7 @@ export function serverActionReducer(
 
       for (const flightDataPath of flightData) {
         // FlightDataPath with more than two items means unexpected Flight data was returned
-        if (flightDataPath.length !== 3) {
+        if (flightDataPath.length !== 4) {
           // TODO-APP: handle this case better
           console.log('SERVER ACTION APPLY FAILED')
           return state
@@ -237,7 +235,7 @@ export function serverActionReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [subTreeData, head] = flightDataPath.slice(-2)
+        const [subTreeData, head] = flightDataPath.slice(-3)
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (subTreeData !== null) {

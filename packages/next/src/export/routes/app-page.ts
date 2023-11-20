@@ -1,6 +1,5 @@
 import type { ExportRouteResult, FileWriter } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
-import type { OutgoingHttpHeaders } from 'http'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 import type { RouteMetadata } from './types'
 
@@ -9,12 +8,17 @@ import type {
   MockedResponse,
 } from '../../server/lib/mock-request'
 import {
-  RSC,
+  RSC_HEADER,
   NEXT_URL,
-  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_PREFETCH_HEADER,
 } from '../../client/components/app-router-headers'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
-import { NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
+import {
+  NEXT_CACHE_TAGS_HEADER,
+  NEXT_META_SUFFIX,
+  RSC_PREFETCH_SUFFIX,
+  RSC_SUFFIX,
+} from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
 
@@ -25,7 +29,7 @@ export const enum ExportedAppPageFiles {
   POSTPONED = 'POSTPONED',
 }
 
-export async function generatePrefetchRsc(
+async function generatePrefetchRsc(
   req: MockedRequest,
   path: string,
   res: MockedResponse,
@@ -34,9 +38,17 @@ export async function generatePrefetchRsc(
   renderOpts: RenderOpts,
   fileWriter: FileWriter
 ) {
-  req.headers[RSC.toLowerCase()] = '1'
+  // When we're in PPR, the RSC payload is emitted as the prefetch payload, so
+  // attempting to generate a prefetch RSC is an error.
+  if (renderOpts.experimental.ppr) {
+    throw new Error(
+      'Invariant: explicit prefetch RSC cannot be generated with PPR enabled'
+    )
+  }
+
+  req.headers[RSC_HEADER.toLowerCase()] = '1'
   req.headers[NEXT_URL.toLowerCase()] = path
-  req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] = '1'
+  req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
 
   renderOpts.supportsDynamicHTML = true
   renderOpts.isPrefetch = true
@@ -56,7 +68,7 @@ export async function generatePrefetchRsc(
 
   await fileWriter(
     ExportedAppPageFiles.FLIGHT,
-    htmlFilepath.replace(/\.html$/, '.prefetch.rsc'),
+    htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
     prefetchRscData
   )
 }
@@ -102,11 +114,18 @@ export async function exportAppPage(
       query,
       renderOpts
     )
+
     const html = result.toUnchunkedString()
+
+    const {
+      metadata: { pageData, revalidate = false, postponed, fetchTags },
+    } = result
     const { metadata } = result
-    const flightData = metadata.pageData
-    const revalidate = metadata.revalidate ?? false
-    const postponed = metadata.postponed
+
+    // Ensure we don't postpone without having PPR enabled.
+    if (postponed && !renderOpts.experimental.ppr) {
+      throw new Error('Invariant: page postponed without PPR being enabled')
+    }
 
     if (revalidate === 0) {
       if (isDynamicError) {
@@ -145,10 +164,30 @@ export async function exportAppPage(
 
       return { revalidate: 0 }
     }
+    // If PPR is enabled, we want to emit a prefetch rsc file for the page
+    // instead of the standard rsc. This is because the standard rsc will
+    // contain the dynamic data.
+    else if (renderOpts.experimental.ppr) {
+      // If PPR is enabled, we should emit the flight data as the prefetch
+      // payload.
+      await fileWriter(
+        ExportedAppPageFiles.FLIGHT,
+        htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
+        pageData
+      )
+    } else {
+      // Writing the RSC payload to a file if we don't have PPR enabled.
+      await fileWriter(
+        ExportedAppPageFiles.FLIGHT,
+        htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
+        pageData
+      )
+    }
 
-    let headers: OutgoingHttpHeaders | undefined
-    if (metadata.fetchTags) {
-      headers = { [NEXT_CACHE_TAGS_HEADER]: metadata.fetchTags }
+    const headers = { ...metadata.headers }
+
+    if (fetchTags) {
+      headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
     }
 
     // Writing static HTML to a file.
@@ -168,15 +207,8 @@ export async function exportAppPage(
 
     await fileWriter(
       ExportedAppPageFiles.META,
-      htmlFilepath.replace(/\.html$/, '.meta'),
+      htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
       JSON.stringify(meta, null, 2)
-    )
-
-    // Writing the RSC payload to a file.
-    await fileWriter(
-      ExportedAppPageFiles.FLIGHT,
-      htmlFilepath.replace(/\.html$/, '.rsc'),
-      flightData
     )
 
     return {
