@@ -4,7 +4,6 @@ import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { interopDefault } from './interop-default'
-import { preloadComponent } from './preload-component'
 import { addSearchParamsIfPageSegment } from './create-flight-router-state-from-loader-tree'
 import { parseLoaderTree } from './parse-loader-tree'
 import type { CreateSegmentPath, AppRenderContext } from './app-render'
@@ -453,14 +452,16 @@ export async function createComponentTree({
   }
 
   // Eagerly execute layout/page component to trigger fetches early.
-  // TODO: We can delete this once we start passing the nested layouts at the
-  // top-level of the Flight response, because React will render them in
+  // TODO: Temporarily disabled preloading because it needs to happen during
+  // the React render phase, so that `cache`-ed functions are deduped. We can
+  // get rid of `preloadComponent` once we're finished hoisting all the nested
+  // layouts to the top of the Flight response because React will render them in
   // parallel automatically.
-  if (!isClientComponent) {
-    Component = await Promise.resolve().then(() =>
-      preloadComponent(Component, props)
-    )
-  }
+  // if (!isClientComponent) {
+  //   Component = await Promise.resolve().then(() =>
+  //     preloadComponent(Component, props)
+  //   )
+  // }
 
   return {
     seedData: [

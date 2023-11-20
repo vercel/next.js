@@ -21,7 +21,10 @@ createNextDescribe(
         expect($('#page-message').text()).toBe('hello from page')
       })
 
-      it('should run data fetch in parallel', async () => {
+      // TODO: Preloading temporarily disabled during this intermediate step in
+      // the PR stack until we're finished hoisting the all nested layouts to
+      // the root of the React tree.
+      it.skip('should run data fetch in parallel', async () => {
         const startTime = Date.now()
         const $ = await next.render$('/ssr-only/slow')
         const endTime = Date.now()
