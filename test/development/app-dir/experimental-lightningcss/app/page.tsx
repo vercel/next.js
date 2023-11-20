@@ -1,3 +1,5 @@
+import styles from './style.module.css'
+
 export default function Page() {
-  return <p>hello world</p>
+  return <p className={styles.blue}>hello world</p>
 }
