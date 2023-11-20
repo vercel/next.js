@@ -378,7 +378,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 ```
 
 ```js filename="mdx-components.js" switcher
-import Image, { ImageProps } from 'next/image'
+import Image from 'next/image'
 
 // This file allows you to provide custom React components
 // to be used in MDX files. You can import and use any
@@ -393,7 +393,7 @@ export function useMDXComponents(components) {
       <Image
         sizes="100vw"
         style={{ width: '100%', height: 'auto' }}
-        {...(props as ImageProps)}
+        {...props}
       />
     ),
     ...components,
