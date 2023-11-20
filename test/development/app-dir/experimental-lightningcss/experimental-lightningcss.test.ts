@@ -12,7 +12,7 @@ createNextDescribe(
       expect($('p').text()).toBe('hello world')
       expect($('p').html()).toMatchInlineSnapshot(`"hello world"`)
       expect($('p').attr('class')).toMatchInlineSnapshot(`"style_blue__2oYLK"`)
-      expect($('p').css('color')).toBe('red')
+      expect($('p').css('color')).toBe('#00f')
     })
   }
 )
