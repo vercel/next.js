@@ -503,6 +503,8 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+
+    use_lightningcss: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -764,6 +766,13 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn enable_taint(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.await?.experimental.taint.unwrap_or(false)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn use_lightningcss(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.experimental.use_lightningcss.unwrap_or(false),
+        ))
     }
 }
 
