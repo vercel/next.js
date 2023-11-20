@@ -434,6 +434,7 @@ pub async fn get_server_module_options_context(
             let module_options_context = ModuleOptionsContext {
                 custom_ecma_transform_plugins: base_ecma_transform_plugins,
                 execution_context: Some(execution_context),
+                use_lightningcss,
                 ..Default::default()
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -518,6 +519,7 @@ pub async fn get_server_module_options_context(
             let module_options_context = ModuleOptionsContext {
                 custom_ecma_transform_plugins: base_ecma_transform_plugins,
                 execution_context: Some(execution_context),
+                use_lightningcss,
                 ..Default::default()
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
