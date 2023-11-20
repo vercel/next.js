@@ -1,5 +1,7 @@
-import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
+
+import Anser from 'next/dist/compiled/anser'
+
 import { HotlinkedText } from '../hot-linked-text'
 import { EditorLink } from './EditorLink'
 
@@ -54,9 +56,7 @@ function getEditorLinks(content: string) {
   return { file, source: lines.join('\n'), importTraceFiles }
 }
 
-export const Terminal: React.FC<TerminalProps> = function Terminal({
-  content,
-}) {
+export function Terminal({ content }: TerminalProps): React.ReactNode {
   const { file, source, importTraceFiles } = React.useMemo(
     () => getEditorLinks(content),
     [content]
@@ -71,7 +71,7 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
   }, [source])
 
   return (
-    <div data-nextjs-terminal>
+    <div data-nextjs-terminal className="terminal">
       {file && (
         <EditorLink
           isSourceFile

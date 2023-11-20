@@ -14,6 +14,7 @@ export type ReadyRuntimeError = {
   error: Error
   frames: OriginalStackFrame[]
   componentStackFrames?: ComponentStackFrame[]
+  complete: boolean
 }
 
 export async function getErrorByType(
@@ -32,6 +33,7 @@ export async function getErrorByType(
           getErrorSource(event.reason),
           event.reason.toString()
         ),
+        complete: true,
       }
       if (event.type === ACTION_UNHANDLED_ERROR) {
         readyRuntimeError.componentStackFrames = event.componentStackFrames
@@ -42,6 +44,40 @@ export async function getErrorByType(
       break
     }
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _: never = event
+  throw new Error('type system invariant violation')
+}
+
+export function getUnresolvedErrorByType(
+  ev: SupportedErrorEvent
+): ReadyRuntimeError {
+  const { id, event } = ev
+  switch (event.type) {
+    case ACTION_UNHANDLED_ERROR:
+    case ACTION_UNHANDLED_REJECTION: {
+      return {
+        id,
+        runtime: true,
+        error: event.reason,
+        frames: event.frames.map((frame) => ({
+          error: true,
+          reason: 'unresolved',
+          external: false,
+          expanded: false,
+          sourceStackFrame: frame,
+          originalStackFrame: null,
+          originalCodeFrame: null,
+        })),
+        complete: false,
+      }
+    }
+    default: {
+      break
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _: never = event
   throw new Error('type system invariant violation')

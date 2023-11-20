@@ -1,19 +1,19 @@
-// @ts-ignore
-import allyTrap from './maintain--tab-focus'
 import * as React from 'react'
-import { lock, unlock } from './body-locker'
 
-export type OverlayProps = {
-  children?: React.ReactNode
+import { lock, unlock } from './body-locker'
+import allyTrap from './maintain--tab-focus'
+import { clsx } from '../../helpers/clsx'
+
+export type OverlayProps = React.PropsWithChildren & {
   className?: string
   fixed?: boolean
 }
 
-const Overlay: React.FC<OverlayProps> = function Overlay({
+export function Overlay({
   className,
   children,
   fixed,
-}) {
+}: OverlayProps): React.ReactNode {
   React.useEffect(() => {
     lock()
     return () => {
@@ -38,14 +38,12 @@ const Overlay: React.FC<OverlayProps> = function Overlay({
   }, [overlay])
 
   return (
-    <div data-nextjs-dialog-overlay className={className} ref={onOverlay}>
+    <div className={clsx('dialog-overlay', className)} ref={onOverlay}>
       <div
-        data-nextjs-dialog-backdrop
-        data-nextjs-dialog-backdrop-fixed={fixed ? true : undefined}
+        className={'dialog-backdrop'}
+        data-dialog-backdrop-fixed={fixed ? true : undefined}
       />
       {children}
     </div>
   )
 }
-
-export { Overlay }

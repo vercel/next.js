@@ -1,7 +1,11 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 
-export function ShadowPortal({ children }: { children: React.ReactNode }) {
+export function ShadowPortal({
+  children,
+}: {
+  children: React.ReactNode
+}): React.ReactNode {
   let portalNode = React.useRef<HTMLElement | null>(null)
   let shadowNode = React.useRef<ShadowRoot | null>(null)
   let [, forceUpdate] = React.useState<{} | undefined>()

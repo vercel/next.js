@@ -1,5 +1,9 @@
-import React from 'react'
+import * as React from 'react'
+
+import { BaseIcon, type IconProps } from '../../icons/BaseIcon'
+import { clsx } from '../../helpers/clsx'
 import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-framework'
+
 import { CallStackFrame } from './CallStackFrame'
 import { FrameworkIcon } from './FrameworkIcon'
 
@@ -11,36 +15,41 @@ function FrameworkGroup({
   framework: NonNullable<StackFramesGroup['framework']>
   stackFrames: StackFramesGroup['stackFrames']
   all: boolean
-}) {
+}): React.ReactNode {
   return (
-    <>
-      <details data-nextjs-collapsed-call-stack-details>
+    <li>
+      <details
+        data-nextjs-collapsed-call-stack-details
+        className="collapsed-call-stack-details"
+      >
         <summary
           tabIndex={10} // Match CallStackFrame tabIndex
         >
-          <svg
-            data-nextjs-call-stack-chevron-icon
-            fill="none"
-            height="20"
-            width="20"
-            shapeRendering="geometricPrecision"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <path d="M9 18l6-6-6-6" />
-          </svg>
+          <Chevron />
           <FrameworkIcon framework={framework} />
           {framework === 'react' ? 'React' : 'Next.js'}
         </summary>
 
-        {stackFrames.map((frame, index) => (
-          <CallStackFrame key={`call-stack-${index}-${all}`} frame={frame} />
-        ))}
+        <ul className="call-stack-frames">
+          {stackFrames.map((frame, index) => (
+            <CallStackFrame key={`call-stack-${index}-${all}`} frame={frame} />
+          ))}
+        </ul>
       </details>
-    </>
+    </li>
+  )
+}
+
+function Chevron({ className, ...rest }: IconProps): React.ReactNode {
+  return (
+    <BaseIcon
+      size="20"
+      shapeRendering="geometricPrecision"
+      {...rest}
+      className={clsx('chevron', className)}
+    >
+      <path d="M9 18l6-6-6-6" />
+    </BaseIcon>
   )
 }
 
@@ -50,9 +59,9 @@ export function GroupedStackFrames({
 }: {
   groupedStackFrames: StackFramesGroup[]
   all: boolean
-}) {
+}): React.ReactNode {
   return (
-    <>
+    <ul className="call-stack-frames">
       {groupedStackFrames.map((stackFramesGroup, groupIndex) => {
         // Collapse React and Next.js frames
         if (stackFramesGroup.framework) {
@@ -76,6 +85,6 @@ export function GroupedStackFrames({
           ))
         )
       })}
-    </>
+    </ul>
   )
 }

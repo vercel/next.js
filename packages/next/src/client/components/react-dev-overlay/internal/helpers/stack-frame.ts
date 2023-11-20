@@ -49,7 +49,7 @@ export function getOriginalStackFrame(
     }
 
     const controller = new AbortController()
-    const tm = setTimeout(() => controller.abort(), 3000)
+    const tm = setTimeout(() => controller.abort(), 10000)
     const res = await self
       .fetch(
         `${

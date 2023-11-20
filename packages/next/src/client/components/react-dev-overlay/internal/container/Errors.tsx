@@ -1,4 +1,5 @@
 import * as React from 'react'
+
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
@@ -7,38 +8,53 @@ import type {
   UnhandledErrorAction,
   UnhandledRejectionAction,
 } from '../error-overlay-reducer'
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogHeader,
-} from '../components/Dialog'
-import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
+
+import { Dialog, DialogContent, DialogHeader } from '../components/Dialog'
 import { Overlay } from '../components/Overlay'
-import { Toast } from '../components/Toast'
-import { getErrorByType } from '../helpers/getErrorByType'
+
+import {
+  getErrorByType,
+  getUnresolvedErrorByType,
+} from '../helpers/getErrorByType'
 import type { ReadyRuntimeError } from '../helpers/getErrorByType'
 import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
-import { CloseIcon } from '../icons/CloseIcon'
-import { RuntimeError } from './RuntimeError'
+
+import { RuntimeErrorsDialogBody } from './RuntimeError'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
+
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
-import { HotlinkedText } from '../components/hot-linked-text'
+
+import { AlertOctagon, PackageX } from '../icons'
+
+import { Tabs, Tab, TabPanel } from '../components/Tabs'
+import { DialogHeaderTabList } from '../components/Dialog/DialogHeaderTabList'
+import { ErrorsToast } from './ErrorsToast'
+import type { DialogProps } from '../components/Dialog/Dialog'
+import { BuildErrorsDialogBody } from './BuildError'
+import { RootLayoutErrorDialogBody } from './RootLayoutError'
+
+export type BuildError = {
+  message: string
+}
 
 export type SupportedErrorEvent = {
   id: number
   event: UnhandledErrorAction | UnhandledRejectionAction
 }
+
+export type RootLayoutError = {
+  missingTags: string[]
+}
+
 export type ErrorsProps = {
+  buildErrors: BuildError[]
   errors: SupportedErrorEvent[]
-  initialDisplayState: DisplayState
+  rootLayoutError?: RootLayoutError
   versionInfo?: VersionInfo
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
-
-type DisplayState = 'minimized' | 'fullscreen' | 'hidden'
 
 function getErrorSignature(ev: SupportedErrorEvent): string {
   const { event } = ev
@@ -48,19 +64,18 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
       return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
     }
     default: {
+      // validate all types were handled
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _: never = event
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _: never = event
   return ''
 }
 
-export const Errors: React.FC<ErrorsProps> = function Errors({
-  errors,
-  initialDisplayState,
-  versionInfo,
-}) {
+function useResolvedErrors(
+  errors: SupportedErrorEvent[]
+): [ReadyRuntimeError[], boolean] {
   const [lookups, setLookups] = React.useState(
     {} as { [eventId: string]: ReadyErrorEvent }
   )
@@ -68,7 +83,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
   const [readyErrors, nextError] = React.useMemo<
     [ReadyErrorEvent[], SupportedErrorEvent | null]
   >(() => {
-    let ready: ReadyErrorEvent[] = []
+    const ready: ReadyErrorEvent[] = []
     let next: SupportedErrorEvent | null = null
 
     // Ensure errors are displayed in the order they occurred in:
@@ -88,6 +103,9 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
         }
       }
 
+      // Show unresolved errors as fallback
+      ready.push(getUnresolvedErrorByType(e))
+
       next = e
       break
     }
@@ -95,9 +113,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
     return [ready, next]
   }, [errors, lookups])
 
-  const isLoading = React.useMemo<boolean>(() => {
-    return readyErrors.length < 1 && Boolean(errors.length)
-  }, [errors.length, readyErrors.length])
+  const isLoading = readyErrors.length === 0 && errors.length > 1
 
   React.useEffect(() => {
     if (nextError == null) {
@@ -124,186 +140,645 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
     }
   }, [nextError])
 
-  const [displayState, setDisplayState] =
-    React.useState<DisplayState>(initialDisplayState)
-  const [activeIdx, setActiveIndex] = React.useState<number>(0)
-  const previous = React.useCallback((e?: MouseEvent | TouchEvent) => {
-    e?.preventDefault()
-    setActiveIndex((v) => Math.max(0, v - 1))
-  }, [])
-  const next = React.useCallback(
-    (e?: MouseEvent | TouchEvent) => {
-      e?.preventDefault()
-      setActiveIndex((v) =>
-        Math.max(0, Math.min(readyErrors.length - 1, v + 1))
-      )
-    },
-    [readyErrors.length]
-  )
-
-  const activeError = React.useMemo<ReadyErrorEvent | null>(
-    () => readyErrors[activeIdx] ?? null,
-    [activeIdx, readyErrors]
-  )
-
   // Reset component state when there are no errors to be displayed.
-  // This should never happen, but lets handle it.
+  // This should never happen, but let's handle it.
   React.useEffect(() => {
-    if (errors.length < 1) {
+    if (errors.length === 0) {
       setLookups({})
-      setDisplayState('hidden')
-      setActiveIndex(0)
     }
   }, [errors.length])
 
-  const minimize = React.useCallback((e?: MouseEvent | TouchEvent) => {
-    e?.preventDefault()
-    setDisplayState('minimized')
-  }, [])
-  const hide = React.useCallback((e?: MouseEvent | TouchEvent) => {
-    e?.preventDefault()
-    setDisplayState('hidden')
-  }, [])
-  const fullscreen = React.useCallback(
-    (e?: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-      e?.preventDefault()
-      setDisplayState('fullscreen')
+  return [readyErrors, isLoading]
+}
+
+const enum TabId {
+  BuildErrors = 'build-errors',
+  RootLayoutError = 'root-layout-error',
+  ServerErrors = 'server-errors',
+  RuntimeErrors = 'runtime-errors',
+  RuntimeWarnings = 'runtime-warnings',
+}
+
+function isClientError(error: ReadyRuntimeError) {
+  return !['server', 'edge-server'].includes(getErrorSource(error.error) || '')
+}
+
+function isServerError(error: ReadyRuntimeError) {
+  return ['server', 'edge-server'].includes(getErrorSource(error.error) || '')
+}
+
+function isRuntimeWarning(error: ReadyRuntimeError) {
+  return [
+    'This Suspense boundary received an update before it finished hydrating.',
+    'Hydration failed because the initial UI does not match what was rendered on the server.',
+    'There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.',
+    'There was an error while hydrating this Suspense boundary. Switched to client rendering.',
+  ].some((message) => error.error.message.includes(message))
+}
+
+interface TabBase {
+  id: TabId
+  icon: any
+  title: {
+    one: string
+    many: string
+    short: string
+  }
+  message: React.ReactNode
+  autoOpen: boolean
+  severity: 'error' | 'warning' | 'none'
+  as: any
+}
+
+type TabArgs = {
+  buildErrors: BuildError[]
+  readyErrors: ReadyRuntimeError[]
+  rootLayoutError?: RootLayoutError
+}
+
+interface TabConfig extends TabBase {
+  items: (
+    input: TabArgs
+  ) => ReadyRuntimeError[] | BuildError[] | [RootLayoutError]
+}
+
+const TABS: TabConfig[] = [
+  {
+    id: TabId.BuildErrors,
+    icon: <PackageX />,
+    title: {
+      one: 'Build Error',
+      many: 'Build Errors',
+      short: 'Err',
     },
-    []
-  )
+    message: <>Errors reported when compiling the application.</>,
+    items: ({ buildErrors }) => {
+      return buildErrors
+    },
+    severity: 'error',
+    autoOpen: true,
+    as: BuildErrorsDialogBody,
+  },
+  {
+    id: TabId.RootLayoutError,
+    icon: <PackageX />,
+    title: {
+      one: 'Root Layout Error',
+      many: 'Root Layout Errors',
+      short: 'Err',
+    },
+    message: <>Missing required tags.</>,
+    items: ({ rootLayoutError }) => {
+      return rootLayoutError ? [rootLayoutError] : []
+    },
+    severity: 'error',
+    autoOpen: true,
+    as: RootLayoutErrorDialogBody,
+  },
+  {
+    id: TabId.ServerErrors,
+    icon: <AlertOctagon />,
+    title: {
+      one: 'Server Error',
+      many: 'Server Errors',
+      short: 'Err',
+    },
+    message: <>Unhandled Server Error</>,
+    items: ({ readyErrors }) => {
+      return readyErrors.filter((e) => isServerError(e))
+    },
+    severity: 'error',
+    autoOpen: true,
+    as: RuntimeErrorsDialogBody,
+  },
+  {
+    id: TabId.RuntimeErrors,
+    icon: <AlertOctagon />,
+    title: {
+      one: 'Runtime Error',
+      many: 'Runtime Errors',
+      short: 'Err',
+    },
+    message: <>Unhandled Runtime Error</>,
+    items: ({ readyErrors }) => {
+      return readyErrors.filter((e) => isClientError(e) && !isRuntimeWarning(e))
+    },
+    severity: 'error',
+    autoOpen: true,
+    as: RuntimeErrorsDialogBody,
+  },
+  {
+    id: TabId.RuntimeWarnings,
+    icon: <AlertOctagon />,
+    title: {
+      one: 'Runtime Warnings',
+      many: 'Runtime Warnings',
+      short: 'Warn',
+    },
+    message: (
+      <>
+        Unhandled errors reported when running the application.
+        <br />
+        The application might work partially, but that's unlikely.
+      </>
+    ),
+    items: ({ readyErrors }) => {
+      return readyErrors.filter((e) => isClientError(e) && isRuntimeWarning(e))
+    },
+    severity: 'warning',
+    autoOpen: false,
+    as: RuntimeErrorsDialogBody,
+  },
+]
 
-  // This component shouldn't be rendered with no errors, but if it is, let's
-  // handle it gracefully by rendering nothing.
-  if (errors.length < 1 || activeError == null) {
-    return null
+interface OverlayTab extends TabBase {
+  items: ReadyRuntimeError[] | BuildError[] | [RootLayoutError]
+}
+
+// "instantiates" all tabs, filters out the ones that don't have any items
+function createTabs(args: TabArgs): OverlayTab[] {
+  const tabs = TABS.map((tab) => ({
+    ...tab,
+    items: tab.items(args),
+  }))
+
+  return tabs.filter((tab) => tab.items.length > 0)
+}
+
+function itemHash(item: object) {
+  return JSON.stringify(item)
+}
+
+type DisplayState =
+  | {
+      type: 'fullscreen'
+      tab: TabId
+    }
+  | {
+      type: 'minimized'
+    }
+  | {
+      type: 'hidden'
+    }
+
+type ErrorsState = {
+  tabs: OverlayTab[]
+  display: DisplayState
+  errorCount: number
+  warningCount: number
+
+  seenIds: Set<string>
+  buildErrors: BuildError[]
+  readyErrors: ReadyRuntimeError[]
+  rootLayoutError?: RootLayoutError
+  lastSelectedTab: TabId | null
+}
+
+enum ErrorsActionType {
+  UpdateBuildErrors = 'update-build-errors',
+  UpdateErrors = 'update-errors',
+  UpdateRootLayoutError = 'update-root-layout-error',
+  SelectTab = 'select-tab',
+  Fullscreen = 'fullscreen',
+  Minimize = 'minimize',
+  Hide = 'hide',
+}
+
+type UpdateBuildErrorsAction = {
+  type: typeof ErrorsActionType.UpdateBuildErrors
+  buildErrors: BuildError[]
+}
+
+type UpdateErrorsAction = {
+  type: typeof ErrorsActionType.UpdateErrors
+  readyErrors: ReadyRuntimeError[]
+}
+
+type UpdateRootLayoutErrorAction = {
+  type: typeof ErrorsActionType.UpdateRootLayoutError
+  rootLayoutError?: RootLayoutError
+}
+
+type SelectTabAction = {
+  type: typeof ErrorsActionType.SelectTab
+  tabId: TabId
+}
+
+type FullscreenAction = {
+  type: typeof ErrorsActionType.Fullscreen
+}
+
+type MinimizeAction = {
+  type: typeof ErrorsActionType.Minimize
+}
+
+type HideAction = {
+  type: typeof ErrorsActionType.Hide
+}
+
+type ErrorsAction =
+  | UpdateBuildErrorsAction
+  | UpdateErrorsAction
+  | UpdateRootLayoutErrorAction
+  | SelectTabAction
+  | FullscreenAction
+  | MinimizeAction
+  | HideAction
+
+// puts item
+function prependNewItems<T extends object>(
+  items: T[],
+  seenIds: Set<string>
+): T[] {
+  const newItems = []
+  let newIdx = 0
+
+  for (const item of items) {
+    if (seenIds.has(itemHash(item))) {
+      newItems.push(item)
+    } else {
+      newItems.splice(newIdx, 0, item)
+    }
   }
 
-  if (isLoading) {
-    // TODO: better loading state
-    return <Overlay />
+  return newItems
+}
+
+function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
+  let state = oldState
+  switch (action.type) {
+    case ErrorsActionType.UpdateBuildErrors: {
+      if (action.buildErrors === oldState.buildErrors) {
+        return oldState
+      }
+
+      const buildErrors = prependNewItems(action.buildErrors, oldState.seenIds)
+
+      state = {
+        ...oldState,
+        buildErrors,
+        tabs: createTabs({
+          buildErrors,
+          readyErrors: oldState.readyErrors,
+          rootLayoutError: oldState.rootLayoutError,
+        }),
+      }
+      break
+    }
+    case ErrorsActionType.UpdateErrors: {
+      if (action.readyErrors === oldState.readyErrors) {
+        return oldState
+      }
+
+      const readyErrors = prependNewItems(action.readyErrors, oldState.seenIds)
+
+      state = {
+        ...oldState,
+        readyErrors,
+        tabs: createTabs({
+          readyErrors,
+          buildErrors: oldState.buildErrors,
+          rootLayoutError: oldState.rootLayoutError,
+        }),
+      }
+      break
+    }
+    case ErrorsActionType.UpdateRootLayoutError: {
+      if (action.rootLayoutError === oldState.rootLayoutError) {
+        return oldState
+      }
+
+      const rootLayoutError = action.rootLayoutError
+
+      state = {
+        ...oldState,
+        rootLayoutError,
+        tabs: createTabs({
+          rootLayoutError,
+          readyErrors: oldState.readyErrors,
+          buildErrors: oldState.buildErrors,
+        }),
+      }
+      break
+    }
+    case ErrorsActionType.SelectTab: {
+      state = {
+        ...oldState,
+        display: {
+          type: 'fullscreen',
+          tab: action.tabId,
+        },
+      }
+      break
+    }
+    case ErrorsActionType.Fullscreen: {
+      state = {
+        ...oldState,
+        display: {
+          type: 'fullscreen',
+          tab: oldState.lastSelectedTab || TabId.BuildErrors,
+        },
+      }
+      break
+    }
+    case ErrorsActionType.Minimize: {
+      return {
+        ...oldState,
+        display: {
+          type: 'minimized',
+        },
+      }
+    }
+    case ErrorsActionType.Hide: {
+      return {
+        ...oldState,
+        display: {
+          type: 'hidden',
+        },
+      }
+    }
+    default: {
+      // validate all types were handled
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _: never = action
+    }
   }
 
-  if (displayState === 'hidden') {
-    return null
+  let autoOpen = false
+
+  // When the selected tab disappears, we will go to another important tab or close the overlay
+  if (
+    state.display.type === 'fullscreen' &&
+    !state.tabs.map((tab) => tab.id).includes(state.display.tab)
+  ) {
+    const otherImportantTab = state.tabs.find((tab) => tab.autoOpen)
+    if (otherImportantTab) {
+      state.display.tab = otherImportantTab.id
+    } else {
+      state.display = {
+        type: 'hidden',
+      }
+    }
+  } else {
+    autoOpen = true
   }
 
-  if (displayState === 'minimized') {
-    return (
-      <Toast className="nextjs-toast-errors-parent" onClick={fullscreen}>
-        <div className="nextjs-toast-errors">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          <span>
-            {readyErrors.length} error{readyErrors.length > 1 ? 's' : ''}
-          </span>
-          <button
-            data-nextjs-toast-errors-hide-button
-            className="nextjs-toast-errors-hide-button"
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              hide()
-            }}
-            aria-label="Hide Errors"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-      </Toast>
+  state.seenIds = new Set()
+  // When there is a new item, we open the overlay when autoOpen is set
+  for (const tab of state.tabs) {
+    for (const item of tab.items) {
+      state.seenIds.add(itemHash(item))
+      if (!oldState.seenIds.has(itemHash(item))) {
+        if (state.display.type === 'hidden') {
+          state.display = {
+            type: 'minimized',
+          }
+        }
+
+        if (autoOpen && tab.autoOpen) {
+          state.display = {
+            type: 'fullscreen',
+            tab: tab.id,
+          }
+        }
+      }
+    }
+  }
+
+  if (state.tabs !== oldState.tabs) {
+    state.errorCount = state.tabs.reduce(
+      (sum, tab) => sum + (tab.severity === 'error' ? tab.items.length : 0),
+      0
+    )
+    state.warningCount = state.tabs.reduce(
+      (sum, tab) => sum + (tab.severity === 'warning' ? tab.items.length : 0),
+      0
     )
   }
 
-  const isServerError = ['server', 'edge-server'].includes(
-    getErrorSource(activeError.error) || ''
-  )
+  if (
+    state.tabs.length === 0 ||
+    (state.errorCount === 0 && state.warningCount === 0)
+  ) {
+    state.display = {
+      type: 'hidden',
+    }
+  }
+
+  if (state.display.type === 'fullscreen') {
+    state.lastSelectedTab = state.display.tab
+  }
+
+  return state
+}
+
+export function Errors({
+  buildErrors,
+  errors,
+  rootLayoutError,
+  versionInfo,
+}: ErrorsProps): React.ReactNode {
+  const [readyErrors] = useResolvedErrors(errors)
+
+  const [{ tabs, display, errorCount, warningCount }, dispatch] =
+    React.useReducer<React.Reducer<ErrorsState, ErrorsAction>, null>(
+      reducer,
+      null,
+      () =>
+        reducer(
+          {
+            seenIds: new Set(),
+            tabs: [],
+            lastSelectedTab: null,
+            display: {
+              type: 'hidden',
+            },
+            readyErrors,
+            buildErrors,
+            rootLayoutError,
+            errorCount: 0,
+            warningCount: 0,
+          },
+          { type: ErrorsActionType.UpdateErrors, readyErrors }
+        )
+    )
+
+  React.useEffect(() => {
+    dispatch({ type: ErrorsActionType.UpdateBuildErrors, buildErrors })
+  }, [buildErrors])
+  React.useEffect(() => {
+    dispatch({ type: ErrorsActionType.UpdateErrors, readyErrors })
+  }, [readyErrors])
+  React.useEffect(() => {
+    dispatch({ type: ErrorsActionType.UpdateRootLayoutError, rootLayoutError })
+  }, [rootLayoutError])
+
+  function setSelectedTab(tabId: string) {
+    dispatch({
+      type: ErrorsActionType.SelectTab,
+      tabId: tabId as TabId,
+    })
+  }
+
+  if (display.type === 'hidden') {
+    return null
+  }
+
+  if (display.type === 'minimized') {
+    return (
+      <ErrorsToast
+        errorCount={errorCount}
+        warningCount={warningCount}
+        severity={errorCount > 0 ? 'error' : 'warning'}
+        onClick={() => setSelectedTab(tabs[0].id)}
+        onClose={() => dispatch({ type: ErrorsActionType.Hide })}
+      />
+    )
+  }
 
   return (
-    <Overlay>
-      <Dialog
-        type="error"
-        aria-labelledby="nextjs__container_errors_label"
-        aria-describedby="nextjs__container_errors_desc"
-        onClose={isServerError ? undefined : minimize}
+    <ErrorsDialog
+      aria-labelledby="nextjs__container_errors_label"
+      aria-describedby="nextjs__container_errors_desc"
+      onClose={() => dispatch({ type: ErrorsActionType.Minimize })}
+    >
+      <Tabs
+        defaultId={TabId.RuntimeErrors}
+        selectedId={display.tab}
+        onChange={setSelectedTab}
       >
-        <DialogContent>
-          <DialogHeader className="nextjs-container-errors-header">
-            <LeftRightDialogHeader
-              previous={activeIdx > 0 ? previous : null}
-              next={activeIdx < readyErrors.length - 1 ? next : null}
-              close={isServerError ? undefined : minimize}
-            >
-              <small>
-                <span>{activeIdx + 1}</span> of{' '}
-                <span>{readyErrors.length}</span> unhandled error
-                {readyErrors.length < 2 ? '' : 's'}
-              </small>
-              {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
-            </LeftRightDialogHeader>
-            <h1 id="nextjs__container_errors_label">
-              {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
-            </h1>
-            <p id="nextjs__container_errors_desc">
-              {activeError.error.name}:{' '}
-              <HotlinkedText text={activeError.error.message} />
-            </p>
-            {isServerError ? (
-              <div>
-                <small>
-                  This error happened while generating the page. Any console
-                  logs will be displayed in the terminal window.
-                </small>
-              </div>
-            ) : undefined}
-          </DialogHeader>
-          <DialogBody className="nextjs-container-errors-body">
-            <RuntimeError key={activeError.id.toString()} error={activeError} />
-          </DialogBody>
-        </DialogContent>
+        <DialogHeader
+          className="errors-header"
+          close={() => dispatch({ type: ErrorsActionType.Minimize })}
+        >
+          <DialogHeaderTabList>
+            {tabs.map((tab, i) => (
+              <Tab
+                key={tab.id}
+                id={tab.id}
+                next={tabs[(i + 1) % tabs.length].id}
+                prev={tabs[(i + tabs.length - 1) % tabs.length].id}
+                data-severity={tab.severity}
+              >
+                {tab.icon} {tab.items.length}{' '}
+                {tabs.length > 3
+                  ? tab.title.short
+                  : tab.items.length > 1
+                  ? tab.title.many
+                  : tab.title.one}
+              </Tab>
+            ))}
+          </DialogHeaderTabList>
+          {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
+        </DialogHeader>
+        {tabs.map((tab) => (
+          <TabPanel
+            key={tab.id}
+            id={tab.id}
+            as={tab.as}
+            items={tab.items}
+            message={tab.message}
+            severity={tab.severity}
+            className="errors-body"
+          />
+        ))}
+      </Tabs>
+    </ErrorsDialog>
+  )
+}
+
+function ErrorsDialog({ children, ...props }: DialogProps) {
+  return (
+    <Overlay>
+      <Dialog {...props}>
+        <DialogContent>{children}</DialogContent>
       </Dialog>
     </Overlay>
   )
 }
 
 export const styles = css`
-  .nextjs-container-errors-header > h1 {
-    font-size: var(--size-font-big);
-    line-height: var(--size-font-bigger);
-    font-weight: bold;
+  /** == Header == */
+
+  .errors-header > .tab-list > .tab > svg {
+    margin-right: var(--size-gap);
+  }
+
+  .errors-header > .tab-list > .tab[data-severity='error'] > svg {
+    color: var(--color-error);
+  }
+
+  .errors-header > .tab-list > .tab[data-severity='warning'] > svg {
+    color: var(--color-warning);
+  }
+
+  .errors-header > .tab-list > .tab {
+    position: relative;
+  }
+
+  .errors-header > .tab-list > .tab[data-severity='error']::after {
+    border-top-color: var(--color-error);
+  }
+
+  .errors-header > .tab-list > .tab[data-severity='warning']::after {
+    border-top-color: var(--color-warning);
+  }
+
+  /** == Body == */
+
+  .errors-body {
+    display: flex;
+    flex-direction: column;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+  }
+
+  .errors-body > .title-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    margin-bottom: var(--size-gap);
+  }
+
+  .errors-body > .title-pagination > nav > small {
+    font-size: var(--size-font-small);
+    color: var(--color-text-dim);
+    margin-right: var(--size-gap);
+    opacity: 0.7;
+  }
+
+  .errors-body > .title-pagination > nav > small > span {
+    font-family: var(--font-mono);
+  }
+
+  .errors-body > .title-pagination > h1 {
+    font-size: var(--size-font-bigger);
+    /*color: var(--color-text-dim);*/
     margin: 0;
-    margin-top: calc(var(--size-gap-double) + var(--size-gap-half));
+    opacity: 0.9;
   }
-  .nextjs-container-errors-header small {
-    font-size: var(--size-font-small);
-    color: var(--color-accents-1);
-    margin-left: var(--size-gap-double);
-  }
-  .nextjs-container-errors-header small > span {
-    font-family: var(--font-stack-monospace);
-  }
-  .nextjs-container-errors-header > p {
-    font-family: var(--font-stack-monospace);
-    font-size: var(--size-font-small);
+
+  .errors-body > p#nextjs__container_errors_desc {
+    font-family: var(--font-mono);
+    font-size: var(--size-font);
     line-height: var(--size-font-big);
     font-weight: bold;
     margin: 0;
-    margin-top: var(--size-gap-half);
-    color: var(--color-ansi-red);
     white-space: pre-wrap;
+    overflow-wrap: break-word;
   }
-  .nextjs-container-errors-header > div > small {
+
+  .errors-body > p#nextjs__container_errors_desc[data-severity='error'] {
+    color: var(--color-error);
+  }
+
+  .errors-body > p#nextjs__container_errors_desc[data-severity='warning'] {
+    color: var(--color-warning);
+  }
+
+  .errors-body > div > small {
     margin: 0;
     margin-top: var(--size-gap-half);
   }
@@ -311,39 +786,11 @@ export const styles = css`
     color: var(--color-ansi-red);
   }
 
-  .nextjs-container-errors-body > h2:not(:first-child) {
-    margin-top: calc(var(--size-gap-double) + var(--size-gap));
-  }
-  .nextjs-container-errors-body > h2 {
-    margin-bottom: var(--size-gap);
-    font-size: var(--size-font-big);
+  .errors-body > h2:not(:first-child) {
+    margin-top: var(--size-gap-double);
   }
 
-  .nextjs-toast-errors-parent {
-    cursor: pointer;
-    transition: transform 0.2s ease;
-  }
-  .nextjs-toast-errors-parent:hover {
-    transform: scale(1.1);
-  }
-  .nextjs-toast-errors {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-  }
-  .nextjs-toast-errors > svg {
-    margin-right: var(--size-gap);
-  }
-  .nextjs-toast-errors-hide-button {
-    margin-left: var(--size-gap-triple);
-    border: none;
-    background: none;
-    color: var(--color-ansi-bright-white);
-    padding: 0;
-    transition: opacity 0.25s ease;
-    opacity: 0.7;
-  }
-  .nextjs-toast-errors-hide-button:hover {
-    opacity: 1;
+  .errors-body > h2 {
+    margin-bottom: var(--size-gap);
   }
 `

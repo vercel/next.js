@@ -6,24 +6,24 @@ import type {
 } from './error-overlay-reducer'
 
 import { ShadowPortal } from './components/ShadowPortal'
-import { BuildError } from './container/BuildError'
-import { Errors } from './container/Errors'
-import type { SupportedErrorEvent } from './container/Errors'
-import { RootLayoutError } from './container/RootLayoutError'
+import { Errors, type SupportedErrorEvent } from './container/Errors'
 import { parseStack } from './helpers/parseStack'
 import { Base } from './styles/Base'
 import { ComponentStyles } from './styles/ComponentStyles'
 import { CssReset } from './styles/CssReset'
 
-interface ReactDevOverlayState {
+type ReactDevOverlayProps = {
+  state: OverlayState
+  children: React.ReactNode
+  onReactError: (error: Error) => void
+}
+
+type ReactDevOverlayState = {
   reactError: SupportedErrorEvent | null
 }
+
 class ReactDevOverlay extends React.PureComponent<
-  {
-    state: OverlayState
-    children: React.ReactNode
-    onReactError: (error: Error) => void
-  },
+  ReactDevOverlayProps,
   ReactDevOverlayState
 > {
   state = { reactError: null }
@@ -75,28 +75,14 @@ class ReactDevOverlay extends React.PureComponent<
             <Base />
             <ComponentStyles />
 
-            {rootLayoutMissingTagsError ? (
-              <RootLayoutError
-                missingTags={rootLayoutMissingTagsError.missingTags}
-              />
-            ) : hasBuildError ? (
-              <BuildError
-                message={state.buildError!}
-                versionInfo={state.versionInfo}
-              />
-            ) : reactError ? (
-              <Errors
-                versionInfo={state.versionInfo}
-                initialDisplayState="fullscreen"
-                errors={[reactError]}
-              />
-            ) : hasRuntimeErrors ? (
-              <Errors
-                initialDisplayState="minimized"
-                errors={state.errors}
-                versionInfo={state.versionInfo}
-              />
-            ) : undefined}
+            <Errors
+              buildErrors={
+                state.buildError ? [{ message: state.buildError }] : []
+              }
+              errors={reactError ? [reactError] : state.errors}
+              rootLayoutError={rootLayoutMissingTagsError}
+              versionInfo={state.versionInfo}
+            />
           </ShadowPortal>
         ) : undefined}
       </>

@@ -1,7 +1,7 @@
 import { noop as css } from '../../helpers/noop-template'
 
 const styles = css`
-  [data-nextjs-toast] {
+  .toast {
     position: fixed;
     bottom: var(--size-gap-double);
     left: var(--size-gap-double);
@@ -10,20 +10,28 @@ const styles = css`
   }
 
   @media (max-width: 440px) {
-    [data-nextjs-toast] {
+    .toast {
       max-width: 90vw;
       left: 5vw;
     }
   }
 
-  [data-nextjs-toast-wrapper] {
+  .toast-wrapper {
     padding: 16px;
     border-radius: var(--size-gap-half);
-    font-weight: 500;
-    color: var(--color-ansi-bright-white);
-    background-color: var(--color-ansi-red);
+    font-weight: 600;
     box-shadow: 0px var(--size-gap-double) var(--size-gap-quad)
       rgba(0, 0, 0, 0.25);
+  }
+
+  .toast[data-severity='error'] > .toast-wrapper {
+    color: var(--color-text-white);
+    background-color: var(--color-error);
+  }
+
+  .toast[data-severity='warning'] > .toast-wrapper {
+    color: var(--color-text-white);
+    background-color: var(--color-warning);
   }
 `
 
