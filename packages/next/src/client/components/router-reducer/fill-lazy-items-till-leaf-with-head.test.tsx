@@ -87,9 +87,14 @@ describe('fillLazyItemsTillLeafWithHead', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [treePatch, _cacheNodeSeedData, head] = flightDataPath.slice(-3)
-    fillLazyItemsTillLeafWithHead(cache, existingCache, treePatch, head)
+    const [treePatch, cacheNodeSeedData, head] = flightDataPath.slice(-3)
+    fillLazyItemsTillLeafWithHead(
+      cache,
+      existingCache,
+      treePatch,
+      cacheNodeSeedData,
+      head
+    )
 
     const expectedCache: CacheNode = {
       data: null,

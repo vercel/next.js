@@ -26,6 +26,7 @@ export function applyFlightData(
       cache,
       existingCache,
       treePatch,
+      cacheNodeSeedData,
       head,
       wasPrefetched
     )

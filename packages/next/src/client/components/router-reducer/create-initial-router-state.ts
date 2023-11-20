@@ -43,7 +43,13 @@ export function createInitialRouterState({
 
   // When the cache hasn't been seeded yet we fill the cache with the head.
   if (initialParallelRoutes === null || initialParallelRoutes.size === 0) {
-    fillLazyItemsTillLeafWithHead(cache, undefined, initialTree, initialHead)
+    fillLazyItemsTillLeafWithHead(
+      cache,
+      undefined,
+      initialTree,
+      initialSeedData,
+      initialHead
+    )
   }
 
   return {

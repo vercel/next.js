@@ -153,9 +153,6 @@ export async function walkTreeWithFlightRouterState({
           metadataOutlet,
         }
       )
-      // TODO: Pass full data for entire tree.
-      const [seedDataSegment, , componentTree] = seedData
-      const shallowSeedData = [seedDataSegment, null, componentTree]
 
       // Create head
       const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
@@ -173,7 +170,7 @@ export async function walkTreeWithFlightRouterState({
         </>
       )
 
-      return [[overriddenSegment, routerState, shallowSeedData, head]]
+      return [[overriddenSegment, routerState, seedData, head]]
     }
   }
 

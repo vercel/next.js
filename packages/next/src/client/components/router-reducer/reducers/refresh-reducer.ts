@@ -107,6 +107,7 @@ export function refreshReducer(
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
             undefined,
             treePatch,
+            cacheNodeSeedData,
             head
           )
           mutable.cache = cache

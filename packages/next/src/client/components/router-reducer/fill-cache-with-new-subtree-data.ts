@@ -70,6 +70,7 @@ export function fillCacheWithNewSubTreeData(
         childCacheNode,
         existingChildCacheNode,
         flightDataPath[2],
+        seedData,
         flightDataPath[4],
         wasPrefetched
       )
