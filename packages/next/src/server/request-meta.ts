@@ -67,6 +67,33 @@ export interface RequestMeta {
    * The incremental cache to use for the request.
    */
   incrementalCache?: any
+
+  /**
+   * True when the request is for the prefetch flight data.
+   */
+  isPrefetchRSCRequest?: true
+
+  /**
+   * True when the request is for the flight data.
+   */
+  isRSCRequest?: true
+
+  /**
+   * Postponed state to use for resumption. If present it's assumed that the
+   * request is for a page that has postponed (there are no guarantees that the
+   * page actually has postponed though as it would incur an additional cache
+   * lookup).
+   */
+  postponed?: string
+
+  /**
+   * If provided, this will be called when a response cache entry was generated
+   * or looked up in the cache.
+   */
+  onCacheEntry?: (
+    cacheEntry: any,
+    requestMeta: any
+  ) => Promise<boolean | void> | boolean | void
 }
 
 /**

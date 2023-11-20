@@ -12,7 +12,7 @@ use turbopack_binding::{
             context::AssetContext,
             file_source::FileSource,
             ident::AssetIdent,
-            issue::{Issue, IssueDescriptionExt, IssueExt, IssueSeverity},
+            issue::{Issue, IssueDescriptionExt, IssueExt, IssueSeverity, StyledString},
             reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
             resolve::{
                 find_context_file,
@@ -442,9 +442,8 @@ pub struct ExperimentalConfig {
     pub optimize_css: Option<serde_json::Value>,
     pub next_script_workers: Option<bool>,
     pub web_vitals_attribution: Option<Vec<String>>,
-    /// Enables server actions. Using this feature will enable the
-    /// `react@experimental` for the `app` directory. @see https://nextjs.org/docs/app/api-reference/functions/server-actions
-    server_actions: Option<bool>,
+    pub server_actions: Option<ServerActionsOrLegacyBool>,
+    pub sri: Option<SubResourceIntegrity>,
 
     // ---
     // UNSUPPORTED
@@ -487,13 +486,10 @@ pub struct ExperimentalConfig {
     ppr: Option<bool>,
     taint: Option<bool>,
     proxy_timeout: Option<f64>,
-    /// Allows adjusting body parser size limit for server actions.
-    server_actions_body_size_limit: Option<SizeLimit>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
     /// Enables source maps generation for the server production bundle.
     server_source_maps: Option<bool>,
-    sri: Option<serde_json::Value>,
     swc_minify: Option<bool>,
     swc_trace_profiling: Option<bool>,
     /// @internal Used by the Next.js internals only.
@@ -510,8 +506,32 @@ pub struct ExperimentalConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct SubResourceIntegrity {
+    pub algorithm: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
 #[serde(untagged)]
-enum SizeLimit {
+pub enum ServerActionsOrLegacyBool {
+    /// The current way to configure server actions sub behaviors.
+    ServerActionsConfig(ServerActions),
+
+    /// The legacy way to disable server actions. This is no longer used, server
+    /// actions is always enabled.
+    LegacyBool(bool),
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerActions {
+    /// Allows adjusting body parser size limit for server actions.
+    pub body_size_limit: Option<SizeLimit>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum SizeLimit {
     Number(f64),
     WithUnit(String),
 }
@@ -737,10 +757,13 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn enable_server_actions(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?.experimental.server_actions.unwrap_or(false),
-        ))
+    pub async fn enable_ppr(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.experimental.ppr.unwrap_or(false)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn enable_taint(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.experimental.taint.unwrap_or(false)))
     }
 }
 
@@ -955,7 +978,7 @@ impl Issue for OutdatedConfigIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(self.description.to_string())
+    fn description(&self) -> Vc<StyledString> {
+        StyledString::Text(self.description.to_string()).cell()
     }
 }

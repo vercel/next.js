@@ -47,8 +47,7 @@ use turbopack_binding::swc::{
             SyntaxContext,
         },
         ecma::{
-            ast::EsVersion, atoms::JsWord, parser::parse_file_as_module,
-            transforms::base::pass::noop, visit::Fold,
+            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
         },
     },
     custom_transform::modularize_imports,
@@ -58,11 +57,13 @@ pub mod amp_attributes;
 mod auto_cjs;
 pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
+mod import_analyzer;
 pub mod named_import_transform;
 pub mod next_ssg;
 pub mod optimize_barrel;
 pub mod optimize_server_react;
 pub mod page_config;
+pub mod pure;
 pub mod react_server_components;
 pub mod server_actions;
 pub mod shake_exports;
@@ -92,10 +93,7 @@ pub struct TransformOptions {
     pub is_development: bool,
 
     #[serde(default)]
-    pub is_server: bool,
-
-    #[serde(default)]
-    pub bundle_target: JsWord,
+    pub is_server_compiler: bool,
 
     #[serde(default)]
     pub server_components: Option<react_server_components::Config>,
@@ -196,7 +194,6 @@ where
                     config.clone(),
                     comments.clone(),
                     opts.app_dir.clone(),
-                    opts.bundle_target.clone()
                 )),
             _ => Either::Right(noop()),
         },
@@ -228,12 +225,12 @@ where
         amp_attributes::amp_attributes(),
         next_dynamic(
             opts.is_development,
-            opts.is_server,
+            opts.is_server_compiler,
             match &opts.server_components {
                 Some(config) if config.truthy() => match config {
                     // Always enable the Server Components mode for both
                     // server and client layers.
-                    react_server_components::Config::WithOptions(_) => true,
+                    react_server_components::Config::WithOptions(config) => config.is_react_server_layer,
                     _ => false,
                 },
                 _ => false,
@@ -310,7 +307,7 @@ where
             Some(config) => Either::Left(server_actions::server_actions(
                 &file.name,
                 config.clone(),
-                comments,
+                comments.clone(),
             )),
             None => Either::Right(noop()),
         },
@@ -320,6 +317,7 @@ where
             },
             None => Either::Right(noop()),
         },
+        pure::pure_magic(comments),
     )
 }
 

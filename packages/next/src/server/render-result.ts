@@ -1,8 +1,12 @@
-import type { ServerResponse } from 'http'
+import type { OutgoingHttpHeaders, ServerResponse } from 'http'
 import type { StaticGenerationStore } from '../client/components/static-generation-async-storage.external'
 import type { Revalidate } from './lib/revalidate'
 
-import { streamToString } from './stream-utils/node-web-streams-helper'
+import {
+  chainStreams,
+  streamFromString,
+  streamToString,
+} from './stream-utils/node-web-streams-helper'
 import { isAbortError, pipeToNodeResponse } from './pipe-readable'
 
 type ContentTypeOption = string | undefined
@@ -10,16 +14,33 @@ type ContentTypeOption = string | undefined
 export type RenderResultMetadata = {
   pageData?: any
   revalidate?: Revalidate
-  staticBailoutInfo?: any
+  staticBailoutInfo?: {
+    stack?: string
+    description?: string
+  }
   assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
   fetchMetrics?: StaticGenerationStore['fetchMetrics']
   fetchTags?: string
   waitUntil?: Promise<any>
+
+  /**
+   * The headers to set on the response that were added by the render.
+   */
+  headers?: OutgoingHttpHeaders
+
+  /**
+   * The postponed state if the render had postponed and needs to be resumed.
+   */
+  postponed?: string
 }
 
-type RenderResultResponse = ReadableStream<Uint8Array> | string | null
+type RenderResultResponse =
+  | ReadableStream<Uint8Array>[]
+  | ReadableStream<Uint8Array>
+  | string
+  | null
 
 export default class RenderResult {
   /**
@@ -40,7 +61,7 @@ export default class RenderResult {
    * dynamic response. If it's null, then the response was not found or was
    * already sent.
    */
-  private readonly response: RenderResultResponse
+  private response: RenderResultResponse
 
   /**
    * Creates a new RenderResult instance from a static response.
@@ -111,7 +132,7 @@ export default class RenderResult {
         )
       }
 
-      return streamToString(this.response)
+      return streamToString(this.readable)
     }
 
     return this.response
@@ -129,7 +150,42 @@ export default class RenderResult {
       throw new Error('Invariant: static responses cannot be streamed')
     }
 
+    // If the response is an array of streams, then chain them together.
+    if (Array.isArray(this.response)) {
+      return chainStreams(...this.response)
+    }
+
     return this.response
+  }
+
+  /**
+   * Chains a new stream to the response. This will convert the response to an
+   * array of streams if it is not already one and will add the new stream to
+   * the end. When this response is piped, all of the streams will be piped
+   * one after the other.
+   *
+   * @param readable The new stream to chain
+   */
+  public chain(readable: ReadableStream<Uint8Array>) {
+    if (this.response === null) {
+      throw new Error('Invariant: response is null. This is a bug in Next.js')
+    }
+
+    // If the response is not an array of streams already, make it one.
+    let responses: ReadableStream<Uint8Array>[]
+    if (typeof this.response === 'string') {
+      responses = [streamFromString(this.response)]
+    } else if (Array.isArray(this.response)) {
+      responses = this.response
+    } else {
+      responses = [this.response]
+    }
+
+    // Add the new stream to the array.
+    responses.push(readable)
+
+    // Update the response.
+    this.response = responses
   }
 
   /**

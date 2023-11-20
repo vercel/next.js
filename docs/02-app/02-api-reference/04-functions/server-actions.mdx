@@ -70,15 +70,15 @@ export default function ClientComponent() {
 In some cases, you might want to pass down a Server Action to a Client Component as a prop.
 
 ```jsx
-<ClientComponent updateItem={updateItem} />
+<ClientComponent myAction={updateItem} />
 ```
 
 ```jsx filename="app/client-component.jsx"
 'use client'
 
-export default function ClientComponent({ myAction }) {
+export default function ClientComponent({ updateItem }) {
   return (
-    <form action={myAction}>
+    <form action={updateItem}>
       <input type="text" name="name" />
       <button type="submit">Update Item</button>
     </form>
@@ -142,12 +142,14 @@ In both cases, the form is interactive before hydration occurs. Although Server 
 
 By default, the maximum size of the request body sent to a Server Action is 1MB, to prevent the consumption of excessive server resources in parsing large amounts of data.
 
-However, you can configure this limit using the `serverActionsBodySizeLimit` option. It can take the number of bytes or any string format supported by bytes, for example `1000`, `'500kb'` or `'3mb'`.
+However, you can configure this limit using the `serverActions.bodySizeLimit` option. It can take the number of bytes or any string format supported by bytes, for example `1000`, `'500kb'` or `'3mb'`.
 
 ```js filename="next.config.js"
 module.exports = {
   experimental: {
-    serverActionsBodySizeLimit: '2mb',
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
   },
 }
 ```
@@ -157,8 +159,7 @@ module.exports = {
 The following React API pages are currently being documented:
 
 - [`"use server"`](https://react.dev/reference/react/use-server)
-- `action` (🚧)
-- `formAction` (🚧)
-- `useFormStatus` (🚧)
-- `useFormState` (🚧)
-- `useOptimistic` (🚧)
+- [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus)
+- [`useFormState`](https://react.dev/reference/react-dom/hooks/useFormState)
+- [`useOptimistic`](https://react.dev/reference/react/useOptimistic)
+- [`<form>`](https://react.dev/reference/react-dom/components/form)

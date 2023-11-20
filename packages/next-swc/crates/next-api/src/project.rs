@@ -23,7 +23,7 @@ use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
     Completion, Completions, IntoTraitRef, State, TaskInput, TraitRef, TransientInstance,
-    TryFlatJoinIterExt, Value, ValueToString, Vc,
+    TryFlatJoinIterExt, Value, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -402,15 +402,6 @@ impl Project {
         self.project_fs().root()
     }
 
-    /// Returns a path to dist_dir resolved from project root path as string.
-    /// Currently this is only for embedding process.env.__NEXT_DIST_DIR.
-    /// [Note] in webpack-config, it is being injected when
-    /// dev && (isClient || isEdgeServer)
-    #[turbo_tasks::function]
-    async fn dist_root_string(self: Vc<Self>) -> Result<Vc<String>> {
-        Ok(self.node_root().to_string())
-    }
-
     #[turbo_tasks::function]
     pub async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let next_config = self.next_config().await?;
@@ -475,7 +466,6 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn client_compile_time_info(&self) -> Result<Vc<CompileTimeInfo>> {
         Ok(get_client_compile_time_info(
-            self.mode,
             self.browserslist_query.clone(),
             self.define_env.client(),
         ))
@@ -485,11 +475,9 @@ impl Project {
     pub(super) async fn server_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
         let this = self.await?;
         Ok(get_server_compile_time_info(
-            this.mode,
             self.env(),
             self.server_addr(),
             this.define_env.nodejs(),
-            self.next_config(),
         ))
     }
 
@@ -497,10 +485,9 @@ impl Project {
     pub(super) async fn edge_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
         let this = self.await?;
         Ok(get_edge_compile_time_info(
-            this.mode,
             self.project_path(),
             self.server_addr(),
-            this.define_env.nodejs(),
+            this.define_env.edge(),
         ))
     }
 
@@ -534,7 +521,6 @@ impl Project {
         get_edge_chunking_context(
             self.project_path(),
             self.node_root(),
-            self.client_relative_path(),
             self.edge_compile_time_info().environment(),
         )
     }
@@ -817,7 +803,7 @@ impl Project {
     #[turbo_tasks::function]
     pub fn server_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
         let path = self.node_root();
-        any_output_changed(roots, path)
+        any_output_changed(roots, path, true)
     }
 
     /// Completion when client side changes are detected in output assets
@@ -825,7 +811,7 @@ impl Project {
     #[turbo_tasks::function]
     pub fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
         let path = self.client_root();
-        any_output_changed(roots, path)
+        any_output_changed(roots, path, false)
     }
 }
 
@@ -833,6 +819,7 @@ impl Project {
 async fn any_output_changed(
     roots: Vc<OutputAssets>,
     path: Vc<FileSystemPath>,
+    server: bool,
 ) -> Result<Vc<Completion>> {
     let path = &path.await?;
     let completions = AdjacencyMap::new()
@@ -844,7 +831,10 @@ async fn any_output_changed(
         .into_reverse_topological()
         .map(|m| async move {
             let asset_path = m.ident().path().await?;
-            if !asset_path.path.ends_with(".map") && asset_path.is_inside_ref(path) {
+            if !asset_path.path.ends_with(".map")
+                && (!server || !asset_path.path.ends_with(".css"))
+                && asset_path.is_inside_ref(path)
+            {
                 Ok(Some(content_changed(Vc::upcast(m))))
             } else {
                 Ok(None)

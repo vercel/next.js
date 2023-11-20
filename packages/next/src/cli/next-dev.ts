@@ -6,6 +6,7 @@ import {
   RESTART_EXIT_CODE,
   checkNodeDebugType,
   getDebugPort,
+  getMaxOldSpaceSize,
   getNodeOptionsWithoutInspect,
   getPort,
   printAndExit,
@@ -26,13 +27,12 @@ import { createSelfSignedCertificate } from '../lib/mkcert'
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
-import { trace } from '../trace'
-import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import { fork } from 'child_process'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
+import os from 'os'
 
 let dir: string
 let child: undefined | ReturnType<typeof fork>
@@ -212,13 +212,7 @@ const nextDev: CliCommand = async (args) => {
     process.env.TURBOPACK = '1'
   }
 
-  if (process.env.TURBOPACK) {
-    isTurboSession = true
-    await validateTurboNextConfig({
-      ...devServerOptions,
-      isDev: true,
-    })
-  }
+  isTurboSession = !!process.env.TURBOPACK
 
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
@@ -232,6 +226,16 @@ const nextDev: CliCommand = async (args) => {
 
       let NODE_OPTIONS = getNodeOptionsWithoutInspect()
       let nodeDebugType = checkNodeDebugType()
+
+      const maxOldSpaceSize = getMaxOldSpaceSize()
+
+      if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
+        const totalMem = os.totalmem()
+        const totalMemInMB = Math.floor(totalMem / 1024 / 1024)
+        NODE_OPTIONS = `${NODE_OPTIONS} --max-old-space-size=${Math.floor(
+          totalMemInMB * 0.5
+        )}`
+      }
 
       if (nodeDebugType) {
         NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${
@@ -313,9 +317,7 @@ const nextDev: CliCommand = async (args) => {
     }
   }
 
-  await trace('start-dev-server').traceAsyncFn(async (_) => {
-    await runDevServer(false)
-  })
+  await runDevServer(false)
 }
 
 function cleanup() {

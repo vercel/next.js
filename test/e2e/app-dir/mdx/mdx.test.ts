@@ -1,6 +1,10 @@
 import { createNextDescribe } from 'e2e-utils'
 
-for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
+for (const type of [
+  'with-mdx-rs',
+  // only mdx-rs should work with turbopack
+  ...(process.env.TURBOPACK ? [] : ['without-mdx-rs']),
+]) {
   createNextDescribe(
     `mdx ${type}`,
     {
@@ -49,6 +53,11 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
           expect(await browser.elementByCss('h1').getComputedCss('color')).toBe(
             'rgb(255, 0, 0)'
           )
+        })
+
+        it('should allow importing client components', async () => {
+          const $ = await next.render$('/')
+          expect($('h2').text()).toBe('This is a client component')
         })
       })
 
