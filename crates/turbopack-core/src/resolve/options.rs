@@ -67,7 +67,10 @@ pub enum ResolveIntoPackage {
     /// [main]: https://nodejs.org/api/packages.html#main
     /// [module]: https://esbuild.github.io/api/#main-fields
     /// [browser]: https://esbuild.github.io/api/#main-fields
-    MainField(String),
+    MainField {
+        field: String,
+        extensions: Option<Vec<String>>,
+    },
     /// Default behavior of using the index.js file at the root of the package.
     Default(String),
 }
@@ -453,6 +456,14 @@ impl ResolveOptions {
                 .map(|current_import_map| current_import_map.extend(import_map))
                 .unwrap_or(import_map),
         );
+        Ok(resolve_options.into())
+    }
+
+    /// Overrides the extensions used for resolving
+    #[turbo_tasks::function]
+    pub async fn with_extensions(self: Vc<Self>, extensions: Vec<String>) -> Result<Vc<Self>> {
+        let mut resolve_options = self.await?.clone_value();
+        resolve_options.extensions = extensions;
         Ok(resolve_options.into())
     }
 }
