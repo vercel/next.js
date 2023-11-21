@@ -269,7 +269,7 @@ function assignDefaults(
   // wasn't explicitly disabled in the config.
   if (
     process.env.__NEXT_TEST_MODE &&
-    process.env.____NEXT_EXPERIMENTAL_PPR === 'true' &&
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
     result.experimental?.ppr === undefined
   ) {
     result.experimental ??= {}
