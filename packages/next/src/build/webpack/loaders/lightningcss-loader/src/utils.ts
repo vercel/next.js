@@ -4,7 +4,7 @@ import type { Source } from 'webpack-sources'
 import browserslist from 'browserslist'
 import { browserslistToTargets } from 'lightningcss'
 import type { Targets } from 'lightningcss/node/targets'
-import { ECacheKey } from './interface'
+import type { ECacheKey } from './interface'
 
 type StatsPrinter = {
   hooks: {
