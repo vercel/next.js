@@ -293,8 +293,12 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     function formatIssue(issue: Issue) {
-      const { filePath, title, description, source } = issue
+      const { filePath, title, description, source, detail } = issue
       let { documentationLink } = issue
+      let formattedTitle = renderStyledStringToErrorAnsi(title).replace(
+        /\n/g,
+        '\n    '
+      )
 
       let formattedFilePath = filePath
         .replace('[project]/', './')
@@ -306,12 +310,16 @@ async function startWatcher(opts: SetupOpts) {
       if (source) {
         if (source.range) {
           const { start } = source.range
-          message = `${formattedFilePath}:${start.line + 1}:${start.column}`
+          message = `${issue.severity} - ${formattedFilePath}:${
+            start.line + 1
+          }:${start.column}  ${formattedTitle}`
         } else {
           message = formattedFilePath
         }
+      } else if (formattedFilePath) {
+        message = `${formattedFilePath}  ${formattedTitle}`
       } else {
-        message = title.replace(/\n/g, '\n    ')
+        message = formattedTitle.replace(/\n/g, '\n    ')
       }
 
       if (description) {
@@ -350,10 +358,25 @@ async function startWatcher(opts: SetupOpts) {
           { forceColor: true }
         ).trim()
       }
+
+      if (description) {
+        message += `\n${renderStyledStringToErrorAnsi(description).replace(
+          /\n/g,
+          '\n    '
+        )}`
+      }
+
+      if (detail) {
+        message += `\n${renderStyledStringToErrorAnsi(detail).replace(
+          /\n/g,
+          '\n    '
+        )}`
+      }
+      // TODO: Include a trace from the issue.
+
       if (documentationLink) {
         message += `\n\n${documentationLink}`
       }
-      // TODO: Include a trace from the issue.
 
       return message
     }
@@ -379,6 +402,9 @@ async function startWatcher(opts: SetupOpts) {
           console.error(`  ⚠ ${displayName} ${formatted}\n\n`)
         }
         newSet.set(key, issue)
+
+        // We show errors in node_modules to the console, but don't throw for them
+        if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
         relevantIssues.add(formatted)
       }
 
@@ -508,7 +534,9 @@ async function startWatcher(opts: SetupOpts) {
 
           errors.set(key, {
             message,
-            details: issue.detail,
+            details: issue.detail
+              ? renderStyledStringToErrorAnsi(issue.detail)
+              : undefined,
           })
         }
       }

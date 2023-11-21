@@ -3,11 +3,9 @@ import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc
 export function Item({ value }) {
     return <>
 
-      <Button action={$$ACTION_0 = async (...args)=>$$ACTION_1.apply(null, ($$ACTION_0.$$bound || []).concat(args)), createActionProxy("188d5d945750dc32e2c842b93c75a65763d4a922", [
-        encryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", [
-            value
-        ])
-    ], $$ACTION_0, $$ACTION_1), $$ACTION_0}>
+      <Button action={createActionProxy("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_1).bind(null, encryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", [
+        value
+    ]))}>
 
         Multiple
 
@@ -15,8 +13,7 @@ export function Item({ value }) {
 
     </>;
 }
-export var $$ACTION_1 = async ($$ACTION_CLOSURE_BOUND, value2)=>{
+export async function $$ACTION_1($$ACTION_CLOSURE_BOUND, value2) {
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_CLOSURE_BOUND);
     return $$ACTION_ARG_0 * value2;
-};
-var $$ACTION_0;
+}

@@ -13,7 +13,10 @@ use turbopack_binding::turbopack::{
     core::{
         file_source::FileSource,
         ident::AssetIdent,
-        issue::{Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource, StyledString},
+        issue::{
+            Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource, OptionStyledString,
+            StyledString,
+        },
         source::Source,
     },
     ecmascript::{
@@ -151,7 +154,7 @@ impl NextSegmentConfig {
 #[turbo_tasks::value(shared)]
 pub struct NextSegmentConfigParsingIssue {
     ident: Vc<AssetIdent>,
-    detail: Vc<String>,
+    detail: Vc<StyledString>,
     source: Vc<IssueSource>,
 }
 
@@ -163,8 +166,8 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Unable to parse config export in source file".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Unable to parse config export in source file".to_string()).cell()
     }
 
     #[turbo_tasks::function]
@@ -178,18 +181,20 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        StyledString::Text(
-            "The exported configuration object in a source file need to have a very specific \
-             format from which some properties can be statically parsed at compiled-time."
-                .to_string(),
-        )
-        .cell()
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(
+                "The exported configuration object in a source file need to have a very specific \
+                 format from which some properties can be statically parsed at compiled-time."
+                    .to_string(),
+            )
+            .cell(),
+        ))
     }
 
     #[turbo_tasks::function]
-    fn detail(&self) -> Vc<String> {
-        self.detail
+    fn detail(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.detail))
     }
 
     #[turbo_tasks::function]
@@ -285,7 +290,7 @@ fn parse_config_value(
         let (explainer, hints) = value.explain(2, 0);
         NextSegmentConfigParsingIssue {
             ident: source.ident(),
-            detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
+            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}")).cell(),
             source: issue_source(source, span),
         }
         .cell()
