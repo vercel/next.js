@@ -15,7 +15,7 @@ export async function sendResponse(
   req: BaseNextRequest,
   res: BaseNextResponse,
   response: Response,
-  waitUntil?: Promise<any>
+  waitUntil?: Promise<unknown>
 ): Promise<void> {
   // Don't use in edge runtime
   if (process.env.NEXT_RUNTIME !== 'edge') {

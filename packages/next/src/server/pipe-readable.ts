@@ -12,7 +12,7 @@ export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
 
 function createWriterFromResponse(
   res: ServerResponse,
-  waitUntilForEnd?: Promise<void>
+  waitUntilForEnd?: Promise<unknown>
 ): WritableStream<Uint8Array> {
   let started = false
 
@@ -77,13 +77,13 @@ function createWriterFromResponse(
       res.destroy(err)
     },
     close: async () => {
-      if (res.writableFinished) return
-
       // if a waitUntil promise was passed, wait for it to resolve before
       // ending the response.
       if (waitUntilForEnd) {
         await waitUntilForEnd
       }
+
+      if (res.writableFinished) return
 
       res.end()
       return finished.promise
@@ -94,7 +94,7 @@ function createWriterFromResponse(
 export async function pipeToNodeResponse(
   readable: ReadableStream<Uint8Array>,
   res: ServerResponse,
-  waitUntilForEnd?: Promise<void>
+  waitUntilForEnd?: Promise<unknown>
 ) {
   try {
     // If the response has already errored, then just return now.
