@@ -2,7 +2,7 @@ import type { Compilation } from 'next/dist/compiled/webpack/webpack'
 import type { SyncHook, SyncBailHook, AsyncSeriesHook, HookMap } from 'tapable'
 import type { Source } from 'webpack-sources'
 import browserslist from 'next/dist/compiled/browserslist'
-import { browserslistToLightningcssTargets } from '../../../../swc'
+import { browserslistToTargets } from '../../../../swc/lightningcss/browserslistToTargets'
 import type { Targets } from '../../../../swc/lightningcss/targets'
 import type { ECacheKey } from './interface'
 
@@ -40,6 +40,6 @@ export const getTargets = (opts: {
     path: cwd,
     env: process.env.NODE_ENV || 'production',
   })
-  targetsCache[opts.key] = browserslistToLightningcssTargets(result)
-  return (targetsCache[opts.key] = browserslistToLightningcssTargets(result))
+  targetsCache[opts.key] = browserslistToTargets(result)
+  return (targetsCache[opts.key] = browserslistToTargets(result))
 }
