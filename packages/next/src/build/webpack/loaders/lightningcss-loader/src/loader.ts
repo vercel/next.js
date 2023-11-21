@@ -1,7 +1,7 @@
 import type { LoaderContext } from 'webpack'
 import type { ILightningCssLoaderConfig } from './interface'
 import { ECacheKey } from './interface'
-import { transform as _transform } from 'lightningcss'
+import { transformCss } from '../../../../swc'
 import { Buffer } from 'buffer'
 import { getTargets } from './utils'
 
@@ -24,7 +24,7 @@ export async function LightningCssLoader(
     return
   }
 
-  const transform = implementation?.transform ?? _transform
+  const transform = implementation?.transform ?? transformCss
 
   try {
     const { code, map } = transform({
