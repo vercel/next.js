@@ -3,7 +3,9 @@ import { transformCss } from '../../../../swc'
 type TransformOptions = {}
 
 type Filter = string | RegExp
-type Implementation = {}
+type Implementation = {
+  transformCss: typeof transformCss
+}
 
 // minify plugin
 type AllowTransformOpts = Omit<
