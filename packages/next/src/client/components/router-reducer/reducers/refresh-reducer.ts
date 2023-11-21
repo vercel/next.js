@@ -1,5 +1,4 @@
 import { fetchServerResponse } from '../fetch-server-response'
-import { createRecordFromThenable } from '../create-record-from-thenable'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
@@ -29,16 +28,16 @@ export function refreshReducer(
     return handleMutable(state, mutable)
   }
 
+  mutable.preserveCustomHistoryState = false
+
   if (!cache.data) {
     // TODO-APP: verify that `href` is not an external url.
     // Fetch data from the root of the tree.
-    cache.data = createRecordFromThenable(
-      fetchServerResponse(
-        new URL(href, origin),
-        [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
-        state.nextUrl,
-        state.buildId
-      )
+    cache.data = fetchServerResponse(
+      new URL(href, origin),
+      [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
+      state.nextUrl,
+      state.buildId
     )
   }
 
@@ -58,8 +57,8 @@ export function refreshReducer(
       cache.data = null
 
       for (const flightDataPath of flightData) {
-        // FlightDataPath with more than two items means unexpected Flight data was returned
-        if (flightDataPath.length !== 3) {
+        // FlightDataPath with more than four items means unexpected Flight data was returned
+        if (flightDataPath.length !== 4) {
           // TODO-APP: handle this case better
           console.log('REFRESH FAILED')
           return state
@@ -96,7 +95,7 @@ export function refreshReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [subTreeData, head] = flightDataPath.slice(-2)
+        const [subTreeData, head] = flightDataPath.slice(-3)
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (subTreeData !== null) {

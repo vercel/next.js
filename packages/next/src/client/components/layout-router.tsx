@@ -4,7 +4,6 @@ import type { ChildSegmentMap } from '../../shared/lib/app-router-context.shared
 import type {
   FlightRouterState,
   FlightSegmentPath,
-  ChildProp,
   Segment,
 } from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
@@ -27,7 +26,6 @@ import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
-import { createRecordFromThenable } from './router-reducer/create-record-from-thenable'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -316,7 +314,7 @@ function InnerLayoutRouter({
   parallelRouterKey,
   url,
   childNodes,
-  childProp,
+  initialChildNode,
   segmentPath,
   tree,
   // TODO-APP: implement `<Offscreen>` when available.
@@ -326,7 +324,7 @@ function InnerLayoutRouter({
   parallelRouterKey: string
   url: string
   childNodes: ChildSegmentMap
-  childProp: ChildProp | null
+  initialChildNode: React.ReactNode | null
   segmentPath: FlightSegmentPath
   tree: FlightRouterState
   isActive: boolean
@@ -342,19 +340,25 @@ function InnerLayoutRouter({
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(cacheKey)
 
-  // If childProp is available this means it's the Flight / SSR case.
-  if (
-    childProp &&
-    // TODO-APP: verify if this can be null based on user code
-    childProp.current !== null
-  ) {
+  // If initialChildNode is available this means it's the Flight / SSR case.
+  // TODO: `null` is a valid React Node, so technically we should use some other
+  // value besides `null` to indicate that the tree is partial. However, we're
+  // about to remove all the cases that lead to a partial tree, so this soon
+  // won't be an issue.
+  if (initialChildNode !== null) {
     if (!childNode) {
       // Add the segment's subTreeData to the cache.
       // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
+
+      // TODO: We should seed all the CacheNodes as soon as the Flight payload
+      // is received. We already collect them eagerly on the server, so we
+      // shouldn't need to wait until the render phase to write them into
+      // the cache. Requires refactoring the Flight response type. Then we can
+      // delete this code.
       childNode = {
         status: CacheStates.READY,
         data: null,
-        subTreeData: childProp.current,
+        subTreeData: initialChildNode,
         parallelRoutes: new Map(),
       }
 
@@ -364,7 +368,7 @@ function InnerLayoutRouter({
         // @ts-expect-error we're changing it's type!
         childNode.status = CacheStates.READY
         // @ts-expect-error
-        childNode.subTreeData = childProp.current
+        childNode.subTreeData = initialChildNode
       }
     }
   }
@@ -379,13 +383,11 @@ function InnerLayoutRouter({
 
     childNode = {
       status: CacheStates.DATA_FETCH,
-      data: createRecordFromThenable(
-        fetchServerResponse(
-          new URL(url, location.origin),
-          refetchTree,
-          context.nextUrl,
-          buildId
-        )
+      data: fetchServerResponse(
+        new URL(url, location.origin),
+        refetchTree,
+        context.nextUrl,
+        buildId
       ),
       subTreeData: null,
       head:
@@ -501,7 +503,8 @@ function LoadingBoundary({
 export default function OuterLayoutRouter({
   parallelRouterKey,
   segmentPath,
-  childProp,
+  initialChildNode,
+  childPropSegment,
   error,
   errorStyles,
   errorScripts,
@@ -518,7 +521,8 @@ export default function OuterLayoutRouter({
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
-  childProp: ChildProp
+  initialChildNode: React.ReactNode | null
+  childPropSegment: Segment
   error: ErrorComponent
   errorStyles: React.ReactNode | undefined
   errorScripts: React.ReactNode | undefined
@@ -552,8 +556,6 @@ export default function OuterLayoutRouter({
   // Get the active segment in the tree
   // The reason arrays are used in the data format is that these are transferred from the server to the browser so it's optimized to save bytes.
   const treeSegment = tree[1][parallelRouterKey][0]
-
-  const childPropSegment = childProp.segment
 
   // If segment is an array it's a dynamic route and we want to read the dynamic route value as the segment to get from the cache.
   const currentChildSegmentValue = getSegmentValue(treeSegment)
@@ -610,7 +612,9 @@ export default function OuterLayoutRouter({
                           url={url}
                           tree={tree}
                           childNodes={childNodesForParallelRouter!}
-                          childProp={isChildPropSegment ? childProp : null}
+                          initialChildNode={
+                            isChildPropSegment ? initialChildNode : null
+                          }
                           segmentPath={segmentPath}
                           cacheKey={cacheKey}
                           isActive={

@@ -153,7 +153,7 @@ module.exports = {
 }
 ```
 
-Then, create `cache-handler.js` in the root of your project. This file can save the cached values anywhere, like Redis or AWS S3, for example:
+Then, create `cache-handler.js` in the root of your project, for example:
 
 ```jsx filename="cache-handler.js"
 const cache = new Map()
@@ -161,7 +161,6 @@ const cache = new Map()
 module.exports = class CacheHandler {
   constructor(options) {
     this.options = options
-    this.cache = {}
   }
 
   async get(key) {
@@ -190,7 +189,7 @@ module.exports = class CacheHandler {
 }
 ```
 
-Using a custom cache handler will allow you to ensure consistency across all pods hosting your Next.js application.
+Using a custom cache handler will allow you to ensure consistency across all pods hosting your Next.js application. For instance, you can save the cached values anywhere, like [Redis](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) or AWS S3.
 
 > **Good to know:**
 >

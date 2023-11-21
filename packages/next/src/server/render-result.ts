@@ -1,4 +1,4 @@
-import type { ServerResponse } from 'http'
+import type { OutgoingHttpHeaders, ServerResponse } from 'http'
 import type { StaticGenerationStore } from '../client/components/static-generation-async-storage.external'
 import type { Revalidate } from './lib/revalidate'
 
@@ -24,6 +24,15 @@ export type RenderResultMetadata = {
   fetchMetrics?: StaticGenerationStore['fetchMetrics']
   fetchTags?: string
   waitUntil?: Promise<any>
+
+  /**
+   * The headers to set on the response that were added by the render.
+   */
+  headers?: OutgoingHttpHeaders
+
+  /**
+   * The postponed state if the render had postponed and needs to be resumed.
+   */
   postponed?: string
 }
 

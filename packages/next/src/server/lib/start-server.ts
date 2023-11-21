@@ -22,6 +22,7 @@ import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
+import { trace } from '../../trace'
 import { isPostpone } from './router-utils/is-postpone'
 
 const debug = setupDebug('next:start-server')
@@ -361,7 +362,9 @@ export async function startServer(
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
   process.addListener('message', async (msg: any) => {
     if (msg && typeof msg && msg.nextWorkerOptions && process.send) {
-      await startServer(msg.nextWorkerOptions)
+      await trace('start-dev-server').traceAsyncFn(() =>
+        startServer(msg.nextWorkerOptions)
+      )
       process.send({ nextServerReady: true })
     }
   })
