@@ -1,4 +1,5 @@
 import { existsSync } from 'fs'
+import { unlink } from 'fs/promises'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
@@ -955,17 +956,10 @@ export default async function loadConfig(
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
+
     let userConfigModule: any
-
-    if (/next\.config\.(ts|cts|mts)$/.test(configFileName)) {
-      path = await transpileConfig({
-        configPath: path as string,
-        configFileName,
-        cwd: dir,
-        log: curLog,
-      })
-    }
-
+    // For next.config.ts
+    let tempConfigPath: string | undefined
     try {
       const envBefore = Object.assign({}, process.env)
 
@@ -977,6 +971,15 @@ export default async function loadConfig(
         // jest relies on so we fall back to require for this case
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
+      } else if (/next\.config\.(ts|cts|mts)$/.test(configFileName)) {
+        tempConfigPath = await transpileConfig({
+          configPath: path as string,
+          configFileName,
+          cwd: dir,
+          log: curLog,
+        })
+
+        userConfigModule = await import(tempConfigPath)
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
@@ -998,13 +1001,12 @@ export default async function loadConfig(
         `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
       )
       throw err
+    } finally {
+      if (tempConfigPath) await unlink(tempConfigPath)
     }
     const userConfig = await normalizeConfig(
       phase,
-      // dynamic import
-      userConfigModule.default ||
-        // require
-        userConfigModule
+      userConfigModule.default || userConfigModule
     )
 
     if (!process.env.NEXT_MINIMAL) {
