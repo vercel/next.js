@@ -47,13 +47,7 @@ export async function sendResponse(
 
     // A response body must not be sent for HEAD requests. See https://httpwg.org/specs/rfc9110.html#HEAD
     if (response.body && req.method !== 'HEAD') {
-      try {
-        await pipeToNodeResponse(response.body, originalResponse)
-      } finally {
-        if (waitUntil) {
-          await waitUntil
-        }
-      }
+      await pipeToNodeResponse(response.body, originalResponse, waitUntil)
     } else {
       originalResponse.end()
     }
