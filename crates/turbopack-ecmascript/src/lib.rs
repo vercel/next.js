@@ -98,6 +98,9 @@ pub struct EcmascriptOptions {
     /// This allows to construct url depends on the different building context,
     /// e.g. SSR, CSR, or Node.js.
     pub url_rewrite_behavior: Option<UrlRewriteBehavior>,
+    /// External imports should used `__turbopack_import__` instead of
+    /// `__turbopack_require__` and become async module references.
+    pub import_externals: bool,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -175,7 +178,11 @@ impl EcmascriptModuleAssetBuilder {
             )
         };
         if let Some(part) = self.part {
-            Vc::upcast(EcmascriptModulePartAsset::new(base, part))
+            Vc::upcast(EcmascriptModulePartAsset::new(
+                base,
+                part,
+                self.options.import_externals,
+            ))
         } else {
             Vc::upcast(base)
         }

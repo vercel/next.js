@@ -126,8 +126,8 @@ pub async fn get_evaluate_pool(
             runtime_asset.ident().path().join("evaluate.js".to_string()),
             AssetContent::file(
                 File::from(
-                    "import { run } from 'RUNTIME'; run((...args) => \
-                     (require('INNER').default(...args)))",
+                    "import { run } from 'RUNTIME'; run(async (...args) => ((await \
+                     import('INNER')).default(...args)))",
                 )
                 .into(),
             ),
