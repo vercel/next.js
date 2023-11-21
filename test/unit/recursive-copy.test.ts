@@ -27,6 +27,7 @@ const setupTestDir = async (numFiles = 100) => {
   await fsp.mkdir(srcDir, { recursive: true })
   await fsp.writeFile(join(srcDir, '.hidden'), 'hidden')
   await fsp.writeFile(join(srcDir, 'file'), 'file')
+  await fsp.mkdir(join(srcDir, 'folder1'), { recursive: true })
   await fsp.writeFile(join(srcDir, 'folder1', 'file1'), 'file1')
   await fsp.writeFile(join(srcDir, 'folder1', 'file2'), 'file2')
   await ensureSymlink(join(srcDir, 'file'), join(srcDir, 'link'))
@@ -34,6 +35,7 @@ const setupTestDir = async (numFiles = 100) => {
 
   for (let i = 0; i < numFiles - 6; i++) {
     const path = join(`folder-${i}`, `file-${i}`)
+    await fsp.mkdir(join(srcDir, `folder-${i}`), { recursive: true })
     await fsp.writeFile(join(srcDir, path), `file-${i}`)
     paths.push(path)
   }
