@@ -8,6 +8,7 @@ import {
   Issue,
   loadBindings,
   Project,
+  StyledString,
   TurbopackResult,
   UpdateInfo,
 } from 'next/src/build/swc'
@@ -23,11 +24,38 @@ function normalizePath(path: string) {
     )
 }
 
+function styledStringToMarkdown(styled: StyledString): string {
+  switch (styled.type) {
+    case 'text':
+      return styled.value
+    case 'strong':
+      return '**' + styled.value + '**'
+    case 'code':
+      return '`' + styled.value + '`'
+    case 'line': {
+      let line = ''
+      for (const part of styled.value) {
+        line += styledStringToMarkdown(part)
+      }
+      return line + '\n'
+    }
+    case 'stack':
+      let stack = ''
+      for (const part of styled.value) {
+        stack += styledStringToMarkdown(part) + '\n'
+      }
+      return stack + '\n'
+    default:
+      throw new Error('Unknown StyledString type', styled)
+  }
+}
+
 function normalizeIssues(issues: Issue[]) {
   return issues
     .map((issue) => ({
       ...issue,
-      detail: issue.detail && normalizePath(issue.detail),
+      detail:
+        issue.detail && normalizePath(styledStringToMarkdown(issue.detail)),
       filePath: issue.filePath && normalizePath(issue.filePath),
       source: issue.source && {
         ...issue.source,
