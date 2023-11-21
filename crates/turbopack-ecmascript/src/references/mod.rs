@@ -2585,7 +2585,6 @@ async fn resolve_as_webpack_runtime(
 
     let resolved = resolve(
         origin.origin_path().parent().resolve().await?,
-        Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
         request,
         options,
     );

@@ -1,10 +1,9 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, StyledString},
-    reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::parse::Request,
 };
 use turbopack_ecmascript::resolve::apply_cjs_specific_options;
@@ -50,13 +49,8 @@ pub async fn assert_can_resolve_react_refresh(
     let resolve_options =
         apply_cjs_specific_options(turbopack::resolve_options(path, resolve_options_context));
     for request in [react_refresh_request_in_next(), react_refresh_request()] {
-        let result = turbopack_core::resolve::resolve(
-            path,
-            Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
-            request,
-            resolve_options,
-        )
-        .first_source();
+        let result =
+            turbopack_core::resolve::resolve(path, request, resolve_options).first_source();
 
         if result.await?.is_some() {
             return Ok(ResolveReactRefreshResult::Found(request).cell());

@@ -1,11 +1,8 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
-use crate::{
-    reference_type::ReferenceType,
-    resolve::{parse::Request, ResolveResultOption},
-};
+use crate::resolve::{parse::Request, ResolveResultOption};
 
 /// A condition which determines if the hooks of a resolve plugin gets called.
 #[turbo_tasks::value]
@@ -51,7 +48,6 @@ pub trait ResolvePlugin {
         self: Vc<Self>,
         fs_path: Vc<FileSystemPath>,
         lookup_path: Vc<FileSystemPath>,
-        reference_type: Value<ReferenceType>,
         request: Vc<Request>,
     ) -> Vc<ResolveResultOption>;
 }
