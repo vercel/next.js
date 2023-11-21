@@ -30,6 +30,7 @@ jest.mock('../fetch-server-response', () => {
       <>
         <title>About page!</title>
       </>,
+      null,
     ],
   ]
   return {
@@ -61,6 +62,7 @@ const flightDataForPatch: FlightData = [
     <>
       <title>Somewhere page!</title>
     </>,
+    null,
   ],
 ]
 
