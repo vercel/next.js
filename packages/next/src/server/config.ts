@@ -951,7 +951,7 @@ export default async function loadConfig(
     ) as NextConfigComplete
   }
 
-  let path = await findUp(CONFIG_FILES, { cwd: dir })
+  const path = await findUp(CONFIG_FILES, { cwd: dir })
 
   // If config file was found
   if (path?.length) {
@@ -979,7 +979,7 @@ export default async function loadConfig(
           log: curLog,
         })
 
-        userConfigModule = await import(tempConfigPath)
+        userConfigModule = await import(pathToFileURL(tempConfigPath).href)
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
