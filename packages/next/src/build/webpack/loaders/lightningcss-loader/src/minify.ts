@@ -25,13 +25,13 @@ export class LightningCssMinifyPlugin {
 
   constructor(opts: IMinifyPluginOpts = {}) {
     const { implementation, ...otherOpts } = opts
-    if (implementation && typeof implementation.transform !== 'function') {
+    if (implementation && typeof implementation.transformCss !== 'function') {
       throw new TypeError(
-        `[LightningCssMinifyPlugin]: implementation.transform must be an 'lightningcss' transform function. Received ${typeof implementation.transform}`
+        `[LightningCssMinifyPlugin]: implementation.transformCss must be an 'lightningcss' transform function. Received ${typeof implementation.transformCss}`
       )
     }
 
-    this.transform = implementation?.transform ?? _transform
+    this.transform = implementation?.transformCss ?? _transform
     this.options = otherOpts
   }
 
