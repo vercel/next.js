@@ -40,6 +40,6 @@ export const getTargets = (opts: {
     path: cwd,
     env: process.env.NODE_ENV || 'production',
   })
-  targetsCache[opts.key] = browserslistToTargets(result)
-  return (targetsCache[opts.key] = browserslistToTargets(result))
+  targetsCache[opts.key] = browserslistToLightningcssTargets(result)
+  return (targetsCache[opts.key] = browserslistToLightningcssTargets(result))
 }
