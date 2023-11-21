@@ -305,10 +305,12 @@ async function startWatcher(opts: SetupOpts) {
           const { start } = source.range
           message = `${issue.severity} - ${formattedFilePath}:${
             start.line + 1
-          }:${start.column}`
+          }:${start.column}  ${formattedTitle}`
         } else {
           message = `${issue.severity} - ${formattedFilePath}  ${formattedTitle}`
         }
+      } else if (formattedFilePath) {
+        message = `${formattedFilePath}  ${formattedTitle}`
       } else {
         message = `${formattedTitle}`
       }
@@ -368,6 +370,9 @@ async function startWatcher(opts: SetupOpts) {
           console.error(`  ⚠ ${displayName} ${formatted}\n\n`)
         }
         newSet.set(key, issue)
+
+        // We show errors in node_modules to the console, but don't throw for them
+        if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
         relevantIssues.add(formatted)
       }
 
