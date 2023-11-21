@@ -115,7 +115,7 @@ struct ServerActions<C: Comments> {
 
     // (ident, export name)
     exported_idents: Vec<(Id, String)>,
-    replaced_action_proxies: Vec<(Ident, Expr)>,
+    replaced_action_proxies: Vec<(Ident, Box<Expr>)>,
 
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
@@ -200,7 +200,7 @@ impl<C: Comments> ServerActions<C> {
         });
 
         if let Some(a) = arrow {
-            let regsiter_action_expr = annotate_ident_as_action(
+            let register_action_expr = annotate_ident_as_action(
                 action_ident.clone(),
                 ids_from_closure
                     .iter()
@@ -217,7 +217,7 @@ impl<C: Comments> ServerActions<C> {
                 });
 
                 self.replaced_action_proxies
-                    .push((ident.clone(), regsiter_action_expr));
+                    .push((ident.clone(), Box::new(register_action_expr)));
             }
 
             // export const $ACTION_myAction = async () => {}
@@ -328,7 +328,7 @@ impl<C: Comments> ServerActions<C> {
 
             return Some(Box::new(Expr::Ident(ident.clone())));
         } else if let Some(f) = function {
-            let regsiter_action_expr = annotate_ident_as_action(
+            let register_action_expr = annotate_ident_as_action(
                 action_ident.clone(),
                 ids_from_closure
                     .iter()
@@ -344,7 +344,7 @@ impl<C: Comments> ServerActions<C> {
             });
 
             self.replaced_action_proxies
-                .push((ident.clone(), regsiter_action_expr));
+                .push((ident.clone(), Box::new(register_action_expr)));
 
             // export async function $ACTION_myAction () {}
             let mut new_params: Vec<Param> = vec![];
@@ -1551,7 +1551,7 @@ fn collect_idents_in_stmt(stmt: &Stmt) -> Vec<Id> {
 }
 
 pub(crate) struct ClosureActionReplacer<'a> {
-    replaced_action_proxies: &'a Vec<(Ident, Expr)>,
+    replaced_action_proxies: &'a Vec<(Ident, Box<Expr>)>,
 }
 
 impl ClosureActionReplacer<'_> {
@@ -1568,7 +1568,7 @@ impl VisitMut for ClosureActionReplacer<'_> {
 
         if let Expr::Ident(i) = e {
             if let Some(index) = self.index(i) {
-                *e = self.replaced_action_proxies[index].1.clone();
+                *e = *self.replaced_action_proxies[index].1.clone();
             }
         }
     }
@@ -1580,7 +1580,7 @@ impl VisitMut for ClosureActionReplacer<'_> {
             if let Some(index) = self.index(i) {
                 *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                     key: PropName::Ident(i.clone()),
-                    value: Box::new(self.replaced_action_proxies[index].1.clone()),
+                    value: Box::new(*self.replaced_action_proxies[index].1.clone()),
                 })));
             }
         }
