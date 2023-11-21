@@ -1,4 +1,4 @@
-import type { Compilation } from 'webpack'
+import type { Compilation } from 'next/dist/compiled/webpack/webpack'
 import type { SyncHook, SyncBailHook, AsyncSeriesHook, HookMap } from 'tapable'
 import type { Source } from 'webpack-sources'
 import browserslist from 'browserslist'
