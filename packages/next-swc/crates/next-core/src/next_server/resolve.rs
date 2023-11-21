@@ -222,8 +222,16 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                         // this can't resolve with commonjs, so bundle it
                         return Ok(ResolveResultOption::none());
                     };
+                    let path = result.ident().path();
+                    let file_type = get_file_type(path, &*path.await?).await?;
+                    if !matches!(file_type, FileType::CommonJs) {
+                        // even with require() this resolves to a ESM, which would break node.js
+                        // bundle it
+                        // This happens for invalid packages like `textlinestream`
+                        return Ok(ResolveResultOption::none());
+                    }
 
-                    (result.ident().path(), false)
+                    (path, false)
                 }
             }
         };
