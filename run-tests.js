@@ -25,11 +25,57 @@ function escapeRegexp(str) {
 const GROUP = process.env.CI ? '##[group]' : ''
 const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
 
-// Try to read an external array-based json to filter tests to be allowed / or disallowed.
-// If process.argv contains a test to be executed, this'll append it to the list.
-const externalTestsFilterLists = process.env.NEXT_EXTERNAL_TESTS_FILTERS
-  ? require(process.env.NEXT_EXTERNAL_TESTS_FILTERS)
-  : null
+function getTestFilters() {
+  const manifest = process.env.NEXT_EXTERNAL_TESTS_FILTERS
+    ? require(path.resolve(process.env.NEXT_EXTERNAL_TESTS_FILTERS))
+    : null
+  if (!manifest) return null
+
+  // For the legacy manifest without a version, we assume it's a complete list
+  // of all the tests.
+  if (!manifest.version || typeof manifest.version !== 'number') {
+    return (tests) =>
+      tests
+        .filter((test) => {
+          const info = manifest[test.file]
+          return info && info.passed.length > 0 && !info.runtimeError
+        })
+        .map((test) => {
+          const info = manifest[test.file]
+          // Exclude failing and flakey tests, newly added tests are automatically included
+          if (info.failed.length > 0 || info.flakey.length > 0) {
+            test.excludedCases = info.failed.concat(info.flakey)
+          }
+          return test
+        })
+  }
+
+  // The new manifest version 2 only contains the list of tests that should
+  // be run, with exclusions added.
+  if (manifest.version === 2) {
+    return (tests) =>
+      tests
+        // Only include tests that are in the manifest.
+        .filter((test) => {
+          const info = manifest.suites[test.file]
+          return info && !info.runtimeError
+        })
+        .map((test) => {
+          const { failed = [], flakey = [] } = manifest.suites[test.file]
+
+          // Exclude failing and flakey tests, newly added tests are automatically included
+          if (failed.length > 0 || flakey.length > 0) {
+            test.excludedCases = failed.concat(flakey)
+          }
+          return test
+        })
+  }
+
+  throw new Error(`Unknown manifest version: ${manifest.version}`)
+}
+
+const externalTestsFilter = getTestFilters()
+
 const timings = []
 const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
 const DEFAULT_CONCURRENCY = 2
@@ -280,20 +326,8 @@ async function main() {
   }
 
   // If there are external manifest contains list of tests, apply it to the test lists.
-  if (externalTestsFilterLists) {
-    tests = tests
-      .filter((test) => {
-        const info = externalTestsFilterLists[test.file]
-        return info && info.passed.length > 0 && !info.runtimeError
-      })
-      .map((test) => {
-        const info = externalTestsFilterLists[test.file]
-        // Exclude failing and flakey tests, newly added tests are automatically included
-        if (info.failed.length > 0 || info.flakey.length > 0) {
-          test.excludedCases = info.failed.concat(info.flakey)
-        }
-        return test
-      })
+  if (externalTestsFilter) {
+    tests = externalTestsFilter(tests)
   }
 
   let testSet = new Set()
