@@ -1,5 +1,5 @@
 import { existsSync } from 'fs'
-import { unlink } from 'fs/promises'
+import { unlink, writeFile } from 'fs/promises'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
@@ -956,6 +956,7 @@ export default async function loadConfig(
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
+    const isTypeScript = configFileName.endsWith('ts') // .ts .cts .mts
 
     let userConfigModule: any
     // For next.config.ts
@@ -971,13 +972,22 @@ export default async function loadConfig(
         // jest relies on so we fall back to require for this case
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
-      } else if (/next\.config\.(ts|cts|mts)$/.test(configFileName)) {
-        tempConfigPath = await transpileConfig({
+      } else if (isTypeScript) {
+        const code = await transpileConfig({
           configPath: path as string,
           configFileName,
           cwd: dir,
           log: curLog,
         })
+        const isCJS = configFileName.endsWith('.cts')
+
+        tempConfigPath = join(
+          dir,
+          `next.compiled.config.${isCJS ? 'cjs' : 'mjs'}`
+        )
+
+        // This tempConfig will be unlinked after imported
+        await writeFile(tempConfigPath, code, 'utf-8')
 
         userConfigModule = await import(pathToFileURL(tempConfigPath).href)
       } else {

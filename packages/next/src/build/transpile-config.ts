@@ -1,6 +1,5 @@
-import { readFile, writeFile } from 'fs/promises'
+import { readFile } from 'fs/promises'
 import { transform } from './swc'
-import { join } from 'path'
 
 type Log = {
   error: (message: string) => void
@@ -9,7 +8,6 @@ type Log = {
 export async function transpileConfig({
   configPath,
   configFileName,
-  cwd,
   log,
 }: {
   configPath: string
@@ -17,10 +15,9 @@ export async function transpileConfig({
   cwd: string
   log: Log
 }) {
-  const isCJS = configFileName.endsWith('.cts')
   try {
-    const config = await readFile(configPath, 'utf-8')
-    const { code } = await transform(config, {
+    const nextConfig = await readFile(configPath, 'utf-8')
+    const { code } = await transform(nextConfig, {
       jsc: {
         target: 'esnext',
         parser: {
@@ -30,13 +27,7 @@ export async function transpileConfig({
       isModule: 'unknown',
     })
 
-    const tempConfigPath = join(
-      cwd,
-      `next.compiled.config.${isCJS ? 'cjs' : 'mjs'}`
-    )
-    await writeFile(tempConfigPath, code, 'utf-8')
-
-    return tempConfigPath
+    return code
   } catch (error) {
     log.error(`Failed to compile ${configFileName}`)
     throw error
