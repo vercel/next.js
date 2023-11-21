@@ -38,6 +38,7 @@ pub(crate) struct ExternalCjsModulesResolvePlugin {
     project_path: Vc<FileSystemPath>,
     root: Vc<FileSystemPath>,
     predicate: Vc<ExternalPredicate>,
+    import_externals: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -47,11 +48,13 @@ impl ExternalCjsModulesResolvePlugin {
         project_path: Vc<FileSystemPath>,
         root: Vc<FileSystemPath>,
         predicate: Vc<ExternalPredicate>,
+        import_externals: bool,
     ) -> Vc<Self> {
         ExternalCjsModulesResolvePlugin {
             project_path,
             root,
             predicate,
+            import_externals,
         }
         .cell()
     }
@@ -151,70 +154,115 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         let is_esm = ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
             .includes(&reference_type);
 
-        // node.js only supports these file extensions
-        // mjs is an esm module and we can't bundle that yet
-        let cjs_supported_extension =
-            matches!(raw_fs_path.extension_ref(), Some("cjs" | "node" | "json"));
-        let mjs_extension = matches!(raw_fs_path.extension_ref(), Some("mjs"));
-        let auto_js_extension = matches!(raw_fs_path.extension_ref(), Some("js"));
-        if !(cjs_supported_extension || auto_js_extension || (mjs_extension && is_esm)) {
-            return Ok(ResolveResultOption::none());
+        enum FileType {
+            CommonJs,
+            EcmaScriptModule,
+            Unsupported,
         }
 
-        // for .js extension in cjs context, we need to check the actual module type via
-        // package.json
-        if auto_js_extension && !is_esm {
-            let FindContextFileResult::Found(package_json, _) =
-                *find_context_file(fs_path.parent(), package_json()).await?
-            else {
-                // can't find package.json
-                return Ok(ResolveResultOption::none());
-            };
-            let FileJsonContent::Content(package) = &*package_json.read_json().await? else {
-                // can't parse package.json
-                return Ok(ResolveResultOption::none());
-            };
+        async fn get_file_type(
+            fs_path: Vc<FileSystemPath>,
+            raw_fs_path: &FileSystemPath,
+        ) -> Result<FileType> {
+            // node.js only supports these file extensions
+            // mjs is an esm module and we can't bundle that yet
+            if matches!(raw_fs_path.extension_ref(), Some("cjs" | "node" | "json")) {
+                return Ok(FileType::CommonJs);
+            }
+            if matches!(raw_fs_path.extension_ref(), Some("mjs")) {
+                return Ok(FileType::EcmaScriptModule);
+            }
+            if !matches!(raw_fs_path.extension_ref(), Some("js")) {
+                // for .js extension in cjs context, we need to check the actual module type via
+                // package.json
+                let FindContextFileResult::Found(package_json, _) =
+                    *find_context_file(fs_path.parent(), package_json()).await?
+                else {
+                    // can't find package.json
+                    return Ok(FileType::CommonJs);
+                };
+                let FileJsonContent::Content(package) = &*package_json.read_json().await? else {
+                    // can't parse package.json
+                    return Ok(FileType::Unsupported);
+                };
 
-            if let Some("module") = package["type"].as_str() {
+                if let Some("module") = package["type"].as_str() {
+                    return Ok(FileType::EcmaScriptModule);
+                }
+
+                return Ok(FileType::CommonJs);
+            }
+
+            Ok(FileType::Unsupported)
+        }
+
+        let file_type = get_file_type(fs_path, raw_fs_path).await?;
+
+        let (expected, is_esm) = match (file_type, is_esm) {
+            (FileType::Unsupported, _) => {
+                // unsupported file type, bundle it
                 return Ok(ResolveResultOption::none());
             }
-        }
+            (FileType::CommonJs, false) => (fs_path, false),
+            (FileType::CommonJs, true) => (fs_path, self.import_externals),
+            (FileType::EcmaScriptModule, false) => (fs_path, false),
+            (FileType::EcmaScriptModule, true) => {
+                if self.import_externals {
+                    (fs_path, true)
+                } else {
+                    // We verify with the CommonJS alternative
+                    let cjs_resolved = resolve(
+                        context,
+                        reference_type.clone(),
+                        request,
+                        node_cjs_resolve_options(context.root()),
+                    );
+                    let Some(result) = *cjs_resolved.first_source().await? else {
+                        // this can't resolve with commonjs, so bundle it
+                        return Ok(ResolveResultOption::none());
+                    };
+
+                    (result.ident().path(), false)
+                }
+            }
+        };
 
         let is_resolveable =
-            *is_node_resolveable(self.project_path, request, fs_path, is_esm).await?;
+            *is_node_resolveable(self.project_path, request, expected, is_esm).await?;
 
-        if is_resolveable {
-            // mark as external
-            return Ok(ResolveResultOption::some(
-                ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
-            ));
-        }
-
-        if is_esm {
-            // When it's not resolveable as ESM, there is maybe an extension missing,
-            // try to add .js
-            if let Some(mut request_str) = request.await?.request() {
-                if !request_str.ends_with(".js") {
-                    request_str += ".js";
-                    let new_request =
-                        Request::parse(Value::new(Pattern::Constant(request_str.clone())));
-                    let is_resolveable =
-                        *is_node_resolveable(self.project_path, new_request, fs_path, is_esm)
-                            .await?;
-                    if is_resolveable {
-                        // mark as external, but with .js extension
-                        return Ok(ResolveResultOption::some(
-                            ResolveResult::primary(
-                                ResolveResultItem::OriginalReferenceTypeExternal(request_str),
-                            )
-                            .cell(),
-                        ));
+        if !is_resolveable {
+            if is_esm {
+                // When it's not resolveable as ESM, there is maybe an extension missing,
+                // try to add .js
+                if let Some(mut request_str) = request.await?.request() {
+                    if !request_str.ends_with(".js") {
+                        request_str += ".js";
+                        let new_request =
+                            Request::parse(Value::new(Pattern::Constant(request_str.clone())));
+                        let is_resolveable =
+                            *is_node_resolveable(self.project_path, new_request, expected, is_esm)
+                                .await?;
+                        if is_resolveable {
+                            // mark as external, but with .js extension
+                            return Ok(ResolveResultOption::some(
+                                ResolveResult::primary(
+                                    ResolveResultItem::OriginalReferenceTypeExternal(request_str),
+                                )
+                                .cell(),
+                            ));
+                        }
                     }
                 }
             }
+
+            // this can't resolve with node.js, so bundle it
+            return Ok(ResolveResultOption::none());
         }
 
-        Ok(ResolveResultOption::none())
+        // mark as external
+        Ok(ResolveResultOption::some(
+            ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
+        ))
     }
 }
 
