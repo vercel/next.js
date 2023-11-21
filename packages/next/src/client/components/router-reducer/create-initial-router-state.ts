@@ -1,9 +1,6 @@
 import type { ReactNode } from 'react'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type {
-  FlightRouterState,
-  CacheNodeSeedData,
-} from '../../../server/app-render/types'
+import type { FlightRouterState } from '../../../server/app-render/types'
 
 import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import { createHrefFromUrl } from './create-href-from-url'
@@ -14,7 +11,7 @@ export interface InitialRouterStateParameters {
   buildId: string
   initialTree: FlightRouterState
   initialCanonicalUrl: string
-  initialSeedData: CacheNodeSeedData
+  children: ReactNode
   initialParallelRoutes: CacheNode['parallelRoutes']
   isServer: boolean
   location: Location | null
@@ -24,32 +21,24 @@ export interface InitialRouterStateParameters {
 export function createInitialRouterState({
   buildId,
   initialTree,
-  initialSeedData,
+  children,
   initialCanonicalUrl,
   initialParallelRoutes,
   isServer,
   location,
   initialHead,
 }: InitialRouterStateParameters) {
-  const subTreeData = initialSeedData[2]
-
   const cache: CacheNode = {
     status: CacheStates.READY,
     data: null,
-    subTreeData: subTreeData,
+    subTreeData: children,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
   }
 
   // When the cache hasn't been seeded yet we fill the cache with the head.
   if (initialParallelRoutes === null || initialParallelRoutes.size === 0) {
-    fillLazyItemsTillLeafWithHead(
-      cache,
-      undefined,
-      initialTree,
-      initialSeedData,
-      initialHead
-    )
+    fillLazyItemsTillLeafWithHead(cache, undefined, initialTree, initialHead)
   }
 
   return {

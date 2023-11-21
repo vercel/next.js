@@ -26,10 +26,11 @@ jest.mock('../fetch-server-response', () => {
           children: ['', {}],
         },
       ],
-      ['about', null, <h1>About Page!</h1>],
+      <h1>About Page!</h1>,
       <>
         <title>About page!</title>
       </>,
+      null,
     ],
   ]
   return {
@@ -57,10 +58,11 @@ const flightDataForPatch: FlightData = [
         children: ['', {}],
       },
     ],
-    ['somewhere-else', null, <h1>Somewhere Page!</h1>],
+    <h1>Somewhere Page!</h1>,
     <>
       <title>Somewhere page!</title>
     </>,
+    null,
   ],
 ]
 
@@ -148,7 +150,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      children,
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking/about', 'https://localhost') as any,
@@ -328,7 +330,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      children,
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking/about', 'https://localhost') as any,
@@ -339,7 +341,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      children,
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking/about', 'https://localhost') as any,
@@ -516,7 +518,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      children,
       initialParallelRoutes,
       isServer: false,
       location: new URL(initialCanonicalUrl, 'https://localhost') as any,

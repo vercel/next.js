@@ -1,9 +1,6 @@
 import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type {
-  FlightDataPath,
-  CacheNodeSeedData,
-} from '../../../server/app-render/types'
+import type { FlightDataPath } from '../../../server/app-render/types'
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { createRouterCacheKey } from './create-router-cache-key'
@@ -17,7 +14,7 @@ export function fillCacheWithNewSubTreeData(
   flightDataPath: FlightDataPath,
   wasPrefetched?: boolean
 ): void {
-  const isLastEntry = flightDataPath.length <= 5
+  const isLastEntry = flightDataPath.length <= 6
   const [parallelRouteKey, segment] = flightDataPath
 
   const cacheKey = createRouterCacheKey(segment)
@@ -46,12 +43,10 @@ export function fillCacheWithNewSubTreeData(
       !childCacheNode.data ||
       childCacheNode === existingChildCacheNode
     ) {
-      const seedData: CacheNodeSeedData = flightDataPath[3]
-      const subTreeData = seedData[2]
       childCacheNode = {
         status: CacheStates.READY,
         data: null,
-        subTreeData,
+        subTreeData: flightDataPath[3],
         // Ensure segments other than the one we got data for are preserved.
         parallelRoutes: existingChildCacheNode
           ? new Map(existingChildCacheNode.parallelRoutes)
@@ -70,7 +65,6 @@ export function fillCacheWithNewSubTreeData(
         childCacheNode,
         existingChildCacheNode,
         flightDataPath[2],
-        seedData,
         flightDataPath[4],
         wasPrefetched
       )

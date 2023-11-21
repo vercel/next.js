@@ -255,14 +255,14 @@ function Router({
   initialHead,
   initialTree,
   initialCanonicalUrl,
-  initialSeedData,
+  children,
   assetPrefix,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>
       createInitialRouterState({
         buildId,
-        initialSeedData,
+        children,
         initialCanonicalUrl,
         initialTree,
         initialParallelRoutes,
@@ -270,7 +270,7 @@ function Router({
         location: !isServer ? window.location : null,
         initialHead,
       }),
-    [buildId, initialSeedData, initialCanonicalUrl, initialTree, initialHead]
+    [buildId, children, initialCanonicalUrl, initialTree, initialHead]
   )
   const [reducerState, dispatch, sync] =
     useReducerWithReduxDevtools(initialState)
