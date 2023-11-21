@@ -507,12 +507,6 @@ async function startWatcher(opts: SetupOpts) {
         }
       }
 
-      hotReloader.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
-        hash: String(++hmrHash),
-        errors: [...errors.values()],
-        warnings: [],
-      })
       hmrBuilding = false
 
       if (errors.size === 0) {
@@ -528,6 +522,13 @@ async function startWatcher(opts: SetupOpts) {
           turbopackUpdates.length = 0
         }
       }
+
+      hotReloader.send({
+        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+        hash: String(++hmrHash),
+        errors: [...errors.values()],
+        warnings: [],
+      })
     }, 2)
 
     function sendHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
