@@ -370,6 +370,8 @@ function processMessage(
         dispatcher.onRefresh()
       })
 
+      serverComponentRenderInProgress = true
+
       return
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE: {
@@ -413,6 +415,8 @@ function processMessage(
   }
 }
 
+let serverComponentRenderInProgress = false
+
 export default function HotReload({
   assetPrefix,
   children,
@@ -446,9 +450,12 @@ export default function HotReload({
 
   useEffect(() => {
     if (process.env.__NEXT_TEST_MODE) {
-      if (self.__NEXT_HMR_CB) {
-        self.__NEXT_HMR_CB()
-        self.__NEXT_HMR_CB = null
+      if (serverComponentRenderInProgress) {
+        serverComponentRenderInProgress = false
+        if (self.__NEXT_HMR_CB) {
+          self.__NEXT_HMR_CB()
+          self.__NEXT_HMR_CB = null
+        }
       }
     }
     // currentHmrObj will change when ACTION_REFRESH is dispatched.
