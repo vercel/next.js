@@ -1,11 +1,10 @@
 //! TODO(WEB-741) Remove this file once Sass is supported.
 
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, StyledString},
-    reference_type::ReferenceType,
     resolve::{
         parse::Request,
         plugin::{ResolvePlugin, ResolvePluginCondition},
@@ -39,7 +38,6 @@ impl ResolvePlugin for UnsupportedSassResolvePlugin {
         &self,
         fs_path: Vc<FileSystemPath>,
         lookup_path: Vc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let extension = fs_path.extension().await?;

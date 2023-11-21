@@ -100,22 +100,11 @@ pub async fn url_resolve(
     let ty = Value::new(ReferenceType::Url(ty.into_value()));
     let resolve_options = origin.resolve_options(ty.clone());
     let rel_request = request.as_relative();
-    let reference_type = Value::new(ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl));
-    let rel_result = resolve(
-        origin.origin_path().parent(),
-        reference_type.clone(),
-        rel_request,
-        resolve_options,
-    );
+    let rel_result = resolve(origin.origin_path().parent(), rel_request, resolve_options);
     let result = if *rel_result.is_unresolveable().await? && rel_request.resolve().await? != request
     {
-        resolve(
-            origin.origin_path().parent(),
-            reference_type,
-            request,
-            resolve_options,
-        )
-        .with_affecting_sources(rel_result.await?.get_affecting_sources().clone())
+        resolve(origin.origin_path().parent(), request, resolve_options)
+            .with_affecting_sources(rel_result.await?.get_affecting_sources().clone())
     } else {
         rel_result
     };

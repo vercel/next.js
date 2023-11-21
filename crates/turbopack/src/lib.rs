@@ -459,12 +459,7 @@ impl AssetContext for ModuleAssetContext {
     ) -> Result<Vc<ModuleResolveResult>> {
         let context_path = origin_path.parent().resolve().await?;
 
-        let result = resolve(
-            context_path,
-            reference_type.clone(),
-            request,
-            resolve_options,
-        );
+        let result = resolve(context_path, request, resolve_options);
         let mut result = self.process_resolve_result(result.resolve().await?, reference_type);
 
         if *self.is_types_resolving_enabled().await? {
