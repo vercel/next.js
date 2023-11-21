@@ -310,7 +310,7 @@ async function startWatcher(opts: SetupOpts) {
           message = `${issue.severity} - ${formattedFilePath}  ${formattedTitle}`
         }
       } else {
-        message = `${formattedTitle}`
+        message = formattedTitle
       }
 
       if (source?.range && source.source.content) {
