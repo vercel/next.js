@@ -1,7 +1,9 @@
-import { transform, type TransformOptions } from 'lightningcss'
+import { transformCss } from '../../../../swc'
+
+type TransformOptions = {}
 
 type Filter = string | RegExp
-type Implementation = typeof import('lightningcss')
+type Implementation = {}
 
 // minify plugin
 type AllowTransformOpts = Omit<
@@ -52,7 +54,7 @@ export interface ILightningCssLoaderConfig extends AllowLoaderTransformOpts {
 }
 
 // other
-export type TransformType = typeof transform
+export type TransformType = typeof transformCss
 export interface IPackageJson {
   version: string
   name: string
