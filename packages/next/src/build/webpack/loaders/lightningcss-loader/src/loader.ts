@@ -15,16 +15,16 @@ export async function LightningCssLoader(
   const options = this.getOptions()
   const { implementation, targets: userTargets, ...opts } = options
 
-  if (implementation && typeof implementation.transform !== 'function') {
+  if (implementation && typeof implementation.transformCss !== 'function') {
     done(
       new TypeError(
-        `[${LOADER_NAME}]: options.implementation.transform must be an 'lightningcss' transform function. Received ${typeof implementation.transform}`
+        `[${LOADER_NAME}]: options.implementation.transformCss must be an 'lightningcss' transform function. Received ${typeof implementation.transformCss}`
       )
     )
     return
   }
 
-  const transform = implementation?.transform ?? transformCss
+  const transform = implementation?.transformCss ?? transformCss
 
   try {
     const { code, map } = transform({
