@@ -166,13 +166,14 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         ) -> Result<FileType> {
             // node.js only supports these file extensions
             // mjs is an esm module and we can't bundle that yet
-            if matches!(raw_fs_path.extension_ref(), Some("cjs" | "node" | "json")) {
+            let ext = raw_fs_path.extension_ref();
+            if matches!(ext, Some("cjs" | "node" | "json")) {
                 return Ok(FileType::CommonJs);
             }
-            if matches!(raw_fs_path.extension_ref(), Some("mjs")) {
+            if matches!(ext, Some("mjs")) {
                 return Ok(FileType::EcmaScriptModule);
             }
-            if !matches!(raw_fs_path.extension_ref(), Some("js")) {
+            if matches!(ext, Some("js")) {
                 // for .js extension in cjs context, we need to check the actual module type via
                 // package.json
                 let FindContextFileResult::Found(package_json, _) =
