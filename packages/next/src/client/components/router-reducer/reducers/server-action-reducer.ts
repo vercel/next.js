@@ -206,7 +206,7 @@ export function serverActionReducer(
 
       for (const flightDataPath of flightData) {
         // FlightDataPath with more than two items means unexpected Flight data was returned
-        if (flightDataPath.length !== 4) {
+        if (flightDataPath.length !== 3) {
           // TODO-APP: handle this case better
           console.log('SERVER ACTION APPLY FAILED')
           return state
@@ -235,7 +235,9 @@ export function serverActionReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [subTreeData, head] = flightDataPath.slice(-3)
+        const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
+        const subTreeData =
+          cacheNodeSeedData !== null ? cacheNodeSeedData[2] : null
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (subTreeData !== null) {
@@ -246,6 +248,7 @@ export function serverActionReducer(
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
             undefined,
             treePatch,
+            cacheNodeSeedData,
             head
           )
           mutable.cache = cache
