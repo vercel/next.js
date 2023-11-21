@@ -57,8 +57,8 @@ export function refreshReducer(
       cache.data = null
 
       for (const flightDataPath of flightData) {
-        // FlightDataPath with more than two items means unexpected Flight data was returned
-        if (flightDataPath.length !== 3) {
+        // FlightDataPath with more than four items means unexpected Flight data was returned
+        if (flightDataPath.length !== 4) {
           // TODO-APP: handle this case better
           console.log('REFRESH FAILED')
           return state
@@ -95,11 +95,10 @@ export function refreshReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
+        const [subTreeData, head] = flightDataPath.slice(-3)
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
-        if (cacheNodeSeedData !== null) {
-          const subTreeData = cacheNodeSeedData[2]
+        if (subTreeData !== null) {
           cache.status = CacheStates.READY
           cache.subTreeData = subTreeData
           fillLazyItemsTillLeafWithHead(
@@ -107,7 +106,6 @@ export function refreshReducer(
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
             undefined,
             treePatch,
-            cacheNodeSeedData,
             head
           )
           mutable.cache = cache

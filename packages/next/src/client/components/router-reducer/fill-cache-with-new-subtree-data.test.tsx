@@ -17,7 +17,7 @@ const getFlightData = (): FlightData => {
           children: ['', {}],
         },
       ],
-      ['about', null, <h1>SubTreeData Injected!</h1>],
+      <h1>SubTreeData Injected!</h1>,
       <>
         <title>Head Injected!</title>
       </>,

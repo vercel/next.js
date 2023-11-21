@@ -27,19 +27,16 @@ jest.mock('../fetch-server-response', () => {
         null,
         true,
       ],
-      [
-        '',
-        null,
-        <html>
-          <head></head>
-          <body>
-            <h1>Linking Page!</h1>
-          </body>
-        </html>,
-      ],
+      <html>
+        <head></head>
+        <body>
+          <h1>Linking Page!</h1>
+        </body>
+      </html>,
       <>
         <title>Linking page!</title>
       </>,
+      null,
     ],
   ]
   return {
@@ -128,7 +125,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      children,
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -278,7 +275,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      children,
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -289,7 +286,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      children,
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -466,7 +463,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      children,
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -477,7 +474,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      children,
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -700,7 +697,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      children,
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -713,7 +710,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      children,
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
