@@ -540,8 +540,9 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
         }
       }
 
-      const actionHandler =
-        ComponentMod.__next_app__.require(actionModId)[actionId]
+      const actionHandler = (
+        await ComponentMod.__next_app__.require(actionModId)
+      )[actionId]
 
       const returnVal = await actionHandler.apply(null, bound)
 

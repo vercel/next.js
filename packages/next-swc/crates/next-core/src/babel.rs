@@ -5,6 +5,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             issue::{Issue, IssueExt, IssueSeverity, StyledString},
+            reference_type::{CommonJsReferenceSubType, ReferenceType},
             resolve::{parse::Request, pattern::Pattern, resolve},
         },
         node::transforms::webpack::WebpackLoaderItem,
@@ -122,6 +123,7 @@ pub async fn maybe_add_babel_loader(
 pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Result<Vc<bool>> {
     let result = resolve(
         project_path,
+        Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
         Request::parse(Value::new(Pattern::Constant(
             "babel-loader/package.json".to_string(),
         ))),
