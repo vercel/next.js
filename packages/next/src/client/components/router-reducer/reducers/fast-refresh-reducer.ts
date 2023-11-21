@@ -59,7 +59,7 @@ function fastRefreshReducerImpl(
 
       for (const flightDataPath of flightData) {
         // FlightDataPath with more than two items means unexpected Flight data was returned
-        if (flightDataPath.length !== 4) {
+        if (flightDataPath.length !== 3) {
           // TODO-APP: handle this case better
           console.log('REFRESH FAILED')
           return state

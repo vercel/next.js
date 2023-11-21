@@ -4,8 +4,6 @@ import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { interopDefault } from './interop-default'
-import { preloadComponent } from './preload-component'
-import { addSearchParamsIfPageSegment } from './create-flight-router-state-from-loader-tree'
 import { parseLoaderTree } from './parse-loader-tree'
 import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
@@ -57,7 +55,6 @@ export async function createComponentTree({
     },
     pagePath,
     getDynamicParamFromSegment,
-    query,
     isPrefetch,
     searchParamsProps,
   } = ctx
@@ -285,13 +282,9 @@ export async function createComponentTree({
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
-  // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
-  // TODO: Once we're done refactoring the Flight response type so that all the
-  // tree nodes are passed at the root of the response, we'll no longer need to
-  // do anything extra to preload the nested layouts; all of the child nodes will
-  // automatically be rendered in parallel by React. Then, to simplify the code,
-  // we should combine this `map` traversal with the loop below that turns
-  // the array into an object.
+  //
+  // TODO: Combine this `map` traversal with the loop below that turns the array
+  // into an object.
   const parallelRouteMap = await Promise.all(
     Object.keys(parallelRoutes).map(
       async (
@@ -304,8 +297,6 @@ export async function createComponentTree({
 
         const parallelRoute = parallelRoutes[parallelRouteKey]
 
-        const childSegment = parallelRoute[0]
-        const childSegmentParam = getDynamicParamFromSegment(childSegment)
         const notFoundComponent =
           NotFound && isChildrenRouteKey ? <NotFound /> : undefined
 
@@ -313,12 +304,7 @@ export async function createComponentTree({
         // otherwise we keep rendering for the prefetch.
         // We also want to bail out if there's no Loading component in the tree.
         let currentStyles = undefined
-        let initialChildNode = null
-        let childCacheNodeSeedData = null
-        const childPropSegment = addSearchParamsIfPageSegment(
-          childSegmentParam ? childSegmentParam.treeSegment : childSegment,
-          query
-        )
+        let childCacheNodeSeedData: CacheNodeSeedData | null = null
         if (
           !(
             isPrefetch &&
@@ -343,7 +329,6 @@ export async function createComponentTree({
             })
 
           currentStyles = childComponentStyles
-          initialChildNode = seedData[2]
           childCacheNodeSeedData = seedData
         }
 
@@ -370,11 +355,6 @@ export async function createComponentTree({
             templateScripts={templateScripts}
             notFound={notFoundComponent}
             notFoundStyles={notFoundStyles}
-            // TODO: This prop will soon by removed and instead we'll return all
-            // the child nodes in the entire tree at the top level of the
-            // Flight response.
-            initialChildNode={initialChildNode}
-            childPropSegment={childPropSegment}
             styles={currentStyles}
           />,
           childCacheNodeSeedData,
@@ -397,12 +377,16 @@ export async function createComponentTree({
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!Component) {
     return {
-      // TODO: I don't think the extra fragment is necessary. React treats top
-      // level fragments as transparent, i.e. the runtime behavior should be
-      // identical even without it. But maybe there's some findDOMNode-related
-      // reason that I'm not aware of, so I'm leaving it as-is out of extreme
-      // caution, for now.
-      seedData: [actualSegment, null, <>{parallelRouteProps.children}</>],
+      seedData: [
+        actualSegment,
+        parallelRouteCacheNodeSeedData,
+        // TODO: I don't think the extra fragment is necessary. React treats top
+        // level fragments as transparent, i.e. the runtime behavior should be
+        // identical even without it. But maybe there's some findDOMNode-related
+        // reason that I'm not aware of, so I'm leaving it as-is out of extreme
+        // caution, for now.
+        <>{parallelRouteProps.children}</>,
+      ],
       styles: layerAssets,
     }
   }
@@ -450,16 +434,6 @@ export async function createComponentTree({
         return searchParamsProps
       }
     })(),
-  }
-
-  // Eagerly execute layout/page component to trigger fetches early.
-  // TODO: We can delete this once we start passing the nested layouts at the
-  // top-level of the Flight response, because React will render them in
-  // parallel automatically.
-  if (!isClientComponent) {
-    Component = await Promise.resolve().then(() =>
-      preloadComponent(Component, props)
-    )
   }
 
   return {
