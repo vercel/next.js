@@ -251,6 +251,23 @@ function assignDefaults(
     {}
   )
 
+  // TODO: remove once we've made PPR default
+  // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
+  // has been set to `true`, enable the experimental PPR feature so long as it
+  // wasn't explicitly disabled in the config.
+  if (
+    process.env.__NEXT_TEST_MODE &&
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
+    config.experimental?.ppr === undefined
+  ) {
+    config.experimental ??= {}
+    config.experimental.ppr = true
+
+    Log.warn(
+      `\`experimental.ppr\` has been set to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
+    )
+  }
+
   const result = { ...defaultConfig, ...config }
 
   if (
@@ -260,23 +277,6 @@ function assignDefaults(
   ) {
     throw new Error(
       `The experimental.ppr preview feature can only be enabled when using the latest canary version of Next.js. See more info here: https://nextjs.org/docs/messages/ppr-preview`
-    )
-  }
-
-  // TODO: remove once we've made PPR default
-  // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
-  // has been set to `true`, enable the experimental PPR feature so long as it
-  // wasn't explicitly disabled in the config.
-  if (
-    process.env.__NEXT_TEST_MODE &&
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
-    result.experimental?.ppr === undefined
-  ) {
-    result.experimental ??= {}
-    result.experimental.ppr = true
-
-    Log.warn(
-      `\`experimental.ppr\` has been set to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
     )
   }
 
