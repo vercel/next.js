@@ -22,7 +22,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
 };
 
 use self::svg::calculate;
@@ -170,7 +170,7 @@ fn load_image_internal(
                     .to_string(),
             )
             .cell(),
-            title: Some(Vc::cell("AVIF image not supported".to_string())),
+            title: Some(StyledString::Text("AVIF image not supported".to_string()).cell()),
             issue_severity: Some(IssueSeverity::Warning.into()),
         }
         .cell()
@@ -188,7 +188,7 @@ fn load_image_internal(
                     .to_string(),
             )
             .cell(),
-            title: Some(Vc::cell("WEBP image not supported".to_string())),
+            title: Some(StyledString::Text("WEBP image not supported".to_string()).cell()),
             issue_severity: Some(IssueSeverity::Warning.into()),
         }
         .cell()
@@ -484,7 +484,7 @@ pub async fn optimize(
 struct ImageProcessingIssue {
     path: Vc<FileSystemPath>,
     message: Vc<StyledString>,
-    title: Option<Vc<String>>,
+    title: Option<Vc<StyledString>>,
     issue_severity: Option<Vc<IssueSeverity>>,
 }
 
@@ -499,18 +499,20 @@ impl Issue for ImageProcessingIssue {
     fn file_path(&self) -> Vc<FileSystemPath> {
         self.path
     }
+
     #[turbo_tasks::function]
     fn category(&self) -> Vc<String> {
         Vc::cell("image".to_string())
     }
+
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
+    fn title(&self) -> Vc<StyledString> {
         self.title
-            .unwrap_or(Vc::cell("Processing image failed".to_string()))
+            .unwrap_or(StyledString::Text("Processing image failed".to_string()).cell())
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        self.message
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.message))
     }
 }

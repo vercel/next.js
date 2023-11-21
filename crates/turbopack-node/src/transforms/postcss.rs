@@ -12,7 +12,9 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{Issue, IssueDescriptionExt, IssueExt, IssueSeverity, StyledString},
+    issue::{
+        Issue, IssueDescriptionExt, IssueExt, IssueSeverity, OptionStyledString, StyledString,
+    },
     module::Module,
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{find_context_file, FindContextFileResult},
@@ -305,13 +307,15 @@ impl Issue for PostCssTransformIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell(self.title.to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text(self.title.to_string()).cell()
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        StyledString::Text(self.description.to_string()).cell()
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(self.description.to_string()).cell(),
+        ))
     }
 
     #[turbo_tasks::function]

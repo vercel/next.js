@@ -17,7 +17,7 @@ use turbo_tasks_hash::encode_hex;
 use turbopack_cli_utils::issue::{format_issue, LogOptions};
 use turbopack_core::{
     asset::AssetContent,
-    issue::{IssueSeverity, PlainIssue},
+    issue::{IssueSeverity, PlainIssue, StyledString},
 };
 
 // Updates the existing snapshot outputs with the actual outputs of this run.
@@ -34,8 +34,7 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
     let expected_issues = expected(issues_path).await?;
     let mut seen = HashSet::new();
     for plain_issue in captured_issues.into_iter() {
-        let title = plain_issue
-            .title
+        let title = styled_string_to_file_safe_string(&plain_issue.title)
             .replace('/', "__")
             // We replace "*", "?", and '"' because they're not allowed in filenames on Windows.
             .replace('*', "__star__")
@@ -209,4 +208,31 @@ async fn diff_paths(
         map.remove(&p.await?.path);
     }
     Ok(map.values().copied().collect())
+}
+
+fn styled_string_to_file_safe_string(styled_string: &StyledString) -> String {
+    match styled_string {
+        StyledString::Line(parts) => {
+            let mut string = String::new();
+            string += "__l_";
+            for part in parts {
+                string.push_str(&styled_string_to_file_safe_string(part));
+            }
+            string += "__";
+            string
+        }
+        StyledString::Stack(parts) => {
+            let mut string = String::new();
+            string += "__s_";
+            for part in parts {
+                string.push_str(&styled_string_to_file_safe_string(part));
+                string.push('_');
+            }
+            string += "__";
+            string
+        }
+        StyledString::Text(string) => string.to_string(),
+        StyledString::Code(string) => format!("__c_{}__", string),
+        StyledString::Strong(string) => format!("__{}__", string),
+    }
 }

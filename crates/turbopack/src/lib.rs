@@ -38,7 +38,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, StyledString},
+    issue::{Issue, IssueExt, OptionStyledString, StyledString},
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
@@ -65,7 +65,7 @@ use self::{
 #[turbo_tasks::value]
 struct ModuleIssue {
     ident: Vc<AssetIdent>,
-    title: Vc<String>,
+    title: Vc<StyledString>,
     description: Vc<StyledString>,
 }
 
@@ -82,13 +82,13 @@ impl Issue for ModuleIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
+    fn title(&self) -> Vc<StyledString> {
         self.title
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        self.description
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.description))
     }
 }
 
@@ -373,7 +373,8 @@ async fn process_default(
                             Some(module_type) => {
                                 ModuleIssue {
                                     ident,
-                                    title: Vc::cell("Invalid module type".to_string()),
+                                    title: StyledString::Text("Invalid module type".to_string())
+                                        .cell(),
                                     description: StyledString::Text(
                                         "The module type must be Ecmascript or Typescript to add \
                                          Ecmascript transforms"
@@ -388,7 +389,8 @@ async fn process_default(
                             None => {
                                 ModuleIssue {
                                     ident,
-                                    title: Vc::cell("Missing module type".to_string()),
+                                    title: StyledString::Text("Missing module type".to_string())
+                                        .cell(),
                                     description: StyledString::Text(
                                         "The module type effect must be applied before adding \
                                          Ecmascript transforms"

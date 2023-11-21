@@ -4,7 +4,7 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, IssueSeverity, StyledString};
+use turbopack_core::issue::{Issue, IssueSeverity, OptionStyledString, StyledString};
 
 pub fn register() {
     turbo_tasks::register();
@@ -78,7 +78,7 @@ pub enum FetchErrorKind {
 pub struct FetchError {
     pub url: Vc<String>,
     pub kind: Vc<FetchErrorKind>,
-    pub detail: Vc<String>,
+    pub detail: Vc<StyledString>,
 }
 
 impl FetchError {
@@ -94,7 +94,7 @@ impl FetchError {
         };
 
         FetchError {
-            detail: Vc::cell(error.to_string()),
+            detail: StyledString::Text(error.to_string()).cell(),
             url: Vc::cell(url.to_owned()),
             kind: kind.into(),
         }
@@ -127,7 +127,7 @@ pub struct FetchIssue {
     pub severity: Vc<IssueSeverity>,
     pub url: Vc<String>,
     pub kind: Vc<FetchErrorKind>,
-    pub detail: Vc<String>,
+    pub detail: Vc<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
@@ -143,8 +143,8 @@ impl Issue for FetchIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Error while requesting resource".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Error while requesting resource".to_string()).cell()
     }
 
     #[turbo_tasks::function]
@@ -153,29 +153,31 @@ impl Issue for FetchIssue {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<StyledString>> {
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
         let url = &*self.url.await?;
         let kind = &*self.kind.await?;
 
-        Ok(StyledString::Text(match kind {
-            FetchErrorKind::Connect => format!(
-                "There was an issue establishing a connection while requesting {}.",
-                url
-            ),
-            FetchErrorKind::Status(status) => {
-                format!(
-                    "Received response with status {} when requesting {}",
-                    status, url
-                )
-            }
-            FetchErrorKind::Timeout => format!("Connection timed out when requesting {}", url),
-            FetchErrorKind::Other => format!("There was an issue requesting {}", url),
-        })
-        .cell())
+        Ok(Vc::cell(Some(
+            StyledString::Text(match kind {
+                FetchErrorKind::Connect => format!(
+                    "There was an issue establishing a connection while requesting {}.",
+                    url
+                ),
+                FetchErrorKind::Status(status) => {
+                    format!(
+                        "Received response with status {} when requesting {}",
+                        status, url
+                    )
+                }
+                FetchErrorKind::Timeout => format!("Connection timed out when requesting {}", url),
+                FetchErrorKind::Other => format!("There was an issue requesting {}", url),
+            })
+            .cell(),
+        )))
     }
 
     #[turbo_tasks::function]
-    fn detail(&self) -> Vc<String> {
-        self.detail
+    fn detail(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.detail))
     }
 }

@@ -1,4 +1,5 @@
-error - [resolve] [project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js  /crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js:1:0  Error resolving EcmaScript Modules request
+error - [resolve] [project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js  /crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js:1:0  Module not found: Can't resolve 'does-not-exist/path'
+  
          + v------------------------------------v
        1 + import dne from "does-not-exist/path";
          + ^------------------------------------^
@@ -6,9 +7,6 @@ error - [resolve] [project]/crates/turbopack-tests/tests/snapshot/imports/resolv
        3 | console.log(dne);
        4 | console.log({}[dne]);
        5 | 
-  
-  Module not found: Can't resolve 'does-not-exist/path'
-  
   
   | It was not possible to find the requested file.
   | Parsed request as written in source code: module "does-not-exist" with subpath "/path"

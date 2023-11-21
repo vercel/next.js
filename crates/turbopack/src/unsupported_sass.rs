@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
     reference_type::ReferenceType,
     resolve::{
         parse::Request,
@@ -75,11 +75,12 @@ impl Issue for UnsupportedSassModuleIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(StyledString::Text(format!(
             "Unsupported Sass request: {}",
             self.request.await?.request().as_deref().unwrap_or("N/A")
-        )))
+        ))
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -88,8 +89,12 @@ impl Issue for UnsupportedSassModuleIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        StyledString::Text("Turbopack does not yet support importing Sass modules.".to_string())
-            .cell()
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(
+                "Turbopack does not yet support importing Sass modules.".to_string(),
+            )
+            .cell(),
+        ))
     }
 }
