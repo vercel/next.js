@@ -1,5 +1,5 @@
 import path from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { check } from 'next-test-utils'
@@ -58,13 +58,13 @@ describe('404-page-router', () => {
         if (options.middleware) {
           await next.patchFile(
             'middleware.js',
-            await fs.readFile(
+            await fsp.readFile(
               path.join(__dirname, 'app', 'middleware.js'),
               'utf8'
             )
           )
         }
-        let curNextConfig = await fs.readFile(
+        let curNextConfig = await fsp.readFile(
           path.join(__dirname, 'app', 'next.config.js'),
           'utf8'
         )

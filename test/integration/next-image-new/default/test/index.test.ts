@@ -18,7 +18,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import fs from 'fs/promises'
-import { pathExists } from 'fs-extra'
+import { existsSync } from 'fs'
 
 const appDir = join(__dirname, '../')
 
@@ -1109,7 +1109,7 @@ function runTests(mode) {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
       expect(
-        await pathExists(join(appDir, '.next/server/chunks/static/media'))
+        existsSync(join(appDir, '.next/server/chunks/static/media'))
       ).toBeFalsy()
     })
     it('should render as unoptimized with missing src prop', async () => {

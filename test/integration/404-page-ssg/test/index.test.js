@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   killApp,
@@ -58,13 +58,15 @@ const runTests = (isDev) => {
     })
 
     it('should set pages404 in routes-manifest correctly', async () => {
-      const data = await fs.readJSON(join(appDir, '.next/routes-manifest.json'))
+      const data = JSON.parse(
+        await fsp.readFile(join(appDir, '.next/routes-manifest.json'), 'utf-8')
+      )
       expect(data.pages404).toBe(true)
     })
 
     it('should have 404 page in prerender-manifest', async () => {
-      const data = await fs.readJSON(
-        join(appDir, '.next/prerender-manifest.json')
+      const data = JSON.parse(
+        await fsp.readFile(join(appDir, '.next/prerender-manifest.json'))
       )
       expect(data.routes['/404']).toEqual({
         initialRevalidateSeconds: false,
@@ -105,7 +107,7 @@ describe('404 Page Support SSG', () => {
           stderr += msg
         },
       })
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      buildId = await fsp.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
 
     runTests()

@@ -1,5 +1,6 @@
 /* eslint-env jest */
-import { pathExists, readFile, readJSON, remove } from 'fs-extra'
+import { existsSync } from 'fs'
+import { readFile, rm } from 'fs/promises'
 import {
   check,
   findPort,
@@ -19,7 +20,7 @@ describe('CSS Support', () => {
       const appDir = join(fixturesDir, 'npm-import-bad')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should fail the build', async () => {
@@ -173,7 +174,7 @@ describe('CSS Support', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         })
         beforeAll(async () => {
           await nextBuild(appDir, [], {})
@@ -239,7 +240,7 @@ describe('CSS Support', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         })
         beforeAll(async () => {
           await nextBuild(appDir, [], {})
@@ -291,7 +292,7 @@ describe('CSS Support', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         })
         beforeAll(async () => {
           await nextBuild(appDir, [], {})
@@ -299,14 +300,18 @@ describe('CSS Support', () => {
           app = await nextStart(appDir, appPort)
 
           // Remove other page CSS files:
-          const manifest = await readJSON(
-            join(appDir, '.next', 'build-manifest.json')
+          const manifest = JSON.parse(
+            await readFile(join(appDir, '.next', 'build-manifest.json'))
           )
           const files = manifest['pages']['/other'].filter((e) =>
             e.endsWith('.css')
           )
           if (files.length < 1) throw new Error()
-          await Promise.all(files.map((f) => remove(join(appDir, '.next', f))))
+          await Promise.all(
+            files.map((f) =>
+              rm(join(appDir, '.next', f), { force: true, recursive: true })
+            )
+          )
         })
         afterAll(async () => {
           await killApp(app)
@@ -387,7 +392,7 @@ describe('CSS Support', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         })
         beforeAll(async () => {
           await nextBuild(appDir, [], {})
@@ -403,10 +408,10 @@ describe('CSS Support', () => {
             buildId,
             '_buildManifest.js'
           )
-          if (!(await pathExists(fileName))) {
+          if (!existsSync(fileName)) {
             throw new Error('Missing build manifest')
           }
-          await remove(fileName)
+          await fsp.rm(fileName, { recursive: true, force: true })
         })
         afterAll(async () => {
           await killApp(app)

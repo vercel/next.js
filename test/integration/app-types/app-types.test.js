@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 
 const appDir = __dirname
@@ -20,7 +20,7 @@ describe('app type checking', () => {
     it('should generate route types correctly and report link error', async () => {
       // Make sure the d.ts file is generated
       const dts = (
-        await fs.readFile(path.join(appDir, '.next', 'types', 'link.d.ts'))
+        await fsp.readFile(path.join(appDir, '.next', 'types', 'link.d.ts'))
       ).toString()
       expect(dts.includes('`/dashboard/user/')).toBeTruthy()
       expect(dts.includes('`/dashboard/another')).toBeTruthy()

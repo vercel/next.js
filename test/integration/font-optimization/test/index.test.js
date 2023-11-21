@@ -2,7 +2,8 @@
 
 import cheerio from 'cheerio'
 import { join } from 'path'
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import {
   killApp,
   findPort,
@@ -183,7 +184,7 @@ describe('Font Optimization', () => {
           async () => {
             await nextBuild(appDir)
             const testJson = JSON.parse(
-              await fs.readFile(builtPage('font-manifest.json'), {
+              await fsp.readFile(builtPage('font-manifest.json'), {
                 encoding: 'utf-8',
               })
             )
@@ -197,8 +198,11 @@ describe('Font Optimization', () => {
           'production mode',
           () => {
             beforeAll(async () => {
-              if (fs.pathExistsSync(join(appDir, '.next'))) {
-                await fs.remove(join(appDir, '.next'))
+              if (fs.existsSync(join(appDir, '.next'))) {
+                await fsp.rm(join(appDir, '.next'), {
+                  recursive: true,
+                  force: true,
+                })
               }
               await nextBuild(appDir)
               appPort = await findPort()
@@ -218,7 +222,7 @@ describe('Font Optimization', () => {
           () => {
             beforeAll(async () => {
               await nextBuild(appDir)
-              await fs.writeFile(
+              await fsp.writeFile(
                 join(appDir, '.next', 'server', 'font-manifest.json'),
                 '[]',
                 'utf8'

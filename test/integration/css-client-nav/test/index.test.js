@@ -3,7 +3,7 @@
 import http from 'http'
 import httpProxy from 'http-proxy'
 import cheerio from 'cheerio'
-import { remove } from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   findPort,
   killApp,
@@ -152,7 +152,7 @@ function runTests(dev) {
 describe('CSS Module client-side navigation', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir)
       const port = await findPort()
       app = await nextStart(appDir, port)
@@ -222,7 +222,7 @@ describe('CSS Module client-side navigation', () => {
 
   describe('dev', () => {
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })

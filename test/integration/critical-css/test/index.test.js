@@ -9,7 +9,8 @@ import {
   nextBuild,
   renderViaHTTP,
 } from 'next-test-utils'
-import fs from 'fs-extra'
+import { existsSync } from 'fs'
+import fsp from 'fs/promises'
 
 const glob = promisify(globOrigig)
 const appDir = join(__dirname, '../')
@@ -25,8 +26,8 @@ function runTests() {
       })
     ).map((file) => join('.next/static', file))
 
-    const requiredServerFiles = await fs.readJSON(
-      join(appDir, '.next/required-server-files.json')
+    const requiredServerFiles = await JSON.parse(
+      await fsp.readFile(join(appDir, '.next/required-server-files.json'))
     )
 
     expect(
@@ -59,14 +60,14 @@ function runTests() {
 describe('CSS optimization for SSR apps', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         nextConfig,
         `module.exports = { experimental: {optimizeCss: true} }`,
         'utf8'
       )
 
-      if (fs.pathExistsSync(join(appDir, '.next'))) {
-        await fs.remove(join(appDir, '.next'))
+      if (existsSync(join(appDir, '.next'))) {
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       }
       await nextBuild(appDir)
       appPort = await findPort()
@@ -74,7 +75,7 @@ describe('CSS optimization for SSR apps', () => {
     })
     afterAll(async () => {
       await killApp(app)
-      await fs.remove(nextConfig)
+      await fsp.rm(nextConfig, { recursive: true, force: true })
     })
     runTests()
   })

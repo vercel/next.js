@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
@@ -15,10 +15,10 @@ describe('jsconfig.json', () => {
 
     it('should fail on invalid jsconfig.json', async () => {
       const jsconfigPath = join(appDir, 'jsconfig.json')
-      const originalJsconfig = await fs.readFile(jsconfigPath, {
+      const originalJsconfig = await fsp.readFile(jsconfigPath, {
         encoding: 'utf-8',
       })
-      await fs.writeFile(jsconfigPath, '{', {
+      await fsp.writeFile(jsconfigPath, '{', {
         encoding: 'utf-8',
       })
       try {
@@ -26,7 +26,7 @@ describe('jsconfig.json', () => {
         expect(res.stderr).toMatch(/Error: Failed to parse "/)
         expect(res.stderr).toMatch(/JSON5: invalid end of input at 1:2/)
       } finally {
-        await fs.writeFile(jsconfigPath, originalJsconfig, {
+        await fsp.writeFile(jsconfigPath, originalJsconfig, {
           encoding: 'utf-8',
         })
       }

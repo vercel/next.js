@@ -1,5 +1,5 @@
 import url from 'url'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -87,7 +87,7 @@ function runTests() {
 describe('i18n Support', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -100,7 +100,7 @@ describe('i18n Support', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)

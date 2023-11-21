@@ -10,7 +10,7 @@ import {
 import webdriver from 'next-webdriver'
 import httpProxy from 'http-proxy'
 import { join } from 'path'
-import { remove } from 'fs-extra'
+import fsp from 'fs/promises'
 import http from 'http'
 
 const appDir = join(__dirname, '../')
@@ -21,7 +21,7 @@ let cancelCount = 0
 describe('react-virtualized wrapping next/legacy/image', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir)
       const port = await findPort()
       app = await nextStart(appDir, port)

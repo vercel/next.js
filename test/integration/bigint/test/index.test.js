@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   fetchViaHTTP,
@@ -44,7 +44,7 @@ describe('bigint API route support', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(nextConfig)
+      await fsp.rm(nextConfig, { recursive: true, force: true })
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)

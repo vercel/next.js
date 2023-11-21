@@ -2,7 +2,8 @@
 
 import url from 'url'
 import glob from 'glob'
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -554,7 +555,7 @@ export function runTests(ctx) {
 
   if (!ctx.isDev) {
     it('should not contain backslashes in pages-manifest', async () => {
-      const pagesManifestContent = await fs.readFile(
+      const pagesManifestContent = await fsp.readFile(
         join(ctx.buildPagesDir, '../pages-manifest.json'),
         'utf8'
       )
@@ -712,8 +713,8 @@ export function runTests(ctx) {
 
   if (!ctx.isDev) {
     it('should add i18n config to routes-manifest', async () => {
-      const routesManifest = await fs.readJSON(
-        join(ctx.appDir, '.next/routes-manifest.json')
+      const routesManifest = JSON.parse(
+        await fsp.readFile(join(ctx.appDir, '.next/routes-manifest.json'))
       )
 
       expect(routesManifest.i18n).toEqual({
@@ -736,8 +737,8 @@ export function runTests(ctx) {
     })
 
     it('should output correct prerender-manifest', async () => {
-      const prerenderManifest = await fs.readJSON(
-        join(ctx.appDir, '.next/prerender-manifest.json')
+      const prerenderManifest = JSON.parse(
+        await fsp.readFile(join(ctx.appDir, '.next/prerender-manifest.json'))
       )
       const staticRoutes = {}
       const dynamicRoutes = {}
@@ -2345,8 +2346,8 @@ export function runTests(ctx) {
         const pagePath = join(ctx.buildPagesDir, locale, 'not-found.html')
         const dataPath = join(ctx.buildPagesDir, locale, 'not-found.json')
         console.log(pagePath)
-        expect(await fs.exists(pagePath)).toBe(!skippedLocales.includes(locale))
-        expect(await fs.exists(dataPath)).toBe(!skippedLocales.includes(locale))
+        expect(fs.existsSync(pagePath)).toBe(!skippedLocales.includes(locale))
+        expect(fs.existsSync(dataPath)).toBe(!skippedLocales.includes(locale))
       }
     })
   }

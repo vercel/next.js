@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -109,7 +109,7 @@ const runTests = () => {
 describe('fallback: false rewrite', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -119,7 +119,7 @@ describe('fallback: false rewrite', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir, [])
       appPort = await findPort()
       app = await nextStart(appDir, appPort)

@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -60,12 +61,8 @@ function runTests(isDev) {
       for (const path of prerenderedPaths) {
         for (const mode of modePaths) {
           console.log('checking output', { path, mode })
-          expect(await fs.exists(join(pagesDir, mode, path + '.html'))).toBe(
-            true
-          )
-          expect(await fs.exists(join(pagesDir, mode, path + '.json'))).toBe(
-            true
-          )
+          expect(fs.existsSync(join(pagesDir, mode, path + '.html'))).toBe(true)
+          expect(fs.existsSync(join(pagesDir, mode, path + '.json'))).toBe(true)
         }
       }
     })
@@ -327,7 +324,7 @@ function runTests(isDev) {
 describe('Fallback path encoding', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
       buildId = 'development'
@@ -338,12 +335,12 @@ describe('Fallback path encoding', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       appPort = await findPort()
       await nextBuild(appDir)
 
       app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      buildId = await fsp.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
 

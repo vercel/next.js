@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
@@ -9,11 +9,11 @@ const pagesDir = join(appDir, 'pages')
 
 describe('Conflicting SSG paths', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    afterEach(() => fs.remove(pagesDir))
+    afterEach(() => fsp.rm(pagesDir, { recursive: true, force: true }))
 
     it('should show proper error when two dynamic SSG routes have conflicting paths', async () => {
-      await fs.ensureDir(join(pagesDir, 'blog'))
-      await fs.writeFile(
+      await fsp.mkdir(join(pagesDir, 'blog', { recursive: true }))
+      await fsp.writeFile(
         join(pagesDir, 'blog/[slug].js'),
         `
       export const getStaticProps = () => {
@@ -38,7 +38,7 @@ describe('Conflicting SSG paths', () => {
     `
       )
 
-      await fs.writeFile(
+      await fsp.writeFile(
         join(pagesDir, '[...catchAll].js'),
         `
       export const getStaticProps = () => {
@@ -81,8 +81,8 @@ describe('Conflicting SSG paths', () => {
     })
 
     it('should show proper error when a dynamic SSG route conflicts with normal route', async () => {
-      await fs.ensureDir(join(pagesDir, 'hello'))
-      await fs.writeFile(
+      await fsp.mkdir(join(pagesDir, 'hello', { recursive: true }))
+      await fsp.writeFile(
         join(pagesDir, 'hello/world.js'),
         `
       export default function Page() {
@@ -91,7 +91,7 @@ describe('Conflicting SSG paths', () => {
     `
       )
 
-      await fs.writeFile(
+      await fsp.writeFile(
         join(pagesDir, '[...catchAll].js'),
         `
       export const getStaticProps = () => {
@@ -133,8 +133,8 @@ describe('Conflicting SSG paths', () => {
     })
 
     it('should show proper error when a dynamic SSG route conflicts with SSR route', async () => {
-      await fs.ensureDir(join(pagesDir, 'hello'))
-      await fs.writeFile(
+      await fsp.mkdir(join(pagesDir, 'hello', { recursive: true }))
+      await fsp.writeFile(
         join(pagesDir, 'hello/world.js'),
         `
       export const getServerSideProps = () => ({ props: {} })
@@ -145,7 +145,7 @@ describe('Conflicting SSG paths', () => {
     `
       )
 
-      await fs.writeFile(
+      await fsp.writeFile(
         join(pagesDir, '[...catchAll].js'),
         `
       export const getStaticProps = () => {

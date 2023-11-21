@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import fs from 'fs-extra'
+import fs from 'fs'
 import path from 'path'
 
 describe('Middleware source maps', () => {
@@ -34,8 +34,8 @@ describe('Middleware source maps', () => {
       next.testDir,
       '.next/server/middleware.js'
     )
-    expect(await fs.pathExists(middlewarePath)).toEqual(true)
-    expect(await fs.pathExists(`${middlewarePath}.map`)).toEqual(true)
+    expect(fs.existsSync(middlewarePath)).toEqual(true)
+    expect(fs.existsSync(`${middlewarePath}.map`)).toEqual(true)
   })
 
   it('generates a source map for Edge API', async () => {
@@ -43,7 +43,7 @@ describe('Middleware source maps', () => {
       next.testDir,
       '.next/server/pages/api/edge.js'
     )
-    expect(await fs.pathExists(edgePath)).toEqual(true)
-    expect(await fs.pathExists(`${edgePath}.map`)).toEqual(true)
+    expect(fs.existsSync(edgePath)).toEqual(true)
+    expect(fs.existsSync(`${edgePath}.map`)).toEqual(true)
   })
 })

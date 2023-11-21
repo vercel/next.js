@@ -1,5 +1,5 @@
 import http from 'http'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import assert from 'assert'
 import sizeOf from 'image-size'
@@ -38,7 +38,7 @@ export async function serveSlowImage() {
       return
     }
     res.setHeader('content-type', 'image/png')
-    res.end(await fs.readFile(join(__dirname, '../app/public/test.png')))
+    res.end(await fsp.readFile(join(__dirname, '../app/public/test.png')))
   })
 
   await new Promise((resolve) => {
@@ -54,10 +54,10 @@ export async function serveSlowImage() {
 }
 
 export async function fsToJson(dir, output = {}) {
-  const files = await fs.readdir(dir)
+  const files = await fsp.readdir(dir)
   for (let file of files) {
     const fsPath = join(dir, file)
-    const stat = await fs.stat(fsPath)
+    const stat = await fsp.stat(fsPath)
     if (stat.isDirectory()) {
       output[file] = {}
       await fsToJson(fsPath, output[file])
@@ -79,7 +79,7 @@ export async function expectWidth(res, w, { expectAnimated = false } = {}) {
 
 export const cleanImagesDir = async (ctx) => {
   console.warn('Cleaning', ctx.imagesDir)
-  await fs.remove(ctx.imagesDir)
+  await fsp.rm(ctx.imagesDir, { recursive: true, force: true })
 }
 
 async function expectAvifSmallerThanWebp(w, q, appPort) {
@@ -153,14 +153,17 @@ export function runTests(ctx) {
 
       expect(res.status).toBe(200)
       expect(await res.json()).toEqual({ success: true })
-      const traceFile = await fs.readJson(
-        join(
-          ctx.appDir,
-          '.next',
-          'server',
-          'pages',
-          'api',
-          'custom-sharp.js.nft.json'
+      const traceFile = JSON.parse(
+        await fsp.readFile(
+          join(
+            ctx.appDir,
+            '.next',
+            'server',
+            'pages',
+            'api',
+            'custom-sharp.js.nft.json'
+          ),
+          'utf-8'
         )
       )
       expect(traceFile.files.some((file) => file.includes('sharp/build'))).toBe(
@@ -279,7 +282,7 @@ export function runTests(ctx) {
         `${contentDispositionType}; filename="test.svg"`
       )
       const actual = await res.text()
-      const expected = await fs.readFile(
+      const expected = await fsp.readFile(
         join(ctx.appDir, 'public', 'test.svg'),
         'utf8'
       )
@@ -340,7 +343,7 @@ export function runTests(ctx) {
       `${contentDispositionType}; filename="test.ico"`
     )
     const actual = await res.text()
-    const expected = await fs.readFile(
+    const expected = await fsp.readFile(
       join(ctx.appDir, 'public', 'test.ico'),
       'utf8'
     )
@@ -1459,7 +1462,7 @@ export const setupTests = (ctx) => {
         nextConfig.replace('{ /* replaceme */ }', json)
 
         if (curCtx.isSharp) {
-          await fs.writeFile(
+          await fsp.writeFile(
             join(curCtx.appDir, 'pages', 'api', 'custom-sharp.js'),
             `
             import sharp from 'sharp'
@@ -1489,9 +1492,10 @@ export const setupTests = (ctx) => {
       afterAll(async () => {
         nextConfig.restore()
         if (curCtx.isSharp) {
-          await fs.remove(
-            join(curCtx.appDir, 'pages', 'api', 'custom-sharp.js')
-          )
+          await fsp.rm(join(curCtx.appDir, 'pages', 'api', 'custom-sharp.js'), {
+            recursive: true,
+            force: true,
+          })
         }
         if (curCtx.app) await killApp(curCtx.app)
       })

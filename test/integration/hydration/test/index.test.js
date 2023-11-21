@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import webdriver from 'next-webdriver'
 import {
   nextBuild,
@@ -42,7 +42,7 @@ const runTests = () => {
 describe('Hydration', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
-      await fs.remove(path.join(appDir, '.next'))
+      await fsp.rm(path.join(appDir, '.next'), { recursive: true, force: true })
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -52,7 +52,7 @@ describe('Hydration', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(path.join(appDir, '.next'))
+      await fsp.rm(path.join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)

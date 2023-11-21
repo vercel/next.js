@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { readdir, readFile, remove } from 'fs-extra'
+import { readdir, readFile } from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
@@ -12,7 +12,7 @@ describe('SCSS Support loader handling', () => {
       const appDir = join(fixturesDir, 'url-global')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
       it('should compile successfully', async () => {
         const { code, stdout } = await nextBuild(appDir, [], {
@@ -59,7 +59,7 @@ describe('SCSS Support loader handling', () => {
       const appDir = join(fixturesDir, 'url-global-partial')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
       it('should compile successfully', async () => {
         const { code, stdout } = await nextBuild(appDir, [], {
@@ -108,7 +108,7 @@ describe('SCSS Support loader handling', () => {
       const appDir = join(fixturesDir, 'url-global-asset-prefix-1')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
       it('should compile successfully', async () => {
         const { code, stdout } = await nextBuild(appDir, [], {
@@ -155,7 +155,7 @@ describe('SCSS Support loader handling', () => {
       const appDir = join(fixturesDir, 'url-global-asset-prefix-2')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
       it('should compile successfully', async () => {
         const { code, stdout } = await nextBuild(appDir, [], {
@@ -202,7 +202,7 @@ describe('SCSS Support loader handling', () => {
       const appDir = join(fixturesDir, 'data-url')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
       it('should compile successfully', async () => {
         const { code, stdout } = await nextBuild(appDir, [], {
@@ -232,7 +232,7 @@ describe('SCSS Support loader handling', () => {
       const appDir = join(fixturesDir, 'external-url')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
       it('should compile successfully', async () => {
         const { code, stdout } = await nextBuild(appDir, [], {
@@ -262,7 +262,7 @@ describe('SCSS Support loader handling', () => {
       const appDir = join(fixturesDir, 'loader-order')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
       it('should compile successfully', async () => {
         const { stdout } = await nextBuild(appDir, [], {

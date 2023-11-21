@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   killApp,
@@ -39,7 +39,9 @@ const runTests = (mode) => {
 
   if (!isDev) {
     it('should set pages404 in routes-manifest correctly', async () => {
-      const data = await fs.readJSON(join(appDir, '.next/routes-manifest.json'))
+      const data = JSON.parse(
+        await fsp.readFile(join(appDir, '.next/routes-manifest.json'), 'utf-8')
+      )
       expect(data.pages404).toBe(true)
     })
 

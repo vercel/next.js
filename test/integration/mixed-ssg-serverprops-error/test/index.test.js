@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import { move } from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 import { SERVER_PROPS_SSG_CONFLICT } from 'next/dist/lib/constants'
@@ -13,12 +14,12 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('should error with getStaticProps but no default export', async () => {
       // TODO: remove after investigating why dev swc build fails here
-      await fs.writeFile(
+      await fsp.writeFile(
         join(appDir, '.babelrc'),
         '{ "presets": ["next/babel"] }'
       )
-      await fs.move(indexPage, indexPageBak)
-      await fs.writeFile(
+      await move(indexPage, indexPageBak)
+      await fsp.writeFile(
         indexPage,
         `
       export function getStaticProps() {
@@ -29,9 +30,9 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
     `
       )
       const { stderr } = await nextBuild(appDir, [], { stderr: true })
-      await fs.remove(join(appDir, '.babelrc'))
-      await fs.remove(indexPage)
-      await fs.move(indexPageBak, indexPage)
+      await fsp.rm(join(appDir, '.babelrc'), { recursive: true, force: true })
+      await fsp.rm(indexPage, { recursive: true, force: true })
+      await move(indexPageBak, indexPage)
       expect(stderr).toContain(
         'found page without a React Component as default export in'
       )
@@ -39,23 +40,23 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
 
     it('should error when exporting both getStaticProps and getServerSideProps', async () => {
       // TODO: remove after investigating why dev swc build fails here
-      await fs.writeFile(
+      await fsp.writeFile(
         join(appDir, '.babelrc'),
         '{ "presets": ["next/babel"] }'
       )
       const { stderr } = await nextBuild(appDir, [], { stderr: true })
-      await fs.remove(join(appDir, '.babelrc'))
+      await fsp.rm(join(appDir, '.babelrc'), { recursive: true, force: true })
       expect(stderr).toContain(SERVER_PROPS_SSG_CONFLICT)
     })
 
     it('should error when exporting both getStaticPaths and getServerSideProps', async () => {
       // TODO: remove after investigating why dev swc build fails here
-      await fs.writeFile(
+      await fsp.writeFile(
         join(appDir, '.babelrc'),
         '{ "presets": ["next/babel"] }'
       )
-      await fs.move(indexPage, indexPageBak)
-      await fs.writeFile(
+      await move(indexPage, indexPageBak)
+      await fsp.writeFile(
         indexPage,
         `
       export const getStaticPaths = async () => {
@@ -74,16 +75,16 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
     `
       )
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-      await fs.remove(join(appDir, '.babelrc'))
-      await fs.remove(indexPage)
-      await fs.move(indexPageBak, indexPage)
+      await fsp.rm(join(appDir, '.babelrc'), { recursive: true, force: true })
+      await fsp.rm(indexPage, { recursive: true, force: true })
+      await move(indexPageBak, indexPage)
       expect(code).toBe(1)
       expect(stderr).toContain(SERVER_PROPS_SSG_CONFLICT)
     })
 
     it('should error when exporting getStaticPaths on a non-dynamic page', async () => {
-      await fs.move(indexPage, indexPageBak)
-      await fs.writeFile(
+      await move(indexPage, indexPageBak)
+      await fsp.writeFile(
         indexPage,
         `
       export const getStaticPaths = async () => {
@@ -97,8 +98,8 @@ describe('Mixed getStaticProps and getServerSideProps error', () => {
       )
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
 
-      await fs.remove(indexPage)
-      await fs.move(indexPageBak, indexPage)
+      await fsp.rm(indexPage, { recursive: true, force: true })
+      await move(indexPageBak, indexPage)
       expect(code).toBe(1)
       expect(stderr).toContain(
         "getStaticPaths is only allowed for dynamic SSG pages and was found on '/'."

@@ -1,4 +1,4 @@
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { nextBuild, runNextCommand } from 'next-test-utils'
 import { join } from 'path'
 import {
@@ -20,8 +20,8 @@ describe('app dir - with output export (next dev / next build)', () => {
         return map
       },`
       )
-      await fs.remove(distDir)
-      await fs.remove(exportDir)
+      await fsp.rm(distDir, { recursive: true, force: true })
+      await fsp.rm(exportDir, { recursive: true, force: true })
       let result = { code: 0, stderr: '' }
       try {
         result = await nextBuild(appDir, [], { stderr: true })
@@ -34,8 +34,8 @@ describe('app dir - with output export (next dev / next build)', () => {
       )
     })
     it('should error when running next export', async () => {
-      await fs.remove(distDir)
-      await fs.remove(exportDir)
+      await fsp.rm(distDir, { recursive: true, force: true })
+      await fsp.rm(exportDir, { recursive: true, force: true })
       nextConfig.delete()
       try {
         await nextBuild(appDir)
@@ -63,14 +63,14 @@ describe('app dir - with output export (next dev / next build)', () => {
         expect(await getFiles()).toEqual([])
       } finally {
         nextConfig.restore()
-        await fs.remove(distDir)
-        await fs.remove(exportDir)
+        await fsp.rm(distDir, { recursive: true, force: true })
+        await fsp.rm(exportDir, { recursive: true, force: true })
       }
     })
     it('should correctly emit exported assets to config.distDir', async () => {
       const outputDir = join(appDir, 'output')
-      await fs.remove(distDir)
-      await fs.remove(outputDir)
+      await fsp.rm(distDir, { recursive: true, force: true })
+      await fsp.rm(outputDir, { recursive: true, force: true })
       nextConfig.replace(
         'trailingSlash: true,',
         `trailingSlash: true,
@@ -81,8 +81,8 @@ describe('app dir - with output export (next dev / next build)', () => {
         expect(await getFiles(outputDir)).toEqual(expectedWhenTrailingSlashTrue)
       } finally {
         nextConfig.restore()
-        await fs.remove(distDir)
-        await fs.remove(outputDir)
+        await fsp.rm(distDir, { recursive: true, force: true })
+        await fsp.rm(outputDir, { recursive: true, force: true })
       }
     })
   })

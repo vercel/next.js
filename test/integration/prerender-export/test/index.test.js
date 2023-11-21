@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -208,12 +208,12 @@ describe('SSG Prerender export', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     describe('export mode', () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        await fs.remove(exportDir)
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
+        await fsp.rm(exportDir, { recursive: true, force: true })
         await nextBuild(appDir, undefined, { cwd: appDir })
         app = await startStaticServer(exportDir)
         appPort = app.address().port
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        buildId = await fsp.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       })
 
       afterAll(async () => {
@@ -231,8 +231,8 @@ describe('SSG Prerender export', () => {
         ]
 
         for (const route of routes) {
-          await fs.access(join(exportDir, `${route}/index.html`))
-          await fs.access(
+          await fsp.access(join(exportDir, `${route}/index.html`))
+          await fsp.access(
             join(exportDir, '_next/data', buildId, `${route}.json`)
           )
         }

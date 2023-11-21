@@ -11,7 +11,8 @@
  */
 
 import execa from 'execa'
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import path from 'path'
 import Conf from 'next/dist/compiled/conf'
 import { useTempDir } from '../../lib/use-temp-dir'
@@ -41,7 +42,7 @@ describe('create next app', () => {
   it('non-empty directory', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'non-empty-directory'
-      await fs.mkdirp(path.join(cwd, projectName))
+      await fsp.mkdir(path.join(cwd, projectName), { recursive: true })
       const pkg = path.join(cwd, projectName, 'package.json')
       fs.writeFileSync(pkg, '{ "foo": "bar" }')
 
@@ -384,7 +385,7 @@ describe('create next app', () => {
       // if the folder isn't able to be write restricted we can't test
       // this so skip
       if (
-        await fs
+        await fsp
           .writeFile(path.join(cwd, 'test'), 'hello')
           .then(() => true)
           .catch(() => false)
@@ -427,10 +428,10 @@ describe('create next app', () => {
         // ensure install succeeds with invalid yarn binary
         // which simulates no yarn binary being available as
         // an alternative to removing the binary and reinstalling
-        await fs.remove(tmpBin)
-        await fs.mkdir(tmpBin)
-        await fs.writeFile(tmpYarn, '#!/bin/sh\nexit 1')
-        await fs.chmod(tmpYarn, '755')
+        await fsp.rm(tmpBin, { recursive: true, force: true })
+        await fsp.mkdir(tmpBin)
+        await fsp.writeFile(tmpYarn, '#!/bin/sh\nexit 1')
+        await fsp.chmod(tmpYarn, '755')
         env.PATH = `${tmpBin}:${env.PATH}`
         delete env.npm_config_user_agent
       }
@@ -452,7 +453,7 @@ describe('create next app', () => {
           stdio: 'inherit',
         }
       )
-      await fs.remove(tmpBin)
+      await fsp.rm(tmpBin, { recursive: true, force: true })
 
       expect(res.exitCode).toBe(0)
       shouldBeJavascriptProject({ cwd, projectName: '.', template: 'app' })

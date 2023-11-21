@@ -10,7 +10,7 @@ import {
   nextStart,
   getBuildManifest,
 } from 'next-test-utils'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 
 // test suite
 import clientNavigation from './client-navigation'
@@ -48,7 +48,11 @@ describe('Client 404', () => {
       if (files.length < 1) {
         throw new Error('oops!')
       }
-      await Promise.all(files.map((f) => fs.remove(join(appDir, '.next', f))))
+      await Promise.all(
+        files.map((f) =>
+          fsp.rm(join(appDir, '.next', f, { recursive: true, force: true }))
+        )
+      )
     })
     afterAll(() => killApp(context.server))
 

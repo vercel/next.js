@@ -1,6 +1,8 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import { move } from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   killApp,
@@ -25,8 +27,8 @@ let app
 describe('gsp-gssp', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('does not show error with getStaticProps in pages/500 build', async () => {
-      await fs.move(pages500, `${pages500}.bak`)
-      await fs.writeFile(
+      await move(pages500, `${pages500}.bak`)
+      await fsp.writeFile(
         pages500,
         `
       const page = () => 'custom 500 page'
@@ -34,17 +36,17 @@ describe('gsp-gssp', () => {
       export default page
     `
       )
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-      await fs.remove(pages500)
-      await fs.move(`${pages500}.bak`, pages500)
+      await fsp.rm(pages500, { recursive: true, force: true })
+      await move(`${pages500}.bak`, pages500)
 
       expect(stderr).not.toMatch(gip500Err)
       expect(code).toBe(0)
     })
     it('shows error with getServerSideProps in pages/500 build', async () => {
-      await fs.move(pages500, `${pages500}.bak`)
-      await fs.writeFile(
+      await move(pages500, `${pages500}.bak`)
+      await fsp.writeFile(
         pages500,
         `
         const page = () => 'custom 500 page'
@@ -52,17 +54,17 @@ describe('gsp-gssp', () => {
         export default page
       `
       )
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-      await fs.remove(pages500)
-      await fs.move(`${pages500}.bak`, pages500)
+      await fsp.rm(pages500, { recursive: true, force: true })
+      await move(`${pages500}.bak`, pages500)
 
       expect(stderr).toMatch(gip500Err)
       expect(code).toBe(1)
     })
 
     it('does build 500 statically with getInitialProps in _app and getStaticProps in pages/500', async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         pagesApp,
         `
         import App from 'next/app'
@@ -72,8 +74,8 @@ describe('gsp-gssp', () => {
         export default page
       `
       )
-      await fs.rename(pages500, `${pages500}.bak`)
-      await fs.writeFile(
+      await fsp.rename(pages500, `${pages500}.bak`)
+      await fsp.writeFile(
         pages500,
         `
         const page = () => {
@@ -89,7 +91,7 @@ describe('gsp-gssp', () => {
         }
       `
       )
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       const {
         stderr,
         stdout: buildStdout,
@@ -99,16 +101,16 @@ describe('gsp-gssp', () => {
         stdout: true,
       })
 
-      await fs.remove(pagesApp)
-      await fs.remove(pages500)
-      await fs.rename(`${pages500}.bak`, pages500)
+      await fsp.rm(pagesApp, { recursive: true, force: true })
+      await fsp.rm(pages500, { recursive: true, force: true })
+      await fsp.rename(`${pages500}.bak`, pages500)
 
       expect(stderr).not.toMatch(gip500Err)
       expect(buildStdout).toContain('rendered 500')
       expect(code).toBe(0)
-      expect(
-        await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
-      ).toBe(true)
+      expect(fs.existsSync(join(appDir, '.next/server/pages/500.html'))).toBe(
+        true
+      )
 
       let appStdout = ''
       const appPort = await findPort()
@@ -128,8 +130,8 @@ describe('gsp-gssp', () => {
     })
 
     it('does not build 500 statically with no pages/500 and getServerSideProps in _error', async () => {
-      await fs.rename(pages500, `${pages500}.bak`)
-      await fs.writeFile(
+      await fsp.rename(pages500, `${pages500}.bak`)
+      await fsp.writeFile(
         pagesError,
         `
           function Error({ statusCode }) {
@@ -153,18 +155,18 @@ describe('gsp-gssp', () => {
           export default Error
         `
       )
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       const { stderr: buildStderr, code } = await nextBuild(appDir, [], {
         stderr: true,
       })
-      await fs.rename(`${pages500}.bak`, pages500)
-      await fs.remove(pagesError)
+      await fsp.rename(`${pages500}.bak`, pages500)
+      await fsp.rm(pagesError, { recursive: true, force: true })
       console.log(buildStderr)
       expect(buildStderr).not.toMatch(gip500Err)
       expect(code).toBe(0)
-      expect(
-        await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
-      ).toBe(false)
+      expect(fs.existsSync(join(appDir, '.next/server/pages/500.html'))).toBe(
+        false
+      )
 
       let appStderr = ''
       const appPort = await findPort()
@@ -183,8 +185,8 @@ describe('gsp-gssp', () => {
 
   describe('development mode', () => {
     it('does not show error with getStaticProps in pages/500 dev', async () => {
-      await fs.move(pages500, `${pages500}.bak`)
-      await fs.writeFile(
+      await move(pages500, `${pages500}.bak`)
+      await fsp.writeFile(
         pages500,
         `
         const page = () => 'custom 500 page'
@@ -205,15 +207,15 @@ describe('gsp-gssp', () => {
 
       await killApp(app)
 
-      await fs.remove(pages500)
-      await fs.move(`${pages500}.bak`, pages500)
+      await fsp.rm(pages500, { recursive: true, force: true })
+      await move(`${pages500}.bak`, pages500)
 
       expect(stderr).not.toMatch(gip500Err)
     })
 
     it('shows error with getServerSideProps in pages/500 dev', async () => {
-      await fs.move(pages500, `${pages500}.bak`)
-      await fs.writeFile(
+      await move(pages500, `${pages500}.bak`)
+      await fsp.writeFile(
         pages500,
         `
         const page = () => 'custom 500 page'
@@ -234,8 +236,8 @@ describe('gsp-gssp', () => {
 
       await killApp(app)
 
-      await fs.remove(pages500)
-      await fs.move(`${pages500}.bak`, pages500)
+      await fsp.rm(pages500, { recursive: true, force: true })
+      await move(`${pages500}.bak`, pages500)
 
       expect(stderr).toMatch(gip500Err)
     })

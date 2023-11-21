@@ -1,5 +1,6 @@
 import glob from 'glob'
-import fs from 'fs-extra'
+import { move } from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
@@ -28,13 +29,13 @@ describe('minimal-mode-response-cache', () => {
     })
     await next.stop()
 
-    await fs.move(
+    await move(
       join(next.testDir, '.next/standalone'),
       join(next.testDir, 'standalone')
     )
-    for (const file of await fs.readdir(next.testDir)) {
+    for (const file of await fsp.readdir(next.testDir)) {
       if (file !== 'standalone') {
-        await fs.remove(join(next.testDir, file))
+        await fsp.rm(join(next.testDir, file), { recursive: true, force: true })
         console.log('removed', file)
       }
     }
@@ -46,7 +47,10 @@ describe('minimal-mode-response-cache', () => {
 
     for (const file of files) {
       if (file.match(/(pages|app)[/\\]/) && !file.endsWith('.js')) {
-        await fs.remove(join(next.testDir, 'standalone/.next/server', file))
+        await fsp.rm(join(next.testDir, 'standalone/.next/server', file), {
+          recursive: true,
+          force: true,
+        })
         console.log(
           'removing',
           join(next.testDir, 'standalone/.next/server', file)
@@ -55,9 +59,9 @@ describe('minimal-mode-response-cache', () => {
     }
 
     const testServer = join(next.testDir, 'standalone/server.js')
-    await fs.writeFile(
+    await fsp.writeFile(
       testServer,
-      (await fs.readFile(testServer, 'utf8'))
+      (await fsp.readFile(testServer, 'utf8'))
         .replace('console.error(err)', `console.error('top-level', err)`)
         .replace('port:', 'minimalMode: true,port:')
     )

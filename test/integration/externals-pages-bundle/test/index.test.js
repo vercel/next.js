@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
@@ -12,7 +12,7 @@ describe('bundle pages externals with config.experimental.bundlePagesExternals',
       await nextBuild(appDir, [], { stdout: true })
     })
     it('should have no externals with the config set', async () => {
-      const output = await fs.readFile(
+      const output = await fsp.readFile(
         join(appDir, '.next/server/pages/index.js'),
         'utf8'
       )
@@ -20,7 +20,7 @@ describe('bundle pages externals with config.experimental.bundlePagesExternals',
     })
 
     it('should respect the serverComponentsExternals config', async () => {
-      const output = await fs.readFile(
+      const output = await fsp.readFile(
         join(appDir, '.next/server/pages/index.js'),
         'utf8'
       )

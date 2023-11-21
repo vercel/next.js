@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
@@ -64,10 +64,13 @@ function runTests() {
 
     it('should have correct module not found error', async () => {
       const basicPage = join(appDir, 'pages/basic-alias.js')
-      const contents = await fs.readFile(basicPage, 'utf8')
+      const contents = await fsp.readFile(basicPage, 'utf8')
 
       try {
-        await fs.writeFile(basicPage, contents.replace('@c/world', '@c/worldd'))
+        await fsp.writeFile(
+          basicPage,
+          contents.replace('@c/world', '@c/worldd')
+        )
         await renderViaHTTP(appPort, '/basic-alias')
 
         const found = await check(
@@ -80,7 +83,7 @@ function runTests() {
         )
         expect(found).toBe(true)
       } finally {
-        await fs.writeFile(basicPage, contents)
+        await fsp.writeFile(basicPage, contents)
       }
     })
   })
@@ -93,17 +96,25 @@ function runTests() {
           await nextBuild(appDir)
         })
         it('should trace correctly', async () => {
-          const singleAliasTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/single-alias.js.nft.json')
+          const singleAliasTrace = JSON.parse(
+            await fsp.readFile(
+              join(appDir, '.next/server/pages/single-alias.js.nft.json')
+            )
           )
-          const resolveOrderTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/resolve-order.js.nft.json')
+          const resolveOrderTrace = JSON.parse(
+            await fsp.readFile(
+              join(appDir, '.next/server/pages/resolve-order.js.nft.json')
+            )
           )
-          const resolveFallbackTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/resolve-fallback.js.nft.json')
+          const resolveFallbackTrace = JSON.parse(
+            await fsp.readFile(
+              join(appDir, '.next/server/pages/resolve-fallback.js.nft.json')
+            )
           )
-          const basicAliasTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/basic-alias.js.nft.json')
+          const basicAliasTrace = JSON.parse(
+            await fsp.readFile(
+              join(appDir, '.next/server/pages/basic-alias.js.nft.json')
+            )
           )
 
           expect(

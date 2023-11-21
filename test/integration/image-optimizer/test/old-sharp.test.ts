@@ -1,5 +1,5 @@
 import execa from 'execa'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { setupTests } from './util'
 
@@ -8,7 +8,7 @@ const imagesDir = join(appDir, '.next', 'cache', 'images')
 
 describe('with outdated sharp', () => {
   beforeAll(async () => {
-    await fs.writeFile(
+    await fsp.writeFile(
       join(appDir, 'package.json'),
       JSON.stringify({
         packageManager: 'yarn@1.22.19',
@@ -20,9 +20,9 @@ describe('with outdated sharp', () => {
     })
   })
   afterAll(async () => {
-    await fs.remove(join(appDir, 'node_modules'))
-    await fs.remove(join(appDir, 'yarn.lock'))
-    await fs.remove(join(appDir, 'package.json'))
+    await fsp.rm(join(appDir, 'node_modules'), { recursive: true, force: true })
+    await fsp.rm(join(appDir, 'yarn.lock'), { recursive: true, force: true })
+    await fsp.rm(join(appDir, 'package.json'), { recursive: true, force: true })
   })
 
   setupTests({ isSharp: true, isOutdatedSharp: true, appDir, imagesDir })

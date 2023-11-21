@@ -1,5 +1,5 @@
 import http from 'http'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { runTests, locales } from '../../i18n-support/test/shared'
@@ -48,7 +48,7 @@ describe('i18n Support basePath', () => {
     }
     beforeAll(async () => {
       nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       curCtx.appPort = await findPort()
       curCtx.app = await launchApp(appDir, curCtx.appPort)
     })
@@ -62,12 +62,12 @@ describe('i18n Support basePath', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir)
       ctx.appPort = await findPort()
       ctx.app = await nextStart(appDir, ctx.appPort)
       ctx.buildPagesDir = join(appDir, '.next/server/pages')
-      ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      ctx.buildId = await fsp.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
       nextConfig.restore()
@@ -82,7 +82,7 @@ describe('i18n Support basePath', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await fs.remove(join(appDir, '.next'))
+          await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
           nextConfig.replace('// localeDetection', 'localeDetection')
 
           await nextBuild(appDir)
@@ -95,8 +95,8 @@ describe('i18n Support basePath', () => {
         })
 
         it('should have localeDetection in routes-manifest', async () => {
-          const routesManifest = await fs.readJSON(
-            join(appDir, '.next/routes-manifest.json')
+          const routesManifest = JSON.parse(
+            await fsp.readFile(join(appDir, '.next/routes-manifest.json'))
           )
 
           expect(routesManifest.i18n).toEqual({

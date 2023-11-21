@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -39,11 +39,11 @@ describe('server-side dev errors', () => {
   afterAll(() => killApp(app))
 
   it('should show server-side error for gsp page correctly', async () => {
-    const content = await fs.readFile(gspPage, 'utf8')
+    const content = await fsp.readFile(gspPage, 'utf8')
 
     try {
       const stderrIdx = stderr.length
-      await fs.writeFile(
+      await fsp.writeFile(
         gspPage,
         content.replace('return {', 'missingVar;return {')
       )
@@ -63,19 +63,19 @@ describe('server-side dev errors', () => {
       expect(await hasRedbox(browser, true)).toBe(true)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
-      await fs.writeFile(gspPage, content)
+      await fsp.writeFile(gspPage, content)
       await hasRedbox(browser, false)
     } finally {
-      await fs.writeFile(gspPage, content)
+      await fsp.writeFile(gspPage, content)
     }
   })
 
   it('should show server-side error for gssp page correctly', async () => {
-    const content = await fs.readFile(gsspPage, 'utf8')
+    const content = await fsp.readFile(gsspPage, 'utf8')
 
     try {
       const stderrIdx = stderr.length
-      await fs.writeFile(
+      await fsp.writeFile(
         gsspPage,
         content.replace('return {', 'missingVar;return {')
       )
@@ -95,19 +95,19 @@ describe('server-side dev errors', () => {
       expect(await hasRedbox(browser, true)).toBe(true)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
-      await fs.writeFile(gsspPage, content)
+      await fsp.writeFile(gsspPage, content)
       await hasRedbox(browser, false)
     } finally {
-      await fs.writeFile(gsspPage, content)
+      await fsp.writeFile(gsspPage, content)
     }
   })
 
   it('should show server-side error for dynamic gssp page correctly', async () => {
-    const content = await fs.readFile(dynamicGsspPage, 'utf8')
+    const content = await fsp.readFile(dynamicGsspPage, 'utf8')
 
     try {
       const stderrIdx = stderr.length
-      await fs.writeFile(
+      await fsp.writeFile(
         dynamicGsspPage,
         content.replace('return {', 'missingVar;return {')
       )
@@ -127,19 +127,19 @@ describe('server-side dev errors', () => {
       expect(await hasRedbox(browser, true)).toBe(true)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
-      await fs.writeFile(dynamicGsspPage, content)
+      await fsp.writeFile(dynamicGsspPage, content)
       await hasRedbox(browser, false)
     } finally {
-      await fs.writeFile(dynamicGsspPage, content)
+      await fsp.writeFile(dynamicGsspPage, content)
     }
   })
 
   it('should show server-side error for api route correctly', async () => {
-    const content = await fs.readFile(apiPage, 'utf8')
+    const content = await fsp.readFile(apiPage, 'utf8')
 
     try {
       const stderrIdx = stderr.length
-      await fs.writeFile(
+      await fsp.writeFile(
         apiPage,
         content.replace('res.status', 'missingVar;res.status')
       )
@@ -159,19 +159,19 @@ describe('server-side dev errors', () => {
       expect(await hasRedbox(browser, true)).toBe(true)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
-      await fs.writeFile(apiPage, content)
+      await fsp.writeFile(apiPage, content)
       await hasRedbox(browser, false)
     } finally {
-      await fs.writeFile(apiPage, content)
+      await fsp.writeFile(apiPage, content)
     }
   })
 
   it('should show server-side error for dynamic api route correctly', async () => {
-    const content = await fs.readFile(dynamicApiPage, 'utf8')
+    const content = await fsp.readFile(dynamicApiPage, 'utf8')
 
     try {
       const stderrIdx = stderr.length
-      await fs.writeFile(
+      await fsp.writeFile(
         dynamicApiPage,
         content.replace('res.status', 'missingVar;res.status')
       )
@@ -191,10 +191,10 @@ describe('server-side dev errors', () => {
       expect(await hasRedbox(browser, true)).toBe(true)
 
       expect(await getRedboxSource(browser)).toContain('missingVar')
-      await fs.writeFile(dynamicApiPage, content)
+      await fsp.writeFile(dynamicApiPage, content)
       await hasRedbox(browser, false)
     } finally {
-      await fs.writeFile(dynamicApiPage, content)
+      await fsp.writeFile(dynamicApiPage, content)
     }
   })
 

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
@@ -10,7 +10,7 @@ const nextConfigMJS = join(appDir, 'next.config.mjs')
 describe('Invalid config syntax', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('should error when next.config.js contains syntax error', async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         nextConfigJS,
         `
       module.exports = {
@@ -21,7 +21,7 @@ describe('Invalid config syntax', () => {
       const { stderr } = await nextBuild(appDir, undefined, {
         stderr: true,
       })
-      await fs.remove(nextConfigJS)
+      await fsp.rm(nextConfigJS, { recursive: true, force: true })
 
       expect(stderr).toContain(
         'Failed to load next.config.js, see more info here https://nextjs.org/docs/messages/next-config-error'
@@ -30,7 +30,7 @@ describe('Invalid config syntax', () => {
     })
 
     it('should error when next.config.mjs contains syntax error', async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         nextConfigMJS,
         `
       const config = {
@@ -42,7 +42,7 @@ describe('Invalid config syntax', () => {
       const { stderr } = await nextBuild(appDir, undefined, {
         stderr: true,
       })
-      await fs.remove(nextConfigMJS)
+      await fsp.rm(nextConfigMJS, { recursive: true, force: true })
 
       expect(stderr).toContain(
         'Failed to load next.config.mjs, see more info here https://nextjs.org/docs/messages/next-config-error'

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { readdir, readFile, remove } from 'fs-extra'
+import { readdir, readFile, remove, rm } from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
@@ -10,7 +10,7 @@ describe('Basic Global Support', () => {
     const appDir = join(fixturesDir, 'single-global')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -40,7 +40,7 @@ describe('Basic Global Support with special characters in path', () => {
     const appDir = join(fixturesDir, 'single-global-special-characters', 'a+b')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -70,7 +70,7 @@ describe('Basic Global Support with src/ dir', () => {
     const appDir = join(fixturesDir, 'single-global-src')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -100,7 +100,7 @@ describe('Multi Global Support', () => {
     const appDir = join(fixturesDir, 'multi-global')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -131,7 +131,7 @@ describe('Nested @import() Global Support', () => {
     const appDir = join(fixturesDir, 'nested-global')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -165,7 +165,7 @@ describe('Multi Global Support (reversed)', () => {
     const appDir = join(fixturesDir, 'multi-global-reversed')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -196,7 +196,7 @@ describe('CSS URL via `file-loader`', () => {
     const appDir = join(fixturesDir, 'url-global')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -244,7 +244,7 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
     const appDir = join(fixturesDir, 'url-global-asset-prefix-1')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -292,7 +292,7 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
     const appDir = join(fixturesDir, 'url-global-asset-prefix-2')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {

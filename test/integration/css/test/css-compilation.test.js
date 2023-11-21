@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import cheerio from 'cheerio'
-import { readdir, readFile, remove } from 'fs-extra'
+import { readdir, readFile } from 'fs/promises'
 import {
   findPort,
   killApp,
@@ -19,7 +19,7 @@ describe('CSS Support', () => {
       const appDir = join(fixturesDir, 'compilation-and-prefixing')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should compile successfully', async () => {
@@ -96,7 +96,7 @@ describe('CSS Support', () => {
     describe('React Lifecyce Order (production)', () => {
       const appDir = join(fixturesDir, 'transition-react')
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       let appPort
@@ -144,7 +144,7 @@ describe('CSS Support', () => {
       let stdout
       let code
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         ;({ code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
         }))
@@ -196,7 +196,7 @@ describe('CSS Support', () => {
       const appDir = join(fixturesDir, 'npm-import')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should compile successfully', async () => {
@@ -225,7 +225,7 @@ describe('CSS Support', () => {
       const appDir = join(fixturesDir, 'npm-import-nested')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should compile successfully', async () => {
@@ -262,7 +262,7 @@ describe('CSS Property Ordering', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))

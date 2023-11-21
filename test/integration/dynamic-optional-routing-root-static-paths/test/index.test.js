@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   findPort,
   killApp,
@@ -50,10 +50,10 @@ describe('Dynamic Optional Routing', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      const curConfig = await fs.readFile(nextConfig, 'utf8')
+      const curConfig = await fsp.readFile(nextConfig, 'utf8')
 
       if (curConfig.includes('target')) {
-        await fs.writeFile(nextConfig, `module.exports = {}`)
+        await fsp.writeFile(nextConfig, `module.exports = {}`)
       }
       await nextBuild(appDir)
 

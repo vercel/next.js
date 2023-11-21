@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   findPort,
@@ -16,7 +16,7 @@ let appPort
 let app
 
 const checkMissing = async (missing = [], docContent) => {
-  await fs.writeFile(docPath, docContent)
+  await fsp.writeFile(docPath, docContent)
   let stderr = ''
 
   appPort = await findPort()
@@ -32,7 +32,7 @@ const checkMissing = async (missing = [], docContent) => {
   await check(() => stderr, new RegExp(`${missing.join(', ')}`))
 
   await killApp(app)
-  await fs.remove(docPath)
+  await fsp.rm(docPath, { recursive: true, force: true })
 }
 
 describe('Missing _document components error', () => {

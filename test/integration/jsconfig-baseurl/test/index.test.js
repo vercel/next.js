@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
@@ -46,9 +46,9 @@ describe('TypeScript Features', () => {
 
     it('should have correct module not found error', async () => {
       const basicPage = join(appDir, 'pages/hello.js')
-      const contents = await fs.readFile(basicPage, 'utf8')
+      const contents = await fsp.readFile(basicPage, 'utf8')
 
-      await fs.writeFile(
+      await fsp.writeFile(
         basicPage,
         contents.replace('components/world', 'components/worldd')
       )
@@ -61,7 +61,7 @@ describe('TypeScript Features', () => {
           : /Module not found: Can't resolve 'components\/worldd'/,
         false
       )
-      await fs.writeFile(basicPage, contents)
+      await fsp.writeFile(basicPage, contents)
       expect(found).toBe(true)
     })
   })
@@ -74,8 +74,10 @@ describe('TypeScript Features', () => {
           await nextBuild(appDir)
         })
         it('should trace correctly', async () => {
-          const helloTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/hello.js.nft.json')
+          const helloTrace = JSON.parse(
+            await fsp.readFile(
+              join(appDir, '.next/server/pages/hello.js.nft.json')
+            )
           )
           expect(
             helloTrace.files.some((file) =>

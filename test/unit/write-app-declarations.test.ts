@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import os from 'os'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { writeAppTypeDeclarations } from 'next/dist/lib/typescript/writeAppTypeDeclarations'
 
@@ -10,9 +10,9 @@ const imageImportsEnabled = false
 
 describe('find config', () => {
   beforeEach(async () => {
-    await fs.ensureDir(fixtureDir)
+    await fsp.mkdir(fixtureDir, { recursive: true })
   })
-  afterEach(() => fs.remove(declarationFile))
+  afterEach(() => fsp.rm(declarationFile, { recursive: true, force: true }))
 
   it('should preserve CRLF EOL', async () => {
     const eol = '\r\n'
@@ -28,7 +28,7 @@ describe('find config', () => {
       '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
       eol
 
-    await fs.writeFile(declarationFile, content)
+    await fsp.writeFile(declarationFile, content)
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
@@ -36,7 +36,7 @@ describe('find config', () => {
       hasPagesDir: false,
       isAppDirEnabled: false,
     })
-    expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
+    expect(await fsp.readFile(declarationFile, 'utf8')).toBe(content)
   })
 
   it('should preserve LF EOL', async () => {
@@ -53,7 +53,7 @@ describe('find config', () => {
       '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
       eol
 
-    await fs.writeFile(declarationFile, content)
+    await fsp.writeFile(declarationFile, content)
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
@@ -61,7 +61,7 @@ describe('find config', () => {
       hasPagesDir: false,
       isAppDirEnabled: false,
     })
-    expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
+    expect(await fsp.readFile(declarationFile, 'utf8')).toBe(content)
   })
 
   it('should use OS EOL by default', async () => {
@@ -84,7 +84,7 @@ describe('find config', () => {
       hasPagesDir: false,
       isAppDirEnabled: false,
     })
-    expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
+    expect(await fsp.readFile(declarationFile, 'utf8')).toBe(content)
   })
 
   it('should include navigation types if app directory is enabled', async () => {
@@ -95,7 +95,7 @@ describe('find config', () => {
       isAppDirEnabled: true,
     })
 
-    await expect(fs.readFile(declarationFile, 'utf8')).resolves.not.toContain(
+    await expect(fsp.readFile(declarationFile, 'utf8')).resolves.not.toContain(
       'next/navigation-types/compat/navigation'
     )
 
@@ -106,7 +106,7 @@ describe('find config', () => {
       isAppDirEnabled: true,
     })
 
-    await expect(fs.readFile(declarationFile, 'utf8')).resolves.toContain(
+    await expect(fsp.readFile(declarationFile, 'utf8')).resolves.toContain(
       'next/navigation-types/compat/navigation'
     )
   })

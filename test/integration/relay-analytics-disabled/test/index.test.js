@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { findPort, killApp, nextBuild, nextStart } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import path, { join } from 'path'
@@ -64,7 +64,7 @@ describe('Analytics relayer (disabled)', () => {
       expect(pageFiles.length).toBeGreaterThan(1)
 
       for (const pageFile of pageFiles) {
-        const content = await fs.readFile(
+        const content = await fsp.readFile(
           path.join(appDir, '.next', pageFile),
           'utf8'
         )

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { readdir, readFile, remove } from 'fs-extra'
+import { readdir, readFile } from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
@@ -13,7 +13,7 @@ describe('Browserslist: Old', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -49,7 +49,7 @@ describe('Browserslist: New', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))

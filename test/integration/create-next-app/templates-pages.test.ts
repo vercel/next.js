@@ -7,7 +7,7 @@
  */
 
 import path from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   createNextApp,
   projectFilesShouldExist,
@@ -35,7 +35,7 @@ const startsWithoutError = async (
   usingAppDirectory: boolean = false
 ) => {
   for (const mode of modes) {
-    appDir = await fs.realpath(appDir)
+    appDir = await fsp.realpath(appDir)
     const appPort = await findPort()
     const app = await launchApp(appDir, appPort, {
       turbo: mode === 'turbo',

@@ -2,8 +2,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
-import { promises as fs } from 'fs'
-import { readJson } from 'fs-extra'
+import fsp from 'fs/promises'
 
 // TODO: `node-fetch` hangs on some of these tests in Node.js.
 // Re-enable when `node-fetch` is dropped.
@@ -50,7 +49,7 @@ describe.skip('Edge Compiler can import asset assets', () => {
       handler: 'image-file',
     })
     const buffer: Buffer = await response.buffer()
-    const image = await fs.readFile(
+    const image = await fsp.readFile(
       path.join(__dirname, './app/src/vercel.png')
     )
     expect(buffer.equals(image)).toBeTrue()
@@ -71,7 +70,7 @@ describe.skip('Edge Compiler can import asset assets', () => {
       next.testDir,
       '.next/server/middleware-manifest.json'
     )
-    const manifest = await readJson(manifestPath)
+    const manifest = JSON.parse(await fsp.readFile(manifestPath, 'utf-8'))
     const orderedAssets = manifest.functions['/api/edge'].assets.sort(
       (a, z) => {
         return String(a.name).localeCompare(z.name)

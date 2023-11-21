@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   renderViaHTTP,
@@ -27,13 +27,13 @@ describe('TypeScript Image Component', () => {
       expect(stderr).toMatch(/Failed to compile/)
       expect(stderr).toMatch(/is not assignable to type/)
       expect(code).toBe(1)
-      const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
+      const envTypes = await fsp.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
       expect(envTypes).toContain('image-types/global')
     })
 
     it('should remove global image types when disabled', async () => {
-      const content = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
+      const content = await fsp.readFile(nextConfig, 'utf8')
+      await fsp.writeFile(
         nextConfig,
         content.replace('// disableStaticImages', 'disableStaticImages')
       )
@@ -41,8 +41,8 @@ describe('TypeScript Image Component', () => {
       expect(stderr).toMatch(/Failed to compile/)
       expect(stderr).toMatch(/is not assignable to type/)
       expect(code).toBe(1)
-      await fs.writeFile(nextConfig, content)
-      const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
+      await fsp.writeFile(nextConfig, content)
+      const envTypes = await fsp.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
       expect(envTypes).not.toContain('image-types/global')
     })
   })
@@ -59,7 +59,7 @@ describe('TypeScript Image Component', () => {
     afterAll(() => killApp(app))
 
     it('should have image types when enabled', async () => {
-      const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
+      const envTypes = await fsp.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
       expect(envTypes).toContain('image-types/global')
     })
 
@@ -77,15 +77,15 @@ describe('TypeScript Image Component', () => {
 
   describe('development mode 2', () => {
     it('should remove global image types when disabled (dev)', async () => {
-      const content = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
+      const content = await fsp.readFile(nextConfig, 'utf8')
+      await fsp.writeFile(
         nextConfig,
         content.replace('// disableStaticImages', 'disableStaticImages')
       )
       const app = await launchApp(appDir, await findPort())
       await killApp(app)
-      await fs.writeFile(nextConfig, content)
-      const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
+      await fsp.writeFile(nextConfig, content)
+      const envTypes = await fsp.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
       expect(envTypes).not.toContain('image-types/global')
     })
   })

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { readdir, readFile, remove } from 'fs-extra'
+import { readdir, readFile } from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
@@ -12,7 +12,7 @@ describe('CSS Customization', () => {
     const appDir = join(fixturesDir, 'custom-configuration')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     describe('Basic CSS', () => {
@@ -81,7 +81,7 @@ describe('CSS Customization', () => {
       const appDir = join(fixturesDir, 'custom-configuration-arr')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should compile successfully', async () => {
@@ -152,7 +152,7 @@ describe('CSS Customization', () => {
       const appDir = join(fixturesDir, 'custom-configuration-loader')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should compile successfully', async () => {
@@ -184,7 +184,7 @@ describe('CSS Customization', () => {
       const appDir = join(fixturesDir, 'bad-custom-configuration')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should compile successfully', async () => {
@@ -237,7 +237,7 @@ describe('CSS Customization', () => {
       const appDir = join(fixturesDir, 'bad-custom-configuration-arr-1')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should fail the build', async () => {
@@ -254,7 +254,7 @@ describe('CSS Customization', () => {
       const appDir = join(fixturesDir, 'bad-custom-configuration-arr-2')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should fail the build', async () => {
@@ -274,7 +274,7 @@ describe('CSS Customization', () => {
       const appDir = join(fixturesDir, 'bad-custom-configuration-arr-3')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should fail the build', async () => {
@@ -291,7 +291,7 @@ describe('CSS Customization', () => {
       const appDir = join(fixturesDir, 'bad-custom-configuration-arr-4')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should fail the build', async () => {
@@ -306,7 +306,7 @@ describe('CSS Customization', () => {
       const appDir = join(fixturesDir, 'bad-custom-configuration-arr-5')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should fail the build', async () => {
@@ -323,7 +323,7 @@ describe('CSS Customization', () => {
       const appDir = join(fixturesDir, 'bad-custom-configuration-arr-6')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should fail the build', async () => {
@@ -340,7 +340,7 @@ describe('CSS Customization', () => {
       const appDir = join(fixturesDir, 'bad-custom-configuration-arr-7')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should fail the build', async () => {
@@ -357,7 +357,7 @@ describe('CSS Customization', () => {
       const appDir = join(fixturesDir, 'bad-custom-configuration-arr-8')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should fail the build', async () => {
@@ -374,7 +374,7 @@ describe('CSS Customization', () => {
       const appDir = join(fixturesDir, 'bad-custom-configuration-func')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should fail the build', async () => {

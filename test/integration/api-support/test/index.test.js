@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import AbortController from 'abort-controller'
 import {
@@ -32,7 +32,7 @@ function runTests(dev = false) {
 
     const buildId = dev
       ? 'development'
-      : await fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
+      : await fsp.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
 
     const res2 = await fetchViaHTTP(
       appPort,
@@ -607,7 +607,7 @@ function runTests(dev = false) {
 
     it('should build api routes', async () => {
       const pagesManifest = JSON.parse(
-        await fs.readFile(
+        await fsp.readFile(
           join(appDir, `.next/${mode}/pages-manifest.json`),
           'utf8'
         )
@@ -620,7 +620,7 @@ function runTests(dev = false) {
       expect(json).toEqual({ post: 'nextjs' })
 
       const buildManifest = JSON.parse(
-        await fs.readFile(join(appDir, '.next/build-manifest.json'), 'utf8')
+        await fsp.readFile(join(appDir, '.next/build-manifest.json'), 'utf8')
       )
       expect(
         Object.keys(buildManifest.pages).includes('/api-conflict')

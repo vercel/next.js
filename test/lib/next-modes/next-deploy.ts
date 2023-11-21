@@ -1,7 +1,7 @@
 import os from 'os'
 import path from 'path'
 import execa from 'execa'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { NextInstance } from './base'
 import {
   TEST_PROJECT_NAME,
@@ -40,8 +40,8 @@ export class NextDeployInstance extends NextInstance {
     // create auth file in CI
     if (process.env.NEXT_TEST_JOB) {
       const vcConfigDir = path.join(os.homedir(), '.vercel')
-      await fs.ensureDir(vcConfigDir)
-      await fs.writeFile(
+      await fsp.mkdir(vcConfigDir, { recursive: true })
+      await fsp.writeFile(
         path.join(vcConfigDir, 'auth.json'),
         JSON.stringify({ token: TEST_TOKEN })
       )

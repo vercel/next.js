@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import assert from 'assert'
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -24,14 +25,10 @@ const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
 function runTests(isDev) {
   if (!isDev) {
     it('should output prerendered index routes correctly', async () => {
-      expect(await fs.exists(join(buildPagesDir, 'pages/en-US.html'))).toBe(
-        true
-      )
-      expect(await fs.exists(join(buildPagesDir, 'pages/en-US.json'))).toBe(
-        true
-      )
-      expect(await fs.exists(join(buildPagesDir, 'pages/fr.html'))).toBe(true)
-      expect(await fs.exists(join(buildPagesDir, 'pages/fr.json'))).toBe(true)
+      expect(fs.existsSync(join(buildPagesDir, 'pages/en-US.html'))).toBe(true)
+      expect(fs.existsSync(join(buildPagesDir, 'pages/en-US.json'))).toBe(true)
+      expect(fs.existsSync(join(buildPagesDir, 'pages/fr.html'))).toBe(true)
+      expect(fs.existsSync(join(buildPagesDir, 'pages/fr.json'))).toBe(true)
     })
   }
 
@@ -223,7 +220,7 @@ function runTests(isDev) {
 describe('i18n Support Root Catch-all', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -233,7 +230,7 @@ describe('i18n Support Root Catch-all', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)

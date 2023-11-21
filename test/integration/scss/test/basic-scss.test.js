@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { readdir, readFile, remove } from 'fs-extra'
+import { readdir, readFile } from 'fs/promises'
 import {
   File,
   findPort,
@@ -26,7 +26,7 @@ describe('SCSS Support', () => {
       const mockFile = join(appDir, 'mock.js')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
       it('should be a friendly error successfully', async () => {
         const { code, stderr } = await nextBuild(appDir, [], {
@@ -58,7 +58,7 @@ describe('SCSS Support', () => {
       const appDir = join(fixturesDir, 'compilation-and-prefixing')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should compile successfully', async () => {
@@ -129,7 +129,7 @@ describe('SCSS Support', () => {
       let stdout
       let code
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         ;({ code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
         }))
@@ -183,7 +183,7 @@ describe('SCSS Support', () => {
       const appDir = join(fixturesDir, 'multi-page')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       let appPort

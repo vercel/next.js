@@ -1,7 +1,8 @@
 const os = require('os')
 const path = require('path')
 const execa = require('execa')
-const fs = require('fs-extra')
+const fs = require('fs')
+const fsp = require('fs/promises')
 const childProcess = require('child_process')
 const { randomBytes } = require('crypto')
 const { linkPackages } =
@@ -39,7 +40,9 @@ async function createNextInstall({
   return await parentSpan
     .traceChild('createNextInstall')
     .traceAsyncFn(async (rootSpan) => {
-      const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
+      const tmpDir = await fsp.realpath(
+        process.env.NEXT_TEST_DIR || os.tmpdir()
+      )
       const origRepoDir = path.join(__dirname, '../../')
       const installDir = path.join(
         tmpDir,
@@ -67,7 +70,7 @@ async function createNextInstall({
           .traceAsyncFn(async () => {
             // ensure swc binary is present in the native folder if
             // not already built
-            for (const folder of await fs.readdir(
+            for (const folder of await fsp.readdir(
               path.join(origRepoDir, 'node_modules/@next')
             )) {
               if (folder.startsWith('swc-')) {
@@ -80,12 +83,12 @@ async function createNextInstall({
                   origRepoDir,
                   'packages/next-swc/native'
                 )
-                await fs.copy(swcPkgPath, outputPath, {
+                await fsp.cp(swcPkgPath, outputPath, {
                   filter: (item) => {
                     return (
                       item === swcPkgPath ||
                       (item.endsWith('.node') &&
-                        !fs.pathExistsSync(
+                        !fs.existsSync(
                           path.join(outputPath, path.basename(item))
                         ))
                     )
@@ -99,7 +102,7 @@ async function createNextInstall({
           await rootSpan
             .traceChild(`copy ${item} to temp dir`)
             .traceAsyncFn(() =>
-              fs.copy(
+              fsp.cp(
                 path.join(origRepoDir, item),
                 path.join(tmpRepoDir, item),
                 {
@@ -134,8 +137,8 @@ async function createNextInstall({
         }, {}),
       }
 
-      await fs.ensureDir(installDir)
-      await fs.writeFile(
+      await fsp.mkdir(installDir, { recursive: true })
+      await fsp.writeFile(
         path.join(installDir, 'package.json'),
         JSON.stringify(
           {
@@ -173,7 +176,7 @@ async function createNextInstall({
       }
 
       if (!keepRepoDir && tmpRepoDir) {
-        await fs.remove(tmpRepoDir)
+        await fsp.rm(tmpRepoDir, { recursive: true, force: true })
       }
 
       return {

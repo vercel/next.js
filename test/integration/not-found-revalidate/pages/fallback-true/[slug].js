@@ -1,5 +1,5 @@
 import path from 'path'
-import fs from 'fs-extra'
+import fs from 'fs'
 import { useRouter } from 'next/router'
 
 export default function Page(props) {
@@ -22,7 +22,7 @@ export const getStaticProps = async ({ params }) => {
 
   const dir = path.join(process.cwd(), '.tmp/fallback-true', slug)
 
-  if (await fs.exists(dir)) {
+  if (fs.existsSync(dir)) {
     return {
       props: {
         params,
@@ -34,7 +34,7 @@ export const getStaticProps = async ({ params }) => {
     }
   }
 
-  await fs.ensureDir(dir)
+  await fsp.mkdir(dir, { recursive: true })
 
   return {
     notFound: true,
@@ -43,7 +43,10 @@ export const getStaticProps = async ({ params }) => {
 }
 
 export const getStaticPaths = async () => {
-  await fs.remove(path.join(process.cwd(), '.tmp/fallback-true'))
+  await fsp.rm(path.join(process.cwd(), '.tmp/fallback-true'), {
+    recursive: true,
+    force: true,
+  })
 
   return {
     paths: [],

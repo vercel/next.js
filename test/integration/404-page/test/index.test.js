@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import { move } from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   killApp,
@@ -61,8 +62,11 @@ const runTests = (mode = 'server') => {
     })
 
     it('should add /404 to pages-manifest correctly', async () => {
-      const manifest = await fs.readJSON(
-        join(appDir, '.next', mode, 'pages-manifest.json')
+      const manifest = JSON.parse(
+        await fsp.readFile(
+          join(appDir, '.next', mode, 'pages-manifest.json'),
+          'utf-8'
+        )
       )
       expect('/404' in manifest).toBe(true)
     })
@@ -81,12 +85,12 @@ describe('404 Page Support', () => {
   })
   describe('dev mode 2', () => {
     it('falls back to _error correctly without pages/404', async () => {
-      await fs.move(pages404, `${pages404}.bak`)
+      await move(pages404, `${pages404}.bak`)
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
       const res = await fetchViaHTTP(appPort, '/abc')
 
-      await fs.move(`${pages404}.bak`, pages404)
+      await move(`${pages404}.bak`, pages404)
       await killApp(app)
 
       expect(res.status).toBe(404)
@@ -94,8 +98,8 @@ describe('404 Page Support', () => {
     })
 
     it('shows error with getInitialProps in pages/404 dev', async () => {
-      await fs.move(pages404, `${pages404}.bak`)
-      await fs.writeFile(
+      await move(pages404, `${pages404}.bak`)
+      await fsp.writeFile(
         pages404,
         `
         const page = () => 'custom 404 page'
@@ -117,14 +121,14 @@ describe('404 Page Support', () => {
       } finally {
         await killApp(app)
 
-        await fs.remove(pages404)
-        await fs.move(`${pages404}.bak`, pages404)
+        await fsp.rm(pages404, { recursive: true, force: true })
+        await move(`${pages404}.bak`, pages404)
       }
     })
 
     it('does not show error with getStaticProps in pages/404 dev', async () => {
-      await fs.move(pages404, `${pages404}.bak`)
-      await fs.writeFile(
+      await move(pages404, `${pages404}.bak`)
+      await fsp.writeFile(
         pages404,
         `
         const page = () => 'custom 404 page'
@@ -145,15 +149,15 @@ describe('404 Page Support', () => {
 
       await killApp(app)
 
-      await fs.remove(pages404)
-      await fs.move(`${pages404}.bak`, pages404)
+      await fsp.rm(pages404, { recursive: true, force: true })
+      await move(`${pages404}.bak`, pages404)
 
       expect(stderr).not.toMatch(gip404Err)
     })
 
     it('shows error with getServerSideProps in pages/404 dev', async () => {
-      await fs.move(pages404, `${pages404}.bak`)
-      await fs.writeFile(
+      await move(pages404, `${pages404}.bak`)
+      await fsp.writeFile(
         pages404,
         `
         const page = () => 'custom 404 page'
@@ -174,8 +178,8 @@ describe('404 Page Support', () => {
 
       await killApp(app)
 
-      await fs.remove(pages404)
-      await fs.move(`${pages404}.bak`, pages404)
+      await fsp.rm(pages404, { recursive: true, force: true })
+      await move(`${pages404}.bak`, pages404)
 
       expect(stderr).toMatch(gip404Err)
     })
@@ -192,8 +196,8 @@ describe('404 Page Support', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('should not cache for custom 404 page with gssp and revalidate disabled', async () => {
-      await fs.move(pages404, `${pages404}.bak`)
-      await fs.writeFile(
+      await move(pages404, `${pages404}.bak`)
+      await fsp.writeFile(
         pages404,
         `
       const page = () => 'custom 404 page'
@@ -206,8 +210,8 @@ describe('404 Page Support', () => {
       app = await nextStart(appDir, appPort)
       const cache404 = await getCacheHeader(appPort, '/404')
       const cacheNext = await getCacheHeader(appPort, '/_next/abc')
-      await fs.remove(pages404)
-      await fs.move(`${pages404}.bak`, pages404)
+      await fsp.rm(pages404, { recursive: true, force: true })
+      await move(`${pages404}.bak`, pages404)
       await killApp(app)
 
       expect(cache404).toBe(
@@ -219,8 +223,8 @@ describe('404 Page Support', () => {
     })
 
     it('should not cache for custom 404 page with gssp and revalidate enabled', async () => {
-      await fs.move(pages404, `${pages404}.bak`)
-      await fs.writeFile(
+      await move(pages404, `${pages404}.bak`)
+      await fsp.writeFile(
         pages404,
         `
       const page = () => 'custom 404 page'
@@ -233,8 +237,8 @@ describe('404 Page Support', () => {
       app = await nextStart(appDir, appPort)
       const cache404 = await getCacheHeader(appPort, '/404')
       const cacheNext = await getCacheHeader(appPort, '/_next/abc')
-      await fs.remove(pages404)
-      await fs.move(`${pages404}.bak`, pages404)
+      await fsp.rm(pages404, { recursive: true, force: true })
+      await move(`${pages404}.bak`, pages404)
       await killApp(app)
 
       expect(cache404).toBe(
@@ -258,8 +262,8 @@ describe('404 Page Support', () => {
     })
 
     it('shows error with getInitialProps in pages/404 build', async () => {
-      await fs.move(pages404, `${pages404}.bak`)
-      await fs.writeFile(
+      await move(pages404, `${pages404}.bak`)
+      await fsp.writeFile(
         pages404,
         `
         const page = () => 'custom 404 page'
@@ -268,16 +272,16 @@ describe('404 Page Support', () => {
       `
       )
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-      await fs.remove(pages404)
-      await fs.move(`${pages404}.bak`, pages404)
+      await fsp.rm(pages404, { recursive: true, force: true })
+      await move(`${pages404}.bak`, pages404)
 
       expect(stderr).toMatch(gip404Err)
       expect(code).toBe(1)
     })
 
     it('does not show error with getStaticProps in pages/404 build', async () => {
-      await fs.move(pages404, `${pages404}.bak`)
-      await fs.writeFile(
+      await move(pages404, `${pages404}.bak`)
+      await fsp.writeFile(
         pages404,
         `
         const page = () => 'custom 404 page'
@@ -286,16 +290,16 @@ describe('404 Page Support', () => {
       `
       )
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-      await fs.remove(pages404)
-      await fs.move(`${pages404}.bak`, pages404)
+      await fsp.rm(pages404, { recursive: true, force: true })
+      await move(`${pages404}.bak`, pages404)
 
       expect(stderr).not.toMatch(gip404Err)
       expect(code).toBe(0)
     })
 
     it('shows error with getServerSideProps in pages/404 build', async () => {
-      await fs.move(pages404, `${pages404}.bak`)
-      await fs.writeFile(
+      await move(pages404, `${pages404}.bak`)
+      await fsp.writeFile(
         pages404,
         `
         const page = () => 'custom 404 page'
@@ -304,8 +308,8 @@ describe('404 Page Support', () => {
       `
       )
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-      await fs.remove(pages404)
-      await fs.move(`${pages404}.bak`, pages404)
+      await fsp.rm(pages404, { recursive: true, force: true })
+      await move(`${pages404}.bak`, pages404)
 
       expect(stderr).toMatch(gip404Err)
       expect(code).toBe(1)

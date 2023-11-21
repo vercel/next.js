@@ -2,7 +2,7 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 import { Request } from 'playwright-chromium'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 
 const GENERIC_RSC_ERROR =
@@ -373,7 +373,7 @@ createNextDescribe(
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
-          await fs.readdir(
+          await fsp.readdir(
             join(next.testDir, '.next', 'static', 'chunks', 'app', 'client')
           )
         ).find((f) => f.endsWith('.js.map'))
@@ -421,7 +421,7 @@ createNextDescribe(
 
       it('should bundle external libraries if they are on the action layer', async () => {
         await next.fetch('/client')
-        const pageBundle = await fs.readFile(
+        const pageBundle = await fsp.readFile(
           join(next.testDir, '.next', 'server', 'app', 'client', 'page.js')
         )
         if (isTurbopack) {
@@ -430,7 +430,7 @@ createNextDescribe(
             .matchAll(/loadChunk\("([^"]*)"\)/g)
           // @ts-ignore
           const reads = [...chunkPaths].map(async (match) => {
-            const bundle = await fs.readFile(
+            const bundle = await fsp.readFile(
               join(next.testDir, '.next', ...match[1].split(/[\\/]/g))
             )
             return bundle.toString().includes('node_modules/nanoid/index.js')

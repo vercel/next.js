@@ -12,7 +12,7 @@ import http from 'http'
 import httpProxy from 'http-proxy'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { readFile } from 'fs-extra'
+import { readFile } from 'fs/promises'
 
 const appDir = join(__dirname, '../')
 let app

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { BUILD_ID_FILE, BUILD_MANIFEST } from 'next/constants'
 import {
@@ -23,8 +23,8 @@ describe('distDir', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await fs.remove(join(appDir, '.next'))
-          await fs.remove(join(appDir, 'dist'))
+          await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
+          await fsp.rm(join(appDir, 'dist'), { recursive: true, force: true })
           await nextBuild(appDir)
           appPort = await findPort()
           app = await nextStart(appDir, appPort)
@@ -38,11 +38,11 @@ describe('distDir', () => {
 
         it('should build the app within the given `dist` directory', async () => {
           expect(
-            await fs.exists(join(__dirname, `/../dist/${BUILD_ID_FILE}`))
+            fs.existsSync(join(__dirname, `/../dist/${BUILD_ID_FILE}`))
           ).toBeTruthy()
         })
         it('should not build the app within the default `.next` directory', async () => {
-          expect(await fs.exists(join(__dirname, '/../.next'))).toBeFalsy()
+          expect(fs.existsSync(join(__dirname, '/../.next'))).toBeFalsy()
         })
       }
     )
@@ -50,8 +50,8 @@ describe('distDir', () => {
 
   describe('dev mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await fs.remove(join(appDir, 'dist'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
+      await fsp.rm(join(appDir, 'dist'), { recursive: true, force: true })
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -64,19 +64,19 @@ describe('distDir', () => {
 
     it('should build the app within the given `dist` directory', async () => {
       expect(
-        await fs.exists(join(__dirname, `/../dist/${BUILD_MANIFEST}`))
+        fs.existsSync(join(__dirname, `/../dist/${BUILD_MANIFEST}`))
       ).toBeTruthy()
     })
     it('should not build the app within the default `.next` directory', async () => {
-      expect(await fs.exists(join(__dirname, '/../.next'))).toBeFalsy()
+      expect(fs.existsSync(join(__dirname, '/../.next'))).toBeFalsy()
     })
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('should throw error with invalid distDir', async () => {
-      const origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(nextConfig, `module.exports = { distDir: '' }`)
+      const origNextConfig = await fsp.readFile(nextConfig, 'utf8')
+      await fsp.writeFile(nextConfig, `module.exports = { distDir: '' }`)
       const { stderr } = await nextBuild(appDir, [], { stderr: true })
-      await fs.writeFile(nextConfig, origNextConfig)
+      await fsp.writeFile(nextConfig, origNextConfig)
 
       expect(stderr).toContain(
         'Invalid distDir provided, distDir can not be an empty string. Please remove this config or set it to undefined'
@@ -84,13 +84,13 @@ describe('distDir', () => {
     })
 
     it('should handle undefined distDir', async () => {
-      const origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
+      const origNextConfig = await fsp.readFile(nextConfig, 'utf8')
+      await fsp.writeFile(
         nextConfig,
         `module.exports = { distDir: undefined, eslint: { ignoreDuringBuilds: true } }`
       )
       const { stderr } = await nextBuild(appDir, [], { stderr: true })
-      await fs.writeFile(nextConfig, origNextConfig)
+      await fsp.writeFile(nextConfig, origNextConfig)
 
       expect(stderr.length).toBe(0)
     })

@@ -5,7 +5,7 @@ import {
   launchApp,
   renderViaHTTP,
 } from 'next-test-utils'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 
 describe('turbopack unsupported features log', () => {
@@ -38,7 +38,7 @@ describe('turbopack unsupported features log', () => {
 
     it('should not warn with empty next.config.js', async () => {
       let output = ''
-      await fs.writeFile(nextConfigPath, `module.exports = {}`)
+      await fsp.writeFile(nextConfigPath, `module.exports = {}`)
       const appPort = await findPort()
       const app = await launchApp(appDir, appPort, {
         onStdout(msg) {
@@ -58,13 +58,13 @@ describe('turbopack unsupported features log', () => {
         expect(await renderViaHTTP(appPort, '/')).toContain('hello world')
       } finally {
         await killApp(app).catch(() => {})
-        await fs.remove(nextConfigPath)
+        await fsp.rm(nextConfigPath, { recursive: true, force: true })
       }
     })
 
     it('should warn with next.config.js with unsupported field', async () => {
       let output = ''
-      await fs.writeFile(
+      await fsp.writeFile(
         nextConfigPath,
         `module.exports = {
           experimental: {
@@ -92,7 +92,7 @@ describe('turbopack unsupported features log', () => {
         }, /success/)
       } finally {
         await killApp(app).catch(() => {})
-        await fs.remove(nextConfigPath)
+        await fsp.rm(nextConfigPath, { recursive: true, force: true })
       }
     })
   } else {

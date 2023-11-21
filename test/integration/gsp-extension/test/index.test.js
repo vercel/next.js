@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   fetchViaHTTP,
@@ -20,7 +21,7 @@ const fileNames = ['1', '2.ext', '3.html']
 describe('GS(S)P with file extension', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       const { code } = await nextBuild(appDir)
       if (code !== 0) throw new Error(`build failed with code ${code}`)
 
@@ -46,7 +47,7 @@ describe('GS(S)P with file extension', () => {
     })
 
     it('should contain extension in name of json files in _next/data', async () => {
-      const buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      const buildId = await fsp.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       const requests = fileNames.map((name) => {
         const pathname = `/_next/data/${buildId}/${name}.json`
         return fetchViaHTTP(appPort, pathname).then((r) => r.json())

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 
@@ -20,13 +20,13 @@ describe('Invalid Page automatic static optimization', () => {
 
     it('handles non-error correctly', async () => {
       const testPage = path.join(appDir, 'pages/[slug].js')
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'pages'),
         path.join(appDir, 'pages-bak')
       )
 
-      await fs.ensureDir(path.join(appDir, 'pages'))
-      await fs.writeFile(
+      await fsp.mkdir(path.join(appDir, 'pages', { recursive: true }))
+      await fsp.writeFile(
         testPage,
         `
       export default function Page() {
@@ -52,8 +52,11 @@ describe('Invalid Page automatic static optimization', () => {
         expect(stderr).toMatch(/invalid API token/)
         expect(stderr).not.toMatch(/without a React Component/)
       } finally {
-        await fs.remove(path.join(appDir, 'pages'))
-        await fs.rename(
+        await fsp.rm(path.join(appDir, 'pages'), {
+          recursive: true,
+          force: true,
+        })
+        await fsp.rename(
           path.join(appDir, 'pages-bak'),
           path.join(appDir, 'pages')
         )

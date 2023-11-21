@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { nextBuild, getPageFileFromBuildManifest } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
@@ -20,7 +20,7 @@ function runTests() {
 
   it('correctly generated the source map', async () => {
     const map = JSON.parse(
-      await fs.readFile(
+      await fsp.readFile(
         join(
           appDir,
           '.next',

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   fetchViaHTTP,
@@ -39,7 +39,7 @@ describe('dev mode', () => {
     await nextBuild(appDir)
 
     const outdir = join(__dirname, '..', 'out')
-    await fs.remove(outdir).catch(() => {})
+    await fsp.rm(outdir).catch(() => {}, { recursive: true, force: true })
 
     appPort = await findPort()
     app = await nextStart(appDir, appPort)

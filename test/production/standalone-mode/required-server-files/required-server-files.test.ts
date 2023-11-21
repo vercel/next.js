@@ -1,5 +1,7 @@
 import glob from 'glob'
-import fs from 'fs-extra'
+import { move } from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import { nanoid } from 'nanoid'
@@ -88,13 +90,13 @@ describe('required server files', () => {
     requiredFilesManifest = JSON.parse(
       await next.readFile('.next/required-server-files.json')
     )
-    await fs.move(
+    await move(
       join(next.testDir, '.next/standalone'),
       join(next.testDir, 'standalone')
     )
-    for (const file of await fs.readdir(next.testDir)) {
+    for (const file of await fsp.readdir(next.testDir)) {
       if (file !== 'standalone') {
-        await fs.remove(join(next.testDir, file))
+        await fsp.rm(join(next.testDir, file), { recursive: true, force: true })
         console.log('removed', file)
       }
     }
@@ -105,15 +107,18 @@ describe('required server files', () => {
 
     for (const file of files) {
       if (file.endsWith('.json') || file.endsWith('.html')) {
-        await fs.remove(join(next.testDir, '.next/server', file))
+        await fsp.rm(join(next.testDir, '.next/server', file), {
+          recursive: true,
+          force: true,
+        })
       }
     }
 
     const testServer = join(next.testDir, 'standalone/server.js')
-    await fs.writeFile(
+    await fsp.writeFile(
       testServer,
       (
-        await fs.readFile(testServer, 'utf8')
+        await fsp.readFile(testServer, 'utf8')
       ).replace('port:', `minimalMode: ${minimalMode},port:`)
     )
     appPort = await findPort()
@@ -299,30 +304,28 @@ describe('required server files', () => {
 
   it('`compress` should be `false` in nextEnv', async () => {
     expect(
-      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+      fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
     ).toContain('"compress":false')
   })
 
   it('`incrementalCacheHandlerPath` should have correct path', async () => {
     expect(
-      await fs.pathExists(join(next.testDir, 'standalone/cache-handler.js'))
+      fs.existsSync(join(next.testDir, 'standalone/cache-handler.js'))
     ).toBe(true)
 
     expect(
-      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+      fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
     ).toContain('"incrementalCacheHandlerPath":"../cache-handler.js"')
   })
 
   it('should output middleware correctly', async () => {
     expect(
-      await fs.pathExists(
+      fs.existsSync(
         join(next.testDir, 'standalone/.next/server/edge-runtime-webpack.js')
       )
     ).toBe(true)
     expect(
-      await fs.pathExists(
-        join(next.testDir, 'standalone/.next/server/middleware.js')
-      )
+      fs.existsSync(join(next.testDir, 'standalone/.next/server/middleware.js'))
     ).toBe(true)
   })
 
@@ -1282,10 +1285,10 @@ describe('required server files', () => {
     const standaloneDir = join(next.testDir, 'standalone')
 
     const testServer = join(standaloneDir, 'server.js')
-    await fs.writeFile(
+    await fsp.writeFile(
       testServer,
       (
-        await fs.readFile(testServer, 'utf8')
+        await fsp.readFile(testServer, 'utf8')
       ).replace('minimalMode: true', 'minimalMode: false')
     )
     appPort = await findPort()

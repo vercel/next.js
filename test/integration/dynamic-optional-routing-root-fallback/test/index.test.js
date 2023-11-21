@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   check,
   findPort,
@@ -53,7 +53,7 @@ const nextConfig = join(appDir, 'next.config.js')
 describe('Dynamic Optional Routing Root Fallback', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
 
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -64,12 +64,12 @@ describe('Dynamic Optional Routing Root Fallback', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
 
-      const curConfig = await fs.readFile(nextConfig, 'utf8')
+      const curConfig = await fsp.readFile(nextConfig, 'utf8')
 
       if (curConfig.includes('target')) {
-        await fs.writeFile(nextConfig, `module.exports = {}`)
+        await fsp.writeFile(nextConfig, `module.exports = {}`)
       }
       await nextBuild(appDir)
 

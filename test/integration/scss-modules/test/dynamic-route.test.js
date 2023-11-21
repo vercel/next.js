@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { readdir, readFile, remove } from 'fs-extra'
+import { readdir, readFile } from 'fs/promises'
 import { findPort, killApp, nextBuild, nextStart } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -17,7 +17,7 @@ describe('Dynamic Route CSS Module Usage', () => {
     let appPort
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -67,7 +67,7 @@ describe('Catch-all Route CSS Module Usage', () => {
     let appPort
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))

@@ -1,6 +1,6 @@
 import url from 'url'
 import http from 'http'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { runTests, locales, nonDomainLocales } from './shared'
@@ -45,7 +45,7 @@ describe('i18n Support', () => {
       isDev: true,
     }
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
       curCtx.appPort = await findPort()
       curCtx.app = await launchApp(appDir, curCtx.appPort)
@@ -60,13 +60,13 @@ describe('i18n Support', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
       await nextBuild(appDir)
       ctx.appPort = await findPort()
       ctx.app = await nextStart(appDir, ctx.appPort)
       ctx.buildPagesDir = join(appDir, '.next/server/pages')
-      ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      ctx.buildId = await fsp.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
       await killApp(ctx.app)
@@ -77,7 +77,7 @@ describe('i18n Support', () => {
 
     it('should have pre-rendered /500 correctly', async () => {
       for (const locale of locales) {
-        const content = await fs.readFile(
+        const content = await fsp.readFile(
           join(appDir, '.next/server/pages/', locale, '500.html'),
           'utf8'
         )
@@ -92,7 +92,7 @@ describe('i18n Support', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await fs.remove(join(appDir, '.next'))
+          await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
           nextConfig.replace('// localeDetection', 'localeDetection')
 
           await nextBuild(appDir)
@@ -105,8 +105,8 @@ describe('i18n Support', () => {
         })
 
         it('should have localeDetection in routes-manifest', async () => {
-          const routesManifest = await fs.readJSON(
-            join(appDir, '.next/routes-manifest.json')
+          const routesManifest = JSON.parse(
+            await fsp.readFile(join(appDir, '.next/routes-manifest.json'))
           )
 
           expect(routesManifest.i18n).toEqual({
@@ -424,7 +424,7 @@ describe('i18n Support', () => {
         isDev: true,
       }
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         nextConfig.replace('// trailingSlash', 'trailingSlash')
 
         curCtx.appPort = await findPort()
@@ -444,7 +444,7 @@ describe('i18n Support', () => {
           ...ctx,
         }
         beforeAll(async () => {
-          await fs.remove(join(appDir, '.next'))
+          await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
           nextConfig.replace('// trailingSlash', 'trailingSlash')
 
           await nextBuild(appDir)
@@ -491,7 +491,7 @@ describe('i18n Support', () => {
         isDev: true,
       }
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
 
         curCtx.appPort = await findPort()
@@ -509,7 +509,7 @@ describe('i18n Support', () => {
       () => {
         const curCtx = { ...ctx }
         beforeAll(async () => {
-          await fs.remove(join(appDir, '.next'))
+          await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
           nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
 
           await nextBuild(appDir)

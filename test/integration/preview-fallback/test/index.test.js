@@ -2,7 +2,7 @@
 
 import cheerio from 'cheerio'
 import cookie from 'cookie'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -75,7 +75,7 @@ function runTests(isDev) {
     })
 
     if (!isDev) {
-      const fsHtml = await fs.readFile(getCacheFile('index.html'))
+      const fsHtml = await fsp.readFile(getCacheFile('index.html'))
       const fsProps = JSON.parse(cheerio.load(fsHtml)('#props').text())
 
       expect(fsProps).toEqual({
@@ -117,7 +117,7 @@ function runTests(isDev) {
     })
 
     if (!isDev) {
-      const fsHtml = await fs.readFile(getCacheFile('no-fallback/first.html'))
+      const fsHtml = await fsp.readFile(getCacheFile('no-fallback/first.html'))
       const fsProps = JSON.parse(cheerio.load(fsHtml)('#props').text())
 
       expect(fsProps).toEqual({
@@ -155,9 +155,7 @@ function runTests(isDev) {
     })
 
     if (!isDev) {
-      expect(await fs.exists(getCacheFile('no-fallback/second.html'))).toBe(
-        false
-      )
+      expect(fs.exists(getCacheFile('no-fallback/second.html'))).toBe(false)
     }
 
     const res2 = await fetchViaHTTP(appPort, '/no-fallback/second')
@@ -278,7 +276,7 @@ describe('Preview mode with fallback pages', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)

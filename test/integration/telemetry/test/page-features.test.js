@@ -1,5 +1,6 @@
 import path from 'path'
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import {
   check,
   findPort,
@@ -12,8 +13,8 @@ import {
 const appDir = path.join(__dirname, '..')
 
 const setupAppDir = async () => {
-  await fs.mkdir(path.join(__dirname, '../app'))
-  await fs.writeFile(
+  await fsp.mkdir(path.join(__dirname, '../app'))
+  await fsp.writeFile(
     path.join(__dirname, '../app/layout.js'),
     `
       export default function RootLayout({ children }) {
@@ -24,14 +25,17 @@ const setupAppDir = async () => {
       }
     `
   )
-  await fs.ensureFile(path.join(__dirname, '../app/hello/page.js'))
-  await fs.writeFile(
+  await fsp.ensureFile(path.join(__dirname, '../app/hello/page.js'))
+  await fsp.writeFile(
     path.join(__dirname, '../app/hello/page.js'),
     'export default function Page() { return "hello world" }'
   )
 
   return async function teardownAppDir() {
-    await fs.remove(path.join(__dirname, '../app'))
+    await fsp.rm(path.join(__dirname, '../app'), {
+      recursive: true,
+      force: true,
+    })
   }
 }
 
@@ -112,9 +116,9 @@ describe('page features telemetry', () => {
         expect(event1).toMatch(/"pagesDir": true/)
         expect(event1).toMatch(/"turboFlag": true/)
 
-        expect(
-          await fs.pathExists(path.join(appDir, '.next/_events.json'))
-        ).toBe(false)
+        expect(fs.existsSync(path.join(appDir, '.next/_events.json'))).toBe(
+          false
+        )
       } finally {
         await teardown()
       }
@@ -155,9 +159,9 @@ describe('page features telemetry', () => {
         expect(event1).toMatch(/"pagesDir": true/)
         expect(event1).toMatch(/"appDir": true/)
 
-        expect(
-          await fs.pathExists(path.join(appDir, '.next/_events.json'))
-        ).toBe(false)
+        expect(fs.existsSync(path.join(appDir, '.next/_events.json'))).toBe(
+          false
+        )
       } finally {
         await teardown()
       }
@@ -169,8 +173,8 @@ describe('page features telemetry', () => {
           const teardown = await setupAppDir()
 
           try {
-            await fs.ensureFile(path.join(__dirname, '../app/ssr/page.js'))
-            await fs.writeFile(
+            await fsp.ensureFile(path.join(__dirname, '../app/ssr/page.js'))
+            await fsp.writeFile(
               path.join(__dirname, '../app/ssr/page.js'),
               `
           export const revalidate = 0
@@ -179,8 +183,10 @@ describe('page features telemetry', () => {
           }
         `
             )
-            await fs.ensureFile(path.join(__dirname, '../app/edge-ssr/page.js'))
-            await fs.writeFile(
+            await fsp.ensureFile(
+              path.join(__dirname, '../app/edge-ssr/page.js')
+            )
+            await fsp.writeFile(
               path.join(__dirname, '../app/edge-ssr/page.js'),
               `
           export const runtime = 'experimental-edge'
@@ -189,10 +195,10 @@ describe('page features telemetry', () => {
           }
         `
             )
-            await fs.ensureFile(
+            await fsp.ensureFile(
               path.join(__dirname, '../app/app-ssg/[slug]/page.js')
             )
-            await fs.writeFile(
+            await fsp.writeFile(
               path.join(__dirname, '../app/app-ssg/[slug]/page.js'),
               `
           export function generateStaticParams() {
@@ -258,12 +264,12 @@ describe('page features telemetry', () => {
 
         it('detect with reportWebVitals correctly for `next build`', async () => {
           // Case 2: When _app.js exist with reportWebVitals function.
-          await fs.utimes(
+          await fsp.utimes(
             path.join(appDir, 'pages', '_app_withreportwebvitals.empty'),
             new Date(),
             new Date()
           )
-          await fs.rename(
+          await fsp.rename(
             path.join(appDir, 'pages', '_app_withreportwebvitals.empty'),
             path.join(appDir, 'pages', '_app.js')
           )
@@ -273,7 +279,7 @@ describe('page features telemetry', () => {
             env: { NEXT_TELEMETRY_DEBUG: 1 },
           })
 
-          await fs.rename(
+          await fsp.rename(
             path.join(appDir, 'pages', '_app.js'),
             path.join(appDir, 'pages', '_app_withreportwebvitals.empty')
           )
@@ -292,12 +298,12 @@ describe('page features telemetry', () => {
 
         it('detect without reportWebVitals correctly for `next build`', async () => {
           // Case 3: When _app.js exist without reportWebVitals function.
-          await fs.utimes(
+          await fsp.utimes(
             path.join(appDir, 'pages', '_app_withoutreportwebvitals.empty'),
             new Date(),
             new Date()
           )
-          await fs.rename(
+          await fsp.rename(
             path.join(appDir, 'pages', '_app_withoutreportwebvitals.empty'),
             path.join(appDir, 'pages', '_app.js')
           )
@@ -307,7 +313,7 @@ describe('page features telemetry', () => {
             env: { NEXT_TELEMETRY_DEBUG: 1 },
           })
 
-          await fs.rename(
+          await fsp.rename(
             path.join(appDir, 'pages', '_app.js'),
             path.join(appDir, 'pages', '_app_withoutreportwebvitals.empty')
           )

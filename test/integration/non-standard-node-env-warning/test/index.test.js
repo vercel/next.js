@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import glob from 'glob'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   findPort,
@@ -93,7 +93,7 @@ describe('Non-Standard NODE_ENV', () => {
       expect(staticFiles.length).toBeGreaterThan(0)
 
       for (const file of staticFiles) {
-        const content = await fs.readFile(
+        const content = await fsp.readFile(
           join(appDir, '.next/static', file),
           'utf8'
         )

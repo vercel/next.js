@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import cheerio from 'cheerio'
-import fs, { existsSync } from 'fs-extra'
+import { readFile } from 'fs/promises'
+import { existsSync } from 'fs'
 import globOriginal from 'glob'
 import {
   renderViaHTTP,
@@ -332,7 +333,7 @@ createNextDescribe(
         throw new Error('could not find main js chunk')
       }
 
-      const content = await fs.readFile(
+      const content = await readFile(
         join(next.testDir, '.next/static/chunks', globResult[0]),
         'utf8'
       )

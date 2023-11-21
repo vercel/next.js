@@ -1,6 +1,6 @@
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 
 const nextConfigPath = path.join(__dirname, '../next.config.js')
 
@@ -42,12 +42,12 @@ describe('next.config.js validation', () => {
     ])(
       'it should validate correctly for $name',
       async ({ outputs, configContent }) => {
-        await fs.writeFile(nextConfigPath, configContent)
+        await fsp.writeFile(nextConfigPath, configContent)
         const result = await nextBuild(path.join(__dirname, '../'), undefined, {
           stderr: true,
           stdout: true,
         })
-        await fs.remove(nextConfigPath)
+        await fsp.rm(nextConfigPath, { recursive: true, force: true })
 
         for (const output of outputs) {
           expect(result.stdout + result.stderr).toContain(output)

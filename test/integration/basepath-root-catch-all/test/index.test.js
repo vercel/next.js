@@ -7,7 +7,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import url from 'url'
 
 let app
@@ -42,7 +42,7 @@ const runTests = () => {
 ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
-    buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+    buildId = await fsp.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
   })

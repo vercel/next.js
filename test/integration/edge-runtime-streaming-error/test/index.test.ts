@@ -10,7 +10,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 import path from 'path'
-import { remove } from 'fs-extra'
+import fsp from 'fs/promises'
 
 const appDir = path.join(__dirname, '..')
 
@@ -69,7 +69,7 @@ describe('dev mode', () => {
   const context = createContext()
 
   beforeAll(async () => {
-    await remove(path.join(appDir, '.next'))
+    await fsp.rm(path.join(appDir, '.next'), { recursive: true, force: true })
     await nextBuild(appDir, undefined, {
       stderr: true,
       stdout: true,

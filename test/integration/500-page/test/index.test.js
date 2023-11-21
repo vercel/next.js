@@ -1,6 +1,8 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import { move } from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
@@ -51,8 +53,8 @@ const runTests = (mode = 'server') => {
     })
 
     it('should add /500 to pages-manifest correctly', async () => {
-      const manifest = await fs.readJSON(
-        join(appDir, '.next', mode, 'pages-manifest.json')
+      const manifest = JSON.parse(
+        await fsp.readFile(join(appDir, '.next', mode, 'pages-manifest.json'))
       )
       expect('/500' in manifest).toBe(true)
     })
@@ -62,7 +64,7 @@ const runTests = (mode = 'server') => {
 describe('500 Page Support', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -72,8 +74,8 @@ describe('500 Page Support', () => {
   })
   describe('development mode 2', () => {
     it('shows error with getInitialProps in pages/500 dev', async () => {
-      await fs.move(pages500, `${pages500}.bak`)
-      await fs.writeFile(
+      await move(pages500, `${pages500}.bak`)
+      await fsp.writeFile(
         pages500,
         `
         const page = () => 'custom 500 page'
@@ -94,15 +96,15 @@ describe('500 Page Support', () => {
 
       await killApp(app)
 
-      await fs.remove(pages500)
-      await fs.move(`${pages500}.bak`, pages500)
+      await fsp.rm(pages500, { recursive: true, force: true })
+      await move(`${pages500}.bak`, pages500)
 
       expect(stderr).toMatch(gip500Err)
     })
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
@@ -115,7 +117,7 @@ describe('500 Page Support', () => {
     'production mode 2',
     () => {
       it('does not build 500 statically with getInitialProps in _app', async () => {
-        await fs.writeFile(
+        await fsp.writeFile(
           pagesApp,
           `
         import App from 'next/app'
@@ -125,7 +127,7 @@ describe('500 Page Support', () => {
         export default page
       `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         const {
           stderr,
           stdout: buildStdout,
@@ -135,14 +137,14 @@ describe('500 Page Support', () => {
           stdout: true,
         })
 
-        await fs.remove(pagesApp)
+        await fsp.rm(pagesApp, { recursive: true, force: true })
 
         expect(stderr).not.toMatch(gip500Err)
         expect(buildStdout).not.toContain('rendered 500')
         expect(code).toBe(0)
-        expect(
-          await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
-        ).toBe(false)
+        expect(fs.existsSync(join(appDir, '.next/server/pages/500.html'))).toBe(
+          false
+        )
 
         let appStdout = ''
         const appPort = await findPort()
@@ -162,16 +164,16 @@ describe('500 Page Support', () => {
       })
 
       it('builds 500 statically by default with no pages/500', async () => {
-        await fs.rename(pages500, `${pages500}.bak`)
-        await fs.remove(join(appDir, '.next'))
+        await fsp.rename(pages500, `${pages500}.bak`)
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-        await fs.rename(`${pages500}.bak`, pages500)
+        await fsp.rename(`${pages500}.bak`, pages500)
 
         expect(stderr).not.toMatch(gip500Err)
         expect(code).toBe(0)
-        expect(
-          await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
-        ).toBe(true)
+        expect(fs.existsSync(join(appDir, '.next/server/pages/500.html'))).toBe(
+          true
+        )
 
         const pagesManifest = await getPagesManifest(appDir)
         await updatePagesManifest(
@@ -200,8 +202,8 @@ describe('500 Page Support', () => {
       })
 
       it('builds 500 statically by default with no pages/500 and custom _error without getInitialProps', async () => {
-        await fs.rename(pages500, `${pages500}.bak`)
-        await fs.writeFile(
+        await fsp.rename(pages500, `${pages500}.bak`)
+        await fsp.writeFile(
           pagesError,
           `
         function Error({ statusCode }) {
@@ -211,23 +213,23 @@ describe('500 Page Support', () => {
         export default Error
       `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         const { stderr: buildStderr, code } = await nextBuild(appDir, [], {
           stderr: true,
         })
-        await fs.rename(`${pages500}.bak`, pages500)
-        await fs.remove(pagesError)
+        await fsp.rename(`${pages500}.bak`, pages500)
+        await fsp.rm(pagesError, { recursive: true, force: true })
         console.log(buildStderr)
         expect(buildStderr).not.toMatch(gip500Err)
         expect(code).toBe(0)
-        expect(
-          await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
-        ).toBe(true)
+        expect(fs.existsSync(join(appDir, '.next/server/pages/500.html'))).toBe(
+          true
+        )
       })
 
       it('does not build 500 statically with no pages/500 and custom getInitialProps in _error', async () => {
-        await fs.rename(pages500, `${pages500}.bak`)
-        await fs.writeFile(
+        await fsp.rename(pages500, `${pages500}.bak`)
+        await fsp.writeFile(
           pagesError,
           `
           function Error({ statusCode }) {
@@ -249,18 +251,18 @@ describe('500 Page Support', () => {
           export default Error
         `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         const { stderr: buildStderr, code } = await nextBuild(appDir, [], {
           stderr: true,
         })
-        await fs.rename(`${pages500}.bak`, pages500)
-        await fs.remove(pagesError)
+        await fsp.rename(`${pages500}.bak`, pages500)
+        await fsp.rm(pagesError, { recursive: true, force: true })
         console.log(buildStderr)
         expect(buildStderr).not.toMatch(gip500Err)
         expect(code).toBe(0)
-        expect(
-          await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
-        ).toBe(false)
+        expect(fs.existsSync(join(appDir, '.next/server/pages/500.html'))).toBe(
+          false
+        )
 
         let appStderr = ''
         const appPort = await findPort()
@@ -277,8 +279,8 @@ describe('500 Page Support', () => {
       })
 
       it('does not build 500 statically with no pages/500 and custom getInitialProps in _error and _app', async () => {
-        await fs.rename(pages500, `${pages500}.bak`)
-        await fs.writeFile(
+        await fsp.rename(pages500, `${pages500}.bak`)
+        await fsp.writeFile(
           pagesError,
           `
           function Error({ statusCode }) {
@@ -300,7 +302,7 @@ describe('500 Page Support', () => {
           export default Error
         `
         )
-        await fs.writeFile(
+        await fsp.writeFile(
           pagesApp,
           `
           function App({ pageProps, Component }) {
@@ -321,24 +323,24 @@ describe('500 Page Support', () => {
           export default App
         `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         const { stderr: buildStderr, code } = await nextBuild(appDir, [], {
           stderr: true,
         })
-        await fs.rename(`${pages500}.bak`, pages500)
-        await fs.remove(pagesError)
-        await fs.remove(pagesApp)
+        await fsp.rename(`${pages500}.bak`, pages500)
+        await fsp.rm(pagesError, { recursive: true, force: true })
+        await fsp.rm(pagesApp, { recursive: true, force: true })
         console.log(buildStderr)
         expect(buildStderr).not.toMatch(gip500Err)
         expect(code).toBe(0)
-        expect(
-          await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
-        ).toBe(false)
+        expect(fs.existsSync(join(appDir, '.next/server/pages/500.html'))).toBe(
+          false
+        )
       })
 
       it('shows error with getInitialProps in pages/500 build', async () => {
-        await fs.move(pages500, `${pages500}.bak`)
-        await fs.writeFile(
+        await move(pages500, `${pages500}.bak`)
+        await fsp.writeFile(
           pages500,
           `
         const page = () => 'custom 500 page'
@@ -346,10 +348,10 @@ describe('500 Page Support', () => {
         export default page
       `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-        await fs.remove(pages500)
-        await fs.move(`${pages500}.bak`, pages500)
+        await fsp.rm(pages500, { recursive: true, force: true })
+        await move(`${pages500}.bak`, pages500)
 
         expect(stderr).toMatch(gip500Err)
         expect(code).toBe(1)

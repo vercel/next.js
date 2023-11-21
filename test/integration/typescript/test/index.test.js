@@ -2,7 +2,7 @@
 
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { writeFile, remove } from 'fs-extra'
+import { writeFile } from 'fs/promises'
 import {
   renderViaHTTP,
   nextBuild,
@@ -111,7 +111,7 @@ export default function EvilPage(): JSX.Element {
         const $ = await get$('/hello')
         expect($('body').text()).toMatch(/Hello World/)
       } finally {
-        await remove(evilFile)
+        await fsp.rm(evilFile, { recursive: true, force: true })
       }
     })
   })

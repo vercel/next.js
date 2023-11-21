@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
@@ -8,11 +8,11 @@ const appDir = join(__dirname, '..')
 
 async function uncommentExport(page) {
   const pagePath = join(appDir, 'pages', page)
-  const origContent = await fs.readFile(pagePath, 'utf8')
+  const origContent = await fsp.readFile(pagePath, 'utf8')
   const newContent = origContent.replace('// export', 'export')
-  await fs.writeFile(pagePath, newContent, 'utf8')
+  await fsp.writeFile(pagePath, newContent, 'utf8')
   return async () => {
-    await fs.writeFile(pagePath, origContent, 'utf8')
+    await fsp.writeFile(pagePath, origContent, 'utf8')
   }
 }
 

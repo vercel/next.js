@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
@@ -10,8 +10,8 @@ const nextConfig = join(appDir, 'next.config.js')
 
 const addPage = async (page, content) => {
   const pagePath = join(appDir, 'pages', page)
-  await fs.ensureDir(path.dirname(pagePath))
-  await fs.writeFile(pagePath, content)
+  await fsp.mkdir(path.dirname(pagePath, { recursive: true }))
+  await fsp.writeFile(pagePath, content)
 }
 
 describe('no-op export', () => {
@@ -19,7 +19,7 @@ describe('no-op export', () => {
     afterEach(async () => {
       await Promise.all(
         ['.next', 'pages', 'next.config.js', 'out'].map((file) =>
-          fs.remove(join(appDir, file))
+          fsp.rm(join(appDir, file, { recursive: true, force: true }))
         )
       )
     })
@@ -78,7 +78,7 @@ describe('no-op export', () => {
       }
     `
       )
-      await fs.writeFile(
+      await fsp.writeFile(
         nextConfig,
         `
       module.exports = {

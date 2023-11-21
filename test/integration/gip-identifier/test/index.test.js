@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   findPort,
   killApp,
@@ -44,8 +44,8 @@ const runTests = (isDev) => {
   })
 
   it('should have gip in NEXT_DATA for page with getInitialProps', async () => {
-    indexPageContent = await fs.readFile(indexPage, 'utf8')
-    await fs.writeFile(
+    indexPageContent = await fsp.readFile(indexPage, 'utf8')
+    await fsp.writeFile(
       indexPage,
       `
       const Page = () => 'hi'
@@ -58,7 +58,7 @@ const runTests = (isDev) => {
   })
 
   it('should have gip and appGip in NEXT_DATA for page with getInitialProps and _app with getInitialProps', async () => {
-    await fs.writeFile(
+    await fsp.writeFile(
       appPage,
       `
       const App = ({ Component, pageProps }) => <Component {...pageProps} />
@@ -78,9 +78,9 @@ const runTests = (isDev) => {
   })
 
   it('should only have appGip in NEXT_DATA for page without getInitialProps and _app with getInitialProps', async () => {
-    await fs.writeFile(indexPage, indexPageContent)
+    await fsp.writeFile(indexPage, indexPageContent)
     const data = await getData()
-    await fs.remove(appPage)
+    await fsp.rm(appPage, { recursive: true, force: true })
     expect(data.gip).toBe(undefined)
     expect(data.appGip).toBe(true)
   })

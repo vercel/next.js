@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   renderViaHTTP,
@@ -19,11 +19,13 @@ let appPort
 
 describe('Static 404 page', () => {
   afterEach(async () => {
-    await fs.remove(appPage)
-    await fs.remove(errorPage)
-    await fs.remove(nextConfig)
+    await fsp.rm(appPage, { recursive: true, force: true })
+    await fsp.rm(errorPage, { recursive: true, force: true })
+    await fsp.rm(nextConfig, { recursive: true, force: true })
   })
-  beforeEach(() => fs.remove(join(appDir, '.next/server')))
+  beforeEach(() =>
+    fsp.rm(join(appDir, '.next/server', { recursive: true, force: true }))
+  )
 
   describe('With config enabled', () => {
     ;(process.env.TURBOPACK ? describe.skip : describe)(
@@ -39,7 +41,7 @@ describe('Static 404 page', () => {
         })
 
         it('should not export 404 page with custom _error GIP', async () => {
-          await fs.writeFile(
+          await fsp.writeFile(
             errorPage,
             `
         import Error from 'next/error'
@@ -56,11 +58,11 @@ describe('Static 404 page', () => {
       `
           )
           await nextBuild(appDir, undefined, { stderr: true, stdout: true })
-          await fs.remove(errorPage)
+          await fsp.rm(errorPage, { recursive: true, force: true })
         })
 
         it('should not export 404 page with getInitialProps in _app', async () => {
-          await fs.writeFile(
+          await fsp.writeFile(
             appPage,
             `
         const Page = ({ Component, pageProps }) => {
@@ -71,7 +73,7 @@ describe('Static 404 page', () => {
       `
           )
           await nextBuild(appDir)
-          await fs.remove(appPage)
+          await fsp.rm(appPage, { recursive: true, force: true })
         })
       }
     )

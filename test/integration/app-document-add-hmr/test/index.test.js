@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { killApp, findPort, launchApp, check } from 'next-test-utils'
@@ -27,7 +27,7 @@ describe('_app/_document add HMR', () => {
       expect(html).not.toContain('custom _app')
       expect(html).toContain('index page')
 
-      await fs.writeFile(
+      await fsp.writeFile(
         appPage,
         `
         export default function MyApp({ Component, pageProps }) {
@@ -48,7 +48,7 @@ describe('_app/_document add HMR', () => {
           : html
       }, 'success')
     } finally {
-      await fs.remove(appPage)
+      await fsp.rm(appPage, { recursive: true, force: true })
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
         return !html.includes('custom _app') && html.includes('index page')
@@ -66,7 +66,7 @@ describe('_app/_document add HMR', () => {
       expect(html).not.toContain('custom _document')
       expect(html).toContain('index page')
 
-      await fs.writeFile(
+      await fsp.writeFile(
         documentPage,
         `
         import Document, { Html, Head, Main, NextScript } from 'next/document'
@@ -103,7 +103,7 @@ describe('_app/_document add HMR', () => {
           : html
       }, 'success')
     } finally {
-      await fs.remove(documentPage)
+      await fsp.rm(documentPage, { recursive: true, force: true })
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
         return !html.includes('custom _document') && html.includes('index page')

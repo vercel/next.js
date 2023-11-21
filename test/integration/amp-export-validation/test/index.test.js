@@ -3,7 +3,7 @@
 import { promises } from 'fs'
 import { join } from 'path'
 import { File, nextBuild, runNextCommand } from 'next-test-utils'
-import { existsSync } from 'fs-extra'
+import { existsSync } from 'fs'
 
 const { access } = promises
 const appDir = join(__dirname, '../')

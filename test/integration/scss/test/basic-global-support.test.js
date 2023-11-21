@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { readdir, readFile, remove } from 'fs-extra'
+import { readdir, readFile } from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
@@ -11,7 +11,7 @@ describe('Basic Global Support scss', () => {
     const appDir = join(fixturesDir, 'single-global')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -41,7 +41,7 @@ describe('Basic Module Include Paths Support', () => {
     const appDir = join(fixturesDir, 'basic-module-include-paths')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -71,7 +71,7 @@ describe('Basic Module Prepend Data Support', () => {
     const appDir = join(fixturesDir, 'basic-module-prepend-data')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -101,7 +101,7 @@ describe('Basic Global Support with src/ dir', () => {
     const appDir = join(fixturesDir, 'single-global-src')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -131,7 +131,7 @@ describe('Multi Global Support', () => {
     const appDir = join(fixturesDir, 'multi-global')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -162,7 +162,7 @@ describe('Nested @import() Global Support', () => {
     const appDir = join(fixturesDir, 'nested-global')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -196,7 +196,7 @@ describe('Multi Global Support (reversed)', () => {
     const appDir = join(fixturesDir, 'multi-global-reversed')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -227,7 +227,7 @@ describe('Good CSS Import from node_modules', () => {
     const appDir = join(fixturesDir, 'npm-import')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -256,7 +256,7 @@ describe('Good Nested CSS Import from node_modules', () => {
     const appDir = join(fixturesDir, 'npm-import-nested')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should compile successfully', async () => {
@@ -287,7 +287,7 @@ describe('CSS Import from node_modules', () => {
     const appDir = join(fixturesDir, 'npm-import-bad')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should fail the build', async () => {

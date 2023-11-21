@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
@@ -20,8 +20,8 @@ const runTests = () => {
 describe('getServerSideProps', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     afterAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await fs.remove(join(appDir, 'out'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
+      await fsp.rm(join(appDir, 'out'), { recursive: true, force: true })
     })
 
     runTests()

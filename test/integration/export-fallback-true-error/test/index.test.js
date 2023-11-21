@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
@@ -9,7 +9,7 @@ const appDir = join(__dirname, '../')
 describe('Export error for fallback: true', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('should build successfully', async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       const { code, stderr } = await nextBuild(appDir, [], {
         stderr: true,
         stdout: true,

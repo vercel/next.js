@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { nextBuild, File } from 'next-test-utils'
@@ -25,14 +25,14 @@ describe('Export with cloudinary loader next/legacy/image component', () => {
       )
     })
     it('should build successfully', async () => {
-      await fs.remove(join(appDir, '.next'))
-      await fs.remove(outdir)
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
+      await fsp.rm(outdir, { recursive: true, force: true })
       const { code } = await nextBuild(appDir)
       expect(code).toBe(0)
     })
 
     it('should contain img element in html output', async () => {
-      const html = await fs.readFile(join(outdir, 'index.html'))
+      const html = await fsp.readFile(join(outdir, 'index.html'))
       const $ = cheerio.load(html)
       expect($('img[alt="icon"]').attr('alt')).toBe('icon')
     })
@@ -61,14 +61,14 @@ describe('Export with custom loader next/legacy/image component', () => {
       )
     })
     it('should build successfully', async () => {
-      await fs.remove(join(appDir, '.next'))
-      await fs.remove(outdir)
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
+      await fsp.rm(outdir, { recursive: true, force: true })
       const { code } = await nextBuild(appDir)
       expect(code).toBe(0)
     })
 
     it('should contain img element with same src in html output', async () => {
-      const html = await fs.readFile(join(outdir, 'index.html'))
+      const html = await fsp.readFile(join(outdir, 'index.html'))
       const $ = cheerio.load(html)
       expect($('img[src="/custom/o.png"]')).toBeDefined()
     })
@@ -94,8 +94,8 @@ describe('Export with custom loader config but no loader prop on next/legacy/ima
       )
     })
     it('should fail build', async () => {
-      await fs.remove(join(appDir, '.next'))
-      await fs.remove(outdir)
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
+      await fsp.rm(outdir, { recursive: true, force: true })
       const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
       expect(code).toBe(1)
       expect(stderr).toContain(
@@ -124,14 +124,14 @@ describe('Export with unoptimized next/legacy/image component', () => {
       )
     })
     it('should build successfully', async () => {
-      await fs.remove(join(appDir, '.next'))
-      await fs.remove(outdir)
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
+      await fsp.rm(outdir, { recursive: true, force: true })
       const { code } = await nextBuild(appDir)
       expect(code).toBe(0)
     })
 
     it('should contain img element with same src in html output', async () => {
-      const html = await fs.readFile(join(outdir, 'index.html'))
+      const html = await fsp.readFile(join(outdir, 'index.html'))
       const $ = cheerio.load(html)
       expect($('img[src="/o.png"]')).toBeDefined()
     })

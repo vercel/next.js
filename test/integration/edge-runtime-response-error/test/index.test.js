@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-identical-title */
 /* eslint-env jest */
 
-import { remove } from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   fetchViaHTTP,
@@ -41,7 +41,7 @@ describe('Edge runtime code with imports', () => {
   beforeEach(async () => {
     context.appPort = await findPort()
     context.logs = { output: '', stdout: '', stderr: '' }
-    await remove(join(__dirname, '../.next'))
+    await fsp.rm(join(__dirname, '../.next'), { recursive: true, force: true })
   })
 
   afterEach(() => {

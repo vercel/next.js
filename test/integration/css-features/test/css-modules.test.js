@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { readdir, readFile, remove } from 'fs-extra'
+import { readdir, readFile } from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
@@ -11,7 +11,7 @@ describe('Custom Properties: Fail for :root {} in CSS Modules', () => {
     const appDir = join(fixturesDir, 'cp-global-modules')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should fail to build', async () => {
@@ -31,7 +31,7 @@ describe('Custom Properties: Fail for global element in CSS Modules', () => {
     const appDir = join(fixturesDir, 'cp-el-modules')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should fail to build', async () => {
@@ -53,7 +53,7 @@ describe('CSS Modules: Import Global CSS', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -85,7 +85,7 @@ describe('CSS Modules: Importing Invalid Global CSS', () => {
     const appDir = join(fixturesDir, 'module-import-global-invalid')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should fail to build', async () => {
@@ -107,7 +107,7 @@ describe('CSS Modules: Import Exports', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))

@@ -3,7 +3,7 @@ import { fetchViaHTTP, normalizeRegEx } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import escapeStringRegexp from 'escape-string-regexp'
-import fs from 'fs-extra'
+import fs from 'fs'
 
 createNextDescribe(
   'edge-render-getserversideprops',
@@ -13,22 +13,20 @@ createNextDescribe(
   ({ next }) => {
     if ((global as any).isNextStart) {
       it('should not output trace files for edge routes', async () => {
-        expect(await fs.pathExists(join(next.testDir, '.next/pages'))).toBe(
-          false
-        )
+        expect(fs.existsSync(join(next.testDir, '.next/pages'))).toBe(false)
         expect(
-          await fs.pathExists(join(next.testDir, '.next/server/pages/[id].js'))
+          fs.existsSync(join(next.testDir, '.next/server/pages/[id].js'))
         ).toBe(true)
         expect(
-          await fs.pathExists(
+          fs.existsSync(
             join(next.testDir, '.next/server/pages/[id].js.nft.json')
           )
         ).toBe(false)
         expect(
-          await fs.pathExists(join(next.testDir, '.next/server/pages/index.js'))
+          fs.existsSync(join(next.testDir, '.next/server/pages/index.js'))
         ).toBe(true)
         expect(
-          await fs.pathExists(
+          fs.existsSync(
             join(next.testDir, '.next/server/pages/index.js.nft.json')
           )
         ).toBe(false)

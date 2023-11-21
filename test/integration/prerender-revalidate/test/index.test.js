@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   findPort,
   killApp,
@@ -26,7 +26,7 @@ function runTests(route, routePath) {
       'server',
       getPageFileFromPagesManifest(appDir, routePath).replace('.js', '.html')
     )
-    const initialHtmlFile = await fs.readFile(fileName, 'utf8')
+    const initialHtmlFile = await fsp.readFile(fileName, 'utf8')
 
     await waitFor(1000) // Wait revalidate duration
 
@@ -34,7 +34,7 @@ function runTests(route, routePath) {
 
     await waitFor(500) // Wait for regeneration to occur
 
-    const regeneratedFileHtml = await fs.readFile(fileName, 'utf8')
+    const regeneratedFileHtml = await fsp.readFile(fileName, 'utf8')
     expect(regeneratedFileHtml).not.toBe(initialHtmlFile)
     expect(await renderViaHTTP(appPort, route)).toBe(regeneratedFileHtml)
   })
@@ -47,7 +47,7 @@ function runTests(route, routePath) {
       getPageFileFromPagesManifest(appDir, routePath).replace('.js', '.json')
     )
     const route = join(`/_next/data/${buildId}`, `${routePath}.json`)
-    const initialFileJson = await fs.readFile(fileName, 'utf8')
+    const initialFileJson = await fsp.readFile(fileName, 'utf8')
 
     await waitFor(1000) // Wait revalidate duration
 
@@ -57,7 +57,7 @@ function runTests(route, routePath) {
 
     await waitFor(500) // Wait for regeneration to occur
 
-    const regeneratedFileJson = await fs.readFile(fileName, 'utf8')
+    const regeneratedFileJson = await fsp.readFile(fileName, 'utf8')
     expect(regeneratedFileJson).not.toBe(initialFileJson)
     expect(JSON.parse(await renderViaHTTP(appPort, route))).toEqual(
       JSON.parse(regeneratedFileJson)
@@ -68,11 +68,11 @@ function runTests(route, routePath) {
 describe('SSG Prerender Revalidate', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir, [])
       appPort = await findPort()
       app = await nextStart(appDir, appPort, {})
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      buildId = await fsp.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
 
@@ -100,7 +100,7 @@ describe('SSG Prerender Revalidate', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await fs.remove(join(appDir, '.next'))
+          await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
           await nextBuild(appDir, [])
           appPort = await findPort()
           app = await nextStart(appDir, appPort, {
@@ -108,7 +108,7 @@ describe('SSG Prerender Revalidate', () => {
             // this will cause the cache size to always be exceeded
             env: { __NEXT_TEST_MAX_ISR_CACHE: 1 },
           })
-          buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+          buildId = await fsp.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
         })
         afterAll(() => killApp(app))
 

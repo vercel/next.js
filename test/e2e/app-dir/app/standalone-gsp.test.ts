@@ -1,5 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
-import fs from 'fs-extra'
+import { move } from 'fs-extra'
+import fsp from 'fs/promises'
 import os from 'os'
 import path from 'path'
 import {
@@ -57,7 +58,7 @@ if (!(globalThis as any).isNextStart) {
           os.tmpdir(),
           'next-standalone-' + Date.now()
         )
-        await fs.move(path.join(next.testDir, '.next/standalone'), tmpFolder)
+        await move(path.join(next.testDir, '.next/standalone'), tmpFolder)
         let server: any
 
         try {
@@ -80,7 +81,7 @@ if (!(globalThis as any).isNextStart) {
           expect(res.status).toBe(200)
         } finally {
           if (server) await killApp(server)
-          await fs.remove(tmpFolder)
+          await fsp.rm(tmpFolder, { recursive: true, force: true })
         }
       })
     }

@@ -1,4 +1,5 @@
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import os from 'os'
 
 import { join } from 'path'
@@ -43,7 +44,7 @@ describe('Next Build', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     test('first time setup', async () => {
       const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
-      await fs.writeFile(eslintrcJson, '')
+      await fsp.writeFile(eslintrcJson, '')
 
       const { stdout, stderr } = await nextBuild(dirFirstTimeSetup, [], {
         stdout: true,
@@ -192,10 +193,10 @@ describe('Next Build', () => {
     test('eslint caching is enabled', async () => {
       const cacheDir = join(dirEslintCache, '.next', 'cache')
 
-      await fs.remove(cacheDir)
+      await fsp.rm(cacheDir, { recursive: true, force: true })
       await nextBuild(dirEslintCache, [])
 
-      const files = await fs.readdir(join(cacheDir, 'eslint/'))
+      const files = await fsp.readdir(join(cacheDir, 'eslint/'))
       const cacheExists = files.some((f) => /\.cache/.test(f))
 
       expect(cacheExists).toBe(true)
@@ -205,14 +206,14 @@ describe('Next Build', () => {
       const oldCacheDir = join(dirEslintCacheCustomDir, '.next', 'cache')
       const newCacheDir = join(dirEslintCacheCustomDir, 'build', 'cache')
 
-      await fs.remove(oldCacheDir)
-      await fs.remove(newCacheDir)
+      await fsp.rm(oldCacheDir, { recursive: true, force: true })
+      await fsp.rm(newCacheDir, { recursive: true, force: true })
 
       await nextBuild(dirEslintCacheCustomDir, [])
 
       expect(fs.existsSync(oldCacheDir)).toBe(false)
 
-      const files = await fs.readdir(join(newCacheDir, 'eslint/'))
+      const files = await fsp.readdir(join(newCacheDir, 'eslint/'))
       const cacheExists = files.some((f) => /\.cache/.test(f))
 
       expect(cacheExists).toBe(true)

@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
@@ -106,8 +107,11 @@ describe('Middleware Runtime trailing slash', () => {
 
     if ((global as any).isNextStart) {
       it('should have valid middleware field in manifest', async () => {
-        const manifest = await fs.readJSON(
-          join(next.testDir, '.next/server/middleware-manifest.json')
+        const manifest = JSON.parse(
+          await fsp.readFile(
+            join(next.testDir, '.next/server/middleware-manifest.json'),
+            'utf-8'
+          )
         )
         expect(manifest.middleware).toEqual({
           '/': {
@@ -126,8 +130,11 @@ describe('Middleware Runtime trailing slash', () => {
       })
 
       it('should have correct files in manifest', async () => {
-        const manifest = await fs.readJSON(
-          join(next.testDir, '.next/server/middleware-manifest.json')
+        const manifest = JSON.parse(
+          await fsp.readFile(
+            join(next.testDir, '.next/server/middleware-manifest.json'),
+            'utf-8'
+          )
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
@@ -141,8 +148,11 @@ describe('Middleware Runtime trailing slash', () => {
       })
 
       it('should not run middleware for on-demand revalidate', async () => {
-        const bypassToken = (
-          await fs.readJSON(join(next.testDir, '.next/prerender-manifest.json'))
+        const bypassToken = JSON.parse(
+          await fsp.readFile(
+            join(next.testDir, '.next/prerender-manifest.json'),
+            'utf-8'
+          )
         ).preview.previewModeId
 
         const res = await fetchViaHTTP(next.url, '/ssg/first/', undefined, {

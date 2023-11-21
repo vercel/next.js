@@ -2,7 +2,7 @@
 
 import { join } from 'path'
 import { promisify } from 'util'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import webdriver from 'next-webdriver'
 import globOrig from 'glob'
 import {
@@ -125,8 +125,8 @@ export async function runTests({
   } else if (generateStaticParamsOpt === 'set client') {
     slugPage.prepend('"use client"\n')
   }
-  await fs.remove(distDir)
-  await fs.remove(exportDir)
+  await fsp.rm(distDir, { recursive: true, force: true })
+  await fsp.rm(exportDir, { recursive: true, force: true })
   const port = await findPort()
   let stopOrKill: () => Promise<void>
   let result = { code: 0, stdout: '', stderr: '' }
@@ -226,7 +226,7 @@ export async function runTests({
         } else {
           expect(await getFiles()).toEqual(expectedWhenTrailingSlashFalse)
         }
-        const html404 = await fs.readFile(join(exportDir, '404.html'), 'utf8')
+        const html404 = await fsp.readFile(join(exportDir, '404.html'), 'utf8')
         expect(html404).toContain('<h1>My custom not found page</h1>')
       }
     }

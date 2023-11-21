@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { remove } from 'fs-extra'
+import fsp from 'fs/promises'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
   fetchViaHTTP,
@@ -114,7 +114,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
     let buildResult
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       buildResult = await nextBuild(appDir, undefined, {
         stderr: true,
         stdout: true,

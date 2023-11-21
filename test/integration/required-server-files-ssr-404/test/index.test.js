@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { nextServer, startApp, waitFor } from 'next-test-utils'
@@ -15,19 +16,19 @@ let requiredFilesManifest
 describe('Required Server Files', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir, undefined, {
         env: {
           NOW_BUILDER: '1',
         },
       })
 
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-      requiredFilesManifest = await fs.readJSON(
-        join(appDir, '.next/required-server-files.json')
+      buildId = await fsp.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      requiredFilesManifest = JSON.parse(
+        await fsp.readFile(join(appDir, '.next/required-server-files.json'))
       )
 
-      let files = await fs.readdir(join(appDir, '.next'))
+      let files = await fsp.readdir(join(appDir, '.next'))
 
       for (const file of files) {
         if (
@@ -38,9 +39,12 @@ describe('Required Server Files', () => {
           continue
         }
         console.log('removing', join('.next', file))
-        await fs.remove(join(appDir, '.next', file))
+        await fsp.rm(join(appDir, '.next', file), {
+          recursive: true,
+          force: true,
+        })
       }
-      await fs.rename(join(appDir, 'pages'), join(appDir, 'pages-bak'))
+      await fsp.rename(join(appDir, 'pages'), join(appDir, 'pages-bak'))
 
       nextApp = nextServer({
         conf: {},
@@ -56,7 +60,7 @@ describe('Required Server Files', () => {
     })
     afterAll(async () => {
       if (server) server.close()
-      await fs.rename(join(appDir, 'pages-bak'), join(appDir, 'pages'))
+      await fsp.rename(join(appDir, 'pages-bak'), join(appDir, 'pages'))
     })
 
     it('should output required-server-files manifest correctly', async () => {
@@ -71,10 +75,10 @@ describe('Required Server Files', () => {
 
       for (const file of requiredFilesManifest.files) {
         console.log('checking', file)
-        expect(await fs.exists(join(appDir, file))).toBe(true)
+        expect(fs.existsSync(join(appDir, file))).toBe(true)
       }
 
-      expect(await fs.exists(join(appDir, '.next/server'))).toBe(true)
+      expect(fs.existsSync(join(appDir, '.next/server'))).toBe(true)
     })
 
     it('should render SSR page correctly', async () => {

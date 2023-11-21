@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import path from 'path'
 import { nextBuild } from 'next-test-utils'
 
@@ -27,7 +27,7 @@ describe('typeof window replace', () => {
         (file) => file.endsWith('.js') && file.includes('pages/index')
       )
 
-      const content = await fs.readFile(
+      const content = await fsp.readFile(
         path.join(appDir, '.next', pageFile),
         'utf8'
       )
@@ -37,7 +37,7 @@ describe('typeof window replace', () => {
     it('Replaces `typeof window` with undefined for server code', async () => {
       const pageFile = pagesManifest['/']
 
-      const content = await fs.readFile(
+      const content = await fsp.readFile(
         path.join(appDir, '.next', 'server', pageFile),
         'utf8'
       )
@@ -50,7 +50,7 @@ describe('typeof window replace', () => {
         (file) => file.endsWith('.js') && file.includes('pages/index')
       )
 
-      const content = await fs.readFile(
+      const content = await fsp.readFile(
         path.join(appDir, '.next', pageFile),
         'utf8'
       )

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   fetchViaHTTP,
   findPort,
@@ -185,53 +185,53 @@ function runInvalidPagesTests(buildFn) {
   it('should fail to build when optional route has index.js at root', async () => {
     const invalidRoute = appDir + 'pages/index.js'
     try {
-      await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
+      await fsp.writeFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       await buildFn(appDir)
       await check(
         () => stderr,
         /You cannot define a route with the same specificity as a optional catch-all route/
       )
     } finally {
-      await fs.unlink(invalidRoute)
+      await fsp.unlink(invalidRoute)
     }
   })
 
   it('should fail to build when optional route has same page at root', async () => {
     const invalidRoute = appDir + 'pages/nested.js'
     try {
-      await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
+      await fsp.writeFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       await buildFn(appDir)
       await check(
         () => stderr,
         /You cannot define a route with the same specificity as a optional catch-all route/
       )
     } finally {
-      await fs.unlink(invalidRoute)
+      await fsp.unlink(invalidRoute)
     }
   })
 
   it('should fail to build when mixed with regular catch-all', async () => {
     const invalidRoute = appDir + 'pages/nested/[...param].js'
     try {
-      await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
+      await fsp.writeFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       await buildFn(appDir)
       await check(() => stderr, /You cannot use both .+ at the same level/)
     } finally {
-      await fs.unlink(invalidRoute)
+      await fsp.unlink(invalidRoute)
     }
   })
 
   it('should fail to build when optional but no catch-all', async () => {
     const invalidRoute = appDir + 'pages/invalid/[[param]].js'
     try {
-      await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
+      await fsp.writeFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       await buildFn(appDir)
       await check(
         () => stderr,
         /Optional route parameters are not yet supported/
       )
     } finally {
-      await fs.unlink(invalidRoute)
+      await fsp.unlink(invalidRoute)
     }
   })
 }
@@ -257,10 +257,10 @@ describe('Dynamic Optional Routing', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      const curConfig = await fs.readFile(nextConfig, 'utf8')
+      const curConfig = await fsp.readFile(nextConfig, 'utf8')
 
       if (curConfig.includes('target')) {
-        await fs.writeFile(nextConfig, `module.exports = {}`)
+        await fsp.writeFile(nextConfig, `module.exports = {}`)
       }
       await nextBuild(appDir)
 
@@ -278,7 +278,7 @@ describe('Dynamic Optional Routing', () => {
     it('should fail to build when param is not explicitly defined', async () => {
       const invalidRoute = appDir + 'pages/invalid/[[...slug]].js'
       try {
-        await fs.outputFile(
+        await fsp.writeFile(
           invalidRoute,
           `
             export async function getStaticPaths() {
@@ -307,7 +307,7 @@ describe('Dynamic Optional Routing', () => {
           'A required parameter (slug) was not provided as an array received undefined in getStaticPaths for /invalid/[[...slug]]'
         )
       } finally {
-        await fs.unlink(invalidRoute)
+        await fsp.unlink(invalidRoute)
       }
     })
   })

@@ -2,7 +2,7 @@
 
 import webdriver from 'next-webdriver'
 import { join, dirname } from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import url from 'url'
 import {
   renderViaHTTP,
@@ -1170,7 +1170,7 @@ function runTests({ dev }) {
 
       const text = await browser.elementByCss('#added-later').text()
 
-      await fs.remove(dirname(addLaterPage))
+      await fsp.rm(dirname(addLaterPage), { recursive: true, force: true })
       expect(text).toBe('slug: first')
     })
 
@@ -1210,8 +1210,9 @@ function runTests({ dev }) {
     })
   } else {
     it('should output a routes-manifest correctly', async () => {
-      const manifest = await fs.readJson(
-        join(appDir, '.next/routes-manifest.json')
+      const manifest = JSON.parse(
+        await fsp.readFile(join(appDir, '.next/routes-manifest.json')),
+        'utf-8'
       )
 
       for (const route of manifest.dynamicRoutes) {
@@ -1503,8 +1504,11 @@ function runTests({ dev }) {
     })
 
     it('should output a pages-manifest correctly', async () => {
-      const manifest = await fs.readJson(
-        join(appDir, '.next/server/pages-manifest.json')
+      const manifest = JSON.parse(
+        await fsp.readFile(
+          join(appDir, '.next/server/pages-manifest.json'),
+          'utf-8'
+        )
       )
 
       expect(manifest).toEqual({
@@ -1557,12 +1561,12 @@ describe('Dynamic Routing', () => {
       `
       )
     })
-    afterAll(() => fs.remove(middlewarePath))
+    afterAll(() => fsp.rm(middlewarePath, { recursive: true, force: true }))
   }
 
   describe('dev mode', () => {
     beforeAll(async () => {
-      await fs.remove(nextConfig)
+      await fsp.rm(nextConfig, { recursive: true, force: true })
 
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -1574,7 +1578,7 @@ describe('Dynamic Routing', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(nextConfig)
+      await fsp.rm(nextConfig, { recursive: true, force: true })
 
       await nextBuild(appDir)
       buildId = await fs.readFile(buildIdPath, 'utf8')

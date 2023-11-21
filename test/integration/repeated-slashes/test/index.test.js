@@ -1,6 +1,8 @@
 /* eslint-env jest */
 import { join } from 'path'
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
+import { move } from 'fs-extra'
 import url from 'url'
 import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
@@ -412,7 +414,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
 describe('404 handling', () => {
   let nextOpts = {}
   beforeAll(async () => {
-    const hasLocalNext = await fs.exists(join(appDir, 'node_modules/next'))
+    const hasLocalNext = fs.existsSync(join(appDir, 'node_modules/next'))
 
     if (hasLocalNext) {
       nextOpts = {
@@ -489,8 +491,8 @@ describe('404 handling', () => {
         const pages404 = join(appDir, 'pages/404.js')
 
         beforeAll(async () => {
-          await fs.move(pagesErr, pagesErr + '.bak')
-          await fs.writeFile(
+          await move(pagesErr, pagesErr + '.bak')
+          await fsp.writeFile(
             pages404,
             `
           if (typeof window !== 'undefined') {
@@ -504,8 +506,8 @@ describe('404 handling', () => {
           await nextBuild(appDir, [], nextOpts)
         })
         afterAll(async () => {
-          await fs.move(pagesErr + '.bak', pagesErr)
-          await fs.remove(pages404)
+          await move(pagesErr + '.bak', pagesErr)
+          await fsp.rm(pages404, { recursive: true, force: true })
         })
 
         devStartAndExport(true)

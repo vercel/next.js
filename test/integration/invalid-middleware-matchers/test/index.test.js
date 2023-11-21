@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { fetchViaHTTP, findPort, launchApp, nextBuild } from 'next-test-utils'
 
@@ -8,7 +8,7 @@ let appDir = join(__dirname, '..')
 const middlewarePath = join(appDir, 'middleware.js')
 
 const writeMiddleware = async (matchers) => {
-  await fs.writeFile(
+  await fsp.writeFile(
     middlewarePath,
     `
     import { NextResponse } from 'next/server'
@@ -134,7 +134,7 @@ const runTests = () => {
 }
 
 describe('Errors on invalid custom middleware matchers', () => {
-  afterAll(() => fs.remove(middlewarePath))
+  afterAll(() => fsp.rm(middlewarePath, { recursive: true, force: true }))
 
   describe('dev mode', () => {
     beforeAll(() => {

@@ -1,7 +1,7 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { join } from 'path'
-import fs from 'fs-extra'
+import { move } from 'fs-extra'
 import {
   fetchViaHTTP,
   findPort,
@@ -37,7 +37,7 @@ describe('type-module', () => {
 
     const staticDest = join(standalonePath, '.next/static')
 
-    await fs.move(staticSrc, staticDest)
+    await move(staticSrc, staticDest)
 
     const serverFile = join(standalonePath, 'server.js')
     const appPort = await findPort()

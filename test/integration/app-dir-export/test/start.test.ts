@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   check,
   File,
@@ -22,8 +22,8 @@ describe('app dir - with output export (next start)', () => {
     afterEach(async () => {
       await killApp(app)
       nextConfig.restore()
-      await fs.remove(distDir)
-      await fs.remove(exportDir)
+      await fsp.rm(distDir, { recursive: true, force: true })
+      await fsp.rm(exportDir, { recursive: true, force: true })
     })
 
     it('should error during next start with output export', async () => {

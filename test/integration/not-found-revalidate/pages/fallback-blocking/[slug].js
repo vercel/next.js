@@ -1,5 +1,6 @@
 import path from 'path'
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 
 export default function Page(props) {
   return (
@@ -19,7 +20,7 @@ export const getStaticProps = async ({ params }) => {
 
   const dir = path.join(process.cwd(), '.tmp/fallback-blocking', slug)
 
-  if (await fs.exists(dir)) {
+  if (fs.existsSync(dir)) {
     return {
       props: {
         params,
@@ -31,7 +32,7 @@ export const getStaticProps = async ({ params }) => {
     }
   }
 
-  await fs.ensureDir(dir)
+  await fsp.mkdir(dir, { recursive: true })
 
   return {
     notFound: true,
@@ -40,7 +41,10 @@ export const getStaticProps = async ({ params }) => {
 }
 
 export const getStaticPaths = async () => {
-  await fs.remove(path.join(process.cwd(), '.tmp/fallback-blocking'))
+  await fsp.rm(path.join(process.cwd(), '.tmp/fallback-blocking'), {
+    recursive: true,
+    force: true,
+  })
 
   return {
     paths: [],

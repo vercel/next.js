@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { validateAMP } from 'amp-test-utils'
@@ -127,7 +127,7 @@ describe('AMP SSG Support', () => {
         beforeAll(async () => {
           nextConfig.write(`module.exports = { output: 'export' }`)
           await nextBuild(appDir)
-          buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+          buildId = await fsp.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
         })
 
         afterAll(() => nextConfig.delete())

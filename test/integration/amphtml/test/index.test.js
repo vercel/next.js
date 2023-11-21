@@ -2,7 +2,8 @@
 
 import { validateAMP } from 'amp-test-utils'
 import cheerio from 'cheerio'
-import { readFileSync, writeFileSync, rename } from 'fs-extra'
+import { readFileSync, writeFileSync } from 'fs'
+import { rename } from 'fs/promises'
 import {
   check,
   findPort,

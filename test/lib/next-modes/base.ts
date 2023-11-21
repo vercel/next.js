@@ -1,6 +1,8 @@
 import os from 'os'
 import path from 'path'
-import fs from 'fs-extra'
+import { move } from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
@@ -92,24 +94,24 @@ export class NextInstance {
     if (files instanceof FileRef) {
       // if a FileRef is passed directly to `files` we copy the
       // entire folder to the test directory
-      const stats = await fs.stat(files.fsPath)
+      const stats = await fsp.stat(files.fsPath)
 
       if (!stats.isDirectory()) {
         throw new Error(
           `FileRef passed to "files" in "createNext" is not a directory ${files.fsPath}`
         )
       }
-      await fs.copy(files.fsPath, this.testDir)
+      await fsp.cp(files.fsPath, this.testDir)
     } else {
       for (const filename of Object.keys(files)) {
         const item = files[filename]
         const outputFilename = path.join(this.testDir, filename)
 
         if (typeof item === 'string') {
-          await fs.ensureDir(path.dirname(outputFilename))
-          await fs.writeFile(outputFilename, item)
+          await fsp.mkdir(path.dirname(outputFilename), { recursive: true })
+          await fsp.writeFile(outputFilename, item)
         } else {
-          await fs.copy(item.fsPath, outputFilename)
+          await fsp.cp(item.fsPath, outputFilename)
         }
       }
     }
@@ -135,7 +137,7 @@ export class NextInstance {
         const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
         const tmpDir = skipIsolatedNext
           ? path.join(__dirname, '../../tmp')
-          : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
+          : process.env.NEXT_TEST_DIR || (await fsp.realpath(os.tmpdir()))
         this.testDir = path.join(
           tmpDir,
           `next-test-${Date.now()}-${(Math.random() * 1000) | 0}${
@@ -157,8 +159,8 @@ export class NextInstance {
 
         if (skipInstall || skipIsolatedNext) {
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
-          await fs.ensureDir(this.testDir)
-          await fs.writeFile(
+          await fsp.mkdir(this.testDir, { recursive: true })
+          await fsp.writeFile(
             path.join(this.testDir, 'package.json'),
             JSON.stringify(
               {
@@ -192,7 +194,7 @@ export class NextInstance {
             !this.packageJson &&
             !(global as any).isNextDeploy
           ) {
-            await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
+            await fsp.cp(process.env.NEXT_TEST_STARTER, this.testDir)
           } else {
             const { installDir } = await createNextInstall({
               parentSpan: rootSpan,
@@ -217,7 +219,7 @@ export class NextInstance {
           file.startsWith('next.config.')
         )
 
-        if (await fs.pathExists(path.join(this.testDir, 'next.config.js'))) {
+        if (fs.existsSync(path.join(this.testDir, 'next.config.js'))) {
           nextConfigFile = 'next.config.js'
         }
 
@@ -233,7 +235,7 @@ export class NextInstance {
         ) {
           const functions = []
 
-          await fs.writeFile(
+          await fsp.writeFile(
             path.join(this.testDir, 'next.config.js'),
             `
         module.exports = ` +
@@ -267,7 +269,7 @@ export class NextInstance {
             this.testDir,
             nextConfigFile || 'next.config.js'
           )
-          const content = await fs.readFile(fileName, 'utf8')
+          const content = await fsp.readFile(fileName, 'utf8')
 
           if (content.includes('basePath')) {
             this.basePath =
@@ -275,7 +277,7 @@ export class NextInstance {
               ''
           }
 
-          await fs.writeFile(
+          await fsp.writeFile(
             fileName,
             `${content}\n` +
               `
@@ -325,9 +327,12 @@ export class NextInstance {
       'yarn.lock',
       'pnpm-lock.yaml',
     ]
-    for (const file of await fs.readdir(this.testDir)) {
+    for (const file of await fsp.readdir(this.testDir)) {
       if (!keptFiles.includes(file)) {
-        await fs.remove(path.join(this.testDir, file))
+        await fsp.rm(path.join(this.testDir, file), {
+          recursive: true,
+          force: true,
+        })
       }
     }
     await this.writeInitialFiles()
@@ -374,8 +379,8 @@ export class NextInstance {
       await this.stop().catch(console.error)
 
       if (process.env.TRACE_PLAYWRIGHT) {
-        await fs
-          .copy(
+        await fsp
+          .cp(
             path.join(this.testDir, '.next/trace'),
             path.join(
               __dirname,
@@ -393,7 +398,7 @@ export class NextInstance {
       }
 
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-        await fs.remove(this.testDir)
+        await fsp.rm(this.testDir, { recursive: true, force: true })
       }
       require('console').log(`destroyed next instance`)
     } catch (err) {
@@ -419,13 +424,15 @@ export class NextInstance {
 
   // TODO: block these in deploy mode
   public async hasFile(filename: string) {
-    return fs.pathExists(path.join(this.testDir, filename))
+    return fs.existsSync(path.join(this.testDir, filename))
   }
   public async readFile(filename: string) {
-    return fs.readFile(path.join(this.testDir, filename), 'utf8')
+    return fsp.readFile(path.join(this.testDir, filename), 'utf8')
   }
   public async readJSON(filename: string) {
-    return fs.readJSON(path.join(this.testDir, filename))
+    return JSON.parse(
+      await fsp.readFile(path.join(this.testDir, filename), 'utf-8')
+    )
   }
   private async handleDevWatchDelayBeforeChange(filename: string) {
     // This is a temporary workaround for turbopack starting watching too late.
@@ -454,9 +461,9 @@ export class NextInstance {
     await this.handleDevWatchDelayBeforeChange(filename)
 
     const outputPath = path.join(this.testDir, filename)
-    const newFile = !(await fs.pathExists(outputPath))
-    await fs.ensureDir(path.dirname(outputPath))
-    await fs.writeFile(outputPath, content)
+    const newFile = !fs.existsSync(outputPath)
+    await fsp.mkdir(path.dirname(outputPath), { recursive: true })
+    await fsp.writeFile(outputPath, content)
 
     if (newFile) {
       await this.handleDevWatchDelayAfterChange(filename)
@@ -464,12 +471,12 @@ export class NextInstance {
   }
   public async patchFileFast(filename: string, content: string) {
     const outputPath = path.join(this.testDir, filename)
-    await fs.writeFile(outputPath, content)
+    await fsp.writeFile(outputPath, content)
   }
   public async renameFile(filename: string, newFilename: string) {
     await this.handleDevWatchDelayBeforeChange(filename)
 
-    await fs.rename(
+    await fsp.rename(
       path.join(this.testDir, filename),
       path.join(this.testDir, newFilename)
     )
@@ -478,7 +485,7 @@ export class NextInstance {
   public async renameFolder(foldername: string, newFoldername: string) {
     await this.handleDevWatchDelayBeforeChange(foldername)
 
-    await fs.move(
+    await move(
       path.join(this.testDir, foldername),
       path.join(this.testDir, newFoldername)
     )
@@ -487,7 +494,10 @@ export class NextInstance {
   public async deleteFile(filename: string) {
     await this.handleDevWatchDelayBeforeChange(filename)
 
-    await fs.remove(path.join(this.testDir, filename))
+    await fsp.rm(path.join(this.testDir, filename), {
+      recursive: true,
+      force: true,
+    })
     await this.handleDevWatchDelayAfterChange(filename)
   }
 

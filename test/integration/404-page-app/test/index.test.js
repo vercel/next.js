@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   killApp,
@@ -45,8 +45,8 @@ describe('404 Page Support with _app', () => {
     })
 
     it('specify to use the 404 page still in the routes-manifest', async () => {
-      const manifest = await fs.readJSON(
-        join(appDir, '.next/routes-manifest.json')
+      const manifest = JSON.parse(
+        await fsp.readFile(join(appDir, '.next/routes-manifest.json'))
       )
       expect(manifest.pages404).toBe(true)
     })

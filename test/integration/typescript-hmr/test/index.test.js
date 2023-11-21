@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   check,
   findPort,
@@ -39,7 +39,7 @@ describe('TypeScript HMR', () => {
         await check(() => getBrowserBodyText(browser), /Hello World/)
 
         const pagePath = join(appDir, 'pages/hello.tsx')
-        const originalContent = await fs.readFile(pagePath, 'utf8')
+        const originalContent = await fsp.readFile(pagePath, 'utf8')
         const editedContent = originalContent.replace('Hello', 'COOL page')
 
         if (process.env.TURBOPACK) {
@@ -48,11 +48,11 @@ describe('TypeScript HMR', () => {
         }
 
         // change the content
-        await fs.writeFile(pagePath, editedContent, 'utf8')
+        await fsp.writeFile(pagePath, editedContent, 'utf8')
         await check(() => getBrowserBodyText(browser), /COOL page/)
 
         // add the original content
-        await fs.writeFile(pagePath, originalContent, 'utf8')
+        await fsp.writeFile(pagePath, originalContent, 'utf8')
         await check(() => getBrowserBodyText(browser), /Hello World/)
       } finally {
         if (browser) {
@@ -66,32 +66,32 @@ describe('TypeScript HMR', () => {
   it.skip('should recover from a type error', async () => {
     let browser
     const pagePath = join(appDir, 'pages/type-error-recover.tsx')
-    const origContent = await fs.readFile(pagePath, 'utf8')
+    const origContent = await fsp.readFile(pagePath, 'utf8')
     try {
       browser = await webdriver(appPort, '/type-error-recover')
       const errContent = origContent.replace('() =>', '(): boolean =>')
 
-      await fs.writeFile(pagePath, errContent)
+      await fsp.writeFile(pagePath, errContent)
       await check(
         () => getRedboxHeader(browser),
         /Type 'Element' is not assignable to type 'boolean'/
       )
 
-      await fs.writeFile(pagePath, origContent)
+      await fsp.writeFile(pagePath, origContent)
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
         return html.match(/iframe/) ? 'fail' : 'success'
       }, /success/)
     } finally {
       if (browser) browser.close()
-      await fs.writeFile(pagePath, origContent)
+      await fsp.writeFile(pagePath, origContent)
     }
   })
 
   it('should ignore type errors in development', async () => {
     let browser
     const pagePath = join(appDir, 'pages/type-error-recover.tsx')
-    const origContent = await fs.readFile(pagePath, 'utf8')
+    const origContent = await fsp.readFile(pagePath, 'utf8')
     try {
       browser = await webdriver(appPort, '/type-error-recover')
       const errContent = origContent.replace(
@@ -102,7 +102,7 @@ describe('TypeScript HMR', () => {
         // TODO Turbopack needs a bit to start watching
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
-      await fs.writeFile(pagePath, errContent)
+      await fsp.writeFile(pagePath, errContent)
       const res = await check(
         async () => {
           const html = await browser.eval(
@@ -117,7 +117,7 @@ describe('TypeScript HMR', () => {
       expect(res).toBe(true)
     } finally {
       if (browser) browser.close()
-      await fs.writeFile(pagePath, origContent)
+      await fsp.writeFile(pagePath, origContent)
     }
   })
 })

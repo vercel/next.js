@@ -2,7 +2,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP } from 'next-test-utils'
 import path from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 
 function extractJSON(response) {
   return JSON.parse(response.headers.get('data') ?? '{}')
@@ -105,7 +105,7 @@ describe('middleware can use wasm files', () => {
         next.testDir,
         '.next/server/middleware-manifest.json'
       )
-      const manifest = await fs.readJSON(manifestPath)
+      const manifest = JSON.parse(await fsp.readFile(manifestPath, 'utf-8'))
       expect(manifest.middleware['/']).toMatchObject({
         wasm: [
           {

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import url from 'url'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -100,7 +100,7 @@ const runTests = (mode = 'dev', didReload = false) => {
 
     // read client bundle contents since a server side render can
     // have the value available during render but it not be injected
-    const bundleContent = await fs.readFile(
+    const bundleContent = await fsp.readFile(
       join(appDir, '.next', pageFile),
       'utf8'
     )
@@ -173,7 +173,7 @@ describe('Env Config', () => {
       const originalContents = []
       beforeAll(async () => {
         const outputIndex = output.length
-        const envFiles = (await fs.readdir(appDir)).filter((file) =>
+        const envFiles = (await fsp.readdir(appDir)).filter((file) =>
           file.startsWith('.env')
         )
         const envToUpdate = [
@@ -193,12 +193,12 @@ describe('Env Config', () => {
 
         for (const file of envFiles) {
           const filePath = join(appDir, file)
-          const content = await fs.readFile(filePath, 'utf8')
+          const content = await fsp.readFile(filePath, 'utf8')
           originalContents.push({ file, content })
 
           const toUpdate = envToUpdate.find((item) => item.file === file)
           if (toUpdate) {
-            await fs.writeFile(filePath, content + `\n${toUpdate.toAdd}`)
+            await fsp.writeFile(filePath, content + `\n${toUpdate.toAdd}`)
           }
         }
         await check(() => {
@@ -207,7 +207,7 @@ describe('Env Config', () => {
       })
       afterAll(async () => {
         for (const { file, content } of originalContents) {
-          await fs.writeFile(join(appDir, file), content)
+          await fsp.writeFile(join(appDir, file), content)
         }
       })
 
@@ -231,7 +231,7 @@ describe('Env Config', () => {
         ).content
 
         try {
-          await fs.writeFile(
+          await fsp.writeFile(
             envFile,
             envContent.replace(`ENV_FILE_KEY=env`, `ENV_FILE_KEY=env-updated`)
           )
@@ -253,7 +253,7 @@ describe('Env Config', () => {
 
           outputIdx = output.length
 
-          await fs.writeFile(
+          await fsp.writeFile(
             envLocalFile,
             envLocalContent.replace(
               `ENV_FILE_LOCAL_OVERRIDE_TEST=localenv`,
@@ -278,8 +278,8 @@ describe('Env Config', () => {
             return 'success'
           }, 'success')
         } finally {
-          await fs.writeFile(envFile, envContent)
-          await fs.writeFile(envLocalFile, envLocalContent)
+          await fsp.writeFile(envFile, envContent)
+          await fsp.writeFile(envLocalFile, envLocalContent)
         }
       })
 
@@ -299,7 +299,7 @@ describe('Env Config', () => {
 
           let outputIdx = output.length
 
-          await fs.writeFile(
+          await fsp.writeFile(
             envFile,
             envContent.replace(
               `NEXT_PUBLIC_TEST_DEST=another`,
@@ -317,7 +317,7 @@ describe('Env Config', () => {
 
           outputIdx = output.length
 
-          await fs.writeFile(
+          await fsp.writeFile(
             envLocalFile,
             envLocalContent + `\nNEXT_PUBLIC_TEST_DEST=overridden`
           )
@@ -332,7 +332,7 @@ describe('Env Config', () => {
 
           outputIdx = output.length
 
-          await fs.writeFile(envLocalFile, envLocalContent)
+          await fsp.writeFile(envLocalFile, envLocalContent)
           // we should only log we loaded new env from .env
           await check(() => output.substring(outputIdx), /Reload env:/)
           expect(
@@ -342,8 +342,8 @@ describe('Env Config', () => {
 
           await check(() => browser.elementByCss('p').text(), 'replaced')
         } finally {
-          await fs.writeFile(envFile, envContent)
-          await fs.writeFile(envLocalFile, envLocalContent)
+          await fsp.writeFile(envFile, envContent)
+          await fsp.writeFile(envLocalFile, envLocalContent)
         }
       })
     })

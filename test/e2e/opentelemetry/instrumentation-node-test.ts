@@ -11,7 +11,8 @@ import {
   ExportResultCode,
   hrTimeToMicroseconds,
 } from '@opentelemetry/core'
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 
 import { SavedSpan, traceFile } from './constants'
 import path from 'path'
@@ -41,7 +42,7 @@ class TestExporter implements SpanExporter {
   ) {
     const traceFullPath = path.join(__dirname, traceFile)
     for (const span of spans) {
-      await fs.appendFile(
+      await fsp.appendFile(
         traceFullPath,
         JSON.stringify(serializeSpan(span)) + '\n'
       )
@@ -66,5 +67,5 @@ export const register = () => {
   provider.register()
 
   // Creating this file will let our tests know that initialization is done
-  fs.createFileSync('./' + traceFile)
+  fs.writeFileSync('./' + traceFile, '')
 }

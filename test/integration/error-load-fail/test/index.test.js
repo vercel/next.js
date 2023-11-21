@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import webdriver from 'next-webdriver'
 import {
   nextBuild,
@@ -51,7 +51,10 @@ describe('Failing to load _error', () => {
 
       const errorPageFilePath = getPageFileFromBuildManifest(appDir, '/_error')
       // remove _error client bundle so that it can't be loaded
-      await fs.remove(join(appDir, '.next', errorPageFilePath))
+      await fsp.rm(join(appDir, '.next', errorPageFilePath), {
+        recursive: true,
+        force: true,
+      })
 
       await browser.elementByCss('#to-broken').click()
 

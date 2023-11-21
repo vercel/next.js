@@ -1,7 +1,8 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
+import { move } from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   runNextCommand,
   launchApp,
@@ -101,7 +102,7 @@ describe('Telemetry CLI', () => {
 
   it('detects isSrcDir dir correctly for `next build`', async () => {
     // must clear cache for GSSP imports to be detected correctly
-    await fs.remove(path.join(appDir, '.next'))
+    await fsp.rm(path.join(appDir, '.next'), { recursive: true, force: true })
     const { stderr } = await runNextCommand(['build', appDir], {
       stderr: true,
       env: {
@@ -115,20 +116,20 @@ describe('Telemetry CLI', () => {
     expect(stderr).toMatch(/package.*?"http"/)
     expect(stderr).toMatch(/NEXT_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS/)
 
-    await fs.move(path.join(appDir, 'pages'), path.join(appDir, 'src/pages'))
+    await move(path.join(appDir, 'pages'), path.join(appDir, 'src/pages'))
     const { stderr: stderr2 } = await runNextCommand(['build', appDir], {
       stderr: true,
       env: {
         NEXT_TELEMETRY_DEBUG: 1,
       },
     })
-    await fs.move(path.join(appDir, 'src/pages'), path.join(appDir, 'pages'))
+    await move(path.join(appDir, 'src/pages'), path.join(appDir, 'pages'))
 
     expect(stderr2).toMatch(/isSrcDir.*?true/)
   })
 
   it('emits event when swc fails to load', async () => {
-    await fs.remove(path.join(appDir, '.next'))
+    await fsp.rm(path.join(appDir, '.next'), { recursive: true, force: true })
     const { stderr } = await runNextCommand(['build', appDir], {
       stderr: true,
       env: {
@@ -147,7 +148,7 @@ describe('Telemetry CLI', () => {
   })
 
   it('logs completed `next build` with warnings', async () => {
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, 'pages', 'warning.skip'),
       path.join(appDir, 'pages', 'warning.js')
     )
@@ -157,7 +158,7 @@ describe('Telemetry CLI', () => {
         NEXT_TELEMETRY_DEBUG: 1,
       },
     })
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, 'pages', 'warning.js'),
       path.join(appDir, 'pages', 'warning.skip')
     )
@@ -167,7 +168,7 @@ describe('Telemetry CLI', () => {
   })
 
   it('detects tests correctly for `next build`', async () => {
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, 'pages', 'hello.test.skip'),
       path.join(appDir, 'pages', 'hello.test.js')
     )
@@ -177,7 +178,7 @@ describe('Telemetry CLI', () => {
         NEXT_TELEMETRY_DEBUG: 1,
       },
     })
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, 'pages', 'hello.test.js'),
       path.join(appDir, 'pages', 'hello.test.skip')
     )
@@ -210,7 +211,7 @@ describe('Telemetry CLI', () => {
   })
 
   it('cli session: babel tooling config', async () => {
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, '.babelrc.default'),
       path.join(appDir, '.babelrc')
     )
@@ -220,7 +221,7 @@ describe('Telemetry CLI', () => {
         NEXT_TELEMETRY_DEBUG: 1,
       },
     })
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, '.babelrc'),
       path.join(appDir, '.babelrc.default')
     )
@@ -236,7 +237,7 @@ describe('Telemetry CLI', () => {
   })
 
   it('cli session: custom babel config (plugin)', async () => {
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, '.babelrc.plugin'),
       path.join(appDir, '.babelrc')
     )
@@ -246,7 +247,7 @@ describe('Telemetry CLI', () => {
         NEXT_TELEMETRY_DEBUG: 1,
       },
     })
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, '.babelrc'),
       path.join(appDir, '.babelrc.plugin')
     )
@@ -262,7 +263,7 @@ describe('Telemetry CLI', () => {
   })
 
   it('cli session: package.json custom babel config (plugin)', async () => {
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, 'package.babel'),
       path.join(appDir, 'package.json')
     )
@@ -272,7 +273,7 @@ describe('Telemetry CLI', () => {
         NEXT_TELEMETRY_DEBUG: 1,
       },
     })
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, 'package.json'),
       path.join(appDir, 'package.babel')
     )
@@ -288,7 +289,7 @@ describe('Telemetry CLI', () => {
   })
 
   it('cli session: custom babel config (preset)', async () => {
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, '.babelrc.preset'),
       path.join(appDir, '.babelrc')
     )
@@ -298,7 +299,7 @@ describe('Telemetry CLI', () => {
         NEXT_TELEMETRY_DEBUG: 1,
       },
     })
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, '.babelrc'),
       path.join(appDir, '.babelrc.preset')
     )
@@ -314,7 +315,7 @@ describe('Telemetry CLI', () => {
   })
 
   it('cli session: next config with webpack', async () => {
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, 'next.config.webpack'),
       path.join(appDir, 'next.config.js')
     )
@@ -324,7 +325,7 @@ describe('Telemetry CLI', () => {
         NEXT_TELEMETRY_DEBUG: 1,
       },
     })
-    await fs.rename(
+    await fsp.rename(
       path.join(appDir, 'next.config.js'),
       path.join(appDir, 'next.config.webpack')
     )
@@ -390,7 +391,7 @@ describe('Telemetry CLI', () => {
     await killApp(app)
     expect(stderr).toMatch(/isSrcDir.*?false/)
 
-    await fs.move(path.join(appDir, 'pages'), path.join(appDir, 'src/pages'))
+    await move(path.join(appDir, 'pages'), path.join(appDir, 'src/pages'))
     stderr = ''
 
     port = await findPort()
@@ -402,7 +403,7 @@ describe('Telemetry CLI', () => {
     })
     await waitFor(1000)
     await killApp(app)
-    await fs.move(path.join(appDir, 'src/pages'), path.join(appDir, 'pages'))
+    await move(path.join(appDir, 'src/pages'), path.join(appDir, 'pages'))
 
     expect(stderr).toMatch(/isSrcDir.*?true/)
   })

@@ -1,4 +1,4 @@
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import os from 'os'
 
 import { join } from 'path'
@@ -42,10 +42,10 @@ const dirTypescript = join(__dirname, '../with-typescript')
 test('eslint caching is enabled by default', async () => {
   const cacheDir = join(dirEslintCache, '.next', 'cache')
 
-  await fs.remove(cacheDir)
+  await fsp.rm(cacheDir, { recursive: true, force: true })
   await nextLint(dirEslintCache, [])
 
-  const files = await fs.readdir(join(cacheDir, 'eslint/'))
+  const files = await fsp.readdir(join(cacheDir, 'eslint/'))
   const cacheExists = files.some((f) => /\.cache/.test(f))
 
   expect(cacheExists).toBe(true)
@@ -54,7 +54,7 @@ test('eslint caching is enabled by default', async () => {
 test('eslint caching is disabled with the --no-cache flag', async () => {
   const cacheDir = join(dirEslintCache, '.next', 'cache')
 
-  await fs.remove(cacheDir)
+  await fsp.rm(cacheDir, { recursive: true, force: true })
   await nextLint(dirEslintCache, ['--no-cache'])
 
   expect(fs.existsSync(join(cacheDir, 'eslint/'))).toBe(false)
@@ -64,14 +64,14 @@ test('the default eslint cache lives in the user defined build directory', async
   const oldCacheDir = join(dirEslintCacheCustomDir, '.next', 'cache')
   const newCacheDir = join(dirEslintCacheCustomDir, 'build', 'cache')
 
-  await fs.remove(oldCacheDir)
-  await fs.remove(newCacheDir)
+  await fsp.rm(oldCacheDir, { recursive: true, force: true })
+  await fsp.rm(newCacheDir, { recursive: true, force: true })
 
   await nextLint(dirEslintCacheCustomDir, [])
 
   expect(fs.existsSync(oldCacheDir)).toBe(false)
 
-  const files = await fs.readdir(join(newCacheDir, 'eslint/'))
+  const files = await fsp.readdir(join(newCacheDir, 'eslint/'))
   const cacheExists = files.some((f) => /\.cache/.test(f))
 
   expect(cacheExists).toBe(true)
@@ -80,32 +80,32 @@ test('the default eslint cache lives in the user defined build directory', async
 test('the --cache-location flag allows the user to define a separate cache location', async () => {
   const cacheFile = join(dirEslintCache, '.eslintcache')
 
-  await fs.remove(cacheFile)
+  await fsp.rm(cacheFile, { recursive: true, force: true })
   await nextLint(dirEslintCache, ['--cache-location', cacheFile])
 
   const hasCache = fs.existsSync(cacheFile)
-  await fs.remove(cacheFile) // remove after generate
+  await fsp.rm(cacheFile, { recursive: true, force: true }) // remove after generate
   expect(hasCache).toBe(true)
 })
 
 const getEslintCacheContent = async (cacheDir) => {
   const eslintCacheDir = join(cacheDir, 'eslint/')
-  let files = await fs.readdir(eslintCacheDir)
+  let files = await fsp.readdir(eslintCacheDir)
   let cacheFiles = files.filter((f) => /\.cache/.test(f))
   expect(cacheFiles.length).toBe(1)
   const cacheFile = join(eslintCacheDir, cacheFiles[0])
-  return await fs.readFile(cacheFile, 'utf8')
+  return await fsp.readFile(cacheFile, 'utf8')
 }
 
 test('the default eslint caching strategy is metadata', async () => {
   const cacheDir = join(dirEslintCache, '.next', 'cache')
 
-  await fs.remove(cacheDir)
+  await fsp.rm(cacheDir, { recursive: true, force: true })
   await nextLint(dirEslintCache)
 
   const defaultStrategyCache = await getEslintCacheContent(cacheDir)
 
-  await fs.remove(cacheDir)
+  await fsp.rm(cacheDir, { recursive: true, force: true })
   await nextLint(dirEslintCache, ['--cache-strategy', 'metadata'])
 
   const metadataStrategyCache = await getEslintCacheContent(cacheDir)
@@ -116,12 +116,12 @@ test('the default eslint caching strategy is metadata', async () => {
 test('cache with content strategy is different from the one with default strategy', async () => {
   const cacheDir = join(dirEslintCache, '.next', 'cache')
 
-  await fs.remove(cacheDir)
+  await fsp.rm(cacheDir, { recursive: true, force: true })
   await nextLint(dirEslintCache)
 
   const defaultStrategyCache = await getEslintCacheContent(cacheDir)
 
-  await fs.remove(cacheDir)
+  await fsp.rm(cacheDir, { recursive: true, force: true })
   await nextLint(dirEslintCache, ['--cache-strategy', 'content'])
 
   const contentStrategyCache = await getEslintCacheContent(cacheDir)

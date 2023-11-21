@@ -1,5 +1,5 @@
 import { BrowserInterface, Event } from './base'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   chromium,
   webkit,
@@ -140,7 +140,7 @@ export class Playwright extends BrowserInterface {
         `playwright-${this.activeTrace}-${Date.now()}.zip`
       )
 
-      await fs.remove(traceOutputPath)
+      await fsp.rm(traceOutputPath, { recursive: true, force: true })
       await context.tracing
         .stop({
           path: traceOutputPath,

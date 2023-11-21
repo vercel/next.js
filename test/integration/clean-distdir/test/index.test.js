@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
@@ -35,8 +36,8 @@ describe('Cleaning distDir', () => {
 
   describe('disabled write', () => {
     beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
+      nextConfigContent = await fsp.readFile(nextConfig, 'utf8')
+      await fsp.writeFile(
         nextConfig,
         `
         module.exports = {
@@ -46,7 +47,7 @@ describe('Cleaning distDir', () => {
       )
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, nextConfigContent)
+      await fsp.writeFile(nextConfig, nextConfigContent)
     })
 
     it('should not clean up .next before build start', async () => {

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+fs.existsSync
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { findPort, launchApp, killApp, waitFor, check } from 'next-test-utils'
@@ -28,7 +28,7 @@ describe('Build Activity Indicator', () => {
   it('should validate buildActivityPosition config', async () => {
     let stderr = ''
     const configPath = join(appDir, 'next.config.js')
-    await fs.writeFile(
+    await fsp.writeFile(
       configPath,
       `
       module.exports = {
@@ -45,7 +45,7 @@ describe('Build Activity Indicator', () => {
     }).catch((err) => {
       console.error('got err', err)
     })
-    await fs.remove(configPath)
+    await fsp.rm(configPath, { recursive: true, force: true })
 
     await check(
       () => stripAnsi(stderr),
@@ -61,7 +61,7 @@ describe('Build Activity Indicator', () => {
 
   describe('Enabled', () => {
     beforeAll(async () => {
-      await fs.remove(nextConfig)
+      await fsp.rm(nextConfig, { recursive: true, force: true })
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -89,22 +89,22 @@ describe('Build Activity Indicator', () => {
       const browser = await webdriver(appPort, '/b')
       await installCheckVisible(browser)
       const pagePath = join(appDir, 'pages/b.js')
-      const origContent = await fs.readFile(pagePath, 'utf8')
+      const origContent = await fsp.readFile(pagePath, 'utf8')
       const newContent = origContent.replace('b', 'c')
 
-      await fs.writeFile(pagePath, newContent, 'utf8')
+      await fsp.writeFile(pagePath, newContent, 'utf8')
       await waitFor(500)
       const wasVisible = await browser.eval('window.showedBuilder')
 
       expect(wasVisible).toBe(true)
-      await fs.writeFile(pagePath, origContent, 'utf8')
+      await fsp.writeFile(pagePath, origContent, 'utf8')
       await browser.close()
     })
   })
 
   describe('Disabled with next.config.js', () => {
     beforeAll(async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         nextConfig,
         'module.exports = { devIndicators: { buildActivity: false } }',
         'utf8'
@@ -114,7 +114,7 @@ describe('Build Activity Indicator', () => {
     })
     afterAll(async () => {
       await killApp(app)
-      await fs.remove(nextConfig)
+      await fsp.rm(nextConfig, { recursive: true, force: true })
     })
 
     it('Does not add the build indicator container', async () => {

@@ -9,7 +9,7 @@ import {
   runNextCommand,
   runNextCommandDev,
 } from 'next-test-utils'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import path, { join } from 'path'
 import pkg from 'next/package'
 import http from 'http'
@@ -84,7 +84,7 @@ describe('CLI Usage', () => {
     describe('start', () => {
       test('should exit when SIGINT is signalled', async () => {
         require('console').log('before build')
-        await fs.remove(join(dirBasic, '.next'))
+        await fsp.rm(join(dirBasic, '.next'), { recursive: true, force: true })
         await nextBuild(dirBasic, undefined, {
           onStdout(msg) {
             console.log(msg)
@@ -103,7 +103,7 @@ describe('CLI Usage', () => {
         )
       })
       test('should exit when SIGTERM is signalled', async () => {
-        await fs.remove(join(dirBasic, '.next'))
+        await fsp.rm(join(dirBasic, '.next'), { recursive: true, force: true })
         await nextBuild(dirBasic, undefined, {
           onStdout(msg) {
             console.log(msg)
@@ -821,11 +821,11 @@ Next.js Config:
       let info = { stdout: '', stderr: '' }
 
       try {
-        await fs.writeFile(
+        await fsp.writeFile(
           join(dirBasic, 'next.config.mjs'),
           `export default { output: 'standalone' }`
         )
-        await fs.writeFile(
+        await fsp.writeFile(
           join(dirBasic, 'package.json'),
           JSON.stringify({
             type: 'module',
@@ -837,8 +837,14 @@ Next.js Config:
           stderr: true,
         })
       } finally {
-        await fs.remove(join(dirBasic, 'next.config.mjs'))
-        await fs.remove(join(dirBasic, 'package.json'))
+        await fsp.rm(join(dirBasic, 'next.config.mjs'), {
+          recursive: true,
+          force: true,
+        })
+        await fsp.rm(join(dirBasic, 'package.json'), {
+          recursive: true,
+          force: true,
+        })
       }
 
       expect((info.stderr || '').toLowerCase()).not.toContain('error')

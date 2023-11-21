@@ -1,6 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import path from 'path'
-import fs from 'fs-extra'
+import fs from 'fs'
 
 const testedExamples = [
   // Internal features
@@ -79,7 +79,9 @@ describe.each(testedExamples)(`example '%s'`, (example) => {
   })
 
   const exampleFiles = path.join(__dirname, '..', '..', 'examples', example)
-  const packageJson = fs.readJsonSync(path.join(exampleFiles, 'package.json'))
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(exampleFiles, 'package.json'), 'utf-8')
+  )
   createNextDescribe(
     `example '${example}'`,
     {

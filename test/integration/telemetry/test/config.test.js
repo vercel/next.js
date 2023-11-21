@@ -7,7 +7,7 @@ import {
   nextBuild,
   nextLint,
 } from 'next-test-utils'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import path from 'path'
 
 const appDir = path.join(__dirname, '..')
@@ -15,7 +15,7 @@ const appDir = path.join(__dirname, '..')
 describe('config telemetry', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('detects rewrites, headers, and redirects for next build', async () => {
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.custom-routes'),
         path.join(appDir, 'next.config.js')
       )
@@ -25,7 +25,7 @@ describe('config telemetry', () => {
         env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
 
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.js'),
         path.join(appDir, 'next.config.custom-routes')
       )
@@ -45,7 +45,7 @@ describe('config telemetry', () => {
     })
 
     it('detects i18n and image configs for session start', async () => {
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.i18n-images'),
         path.join(appDir, 'next.config.js')
       )
@@ -55,7 +55,7 @@ describe('config telemetry', () => {
         env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
 
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.js'),
         path.join(appDir, 'next.config.i18n-images')
       )
@@ -86,7 +86,7 @@ describe('config telemetry', () => {
         throw err
       }
 
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.i18n-images'),
         path.join(appDir, 'next.config.js')
       )
@@ -104,7 +104,7 @@ describe('config telemetry', () => {
       await check(() => stderr2, /NEXT_CLI_SESSION_STARTED/)
       await killApp(app)
 
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.js'),
         path.join(appDir, 'next.config.i18n-images')
       )
@@ -130,7 +130,7 @@ describe('config telemetry', () => {
     })
 
     it('detects output config for session start', async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         './next.config.js',
         'module.exports = { output: "export" }'
       )
@@ -151,12 +151,12 @@ describe('config telemetry', () => {
           throw err
         }
       } finally {
-        await fs.remove('./next.config.js')
+        await fsp.rm('./next.config.js', { recursive: true, force: true })
       }
     })
 
     it('emits telemetry for lint during build', async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         path.join(appDir, '.eslintrc'),
         `{ "root": true, "extends": "next" }`
       )
@@ -164,7 +164,10 @@ describe('config telemetry', () => {
         stderr: true,
         env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
-      await fs.remove(path.join(appDir, '.eslintrc'))
+      await fsp.rm(path.join(appDir, '.eslintrc'), {
+        recursive: true,
+        force: true,
+      })
 
       try {
         const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S}]+?)^}/m
@@ -210,7 +213,7 @@ describe('config telemetry', () => {
 
     it(`emits telemetry for lint during build when 'ignoreDuringBuilds' is specified`, async () => {
       const nextConfig = path.join(appDir, 'next.config.js')
-      await fs.writeFile(
+      await fsp.writeFile(
         nextConfig,
         `module.exports = { eslint: { ignoreDuringBuilds: true } }`
       )
@@ -218,7 +221,7 @@ describe('config telemetry', () => {
         stderr: true,
         env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
-      await fs.remove(nextConfig)
+      await fsp.rm(nextConfig, { recursive: true, force: true })
 
       const events = findAllTelemetryEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
       expect(events).toContainEqual({
@@ -228,7 +231,7 @@ describe('config telemetry', () => {
     })
 
     it('emits telemetry for `next lint`', async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         path.join(appDir, '.eslintrc'),
         `{ "root": true, "extends": "next" }`
       )
@@ -236,7 +239,10 @@ describe('config telemetry', () => {
         stderr: true,
         env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
-      await fs.remove(path.join(appDir, '.eslintrc'))
+      await fsp.rm(path.join(appDir, '.eslintrc'), {
+        recursive: true,
+        force: true,
+      })
 
       const event1 = /NEXT_LINT_CHECK_COMPLETED[\s\S]+?{([\s\S]+?)^}/m
         .exec(stderr)
@@ -287,13 +293,19 @@ describe('config telemetry', () => {
     })
 
     it('emits telemetry for usage of swc', async () => {
-      await fs.remove(path.join(appDir, 'next.config.js'))
-      await fs.remove(path.join(appDir, 'jsconfig.json'))
-      await fs.rename(
+      await fsp.rm(path.join(appDir, 'next.config.js'), {
+        recursive: true,
+        force: true,
+      })
+      await fsp.rm(path.join(appDir, 'jsconfig.json'), {
+        recursive: true,
+        force: true,
+      })
+      await fsp.rename(
         path.join(appDir, 'next.config.swc'),
         path.join(appDir, 'next.config.js')
       )
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'jsconfig.swc'),
         path.join(appDir, 'jsconfig.json')
       )
@@ -301,11 +313,11 @@ describe('config telemetry', () => {
         stderr: true,
         env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.js'),
         path.join(appDir, 'next.config.swc')
       )
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'jsconfig.json'),
         path.join(appDir, 'jsconfig.swc')
       )
@@ -352,7 +364,7 @@ describe('config telemetry', () => {
     })
 
     it('emits telemetry for usage of `optimizeCss`', async () => {
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.optimize-css'),
         path.join(appDir, 'next.config.js')
       )
@@ -362,7 +374,7 @@ describe('config telemetry', () => {
         env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
 
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.js'),
         path.join(appDir, 'next.config.optimize-css')
       )
@@ -375,7 +387,7 @@ describe('config telemetry', () => {
     })
 
     it('emits telemetry for usage of `nextScriptWorkers`', async () => {
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.next-script-workers'),
         path.join(appDir, 'next.config.js')
       )
@@ -385,7 +397,7 @@ describe('config telemetry', () => {
         env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
 
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.js'),
         path.join(appDir, 'next.config.next-script-workers')
       )
@@ -401,7 +413,7 @@ describe('config telemetry', () => {
     })
 
     it('emits telemetry for usage of middleware', async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         path.join(appDir, 'middleware.js'),
         `export function middleware () { }`
       )
@@ -411,7 +423,10 @@ describe('config telemetry', () => {
         env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
 
-      await fs.remove(path.join(appDir, 'middleware.js'))
+      await fsp.rm(path.join(appDir, 'middleware.js'), {
+        recursive: true,
+        force: true,
+      })
 
       const buildOptimizedEvents = findAllTelemetryEvents(
         stderr,
@@ -425,15 +440,21 @@ describe('config telemetry', () => {
     })
 
     it('emits telemetry for usage of swc plugins', async () => {
-      await fs.remove(path.join(appDir, 'next.config.js'))
-      await fs.remove(path.join(appDir, 'package.json'))
+      await fsp.rm(path.join(appDir, 'next.config.js'), {
+        recursive: true,
+        force: true,
+      })
+      await fsp.rm(path.join(appDir, 'package.json'), {
+        recursive: true,
+        force: true,
+      })
 
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.swc-plugins'),
         path.join(appDir, 'next.config.js')
       )
 
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'package.swc-plugins'),
         path.join(appDir, 'package.json')
       )
@@ -443,12 +464,12 @@ describe('config telemetry', () => {
         env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
 
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.js'),
         path.join(appDir, 'next.config.swc-plugins')
       )
 
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'package.json'),
         path.join(appDir, 'package.swc-plugins')
       )
@@ -507,7 +528,7 @@ describe('config telemetry', () => {
     })
 
     it('emits telemetry for transpilePackages', async () => {
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.transpile-packages'),
         path.join(appDir, 'next.config.js')
       )
@@ -517,7 +538,7 @@ describe('config telemetry', () => {
         env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
 
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.js'),
         path.join(appDir, 'next.config.transpile-packages')
       )
@@ -533,7 +554,7 @@ describe('config telemetry', () => {
     })
 
     it('emits telemetry for middleware related options', async () => {
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.middleware-options'),
         path.join(appDir, 'next.config.js')
       )
@@ -543,7 +564,7 @@ describe('config telemetry', () => {
         env: { NEXT_TELEMETRY_DEBUG: 1 },
       })
 
-      await fs.rename(
+      await fsp.rename(
         path.join(appDir, 'next.config.js'),
         path.join(appDir, 'next.config.middleware-options')
       )

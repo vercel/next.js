@@ -1,7 +1,6 @@
 /* eslint-disable no-loop-func */
 /* eslint-env jest */
 
-import fs from 'fs-extra'
 import { join } from 'path'
 import {
   nextBuild,
@@ -27,7 +26,7 @@ const appDir = join(__dirname, '../')
     let staticServer
     let staticServerPort
     beforeAll(async () => {
-      await fs.remove(join(appDir, 'next.lock'))
+      await fsp.rm(join(appDir, 'next.lock'), { recursive: true, force: true })
       staticServerPort = 12345
       staticServer = await startStaticServer(
         join(appDir, 'source'),
@@ -44,7 +43,7 @@ const appDir = join(__dirname, '../')
         let appPort
         let app
         beforeAll(async () => {
-          await fs.remove(join(appDir, '.next'))
+          await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
           if (dev) {
             appPort = await findPort()
             app = await launchApp(appDir, appPort)

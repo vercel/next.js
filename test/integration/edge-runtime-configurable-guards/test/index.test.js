@@ -11,7 +11,7 @@ import {
   nextStart,
   waitFor,
 } from 'next-test-utils'
-import { remove } from 'fs-extra'
+import fsp from 'fs/promises'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -39,7 +39,7 @@ const TELEMETRY_EVENT_NAME = 'NEXT_EDGE_ALLOW_DYNAMIC_USED'
 
 describe('Edge runtime configurable guards', () => {
   beforeEach(async () => {
-    await remove(join(__dirname, '../.next'))
+    await fsp.rm(join(__dirname, '../.next'), { recursive: true, force: true })
     context.appPort = await findPort()
     context.logs = { output: '', stdout: '', stderr: '' }
   })

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   fetchViaHTTP,
@@ -39,11 +39,11 @@ function runDoubleMiddlewareTests() {
 }
 
 async function writeRootMiddleware() {
-  await fs.copy(join(appDir, 'src/pages'), join(appDir, 'pages'), {
+  await fsp.cp(join(appDir, 'src/pages'), join(appDir, 'pages'), {
     force: true,
     recursive: true,
   })
-  await fs.writeFile(
+  await fsp.writeFile(
     rootMiddlewareJSFile,
     `
 import { NextResponse } from 'next/server'
@@ -54,7 +54,7 @@ response.headers.set('${rootHeader}', 'true')
 return response
 }`
   )
-  await fs.writeFile(
+  await fsp.writeFile(
     rootMiddlewareTSFile,
     `
 import { NextResponse } from 'next/server'
@@ -68,9 +68,21 @@ return response
 }
 
 async function removeRootMiddleware() {
-  await fs.remove(rootMiddlewareJSFile, { force: true })
-  await fs.remove(rootMiddlewareTSFile, { force: true })
-  await fs.remove(join(appDir, 'pages'), { force: true, recursive: true })
+  await fsp.rm(
+    rootMiddlewareJSFile,
+    { force: true },
+    { recursive: true, force: true }
+  )
+  await fsp.rm(
+    rootMiddlewareTSFile,
+    { force: true },
+    { recursive: true, force: true }
+  )
+  await fsp.rm(
+    join(appDir, 'pages'),
+    { force: true, recursive: true },
+    { recursive: true, force: true }
+  )
 }
 
 describe.each([
@@ -110,7 +122,7 @@ describe.each([
       })
 
       const outdir = join(__dirname, '..', 'out')
-      await fs.remove(outdir).catch(() => {})
+      await fsp.rm(outdir).catch(() => {}, { recursive: true, force: true })
 
       exportOutput = result.stderr + result.stdout
     })

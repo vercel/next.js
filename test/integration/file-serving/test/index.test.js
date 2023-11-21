@@ -2,7 +2,7 @@
 
 /* eslint-disable jest/no-identical-title */
 import url from 'url'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   killApp,
@@ -4462,7 +4462,7 @@ const runTests = () => {
 }
 
 const copyTestFileToDist = () =>
-  fs.copy(join(appDir, 'test-file.txt'), join(appDir, '.next', 'test-file.txt'))
+  fsp.cp(join(appDir, 'test-file.txt'), join(appDir, '.next', 'test-file.txt'))
 
 describe('File Serving', () => {
   describe('dev mode', () => {

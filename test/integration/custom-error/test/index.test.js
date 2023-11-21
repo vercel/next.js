@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   renderViaHTTP,
@@ -42,9 +42,9 @@ describe('Custom _error', () => {
 
     it('should not warn with /_error and /404 when rendering error first', async () => {
       stderr = ''
-      await fs.writeFile(page404, 'export default <h1>')
+      await fsp.writeFile(page404, 'export default <h1>')
       const html = await renderViaHTTP(appPort, '/404')
-      await fs.remove(page404)
+      await fsp.rm(page404, { recursive: true, force: true })
       expect(html).toContain('Unexpected eof')
       expect(stderr).not.toMatch(customErrNo404Match)
     })
@@ -65,9 +65,9 @@ describe('Custom _error', () => {
 
     it('should not warn with /_error and /404', async () => {
       stderr = ''
-      await fs.writeFile(page404, `export default () => 'not found...'`)
+      await fsp.writeFile(page404, `export default () => 'not found...'`)
       const html = await renderViaHTTP(appPort, '/404')
-      await fs.remove(page404)
+      await fsp.rm(page404, { recursive: true, force: true })
       expect(html).toContain('not found...')
       expect(stderr).not.toMatch(customErrNo404Match)
     })

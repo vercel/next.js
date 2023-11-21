@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -36,7 +36,7 @@ const runTests = () => {
     expect(res.status).toBe(404)
     expect($('#not-found').text()).toBe('404 page')
 
-    await fs.writeFile(dataFile, '200')
+    await fsp.writeFile(dataFile, '200')
 
     // wait for revalidation period
     await waitFor(1500)
@@ -73,7 +73,7 @@ const runTests = () => {
           : `${res.status} - ${$('#data').text()}`
       }, 'success')
     } finally {
-      await fs.writeFile(dataFile, '404')
+      await fsp.writeFile(dataFile, '404')
     }
   })
 
@@ -196,7 +196,7 @@ const runTests = () => {
 describe('SSG notFound revalidate', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir, undefined, {
         cwd: appDir,
       })

@@ -1,4 +1,4 @@
-import fs from 'fs-extra'
+import { move } from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { check, findPort, hasRedbox } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
@@ -31,7 +31,7 @@ describe.skip('Project Directory Renaming', () => {
     await browser.eval('window.beforeNav = 1')
 
     let newTestDir = `${next.testDir}-renamed`
-    await fs.move(next.testDir, newTestDir)
+    await move(next.testDir, newTestDir)
 
     next.testDir = newTestDir
 

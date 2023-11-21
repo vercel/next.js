@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { remove } from 'fs-extra'
+import fsp from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
@@ -13,7 +13,7 @@ describe('Fallback Modules', () => {
       const appDir = join(fixturesDir, 'with-crypto')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       })
 
       it('should not include crypto', async () => {

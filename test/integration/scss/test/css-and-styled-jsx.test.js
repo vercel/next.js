@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { remove } from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   findPort,
   killApp,
@@ -19,7 +19,7 @@ describe('Ordering with styled-jsx (dev)', () => {
   let appPort
   let app
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
   })
@@ -46,7 +46,7 @@ describe('Ordering with styled-jsx (prod)', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))

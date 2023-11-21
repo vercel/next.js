@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   check,
@@ -17,13 +17,13 @@ let appPort
 describe('SSG Prerender', () => {
   describe('dev mode getStaticPaths', () => {
     beforeAll(async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         nextConfigPath,
         // we set cpus to 1 so that we make sure the requests
         // aren't being cached at the jest-worker level
         `module.exports = { experimental: { cpus: 1 } }`
       )
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
         env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
@@ -31,7 +31,7 @@ describe('SSG Prerender', () => {
     })
     afterAll(async () => {
       try {
-        await fs.remove(nextConfigPath)
+        await fsp.rm(nextConfigPath, { recursive: true, force: true })
         await killApp(app)
       } catch (err) {
         console.error(err)
@@ -53,8 +53,8 @@ describe('SSG Prerender', () => {
       await check(() => renderViaHTTP(appPort, '/blog/post-1'), /post-1/)
 
       const blogPage = join(appDir, 'pages/blog/[post]/index.js')
-      const origContent = await fs.readFile(blogPage, 'utf8')
-      await fs.writeFile(
+      const origContent = await fsp.readFile(blogPage, 'utf8')
+      await fsp.writeFile(
         blogPage,
         origContent.replace('fallback: true,', '/* fallback: true, */')
       )
@@ -62,10 +62,10 @@ describe('SSG Prerender', () => {
       try {
         await check(() => renderViaHTTP(appPort, '/blog/post-1'), errMsg)
 
-        await fs.writeFile(blogPage, origContent)
+        await fsp.writeFile(blogPage, origContent)
         await check(() => renderViaHTTP(appPort, '/blog/post-1'), /post-1/)
       } finally {
-        await fs.writeFile(blogPage, origContent)
+        await fsp.writeFile(blogPage, origContent)
       }
     })
   })

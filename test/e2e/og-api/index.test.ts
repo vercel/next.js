@@ -1,7 +1,7 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
-import fs from 'fs-extra'
+import fs from 'fs'
 import { join } from 'path'
 
 describe('og-api', () => {
@@ -51,12 +51,12 @@ describe('og-api', () => {
       expect(next.cliOutput).not.toContain('Failed to copy traced files')
 
       expect(
-        await fs.pathExists(
+        fs.existsSync(
           join(next.testDir, '.next/standalone/.next/server/pages/api/og.js')
         )
       ).toBe(true)
       expect(
-        await fs.pathExists(
+        fs.existsSync(
           join(next.testDir, '.next/standalone/.next/server/edge-chunks')
         )
       ).toBe(true)

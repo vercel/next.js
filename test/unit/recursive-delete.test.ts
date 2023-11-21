@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { recursiveDelete } from 'next/dist/lib/recursive-delete'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { recursiveCopy } from 'next/dist/lib/recursive-copy'
@@ -19,7 +19,7 @@ describe('recursiveDelete', () => {
     expect.assertions(1)
     try {
       await recursiveCopy(resolveDataDir, testResolveDataDir)
-      await fs.symlink('./aa', join(testResolveDataDir, 'symlink'))
+      await fsp.symlink('./aa', join(testResolveDataDir, 'symlink'))
       await recursiveDelete(testResolveDataDir)
       const result = await recursiveReadDir(testResolveDataDir)
       expect(result.length).toBe(0)

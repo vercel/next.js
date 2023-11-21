@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   findPort,
   killApp,
@@ -43,7 +43,7 @@ const runTests = (isDev = false) => {
   }
 
   it('should show error for getStaticProps as component member', async () => {
-    await fs.writeFile(
+    await fsp.writeFile(
       indexPage,
       `
       const Page = () => 'hi'
@@ -57,7 +57,7 @@ const runTests = (isDev = false) => {
   })
 
   it('should show error for getServerSideProps as component member', async () => {
-    await fs.writeFile(
+    await fsp.writeFile(
       indexPage,
       `
       import React from 'react'
@@ -81,7 +81,7 @@ const runTests = (isDev = false) => {
   })
 
   it('should show error for getStaticPaths as component member', async () => {
-    await fs.writeFile(
+    await fsp.writeFile(
       indexPage,
       `
       const Page = () => 'hi'
@@ -95,7 +95,7 @@ const runTests = (isDev = false) => {
   })
 
   it('should show error for undefined getStaticProps', async () => {
-    await fs.writeFile(
+    await fsp.writeFile(
       indexPage,
       `
         export function getStaticProps() {}
@@ -109,7 +109,7 @@ const runTests = (isDev = false) => {
 
   if (isDev) {
     it('should show error for undefined getServerSideProps', async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         indexPage,
         `
           export function getServerSideProps() {}
@@ -125,9 +125,9 @@ const runTests = (isDev = false) => {
 
 describe('GS(S)P Page Errors', () => {
   beforeAll(async () => {
-    origIndexPage = await fs.readFile(indexPage, 'utf8')
+    origIndexPage = await fsp.readFile(indexPage, 'utf8')
   })
-  afterAll(() => fs.writeFile(indexPage, origIndexPage))
+  afterAll(() => fsp.writeFile(indexPage, origIndexPage))
 
   describe('dev mode', () => {
     runTests(true)
@@ -137,7 +137,7 @@ describe('GS(S)P Page Errors', () => {
 
     it('Error stack printed to stderr', async () => {
       try {
-        await fs.writeFile(
+        await fsp.writeFile(
           indexPage,
           `export default function Page() {
             return <div/>

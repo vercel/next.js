@@ -5,7 +5,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 
-import { readJson } from 'fs-extra'
+import fsp from 'fs/promises'
 
 function splitLines(text) {
   return text
@@ -181,8 +181,11 @@ describe('Switchable runtime', () => {
         expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
 
         if (!(global as any).isNextDeploy) {
-          const manifest = await readJson(
-            join(context.appDir, '.next/server/middleware-manifest.json')
+          const manifest = JSON.parse(
+            await fsp.readFile(
+              join(context.appDir, '.next/server/middleware-manifest.json'),
+              'utf-8'
+            )
           )
           expect(manifest).toMatchObject({
             functions: {
@@ -615,8 +618,11 @@ describe('Switchable runtime', () => {
         expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
 
         if (!(global as any).isNextDeploy) {
-          const manifest = await readJson(
-            join(context.appDir, '.next/server/middleware-manifest.json')
+          const manifest = JSON.parse(
+            await fsp.readFile(
+              join(context.appDir, '.next/server/middleware-manifest.json'),
+              'utf-8'
+            )
           )
           expect(manifest).toMatchObject({
             functions: {

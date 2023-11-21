@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import webdriver from 'next-webdriver'
 import { check, findPort, killApp, nextBuild, nextStart } from 'next-test-utils'
 
@@ -22,7 +22,7 @@ describe('Middleware Production Prefetch', () => {
         stdout: true,
       })
 
-      context.buildId = await fs.readFile(
+      context.buildId = await fsp.readFile(
         join(context.appDir, '.next/BUILD_ID'),
         'utf8'
       )

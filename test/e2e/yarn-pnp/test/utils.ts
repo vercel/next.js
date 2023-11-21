@@ -1,4 +1,4 @@
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { fetchViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
@@ -26,9 +26,11 @@ export function runTests(
 
     beforeAll(async () => {
       const srcDir = join(__dirname, '../../../../examples', example)
-      const srcFiles = await fs.readdir(srcDir)
+      const srcFiles = await fsp.readdir(srcDir)
 
-      const packageJson = await fs.readJson(join(srcDir, 'package.json'))
+      const packageJson = JSON.parse(
+        await fsp.readFile(join(srcDir, 'package.json'), 'utf-8')
+      )
 
       next = await createNext({
         files: srcFiles.reduce((prev, file) => {

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -9,11 +9,11 @@ const nextConfig = path.join(appDir, 'next.config.js')
 
 describe('Errors on output to public', () => {
   afterEach(async () => {
-    await fs.remove(nextConfig)
+    await fsp.rm(nextConfig, { recursive: true, force: true })
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('Throws error when `distDir` is set to public', async () => {
-      await fs.writeFile(nextConfig, `module.exports = { distDir: 'public' }`)
+      await fsp.writeFile(nextConfig, `module.exports = { distDir: 'public' }`)
       const results = await nextBuild(appDir, [], {
         stdout: true,
         stderr: true,
@@ -24,7 +24,7 @@ describe('Errors on output to public', () => {
     })
 
     it('Throws error when export out dir is public', async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         nextConfig,
         `module.exports = { distDir: 'public', output: 'export' }`
       )

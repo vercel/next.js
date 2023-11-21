@@ -3,7 +3,7 @@
 import http from 'http'
 import url from 'url'
 import stripAnsi from 'strip-ansi'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import WebSocket from 'ws'
 import cheerio from 'cheerio'
@@ -1477,8 +1477,8 @@ const runTests = (isDev = false) => {
 
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
-      const manifest = await fs.readJSON(
-        join(appDir, '.next/routes-manifest.json')
+      const manifest = JSON.parse(
+        await fsp.readFile(join(appDir, '.next/routes-manifest.json'))
       )
 
       for (const route of [
@@ -2568,8 +2568,8 @@ const runTests = (isDev = false) => {
     })
 
     it('should have redirects/rewrites in build output with debug flag', async () => {
-      const manifest = await fs.readJSON(
-        join(appDir, '.next/routes-manifest.json')
+      const manifest = JSON.parse(
+        await fsp.readFile(join(appDir, '.next/routes-manifest.json'))
       )
       const cleanStdout = stripAnsi(stdout)
       expect(cleanStdout).toContain('Redirects')
@@ -2626,15 +2626,15 @@ describe('Custom routes', () => {
         resolve()
       })
     })
-    nextConfigRestoreContent = await fs.readFile(nextConfigPath, 'utf8')
-    await fs.writeFile(
+    nextConfigRestoreContent = await fsp.readFile(nextConfigPath, 'utf8')
+    await fsp.writeFile(
       nextConfigPath,
       nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/g, externalServerPort)
     )
   })
   afterAll(async () => {
     externalServer.close()
-    await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
+    await fsp.writeFile(nextConfigPath, nextConfigRestoreContent)
   })
 
   describe('dev mode', () => {
@@ -2643,9 +2643,9 @@ describe('Custom routes', () => {
     beforeAll(async () => {
       // ensure cache with rewrites disabled doesn't persist
       // after enabling rewrites
-      await fs.remove(join(appDir, '.next'))
-      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-      await fs.writeFile(
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
+      nextConfigContent = await fsp.readFile(nextConfigPath, 'utf8')
+      await fsp.writeFile(
         nextConfigPath,
         nextConfigContent.replace('// no-rewrites comment', 'return []')
       )
@@ -2655,14 +2655,14 @@ describe('Custom routes', () => {
       await renderViaHTTP(tempPort, '/')
 
       await killApp(tempApp)
-      await fs.writeFile(nextConfigPath, nextConfigContent)
+      await fsp.writeFile(nextConfigPath, nextConfigContent)
 
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
       buildId = 'development'
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfigPath, nextConfigContent)
+      await fsp.writeFile(nextConfigPath, nextConfigContent)
       await killApp(app)
     })
     runTests(true)
@@ -2701,7 +2701,7 @@ describe('Custom routes', () => {
       stderr = buildStderr
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      buildId = await fsp.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
     runTests()
@@ -2728,8 +2728,8 @@ describe('Custom routes', () => {
       }
 
       it('should work with just headers', async () => {
-        nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-        await fs.writeFile(
+        nextConfigContent = await fsp.readFile(nextConfigPath, 'utf8')
+        await fsp.writeFile(
           nextConfigPath,
           nextConfigContent.replace(/(async (?:redirects|rewrites))/g, '$1s')
         )
@@ -2742,7 +2742,7 @@ describe('Custom routes', () => {
         })
         const res3 = await fetchViaHTTP(appPort, '/hello-world')
 
-        await fs.writeFile(nextConfigPath, nextConfigContent)
+        await fsp.writeFile(nextConfigPath, nextConfigContent)
         await killApp(app)
 
         expect(res.headers.get('x-custom-header')).toBe('hello world')
@@ -2753,8 +2753,8 @@ describe('Custom routes', () => {
       })
 
       it('should work with just rewrites', async () => {
-        nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-        await fs.writeFile(
+        nextConfigContent = await fsp.readFile(nextConfigPath, 'utf8')
+        await fsp.writeFile(
           nextConfigPath,
           nextConfigContent.replace(/(async (?:redirects|headers))/g, '$1s')
         )
@@ -2767,7 +2767,7 @@ describe('Custom routes', () => {
         })
         const res3 = await fetchViaHTTP(appPort, '/hello-world')
 
-        await fs.writeFile(nextConfigPath, nextConfigContent)
+        await fsp.writeFile(nextConfigPath, nextConfigContent)
         await killApp(app)
 
         expect(res.headers.get('x-custom-header')).toBeFalsy()
@@ -2780,8 +2780,8 @@ describe('Custom routes', () => {
       })
 
       it('should work with just redirects', async () => {
-        nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-        await fs.writeFile(
+        nextConfigContent = await fsp.readFile(nextConfigPath, 'utf8')
+        await fsp.writeFile(
           nextConfigPath,
           nextConfigContent.replace(/(async (?:rewrites|headers))/g, '$1s')
         )
@@ -2794,7 +2794,7 @@ describe('Custom routes', () => {
         })
         const res3 = await fetchViaHTTP(appPort, '/hello world')
 
-        await fs.writeFile(nextConfigPath, nextConfigContent)
+        await fsp.writeFile(nextConfigPath, nextConfigContent)
         await killApp(app)
 
         expect(res.headers.get('x-custom-header')).toBeFalsy()

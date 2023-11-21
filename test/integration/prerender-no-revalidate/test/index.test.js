@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   findPort,
   killApp,
@@ -27,23 +27,23 @@ function runTests(route, routePath) {
       getPageFileFromPagesManifest(appDir, routePath)
     )
     const initialHtml = await renderViaHTTP(appPort, route)
-    const initialFileHtml = await fs.readFile(fileName, 'utf8')
+    const initialFileHtml = await fsp.readFile(fileName, 'utf8')
 
     let newHtml = await renderViaHTTP(appPort, route)
     expect(initialHtml).toBe(newHtml)
-    expect(await fs.readFile(fileName, 'utf8')).toBe(initialFileHtml)
+    expect(await fsp.readFile(fileName, 'utf8')).toBe(initialFileHtml)
 
     await waitFor(500)
 
     newHtml = await renderViaHTTP(appPort, route)
     expect(initialHtml).toBe(newHtml)
-    expect(await fs.readFile(fileName, 'utf8')).toBe(initialFileHtml)
+    expect(await fsp.readFile(fileName, 'utf8')).toBe(initialFileHtml)
 
     await waitFor(500)
 
     newHtml = await renderViaHTTP(appPort, route)
     expect(initialHtml).toBe(newHtml)
-    expect(await fs.readFile(fileName, 'utf8')).toBe(initialFileHtml)
+    expect(await fsp.readFile(fileName, 'utf8')).toBe(initialFileHtml)
 
     expect(stderr).not.toContain('GSP was re-run')
   })
@@ -58,18 +58,18 @@ function runTests(route, routePath) {
     const route = join(`/_next/data/${buildId}`, `${routePath}.json`)
 
     const initialData = JSON.parse(await renderViaHTTP(appPort, route))
-    const initialFileJson = await fs.readFile(fileName, 'utf8')
+    const initialFileJson = await fsp.readFile(fileName, 'utf8')
 
     expect(JSON.parse(await renderViaHTTP(appPort, route))).toEqual(initialData)
-    expect(await fs.readFile(fileName, 'utf8')).toBe(initialFileJson)
+    expect(await fsp.readFile(fileName, 'utf8')).toBe(initialFileJson)
     await waitFor(500)
 
     expect(JSON.parse(await renderViaHTTP(appPort, route))).toEqual(initialData)
-    expect(await fs.readFile(fileName, 'utf8')).toBe(initialFileJson)
+    expect(await fsp.readFile(fileName, 'utf8')).toBe(initialFileJson)
     await waitFor(500)
 
     expect(JSON.parse(await renderViaHTTP(appPort, route))).toEqual(initialData)
-    expect(await fs.readFile(fileName, 'utf8')).toBe(initialFileJson)
+    expect(await fsp.readFile(fileName, 'utf8')).toBe(initialFileJson)
 
     expect(stderr).not.toContain('GSP was re-run')
   })
@@ -78,7 +78,7 @@ function runTests(route, routePath) {
 describe('SSG Prerender No Revalidate', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir, [])
       appPort = await findPort()
       stderr = ''
@@ -87,7 +87,7 @@ describe('SSG Prerender No Revalidate', () => {
           stderr += msg
         },
       })
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      buildId = await fsp.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
 

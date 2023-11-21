@@ -1,5 +1,5 @@
 import path from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import stripAnsi from 'strip-ansi'
 import resolveFrom from 'resolve-from'
 import { NextInstance, createNext } from 'e2e-utils'
@@ -61,8 +61,14 @@ describe('build-spinners', () => {
   afterAll(() => next.destroy())
 
   beforeEach(async () => {
-    await fs.remove(path.join(next.testDir, 'pages'))
-    await fs.remove(path.join(next.testDir, 'app'))
+    await fsp.rm(path.join(next.testDir, 'pages'), {
+      recursive: true,
+      force: true,
+    })
+    await fsp.rm(path.join(next.testDir, 'app'), {
+      recursive: true,
+      force: true,
+    })
   })
 
   it.each([

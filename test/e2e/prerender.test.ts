@@ -1,4 +1,4 @@
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import cookie from 'cookie'
 import cheerio from 'cheerio'
 import { join, sep } from 'path'
@@ -67,7 +67,7 @@ describe('Prerender', () => {
         `${prerenderPath}.html`
       )
       try {
-        const jsonStats = await fs.stat(jsonPath)
+        const jsonStats = await fsp.stat(jsonPath)
         const jsonLastModified = jsonStats.mtime.getTime()
 
         if (timeBeforeRevalidateMilliseconds <= jsonLastModified) {

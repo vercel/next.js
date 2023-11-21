@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
@@ -17,17 +17,21 @@ describe('build trace with extra entries', () => {
       console.log(result)
       expect(result.code).toBe(0)
 
-      const appTrace = await fs.readJSON(
-        join(appDir, '.next/server/pages/_app.js.nft.json')
+      const appTrace = JSON.parse(
+        await fsp.readFile(join(appDir, '.next/server/pages/_app.js.nft.json'))
       )
-      const indexTrace = await fs.readJSON(
-        join(appDir, '.next/server/pages/index.js.nft.json')
+      const indexTrace = JSON.parse(
+        await fsp.readFile(join(appDir, '.next/server/pages/index.js.nft.json'))
       )
-      const anotherTrace = await fs.readJSON(
-        join(appDir, '.next/server/pages/another.js.nft.json')
+      const anotherTrace = JSON.parse(
+        await fsp.readFile(
+          join(appDir, '.next/server/pages/another.js.nft.json')
+        )
       )
-      const imageTrace = await fs.readJSON(
-        join(appDir, '.next/server/pages/image-import.js.nft.json')
+      const imageTrace = JSON.parse(
+        await fsp.readFile(
+          join(appDir, '.next/server/pages/image-import.js.nft.json')
+        )
       )
 
       const tracedFiles = [

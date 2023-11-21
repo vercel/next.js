@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import url from 'url'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
@@ -491,7 +491,7 @@ describe('GS(S)P Redirect Support', () => {
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
@@ -501,8 +501,8 @@ describe('GS(S)P Redirect Support', () => {
     runTests()
 
     it('should error for redirect during prerendering', async () => {
-      await fs.mkdirp(join(appDir, 'pages/invalid'))
-      await fs.writeFile(
+      await fsp.mkdir(join(appDir, 'pages/invalid'), { recursive: true })
+      await fsp.writeFile(
         join(appDir, 'pages', 'invalid', '[slug].js'),
         `
         export default function Post(props) {
@@ -531,7 +531,10 @@ describe('GS(S)P Redirect Support', () => {
         stderr: true,
       })
       const output = stdout + stderr
-      await fs.remove(join(appDir, 'pages/invalid'))
+      await fsp.rm(join(appDir, 'pages/invalid'), {
+        recursive: true,
+        force: true,
+      })
 
       expect(output).toContain(
         '`redirect` can not be returned from getStaticProps during prerendering'

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { remove } from 'fs-extra'
+import fsp from 'fs/promises'
 import { File, nextBuild, waitFor } from 'next-test-utils'
 import { join } from 'path'
 
@@ -45,7 +45,7 @@ describe('Build warnings', () => {
     })
 
     it('should not warn about missing cache in non-CI', async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
 
       const { stdout } = await nextBuild(appDir, undefined, {
         stdout: true,
@@ -62,7 +62,7 @@ describe('Build warnings', () => {
     })
 
     it('should not warn about missing cache on supported platforms', async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
 
       const { stdout } = await nextBuild(appDir, undefined, {
         stdout: true,
@@ -72,7 +72,7 @@ describe('Build warnings', () => {
     })
 
     it('should warn about missing cache in CI', async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
 
       let { stdout } = await nextBuild(appDir, undefined, {
         stdout: true,

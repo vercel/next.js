@@ -1,4 +1,6 @@
-import fs from 'fs-extra'
+import { move } from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import os from 'os'
 
 import { join } from 'path'
@@ -40,8 +42,8 @@ describe('Next Lint', () => {
   describe('First Time Setup ', () => {
     async function nextLintTemp(setupCallback) {
       const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
-      await fs.mkdirp(folder)
-      await fs.copy(dirNoConfig, folder)
+      await fsp.mkdir(folder, { recursive: true })
+      await fsp.cp(dirNoConfig, folder)
       await setupCallback?.(folder)
 
       try {
@@ -54,21 +56,21 @@ describe('Next Lint', () => {
         console.log({ stdout, stderr })
 
         const pkgJson = JSON.parse(
-          await fs.readFile(join(folder, 'package.json'), 'utf8')
+          await fsp.readFile(join(folder, 'package.json'), 'utf8')
         )
         const eslintrcJson = JSON.parse(
-          await fs.readFile(join(folder, '.eslintrc.json'), 'utf8')
+          await fsp.readFile(join(folder, '.eslintrc.json'), 'utf8')
         )
 
         return { stdout, pkgJson, eslintrcJson }
       } finally {
-        await fs.remove(folder)
+        await fsp.rm(folder, { recursive: true, force: true })
       }
     }
 
     test('show a prompt to set up ESLint if no configuration detected', async () => {
       const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
-      await fs.writeFile(eslintrcJson, '')
+      await fsp.writeFile(eslintrcJson, '')
 
       const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
         stdout: true,
@@ -90,7 +92,7 @@ describe('Next Lint', () => {
     ]) {
       test(`installs eslint and eslint-config-next as devDependencies if missing with ${packageManger}`, async () => {
         const { stdout, pkgJson } = await nextLintTemp(async (folder) => {
-          await fs.writeFile(join(folder, lockFile), '')
+          await fsp.writeFile(join(folder, lockFile), '')
         })
 
         expect(stdout).toContain(
@@ -128,7 +130,7 @@ describe('Next Lint', () => {
       stderr: true,
     })
 
-    const files = await fs.readdir(dirTypescript)
+    const files = await fsp.readdir(dirTypescript)
 
     expect(files).toContain('next-env.d.ts')
   })
@@ -145,7 +147,7 @@ describe('Next Lint', () => {
         stderr: true,
       })
 
-      const files = await fs.readdir(dir)
+      const files = await fsp.readdir(dir)
 
       expect(files).not.toContain('next-env.d.ts')
     })
@@ -158,7 +160,7 @@ describe('Next Lint', () => {
     })
 
     const tsConfigPath = join(dirTypescript, '../with-typescript/tsconfig.json')
-    const tsConfigContent = await fs.readFile(tsConfigPath, {
+    const tsConfigContent = await fsp.readFile(tsConfigPath, {
       encoding: 'utf8',
     })
     const tsConfigJson = JSON.parse(tsConfigContent)
@@ -251,7 +253,7 @@ describe('Next Lint', () => {
 
   test('success message when no warnings or errors', async () => {
     const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
-    await fs.writeFile(eslintrcJson, '{ "extends": "next", "root": true }\n')
+    await fsp.writeFile(eslintrcJson, '{ "extends": "next", "root": true }\n')
 
     const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
       stdout: true,
@@ -281,7 +283,7 @@ describe('Next Lint', () => {
     try {
       // If we found a .eslintrc file, it's probably config from root Next.js directory. Rename it during the test
       if (eslintrcFile) {
-        await fs.move(eslintrcFile, `${eslintrcFile}.original`)
+        await move(eslintrcFile, `${eslintrcFile}.original`)
       }
 
       const { stdout, stderr } = await nextLint(dirConfigInPackageJson, [], {
@@ -296,7 +298,7 @@ describe('Next Lint', () => {
     } finally {
       // Restore original .eslintrc file
       if (eslintrcFile) {
-        await fs.move(`${eslintrcFile}.original`, eslintrcFile)
+        await move(`${eslintrcFile}.original`, eslintrcFile)
       }
     }
   })
@@ -438,7 +440,7 @@ describe('Next Lint', () => {
     )
 
     const cliOutput = stdout + stderr
-    const fileOutput = await fs.readJSON(filePath)
+    const fileOutput = JSON.parse(await fsp.readFile(filePath, 'utf-8'))
 
     expect(cliOutput).toContain(`The output file has been created: ${filePath}`)
 

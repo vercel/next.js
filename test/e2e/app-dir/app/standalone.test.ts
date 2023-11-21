@@ -1,5 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
-import fs from 'fs-extra'
+import { move } from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import os from 'os'
 import path from 'path'
 import {
@@ -40,16 +42,16 @@ if (!(globalThis as any).isNextStart) {
         ]) {
           const pagePath = path.join(serverDirPath, 'app', page)
 
-          expect(
-            await fs.pathExists(path.join(pagePath, 'page.js.nft.json'))
-          ).toBe(true)
+          expect(fs.existsSync(path.join(pagePath, 'page.js.nft.json'))).toBe(
+            true
+          )
 
-          const files = (
-            await fs.readJSON(path.join(pagePath, 'page.js.nft.json'))
+          const files = JSON.parse(
+            await fsp.readFile(path.join(pagePath, 'page.js.nft.json'), 'utf-8')
           ).files as string[]
 
           for (const file of files) {
-            expect(await fs.pathExists(path.join(pagePath, file))).toBe(true)
+            expect(fs.existsSync(path.join(pagePath, file))).toBe(true)
           }
         }
       })
@@ -59,7 +61,7 @@ if (!(globalThis as any).isNextStart) {
           os.tmpdir(),
           'next-standalone-' + Date.now()
         )
-        await fs.move(path.join(next.testDir, '.next/standalone'), tmpFolder)
+        await move(path.join(next.testDir, '.next/standalone'), tmpFolder)
         let server: any
 
         try {
@@ -96,7 +98,7 @@ if (!(globalThis as any).isNextStart) {
           }
         } finally {
           if (server) await killApp(server)
-          await fs.remove(tmpFolder)
+          await fsp.rm(tmpFolder, { recursive: true, force: true })
         }
       })
     }

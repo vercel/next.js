@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { launchApp, findPort, nextBuild } from 'next-test-utils'
 
@@ -8,7 +8,7 @@ let appDir = join(__dirname, '..')
 const nextConfigPath = join(appDir, 'next.config.js')
 
 const writeConfig = async (routes, type = 'redirects') => {
-  await fs.writeFile(
+  await fsp.writeFile(
     nextConfigPath,
     `
     module.exports = {
@@ -577,7 +577,7 @@ const runTests = () => {
 }
 
 describe('Errors on invalid custom routes', () => {
-  afterAll(() => fs.remove(nextConfigPath))
+  afterAll(() => fsp.rm(nextConfigPath, { recursive: true, force: true }))
 
   describe('dev mode', () => {
     let stderr = ''

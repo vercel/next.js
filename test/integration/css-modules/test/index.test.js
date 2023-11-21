@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { readdir, readFile, remove } from 'fs-extra'
+import { readdir, readFile } from 'fs/promises'
 import {
   File,
   findPort,
@@ -26,7 +26,7 @@ describe('Basic CSS Module Support', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -85,7 +85,7 @@ describe('3rd Party CSS Module Support', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -142,7 +142,7 @@ describe('Has CSS Module in computed styles in Development', () => {
   let appPort
   let app
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
   })
@@ -169,7 +169,7 @@ describe('Has CSS Module in computed styles in Production', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -202,7 +202,7 @@ describe('Can hot reload CSS Module without losing state', () => {
   let appPort
   let app
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
   })
@@ -247,7 +247,7 @@ describe.skip('Invalid CSS Module Usage in node_modules', () => {
     const appDir = join(fixturesDir, 'invalid-module')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should fail to build', async () => {
@@ -272,7 +272,7 @@ describe.skip('Invalid Global CSS Module Usage in node_modules', () => {
     const appDir = join(fixturesDir, 'invalid-global-module')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     it('should fail to build', async () => {
@@ -297,7 +297,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     const appDir = join(fixturesDir, 'nm-module')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     let appPort
@@ -305,7 +305,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -352,7 +352,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
     const appDir = join(fixturesDir, 'nm-module-nested')
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     })
 
     let appPort
@@ -360,7 +360,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -412,7 +412,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -449,7 +449,7 @@ describe('CSS Module Composes Usage (External)', () => {
     let stdout
     let code
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -488,7 +488,7 @@ describe('Dynamic Route CSS Module Usage', () => {
     let appPort
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -538,7 +538,7 @@ describe('Catch-all Route CSS Module Usage', () => {
     let appPort
 
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       ;({ code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))

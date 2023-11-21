@@ -9,7 +9,7 @@ import {
 import cheerio from 'cheerio'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import fs from 'fs-extra'
+import { readFile } from 'fs/promises'
 
 describe('jsconfig-path-reloading', () => {
   let next: NextInstance
@@ -18,7 +18,7 @@ describe('jsconfig-path-reloading', () => {
 
   function runTests({ addAfterStart }: { addAfterStart?: boolean }) {
     beforeAll(async () => {
-      let tsConfigContent = await fs.readFile(
+      let tsConfigContent = await readFile(
         join(__dirname, 'app/jsconfig.json'),
         'utf8'
       )

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import {
@@ -29,7 +29,7 @@ const runApp = async (config) => {
   await waitFor(1000)
 
   await killApp(app)
-  await fs.remove(nextConfig)
+  await fsp.rm(nextConfig, { recursive: true, force: true })
 
   expect(stderr).not.toMatch(
     /Cannot read property 'serverRuntimeConfig' of undefined/i
@@ -44,7 +44,7 @@ const runApp = async (config) => {
 
 describe('should work with runtime-config in next.config.js', () => {
   test('empty runtime-config', async () => {
-    await fs.writeFile(
+    await fsp.writeFile(
       nextConfig,
       `
       module.exports = {
@@ -65,7 +65,7 @@ describe('should work with runtime-config in next.config.js', () => {
       },
     }
 
-    await fs.writeFile(
+    await fsp.writeFile(
       nextConfig,
       `
       module.exports = ${JSON.stringify(config)}

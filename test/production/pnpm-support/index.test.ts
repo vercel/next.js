@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import path from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
@@ -95,11 +95,14 @@ describe('pnpm support', () => {
       )
 
       // simulate what happens in a Dockerfile
-      await fs.remove(path.join(next.testDir, 'node_modules'))
-      await fs.copy(
+      await fsp.rm(path.join(next.testDir, 'node_modules'), {
+        recursive: true,
+        force: true,
+      })
+      await fsp.cp(
         path.join(next.testDir, './.next/static'),
         path.join(standaloneDir, './.next/static'),
-        { overwrite: true }
+        { force: true }
       )
       server = await initNextServerScript(
         path.join(standaloneDir, 'server.js'),

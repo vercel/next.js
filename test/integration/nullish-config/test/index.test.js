@@ -1,5 +1,6 @@
 /* eslint-env jest */
-import fs from 'fs-extra'
+
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { launchApp, findPort, nextBuild, killApp } from 'next-test-utils'
 
@@ -10,7 +11,7 @@ let getStdout
 
 const runTests = (type) => {
   it('should ignore configs set to `undefined` in next.config.js', async () => {
-    await fs.writeFile(
+    await fsp.writeFile(
       nextConfig,
       `
         module.exports = {
@@ -35,7 +36,7 @@ const runTests = (type) => {
   })
 
   it('should ignore configs set to `null` in next.config.js', async () => {
-    await fs.writeFile(
+    await fsp.writeFile(
       nextConfig,
       `
         module.exports = {
@@ -61,7 +62,7 @@ const runTests = (type) => {
 }
 
 describe('Nullish configs in next.config.js', () => {
-  afterAll(() => fs.remove(nextConfig))
+  afterAll(() => fsp.rm(nextConfig, { recursive: true, force: true }))
 
   describe('dev mode', () => {
     beforeAll(() => {

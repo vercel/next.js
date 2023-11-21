@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { nextBuild, nextStart, findPort, killApp } from 'next-test-utils'
@@ -15,13 +15,13 @@ describe('React Profiling Mode', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     describe('without config enabled', () => {
       beforeAll(async () => {
-        await fs.remove(nextConfig)
+        await fsp.rm(nextConfig, { recursive: true, force: true })
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
       })
       afterAll(async () => {
-        await fs.writeFile(
+        await fsp.writeFile(
           nextConfig,
           `
         module.exports = {

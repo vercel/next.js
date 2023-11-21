@@ -3,7 +3,7 @@
 import webdriver from 'next-webdriver'
 
 import cheerio from 'cheerio'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   fetchViaHTTP,
   renderViaHTTP,
@@ -251,8 +251,8 @@ describe('Trailing slashes', () => {
       testWithoutTrailingSlash()
 
       it('should have a redirect in the routesmanifest', async () => {
-        const manifest = await fs.readJSON(
-          join(appDir, '.next', 'routes-manifest.json')
+        const manifest = JSON.parse(
+          await fsp.readFile(join(appDir, '.next', 'routes-manifest.json'))
         )
         expect(manifest).toEqual(
           expect.objectContaining({
@@ -285,8 +285,8 @@ describe('Trailing slashes', () => {
       testWithTrailingSlash()
 
       it('should have a trailing redirect in the routesmanifest', async () => {
-        const manifest = await fs.readJSON(
-          join(appDir, '.next', 'routes-manifest.json')
+        const manifest = JSON.parse(
+          await fsp.readFile(join(appDir, '.next', 'routes-manifest.json'))
         )
         expect(manifest).toEqual(
           expect.objectContaining({

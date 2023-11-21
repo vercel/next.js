@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { killApp, findPort, launchApp, check } from 'next-test-utils'
@@ -21,14 +22,14 @@ describe('_app removal HMR', () => {
   afterAll(() => killApp(app))
 
   it('should HMR when _app is removed', async () => {
-    let indexContent = await fs.readFile(indexPage)
+    let indexContent = await fsp.readFile(indexPage)
     try {
       const browser = await webdriver(appPort, '/')
 
       const html = await browser.eval('document.documentElement.innerHTML')
       expect(html).toContain('custom _app')
 
-      await fs.rename(appPage, appPage + '.bak')
+      await fsp.rename(appPage, appPage + '.bak')
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
@@ -37,7 +38,7 @@ describe('_app removal HMR', () => {
           : html
       }, 'success')
 
-      await fs.writeFile(
+      await fsp.writeFile(
         indexPage,
         `
         export default function Page() {
@@ -54,7 +55,7 @@ describe('_app removal HMR', () => {
           : html
       }, 'success')
 
-      await fs.rename(appPage + '.bak', appPage)
+      await fsp.rename(appPage + '.bak', appPage)
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
@@ -64,23 +65,23 @@ describe('_app removal HMR', () => {
           : html
       }, 'success')
     } finally {
-      await fs.writeFile(indexPage, indexContent)
+      await fsp.writeFile(indexPage, indexContent)
 
-      if (await fs.pathExists(appPage + '.bak')) {
-        await fs.rename(appPage + '.bak', appPage)
+      if (fs.existsSync(appPage + '.bak')) {
+        await fsp.rename(appPage + '.bak', appPage)
       }
     }
   })
 
   it('should HMR when _document is removed', async () => {
-    let indexContent = await fs.readFile(indexPage)
+    let indexContent = await fsp.readFile(indexPage)
     try {
       const browser = await webdriver(appPort, '/')
 
       const html = await browser.eval('document.documentElement.innerHTML')
       expect(html).toContain('custom _document')
 
-      await fs.rename(documentPage, documentPage + '.bak')
+      await fsp.rename(documentPage, documentPage + '.bak')
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
@@ -89,7 +90,7 @@ describe('_app removal HMR', () => {
           : html
       }, 'success')
 
-      await fs.writeFile(
+      await fsp.writeFile(
         indexPage,
         `
         export default function Page() {
@@ -106,7 +107,7 @@ describe('_app removal HMR', () => {
           : html
       }, 'success')
 
-      await fs.rename(documentPage + '.bak', documentPage)
+      await fsp.rename(documentPage + '.bak', documentPage)
 
       await check(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
@@ -116,10 +117,10 @@ describe('_app removal HMR', () => {
           : html
       }, 'success')
     } finally {
-      await fs.writeFile(indexPage, indexContent)
+      await fsp.writeFile(indexPage, indexContent)
 
-      if (await fs.pathExists(documentPage + '.bak')) {
-        await fs.rename(documentPage + '.bak', documentPage)
+      if (fs.existsSync(documentPage + '.bak')) {
+        await fsp.rename(documentPage + '.bak', documentPage)
       }
     }
   })

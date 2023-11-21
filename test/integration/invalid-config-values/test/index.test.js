@@ -1,13 +1,13 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 const nextConfigPath = join(appDir, 'next.config.js')
 
-const cleanUp = () => fs.remove(nextConfigPath)
+const cleanUp = () => fsp.rm(nextConfigPath, { recursive: true, force: true })
 
 describe('Handles valid/invalid assetPrefix', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
@@ -15,7 +15,7 @@ describe('Handles valid/invalid assetPrefix', () => {
     afterAll(() => cleanUp())
 
     it('should not error without usage of assetPrefix', async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         nextConfigPath,
         `module.exports = {
       }`
@@ -26,7 +26,7 @@ describe('Handles valid/invalid assetPrefix', () => {
     })
 
     it('should not error when assetPrefix is a string', async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         nextConfigPath,
         `module.exports = {
         assetPrefix: '/hello'

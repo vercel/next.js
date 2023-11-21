@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import fs from 'fs-extra'
+import { readFile } from 'fs/promises'
 import { hasRedbox } from 'next-test-utils'
 import path from 'path'
 
@@ -15,8 +15,9 @@ createNextDescribe(
       expect(await browser.elementByCss('p').text()).toBe('version-1')
 
       const pagePath = 'pages/index.tsx'
-      const pageContent = String(
-        await fs.readFile(path.join(__dirname, pagePath))
+      const pageContent = await readFile(
+        path.join(__dirname, pagePath),
+        'utf-8'
       )
 
       await next.patchFile(

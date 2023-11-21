@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   renderViaHTTP,
@@ -34,14 +34,14 @@ describe('Dynamic route rename casing', () => {
     const html = await renderViaHTTP(appPort, '/abc')
     expect(html).toContain('hi')
 
-    await fs.rename(pageFile, pageFileAlt)
+    await fsp.rename(pageFile, pageFileAlt)
     await waitFor(2000)
 
     expect(stderr).not.toContain(
       `You cannot use different slug names for the same dynamic path`
     )
 
-    await fs.rename(pageFileAlt, pageFile)
+    await fsp.rename(pageFileAlt, pageFile)
     await waitFor(2000)
 
     expect(stderr).not.toContain(

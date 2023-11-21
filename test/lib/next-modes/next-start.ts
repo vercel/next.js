@@ -1,5 +1,5 @@
 import path from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { NextInstance } from './base'
 import spawn from 'cross-spawn'
 import { Span } from 'next/src/trace'
@@ -99,7 +99,7 @@ export class NextStartInstance extends NextInstance {
     })
 
     this._buildId = (
-      await fs
+      await fsp
         .readFile(
           path.join(
             this.testDir,

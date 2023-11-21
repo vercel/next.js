@@ -1,7 +1,7 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP } from 'next-test-utils'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import path from 'path'
 
 const files = {
@@ -55,7 +55,7 @@ describe('Edge Runtime is addressable', () => {
   })
 
   test('removes the undefined branch with dead code elimination', async () => {
-    const compiledMiddlewareFile = await fs.readFile(
+    const compiledMiddlewareFile = await fsp.readFile(
       path.join(next.testDir, '.next/server/middleware.js'),
       'utf8'
     )

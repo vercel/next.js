@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { dirname, join } from 'path'
 import { nextBuild } from 'next-test-utils'
 
@@ -8,13 +8,13 @@ const appDir = join(__dirname, '..')
 const pagesDir = join(appDir, 'pages')
 
 const writePage = async (content, testPage = join(pagesDir, 'test.js')) => {
-  await fs.ensureDir(dirname(testPage))
-  await fs.writeFile(testPage, content)
+  await fsp.mkdir(dirname(testPage, { recursive: true }))
+  await fsp.writeFile(testPage, content)
 }
 
 describe('GSP build errors', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    afterEach(() => fs.remove(pagesDir))
+    afterEach(() => fsp.rm(pagesDir, { recursive: true, force: true }))
 
     it('should fail build from module not found', async () => {
       await writePage(`

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { readdir, readFile, unlink } from 'fs-extra'
+import { readdir, readFile, unlink } from 'fs/promises'
 import {
   nextBuild,
   killApp,

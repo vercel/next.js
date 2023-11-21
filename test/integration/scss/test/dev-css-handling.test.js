@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { remove } from 'fs-extra'
+import fsp from 'fs/promises'
 import { File, findPort, killApp, launchApp, waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -11,7 +11,7 @@ describe('Has CSS in computed styles in Development', () => {
   const appDir = join(fixturesDir, 'multi-page')
 
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
   })
 
   let appPort
@@ -45,7 +45,7 @@ describe('Body is not hidden when unused in Development', () => {
   const appDir = join(fixturesDir, 'unused')
 
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
   })
 
   let appPort
@@ -80,7 +80,7 @@ describe('Body is not hidden when broken in Development', () => {
   let appPort
   let app
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
   })

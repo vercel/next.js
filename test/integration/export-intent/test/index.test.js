@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { remove } from 'fs-extra'
+import fsp from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 import path, { join } from 'path'
 import fs from 'fs'
@@ -15,8 +15,8 @@ describe('Application Export Intent Output', () => {
       const outDir = join(appDir, 'out')
 
       beforeAll(async () => {
-        await remove(distDir)
-        await remove(outDir)
+        await fsp.rm(distDir, { recursive: true, force: true })
+        await fsp.rm(outDir, { recursive: true, force: true })
       })
 
       it('should build and export', async () => {
@@ -63,8 +63,8 @@ describe('Application Export Intent Output', () => {
         const outDir = join(appDir, 'out')
 
         beforeAll(async () => {
-          await remove(distDir)
-          await remove(outDir)
+          await fsp.rm(distDir, { recursive: true, force: true })
+          await fsp.rm(outDir, { recursive: true, force: true })
         })
 
         it('should build and export', async () => {
@@ -112,8 +112,8 @@ describe('Application Export Intent Output', () => {
         const outDir = join(appDir, 'lel')
 
         beforeAll(async () => {
-          await remove(distDir)
-          await remove(outDir)
+          await fsp.rm(distDir, { recursive: true, force: true })
+          await fsp.rm(outDir, { recursive: true, force: true })
         })
 
         it('should build and export', async () => {
@@ -161,8 +161,8 @@ describe('Application Export Intent Output', () => {
         const outDir = join(appDir, 'out')
 
         beforeAll(async () => {
-          await remove(distDir)
-          await remove(outDir)
+          await fsp.rm(distDir, { recursive: true, force: true })
+          await fsp.rm(outDir, { recursive: true, force: true })
         })
 
         it('should build and export', async () => {
@@ -211,7 +211,7 @@ describe('Application Export Intent Output', () => {
         const distDir = join(appDir, '.next')
 
         beforeAll(async () => {
-          await remove(distDir)
+          await fsp.rm(distDir, { recursive: true, force: true })
         })
 
         it('should build and not export', async () => {

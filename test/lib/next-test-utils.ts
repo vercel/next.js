@@ -11,7 +11,7 @@ import http from 'http'
 import path from 'path'
 
 import spawn from 'cross-spawn'
-import { writeFile } from 'fs-extra'
+import { writeFile } from 'fs/promises'
 import getPort from 'get-port'
 import { getRandomPort } from 'get-port-please'
 import fetch from 'node-fetch'

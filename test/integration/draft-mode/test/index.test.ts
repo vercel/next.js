@@ -2,7 +2,7 @@
 
 import cheerio from 'cheerio'
 import cookie from 'cookie'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import {
   fetchViaHTTP,
   findPort,
@@ -18,7 +18,7 @@ import { join } from 'path'
 const appDir = join(__dirname, '..')
 
 async function getBuildId() {
-  return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
+  return fsp.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
 }
 
 function getData(html: string) {
@@ -122,7 +122,7 @@ describe('Test Draft Mode', () => {
     const getOpts = () => ({ headers: { Cookie: cookieString } })
 
     it('should compile successfully', async () => {
-      await fs.remove(join(appDir, '.next'))
+      await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
       const { code, stdout } = await nextBuild(appDir, [], {
         stdout: true,
       })

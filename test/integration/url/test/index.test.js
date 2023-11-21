@@ -1,7 +1,7 @@
 /* eslint-disable no-loop-func */
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   nextBuild,
@@ -26,7 +26,7 @@ for (const dev of [false, true]) {
       let appPort
       let app
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fsp.rm(join(appDir, '.next'), { recursive: true, force: true })
         if (dev) {
           appPort = await findPort()
           app = await launchApp(appDir, appPort)

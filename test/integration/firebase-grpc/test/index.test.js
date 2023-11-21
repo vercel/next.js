@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
+import fsp from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -11,7 +11,7 @@ describe('Building Firebase', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     // TODO: investigate re-enabling this test in node 12 environment
     it.skip('Throws an error when building with firebase dependency with worker_threads', async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         nextConfig,
         `module.exports = { experimental: { workerThreads: true } }`
       )
@@ -26,7 +26,7 @@ describe('Building Firebase', () => {
     })
 
     it('Throws no error when building with firebase dependency without worker_threads', async () => {
-      await fs.remove(nextConfig)
+      await fsp.rm(nextConfig, { recursive: true, force: true })
       const results = await nextBuild(appDir, [], {
         stdout: true,
         stderr: true,

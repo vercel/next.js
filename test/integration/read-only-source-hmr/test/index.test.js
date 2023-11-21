@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 import {
   check,
   findPort,
@@ -21,22 +22,17 @@ let appPort
 let app
 
 async function writeReadOnlyFile(path, content) {
-  const exists = await fs
-    .access(path)
-    .then(() => true)
-    .catch(() => false)
-
-  if (exists) {
-    await fs.chmod(path, READ_WRITE_PERMISSIONS)
+  if (fs.existsSync(path)) {
+    await fsp.chmod(path, READ_WRITE_PERMISSIONS)
   }
 
-  await fs.writeFile(path, content, 'utf8')
-  await fs.chmod(path, READ_ONLY_PERMISSIONS)
+  await fsp.writeFile(path, content, 'utf8')
+  await fsp.chmod(path, READ_ONLY_PERMISSIONS)
 }
 
 describe('Read-only source HMR', () => {
   beforeAll(async () => {
-    await fs.chmod(pagePath, READ_ONLY_PERMISSIONS)
+    await fsp.chmod(pagePath, READ_ONLY_PERMISSIONS)
 
     appPort = await findPort()
     app = await launchApp(appDir, appPort, {
@@ -51,7 +47,7 @@ describe('Read-only source HMR', () => {
   })
 
   afterAll(async () => {
-    await fs.chmod(pagePath, READ_WRITE_PERMISSIONS)
+    await fsp.chmod(pagePath, READ_WRITE_PERMISSIONS)
     await killApp(app)
   })
 
@@ -62,7 +58,7 @@ describe('Read-only source HMR', () => {
       browser = await webdriver(appPort, '/hello')
       await check(() => getBrowserBodyText(browser), /Hello World/)
 
-      const originalContent = await fs.readFile(pagePath, 'utf8')
+      const originalContent = await fsp.readFile(pagePath, 'utf8')
       const editedContent = originalContent.replace('Hello World', 'COOL page')
 
       if (process.env.TURBOPACK) {
@@ -89,14 +85,14 @@ describe('Read-only source HMR', () => {
       browser = await webdriver(appPort, '/hello')
       await check(() => getBrowserBodyText(browser), /Hello World/)
 
-      const originalContent = await fs.readFile(pagePath, 'utf8')
+      const originalContent = await fsp.readFile(pagePath, 'utf8')
 
       if (process.env.TURBOPACK) {
         // TODO Turbopack needs a bit to start watching
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
 
-      await fs.remove(pagePath)
+      await fsp.rm(pagePath, { recursive: true, force: true })
       await writeReadOnlyFile(pagePath, originalContent)
       await check(() => getBrowserBodyText(browser), /Hello World/)
     } finally {
@@ -126,7 +122,7 @@ describe('Read-only source HMR', () => {
       if (browser) {
         await browser.close()
       }
-      await fs.remove(newPagePath)
+      await fsp.rm(newPagePath, { recursive: true, force: true })
     }
   })
 })
