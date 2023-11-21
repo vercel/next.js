@@ -6,7 +6,7 @@ use swc_core::{
     ecma::ast::{ArrayLit, ArrayPat, Expr, Ident, Pat, Program},
     quote,
 };
-use turbo_tasks::{trace::TraceRawVcs, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{trace::TraceRawVcs, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::chunk::{AsyncModuleInfo, ChunkableModule};
 
 use super::esm::base::ReferencedAsset;
@@ -46,6 +46,7 @@ pub struct AsyncModule {
     pub placeable: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     pub references: IndexSet<Vc<EsmAssetReference>>,
     pub has_top_level_await: bool,
+    pub import_externals: bool,
 }
 
 /// Option<[AsyncModule]>.
@@ -80,22 +81,24 @@ struct AsyncModuleIdents(IndexSet<String>);
 impl AsyncModule {
     #[turbo_tasks::function]
     async fn get_async_idents(
-        self: Vc<Self>,
+        &self,
         chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         async_module_info: Vc<AsyncModuleInfo>,
     ) -> Result<Vc<AsyncModuleIdents>> {
-        let this = self.await?;
         let async_module_info = async_module_info.await?;
 
-        let reference_idents = this
+        let reference_idents = self
             .references
             .iter()
             .map(|r| async {
                 let referenced_asset = r.get_referenced_asset().await?;
                 Ok(match &*referenced_asset {
                     ReferencedAsset::OriginalReferenceTypeExternal(_) => {
-                        // TODO(WEB-1259): we need to detect if external modules are esm
-                        None
+                        if self.import_externals {
+                            referenced_asset.get_ident().await?
+                        } else {
+                            None
+                        }
                     }
                     ReferencedAsset::Some(placeable) => {
                         let chunk_item = placeable
@@ -121,8 +124,28 @@ impl AsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub(crate) fn is_self_async(&self) -> Vc<bool> {
-        Vc::cell(self.has_top_level_await)
+    pub(crate) async fn is_self_async(&self) -> Result<Vc<bool>> {
+        if self.has_top_level_await {
+            return Ok(Vc::cell(true));
+        }
+
+        Ok(Vc::cell(
+            self.import_externals
+                && self
+                    .references
+                    .iter()
+                    .map(|r| async {
+                        let referenced_asset = r.get_referenced_asset().await?;
+                        Ok(matches!(
+                            &*referenced_asset,
+                            ReferencedAsset::OriginalReferenceTypeExternal(_)
+                        ))
+                    })
+                    .try_join()
+                    .await?
+                    .iter()
+                    .any(|&b| b),
+        ))
     }
 
     /// Returns

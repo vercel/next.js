@@ -77,6 +77,7 @@ impl ModuleOptions {
             execution_context,
             ref rules,
             esm_url_rewrite_behavior,
+            import_externals,
             use_lightningcss,
             ..
         } = *module_options_context.await?;
@@ -132,6 +133,7 @@ impl ModuleOptions {
             split_into_parts: enable_tree_shaking,
             import_parts: enable_tree_shaking,
             url_rewrite_behavior: esm_url_rewrite_behavior,
+            import_externals,
             ..Default::default()
         };
 

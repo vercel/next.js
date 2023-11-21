@@ -157,27 +157,28 @@ async fn base_resolve_options(
         conditions
     };
 
+    let extensions = if let Some(environment) = emulating {
+        environment.resolve_extensions().await?.clone_value()
+    } else {
+        let mut ext = Vec::new();
+        if opt.enable_typescript && opt.enable_react {
+            ext.push(".tsx".to_string());
+        }
+        if opt.enable_typescript {
+            ext.push(".ts".to_string());
+        }
+        if opt.enable_react {
+            ext.push(".jsx".to_string());
+        }
+        ext.push(".js".to_string());
+        if opt.enable_node_native_modules {
+            ext.push(".node".to_string());
+        }
+        ext.push(".json".to_string());
+        ext
+    };
     Ok(ResolveOptions {
-        extensions: if let Some(environment) = emulating {
-            environment.resolve_extensions().await?.clone_value()
-        } else {
-            let mut ext = Vec::new();
-            if opt.enable_typescript && opt.enable_react {
-                ext.push(".tsx".to_string());
-            }
-            if opt.enable_typescript {
-                ext.push(".ts".to_string());
-            }
-            if opt.enable_react {
-                ext.push(".jsx".to_string());
-            }
-            ext.push(".js".to_string());
-            if opt.enable_node_native_modules {
-                ext.push(".node".to_string());
-            }
-            ext.push(".json".to_string());
-            ext
-        },
+        extensions,
         modules: if let Some(environment) = emulating {
             if *environment.resolve_node_modules().await? {
                 vec![ResolveModules::Nested(
@@ -203,12 +204,21 @@ async fn base_resolve_options(
                 unspecified_conditions: ConditionValue::Unset,
             }];
             if opt.browser {
-                resolve_into.push(ResolveIntoPackage::MainField("browser".to_string()));
+                resolve_into.push(ResolveIntoPackage::MainField {
+                    field: "browser".to_string(),
+                    extensions: None,
+                });
             }
             if opt.module {
-                resolve_into.push(ResolveIntoPackage::MainField("module".to_string()));
+                resolve_into.push(ResolveIntoPackage::MainField {
+                    field: "module".to_string(),
+                    extensions: None,
+                });
             }
-            resolve_into.push(ResolveIntoPackage::MainField("main".to_string()));
+            resolve_into.push(ResolveIntoPackage::MainField {
+                field: "main".to_string(),
+                extensions: None,
+            });
             resolve_into.push(ResolveIntoPackage::Default("index".to_string()));
             resolve_into
         },
