@@ -395,6 +395,32 @@ impl ModuleOptions {
                 ),
             ]);
         } else {
+            if let Some(options) = enable_postcss_transform {
+                let execution_context = execution_context
+                    .context("execution_context is required for the postcss_transform")?;
+
+                let import_map = if let Some(postcss_package) = options.postcss_package {
+                    package_import_map_from_import_mapping("postcss".to_string(), postcss_package)
+                } else {
+                    package_import_map_from_context("postcss".to_string(), path)
+                };
+
+                rules.push(ModuleRule::new(
+                    ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),
+                    vec![ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
+                        Vc::upcast(PostCssTransform::new(
+                            node_evaluate_asset_context(
+                                execution_context,
+                                Some(import_map),
+                                None,
+                                "postcss".to_string(),
+                            ),
+                            execution_context,
+                        )),
+                    ]))],
+                ));
+            }
+
             rules.extend([
                 ModuleRule::new(
                     ModuleRuleCondition::all(vec![
@@ -404,40 +430,7 @@ impl ModuleOptions {
                             ReferenceType::Css(CssReferenceSubType::AtImport),
                         )),
                     ]),
-                    [
-                        if let Some(options) = enable_postcss_transform {
-                            let execution_context = execution_context.context(
-                                "execution_context is required for the postcss_transform",
-                            )?;
-
-                            let import_map = if let Some(postcss_package) = options.postcss_package
-                            {
-                                package_import_map_from_import_mapping(
-                                    "postcss".to_string(),
-                                    postcss_package,
-                                )
-                            } else {
-                                package_import_map_from_context("postcss".to_string(), path)
-                            };
-                            Some(ModuleRuleEffect::SourceTransforms(Vc::cell(vec![
-                                Vc::upcast(PostCssTransform::new(
-                                    node_evaluate_asset_context(
-                                        execution_context,
-                                        Some(import_map),
-                                        None,
-                                        "postcss".to_string(),
-                                    ),
-                                    execution_context,
-                                )),
-                            ])))
-                        } else {
-                            None
-                        },
-                        Some(ModuleRuleEffect::ModuleType(ModuleType::CssGlobal)),
-                    ]
-                    .into_iter()
-                    .flatten()
-                    .collect(),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssGlobal)],
                 ),
                 ModuleRule::new(
                     ModuleRuleCondition::all(vec![
@@ -478,18 +471,14 @@ impl ModuleOptions {
                     })],
                 ),
                 ModuleRule::new_internal(
-                    ModuleRuleCondition::all(vec![ModuleRuleCondition::ResourcePathEndsWith(
-                        ".css".to_string(),
-                    )]),
+                    ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Default,
                         use_lightningcss,
                     })],
                 ),
                 ModuleRule::new_internal(
-                    ModuleRuleCondition::all(vec![ModuleRuleCondition::ResourcePathEndsWith(
-                        ".module.css".to_string(),
-                    )]),
+                    ModuleRuleCondition::ResourcePathEndsWith(".module.css".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                         use_lightningcss,
