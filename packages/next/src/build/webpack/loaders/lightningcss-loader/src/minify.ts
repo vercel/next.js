@@ -4,9 +4,9 @@ import { RawSource, SourceMapSource } from 'webpack-sources'
 import { transform as _transform } from 'lightningcss'
 import {
   ECacheKey,
-  IMinifyPluginOpts,
-  IPackageJson,
-  TransformType,
+  type IMinifyPluginOpts,
+  type IPackageJson,
+  type TransformType,
 } from './interface'
 import type { Compilation, Compiler } from 'webpack'
 import { join } from 'path'
