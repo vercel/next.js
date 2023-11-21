@@ -9,7 +9,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
     reference::ModuleReference,
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
@@ -497,10 +497,11 @@ impl Issue for TsConfigIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(
-            "An issue occurred while parsing a tsconfig.json file.".to_string(),
-        ))
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(
+            StyledString::Text("An issue occurred while parsing a tsconfig.json file.".to_string())
+                .cell(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -514,7 +515,7 @@ impl Issue for TsConfigIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        StyledString::Text(self.message.clone()).cell()
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(StyledString::Text(self.message.clone()).cell()))
     }
 }

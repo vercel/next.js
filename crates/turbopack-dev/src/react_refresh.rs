@@ -3,7 +3,7 @@ use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::parse::Request,
 };
@@ -80,8 +80,8 @@ impl Issue for ReactRefreshResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Could not resolve React Refresh runtime".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Could not resolve React Refresh runtime".to_string()).cell()
     }
 
     #[turbo_tasks::function]
@@ -95,17 +95,19 @@ impl Issue for ReactRefreshResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        StyledString::Line(vec![
-            StyledString::Text(
-                "React Refresh will be disabled.\nTo enable React Refresh, install the "
-                    .to_string(),
-            ),
-            StyledString::Code("react-refresh".to_string()),
-            StyledString::Text(" and ".to_string()),
-            StyledString::Code("@next/react-refresh-utils".to_string()),
-            StyledString::Text(" modules.".to_string()),
-        ])
-        .cell()
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Line(vec![
+                StyledString::Text(
+                    "React Refresh will be disabled.\nTo enable React Refresh, install the "
+                        .to_string(),
+                ),
+                StyledString::Code("react-refresh".to_string()),
+                StyledString::Text(" and ".to_string()),
+                StyledString::Code("@next/react-refresh-utils".to_string()),
+                StyledString::Text(" modules.".to_string()),
+            ])
+            .cell(),
+        ))
     }
 }
