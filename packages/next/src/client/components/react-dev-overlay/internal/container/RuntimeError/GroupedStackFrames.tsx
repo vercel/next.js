@@ -23,7 +23,7 @@ function FrameworkGroup({
         className="collapsed-call-stack-details"
       >
         <summary
-          tabIndex={10} // Match CallStackFrame tabIndex
+          tabIndex={0} // Match CallStackFrame tabIndex
         >
           <Chevron />
           <FrameworkIcon framework={framework} />

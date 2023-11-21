@@ -3,17 +3,22 @@ import * as React from 'react'
 import { clsx } from '../../helpers/clsx'
 import { CloseIcon } from '../../icons'
 import { noop as css } from '../../helpers/noop-template'
+import { VersionStalenessInfo } from '../VersionStalenessInfo'
+import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 
 export type DialogHeaderProps = {
   close?: () => void
   className?: string
   children: React.ReactNode
+
+  versionInfo?: VersionInfo
 }
 
 export function DialogHeader({
   children,
   className,
   close,
+  versionInfo,
 }: DialogHeaderProps): React.ReactNode {
   const buttonClose = React.useRef<HTMLButtonElement | null>(null)
 
@@ -55,9 +60,12 @@ export function DialogHeader({
   }, [close, buttonClose])
 
   return (
-    <div data-nextjs-dialog-header className={clsx('dialog-header', className)}>
+    <div className={clsx('dialog-header', className)}>
       {children}
-      <div className="filler">&nbsp;</div>
+      <div className="filler">
+        &nbsp;
+        {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
+      </div>
       {close ? (
         <button
           ref={buttonClose}

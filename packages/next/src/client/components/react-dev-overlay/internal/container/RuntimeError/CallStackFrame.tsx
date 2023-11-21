@@ -36,7 +36,7 @@ export function CallStackFrame({
       <h3>{f.methodName}</h3>
       <div
         data-has-source={hasSource ? 'true' : undefined}
-        tabIndex={hasSource ? 10 : undefined}
+        tabIndex={hasSource ? 0 : undefined}
         role={hasSource ? 'link' : undefined}
         onClick={open}
         title={hasSource ? 'Click to open in your editor' : undefined}

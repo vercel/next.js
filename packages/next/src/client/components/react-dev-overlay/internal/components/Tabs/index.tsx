@@ -188,7 +188,7 @@ export function Tab({
       id={`tab-${id}`}
       role="tab"
       aria-selected={selected}
-      tabIndex={selected ? 0 : -1}
+      tabIndex={selected ? -1 : 0}
       className={clsx('tab', className)}
       onClick={click}
       onKeyDown={keyDown}
@@ -208,7 +208,7 @@ export function TabPanel<
     | keyof React.JSX.IntrinsicElements
     | React.JSXElementConstructor<any> = 'div'
 >({
-  as: Comp = 'div',
+  as = 'div',
   id,
   className,
   children,
@@ -216,6 +216,8 @@ export function TabPanel<
 }: PropsWithAs<As, TabPanelPropsBase>): React.ReactNode {
   const { selectedId } = useTabsContext('Tab')
   const selected = id === selectedId
+
+  const Comp = selected ? as : 'div'
 
   return (
     <Comp
@@ -226,7 +228,7 @@ export function TabPanel<
       className={clsx('tab-panel', className)}
       data-hidden={!selected}
     >
-      {children}
+      {selected ? children : null}
     </Comp>
   )
 }
