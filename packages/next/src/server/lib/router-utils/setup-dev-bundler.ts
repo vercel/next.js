@@ -305,10 +305,12 @@ async function startWatcher(opts: SetupOpts) {
           const { start } = source.range
           message = `${issue.severity} - ${formattedFilePath}:${
             start.line + 1
-          }:${start.column}`
+          }:${start.column}  ${formattedTitle}`
         } else {
           message = `${issue.severity} - ${formattedFilePath}  ${formattedTitle}`
         }
+      } else if (formattedFilePath) {
+        message = `${formattedFilePath}  ${formattedTitle}`
       } else {
         message = `${formattedTitle}`
       }
