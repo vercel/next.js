@@ -1,7 +1,7 @@
 import type { Compilation } from 'next/dist/compiled/webpack/webpack'
 import type { SyncHook, SyncBailHook, AsyncSeriesHook, HookMap } from 'tapable'
 import type { Source } from 'webpack-sources'
-import browserslist from 'browserslist'
+import browserslist from 'next/dist/compiled/browserslist'
 import { browserslistToTargets } from 'lightningcss'
 import type { Targets } from 'lightningcss/node/targets'
 import type { ECacheKey } from './interface'
