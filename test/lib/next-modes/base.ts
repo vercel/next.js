@@ -101,7 +101,7 @@ export class NextInstance {
           `FileRef passed to "files" in "createNext" is not a directory ${files.fsPath}`
         )
       }
-      await fsp.cp(files.fsPath, this.testDir)
+      await fsp.cp(files.fsPath, this.testDir, { recursive: true })
     } else {
       for (const filename of Object.keys(files)) {
         const item = files[filename]
@@ -194,7 +194,9 @@ export class NextInstance {
             !this.packageJson &&
             !(global as any).isNextDeploy
           ) {
-            await fsp.cp(process.env.NEXT_TEST_STARTER, this.testDir)
+            await fsp.cp(process.env.NEXT_TEST_STARTER, this.testDir, {
+              recursive: true,
+            })
           } else {
             const { installDir } = await createNextInstall({
               parentSpan: rootSpan,
@@ -392,7 +394,8 @@ export class NextInstance {
                 )
                 .replace(/\//g, '-')}`,
               `next-trace`
-            )
+            ),
+            { recursive: true }
           )
           .catch(() => {})
       }

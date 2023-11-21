@@ -43,7 +43,7 @@ describe('Next Lint', () => {
     async function nextLintTemp(setupCallback) {
       const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
       await fsp.mkdir(folder, { recursive: true })
-      await fsp.cp(dirNoConfig, folder)
+      await fsp.cp(dirNoConfig, folder, { recursive: true })
       await setupCallback?.(folder)
 
       try {

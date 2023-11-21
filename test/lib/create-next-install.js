@@ -93,6 +93,7 @@ async function createNextInstall({
                         ))
                     )
                   },
+                  recursive: true,
                 })
               }
             }
@@ -116,6 +117,7 @@ async function createNextInstall({
                       !/next-swc[\\/]target/.test(item)
                     )
                   },
+                  recursive: true,
                 }
               )
             )

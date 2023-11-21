@@ -102,7 +102,7 @@ describe('pnpm support', () => {
       await fsp.cp(
         path.join(next.testDir, './.next/static'),
         path.join(standaloneDir, './.next/static'),
-        { force: true }
+        { force: true, recursive: true }
       )
       server = await initNextServerScript(
         path.join(standaloneDir, 'server.js'),
