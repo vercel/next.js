@@ -455,6 +455,7 @@ export default class DevServer extends Server {
     const memoryUsage = process.memoryUsage()
     span
       .traceChild('memory-usage', {
+        url: req.url,
         'usedMemory.rss': String(memoryUsage.rss),
         'usedMemory.heapUsed': String(memoryUsage.heapUsed),
         'usedMemory.heapTotal': String(memoryUsage.heapTotal),
