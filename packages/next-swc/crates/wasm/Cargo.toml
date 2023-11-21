@@ -13,6 +13,9 @@ swc_v1 = []
 
 plugin = ["getrandom/js", "turbopack-binding/__swc_core_binding_wasm_plugin"]
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = "1.0.66"
 console_error_panic_hook = "0.1.6"
