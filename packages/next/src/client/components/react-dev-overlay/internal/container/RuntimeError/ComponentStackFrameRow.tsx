@@ -19,7 +19,7 @@ export function ComponentStackFrameRow({
       <h3>{component}</h3>
       {file ? (
         <div
-          tabIndex={10} // match CallStackFrame
+          tabIndex={0} // match CallStackFrame
           role={'link'}
           onClick={open}
           title={'Click to open in your editor'}

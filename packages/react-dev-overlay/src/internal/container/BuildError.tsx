@@ -19,18 +19,18 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
     <Overlay fixed>
       <Dialog
         type="error"
-        aria-labelledby="nextjs__container_build_error_label"
-        aria-describedby="nextjs__container_build_error_desc"
+        aria-labelledby="nextjs__container_errors_label"
+        aria-describedby="nextjs__container_errors_desc"
         onClose={noop}
       >
         <DialogContent>
           <DialogHeader className="nextjs-container-build-error-header">
-            <h4 id="nextjs__container_build_error_label">Failed to compile</h4>
+            <h4 id="nextjs__container_errors_label">Failed to compile</h4>
           </DialogHeader>
           <DialogBody className="nextjs-container-build-error-body">
             <Terminal content={message} />
             <footer>
-              <p id="nextjs__container_build_error_desc">
+              <p id="nextjs__container_errors_desc">
                 <small>
                   This error occurred during the build process and can only be
                   dismissed by fixing the error.

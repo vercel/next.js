@@ -94,7 +94,7 @@ export function Base(): React.ReactNode {
             --color-text: white;
             --color-text-dim: hsl(0, 0%, 90%);
 
-            --color-error: hsl(-10, 80%, 45%);
+            --color-error: hsl(-10, 90%, 60%);
 
             --color-bg: hsl(240, 3%, 11%);
             --color-bg-secondary: hsl(240, 3%, 13%);

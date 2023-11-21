@@ -31,7 +31,7 @@ export function EditorLink({
       data-with-open-in-editor-link-import-trace={
         isSourceFile ? undefined : true
       }
-      tabIndex={10}
+      tabIndex={0}
       role={'link'}
       onClick={open}
       title={'Click to open in your editor'}

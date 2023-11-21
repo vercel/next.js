@@ -123,7 +123,6 @@ export function RuntimeError({ error }: RuntimeErrorProps): ReactNode {
       {canShowMore ? (
         <>
           <button
-            tabIndex={10}
             data-nextjs-data-runtime-error-collapsed-action
             type="button"
             onClick={toggleAll}
@@ -187,11 +186,7 @@ export function RuntimeErrorsDialogBody({
         </LeftRightDialogHeader>
       </div>
 
-      <p
-        data-nextjs-turbo-dialog-body
-        id="nextjs__container_errors_desc"
-        data-severity="error"
-      >
+      <p id="nextjs__container_errors_desc" data-severity="error">
         {activeError.error.name}:{' '}
         <HotlinkedText text={activeError.error.message} />
       </p>
