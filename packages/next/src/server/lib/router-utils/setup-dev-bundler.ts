@@ -2504,7 +2504,7 @@ export async function setupDevBundler(opts: SetupOpts) {
       {
         webpackVersion: 5,
         isSrcDir,
-        turboFlag: false,
+        turboFlag: !!opts.turbo,
         cliCommand: 'dev',
         appDir: !!opts.appDir,
         pagesDir: !!opts.pagesDir,
