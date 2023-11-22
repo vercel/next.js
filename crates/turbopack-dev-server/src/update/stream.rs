@@ -10,8 +10,8 @@ use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
     issue::{
-        Issue, IssueDescriptionExt, IssueSeverity, OptionIssueProcessingPathItems, PlainIssue,
-        StyledString,
+        Issue, IssueDescriptionExt, IssueSeverity, OptionIssueProcessingPathItems,
+        OptionStyledString, PlainIssue, StyledString,
     },
     server_fs::ServerFileSystem,
     version::{
@@ -302,12 +302,12 @@ impl Issue for FatalStreamIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Fatal error while getting content to stream".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Fatal error while getting content to stream".to_string()).cell()
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        self.description
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.description))
     }
 }

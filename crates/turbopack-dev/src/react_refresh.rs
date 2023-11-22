@@ -1,9 +1,10 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
+    reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::parse::Request,
 };
 use turbopack_ecmascript::resolve::apply_cjs_specific_options;
@@ -49,8 +50,13 @@ pub async fn assert_can_resolve_react_refresh(
     let resolve_options =
         apply_cjs_specific_options(turbopack::resolve_options(path, resolve_options_context));
     for request in [react_refresh_request_in_next(), react_refresh_request()] {
-        let result =
-            turbopack_core::resolve::resolve(path, request, resolve_options).first_source();
+        let result = turbopack_core::resolve::resolve(
+            path,
+            Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
+            request,
+            resolve_options,
+        )
+        .first_source();
 
         if result.await?.is_some() {
             return Ok(ResolveReactRefreshResult::Found(request).cell());
@@ -74,8 +80,8 @@ impl Issue for ReactRefreshResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Could not resolve React Refresh runtime".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Could not resolve React Refresh runtime".to_string()).cell()
     }
 
     #[turbo_tasks::function]
@@ -89,17 +95,19 @@ impl Issue for ReactRefreshResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        StyledString::Line(vec![
-            StyledString::Text(
-                "React Refresh will be disabled.\nTo enable React Refresh, install the "
-                    .to_string(),
-            ),
-            StyledString::Code("react-refresh".to_string()),
-            StyledString::Text(" and ".to_string()),
-            StyledString::Code("@next/react-refresh-utils".to_string()),
-            StyledString::Text(" modules.".to_string()),
-        ])
-        .cell()
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Line(vec![
+                StyledString::Text(
+                    "React Refresh will be disabled.\nTo enable React Refresh, install the "
+                        .to_string(),
+                ),
+                StyledString::Code("react-refresh".to_string()),
+                StyledString::Text(" and ".to_string()),
+                StyledString::Code("@next/react-refresh-utils".to_string()),
+                StyledString::Text(" modules.".to_string()),
+            ])
+            .cell(),
+        ))
     }
 }

@@ -304,17 +304,15 @@ impl Issue for UnsupportedServerActionIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Server actions (\"use server\") are not yet supported in Turbopack".into())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text(
+            "Server actions (\"use server\") are not yet supported in Turbopack".into(),
+        )
+        .cell()
     }
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
         self.file_path
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text("".to_string()).cell())
     }
 }

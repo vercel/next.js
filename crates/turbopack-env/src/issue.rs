@@ -1,6 +1,6 @@
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, StyledString};
+use turbopack_core::issue::{Issue, OptionStyledString, StyledString};
 
 /// An issue that occurred while resolving the parsing or evaluating the .env.
 #[turbo_tasks::value(shared)]
@@ -12,8 +12,8 @@ pub struct ProcessEnvIssue {
 #[turbo_tasks::value_impl]
 impl Issue for ProcessEnvIssue {
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Error loading dotenv file".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Error loading dotenv file".to_string()).cell()
     }
 
     #[turbo_tasks::function]
@@ -27,7 +27,7 @@ impl Issue for ProcessEnvIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        self.description
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.description))
     }
 }

@@ -139,9 +139,9 @@ pub struct Issue<'a> {
     pub file_path: &'a str,
     pub category: &'a str,
 
-    pub title: &'a str,
-    pub description: &'a StyledString,
-    pub detail: &'a str,
+    pub title: &'a StyledString,
+    pub description: Option<&'a StyledString>,
+    pub detail: Option<&'a StyledString>,
     pub documentation_link: &'a str,
 
     pub source: Option<IssueSource<'a>>,
@@ -166,9 +166,9 @@ impl<'a> From<&'a PlainIssue> for Issue<'a> {
             file_path: &plain.file_path,
             category: &plain.category,
             title: &plain.title,
-            description: &plain.description,
+            description: plain.description.as_ref(),
             documentation_link: &plain.documentation_link,
-            detail: &plain.detail,
+            detail: plain.detail.as_ref(),
             source,
             sub_issues: plain.sub_issues.iter().map(|p| p.deref().into()).collect(),
             // TODO(WEB-691) formatting the issue should be handled by the error overlay.

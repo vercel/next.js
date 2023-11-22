@@ -165,6 +165,9 @@ pub struct ModuleOptionsContext {
     pub placeholder_for_future_extensions: (),
     pub enable_tree_shaking: bool,
     pub esm_url_rewrite_behavior: Option<UrlRewriteBehavior>,
+    /// References to externals from ESM imports should use `import()` and make
+    /// async modules.
+    pub import_externals: bool,
 
     pub use_lightningcss: bool,
 }

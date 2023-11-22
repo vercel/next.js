@@ -266,6 +266,7 @@ struct AnalysisState<'a> {
     // the object allocation.
     first_import_meta: bool,
     import_parts: bool,
+    import_externals: bool,
 }
 
 impl<'a> AnalysisState<'a> {
@@ -301,6 +302,7 @@ pub(crate) async fn analyze_ecmascript_module(
     let transforms = raw_module.transforms;
     let options = raw_module.options;
     let compile_time_info = raw_module.compile_time_info;
+    let import_externals = options.import_externals;
 
     let origin = Vc::upcast::<Box<dyn ResolveOrigin>>(module);
 
@@ -446,6 +448,7 @@ pub(crate) async fn analyze_ecmascript_module(
             } else {
                 None
             },
+            import_externals,
         );
         import_references.push(r);
     }
@@ -560,6 +563,7 @@ pub(crate) async fn analyze_ecmascript_module(
             placeable: Vc::upcast(module),
             references: import_references.iter().copied().collect(),
             has_top_level_await,
+            import_externals,
         }
         .cell();
         analysis.set_async_module(async_module);
@@ -579,6 +583,7 @@ pub(crate) async fn analyze_ecmascript_module(
             placeable: Vc::upcast(module),
             references: import_references.iter().copied().collect(),
             has_top_level_await,
+            import_externals,
         }
         .cell();
         analysis.set_async_module(async_module);
@@ -622,6 +627,7 @@ pub(crate) async fn analyze_ecmascript_module(
                     placeable: Vc::upcast(module),
                     references: import_references.iter().copied().collect(),
                     has_top_level_await,
+                    import_externals,
                 }
                 .cell();
                 analysis.set_async_module(async_module);
@@ -671,6 +677,7 @@ pub(crate) async fn analyze_ecmascript_module(
         fun_args_values: Mutex::new(HashMap::<u32, Vec<JsValue>>::new()),
         first_import_meta: true,
         import_parts: options.import_parts,
+        import_externals: options.import_externals,
     };
 
     enum Action {
@@ -1083,6 +1090,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     Vc::cell(ast_path.to_vec()),
                     issue_source(source, span),
                     in_try,
+                    state.import_externals,
                 ));
                 return Ok(());
             }
@@ -1777,6 +1785,7 @@ async fn handle_free_var_reference(
                             .map(|export| ModulePart::export(export.to_string()))
                     })
                     .flatten(),
+                state.import_externals,
             )
             .resolve()
             .await?;
@@ -2585,6 +2594,7 @@ async fn resolve_as_webpack_runtime(
 
     let resolved = resolve(
         origin.origin_path().parent().resolve().await?,
+        Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
         request,
         options,
     );

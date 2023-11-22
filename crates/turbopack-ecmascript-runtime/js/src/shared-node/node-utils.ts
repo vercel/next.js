@@ -13,8 +13,23 @@ function commonJsRequireContext(
     : commonJsRequire(sourceModule, entry.id());
 }
 
-function externalImport(id: ModuleId) {
-  return import(id);
+async function externalImport(id: ModuleId) {
+  let raw;
+  try {
+    raw = await import(id);
+  } catch (err) {
+    // TODO(alexkirsz) This can happen when a client-side module tries to load
+    // an external module we don't provide a shim for (e.g. querystring, url).
+    // For now, we fail semi-silently, but in the future this should be a
+    // compilation error.
+    throw new Error(`Failed to load external module ${id}: ${err}`);
+  }
+
+  if (raw && raw.__esModule && raw.default && "default" in raw.default) {
+    return interopEsm(raw.default, {}, true);
+  }
+
+  return raw;
 }
 
 function externalRequire(

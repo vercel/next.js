@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSource, OptionIssueSource, StyledString};
+use super::{Issue, IssueSource, OptionIssueSource, OptionStyledString, StyledString};
 use crate::{
     error::PrettyPrintError,
     issue::IssueSeverity,
@@ -30,25 +30,7 @@ impl Issue for ResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell(format!(
-            "Error resolving {request_type}",
-            request_type = self.request_type,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("resolve".to_string())
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<Vc<StyledString>> {
         let module_not_found = StyledString::Strong("Module not found".to_string());
 
         Ok(match self.request.await?.request() {
@@ -64,7 +46,17 @@ impl Issue for ResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn detail(&self) -> Result<Vc<String>> {
+    fn category(&self) -> Vc<String> {
+        Vc::cell("resolve".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.file_path
+    }
+
+    #[turbo_tasks::function]
+    async fn detail(&self) -> Result<Vc<OptionStyledString>> {
         let mut detail = String::new();
 
         if let Some(error_message) = &self.error_message {
@@ -105,7 +97,7 @@ impl Issue for ResolvingIssue {
                 }
             }
         }
-        Ok(Vc::cell(detail))
+        Ok(Vc::cell(Some(StyledString::Text(detail).cell())))
     }
 
     #[turbo_tasks::function]

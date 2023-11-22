@@ -144,9 +144,10 @@ impl PatternMapping {
                 // TODO implement mapping
                 CodeGenerationIssue {
                     severity: IssueSeverity::Bug.into(),
-                    title: Vc::cell(
+                    title: StyledString::Text(
                         "pattern mapping is not implemented for this result".to_string(),
-                    ),
+                    )
+                    .cell(),
                     message: StyledString::Text(format!(
                         "the reference resolves to a non-trivial result, which is not supported \
                          yet: {:?}",
@@ -181,7 +182,7 @@ impl PatternMapping {
         }
         CodeGenerationIssue {
             severity: IssueSeverity::Bug.into(),
-            title: Vc::cell("non-ecmascript placeable asset".to_string()),
+            title: StyledString::Text("non-ecmascript placeable asset".to_string()).cell(),
             message: StyledString::Text(
                 "asset is not placeable in ESM chunks, so it doesn't have a module id".to_string(),
             )

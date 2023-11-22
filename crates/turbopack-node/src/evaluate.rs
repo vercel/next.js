@@ -12,8 +12,7 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
-    duration_span, mark_finished, util::SharedError, Completion, RawVc, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    duration_span, mark_finished, util::SharedError, Completion, RawVc, TryJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -26,7 +25,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
     module::Module,
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
@@ -126,8 +125,8 @@ pub async fn get_evaluate_pool(
             runtime_asset.ident().path().join("evaluate.js".to_string()),
             AssetContent::file(
                 File::from(
-                    "import { run } from 'RUNTIME'; run((...args) => \
-                     (require('INNER').default(...args)))",
+                    "import { run } from 'RUNTIME'; run(async (...args) => ((await \
+                     import('INNER')).default(...args)))",
                 )
                 .into(),
             ),
@@ -488,8 +487,8 @@ pub struct EvaluationIssue {
 #[turbo_tasks::value_impl]
 impl Issue for EvaluationIssue {
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Error evaluating Node.js code".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Error evaluating Node.js code".to_string()).cell()
     }
 
     #[turbo_tasks::function]
@@ -503,18 +502,20 @@ impl Issue for EvaluationIssue {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text(
-            self.error
-                .print(
-                    self.assets_for_source_mapping,
-                    self.assets_root,
-                    self.project_dir,
-                    FormattingMode::Plain,
-                )
-                .await?,
-        )
-        .cell())
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        Ok(Vc::cell(Some(
+            StyledString::Text(
+                self.error
+                    .print(
+                        self.assets_for_source_mapping,
+                        self.assets_root,
+                        self.project_dir,
+                        FormattingMode::Plain,
+                    )
+                    .await?,
+            )
+            .cell(),
+        )))
     }
 }
 
@@ -533,8 +534,8 @@ impl Issue for BuildDependencyIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Build dependencies are not yet supported".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Build dependencies are not yet supported".to_string()).cell()
     }
 
     #[turbo_tasks::function]
@@ -548,11 +549,13 @@ impl Issue for BuildDependencyIssue {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text(
-            format!("The file at {} is a build dependency, which is not yet implemented.
-Changing this file or any dependency will not be recognized and might require restarting the server", self.path.to_string().await?)
-        ).cell())
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        Ok(Vc::cell(Some(StyledString::Line(vec![
+            StyledString::Text("The file at ".to_string()),
+            StyledString::Code(self.path.await?.to_string()),
+            StyledString::Text(" is a build dependency, which is not yet implemented.
+Changing this file or any dependency will not be recognized and might require restarting the server".to_string()),
+        ]).cell())))
     }
 }
 
@@ -623,22 +626,24 @@ impl Issue for EvaluateEmittedErrorIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Issue while running loader".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Issue while running loader".to_string()).cell()
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text(
-            self.error
-                .print(
-                    self.assets_for_source_mapping,
-                    self.assets_root,
-                    self.project_dir,
-                    FormattingMode::Plain,
-                )
-                .await?,
-        )
-        .cell())
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        Ok(Vc::cell(Some(
+            StyledString::Text(
+                self.error
+                    .print(
+                        self.assets_for_source_mapping,
+                        self.assets_root,
+                        self.project_dir,
+                        FormattingMode::Plain,
+                    )
+                    .await?,
+            )
+            .cell(),
+        )))
     }
 }

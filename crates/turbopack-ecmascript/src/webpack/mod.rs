@@ -171,6 +171,7 @@ impl ModuleReference for WebpackRuntimeAssetReference {
 
         let resolved = resolve(
             self.origin.origin_path().parent().resolve().await?,
+            Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
             self.request,
             options,
         );

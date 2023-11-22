@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, StyledString};
+use turbopack_core::issue::{Issue, OptionStyledString, StyledString};
 
 #[turbo_tasks::value(shared)]
 #[derive(Copy, Clone)]
@@ -14,8 +14,8 @@ pub struct RenderingIssue {
 #[turbo_tasks::value_impl]
 impl Issue for RenderingIssue {
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Error during SSR Rendering".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Error during SSR Rendering".to_string()).cell()
     }
 
     #[turbo_tasks::function]
@@ -29,21 +29,21 @@ impl Issue for RenderingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        self.message
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.message))
     }
 
     #[turbo_tasks::function]
-    async fn detail(&self) -> Result<Vc<String>> {
+    async fn detail(&self) -> Result<Vc<OptionStyledString>> {
         let mut details = vec![];
 
         if let Some(status) = self.status {
             if status != 0 {
-                details.push(format!("Node.js exit code: {status}"));
+                details.push(StyledString::Text(format!("Node.js exit code: {status}")));
             }
         }
 
-        Ok(Vc::cell(details.join("\n")))
+        Ok(Vc::cell(Some(StyledString::Stack(details).cell())))
     }
 
     // TODO parse stack trace into source location

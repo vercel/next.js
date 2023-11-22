@@ -1,13 +1,13 @@
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSeverity, StyledString};
+use super::{Issue, IssueSeverity, OptionStyledString, StyledString};
 
 #[turbo_tasks::value(shared)]
 pub struct CodeGenerationIssue {
     pub severity: Vc<IssueSeverity>,
     pub path: Vc<FileSystemPath>,
-    pub title: Vc<String>,
+    pub title: Vc<StyledString>,
     pub message: Vc<StyledString>,
 }
 
@@ -19,7 +19,7 @@ impl Issue for CodeGenerationIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
+    fn title(&self) -> Vc<StyledString> {
         self.title
     }
 
@@ -34,7 +34,7 @@ impl Issue for CodeGenerationIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        self.message
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.message))
     }
 }
