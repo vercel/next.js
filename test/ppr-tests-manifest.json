@@ -32,7 +32,6 @@
     "test/e2e/app-dir/app-external/app-external.test.ts": {},
     "test/e2e/app-dir/app-fetch-deduping/app-fetch-deduping.test.ts": {},
     "test/e2e/app-dir/app-middleware/app-middleware.test.ts": {},
-    "test/e2e/app-dir/app-prefetch-false-loading/app-prefetch-false-loading.test.ts": {},
     "test/e2e/app-dir/app-prefetch-false/app-prefetch-false.test.ts": {},
     "test/e2e/app-dir/app-prefetch-static/app-prefetch-static.test.ts": {},
     "test/e2e/app-dir/app-prefetch/prefetching.test.ts": {},
