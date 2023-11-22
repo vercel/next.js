@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { readdir, readFile } from 'fs/promises'
+import fsp from 'fs/promises'
 import {
   File,
   findPort,
@@ -72,11 +72,14 @@ describe('SCSS Support', () => {
       it(`should've compiled and prefixed`, async () => {
         const cssFolder = join(appDir, '.next/static/css')
 
-        const files = await readdir(cssFolder)
+        const files = await fsp.readdir(cssFolder)
         const cssFiles = files.filter((f) => /\.css$/.test(f))
 
         expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+        const cssContent = await fsp.readFile(
+          join(cssFolder, cssFiles[0]),
+          'utf8'
+        )
         expect(
           cssContent.replace(/\/\*.*?\*\//g, '').trim()
         ).toMatchInlineSnapshot(
@@ -90,12 +93,12 @@ describe('SCSS Support', () => {
       it(`should've emitted a source map`, async () => {
         const cssFolder = join(appDir, '.next/static/css')
 
-        const files = await readdir(cssFolder)
+        const files = await fsp.readdir(cssFolder)
         const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
 
         expect(cssMapFiles.length).toBe(1)
         const cssMapContent = (
-          await readFile(join(cssFolder, cssMapFiles[0]), 'utf8')
+          await fsp.readFile(join(cssFolder, cssMapFiles[0]), 'utf8')
         ).trim()
 
         const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)

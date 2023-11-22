@@ -2,6 +2,7 @@
 
 import cheerio from 'cheerio'
 import cookie from 'cookie'
+import fs from 'fs'
 import fsp from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -155,7 +156,7 @@ function runTests(isDev) {
     })
 
     if (!isDev) {
-      expect(fs.exists(getCacheFile('no-fallback/second.html'))).toBe(false)
+      expect(fs.existsSync(getCacheFile('no-fallback/second.html'))).toBe(false)
     }
 
     const res2 = await fetchViaHTTP(appPort, '/no-fallback/second')
@@ -187,7 +188,7 @@ function runTests(isDev) {
     })
 
     if (!isDev) {
-      const fsHtml = await fs.readFile(getCacheFile('fallback/first.html'))
+      const fsHtml = await fsp.readFile(getCacheFile('fallback/first.html'))
       const fsProps = JSON.parse(cheerio.load(fsHtml)('#props').text())
 
       expect(fsProps).toEqual({
@@ -237,7 +238,7 @@ function runTests(isDev) {
     })
 
     if (!isDev) {
-      const fsHtml = await fs.readFile(getCacheFile('fallback/second.html'))
+      const fsHtml = await fsp.readFile(getCacheFile('fallback/second.html'))
       const fsProps = JSON.parse(cheerio.load(fsHtml)('#props').text())
 
       expect(fsProps).toEqual({

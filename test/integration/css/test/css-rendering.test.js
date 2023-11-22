@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { existsSync } from 'fs'
-import { readFile, rm } from 'fs/promises'
+import fsp from 'fs/promises'
 import {
   check,
   findPort,
@@ -301,7 +301,7 @@ describe('CSS Support', () => {
 
           // Remove other page CSS files:
           const manifest = JSON.parse(
-            await readFile(join(appDir, '.next', 'build-manifest.json'))
+            await fsp.readFile(join(appDir, '.next', 'build-manifest.json'))
           )
           const files = manifest['pages']['/other'].filter((e) =>
             e.endsWith('.css')
@@ -309,7 +309,7 @@ describe('CSS Support', () => {
           if (files.length < 1) throw new Error()
           await Promise.all(
             files.map((f) =>
-              rm(join(appDir, '.next', f), { force: true, recursive: true })
+              fsp.rm(join(appDir, '.next', f), { force: true, recursive: true })
             )
           )
         })
@@ -400,7 +400,7 @@ describe('CSS Support', () => {
           app = await nextStart(appDir, appPort)
 
           const buildId = (
-            await readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
+            await fsp.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
           ).trim()
           const fileName = join(
             appDir,

@@ -1145,8 +1145,8 @@ function runTests({ dev }) {
       const browser = await webdriver(appPort, '/')
       const addLaterPage = join(appDir, 'pages/added-later/[slug].js')
 
-      await fs.mkdir(dirname(addLaterPage)).catch(() => {})
-      await fs.writeFile(
+      await fsp.mkdir(dirname(addLaterPage)).catch(() => {})
+      await fsp.writeFile(
         addLaterPage,
         `
         import { useRouter } from 'next/router'
@@ -1194,17 +1194,17 @@ function runTests({ dev }) {
       expect(text).toMatch(/comments for.*post-1/)
 
       const page = join(appDir, 'pages/[name]/comments.js')
-      const origContent = await fs.readFile(page, 'utf8')
+      const origContent = await fsp.readFile(page, 'utf8')
       const newContent = origContent.replace(/comments/, 'commentss')
 
       try {
-        await fs.writeFile(page, newContent, 'utf8')
+        await fsp.writeFile(page, newContent, 'utf8')
         await waitFor(3 * 1000)
 
         let text = await browser.eval(`document.documentElement.innerHTML`)
         expect(text).toMatch(/commentss for.*post-1/)
       } finally {
-        await fs.writeFile(page, origContent, 'utf8')
+        await fsp.writeFile(page, origContent, 'utf8')
         if (browser) await browser.close()
       }
     })
@@ -1551,7 +1551,7 @@ describe('Dynamic Routing', () => {
     const middlewarePath = join(__dirname, '../middleware.js')
 
     beforeAll(async () => {
-      await fs.writeFile(
+      await fsp.writeFile(
         middlewarePath,
         `
         import { NextResponse } from 'next/server'
@@ -1581,7 +1581,7 @@ describe('Dynamic Routing', () => {
       await fsp.rm(nextConfig, { recursive: true, force: true })
 
       await nextBuild(appDir)
-      buildId = await fs.readFile(buildIdPath, 'utf8')
+      buildId = await fsp.readFile(buildIdPath, 'utf8')
 
       appPort = await findPort()
       app = await nextStart(appDir, appPort)

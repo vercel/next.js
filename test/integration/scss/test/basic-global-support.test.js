@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { readdir, readFile } from 'fs/promises'
+import fsp from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
@@ -25,13 +25,13 @@ describe('Basic Global Support scss', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
-        'color:red'
-      )
+      expect(
+        await fsp.readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      ).toContain('color:red')
     })
   })
 })
@@ -55,13 +55,13 @@ describe('Basic Module Include Paths Support', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
-        'color:red'
-      )
+      expect(
+        await fsp.readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      ).toContain('color:red')
     })
   })
 })
@@ -85,13 +85,13 @@ describe('Basic Module Prepend Data Support', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
-        'color:red'
-      )
+      expect(
+        await fsp.readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      ).toContain('color:red')
     })
   })
 })
@@ -115,13 +115,13 @@ describe('Basic Global Support with src/ dir', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      expect(await readFile(join(cssFolder, cssFiles[0]), 'utf8')).toContain(
-        'color:red'
-      )
+      expect(
+        await fsp.readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      ).toContain('color:red')
     })
   })
 })
@@ -145,11 +145,14 @@ describe('Multi Global Support', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(`".red-text{color:red}.blue-text{color:blue}"`)
@@ -176,11 +179,14 @@ describe('Nested @import() Global Support', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
@@ -210,11 +216,14 @@ describe('Multi Global Support (reversed)', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(`".blue-text{color:blue}.red-text{color:red}"`)
@@ -241,11 +250,14 @@ describe('Good CSS Import from node_modules', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(/nprogress/)
     })
   })
@@ -270,11 +282,14 @@ describe('Good Nested CSS Import from node_modules', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(`".other{color:blue}.test{color:red}"`)

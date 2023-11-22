@@ -2,7 +2,7 @@
 
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { writeFile } from 'fs/promises'
+import fsp from 'fs/promises'
 import {
   renderViaHTTP,
   nextBuild,
@@ -96,7 +96,7 @@ describe('TypeScript Features', () => {
       await killApp(app)
       let evilFile = join(appDir, 'pages', 'evil.tsx')
       try {
-        await writeFile(
+        await fsp.writeFile(
           evilFile,
           `import React from 'react'
 

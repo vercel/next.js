@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import fs from 'fs'
 import fsp from 'fs/promises'
 import { join } from 'path'
 import { BUILD_ID_FILE, BUILD_MANIFEST } from 'next/constants'

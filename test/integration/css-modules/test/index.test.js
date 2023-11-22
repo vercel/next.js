@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { readdir, readFile } from 'fs/promises'
+import fsp from 'fs/promises'
 import {
   File,
   findPort,
@@ -46,11 +46,14 @@ describe('Basic CSS Module Support', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
 
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -104,11 +107,14 @@ describe('3rd Party CSS Module Support', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
 
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -334,11 +340,14 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
 
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -389,11 +398,14 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
 
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -426,11 +438,14 @@ describe('CSS Module Composes Usage (Basic)', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
 
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -463,11 +478,14 @@ describe('CSS Module Composes Usage (External)', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
 
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -515,11 +533,14 @@ describe('Dynamic Route CSS Module Usage', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
 
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -567,11 +588,14 @@ describe('Catch-all Route CSS Module Usage', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
 
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()

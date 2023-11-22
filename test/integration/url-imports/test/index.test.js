@@ -1,6 +1,7 @@
 /* eslint-disable no-loop-func */
 /* eslint-env jest */
 
+import fsp from 'fs/promises'
 import { join } from 'path'
 import {
   nextBuild,

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import cheerio from 'cheerio'
-import { readdir, readFile } from 'fs/promises'
+import fsp from 'fs/promises'
 import {
   check,
   File,
@@ -120,12 +120,12 @@ describe('should handle unresolved files gracefully', () => {
     })
 
     it('should have correct file references in CSS output', async () => {
-      const cssFiles = await readdir(join(workDir, '.next/static/css'))
+      const cssFiles = await fsp.readdir(join(workDir, '.next/static/css'))
 
       for (const file of cssFiles) {
         if (file.endsWith('.css.map')) continue
 
-        const content = await readFile(
+        const content = await fsp.readFile(
           join(workDir, '.next/static/css', file),
           'utf8'
         )
@@ -156,11 +156,14 @@ describe('Data URLs', () => {
 
     it('should have emitted expected files', async () => {
       const cssFolder = join(workDir, '.next/static/css')
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
         /background:url\("data:[^"]+"\)/
       )

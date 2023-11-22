@@ -1,5 +1,6 @@
 import path from 'path'
 import fs from 'fs'
+import fsp from 'fs/promises'
 import { useRouter } from 'next/router'
 
 export default function Page(props) {

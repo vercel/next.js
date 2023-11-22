@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { readdir, readFile } from 'fs/promises'
+import fsp from 'fs/promises'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
@@ -70,11 +70,14 @@ describe('Valid Global CSS from npm', () => {
     it(`should've emitted a single CSS file`, async () => {
       const cssFolder = join(appDir, '.next/static/css')
 
-      const files = await readdir(cssFolder)
+      const files = await fsp.readdir(cssFolder)
       const cssFiles = files.filter((f) => /\.css$/.test(f))
 
       expect(cssFiles.length).toBe(1)
-      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      const cssContent = await fsp.readFile(
+        join(cssFolder, cssFiles[0]),
+        'utf8'
+      )
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(`".red-text{color:"red"}"`)
