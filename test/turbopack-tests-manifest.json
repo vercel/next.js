@@ -2113,8 +2113,7 @@
     "runtimeError": false
   },
   "test/e2e/404-page-router/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /not/a/real/page should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware false should not throw any errors when re-fetching the route info",
@@ -2128,6 +2127,7 @@
       "404-page-router 404-page-router with basePath of true and i18n of true and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of true and i18n of true and middleware false should not throw any errors when re-fetching the route info"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": true
