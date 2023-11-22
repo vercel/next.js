@@ -36,18 +36,6 @@ declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
 declare module 'VAR_MODULE_APP'
 
-declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
-  export * from '@next/react-dev-overlay/dist/client'
-}
-
-declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware' {
-  export * from '@next/react-dev-overlay/dist/middleware'
-}
-
-declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack' {
-  export * from '@next/react-dev-overlay/dist/middleware-turbopack'
-}
-
 declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
   import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
   export = m

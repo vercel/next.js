@@ -261,9 +261,7 @@ createNextDescribe(
         const browser = await next.browser('/')
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(
-          await browser
-            .elementByCss('#nextjs__container_build_error_label')
-            .text()
+          await browser.elementByCss('#nextjs__container_errors_label').text()
         ).toEqual('Failed to compile')
         await next.patchFile('middleware.js', `export default function () {}`)
         await hasRedbox(browser, false)

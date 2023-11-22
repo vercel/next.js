@@ -214,51 +214,10 @@ export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
 export type LoadedRenderOpts = RenderOpts & LoadComponentsReturnType
 
-type BaseRenderOpts = {
-  deploymentId?: string
+type BaseRenderOpts = RenderOpts & {
   poweredByHeader: boolean
-  buildId: string
   generateEtags: boolean
-  runtimeConfig?: { [key: string]: any }
-  assetPrefix?: string
-  canonicalBase: string
-  dev?: boolean
   previewProps: __ApiPreviewProps
-  customServer?: boolean
-  ampOptimizerConfig?: { [key: string]: any }
-  basePath: string
-  optimizeFonts: FontConfig
-  images: ImageConfigComplete
-  fontManifest?: FontManifest
-  disableOptimizedLoading?: boolean
-  optimizeCss: any
-  nextConfigOutput: 'standalone' | 'export'
-  nextScriptWorkers: any
-  locale?: string
-  locales?: string[]
-  defaultLocale?: string
-  domainLocales?: DomainLocale[]
-  distDir: string
-  runtime?: ServerRuntime
-  serverComponents?: boolean
-  enableTainting?: boolean
-  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
-  supportsDynamicHTML?: boolean
-  isBot?: boolean
-  clientReferenceManifest?: ClientReferenceManifest
-  serverActions?: {
-    bodySizeLimit?: SizeLimit
-    allowedOrigins?: string[]
-  }
-  serverActionsManifest?: any
-  nextFontManifest?: NextFontManifest
-  renderServerComponentData?: boolean
-  serverComponentProps?: any
-  largePageDataBytes?: number
-  appDirDevErrorLogger?: (err: any) => Promise<void>
-  strictNextHead: boolean
-  isExperimentalCompile?: boolean
-  experimental: { ppr: boolean }
 }
 
 export interface BaseRequestHandler {
@@ -506,6 +465,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     this.renderOpts = {
+      supportsDynamicHTML: false,
       deploymentId: this.nextConfig.experimental.deploymentId,
       strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
