@@ -126,6 +126,8 @@ pub async fn get_server_resolve_options_context(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
+        // TODO(sokra) esmExternals support
+        false,
     );
     let ty = ty.into_value();
 
@@ -144,6 +146,8 @@ pub async fn get_server_resolve_options_context(
         project_path,
         project_path.root(),
         ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
+        // TODO(sokra) esmExternals support
+        false,
     );
 
     let next_external_plugin = NextExternalResolvePlugin::new(project_path);
