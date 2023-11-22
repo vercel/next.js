@@ -171,6 +171,9 @@ async fn base_resolve_options(
             ext.push(".jsx".to_string());
         }
         ext.push(".js".to_string());
+        if opt.enable_mjs_extension {
+            ext.push(".mjs".to_string());
+        }
         if opt.enable_node_native_modules {
             ext.push(".node".to_string());
         }

@@ -25,6 +25,9 @@ pub struct ResolveOptionsContext {
     #[serde(default)]
     pub enable_node_native_modules: bool,
     #[serde(default)]
+    // Enable resolving of .mjs files without the .mjs extension
+    pub enable_mjs_extension: bool,
+    #[serde(default)]
     /// Enable resolving of the node_modules folder when within the provided
     /// directory
     pub enable_node_modules: Option<Vc<FileSystemPath>>,
