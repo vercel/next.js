@@ -48,10 +48,6 @@ This will build the project as a standalone app inside the Docker image.
    - You will be prompted for [region](https://cloud.google.com/run/docs/quickstarts/build-and-deploy#follow-cloud-run): select the region of your choice, for example `us-central1`.
    - You will be prompted to **allow unauthenticated invocations**: respond `y`.
 
-Or click the button below, authorize the script, and select the project and region when prompted:
-
-[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/vercel/next.js.git&dir=examples/with-docker)
-
 ## Running Locally
 
 First, run the development server:
