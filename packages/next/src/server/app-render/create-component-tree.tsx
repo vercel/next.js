@@ -1,5 +1,5 @@
 import type { FlightSegmentPath, CacheNodeSeedData } from './types'
-import React from 'react'
+import React, { type ReactNode } from 'react'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
@@ -9,11 +9,16 @@ import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
+import { MaybePostpone } from './maybe-postpone'
+
+type ComponentTree = {
+  seedData: CacheNodeSeedData
+  styles: ReactNode
+}
 
 /**
  * Use the provided loader tree to create the React Component tree.
  */
-
 export async function createComponentTree({
   createSegmentPath,
   loaderTree: tree,
@@ -38,10 +43,7 @@ export async function createComponentTree({
   asNotFound?: boolean
   metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
-}): Promise<{
-  seedData: CacheNodeSeedData
-  styles: React.ReactNode
-}> {
+}): Promise<ComponentTree> {
   const {
     renderOpts: { nextConfigOutput },
     staticGenerationStore,
@@ -155,7 +157,11 @@ export async function createComponentTree({
       staticGenerationStore.dynamicShouldError = true
     } else if (dynamic === 'force-dynamic') {
       staticGenerationStore.forceDynamic = true
-      staticGenerationBailout(`force-dynamic`, { dynamic })
+
+      // TODO: (PPR) remove this bailout once PPR is the default
+      if (!staticGenerationStore.experimental.ppr) {
+        staticGenerationBailout(`force-dynamic`, { dynamic })
+      }
     } else {
       staticGenerationStore.dynamicShouldError = false
       if (dynamic === 'force-static') {
@@ -183,7 +189,8 @@ export async function createComponentTree({
 
     if (
       staticGenerationStore.isStaticGeneration &&
-      ctx.defaultRevalidate === 0
+      ctx.defaultRevalidate === 0 &&
+      !staticGenerationStore.experimental.ppr
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
       staticGenerationStore.dynamicUsageDescription = dynamicUsageDescription
@@ -436,33 +443,52 @@ export async function createComponentTree({
     })(),
   }
 
+  // Create the node to render in this tree.
+  let node = (
+    <>
+      {isPage ? metadataOutlet : null}
+      {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
+      {isPage && isClientComponent ? (
+        <StaticGenerationSearchParamsBailoutProvider
+          propsForComponent={props}
+          Component={Component}
+          isStaticGeneration={staticGenerationStore.isStaticGeneration}
+        />
+      ) : (
+        <Component {...props} />
+      )}
+      {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
+          surrounding it this would look like a pending tree data state on the client which will cause an error
+          and break the app. Long-term we need to move away from using null as a partial tree identifier since it
+          is a valid return type for the components we wrap. Once we make this change we can safely remove the
+          fragment. The reason the extra null here is required is that fragments which only have 1 child are elided.
+          If the Component above renders null the actual tree data will look like `[null, null]`. If we remove the extra
+          null it will look like `null` (the array is elided) and this is what confuses the client router.
+          TODO-APP update router to use a Symbol for partial tree detection */}
+      {null}
+    </>
+  )
+
+  // If we're in static generation and we're forcing dynamic, we need to wrap
+  // the node in a component that will postpone rendering until after the
+  // initial render.
+  if (
+    staticGenerationStore.forceDynamic &&
+    staticGenerationStore.isStaticGeneration &&
+    staticGenerationStore.experimental.ppr
+  ) {
+    node = (
+      <MaybePostpone
+        reason='dynamic = "force-dynamic" was used'
+        staticGenerationStore={staticGenerationStore}
+      >
+        {node}
+      </MaybePostpone>
+    )
+  }
+
   return {
-    seedData: [
-      actualSegment,
-      parallelRouteCacheNodeSeedData,
-      <>
-        {isPage ? metadataOutlet : null}
-        {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
-        {isPage && isClientComponent ? (
-          <StaticGenerationSearchParamsBailoutProvider
-            propsForComponent={props}
-            Component={Component}
-            isStaticGeneration={staticGenerationStore.isStaticGeneration}
-          />
-        ) : (
-          <Component {...props} />
-        )}
-        {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
-                      surrounding it this would look like a pending tree data state on the client which will cause an errror
-                      and break the app. Long-term we need to move away from using null as a partial tree identifier since it
-                      is a valid return type for the components we wrap. Once we make this change we can safely remove the
-                      fragment. The reason the extra null here is required is that fragments which only have 1 child are elided.
-                      If the Component above renders null the actual treedata will look like `[null, null]`. If we remove the extra
-                      null it will look like `null` (the array is elided) and this is what confuses the client router.
-                      TODO-APP update router to use a Symbol for partial tree detection */}
-        {null}
-      </>,
-    ],
+    seedData: [actualSegment, parallelRouteCacheNodeSeedData, node],
     styles: layerAssets,
   }
 }
