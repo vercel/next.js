@@ -110,8 +110,8 @@ export class Span {
     return this.id
   }
 
-  setAttribute(key: string, value: any) {
-    this.attrs[key] = String(value)
+  setAttribute(key: string, value: string) {
+    this.attrs[key] = value
   }
 
   traceFn<T>(fn: (span: Span) => T): T {

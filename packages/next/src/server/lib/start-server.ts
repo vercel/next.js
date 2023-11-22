@@ -383,9 +383,15 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         startServer(msg.nextWorkerOptions)
       )
       const memoryUsage = process.memoryUsage()
-      startServerSpan.setAttribute('memory.rss', memoryUsage.rss)
-      startServerSpan.setAttribute('memory.heapTotal', memoryUsage.heapTotal)
-      startServerSpan.setAttribute('memory.heapUsed', memoryUsage.heapUsed)
+      startServerSpan.setAttribute('memory.rss', String(memoryUsage.rss))
+      startServerSpan.setAttribute(
+        'memory.heapTotal',
+        String(memoryUsage.heapTotal)
+      )
+      startServerSpan.setAttribute(
+        'memory.heapUsed',
+        String(memoryUsage.heapUsed)
+      )
       process.send({ nextServerReady: true })
     }
   })
