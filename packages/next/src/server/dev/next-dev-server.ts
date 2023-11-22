@@ -40,7 +40,7 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
-import { setGlobal } from '../../trace'
+import { type Span, setGlobal, trace } from '../../trace'
 import { findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
@@ -84,6 +84,11 @@ export interface Options extends ServerOptions {
    * Interface to the development bundler.
    */
   bundlerService: DevBundlerService
+
+  /**
+   * Trace span for server startup.
+   */
+  startServerSpan: Span
 }
 
 export default class DevServer extends Server {
@@ -104,6 +109,7 @@ export default class DevServer extends Server {
     string,
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
   >
+  private startServerSpan: Span
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -145,6 +151,8 @@ export default class DevServer extends Server {
     } catch {}
     super({ ...options, dev: true })
     this.bundlerService = options.bundlerService
+    this.startServerSpan =
+      options.startServerSpan ?? trace('start-next-dev-server')
     this.originalFetch = global.fetch
     this.renderOpts.dev = true
     this.renderOpts.appDirDevErrorLogger = (err: any) =>
@@ -268,7 +276,9 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
 
     await super.prepareImpl()
-    await this.runInstrumentationHookIfAvailable()
+    await this.startServerSpan
+      .traceChild('run-instrumentation-hook')
+      .traceAsyncFn(() => this.runInstrumentationHookIfAvailable())
     await this.matchers.reload()
 
     this.ready?.resolve()
@@ -437,8 +447,21 @@ export default class DevServer extends Server {
     res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
-    await this.ready?.promise
-    return await super.handleRequest(req, res, parsedUrl)
+    const span = trace('handle-request', undefined, { url: req.url })
+    const result = await span.traceAsyncFn(async () => {
+      await this.ready?.promise
+      return await super.handleRequest(req, res, parsedUrl)
+    })
+    const memoryUsage = process.memoryUsage()
+    span
+      .traceChild('memory-usage', {
+        url: req.url,
+        'memory.rss': String(memoryUsage.rss),
+        'memory.heapUsed': String(memoryUsage.heapUsed),
+        'memory.heapTotal': String(memoryUsage.heapTotal),
+      })
+      .stop()
+    return result
   }
 
   async run(
