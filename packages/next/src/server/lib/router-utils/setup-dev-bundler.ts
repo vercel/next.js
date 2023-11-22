@@ -446,7 +446,11 @@ async function startWatcher(opts: SetupOpts) {
     const buildingIds = new Set()
     const readyIds = new Set()
 
-    function startBuilding(id: string, forceRebuild: boolean = false) {
+    function startBuilding(
+      id: string,
+      requestUrl: string | undefined,
+      forceRebuild: boolean = false
+    ) {
       if (!forceRebuild && readyIds.has(id)) {
         return () => {}
       }
@@ -454,7 +458,8 @@ async function startWatcher(opts: SetupOpts) {
         consoleStore.setState(
           {
             loading: true,
-            trigger: id,
+            trigger:
+              requestUrl && requestUrl !== id ? `${requestUrl} (${id})` : id,
           } as OutputState,
           true
         )
@@ -1136,7 +1141,11 @@ async function startWatcher(opts: SetupOpts) {
               false,
               middleware.endpoint,
               async () => {
-                const finishBuilding = startBuilding('middleware', true)
+                const finishBuilding = startBuilding(
+                  'middleware',
+                  undefined,
+                  true
+                )
                 await processMiddleware()
                 await propagateServerField(
                   'actualMiddlewareFile',
@@ -1240,6 +1249,7 @@ async function startWatcher(opts: SetupOpts) {
                 page: denormalizedPagePath,
                 clientOnly: false,
                 definition: undefined,
+                url: req.url,
               })
               .catch(console.error)
           }
@@ -1347,11 +1357,12 @@ async function startWatcher(opts: SetupOpts) {
         // appPaths,
         definition,
         isApp,
+        url,
       }) {
         let page = definition?.pathname ?? inputPage
 
         if (page === '/_error') {
-          let finishBuilding = startBuilding(page)
+          let finishBuilding = startBuilding(page, url)
           try {
             if (globalEntries.app) {
               const writtenEndpoint = await processResult(
@@ -1450,7 +1461,7 @@ async function startWatcher(opts: SetupOpts) {
                 )
               }
 
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(buildingKey, url)
               try {
                 if (globalEntries.app) {
                   const writtenEndpoint = await processResult(
@@ -1538,7 +1549,7 @@ async function startWatcher(opts: SetupOpts) {
               // since this can happen when app pages make
               // api requests to page API routes.
 
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(buildingKey, url)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
@@ -1563,7 +1574,7 @@ async function startWatcher(opts: SetupOpts) {
               break
             }
             case 'app-page': {
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(buildingKey, url)
               const writtenEndpoint = await processResult(
                 page,
                 await route.htmlEndpoint.writeToDisk()
@@ -1614,7 +1625,7 @@ async function startWatcher(opts: SetupOpts) {
               break
             }
             case 'app-route': {
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(buildingKey, url)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
@@ -2471,12 +2482,13 @@ async function startWatcher(opts: SetupOpts) {
     requestHandler,
     logErrorWithOriginalStack,
 
-    async ensureMiddleware() {
+    async ensureMiddleware(requestUrl?: string) {
       if (!serverFields.actualMiddlewareFile) return
       return hotReloader.ensurePage({
         page: serverFields.actualMiddlewareFile,
         clientOnly: false,
         definition: undefined,
+        url: requestUrl,
       })
     },
   }
