@@ -7,13 +7,13 @@ import React, {
   startTransition,
 } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
-import { useRouter } from '../navigation'
+import formatWebpackMessages from '../../../dev/error-overlay/format-webpack-messages'
+import { useRouter } from '../../navigation'
 import {
   ACTION_VERSION_INFO,
   INITIAL_OVERLAY_STATE,
   errorOverlayReducer,
-} from './internal/error-overlay-reducer'
+} from './error-overlay-reducer'
 import {
   ACTION_BUILD_OK,
   ACTION_BUILD_ERROR,
@@ -21,27 +21,27 @@ import {
   ACTION_REFRESH,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from './internal/error-overlay-reducer'
-import { parseStack } from './internal/helpers/parseStack'
-import ReactDevOverlay from './internal/ReactDevOverlay'
+} from './error-overlay-reducer'
+import { parseStack } from '../internal/helpers/parseStack'
+import ReactDevOverlay from './ReactDevOverlay'
 import {
   RuntimeErrorHandler,
   useErrorHandler,
-} from './internal/helpers/use-error-handler'
+} from '../internal/helpers/use-error-handler'
 import {
   useSendMessage,
   useTurbopack,
   useWebsocket,
   useWebsocketPing,
-} from './internal/helpers/use-websocket'
-import { parseComponentStack } from './internal/helpers/parse-component-stack'
-import type { VersionInfo } from '../../../server/dev/parse-version-info'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../server/dev/hot-reloader-types'
+} from '../internal/helpers/use-websocket'
+import { parseComponentStack } from '../internal/helpers/parse-component-stack'
+import type { VersionInfo } from '../../../../server/dev/parse-version-info'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
   HMR_ACTION_TYPES,
   TurbopackMsgToBrowser,
-} from '../../../server/dev/hot-reloader-types'
-import { extractModulesFromTurbopackMessage } from '../../../server/dev/extract-modules-from-turbopack-message'
+} from '../../../../server/dev/hot-reloader-types'
+import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
 
 interface Dispatcher {
   onBuildOk(): void

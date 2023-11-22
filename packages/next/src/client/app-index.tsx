@@ -157,9 +157,9 @@ export function hydrate() {
   if (process.env.NODE_ENV !== 'production') {
     const rootLayoutMissingTagsError = (self as any)
       .__next_root_layout_missing_tags_error
-    const HotReload: typeof import('./components/react-dev-overlay/hot-reloader-client').default =
-      require('./components/react-dev-overlay/hot-reloader-client')
-        .default as typeof import('./components/react-dev-overlay/hot-reloader-client').default
+    const HotReload: typeof import('./components/react-dev-overlay/app/hot-reloader-client').default =
+      require('./components/react-dev-overlay/app/hot-reloader-client')
+        .default as typeof import('./components/react-dev-overlay/app/hot-reloader-client').default
 
     // Don't try to hydrate if root layout is missing required tags, render error instead
     if (rootLayoutMissingTagsError) {
@@ -236,12 +236,12 @@ export function hydrate() {
     if (process.env.NODE_ENV !== 'production') {
       // if an error is thrown while rendering an RSC stream, this will catch it in dev
       // and show the error overlay
-      const ReactDevOverlay: typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default =
-        require('./components/react-dev-overlay/internal/ReactDevOverlay')
-          .default as typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default
+      const ReactDevOverlay: typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default =
+        require('./components/react-dev-overlay/app/ReactDevOverlay')
+          .default as typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default
 
-      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE =
-        require('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE
+      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/app/error-overlay-reducer').INITIAL_OVERLAY_STATE =
+        require('./components/react-dev-overlay/app/error-overlay-reducer').INITIAL_OVERLAY_STATE
 
       const getSocketUrl: typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl =
         require('./components/react-dev-overlay/internal/helpers/get-socket-url')

@@ -2,11 +2,11 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from '../error-overlay-reducer'
+} from '../../app/error-overlay-reducer'
 import type {
   UnhandledErrorAction,
   UnhandledRejectionAction,
-} from '../error-overlay-reducer'
+} from '../../app/error-overlay-reducer'
 import {
   Dialog,
   DialogBody,
@@ -31,6 +31,7 @@ export type SupportedErrorEvent = {
   event: UnhandledErrorAction | UnhandledRejectionAction
 }
 export type ErrorsProps = {
+  isAppDir: boolean
   errors: SupportedErrorEvent[]
   initialDisplayState: DisplayState
   versionInfo?: VersionInfo
@@ -57,6 +58,7 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
 }
 
 export function Errors({
+  isAppDir,
   errors,
   initialDisplayState,
   versionInfo,
@@ -105,7 +107,7 @@ export function Errors({
     }
     let mounted = true
 
-    getErrorByType(nextError).then(
+    getErrorByType(nextError, isAppDir).then(
       (resolved) => {
         // We don't care if the desired error changed while we were resolving,
         // thus we're not tracking it using a ref. Once the work has been done,
@@ -122,7 +124,7 @@ export function Errors({
     return () => {
       mounted = false
     }
-  }, [nextError])
+  }, [nextError, isAppDir])
 
   const [displayState, setDisplayState] =
     useState<DisplayState>(initialDisplayState)

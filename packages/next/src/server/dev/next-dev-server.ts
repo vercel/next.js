@@ -70,7 +70,7 @@ let ReactDevOverlayImpl: FunctionComponent
 const ReactDevOverlay = (props: any) => {
   if (ReactDevOverlayImpl === undefined) {
     ReactDevOverlayImpl =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/client').ReactDevOverlay
+      require('../../client/components/react-dev-overlay/pages/client').ReactDevOverlay
   }
   return ReactDevOverlayImpl(props)
 }
@@ -158,7 +158,7 @@ export default class DevServer extends Server {
     this.renderOpts.dev = true
     this.renderOpts.appDirDevErrorLogger = (err: any) =>
       this.logErrorWithOriginalStack(err, 'app-dir')
-    ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
+    this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache({
       // 5MB
       max: 5 * 1024 * 1024,
@@ -166,12 +166,9 @@ export default class DevServer extends Server {
         return JSON.stringify(value.staticPaths).length
       },
     })
-    ;(this.renderOpts as any).ampSkipValidation =
+    this.renderOpts.ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
-    ;(this.renderOpts as any).ampValidator = (
-      html: string,
-      pathname: string
-    ) => {
+    this.renderOpts.ampValidator = (html: string, pathname: string) => {
       const validatorPath =
         this.nextConfig.experimental &&
         this.nextConfig.experimental.amp &&
