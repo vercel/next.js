@@ -76,9 +76,9 @@ In some cases, you might want to pass down a Server Action to a Client Component
 ```jsx filename="app/client-component.jsx"
 'use client'
 
-export default function ClientComponent({ myAction }) {
+export default function ClientComponent({ updateItem }) {
   return (
-    <form action={myAction}>
+    <form action={updateItem}>
       <input type="text" name="name" />
       <button type="submit">Update Item</button>
     </form>
