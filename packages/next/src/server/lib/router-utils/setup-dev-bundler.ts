@@ -458,8 +458,8 @@ async function startWatcher(opts: SetupOpts) {
         consoleStore.setState(
           {
             loading: true,
-            trigger:
-              requestUrl && requestUrl !== id ? `${requestUrl} (${id})` : id,
+            trigger: id,
+            url: requestUrl,
           } as OutputState,
           true
         )
