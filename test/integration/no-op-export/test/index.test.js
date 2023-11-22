@@ -10,7 +10,7 @@ const nextConfig = join(appDir, 'next.config.js')
 
 const addPage = async (page, content) => {
   const pagePath = join(appDir, 'pages', page)
-  await fsp.mkdir(path.dirname(pagePath, { recursive: true }))
+  await fsp.mkdir(path.dirname(pagePath), { recursive: true })
   await fsp.writeFile(pagePath, content)
 }
 
@@ -19,7 +19,7 @@ describe('no-op export', () => {
     afterEach(async () => {
       await Promise.all(
         ['.next', 'pages', 'next.config.js', 'out'].map((file) =>
-          fsp.rm(join(appDir, file, { recursive: true, force: true }))
+          fsp.rm(join(appDir, file), { recursive: true, force: true })
         )
       )
     })

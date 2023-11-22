@@ -8,7 +8,7 @@ const appDir = join(__dirname, '..')
 const pagesDir = join(appDir, 'pages')
 
 const writePage = async (content, testPage = join(pagesDir, 'test.js')) => {
-  await fsp.mkdir(dirname(testPage, { recursive: true }))
+  await fsp.mkdir(dirname(testPage), { recursive: true })
   await fsp.writeFile(testPage, content)
 }
 

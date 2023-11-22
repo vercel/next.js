@@ -12,7 +12,7 @@ describe('Conflicting SSG paths', () => {
     afterEach(() => fsp.rm(pagesDir, { recursive: true, force: true }))
 
     it('should show proper error when two dynamic SSG routes have conflicting paths', async () => {
-      await fsp.mkdir(join(pagesDir, 'blog', { recursive: true }))
+      await fsp.mkdir(join(pagesDir, 'blog'), { recursive: true })
       await fsp.writeFile(
         join(pagesDir, 'blog/[slug].js'),
         `
@@ -81,7 +81,7 @@ describe('Conflicting SSG paths', () => {
     })
 
     it('should show proper error when a dynamic SSG route conflicts with normal route', async () => {
-      await fsp.mkdir(join(pagesDir, 'hello', { recursive: true }))
+      await fsp.mkdir(join(pagesDir, 'hello'), { recursive: true })
       await fsp.writeFile(
         join(pagesDir, 'hello/world.js'),
         `
@@ -133,7 +133,7 @@ describe('Conflicting SSG paths', () => {
     })
 
     it('should show proper error when a dynamic SSG route conflicts with SSR route', async () => {
-      await fsp.mkdir(join(pagesDir, 'hello', { recursive: true }))
+      await fsp.mkdir(join(pagesDir, 'hello'), { recursive: true })
       await fsp.writeFile(
         join(pagesDir, 'hello/world.js'),
         `
@@ -175,6 +175,9 @@ describe('Conflicting SSG paths', () => {
         stderr: true,
       })
       const output = result.stdout + result.stderr
+
+      console.error(result.stderr)
+
       expect(output).toContain(
         'Conflicting paths returned from getStaticPaths, paths must be unique per page'
       )

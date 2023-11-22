@@ -222,7 +222,7 @@ function runInvalidPagesTests(buildFn) {
   })
 
   it('should fail to build when optional but no catch-all', async () => {
-    const invalidRoute = appDir + 'pages/invalid/[[param]].js'
+    const invalidRoute = join(appDir, 'pages/invalid/[[param]].js')
     try {
       await fsp.writeFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       await buildFn(appDir)

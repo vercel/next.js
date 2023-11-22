@@ -9,7 +9,7 @@ const appDir = join(__dirname, '..')
 describe('Promise in next config', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     afterEach(() =>
-      fsp.rm(join(appDir, 'next.config.js', { recursive: true, force: true }))
+      fsp.rm(join(appDir, 'next.config.js'), { recursive: true, force: true })
     )
 
     it('should warn when a promise is returned on webpack', async () => {

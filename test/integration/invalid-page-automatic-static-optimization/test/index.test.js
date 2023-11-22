@@ -25,7 +25,7 @@ describe('Invalid Page automatic static optimization', () => {
         path.join(appDir, 'pages-bak')
       )
 
-      await fsp.mkdir(path.join(appDir, 'pages', { recursive: true }))
+      await fsp.mkdir(path.join(appDir, 'pages'), { recursive: true })
       await fsp.writeFile(
         testPage,
         `

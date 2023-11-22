@@ -50,7 +50,7 @@ describe('Client 404', () => {
       }
       await Promise.all(
         files.map((f) =>
-          fsp.rm(join(appDir, '.next', f, { recursive: true, force: true }))
+          fsp.rm(join(appDir, '.next', f), { recursive: true, force: true })
         )
       )
     })
