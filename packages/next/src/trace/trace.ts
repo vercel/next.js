@@ -63,6 +63,11 @@ export class Span {
   // Additionally, ~285 years can be safely represented as microseconds as
   // a float64 in both JSON and JavaScript.
   stop(stopTime?: bigint) {
+    if (this.status === SpanStatus.Stopped) {
+      // Don't report the same span twice.
+      // TODO: In the future this should throw as `.stop()` shouldn't be called multiple times.
+      return
+    }
     const end: bigint = stopTime || process.hrtime.bigint()
     const duration = (end - this._start) / NUM_OF_MICROSEC_IN_NANOSEC
     this.status = SpanStatus.Stopped
