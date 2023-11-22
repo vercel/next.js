@@ -1391,14 +1391,14 @@ async function startWatcher(opts: SetupOpts) {
           )
         }
 
+        // Otherwise, return all errors across pages
         const errors = []
         for (const pageIssues of issues.values()) {
           for (const issue of pageIssues.values()) {
             errors.push(new Error(formatIssue(issue)))
           }
         }
-        return []
-        // return errors
+        return errors
       },
       invalidate(/* Unused parameter: { reloadAfterInvalidation } */) {
         // Not implemented yet.
