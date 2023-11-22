@@ -14,7 +14,7 @@ Issues are opened with one of these labels:
 
 ### Automated triaging
 
-In case of a bug report, **if the reproduction is missing or insufficient, the issue is automatically closed**, and a comment is added with a correct course of action. The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/actions/issue-validator/repro-link/invalid-link.md). We also add an `invalid link` label to mark the issue. To avoid your issue being closed, please follow the [bug report template](https://github.com/vercel/next.js/blob/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml) carefully.
+In case of a bug report, **if the reproduction is missing or insufficient, the issue is automatically closed**, and a comment is added with a correct course of action. The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/invalid-link.md). We also add an `invalid link` label to mark the issue. To avoid your issue being closed, please follow the [bug report template](https://github.com/vercel/next.js/blob/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml) carefully.
 
 If you filled out the "Which area(s) are affected? (Select all that apply)" section of the bug report template, we will add the corresponding `area:` label(s).
 
@@ -28,18 +28,18 @@ A maintainer can also manually label an issue with one of the following labels, 
 
 The provided reproduction is not enough for the maintainers to investigate. If a sufficient reproduction is not provided for more than 30 days, the issue becomes stale and will be automatically closed. If a reproduction is provided within 30 days, a `needs triage` label is added, indicating that the issue needs another look from a maintainer.
 
-The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/actions/issue-validator/clarify/repro.md)
+The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/invalid-reproduction.md)
 
 2. `please verify canary`
 
 The issue is not verified against the `next@canary` release. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue. Issues not verified against `next@canary` will be closed after 30 days.
 
-The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/actions/issue-validator/clarify/canary.md)
+The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/verify-canary.md)
 
 3. `please simplify reproduction`
 
 The provided reproduction is too complex or requires too many steps to reproduce. If a simplified reproduction is not provided for more than 30 days, the issue becomes stale and will be automatically closed. If a reproduction is provided within 30 days, a `needs triage` label is added, indicating that the issue needs another look from a maintainer.
-The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/actions/issue-validator/clarify/simplify-repro.md)
+The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/simplify-reproduction.md)
 
 ## Verified issues
 

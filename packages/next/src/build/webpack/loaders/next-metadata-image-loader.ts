@@ -7,12 +7,11 @@ import type {
   MetadataImageModule,
   PossibleImageFileNameConvention,
 } from './metadata/types'
-import fs from 'fs/promises'
+import { existsSync, promises as fs } from 'fs'
 import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
-import { fileExists } from '../../../lib/file-exists'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 
@@ -23,6 +22,8 @@ interface Options {
   basePath: string
 }
 
+// [NOTE] For turbopack
+// refer loader_tree's write_static|dynamic_metadata for corresponding features
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
   const { type, segment, pageExtensions, basePath } = options
@@ -179,7 +180,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       fileNameBase + '.alt.txt'
     )
 
-    if (await fileExists(altPath)) {
+    if (existsSync(altPath)) {
       imageData.alt = await fs.readFile(altPath, 'utf8')
     }
   }

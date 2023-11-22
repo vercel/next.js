@@ -1,14 +1,13 @@
 import React from 'react'
-import { fetchServerResponse } from './fetch-server-response'
+import type { FetchServerResponseResult } from './fetch-server-response'
 import { fillCacheWithDataProperty } from './fill-cache-with-data-property'
-import {
-  CacheStates,
-  CacheNode,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+
 describe('fillCacheWithDataProperty', () => {
   it('should add data property', () => {
     const fetchServerResponseMock: jest.Mock<
-      ReturnType<typeof fetchServerResponse>
+      Promise<FetchServerResponseResult>
     > = jest.fn(() =>
       Promise.resolve([
         /* TODO-APP: replace with actual FlightData */ '',
@@ -71,15 +70,15 @@ describe('fillCacheWithDataProperty', () => {
     )
 
     expect(cache).toMatchInlineSnapshot(`
-      Object {
+      {
         "data": null,
         "parallelRoutes": Map {
           "children" => Map {
-            "linking" => Object {
+            "linking" => {
               "data": null,
               "parallelRoutes": Map {
                 "children" => Map {
-                  "" => Object {
+                  "" => {
                     "data": null,
                     "parallelRoutes": Map {},
                     "status": "READY",
@@ -94,7 +93,7 @@ describe('fillCacheWithDataProperty', () => {
                 Linking
               </React.Fragment>,
             },
-            "dashboard" => Object {
+            "dashboard" => {
               "data": Promise {},
               "parallelRoutes": Map {},
               "status": "DATAFETCH",

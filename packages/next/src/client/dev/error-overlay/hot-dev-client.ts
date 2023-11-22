@@ -38,11 +38,8 @@ import {
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
-import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  HMR_ACTION_TYPES,
-} from '../../../server/dev/hot-reloader-types'
-
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../server/dev/hot-reloader-types'
+import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
 // https://github.com/webpack/webpack/blob/webpack-1/hot/dev-server.js
@@ -64,7 +61,9 @@ window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
 let hadRuntimeError = false
 let customHmrEventHandler: any
-export default function connect() {
+let MODE: 'webpack' | 'turbopack' = 'webpack'
+export default function connect(mode: 'webpack' | 'turbopack') {
+  MODE = mode
   register()
 
   addMessageListener((payload) => {
@@ -109,15 +108,19 @@ function clearOutdatedErrors() {
 function handleSuccess() {
   clearOutdatedErrors()
 
-  const isHotUpdate =
-    !isFirstCompilation ||
-    (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
-  isFirstCompilation = false
-  hasCompileErrors = false
+  if (MODE === 'webpack') {
+    const isHotUpdate =
+      !isFirstCompilation ||
+      (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
+    isFirstCompilation = false
+    hasCompileErrors = false
 
-  // Attempt to apply hot updates or reload.
-  if (isHotUpdate) {
-    tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
+    // Attempt to apply hot updates or reload.
+    if (isHotUpdate) {
+      tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
+    }
+  } else {
+    onBuildOk()
   }
 }
 
@@ -221,6 +224,9 @@ function onFastRefresh(updatedModules: string[]) {
         endTime: endLatency,
         page: window.location.pathname,
         updatedModules,
+        // Whether the page (tab) was hidden at the time the event occurred.
+        // This can impact the accuracy of the event's timing.
+        isPageHidden: document.visibilityState === 'hidden',
       })
     )
     if (self.__NEXT_HMR_LATENCY_CB) {

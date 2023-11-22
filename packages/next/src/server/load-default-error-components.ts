@@ -11,10 +11,10 @@ import type {
   GetStaticProps,
 } from 'next/types'
 import type { RouteModule } from './future/route-modules/route-module'
+import type { BuildManifest } from './get-page-files'
 
 import { BUILD_MANIFEST } from '../shared/lib/constants'
 import { join } from 'path'
-import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
@@ -42,7 +42,7 @@ export type LoadComponentsReturnType = {
   ComponentMod: any
   routeModule?: RouteModule
   isAppPath?: boolean
-  pathname: string
+  page: string
 }
 
 async function loadDefaultErrorComponentsImpl(
@@ -68,7 +68,7 @@ async function loadDefaultErrorComponentsImpl(
     ),
     reactLoadableManifest: {},
     ComponentMod,
-    pathname: '/_error',
+    page: '/_error',
     routeModule: ComponentMod.routeModule,
   }
 }

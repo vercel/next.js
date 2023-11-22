@@ -4,19 +4,18 @@ use next_swc::{
     amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
     named_import_transform::named_import_transform,
-    next_dynamic::next_dynamic,
     next_ssg::next_ssg,
     optimize_barrel::optimize_barrel,
     optimize_server_react::optimize_server_react,
     page_config::page_config_test,
-    react_remove_properties::remove_properties,
+    pure::pure_magic,
     react_server_components::server_components,
-    remove_console::remove_console,
     server_actions::{
         server_actions, {self},
     },
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
+use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
 use serde::de::DeserializeOwned;
 use turbopack_binding::swc::{
@@ -66,6 +65,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 false,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -81,6 +81,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 false,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -96,6 +97,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 true,
                 false,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -110,7 +112,11 @@ fn next_dynamic_fixture(input: PathBuf) {
 fn app_dir_next_dynamic_fixture(input: PathBuf) {
     let output_dev = input.parent().unwrap().join("output-dev.js");
     let output_prod = input.parent().unwrap().join("output-prod.js");
-    let output_server = input.parent().unwrap().join("output-server.js");
+    let output_server: PathBuf = input.parent().unwrap().join("output-server.js");
+    let output_server_client_layer = input
+        .parent()
+        .unwrap()
+        .join("output-server-client-layer.js");
     test_fixture(
         syntax(),
         &|_tr| {
@@ -118,6 +124,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 true,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -133,6 +140,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 true,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -148,12 +156,29 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 true,
                 true,
+                NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
         },
         &input,
         &output_server,
+        Default::default(),
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                false,
+                true,
+                false,
+                NextDynamicMode::Webpack,
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_server_client_layer,
         Default::default(),
     );
 }
@@ -232,48 +257,6 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/remove-console/**/input.js")]
-fn remove_console_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| remove_console(next_swc::remove_console::Config::All(true)),
-        &input,
-        &output,
-        Default::default(),
-    );
-}
-
-#[fixture("tests/fixture/react-remove-properties/default/**/input.js")]
-fn react_remove_properties_default_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| remove_properties(next_swc::react_remove_properties::Config::All(true)),
-        &input,
-        &output,
-        Default::default(),
-    );
-}
-
-#[fixture("tests/fixture/react-remove-properties/custom/**/input.js")]
-fn react_remove_properties_custom_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| {
-            remove_properties(next_swc::react_remove_properties::Config::WithOptions(
-                next_swc::react_remove_properties::Options {
-                    properties: vec!["^data-custom$".into()],
-                },
-            ))
-        },
-        &input,
-        &output,
-        Default::default(),
-    );
-}
-
 #[fixture("tests/fixture/shake-exports/most-usecases/input.js")]
 fn shake_exports_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
@@ -322,11 +305,12 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: true },
+                    next_swc::react_server_components::Options {
+                        is_react_server_layer: true,
+                    },
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                false,
             )
         },
         &input,
@@ -344,11 +328,12 @@ fn react_server_components_no_checks_server_graph_fixture(input: PathBuf) {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: true },
+                    next_swc::react_server_components::Options {
+                        is_react_server_layer: true,
+                    },
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                true,
             )
         },
         &input,
@@ -366,11 +351,12 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: false },
+                    next_swc::react_server_components::Options {
+                        is_react_server_layer: false,
+                    },
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                false,
             )
         },
         &input,
@@ -388,11 +374,12 @@ fn react_server_components_no_checks_client_graph_fixture(input: PathBuf) {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: false },
+                    next_swc::react_server_components::Options {
+                        is_react_server_layer: false,
+                    },
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                true,
             )
         },
         &input,
@@ -429,7 +416,7 @@ fn server_actions_server_fixture(input: PathBuf) {
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
-                        is_server: true,
+                        is_react_server_layer: true,
                         enabled: true
                     },
                     _tr.comments.as_ref().clone(),
@@ -453,7 +440,7 @@ fn server_actions_client_fixture(input: PathBuf) {
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
-                        is_server: false,
+                        is_react_server_layer: false,
                         enabled: true
                     },
                     _tr.comments.as_ref().clone(),
@@ -608,4 +595,24 @@ where
     T: DeserializeOwned,
 {
     serde_json::from_str(s).expect("failed to deserialize")
+}
+
+#[fixture("tests/fixture/pure/**/input.js")]
+fn pure(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+
+            chain!(
+                resolver(unresolved_mark, top_level_mark, false),
+                pure_magic(tr.comments.clone())
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
 }

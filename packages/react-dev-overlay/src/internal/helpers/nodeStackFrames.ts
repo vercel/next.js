@@ -1,4 +1,5 @@
-import { parse, StackFrame } from 'stacktrace-parser'
+import type { StackFrame } from 'stacktrace-parser'
+import { parse } from 'stacktrace-parser'
 
 export function getFilesystemFrame(frame: StackFrame): StackFrame {
   const f: StackFrame = { ...frame }

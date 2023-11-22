@@ -1,9 +1,7 @@
 import React from 'react'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
-import {
-  CacheStates,
-  CacheNode,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightData } from '../../../server/app-render/types'
 
 const getFlightData = (): FlightData => {
@@ -19,7 +17,7 @@ const getFlightData = (): FlightData => {
           children: ['', {}],
         },
       ],
-      <h1>SubTreeData Injected!</h1>,
+      ['about', null, <h1>SubTreeData Injected!</h1>],
       <>
         <title>Head Injected!</title>
       </>,

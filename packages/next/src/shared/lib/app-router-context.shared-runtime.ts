@@ -1,10 +1,10 @@
 'use client'
 
-import {
+import type {
   FocusAndScrollRef,
   PrefetchKind,
 } from '../../client/components/router-reducer/router-reducer-types'
-import type { fetchServerResponse } from '../../client/components/router-reducer/fetch-server-response'
+import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
 import type {
   FlightRouterState,
   FlightData,
@@ -29,7 +29,7 @@ export type CacheNode =
       /**
        * In-flight request for this node.
        */
-      data: ReturnType<typeof fetchServerResponse> | null
+      data: Promise<FetchServerResponseResult> | null
       head?: React.ReactNode
       /**
        * React Component for this node.
@@ -69,7 +69,6 @@ export type CacheNode =
 
 export interface NavigateOptions {
   /** @internal */
-  forceOptimisticNavigation?: boolean
   scroll?: boolean
 }
 

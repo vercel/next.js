@@ -13,6 +13,7 @@ import path from 'path'
 import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
+import { getRandomPort } from 'get-port-please'
 import fetch from 'node-fetch'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
@@ -48,13 +49,7 @@ export function initNextServerScript(
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [
-        ...((opts && opts.nodeArgs) || []),
-        '-r',
-        require.resolve('./mocks-require-hook'),
-        '--no-deprecation',
-        scriptPath,
-      ],
+      [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
       {
         env,
         cwd: opts && opts.cwd,
@@ -171,7 +166,18 @@ export function renderViaHTTP(
 }
 
 export function findPort() {
-  return getPort()
+  // [NOTE] What are we doing here?
+  // There are some flaky tests failures caused by `No available ports found` from 'get-port'.
+  // This may be related / fixed by upstream https://github.com/sindresorhus/get-port/pull/56,
+  // however it happened after get-port switched to pure esm which is not easy to adapt by bump.
+  // get-port-please seems to offer the feature parity so we'll try to use it, and leave get-port as fallback
+  // for a while until we are certain to switch to get-port-please entirely.
+  try {
+    return getRandomPort()
+  } catch (e) {
+    require('console').warn('get-port-please failed, falling back to get-port')
+    return getPort()
+  }
 }
 
 export interface NextOptions {
@@ -213,14 +219,7 @@ export function runNextCommand(
     console.log(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
-      [
-        ...(options.nodeArgs || []),
-        '-r',
-        require.resolve('./mocks-require-hook'),
-        '--no-deprecation',
-        nextBin,
-        ...argv,
-      ],
+      [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
       {
         ...options.spawnOptions,
         cwd,
@@ -342,14 +341,7 @@ export function runNextCommandDev(
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [
-        ...nodeArgs,
-        '-r',
-        require.resolve('./mocks-require-hook'),
-        '--no-deprecation',
-        nextBin,
-        ...argv,
-      ],
+      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
       {
         cwd,
         env,
@@ -365,10 +357,11 @@ export function runNextCommandDev(
       const bootupMarkers = {
         dev: /✓ ready/i,
         turbo: /✓ ready/i,
-        start: /▲ Next.js/i,
+        start: /✓ ready/i,
       }
 
       const strippedMessage = stripAnsi(message) as any
+
       if (
         (opts.bootupMarker && opts.bootupMarker.test(strippedMessage)) ||
         bootupMarkers[bootType].test(strippedMessage)
@@ -390,7 +383,8 @@ export function runNextCommandDev(
     }
 
     function handleStderr(data) {
-      const message = stripAnsi(data.toString()) as any
+      const message = data.toString()
+
       if (typeof opts.onStderr === 'function') {
         opts.onStderr(message)
       }
@@ -450,14 +444,6 @@ export function nextBuild(
   return runNextCommand(['build', dir, ...args], opts)
 }
 
-export function nextExport(dir: string, { outdir }, opts: NextOptions = {}) {
-  return runNextCommand(['export', dir, '--outdir', outdir], opts)
-}
-
-export function nextExportDefault(dir: string, opts: NextOptions = {}) {
-  return runNextCommand(['export', dir], opts)
-}
-
 export function nextLint(
   dir: string,
   args: string[] = [],
@@ -509,9 +495,12 @@ export function buildTS(
   })
 }
 
-export async function killProcess(pid: number): Promise<void> {
+export async function killProcess(
+  pid: number,
+  signal: string | number = 'SIGTERM'
+): Promise<void> {
   return await new Promise((resolve, reject) => {
-    treeKill(pid, (err) => {
+    treeKill(pid, signal, (err) => {
       if (err) {
         if (
           process.platform === 'win32' &&
@@ -536,7 +525,9 @@ export async function killProcess(pid: number): Promise<void> {
 
 // Kill a launched app
 export async function killApp(instance: ChildProcess) {
-  await killProcess(instance.pid)
+  if (instance && instance.pid) {
+    await killProcess(instance.pid)
+  }
 }
 
 export async function startApp(app: NextServer) {
@@ -763,28 +754,15 @@ export async function hasRedbox(browser: BrowserInterface, expected = true) {
 export async function getRedboxHeader(browser: BrowserInterface) {
   return retry(
     () => {
-      if (shouldRunTurboDevTest()) {
-        return evaluate(browser, () => {
-          const portal = [].slice
-            .call(document.querySelectorAll('nextjs-portal'))
-            .find((p) =>
-              p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
-            )
-          const root = portal?.shadowRoot
-          return root?.querySelector('[data-nextjs-turbo-dialog-body]')
-            ?.innerText
-        })
-      } else {
-        return evaluate(browser, () => {
-          const portal = [].slice
-            .call(document.querySelectorAll('nextjs-portal'))
-            .find((p) =>
-              p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
-            )
-          const root = portal?.shadowRoot
-          return root?.querySelector('[data-nextjs-dialog-header]')?.innerText
-        })
-      }
+      return evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal?.shadowRoot
+        return root?.querySelector('[data-nextjs-dialog-header]')?.innerText
+      })
     },
     10000,
     500,
@@ -990,7 +968,9 @@ export function runProdSuite(
     env?: NodeJS.ProcessEnv
   }
 ) {
-  return runSuite(suiteName, { appDir, env: 'prod' }, options)
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    runSuite(suiteName, { appDir, env: 'prod' }, options)
+  })
 }
 
 /**
@@ -1029,6 +1009,24 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
   return shouldSkip ? describe.skip : describe
 }
 
+export async function getRedboxComponentStack(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss(
+    '[data-nextjs-component-stack-frame]',
+    30000
+  )
+  // TODO: the type for elementsByCss is incorrect
+  const componentStackFrameElements: any = await browser.elementsByCss(
+    '[data-nextjs-component-stack-frame]'
+  )
+  const componentStackFrameTexts = await Promise.all(
+    componentStackFrameElements.map((f) => f.innerText())
+  )
+
+  return componentStackFrameTexts.join('\n')
+}
+
 /**
  * For better editor support, pass in the variants this should run on (`default` and/or `turbo`) as cases.
  *
@@ -1036,7 +1034,7 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
  */
 export const describeVariants = {
   each(variants: TestVariants[]) {
-    return (name: string, fn: (...args: TestVariants[]) => any) => {
+    return (name: string, fn: (variants: TestVariants) => any) => {
       if (
         !Array.isArray(variants) ||
         !variants.every((val) => typeof val === 'string')

@@ -54,6 +54,7 @@ export abstract class BrowserInterface implements PromiseLike<any> {
     browserName: string,
     locale: string,
     javaScriptEnabled: boolean,
+    ignoreHttpsErrors: boolean,
     headless: boolean
   ): Promise<void> {}
   async close(): Promise<void> {}

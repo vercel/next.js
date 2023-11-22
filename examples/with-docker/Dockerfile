@@ -93,6 +93,8 @@ EXPOSE 3000
 ENV PORT 3000
 
 # Run Next.js based on the preferred runtime
+# server.js is created by next build from the standalone output
+# https://nextjs.org/docs/pages/api-reference/next-config-js/output
 CMD \
   if [ -f bun.lockb ]; then bun server.js; \
   else node server.js; \

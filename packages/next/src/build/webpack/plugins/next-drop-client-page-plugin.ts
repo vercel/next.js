@@ -1,4 +1,4 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { STRING_LITERAL_DROP_BUNDLE } from '../../../shared/lib/constants'
 
 export const ampFirstEntryNamesMap: WeakMap<webpack.Compilation, string[]> =

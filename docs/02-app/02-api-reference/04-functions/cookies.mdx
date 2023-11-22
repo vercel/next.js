@@ -62,7 +62,7 @@ export default function Page() {
 
 A method that takes a cookie name, value, and options and sets the outgoing request cookie.
 
-> **Good to know**: `.set()` is only available in a [Server Action](/docs/app/building-your-application/data-fetching/forms-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+> **Good to know**: HTTP does not allow setting cookies after streaming starts, so you must use `.set()` in a [Server Action](/docs/app/building-your-application/data-fetching/forms-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 ```js filename="app/actions.js"
 'use server'

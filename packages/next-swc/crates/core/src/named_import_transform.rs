@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use serde::Deserialize;
 use turbopack_binding::swc::core::{
     common::DUMMY_SP,
@@ -26,7 +28,7 @@ impl Fold for NamedImportTransform {
         let src_value = decl.src.value.clone();
 
         if self.packages.iter().any(|p| src_value == *p) {
-            let mut specifier_names = vec![];
+            let mut specifier_names = HashSet::new();
 
             // Skip the transform if the default or namespace import is present
             let mut skip_transform = false;
@@ -34,18 +36,18 @@ impl Fold for NamedImportTransform {
             for specifier in &decl.specifiers {
                 match specifier {
                     ImportSpecifier::Named(specifier) => {
-                        // Push the import name as string to the vec
+                        // Add the import name as string to the set
                         if let Some(imported) = &specifier.imported {
                             match imported {
                                 ModuleExportName::Ident(ident) => {
-                                    specifier_names.push(ident.sym.to_string());
+                                    specifier_names.insert(ident.sym.to_string());
                                 }
                                 ModuleExportName::Str(str_) => {
-                                    specifier_names.push(str_.value.to_string());
+                                    specifier_names.insert(str_.value.to_string());
                                 }
                             }
                         } else {
-                            specifier_names.push(specifier.local.sym.to_string());
+                            specifier_names.insert(specifier.local.sym.to_string());
                         }
                     }
                     ImportSpecifier::Default(_) => {
@@ -60,8 +62,15 @@ impl Fold for NamedImportTransform {
             }
 
             if !skip_transform {
-                let names = specifier_names.join(",");
-                let new_src = format!("__barrel_optimize__?names={}!=!{}", names, src_value);
+                let mut names = specifier_names.into_iter().collect::<Vec<_>>();
+                // Sort the names to make sure the order is consistent
+                names.sort();
+
+                let new_src = format!(
+                    "__barrel_optimize__?names={}!=!{}",
+                    names.join(","),
+                    src_value
+                );
 
                 // Create a new import declaration, keep everything the same except the source
                 let mut new_decl = decl.clone();

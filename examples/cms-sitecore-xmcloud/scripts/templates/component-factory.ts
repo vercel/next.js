@@ -91,11 +91,11 @@ ${componentFiles
 // Next.js 'dynamic(...)' returns common 'React.ComponentType' while
 // 'import('...')' returns 'Promise' that will resolve module.
 // componentModule uses 'import(...)' because primary usage of it to get not only 'React Component' (default export) but all named exports.
-// See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
+// See https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports
 // componentFactory uses 'dynamic(...)' because primary usage of it to render 'React Component' (default export).
 // See https://nextjs.org/docs/advanced-features/dynamic-import
 // At the end you will have single preloaded script for each lazy loading module.
-// Editing mode doesn't work well with dynamic components in nextjs: dynamic components are not displayed without refresh after a rendering is added. 
+// Editing mode doesn't work well with dynamic components in nextjs: dynamic components are not displayed without refresh after a rendering is added.
 // This happens beacuse Sitecore editors simply insert updated HTML generated on server side. This conflicts with nextjs dynamic logic as no HTML gets rendered for dynamic component
 // So we use require() to obtain dynamic components in editing mode while preserving dynamic logic for non-editing scenarios
 // As we need to be able to seamlessly work with dynamic components in both editing and normal modes, different componentFactory functions will be passed to app
@@ -128,7 +128,7 @@ function baseComponentFactory(componentName: string, exportName?: string, isEdit
 
   return component?.Default || component?.default || component;
 }
-  
+
 export function componentFactory(componentName: string, exportName?: string) {
   return baseComponentFactory(componentName, exportName, false);
 }

@@ -1,7 +1,7 @@
 import type webpack from 'webpack'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
-import { MiddlewareConfig } from '../../analysis/get-page-static-info'
+import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
 
 export type EdgeFunctionLoaderOptions = {
   absolutePagePath: string
@@ -47,7 +47,7 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
           throw new Error('The Edge Function "pages${page}" must export a \`default\` function');
         }
 
-        export default function (opts) {
+        export default function nHandler (opts) {
           return adapter({
               ...opts,
               IncrementalCache,

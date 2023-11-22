@@ -8,7 +8,7 @@ import {
 } from '../swc'
 import * as Log from './log'
 
-const MAX_DURATION = 3 * 1000
+const MAX_LOG_SKIP_DURATION = 500 // 500ms
 
 export type OutputState =
   | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
@@ -69,8 +69,8 @@ store.subscribe((state) => {
         if (!loadingLogTimer) {
           // Only log compiling if compiled is not finished in 3 seconds
           loadingLogTimer = setTimeout(() => {
-            Log.wait(`compiling ${trigger} ...`)
-          }, MAX_DURATION)
+            Log.wait(`Compiling ${trigger} ...`)
+          }, MAX_LOG_SKIP_DURATION)
         }
       }
     }
@@ -138,14 +138,16 @@ store.subscribe((state) => {
   }
 
   if (trigger === 'initial') {
-    Log.event('ready')
     trigger = ''
-  } else if (trigger) {
+  } else {
     if (loadingLogTimer) {
       clearTimeout(loadingLogTimer)
       loadingLogTimer = null
     }
-    Log.event(`compiled ${trigger}${timeMessage}${modulesMessage}`)
+    Log.event(
+      `Compiled${trigger ? ' ' + trigger : ''}${timeMessage}${modulesMessage}`
+    )
+    trigger = ''
   }
 
   // Ensure traces are flushed after each compile in development mode

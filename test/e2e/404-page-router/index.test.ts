@@ -29,6 +29,13 @@ const table = [
       ]),
 ]
 
+const baseNextConfig = `
+module.exports = {
+  BASE_PATH
+  I18N
+}
+`
+
 describe('404-page-router', () => {
   let next: NextInstance
 
@@ -64,18 +71,16 @@ describe('404-page-router', () => {
             )
           )
         }
-        let curNextConfig = await fs.readFile(
-          path.join(__dirname, 'app', 'next.config.js'),
-          'utf8'
-        )
 
-        if (options.basePath) {
-          curNextConfig = curNextConfig.replace('_basePath', 'basePath')
-        }
+        let curNextConfig = baseNextConfig
+          .replace('BASE_PATH', options.basePath ? "basePath: '/docs'," : '')
+          .replace(
+            'I18N',
+            options.i18n
+              ? "i18n: { defaultLocale: 'en-ca', locales: ['en-ca', 'en-fr'] },"
+              : ''
+          )
 
-        if (options.i18n) {
-          curNextConfig = curNextConfig.replace('_i18n', 'i18n')
-        }
         await next.patchFile('next.config.js', curNextConfig)
         await next.start()
       })
@@ -118,7 +123,7 @@ describe('404-page-router', () => {
 
       describe.each(urls)('for $url', ({ url, pathname, asPath }) => {
         it('should have the correct router parameters after it is ready', async () => {
-          const query = url.split('?')[1] ?? ''
+          const query = url.split('?', 2)[1] ?? ''
           const browser = await webdriver(next.url, url)
 
           try {

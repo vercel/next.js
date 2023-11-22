@@ -2,7 +2,6 @@ import findUp from 'next/dist/compiled/find-up'
 import fsPromise from 'fs/promises'
 import child_process from 'child_process'
 import assert from 'assert'
-// @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
 import os from 'os'
 import { createInterface } from 'readline'
@@ -19,6 +18,7 @@ const EVENT_FILTER = new Set([
   'webpack-invalid-client',
   'webpack-invalidated-server',
   'navigation-to-hydration',
+  'start-dev-server',
 ])
 
 const {

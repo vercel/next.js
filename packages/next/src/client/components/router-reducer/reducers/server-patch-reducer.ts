@@ -1,7 +1,7 @@
 import { createHrefFromUrl } from '../create-href-from-url'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import {
+import type {
   ServerPatchAction,
   ReducerState,
   ReadonlyReducerState,
@@ -32,6 +32,8 @@ export function serverPatchReducer(
   if (mutable.previousTree) {
     return handleMutable(state, mutable)
   }
+
+  mutable.preserveCustomHistoryState = false
 
   // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
