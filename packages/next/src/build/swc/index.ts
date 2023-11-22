@@ -499,9 +499,9 @@ export interface Issue {
   severity: string
   category: string
   filePath: string
-  title: string
-  description: StyledString
-  detail: string
+  title: StyledString
+  description?: StyledString
+  detail?: StyledString
   source?: {
     source: {
       ident: string

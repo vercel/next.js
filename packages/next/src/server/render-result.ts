@@ -216,12 +216,6 @@ export default class RenderResult {
    * @param res
    */
   public async pipeToNodeResponse(res: ServerResponse) {
-    try {
-      await pipeToNodeResponse(this.readable, res)
-    } finally {
-      if (this.waitUntil) {
-        await this.waitUntil
-      }
-    }
+    await pipeToNodeResponse(this.readable, res, this.waitUntil)
   }
 }

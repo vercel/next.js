@@ -291,7 +291,10 @@ async function startWatcher(opts: SetupOpts) {
 
     function formatIssue(issue: Issue) {
       const { filePath, title, description, source, detail } = issue
-      let formattedTitle = title.replace(/\n/g, '\n    ')
+      let formattedTitle = renderStyledStringToErrorAnsi(title).replace(
+        /\n/g,
+        '\n    '
+      )
 
       let formattedFilePath = filePath
         .replace('[project]/', '')
@@ -305,10 +308,12 @@ async function startWatcher(opts: SetupOpts) {
           const { start } = source.range
           message = `${issue.severity} - ${formattedFilePath}:${
             start.line + 1
-          }:${start.column}`
+          }:${start.column}  ${formattedTitle}`
         } else {
           message = `${issue.severity} - ${formattedFilePath}  ${formattedTitle}`
         }
+      } else if (formattedFilePath) {
+        message = `${formattedFilePath}  ${formattedTitle}`
       } else {
         message = `${formattedTitle}`
       }
@@ -339,7 +344,10 @@ async function startWatcher(opts: SetupOpts) {
       }
 
       if (detail) {
-        message += `\n${detail.replace(/\n/g, '\n    ')}`
+        message += `\n${renderStyledStringToErrorAnsi(detail).replace(
+          /\n/g,
+          '\n    '
+        )}`
       }
 
       return message
@@ -368,6 +376,9 @@ async function startWatcher(opts: SetupOpts) {
           console.error(`  ⚠ ${displayName} ${formatted}\n\n`)
         }
         newSet.set(key, issue)
+
+        // We show errors in node_modules to the console, but don't throw for them
+        if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
         relevantIssues.add(formatted)
       }
 
@@ -497,7 +508,9 @@ async function startWatcher(opts: SetupOpts) {
 
           errors.set(key, {
             message,
-            details: issue.detail,
+            details: issue.detail
+              ? renderStyledStringToErrorAnsi(issue.detail)
+              : undefined,
           })
         }
       }
@@ -2491,7 +2504,7 @@ export async function setupDevBundler(opts: SetupOpts) {
       {
         webpackVersion: 5,
         isSrcDir,
-        turboFlag: false,
+        turboFlag: !!opts.turbo,
         cliCommand: 'dev',
         appDir: !!opts.appDir,
         pagesDir: !!opts.pagesDir,
@@ -2513,19 +2526,10 @@ function renderStyledStringToErrorAnsi(string: StyledString): string {
       return bold(red(string.value))
     case 'code':
       return green(string.value)
-    case 'line': {
-      let line = ''
-      for (const styled of string.value) {
-        line += renderStyledStringToErrorAnsi(styled)
-      }
-      return line + '\n'
-    }
+    case 'line':
+      return string.value.map(renderStyledStringToErrorAnsi).join('')
     case 'stack':
-      let stack = ''
-      for (const styled of string.value) {
-        stack += renderStyledStringToErrorAnsi(styled) + '\n'
-      }
-      return stack + '\n'
+      return string.value.map(renderStyledStringToErrorAnsi).join('\n')
     default:
       throw new Error('Unknown StyledString type', string)
   }
