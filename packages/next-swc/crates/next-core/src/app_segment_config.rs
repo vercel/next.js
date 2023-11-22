@@ -13,7 +13,7 @@ use turbopack_binding::turbopack::{
     core::{
         file_source::FileSource,
         ident::AssetIdent,
-        issue::{Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource},
+        issue::{Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource, StyledString},
         source::Source,
     },
     ecmascript::{
@@ -178,12 +178,13 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(
+    fn description(&self) -> Vc<StyledString> {
+        StyledString::Text(
             "The exported configuration object in a source file need to have a very specific \
              format from which some properties can be statically parsed at compiled-time."
                 .to_string(),
         )
+        .cell()
     }
 
     #[turbo_tasks::function]

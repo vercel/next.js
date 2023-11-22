@@ -159,6 +159,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  windowHistorySupport?: boolean
   caseSensitiveRoutes?: boolean
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
@@ -309,11 +310,12 @@ export interface ExperimentalConfig {
     bodySizeLimit?: SizeLimit
 
     /**
-     * Allowed domains that can bypass CSRF check.
+     * Allowed origins that can bypass Server Action's CSRF check. This is helpful
+     * when you have reverse proxy in front of your app.
      * @example
-     * ["my-reverse-proxy.com"]
+     * ["my-app.com"]
      */
-    allowedForwardedHosts?: string[]
+    allowedOrigins?: string[]
   }
 
   /**
@@ -340,6 +342,11 @@ export interface ExperimentalConfig {
   staticWorkerRequestDeduping?: boolean
 
   useWasmBinary?: boolean
+
+  /**
+   * Use lightningcss instead of swc_css
+   */
+  useLightningcss?: boolean
 }
 
 export type ExportPathMap = {
@@ -740,6 +747,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    windowHistorySupport: false,
     serverMinification: true,
     serverSourceMaps: false,
     caseSensitiveRoutes: false,
@@ -789,6 +797,7 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
+    ppr: false,
   },
 }
 
