@@ -24,7 +24,7 @@ describe('Static 404 page', () => {
     await fsp.rm(nextConfig, { recursive: true, force: true })
   })
   beforeEach(() =>
-    fsp.rm(join(appDir, '.next/server', { recursive: true, force: true }))
+    fsp.rm(join(appDir, '.next/server'), { recursive: true, force: true })
   )
 
   describe('With config enabled', () => {
