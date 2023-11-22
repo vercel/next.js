@@ -6,7 +6,7 @@ description: Learn more about the API of the Next.js Router, and access the rout
 If you want to access the [`router` object](#router-object) inside any function component in your app, you can use the `useRouter` hook, take a look at the following example:
 
 ```jsx
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 function ActiveLink({ children, href }) {
   const router = useRouter()
@@ -79,7 +79,7 @@ router.push(url, as, options)
 Navigating to `pages/about.js`, which is a predefined route:
 
 ```jsx
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 export default function Page() {
   const router = useRouter()
@@ -95,7 +95,7 @@ export default function Page() {
 Navigating `pages/post/[pid].js`, which is a dynamic route:
 
 ```jsx
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 export default function Page() {
   const router = useRouter()
@@ -112,7 +112,7 @@ Redirecting the user to `pages/login.js`, useful for pages behind [authenticatio
 
 ```jsx
 import { useEffect } from 'react'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 // Here you would fetch and return the user
 const useUser = () => ({ user: null, loading: false })
@@ -138,7 +138,7 @@ When navigating to the same page in Next.js, the page's state **will not** be re
 ```jsx filename="pages/[slug].js"
 import Link from 'next/link'
 import { useState } from 'react'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 export default function Page(props) {
   const router = useRouter()
@@ -169,7 +169,7 @@ If you do not want this behavior, you have a couple of options:
 - Use a React `key` to [tell React to remount the component](https://react.dev/learn/rendering-lists#keeping-list-items-in-order-with-key). To do this for all pages, you can use a custom app:
 
   ```jsx filename="pages/_app.js"
-  import { useRouter } from 'next/router'
+  import { useRouter } from 'next/navigation'
 
   export default function MyApp({ Component, pageProps }) {
     const router = useRouter()
@@ -182,7 +182,7 @@ If you do not want this behavior, you have a couple of options:
 You can use a URL object in the same way you can use it for [`next/link`](/docs/pages/api-reference/components/link#with-url-object). Works for both the `url` and `as` parameters:
 
 ```jsx
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 export default function ReadMore({ post }) {
   const router = useRouter()
@@ -216,7 +216,7 @@ router.replace(url, as, options)
 Take a look at the following example:
 
 ```jsx
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 export default function Page() {
   const router = useRouter()
@@ -248,7 +248,7 @@ Let's say you have a login page, and after a login, you redirect the user to the
 
 ```jsx
 import { useCallback, useEffect } from 'react'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 export default function Login() {
   const router = useRouter()
@@ -300,7 +300,7 @@ You could use `beforePopState` to manipulate the request, or force a SSR refresh
 
 ```jsx
 import { useEffect } from 'react'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 export default function Page() {
   const router = useRouter()
@@ -327,7 +327,7 @@ export default function Page() {
 Navigate back in history. Equivalent to clicking the browser’s back button. It executes `window.history.back()`.
 
 ```jsx
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 export default function Page() {
   const router = useRouter()
@@ -345,7 +345,7 @@ export default function Page() {
 Reload the current URL. Equivalent to clicking the browser’s refresh button. It executes `window.location.reload()`.
 
 ```jsx
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 export default function Page() {
   const router = useRouter()
@@ -376,7 +376,7 @@ For example, to listen to the router event `routeChangeStart`, open or create `p
 
 ```jsx
 import { useEffect } from 'react'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 export default function MyApp({ Component, pageProps }) {
   const router = useRouter()
@@ -411,7 +411,7 @@ If a route load is cancelled (for example, by clicking two links rapidly in succ
 
 ```jsx
 import { useEffect } from 'react'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 export default function MyApp({ Component, pageProps }) {
   const router = useRouter()
@@ -452,7 +452,7 @@ The affected methods are:
 
 ```jsx
 import { useEffect } from 'react'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/navigation'
 
 // Here you would fetch and return the user
 const useUser = () => ({ user: null, loading: false })
@@ -490,7 +490,7 @@ If [`useRouter`](#router-object) is not the best fit for you, `withRouter` can a
 ### Usage
 
 ```jsx
-import { withRouter } from 'next/router'
+import { withRouter } from 'next/navigation'
 
 function Page({ router }) {
   return <p>{router.pathname}</p>
@@ -505,7 +505,7 @@ To use class components with `withRouter`, the component needs to accept a route
 
 ```tsx
 import React from 'react'
-import { withRouter, NextRouter } from 'next/router'
+import { withRouter, NextRouter } from 'next/navigation'
 
 interface WithRouterProps {
   router: NextRouter
