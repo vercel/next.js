@@ -1276,6 +1276,7 @@ async function startWatcher(opts: SetupOpts) {
       // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
       onHMR(req, socket: Socket, head) {
         wsServer.handleUpgrade(req, socket, head, (client) => {
+          let hasPinged = false
           clients.add(client)
           client.on('close', () => clients.delete(client))
 
@@ -1286,9 +1287,37 @@ async function startWatcher(opts: SetupOpts) {
 
             // Next.js messages
             switch (parsedData.event) {
-              case 'ping':
-                // Ping doesn't need additional handling in Turbopack.
+              case 'ping': {
+                if (hasPinged) {
+                  break
+                }
+
+                hasPinged = true
+
+                const page = parsedData.page
+                const errors = []
+                const pageIssues = issues.get(page)
+                if (!pageIssues) {
+                  throw new Error('Expected page to exist in issues map')
+                }
+                for (const issue of pageIssues.values()) {
+                  errors.push({ file: '', message: formatIssue(issue) })
+                }
+
+                const sync: SyncAction = {
+                  action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+                  errors,
+                  warnings: [],
+                  hash: '',
+                  versionInfo: {
+                    installed: '0.0.0',
+                    staleness: 'unknown',
+                  },
+                }
+
+                this.send(sync)
                 break
+              }
               case 'span-end':
               case 'client-error': // { errorCount, clientId }
               case 'client-warning': // { warningCount, clientId }
@@ -1331,26 +1360,6 @@ async function startWatcher(opts: SetupOpts) {
             type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
           }
           client.send(JSON.stringify(turbopackConnected))
-
-          const errors = []
-          for (const pageIssues of issues.values()) {
-            for (const issue of pageIssues.values()) {
-              errors.push({ file: '', message: formatIssue(issue) })
-            }
-          }
-
-          const sync: SyncAction = {
-            action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
-            errors,
-            warnings: [],
-            hash: '',
-            versionInfo: {
-              installed: '0.0.0',
-              staleness: 'unknown',
-            },
-          }
-
-          this.send(sync)
         })
       },
 
