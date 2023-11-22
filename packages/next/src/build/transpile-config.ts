@@ -1,10 +1,6 @@
 import { readFile } from 'fs/promises'
 import { transform } from './swc'
 
-type Log = {
-  error: (message: string) => void
-}
-
 export async function transpileConfig({
   configPath,
   configFileName,
@@ -13,7 +9,7 @@ export async function transpileConfig({
   configPath: string
   configFileName: string
   cwd: string
-  log: Log
+  log: { error: (message: string) => void }
 }) {
   try {
     const nextConfig = await readFile(configPath, 'utf-8')
