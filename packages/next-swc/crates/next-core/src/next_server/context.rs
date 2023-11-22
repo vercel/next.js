@@ -126,6 +126,8 @@ pub async fn get_server_resolve_options_context(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
+        // TODO(sokra) esmExternals support
+        false,
     );
     let ty = ty.into_value();
 
@@ -144,6 +146,8 @@ pub async fn get_server_resolve_options_context(
         project_path,
         project_path.root(),
         ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
+        // TODO(sokra) esmExternals support
+        false,
     );
 
     let next_external_plugin = NextExternalResolvePlugin::new(project_path);
@@ -291,10 +295,12 @@ pub async fn get_server_module_options_context(
         .cell()
     });
 
+    let use_lightningcss = *next_config.use_lightningcss().await?;
+
     // EcmascriptTransformPlugins for custom transforms
     let styled_components_transform_plugin =
         *get_styled_components_transform_plugin(next_config).await?;
-    let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin().await?;
+    let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin(use_lightningcss).await?;
 
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
@@ -363,6 +369,7 @@ pub async fn get_server_module_options_context(
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
                 esm_url_rewrite_behavior: url_rewrite_behavior,
+                use_lightningcss,
                 ..Default::default()
             };
 
@@ -431,6 +438,7 @@ pub async fn get_server_module_options_context(
             let module_options_context = ModuleOptionsContext {
                 custom_ecma_transform_plugins: base_ecma_transform_plugins,
                 execution_context: Some(execution_context),
+                use_lightningcss,
                 ..Default::default()
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -515,6 +523,7 @@ pub async fn get_server_module_options_context(
             let module_options_context = ModuleOptionsContext {
                 custom_ecma_transform_plugins: base_ecma_transform_plugins,
                 execution_context: Some(execution_context),
+                use_lightningcss,
                 ..Default::default()
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
