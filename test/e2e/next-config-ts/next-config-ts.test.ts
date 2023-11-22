@@ -3,13 +3,13 @@ import { createNextDescribe } from 'e2e-utils'
 
 const tests = [
   'cjs',
-  'cjs-export-assignment',
   'esm',
-  'esm-async',
-  'esm-export-as-default',
-  'esm-fs-path',
+  'config-as-function',
+  'export-assignment',
+  'export-as-default',
+  'fs-path',
 ]
-const failingTests = ['esm-no-default-export']
+const failingTests = ['no-default-export']
 
 tests.forEach((test) => {
   createNextDescribe(
