@@ -2,7 +2,9 @@ use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSeverity, IssueSource, OptionIssueSource, StyledString};
+use super::{
+    Issue, IssueSeverity, IssueSource, OptionIssueSource, OptionStyledString, StyledString,
+};
 use crate::ident::AssetIdent;
 
 #[turbo_tasks::value(shared)]
@@ -24,12 +26,18 @@ impl Issue for AnalyzeIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<String>> {
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        let title = &*self.title.await?;
         Ok(if let Some(code) = self.code.as_ref() {
-            Vc::cell(format!("{code} {}", self.title.await?))
+            StyledString::Line(vec![
+                StyledString::Strong(code.to_string()),
+                StyledString::Text(" ".to_string()),
+                StyledString::Text(title.to_string()),
+            ])
         } else {
-            self.title
-        })
+            StyledString::Text(title.to_string())
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -43,8 +51,8 @@ impl Issue for AnalyzeIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        self.message
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.message))
     }
 
     #[turbo_tasks::function]

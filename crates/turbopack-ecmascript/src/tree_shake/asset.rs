@@ -23,6 +23,7 @@ use crate::{
 pub struct EcmascriptModulePartAsset {
     pub(crate) full_module: Vc<EcmascriptModuleAsset>,
     pub(crate) part: Vc<ModulePart>,
+    pub(crate) import_externals: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -31,10 +32,15 @@ impl EcmascriptModulePartAsset {
     /// of a pointer to the full module and the [ModulePart] pointing the part
     /// of the module.
     #[turbo_tasks::function]
-    pub fn new(module: Vc<EcmascriptModuleAsset>, part: Vc<ModulePart>) -> Vc<Self> {
+    pub fn new(
+        module: Vc<EcmascriptModuleAsset>,
+        part: Vc<ModulePart>,
+        import_externals: bool,
+    ) -> Vc<Self> {
         EcmascriptModulePartAsset {
             full_module: module,
             part,
+            import_externals,
         }
         .cell()
     }
@@ -76,6 +82,7 @@ impl Module for EcmascriptModulePartAsset {
                     Vc::upcast(EcmascriptModulePartAsset::new(
                         self.full_module,
                         ModulePart::internal(part_id),
+                        self.import_externals,
                     )),
                     Vc::cell("ecmascript module part".to_string()),
                 )))

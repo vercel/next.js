@@ -9,7 +9,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
     reference::ModuleReference,
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
@@ -135,16 +135,17 @@ async fn resolve_extends(
         // An empty extends is treated as "./tsconfig"
         Request::Empty => {
             let request = Request::parse_string("./tsconfig".to_string());
-            Ok(resolve(parent_dir, request, resolve_options).first_source())
+            Ok(resolve(parent_dir,
+                Value::new(ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)), request, resolve_options).first_source())
         }
 
         // All other types are treated as module imports, and potentially joined with
         // "tsconfig.json". This includes "relative" imports like '.' and '..'.
         _ => {
-            let mut result = resolve(parent_dir, request, resolve_options).first_source();
+            let mut result = resolve(parent_dir, Value::new(ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)), request, resolve_options).first_source();
             if result.await?.is_none() {
                 let request = Request::parse_string(format!("{extends}/tsconfig"));
-                result = resolve(parent_dir, request, resolve_options).first_source();
+                result = resolve(parent_dir, Value::new(ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)), request, resolve_options).first_source();
             }
             Ok(result)
         }
@@ -157,14 +158,30 @@ async fn resolve_extends_rooted_or_relative(
     resolve_options: Vc<ResolveOptions>,
     path: &str,
 ) -> Result<Vc<OptionSource>> {
-    let mut result = resolve(lookup_path, request, resolve_options).first_source();
+    let mut result = resolve(
+        lookup_path,
+        Value::new(ReferenceType::TypeScript(
+            TypeScriptReferenceSubType::Undefined,
+        )),
+        request,
+        resolve_options,
+    )
+    .first_source();
 
     // If the file doesn't end with ".json" and we can't find the file, then we have
     // to try again with it.
     // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3305
     if !path.ends_with(".json") && result.await?.is_none() {
         let request = Request::parse_string(format!("{path}.json"));
-        result = resolve(lookup_path, request, resolve_options).first_source();
+        result = resolve(
+            lookup_path,
+            Value::new(ReferenceType::TypeScript(
+                TypeScriptReferenceSubType::Undefined,
+            )),
+            request,
+            resolve_options,
+        )
+        .first_source();
     }
     Ok(result)
 }
@@ -354,14 +371,35 @@ pub async fn type_resolve(
     };
     let context_path = context_path.resolve().await?;
     let result = if let Some(types_request) = types_request {
-        let result1 = resolve(context_path, request, options);
+        let result1 = resolve(
+            context_path,
+            Value::new(ReferenceType::TypeScript(
+                TypeScriptReferenceSubType::Undefined,
+            )),
+            request,
+            options,
+        );
         if !*result1.is_unresolveable().await? {
             result1
         } else {
-            resolve(context_path, types_request, options)
+            resolve(
+                context_path,
+                Value::new(ReferenceType::TypeScript(
+                    TypeScriptReferenceSubType::Undefined,
+                )),
+                types_request,
+                options,
+            )
         }
     } else {
-        resolve(context_path, request, options)
+        resolve(
+            context_path,
+            Value::new(ReferenceType::TypeScript(
+                TypeScriptReferenceSubType::Undefined,
+            )),
+            request,
+            options,
+        )
     };
     let result = origin
         .asset_context()
@@ -436,7 +474,10 @@ async fn apply_typescript_types_options(
         .collect();
     resolve_options
         .into_package
-        .push(ResolveIntoPackage::MainField("types".to_string()));
+        .push(ResolveIntoPackage::MainField {
+            field: "types".to_string(),
+            extensions: Some(vec![".d.ts".to_string(), ".ts".to_string()]),
+        });
     resolve_options
         .into_package
         .push(ResolveIntoPackage::Default("index".to_string()));
@@ -456,10 +497,11 @@ impl Issue for TsConfigIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(
-            "An issue occurred while parsing a tsconfig.json file.".to_string(),
-        ))
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(
+            StyledString::Text("An issue occurred while parsing a tsconfig.json file.".to_string())
+                .cell(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -473,7 +515,7 @@ impl Issue for TsConfigIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        StyledString::Text(self.message.clone()).cell()
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(StyledString::Text(self.message.clone()).cell()))
     }
 }

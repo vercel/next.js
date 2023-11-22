@@ -95,19 +95,6 @@ pub enum StyledString {
     Strong(String),
 }
 
-impl StyledString {
-    pub fn is_empty(&self) -> bool {
-        match self {
-            StyledString::Line(parts) | StyledString::Stack(parts) => {
-                parts.iter().all(|part| part.is_empty())
-            }
-            StyledString::Text(string)
-            | StyledString::Code(string)
-            | StyledString::Strong(string) => string.is_empty(),
-        }
-    }
-}
-
 #[turbo_tasks::value_trait]
 pub trait Issue {
     /// Severity allows the user to filter out unimportant issues, with Bug
@@ -130,18 +117,20 @@ pub trait Issue {
     /// single line. This is displayed to the user directly under the issue
     /// header.
     // TODO add Vc<StyledString>
-    fn title(self: Vc<Self>) -> Vc<String>;
+    fn title(self: Vc<Self>) -> Vc<StyledString>;
 
     /// A more verbose message of the issue, appropriate for providing multiline
     /// information of the issue.
     // TODO add Vc<StyledString>
-    fn description(self: Vc<Self>) -> Vc<StyledString>;
+    fn description(self: Vc<Self>) -> Vc<OptionStyledString> {
+        Vc::cell(None)
+    }
 
     /// Full details of the issue, appropriate for providing debug level
     /// information. Only displayed if the user explicitly asks for detailed
     /// messages (not to be confused with severity).
-    fn detail(self: Vc<Self>) -> Vc<String> {
-        Vc::<String>::default()
+    fn detail(self: Vc<Self>) -> Vc<OptionStyledString> {
+        Vc::cell(None)
     }
 
     /// A link to relevant documentation of the issue. Only displayed in console
@@ -165,13 +154,21 @@ pub trait Issue {
         self: Vc<Self>,
         processing_path: Vc<OptionIssueProcessingPathItems>,
     ) -> Result<Vc<PlainIssue>> {
+        let description = match *self.description().await? {
+            Some(description) => Some((*description.await?).clone()),
+            None => None,
+        };
+        let detail = match *self.detail().await? {
+            Some(detail) => Some((*detail.await?).clone()),
+            None => None,
+        };
         Ok(PlainIssue {
             severity: *self.severity().await?,
             file_path: self.file_path().to_string().await?.clone_value(),
             category: self.category().await?.clone_value(),
             title: self.title().await?.clone_value(),
-            description: self.description().await?.clone_value(),
-            detail: self.detail().await?.clone_value(),
+            description,
+            detail,
             documentation_link: self.documentation_link().await?.clone_value(),
             source: {
                 if let Some(s) = *self.source().await? {
@@ -523,6 +520,9 @@ impl IssueSource {
 #[turbo_tasks::value(transparent)]
 pub struct OptionIssueSource(Option<Vc<IssueSource>>);
 
+#[turbo_tasks::value(transparent)]
+pub struct OptionStyledString(Option<Vc<StyledString>>);
+
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug)]
 pub struct PlainIssue {
@@ -530,9 +530,9 @@ pub struct PlainIssue {
     pub file_path: String,
     pub category: String,
 
-    pub title: String,
-    pub description: StyledString,
-    pub detail: String,
+    pub title: StyledString,
+    pub description: Option<StyledString>,
+    pub detail: Option<StyledString>,
     pub documentation_link: String,
 
     pub source: Option<ReadRef<PlainIssueSource>>,

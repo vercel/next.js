@@ -12,7 +12,7 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
     module::Module,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CssReferenceSubType, ReferenceType},
@@ -431,10 +431,11 @@ impl Issue for CssModuleComposesIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(StyledString::Text(
             "An issue occurred while resolving a CSS module `composes:` rule".to_string(),
-        ))
+        )
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -448,7 +449,7 @@ impl Issue for CssModuleComposesIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        StyledString::Text(self.message.clone()).cell()
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(StyledString::Text(self.message.clone()).cell()))
     }
 }

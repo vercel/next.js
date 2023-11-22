@@ -13,7 +13,10 @@ interface RequireContextEntry {
   external: boolean;
 }
 
-type ExternalRequire = (id: ModuleId) => Exports | EsmNamespaceObject;
+type ExternalRequire = (
+  id: ModuleId,
+  esm?: boolean
+) => Exports | EsmNamespaceObject;
 type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>;
 
 interface TurbopackDevContext extends TurbopackDevBaseContext {
