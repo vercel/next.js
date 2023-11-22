@@ -31,4 +31,15 @@ describe('app dir - metadata missing metadataBase', () => {
       '. See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase'
     )
   })
+
+  it('should warn for unsupported metadata properties', async () => {
+    await fetchViaHTTP(next.url, '/unsupported-metadata')
+    const cliOutput = next.cliOutput
+    expect(cliOutput).toInclude(
+      'Unsupported metadata themeColor is configured in metadata export. Please move it to viewport'
+    )
+    expect(cliOutput).toInclude(
+      'Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport'
+    )
+  })
 })
