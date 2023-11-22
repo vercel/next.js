@@ -1514,6 +1514,8 @@ export async function parse(src: string, options: any): Promise<any> {
     .then((astStr: any) => JSON.parse(astStr))
 }
 
+export async function transformCss() {}
+
 export function getBinaryMetadata() {
   let bindings
   try {
