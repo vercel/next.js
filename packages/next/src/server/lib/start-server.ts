@@ -23,7 +23,7 @@ import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { type Span, trace } from '../../trace'
+import { type Span, trace, flushAllTraces } from '../../trace'
 import { isPostpone } from './router-utils/is-postpone'
 
 const debug = setupDebug('next:start-server')
@@ -156,6 +156,13 @@ export async function startServer(
           Log.warn(
             `Server is approaching the used memory threshold, restarting...`
           )
+          trace('server-restart-close-to-memory-threshold', undefined, {
+            'memory.heapSizeLimit': String(
+              v8.getHeapStatistics().heap_size_limit
+            ),
+            'memory.heapUsed': String(v8.getHeapStatistics().used_heap_size),
+          }).stop()
+          await flushAllTraces()
           process.exit(RESTART_EXIT_CODE)
         }
       }
@@ -367,22 +374,18 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
     if (msg && typeof msg && msg.nextWorkerOptions && process.send) {
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
-        freeMem: String(os.freemem()),
         platform: os.platform(),
-        totalMem: String(os.totalmem()),
-        heapSizeLimit: String(v8.getHeapStatistics().heap_size_limit),
+        'memory.freeMem': String(os.freemem()),
+        'memory.totalMem': String(os.totalmem()),
+        'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
       })
       await startServerSpan.traceAsyncFn(() =>
         startServer(msg.nextWorkerOptions)
       )
       const memoryUsage = process.memoryUsage()
-      startServerSpan.attrs['usedMemory.rss'] = String(memoryUsage.rss)
-      startServerSpan.attrs['usedMemory.heapTotal'] = String(
-        memoryUsage.heapTotal
-      )
-      startServerSpan.attrs['usedMemory.heapUsed'] = String(
-        memoryUsage.heapUsed
-      )
+      startServerSpan.attrs['memory.rss'] = String(memoryUsage.rss)
+      startServerSpan.attrs['memory.heapTotal'] = String(memoryUsage.heapTotal)
+      startServerSpan.attrs['memory.heapUsed'] = String(memoryUsage.heapUsed)
       process.send({ nextServerReady: true })
     }
   })
