@@ -68,6 +68,7 @@ impl Drop for RootTask {
 }
 
 #[napi]
+#[tracing::instrument(skip_all)]
 pub fn root_task_dispose(
     #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
 ) -> napi::Result<()> {

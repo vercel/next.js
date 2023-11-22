@@ -13,6 +13,7 @@ use next_api::{
 use next_core::tracing_presets::{
     TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
 };
+use tracing::Instrument;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
 };
@@ -202,6 +203,7 @@ pub struct ProjectInstance {
 }
 
 #[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+#[tracing::instrument(skip_all)]
 pub async fn project_new(
     options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
@@ -280,6 +282,7 @@ pub async fn project_new(
 }
 
 #[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+#[tracing::instrument(skip_all)]
 pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     options: NapiPartialProjectOptions,
@@ -395,6 +398,7 @@ struct NapiEntrypoints {
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+#[tracing::instrument(skip_all)]
 pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     func: JsFunction,
@@ -404,14 +408,17 @@ pub fn project_entrypoints_subscribe(
     subscribe(
         turbo_tasks.clone(),
         func,
-        move || async move {
-            let entrypoints_operation = container.entrypoints();
-            let entrypoints = entrypoints_operation.strongly_consistent().await?;
+        move || {
+            async move {
+                let entrypoints_operation = container.entrypoints();
+                let entrypoints = entrypoints_operation.strongly_consistent().await?;
 
-            let issues = get_issues(entrypoints_operation).await?;
-            let diags = get_diagnostics(entrypoints_operation).await?;
+                let issues = get_issues(entrypoints_operation).await?;
+                let diags = get_diagnostics(entrypoints_operation).await?;
 
-            Ok((entrypoints, issues, diags))
+                Ok((entrypoints, issues, diags))
+            }
+            .instrument(tracing::trace_span!("entrypoints subscription"))
         },
         move |ctx| {
             let (entrypoints, issues, diags) = ctx.value;
@@ -454,6 +461,7 @@ pub fn project_entrypoints_subscribe(
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+#[tracing::instrument(skip_all, fields(identifier))]
 pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     identifier: String,
@@ -471,12 +479,14 @@ pub fn project_hmr_events(
             move || {
                 let identifier = identifier.clone();
                 let session = session.clone();
+                let span =
+                    tracing::trace_span!("hmr_events subscription", identifier = %identifier);
                 async move {
                     let state = project
                         .project()
                         .hmr_version_state(identifier.clone(), session);
                     let update_operation = project.project().hmr_update(identifier, state);
-                    let update = update_operation.strongly_consistent().await?;
+                    let update = { update_operation.strongly_consistent().await? };
                     let issues = get_issues(update_operation).await?;
                     let diags = get_diagnostics(update_operation).await?;
                     match &*update {
@@ -490,6 +500,7 @@ pub fn project_hmr_events(
                     }
                     Ok((update, issues, diags))
                 }
+                .instrument(span)
             }
         },
         move |ctx| {
@@ -533,6 +544,7 @@ struct HmrIdentifiers {
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+#[tracing::instrument(skip_all)]
 pub fn project_hmr_identifiers_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     func: JsFunction,
@@ -542,14 +554,17 @@ pub fn project_hmr_identifiers_subscribe(
     subscribe(
         turbo_tasks.clone(),
         func,
-        move || async move {
-            let hmr_identifiers_operation = container.hmr_identifiers();
-            let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
+        move || {
+            async move {
+                let hmr_identifiers_operation = container.hmr_identifiers();
+                let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
 
-            let issues = get_issues(hmr_identifiers_operation).await?;
-            let diags = get_diagnostics(hmr_identifiers_operation).await?;
+                let issues = get_issues(hmr_identifiers_operation).await?;
+                let diags = get_diagnostics(hmr_identifiers_operation).await?;
 
-            Ok((hmr_identifiers, issues, diags))
+                Ok((hmr_identifiers, issues, diags))
+            }
+            .instrument(tracing::trace_span!("hmr_identifiers subscription"))
         },
         move |ctx| {
             let (hmr_identifiers, issues, diags) = ctx.value;
@@ -587,6 +602,7 @@ impl From<UpdateInfo> for NapiUpdateInfo {
 }
 
 #[napi]
+#[tracing::instrument(skip_all)]
 pub fn project_update_info_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     func: JsFunction,
@@ -625,6 +641,7 @@ pub struct StackFrame {
 }
 
 #[napi]
+#[tracing::instrument(skip_all)]
 pub async fn project_trace_source(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     frame: StackFrame,

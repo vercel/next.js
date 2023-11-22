@@ -5,6 +5,7 @@ use next_api::{
     route::{Endpoint, WrittenEndpoint},
     server_paths::ServerPath,
 };
+use tracing::Instrument;
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::core::error::PrettyPrintError;
 
@@ -88,6 +89,7 @@ impl Deref for ExternalEndpoint {
 }
 
 #[napi]
+#[tracing::instrument(skip_all)]
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
@@ -112,6 +114,7 @@ pub async fn endpoint_write_to_disk(
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+#[tracing::instrument(skip_all)]
 pub fn endpoint_server_changed_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
     issues: bool,
@@ -122,16 +125,19 @@ pub fn endpoint_server_changed_subscribe(
     subscribe(
         turbo_tasks,
         func,
-        move || async move {
-            let changed = endpoint.server_changed();
-            changed.strongly_consistent().await?;
-            if issues {
-                let issues = get_issues(changed).await?;
-                let diags = get_diagnostics(changed).await?;
-                Ok((issues, diags))
-            } else {
-                Ok((vec![], vec![]))
+        move || {
+            async move {
+                let changed = endpoint.server_changed();
+                changed.strongly_consistent().await?;
+                if issues {
+                    let issues = get_issues(changed).await?;
+                    let diags = get_diagnostics(changed).await?;
+                    Ok((issues, diags))
+                } else {
+                    Ok((vec![], vec![]))
+                }
             }
+            .instrument(tracing::trace_span!("server_changed subscription"))
         },
         |ctx| {
             let (issues, diags) = ctx.value;
@@ -145,6 +151,7 @@ pub fn endpoint_server_changed_subscribe(
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
+#[tracing::instrument(skip_all)]
 pub fn endpoint_client_changed_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
     func: JsFunction,
@@ -154,12 +161,15 @@ pub fn endpoint_client_changed_subscribe(
     subscribe(
         turbo_tasks,
         func,
-        move || async move {
-            let changed = endpoint.client_changed();
-            // We don't capture issues and diagonistics here since we don't want to be
-            // notified when they change
-            changed.strongly_consistent().await?;
-            Ok(())
+        move || {
+            async move {
+                let changed = endpoint.client_changed();
+                // We don't capture issues and diagonistics here since we don't want to be
+                // notified when they change
+                changed.strongly_consistent().await?;
+                Ok(())
+            }
+            .instrument(tracing::trace_span!("client_changed subscription"))
         },
         |_| {
             Ok(vec![TurbopackResult {
