@@ -160,17 +160,11 @@ export async function exportAppPage(
       const { staticBailoutInfo = {} } = metadata
 
       if (revalidate === 0 && debugOutput && staticBailoutInfo?.description) {
-        const err = new Error(
-          `Static generation failed due to dynamic usage on ${path}, reason: ${staticBailoutInfo.description}`
-        )
-
-        // Update the stack if it was provided via the bailout info.
-        const { stack } = staticBailoutInfo
-        if (stack) {
-          err.stack = err.message + stack.substring(stack.indexOf('\n'))
-        }
-
-        console.warn(err)
+        logDynamicUsageWarning({
+          path,
+          description: staticBailoutInfo.description,
+          stack: staticBailoutInfo.stack,
+        })
       }
 
       return { revalidate: 0 }
@@ -234,6 +228,37 @@ export async function exportAppPage(
       throw err
     }
 
+    if (debugOutput) {
+      const { dynamicUsageDescription, dynamicUsageStack } = (renderOpts as any)
+        .store
+
+      logDynamicUsageWarning({
+        path,
+        description: dynamicUsageDescription,
+        stack: dynamicUsageStack,
+      })
+    }
+
     return { revalidate: 0 }
   }
+}
+
+function logDynamicUsageWarning({
+  path,
+  description,
+  stack,
+}: {
+  path: string
+  description: string
+  stack?: string
+}) {
+  const errMessage = new Error(
+    `Static generation failed due to dynamic usage on ${path}, reason: ${description}`
+  )
+
+  if (stack) {
+    errMessage.stack = errMessage.message + stack.substring(stack.indexOf('\n'))
+  }
+
+  console.warn(errMessage)
 }
