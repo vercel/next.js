@@ -111,7 +111,9 @@ var assign = Object.assign;
 // -----------------------------------------------------------------------------
 // TODO: Finish rolling out in www
 
-var enableClientRenderFallbackOnTextMismatch = true; // Not sure if www still uses this. We don't have a replacement but whatever we
+var enableClientRenderFallbackOnTextMismatch = true;
+var enableFormActions = true;
+var enableAsyncActions = true; // Not sure if www still uses this. We don't have a replacement but whatever we
 // Slated for removal in the future (significant effort)
 //
 // These are experiments that didn't work out, and never shipped, but we can't
@@ -127,14 +129,12 @@ var enableClientRenderFallbackOnTextMismatch = true; // Not sure if www still us
 // This will eventually be replaced by the Transition Tracing proposal.
 
 var enableSuspenseCallback = false; // Experimental Scope support.
-var enableFormActions = false;
 
 var enableLazyContextPropagation = false; // FB-only usage. The new API has different semantics.
 
 var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
 var enableHostSingletons = true;
-var enableAsyncActions = false;
-var alwaysThrottleRetries = true; // -----------------------------------------------------------------------------
+var alwaysThrottleRetries = true;
 // Chopping Block
 //
 // Planned feature deprecations and breaking changes. Sorted roughly in order of
@@ -168,6 +168,49 @@ var enableProfilerTimer = true; // Record durations for commit and passive effec
 var enableProfilerCommitHooks = true; // Phase param passed to onRender callback differentiates between an "update" and a "cascading-update".
 
 var enableProfilerNestedUpdatePhase = true; // Adds verbose console logging for e.g. state updates, suspense, and work loop
+
+var ReactCurrentDispatcher$3 = ReactSharedInternals.ReactCurrentDispatcher; // Since the "not pending" value is always the same, we can reuse the
+// same object across all transitions.
+
+var sharedNotPendingObject = {
+  pending: false,
+  data: null,
+  method: null,
+  action: null
+};
+var NotPending = Object.freeze(sharedNotPendingObject) ;
+
+function resolveDispatcher() {
+  // Copied from react/src/ReactHooks.js. It's the same thing but in a
+  // different package.
+  var dispatcher = ReactCurrentDispatcher$3.current;
+
+  {
+    if (dispatcher === null) {
+      error('Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for' + ' one of the following reasons:\n' + '1. You might have mismatching versions of React and the renderer (such as React DOM)\n' + '2. You might be breaking the Rules of Hooks\n' + '3. You might have more than one copy of React in the same app\n' + 'See https://reactjs.org/link/invalid-hook-call for tips about how to debug and fix this problem.');
+    }
+  } // Will result in a null access error if accessed outside render phase. We
+  // intentionally don't throw our own error because this is in a hot path.
+  // Also helps ensure this is inlined.
+
+
+  return dispatcher;
+}
+
+function useFormStatus() {
+  {
+    var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] We know this exists because of the feature check above.
+
+    return dispatcher.useHostTransitionStatus();
+  }
+}
+function useFormState(action, initialState, permalink) {
+  {
+    var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
+
+    return dispatcher.useFormState(action, initialState, permalink);
+  }
+}
 
 var valueStack = [];
 var fiberStack;
@@ -243,7 +286,6 @@ var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
 var REACT_CACHE_TYPE = Symbol.for('react.cache');
 var REACT_TRACING_MARKER_TYPE = Symbol.for('react.tracing_marker');
-var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -263,6 +305,27 @@ function getIteratorFn(maybeIterable) {
 var contextStackCursor$1 = createCursor(null);
 var contextFiberStackCursor = createCursor(null);
 var rootInstanceStackCursor = createCursor(null); // Represents the nearest host transition provider (in React DOM, a <form />)
+// NOTE: Since forms cannot be nested, and this feature is only implemented by
+// React DOM, we don't technically need this to be a stack. It could be a single
+// module variable instead.
+
+var hostTransitionProviderCursor = createCursor(null); // TODO: This should initialize to NotPendingTransition, a constant
+// imported from the fiber config. However, because of a cycle in the module
+// graph, that value isn't defined during this module's initialization. I can't
+// think of a way to work around this without moving that value out of the
+// fiber config. For now, the "no provider" case is handled when reading,
+// inside useHostTransitionStatus.
+
+var HostTransitionContext = {
+  $$typeof: REACT_CONTEXT_TYPE,
+  _currentValue: null,
+  _currentValue2: null,
+  _threadCount: 0,
+  Provider: null,
+  Consumer: null,
+  _defaultValue: null,
+  _globalName: null
+};
 
 function requiredContext(c) {
   {
@@ -314,6 +377,15 @@ function getHostContext() {
 }
 
 function pushHostContext(fiber) {
+  {
+    var stateHook = fiber.memoizedState;
+
+    if (stateHook !== null) {
+      // Only provide context if this fiber has been upgraded by a host
+      // transition. We use the same optimization for regular host context below.
+      push(hostTransitionProviderCursor, fiber, fiber);
+    }
+  }
 
   var context = requiredContext(contextStackCursor$1.current);
   var nextContext = getChildHostContext(context, fiber.type); // Don't push this Fiber's context unless it's unique.
@@ -332,6 +404,25 @@ function popHostContext(fiber) {
     // pushHostContext() only pushes Fibers that provide unique contexts.
     pop(contextStackCursor$1, fiber);
     pop(contextFiberStackCursor, fiber);
+  }
+
+  {
+    if (hostTransitionProviderCursor.current === fiber) {
+      // Do not pop unless this Fiber provided the current context. This is mostly
+      // a performance optimization, but conveniently it also prevents a potential
+      // data race where a host provider is upgraded (i.e. memoizedState becomes
+      // non-null) during a concurrent event. This is a bit of a flaw in the way
+      // we upgrade host components, but because we're accounting for it here, it
+      // should be fine.
+      pop(hostTransitionProviderCursor, fiber); // When popping the transition provider, we reset the context value back
+      // to `null`. We can do this because you're not allowd to nest forms. If
+      // we allowed for multiple nested host transition providers, then we'd
+      // need to reset this to the parent provider's status.
+
+      {
+        HostTransitionContext._currentValue = null;
+      }
+    }
   }
 }
 
@@ -975,6 +1066,7 @@ var SyncHydrationLane =
 var SyncLane =
 /*                        */
 2;
+var SyncLaneIndex = 1;
 var InputContinuousHydrationLane =
 /*    */
 4;
@@ -987,12 +1079,13 @@ var DefaultHydrationLane =
 var DefaultLane =
 /*                     */
 32;
+var SyncUpdateLanes = SyncLane | InputContinuousLane | DefaultLane ;
 var TransitionHydrationLane =
 /*                */
 64;
 var TransitionLanes =
 /*                       */
-8388480;
+4194176;
 var TransitionLane1 =
 /*                        */
 128;
@@ -1038,40 +1131,43 @@ var TransitionLane14 =
 var TransitionLane15 =
 /*                       */
 2097152;
-var TransitionLane16 =
-/*                       */
-4194304;
 var RetryLanes =
 /*                            */
-125829120;
+62914560;
 var RetryLane1 =
 /*                             */
-8388608;
+4194304;
 var RetryLane2 =
 /*                             */
-16777216;
+8388608;
 var RetryLane3 =
 /*                             */
-33554432;
+16777216;
 var RetryLane4 =
 /*                             */
-67108864;
+33554432;
 var SomeRetryLane = RetryLane1;
 var SelectiveHydrationLane =
 /*          */
-134217728;
+67108864;
 var NonIdleLanes =
 /*                          */
-268435455;
+134217727;
 var IdleHydrationLane =
 /*               */
-268435456;
+134217728;
 var IdleLane =
 /*                        */
-536870912;
+268435456;
 var OffscreenLane =
 /*                   */
-1073741824; // This function is used for the experimental timeline (react-devtools-timeline)
+536870912;
+var DeferredLane =
+/*                    */
+1073741824; // Any lane that might schedule an update. This is used to detect infinite
+// update loops, so it doesn't include hydration lanes or retries.
+
+var UpdateLanes = SyncLane | InputContinuousLane | DefaultLane | TransitionLanes; // This function is used for the experimental timeline (react-devtools-timeline)
 // It should be kept in sync with the Lanes values above.
 
 function getLabelForLane(lane) {
@@ -1127,6 +1223,10 @@ function getLabelForLane(lane) {
     if (lane & OffscreenLane) {
       return 'Offscreen';
     }
+
+    if (lane & DeferredLane) {
+      return 'Deferred';
+    }
   }
 }
 var NoTimestamp = -1;
@@ -1134,6 +1234,13 @@ var nextTransitionLane = TransitionLane1;
 var nextRetryLane = RetryLane1;
 
 function getHighestPriorityLanes(lanes) {
+  {
+    var pendingSyncLanes = lanes & SyncUpdateLanes;
+
+    if (pendingSyncLanes !== 0) {
+      return pendingSyncLanes;
+    }
+  }
 
   switch (getHighestPriorityLane(lanes)) {
     case SyncHydrationLane:
@@ -1172,7 +1279,6 @@ function getHighestPriorityLanes(lanes) {
     case TransitionLane13:
     case TransitionLane14:
     case TransitionLane15:
-    case TransitionLane16:
       return lanes & TransitionLanes;
 
     case RetryLane1:
@@ -1192,6 +1298,11 @@ function getHighestPriorityLanes(lanes) {
 
     case OffscreenLane:
       return OffscreenLane;
+
+    case DeferredLane:
+      // This shouldn't be reachable because deferred work is always entangled
+      // with something else.
+      return NoLanes;
 
     default:
       {
@@ -1269,12 +1380,17 @@ function getNextLanes(root, wipLanes) {
     }
   }
 
-  if ((nextLanes & InputContinuousLane) !== NoLanes) {
+  return nextLanes;
+}
+function getEntangledLanes(root, renderLanes) {
+  var entangledLanes = renderLanes;
+
+  if ((entangledLanes & InputContinuousLane) !== NoLanes) {
     // When updates are sync by default, we entangle continuous priority updates
     // and default updates, so they render in the same batch. The only reason
     // they use separate lanes is because continuous updates should interrupt
     // transitions, but default updates should not.
-    nextLanes |= pendingLanes & DefaultLane;
+    entangledLanes |= entangledLanes & DefaultLane;
   } // Check for entangled lanes and add them to the batch.
   //
   // A lane is said to be entangled with another when it's not allowed to render
@@ -1299,21 +1415,21 @@ function getNextLanes(root, wipLanes) {
   // time we apply the entanglement.
 
 
-  var entangledLanes = root.entangledLanes;
+  var allEntangledLanes = root.entangledLanes;
 
-  if (entangledLanes !== NoLanes) {
+  if (allEntangledLanes !== NoLanes) {
     var entanglements = root.entanglements;
-    var lanes = nextLanes & entangledLanes;
+    var lanes = entangledLanes & allEntangledLanes;
 
     while (lanes > 0) {
       var index = pickArbitraryLaneIndex(lanes);
       var lane = 1 << index;
-      nextLanes |= entanglements[index];
+      entangledLanes |= entanglements[index];
       lanes &= ~lane;
     }
   }
 
-  return nextLanes;
+  return entangledLanes;
 }
 
 function computeExpirationTime(lane, currentTime) {
@@ -1351,7 +1467,6 @@ function computeExpirationTime(lane, currentTime) {
     case TransitionLane13:
     case TransitionLane14:
     case TransitionLane15:
-    case TransitionLane16:
       return currentTime + 5000;
 
     case RetryLane1:
@@ -1369,6 +1484,7 @@ function computeExpirationTime(lane, currentTime) {
     case IdleHydrationLane:
     case IdleLane:
     case OffscreenLane:
+    case DeferredLane:
       // Anything idle priority or lower should never expire.
       return NoTimestamp;
 
@@ -1391,6 +1507,7 @@ function markStarvedLanesAsExpired(root, currentTime) {
   var expirationTimes = root.expirationTimes; // Iterate through the pending lanes and check if we've reached their
   // expiration time. If so, we'll assume the update is being starved and mark
   // it as expired to force it to finish.
+  // TODO: We should be able to replace this with upgradePendingLanesToSync
   //
   // We exclude retry lanes because those must always be time sliced, in order
   // to unwrap uncached promises.
@@ -1569,7 +1686,7 @@ function markRootUpdated(root, updateLane) {
     root.pingedLanes = NoLanes;
   }
 }
-function markRootSuspended$1(root, suspendedLanes) {
+function markRootSuspended$1(root, suspendedLanes, spawnedLane) {
   root.suspendedLanes |= suspendedLanes;
   root.pingedLanes &= ~suspendedLanes; // The suspended lanes are no longer CPU-bound. Clear their expiration times.
 
@@ -1582,11 +1699,15 @@ function markRootSuspended$1(root, suspendedLanes) {
     expirationTimes[index] = NoTimestamp;
     lanes &= ~lane;
   }
+
+  if (spawnedLane !== NoLane) {
+    markSpawnedDeferredLane(root, spawnedLane, suspendedLanes);
+  }
 }
 function markRootPinged(root, pingedLanes) {
   root.pingedLanes |= root.suspendedLanes & pingedLanes;
 }
-function markRootFinished(root, remainingLanes) {
+function markRootFinished(root, remainingLanes, spawnedLane) {
   var noLongerPendingLanes = root.pendingLanes & ~remainingLanes;
   root.pendingLanes = remainingLanes; // Let's try everything again
 
@@ -1626,7 +1747,30 @@ function markRootFinished(root, remainingLanes) {
 
     lanes &= ~lane;
   }
+
+  if (spawnedLane !== NoLane) {
+    markSpawnedDeferredLane(root, spawnedLane, // This render finished successfully without suspending, so we don't need
+    // to entangle the spawned task with the parent task.
+    NoLanes);
+  }
 }
+
+function markSpawnedDeferredLane(root, spawnedLane, entangledLanes) {
+  // This render spawned a deferred task. Mark it as pending.
+  root.pendingLanes |= spawnedLane;
+  root.suspendedLanes &= ~spawnedLane; // Entangle the spawned lane with the DeferredLane bit so that we know it
+  // was the result of another render. This lets us avoid a useDeferredValue
+  // waterfall — only the first level will defer.
+
+  var spawnedLaneIndex = laneToIndex(spawnedLane);
+  root.entangledLanes |= spawnedLane;
+  root.entanglements[spawnedLaneIndex] |= DeferredLane | // If the parent render task suspended, we must also entangle those lanes
+  // with the spawned task, so that the deferred task includes all the same
+  // updates that the parent task did. We can exclude any lane that is not
+  // used for updates (e.g. Offscreen).
+  entangledLanes & UpdateLanes;
+}
+
 function markRootEntangled(root, entangledLanes) {
   // In addition to entangling each of the given lanes with each other, we also
   // have to consider _transitive_ entanglements. For each lane that is already
@@ -1656,6 +1800,29 @@ function markRootEntangled(root, entangledLanes) {
     lanes &= ~lane;
   }
 }
+function upgradePendingLaneToSync(root, lane) {
+  // Since we're upgrading the priority of the given lane, there is now pending
+  // sync work.
+  root.pendingLanes |= SyncLane; // Entangle the sync lane with the lane we're upgrading. This means SyncLane
+  // will not be allowed to finish without also finishing the given lane.
+
+  root.entangledLanes |= SyncLane;
+  root.entanglements[SyncLaneIndex] |= lane;
+}
+function upgradePendingLanesToSync(root, lanesToUpgrade) {
+  // Same as upgradePendingLaneToSync but accepts multiple lanes, so it's a
+  // bit slower.
+  root.pendingLanes |= SyncLane;
+  root.entangledLanes |= SyncLane;
+  var lanes = lanesToUpgrade;
+
+  while (lanes) {
+    var index = pickArbitraryLaneIndex(lanes);
+    var lane = 1 << index;
+    root.entanglements[SyncLaneIndex] |= lane;
+    lanes &= ~lane;
+  }
+}
 function markHiddenUpdate(root, update, lane) {
   var index = laneToIndex(lane);
   var hiddenUpdates = root.hiddenUpdates;
@@ -1673,7 +1840,9 @@ function getBumpedLaneForHydration(root, renderLanes) {
   var renderLane = getHighestPriorityLane(renderLanes);
   var lane;
 
-  {
+  if ((renderLane & SyncUpdateLanes) !== NoLane) {
+    lane = SyncHydrationLane;
+  } else {
     switch (renderLane) {
       case SyncLane:
         lane = SyncHydrationLane;
@@ -1702,7 +1871,6 @@ function getBumpedLaneForHydration(root, renderLanes) {
       case TransitionLane13:
       case TransitionLane14:
       case TransitionLane15:
-      case TransitionLane16:
       case RetryLane1:
       case RetryLane2:
       case RetryLane3:
@@ -1895,7 +2063,7 @@ function testStringCoercion(value) {
 function checkAttributeStringCoercion(value, attributeName) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided `%s` attribute is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', attributeName, typeName(value));
+      error('The provided `%s` attribute is an unsupported type %s.' + ' This value must be coerced to a string before using it here.', attributeName, typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -1904,7 +2072,7 @@ function checkAttributeStringCoercion(value, attributeName) {
 function checkKeyStringCoercion(value) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided key is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', typeName(value));
+      error('The provided key is an unsupported type %s.' + ' This value must be coerced to a string before using it here.', typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -1913,7 +2081,7 @@ function checkKeyStringCoercion(value) {
 function checkPropStringCoercion(value, propName) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided `%s` prop is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', propName, typeName(value));
+      error('The provided `%s` prop is an unsupported type %s.' + ' This value must be coerced to a string before using it here.', propName, typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -1922,7 +2090,7 @@ function checkPropStringCoercion(value, propName) {
 function checkCSSPropertyStringCoercion(value, propName) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided `%s` CSS property is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', propName, typeName(value));
+      error('The provided `%s` CSS property is an unsupported type %s.' + ' This value must be coerced to a string before using it here.', propName, typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -1931,7 +2099,7 @@ function checkCSSPropertyStringCoercion(value, propName) {
 function checkHtmlStringCoercion(value) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided HTML markup uses a value of unsupported type %s.' + ' This value must be coerced to a string before before using it here.', typeName(value));
+      error('The provided HTML markup uses a value of unsupported type %s.' + ' This value must be coerced to a string before using it here.', typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -1940,7 +2108,7 @@ function checkHtmlStringCoercion(value) {
 function checkFormFieldValueStringCoercion(value) {
   {
     if (willCoercionThrow(value)) {
-      error('Form field values (value, checked, defaultValue, or defaultChecked props)' + ' must be strings, not %s.' + ' This value must be coerced to a string before before using it here.', typeName(value));
+      error('Form field values (value, checked, defaultValue, or defaultChecked props)' + ' must be strings, not %s.' + ' This value must be coerced to a string before using it here.', typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -2456,6 +2624,18 @@ var componentFrameCache;
   var PossiblyWeakMap$1 = typeof WeakMap === 'function' ? WeakMap : Map;
   componentFrameCache = new PossiblyWeakMap$1();
 }
+/**
+ * Leverages native browser/VM stack frames to get proper details (e.g.
+ * filename, line + col number) for a single component in a component stack. We
+ * do this by:
+ *   (1) throwing and catching an error in the function - this will be our
+ *       control error.
+ *   (2) calling the component which will eventually throw an error that we'll
+ *       catch - this will be our sample error.
+ *   (3) diffing the control and sample error stacks to find the stack frame
+ *       which represents our component.
+ */
+
 
 function describeNativeComponentFrame(fn, construct) {
   // If something asked for a stack inside a fake render, it should get ignored.
@@ -2471,7 +2651,6 @@ function describeNativeComponentFrame(fn, construct) {
     }
   }
 
-  var control;
   reentry = true;
   var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe[incompatible-type] It does accept undefined.
 
@@ -2485,81 +2664,140 @@ function describeNativeComponentFrame(fn, construct) {
     ReactCurrentDispatcher$2.current = null;
     disableLogs();
   }
+  /**
+   * Finding a common stack frame between sample and control errors can be
+   * tricky given the different types and levels of stack trace truncation from
+   * different JS VMs. So instead we'll attempt to control what that common
+   * frame should be through this object method:
+   * Having both the sample and control errors be in the function under the
+   * `DescribeNativeComponentFrameRoot` property, + setting the `name` and
+   * `displayName` properties of the function ensures that a stack
+   * frame exists that has the method name `DescribeNativeComponentFrameRoot` in
+   * it for both control and sample stacks.
+   */
+
+
+  var RunInRootFrame = {
+    DetermineComponentFrameRoot: function () {
+      var control;
+
+      try {
+        // This should throw.
+        if (construct) {
+          // Something should be setting the props in the constructor.
+          var Fake = function () {
+            throw Error();
+          }; // $FlowFixMe[prop-missing]
+
+
+          Object.defineProperty(Fake.prototype, 'props', {
+            set: function () {
+              // We use a throwing setter instead of frozen or non-writable props
+              // because that won't throw in a non-strict mode function.
+              throw Error();
+            }
+          });
+
+          if (typeof Reflect === 'object' && Reflect.construct) {
+            // We construct a different control for this case to include any extra
+            // frames added by the construct call.
+            try {
+              Reflect.construct(Fake, []);
+            } catch (x) {
+              control = x;
+            }
+
+            Reflect.construct(fn, [], Fake);
+          } else {
+            try {
+              Fake.call();
+            } catch (x) {
+              control = x;
+            } // $FlowFixMe[prop-missing] found when upgrading Flow
+
+
+            fn.call(Fake.prototype);
+          }
+        } else {
+          try {
+            throw Error();
+          } catch (x) {
+            control = x;
+          } // TODO(luna): This will currently only throw if the function component
+          // tries to access React/ReactDOM/props. We should probably make this throw
+          // in simple components too
+
+
+          var maybePromise = fn(); // If the function component returns a promise, it's likely an async
+          // component, which we don't yet support. Attach a noop catch handler to
+          // silence the error.
+          // TODO: Implement component stacks for async client components?
+
+          if (maybePromise && typeof maybePromise.catch === 'function') {
+            maybePromise.catch(function () {});
+          }
+        }
+      } catch (sample) {
+        // This is inlined manually because closure doesn't do it for us.
+        if (sample && control && typeof sample.stack === 'string') {
+          return [sample.stack, control.stack];
+        }
+      }
+
+      return [null, null];
+    }
+  }; // $FlowFixMe[prop-missing]
+
+  RunInRootFrame.DetermineComponentFrameRoot.displayName = 'DetermineComponentFrameRoot';
+  var namePropDescriptor = Object.getOwnPropertyDescriptor(RunInRootFrame.DetermineComponentFrameRoot, 'name'); // Before ES6, the `name` property was not configurable.
+
+  if (namePropDescriptor && namePropDescriptor.configurable) {
+    // V8 utilizes a function's `name` property when generating a stack trace.
+    Object.defineProperty(RunInRootFrame.DetermineComponentFrameRoot, // Configurable properties can be updated even if its writable descriptor
+    // is set to `false`.
+    // $FlowFixMe[cannot-write]
+    'name', {
+      value: 'DetermineComponentFrameRoot'
+    });
+  }
 
   try {
-    // This should throw.
-    if (construct) {
-      // Something should be setting the props in the constructor.
-      var Fake = function () {
-        throw Error();
-      }; // $FlowFixMe[prop-missing]
+    var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(),
+        sampleStack = _RunInRootFrame$Deter[0],
+        controlStack = _RunInRootFrame$Deter[1];
 
-
-      Object.defineProperty(Fake.prototype, 'props', {
-        set: function () {
-          // We use a throwing setter instead of frozen or non-writable props
-          // because that won't throw in a non-strict mode function.
-          throw Error();
-        }
-      });
-
-      if (typeof Reflect === 'object' && Reflect.construct) {
-        // We construct a different control for this case to include any extra
-        // frames added by the construct call.
-        try {
-          Reflect.construct(Fake, []);
-        } catch (x) {
-          control = x;
-        }
-
-        Reflect.construct(fn, [], Fake);
-      } else {
-        try {
-          Fake.call();
-        } catch (x) {
-          control = x;
-        } // $FlowFixMe[prop-missing] found when upgrading Flow
-
-
-        fn.call(Fake.prototype);
-      }
-    } else {
-      try {
-        throw Error();
-      } catch (x) {
-        control = x;
-      } // TODO(luna): This will currently only throw if the function component
-      // tries to access React/ReactDOM/props. We should probably make this throw
-      // in simple components too
-
-
-      var maybePromise = fn(); // If the function component returns a promise, it's likely an async
-      // component, which we don't yet support. Attach a noop catch handler to
-      // silence the error.
-      // TODO: Implement component stacks for async client components?
-
-      if (maybePromise && typeof maybePromise.catch === 'function') {
-        maybePromise.catch(function () {});
-      }
-    }
-  } catch (sample) {
-    // This is inlined manually because closure doesn't do it for us.
-    if (sample && control && typeof sample.stack === 'string') {
+    if (sampleStack && controlStack) {
       // This extracts the first frame from the sample that isn't also in the control.
       // Skipping one frame that we assume is the frame that calls the two.
-      var sampleLines = sample.stack.split('\n');
-      var controlLines = control.stack.split('\n');
-      var s = sampleLines.length - 1;
-      var c = controlLines.length - 1;
+      var sampleLines = sampleStack.split('\n');
+      var controlLines = controlStack.split('\n');
+      var s = 0;
+      var c = 0;
 
-      while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
-        // We expect at least one stack frame to be shared.
-        // Typically this will be the root most one. However, stack frames may be
-        // cut off due to maximum stack limits. In this case, one maybe cut off
-        // earlier than the other. We assume that the sample is longer or the same
-        // and there for cut off earlier. So we should find the root most frame in
-        // the sample somewhere in the control.
-        c--;
+      while (s < sampleLines.length && !sampleLines[s].includes('DetermineComponentFrameRoot')) {
+        s++;
+      }
+
+      while (c < controlLines.length && !controlLines[c].includes('DetermineComponentFrameRoot')) {
+        c++;
+      } // We couldn't find our intentionally injected common root frame, attempt
+      // to find another common root frame by search from the bottom of the
+      // control stack...
+
+
+      if (s === sampleLines.length || c === controlLines.length) {
+        s = sampleLines.length - 1;
+        c = controlLines.length - 1;
+
+        while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
+          // We expect at least one stack frame to be shared.
+          // Typically this will be the root most one. However, stack frames may be
+          // cut off due to maximum stack limits. In this case, one maybe cut off
+          // earlier than the other. We assume that the sample is longer or the same
+          // and there for cut off earlier. So we should find the root most frame in
+          // the sample somewhere in the control.
+          c--;
+        }
       }
 
       for (; s >= 1 && c >= 0; s--, c--) {
@@ -2588,7 +2826,7 @@ function describeNativeComponentFrame(fn, construct) {
                   _frame = _frame.replace('<anonymous>', fn.displayName);
                 }
 
-                {
+                if (true) {
                   if (typeof fn === 'function') {
                     componentFrameCache.set(fn, _frame);
                   }
@@ -2840,12 +3078,6 @@ function getComponentNameFromType(type) {
           } catch (x) {
             return null;
           }
-        }
-
-      case REACT_SERVER_CONTEXT_TYPE:
-        {
-          var context2 = type;
-          return (context2.displayName || context2._globalName) + '.Provider';
         }
 
     }
@@ -3284,8 +3516,12 @@ function updateInput(element, value, defaultValue, lastDefaultValue, checked, de
     }
   }
 
-  if (checked != null && node.checked !== !!checked) {
-    node.checked = checked;
+  if (checked != null) {
+    // Important to set this even if it's not a change in order to update input
+    // value tracking with radio buttons
+    // TODO: Should really update input value tracking for the whole radio
+    // button group in an effect or something (similar to #27024)
+    node.checked = checked && typeof checked !== 'function' && typeof checked !== 'symbol';
   }
 
   if (name != null && typeof name !== 'function' && typeof name !== 'symbol' && typeof name !== 'boolean') {
@@ -3351,13 +3587,12 @@ function initInput(element, value, defaultValue, checked, defaultChecked, type, 
   var checkedOrDefault = checked != null ? checked : defaultChecked; // TODO: This 'function' or 'symbol' check isn't replicated in other places
   // so this semantic is inconsistent.
 
-  var initialChecked = typeof checkedOrDefault !== 'function' && typeof checkedOrDefault !== 'symbol' && !!checkedOrDefault; // The checked property never gets assigned. It must be manually set.
-  // We don't want to do this when hydrating so that existing user input isn't
-  // modified
-  // TODO: I'm pretty sure this is a bug because initialValueTracking won't be
-  // correct for the hydration case then.
+  var initialChecked = typeof checkedOrDefault !== 'function' && typeof checkedOrDefault !== 'symbol' && !!checkedOrDefault;
 
-  if (!isHydrating) {
+  if (isHydrating) {
+    // Detach .checked from .defaultChecked but leave user input alone
+    node.checked = node.checked;
+  } else {
     node.checked = !!initialChecked;
   }
 
@@ -3880,7 +4115,7 @@ function isTagValidWithParent(tag, parentTag) {
   switch (parentTag) {
     // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inselect
     case 'select':
-      return tag === 'option' || tag === 'optgroup' || tag === '#text';
+      return tag === 'hr' || tag === 'option' || tag === 'optgroup' || tag === '#text';
 
     case 'optgroup':
       return tag === 'option' || tag === '#text';
@@ -5310,6 +5545,23 @@ function validateProperty(tagName, name, value, eventRegistry) {
       warnedProperties[name] = true;
       return true;
     }
+
+    {
+      // Actions are special because unlike events they can have other value types.
+      if (typeof value === 'function') {
+        if (tagName === 'form' && name === 'action') {
+          return true;
+        }
+
+        if (tagName === 'input' && name === 'formAction') {
+          return true;
+        }
+
+        if (tagName === 'button' && name === 'formAction') {
+          return true;
+        }
+      }
+    } // We can't rely on the event system being injected on the server.
 
 
     if (eventRegistry != null) {
@@ -7002,6 +7254,32 @@ function tryToClaimNextHydratableSuspenseInstance(fiber) {
   }
 }
 
+function tryToClaimNextHydratableFormMarkerInstance(fiber) {
+  if (!isHydrating) {
+    return false;
+  }
+
+  if (nextHydratableInstance) {
+    var markerInstance = canHydrateFormStateMarker(nextHydratableInstance, rootOrSingletonContext);
+
+    if (markerInstance) {
+      // Found the marker instance.
+      nextHydratableInstance = getNextHydratableSibling(markerInstance); // Return true if this marker instance should use the state passed
+      // to hydrateRoot.
+      // TODO: As an optimization, Fizz should only emit these markers if form
+      // state is passed at the root.
+
+      return isFormStateMarkerMatching(markerInstance);
+    }
+  } // Should have found a marker instance. Throw an error to trigger client
+  // rendering. We don't bother to check if we're in a concurrent root because
+  // useFormState is a new API, so backwards compat is not an issue.
+
+
+  throwOnHydrationMismatch();
+  return false;
+}
+
 function prepareToHydrateHostInstance(fiber, hostContext) {
 
   var instance = fiber.stateNode;
@@ -7133,7 +7411,7 @@ function popHydrationState(fiber) {
   {
     // With float we never clear the Root, or Singleton instances. We also do not clear Instances
     // that have singleton text content
-    if (fiber.tag !== HostRoot && fiber.tag !== HostSingleton && !(fiber.tag === HostComponent && (shouldSetTextContent(fiber.type, fiber.memoizedProps)))) {
+    if (fiber.tag !== HostRoot && fiber.tag !== HostSingleton && !(fiber.tag === HostComponent && (!shouldDeleteUnhydratedTailInstances(fiber.type) || shouldSetTextContent(fiber.type, fiber.memoizedProps)))) {
       shouldClear = true;
     }
   }
@@ -9672,29 +9950,29 @@ function resetChildFibers(workInProgress, lanes) {
 // InvisibleParentContext that is currently managed by SuspenseContext.
 
 var currentTreeHiddenStackCursor = createCursor(null);
-var prevRenderLanesStackCursor = createCursor(NoLanes);
+var prevEntangledRenderLanesCursor = createCursor(NoLanes);
 function pushHiddenContext(fiber, context) {
-  var prevRenderLanes = getRenderLanes();
-  push(prevRenderLanesStackCursor, prevRenderLanes, fiber);
+  var prevEntangledRenderLanes = getEntangledRenderLanes();
+  push(prevEntangledRenderLanesCursor, prevEntangledRenderLanes, fiber);
   push(currentTreeHiddenStackCursor, context, fiber); // When rendering a subtree that's currently hidden, we must include all
   // lanes that would have rendered if the hidden subtree hadn't been deferred.
   // That is, in order to reveal content from hidden -> visible, we must commit
   // all the updates that we skipped when we originally hid the tree.
 
-  setRenderLanes(mergeLanes(prevRenderLanes, context.baseLanes));
+  setEntangledRenderLanes(mergeLanes(prevEntangledRenderLanes, context.baseLanes));
 }
 function reuseHiddenContextOnStack(fiber) {
   // This subtree is not currently hidden, so we don't need to add any lanes
   // to the render lanes. But we still need to push something to avoid a
   // context mismatch. Reuse the existing context on the stack.
-  push(prevRenderLanesStackCursor, getRenderLanes(), fiber);
+  push(prevEntangledRenderLanesCursor, getEntangledRenderLanes(), fiber);
   push(currentTreeHiddenStackCursor, currentTreeHiddenStackCursor.current, fiber);
 }
 function popHiddenContext(fiber) {
   // Restore the previous render lanes from the stack
-  setRenderLanes(prevRenderLanesStackCursor.current);
+  setEntangledRenderLanes(prevEntangledRenderLanesCursor.current);
   pop(currentTreeHiddenStackCursor, fiber);
-  pop(prevRenderLanesStackCursor, fiber);
+  pop(prevEntangledRenderLanesCursor, fiber);
 }
 function isCurrentTreeHidden() {
   return currentTreeHiddenStackCursor.current !== null;
@@ -9972,10 +10250,8 @@ function flushSyncWorkAcrossRoots_impl(onlyLegacy) {
   if (!mightHavePendingSyncWork) {
     // Fast path. There's no sync work to do.
     return;
-  }
+  } // There may or may not be synchronous work scheduled. Let's check.
 
-  var workInProgressRoot = getWorkInProgressRoot();
-  var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes(); // There may or may not be synchronous work scheduled. Let's check.
 
   var didPerformSomeWork;
   var errors = null;
@@ -9987,15 +10263,15 @@ function flushSyncWorkAcrossRoots_impl(onlyLegacy) {
 
     while (root !== null) {
       if (onlyLegacy && root.tag !== LegacyRoot) ; else {
+        var workInProgressRoot = getWorkInProgressRoot();
+        var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes();
         var nextLanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
 
         if (includesSyncLane(nextLanes)) {
           // This root has pending sync work. Flush it now.
           try {
-            // TODO: Pass nextLanes as an argument instead of computing it again
-            // inside performSyncWorkOnRoot.
             didPerformSomeWork = true;
-            performSyncWorkOnRoot(root);
+            performSyncWorkOnRoot(root, nextLanes);
           } catch (error) {
             // Collect errors so we can rethrow them at the end
             if (errors === null) {
@@ -10058,7 +10334,10 @@ function processRootScheduleInMicrotask() {
     var next = root.next;
 
     if (currentEventTransitionLane !== NoLane && shouldAttemptEagerTransition()) {
-      markRootEntangled(root, mergeLanes(currentEventTransitionLane, SyncLane));
+      // A transition was scheduled during an event, but we're going to try to
+      // render it synchronously anyway. We do this during a popstate event to
+      // preserve the scroll position of the previous page.
+      upgradePendingLaneToSync(root, currentEventTransitionLane);
     }
 
     var nextLanes = scheduleTaskForRootDuringMicrotask(root, currentTime);
@@ -10464,7 +10743,7 @@ var didWarnAboutAsyncClientComponent;
 // These are set right before calling the component.
 
 
-var renderLanes$1 = NoLanes; // The work-in-progress fiber. I've named it differently to distinguish it from
+var renderLanes = NoLanes; // The work-in-progress fiber. I've named it differently to distinguish it from
 // the work-in-progress hook.
 
 var currentlyRenderingFiber$1 = null; // Hooks are stored as a linked list on the fiber's memoizedState field. The
@@ -10658,7 +10937,7 @@ function areHookInputsEqual(nextDeps, prevDeps) {
 }
 
 function renderWithHooks(current, workInProgress, Component, props, secondArg, nextRenderLanes) {
-  renderLanes$1 = nextRenderLanes;
+  renderLanes = nextRenderLanes;
   currentlyRenderingFiber$1 = workInProgress;
 
   {
@@ -10764,7 +11043,7 @@ function finishRenderingHooks(current, workInProgress, Component) {
   // hookTypesDev could catch more cases (e.g. context) but only in DEV bundles.
 
   var didRenderTooFewHooks = currentHook !== null && currentHook.next !== null;
-  renderLanes$1 = NoLanes;
+  renderLanes = NoLanes;
   currentlyRenderingFiber$1 = null;
   currentHook = null;
   workInProgressHook = null;
@@ -10885,6 +11164,26 @@ function renderWithHooksAgain(workInProgress, Component, props, secondArg) {
 
   return children;
 }
+
+function renderTransitionAwareHostComponentWithHooks(current, workInProgress, lanes) {
+
+  return renderWithHooks(current, workInProgress, TransitionAwareHostComponent, null, null, lanes);
+}
+function TransitionAwareHostComponent() {
+
+  var dispatcher = ReactCurrentDispatcher$1.current;
+
+  var _dispatcher$useState = dispatcher.useState(),
+      maybeThenable = _dispatcher$useState[0];
+
+  if (typeof maybeThenable.then === 'function') {
+    var thenable = maybeThenable;
+    return useThenable(thenable);
+  } else {
+    var status = maybeThenable;
+    return status;
+  }
+}
 function checkDidRenderIdHook() {
   // This should be called immediately after every renderWithHooks call.
   // Conceptually, it's part of the return value of renderWithHooks; it's only a
@@ -10942,7 +11241,7 @@ function resetHooksOnUnwind(workInProgress) {
     didScheduleRenderPhaseUpdate = false;
   }
 
-  renderLanes$1 = NoLanes;
+  renderLanes = NoLanes;
   currentlyRenderingFiber$1 = null;
   currentHook = null;
   workInProgressHook = null;
@@ -11190,7 +11489,7 @@ function updateReducerImpl(hook, current, reducer) {
       // it's not a "base" update and we should disregard the extra base lanes
       // that were added to renderLanes when we entered the Offscreen tree.
 
-      var shouldSkipUpdate = isHiddenUpdate ? !isSubsetOfLanes(getWorkInProgressRootRenderLanes(), updateLane) : !isSubsetOfLanes(renderLanes$1, updateLane);
+      var shouldSkipUpdate = isHiddenUpdate ? !isSubsetOfLanes(getWorkInProgressRootRenderLanes(), updateLane) : !isSubsetOfLanes(renderLanes, updateLane);
 
       if (shouldSkipUpdate) {
         // Priority is insufficient. Skip this update. If this is the first
@@ -11218,8 +11517,11 @@ function updateReducerImpl(hook, current, reducer) {
         currentlyRenderingFiber$1.lanes = mergeLanes(currentlyRenderingFiber$1.lanes, updateLane);
         markSkippedUpdateLanes(updateLane);
       } else {
+        // This update does have sufficient priority.
+        // Check if this is an optimistic update.
+        var revertLane = update.revertLane;
 
-        {
+        if (revertLane === NoLane) {
           // This is not an optimistic update, and we're going to apply it now.
           // But, if there were earlier updates that were skipped, we need to
           // leave this update in the queue so it can be rebased later.
@@ -11236,6 +11538,47 @@ function updateReducerImpl(hook, current, reducer) {
               next: null
             };
             newBaseQueueLast = newBaseQueueLast.next = _clone;
+          }
+        } else {
+          // This is an optimistic update. If the "revert" priority is
+          // sufficient, don't apply the update. Otherwise, apply the update,
+          // but leave it in the queue so it can be either reverted or
+          // rebased in a subsequent render.
+          if (isSubsetOfLanes(renderLanes, revertLane)) {
+            // The transition that this optimistic update is associated with
+            // has finished. Pretend the update doesn't exist by skipping
+            // over it.
+            update = update.next;
+            continue;
+          } else {
+            var _clone2 = {
+              // Once we commit an optimistic update, we shouldn't uncommit it
+              // until the transition it is associated with has finished
+              // (represented by revertLane). Using NoLane here works because 0
+              // is a subset of all bitmasks, so this will never be skipped by
+              // the check above.
+              lane: NoLane,
+              // Reuse the same revertLane so we know when the transition
+              // has finished.
+              revertLane: update.revertLane,
+              action: update.action,
+              hasEagerState: update.hasEagerState,
+              eagerState: update.eagerState,
+              next: null
+            };
+
+            if (newBaseQueueLast === null) {
+              newBaseQueueFirst = newBaseQueueLast = _clone2;
+              newBaseState = newState;
+            } else {
+              newBaseQueueLast = newBaseQueueLast.next = _clone2;
+            } // Update the remaining priority in the queue.
+            // TODO: Don't need to accumulate this. Instead, we can remove
+            // renderLanes from the original lanes.
+
+
+            currentlyRenderingFiber$1.lanes = mergeLanes(currentlyRenderingFiber$1.lanes, revertLane);
+            markSkippedUpdateLanes(revertLane);
           }
         } // Process this update.
 
@@ -11387,7 +11730,9 @@ function mountSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
       throw new Error('Expected a work-in-progress root. This is a bug in React. Please file an issue.');
     }
 
-    if (!includesBlockingLane(root, renderLanes$1)) {
+    var rootRenderLanes = getWorkInProgressRootRenderLanes();
+
+    if (!includesBlockingLane(root, rootRenderLanes)) {
       pushStoreConsistencyCheck(fiber, getSnapshot, nextSnapshot);
     }
   } // Read the current snapshot from the store on every render. This breaks the
@@ -11473,7 +11818,7 @@ function updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
       throw new Error('Expected a work-in-progress root. This is a bug in React. Please file an issue.');
     }
 
-    if (!isHydrating && !includesBlockingLane(root, renderLanes$1)) {
+    if (!isHydrating && !includesBlockingLane(root, renderLanes)) {
       pushStoreConsistencyCheck(fiber, getSnapshot, nextSnapshot);
     }
   }
@@ -11586,6 +11931,300 @@ function updateState(initialState) {
 
 function rerenderState(initialState) {
   return rerenderReducer(basicStateReducer);
+}
+
+function mountOptimistic(passthrough, reducer) {
+  var hook = mountWorkInProgressHook();
+  hook.memoizedState = hook.baseState = passthrough;
+  var queue = {
+    pending: null,
+    lanes: NoLanes,
+    dispatch: null,
+    // Optimistic state does not use the eager update optimization.
+    lastRenderedReducer: null,
+    lastRenderedState: null
+  };
+  hook.queue = queue; // This is different than the normal setState function.
+
+  var dispatch = dispatchOptimisticSetState.bind(null, currentlyRenderingFiber$1, true, queue);
+  queue.dispatch = dispatch;
+  return [passthrough, dispatch];
+}
+
+function updateOptimistic(passthrough, reducer) {
+  var hook = updateWorkInProgressHook();
+  return updateOptimisticImpl(hook, currentHook, passthrough, reducer);
+}
+
+function updateOptimisticImpl(hook, current, passthrough, reducer) {
+  // Optimistic updates are always rebased on top of the latest value passed in
+  // as an argument. It's called a passthrough because if there are no pending
+  // updates, it will be returned as-is.
+  //
+  // Reset the base state to the passthrough. Future updates will be applied
+  // on top of this.
+  hook.baseState = passthrough; // If a reducer is not provided, default to the same one used by useState.
+
+  var resolvedReducer = typeof reducer === 'function' ? reducer : basicStateReducer;
+  return updateReducerImpl(hook, currentHook, resolvedReducer);
+}
+
+function rerenderOptimistic(passthrough, reducer) {
+  // Unlike useState, useOptimistic doesn't support render phase updates.
+  // Also unlike useState, we need to replay all pending updates again in case
+  // the passthrough value changed.
+  //
+  // So instead of a forked re-render implementation that knows how to handle
+  // render phase udpates, we can use the same implementation as during a
+  // regular mount or update.
+  var hook = updateWorkInProgressHook();
+
+  if (currentHook !== null) {
+    // This is an update. Process the update queue.
+    return updateOptimisticImpl(hook, currentHook, passthrough, reducer);
+  } // This is a mount. No updates to process.
+  // Reset the base state to the passthrough. Future updates will be applied
+  // on top of this.
+
+
+  hook.baseState = passthrough;
+  var dispatch = hook.queue.dispatch;
+  return [passthrough, dispatch];
+} // useFormState actions run sequentially, because each action receives the
+// previous state as an argument. We store pending actions on a queue.
+
+
+function dispatchFormState(fiber, actionQueue, setState, payload) {
+  if (isRenderPhaseUpdate(fiber)) {
+    throw new Error('Cannot update form state while rendering.');
+  }
+
+  var last = actionQueue.pending;
+
+  if (last === null) {
+    // There are no pending actions; this is the first one. We can run
+    // it immediately.
+    var newLast = {
+      payload: payload,
+      next: null // circular
+
+    };
+    newLast.next = actionQueue.pending = newLast;
+    runFormStateAction(actionQueue, setState, payload);
+  } else {
+    // There's already an action running. Add to the queue.
+    var first = last.next;
+    var _newLast = {
+      payload: payload,
+      next: first
+    };
+    actionQueue.pending = last.next = _newLast;
+  }
+}
+
+function runFormStateAction(actionQueue, setState, payload) {
+  var action = actionQueue.action;
+  var prevState = actionQueue.state; // This is a fork of startTransition
+
+  var prevTransition = ReactCurrentBatchConfig$3.transition;
+  ReactCurrentBatchConfig$3.transition = {};
+  var currentTransition = ReactCurrentBatchConfig$3.transition;
+
+  {
+    ReactCurrentBatchConfig$3.transition._updatedFibers = new Set();
+  }
+
+  try {
+    var returnValue = action(prevState, payload);
+
+    if (returnValue !== null && typeof returnValue === 'object' && // $FlowFixMe[method-unbinding]
+    typeof returnValue.then === 'function') {
+      var thenable = returnValue; // Attach a listener to read the return state of the action. As soon as
+      // this resolves, we can run the next action in the sequence.
+
+      thenable.then(function (nextState) {
+        actionQueue.state = nextState;
+        finishRunningFormStateAction(actionQueue, setState);
+      }, function () {
+        return finishRunningFormStateAction(actionQueue, setState);
+      });
+      var entangledResult = requestAsyncActionContext(thenable, null);
+      setState(entangledResult);
+    } else {
+      // This is either `returnValue` or a thenable that resolves to
+      // `returnValue`, depending on whether we're inside an async action scope.
+      var _entangledResult = requestSyncActionContext(returnValue, null);
+
+      setState(_entangledResult);
+      var nextState = returnValue;
+      actionQueue.state = nextState;
+      finishRunningFormStateAction(actionQueue, setState);
+    }
+  } catch (error) {
+    // This is a trick to get the `useFormState` hook to rethrow the error.
+    // When it unwraps the thenable with the `use` algorithm, the error
+    // will be thrown.
+    var rejectedThenable = {
+      then: function () {},
+      status: 'rejected',
+      reason: error // $FlowFixMe: Not sure why this doesn't work
+
+    };
+    setState(rejectedThenable);
+    finishRunningFormStateAction(actionQueue, setState);
+  } finally {
+    ReactCurrentBatchConfig$3.transition = prevTransition;
+
+    {
+      if (prevTransition === null && currentTransition._updatedFibers) {
+        var updatedFibersCount = currentTransition._updatedFibers.size;
+
+        currentTransition._updatedFibers.clear();
+
+        if (updatedFibersCount > 10) {
+          warn('Detected a large number of updates inside startTransition. ' + 'If this is due to a subscription please re-write it to use React provided hooks. ' + 'Otherwise concurrent mode guarantees are off the table.');
+        }
+      }
+    }
+  }
+}
+
+function finishRunningFormStateAction(actionQueue, setState) {
+  // The action finished running. Pop it from the queue and run the next pending
+  // action, if there are any.
+  var last = actionQueue.pending;
+
+  if (last !== null) {
+    var first = last.next;
+
+    if (first === last) {
+      // This was the last action in the queue.
+      actionQueue.pending = null;
+    } else {
+      // Remove the first node from the circular queue.
+      var next = first.next;
+      last.next = next; // Run the next action.
+
+      runFormStateAction(actionQueue, setState, next.payload);
+    }
+  }
+}
+
+function formStateReducer(oldState, newState) {
+  return newState;
+}
+
+function mountFormState(action, initialStateProp, permalink) {
+  var initialState = initialStateProp;
+
+  if (getIsHydrating()) {
+    var root = getWorkInProgressRoot();
+    var ssrFormState = root.formState; // If a formState option was passed to the root, there are form state
+    // markers that we need to hydrate. These indicate whether the form state
+    // matches this hook instance.
+
+    if (ssrFormState !== null) {
+      var isMatching = tryToClaimNextHydratableFormMarkerInstance();
+
+      if (isMatching) {
+        initialState = ssrFormState[0];
+      }
+    }
+  } // State hook. The state is stored in a thenable which is then unwrapped by
+  // the `use` algorithm during render.
+
+
+  var stateHook = mountWorkInProgressHook();
+  stateHook.memoizedState = stateHook.baseState = initialState; // TODO: Typing this "correctly" results in recursion limit errors
+  // const stateQueue: UpdateQueue<S | Awaited<S>, S | Awaited<S>> = {
+
+  var stateQueue = {
+    pending: null,
+    lanes: NoLanes,
+    dispatch: null,
+    lastRenderedReducer: formStateReducer,
+    lastRenderedState: initialState
+  };
+  stateHook.queue = stateQueue;
+  var setState = dispatchSetState.bind(null, currentlyRenderingFiber$1, stateQueue);
+  stateQueue.dispatch = setState; // Action queue hook. This is used to queue pending actions. The queue is
+  // shared between all instances of the hook. Similar to a regular state queue,
+  // but different because the actions are run sequentially, and they run in
+  // an event instead of during render.
+
+  var actionQueueHook = mountWorkInProgressHook();
+  var actionQueue = {
+    state: initialState,
+    dispatch: null,
+    // circular
+    action: action,
+    pending: null
+  };
+  actionQueueHook.queue = actionQueue;
+  var dispatch = dispatchFormState.bind(null, currentlyRenderingFiber$1, actionQueue, setState);
+  actionQueue.dispatch = dispatch; // Stash the action function on the memoized state of the hook. We'll use this
+  // to detect when the action function changes so we can update it in
+  // an effect.
+
+  actionQueueHook.memoizedState = action;
+  return [initialState, dispatch];
+}
+
+function updateFormState(action, initialState, permalink) {
+  var stateHook = updateWorkInProgressHook();
+  var currentStateHook = currentHook;
+  return updateFormStateImpl(stateHook, currentStateHook, action);
+}
+
+function updateFormStateImpl(stateHook, currentStateHook, action, initialState, permalink) {
+  var _updateReducerImpl = updateReducerImpl(stateHook, currentStateHook, formStateReducer),
+      actionResult = _updateReducerImpl[0]; // This will suspend until the action finishes.
+
+
+  var state = typeof actionResult === 'object' && actionResult !== null && // $FlowFixMe[method-unbinding]
+  typeof actionResult.then === 'function' ? useThenable(actionResult) : actionResult;
+  var actionQueueHook = updateWorkInProgressHook();
+  var actionQueue = actionQueueHook.queue;
+  var dispatch = actionQueue.dispatch; // Check if a new action was passed. If so, update it in an effect.
+
+  var prevAction = actionQueueHook.memoizedState;
+
+  if (action !== prevAction) {
+    currentlyRenderingFiber$1.flags |= Passive$1;
+    pushEffect(HasEffect | Passive, formStateActionEffect.bind(null, actionQueue, action), createEffectInstance(), null);
+  }
+
+  return [state, dispatch];
+}
+
+function formStateActionEffect(actionQueue, action) {
+  actionQueue.action = action;
+}
+
+function rerenderFormState(action, initialState, permalink) {
+  // Unlike useState, useFormState doesn't support render phase updates.
+  // Also unlike useState, we need to replay all pending updates again in case
+  // the passthrough value changed.
+  //
+  // So instead of a forked re-render implementation that knows how to handle
+  // render phase udpates, we can use the same implementation as during a
+  // regular mount or update.
+  var stateHook = updateWorkInProgressHook();
+  var currentStateHook = currentHook;
+
+  if (currentStateHook !== null) {
+    // This is an update. Process the update queue.
+    return updateFormStateImpl(stateHook, currentStateHook, action);
+  } // This is a mount. No updates to process.
+
+
+  var state = stateHook.memoizedState;
+  var actionQueueHook = updateWorkInProgressHook();
+  var actionQueue = actionQueueHook.queue;
+  var dispatch = actionQueue.dispatch; // This may have changed during the rerender.
+
+  actionQueueHook.memoizedState = action;
+  return [state, dispatch];
 }
 
 function pushEffect(tag, create, inst, deps) {
@@ -11828,26 +12467,24 @@ function updateMemo(nextCreate, deps) {
   return nextValue;
 }
 
-function mountDeferredValue(value) {
+function mountDeferredValue(value, initialValue) {
   var hook = mountWorkInProgressHook();
-  hook.memoizedState = value;
-  return value;
+  return mountDeferredValueImpl(hook, value);
 }
 
-function updateDeferredValue(value) {
+function updateDeferredValue(value, initialValue) {
   var hook = updateWorkInProgressHook();
   var resolvedCurrentHook = currentHook;
   var prevValue = resolvedCurrentHook.memoizedState;
   return updateDeferredValueImpl(hook, prevValue, value);
 }
 
-function rerenderDeferredValue(value) {
+function rerenderDeferredValue(value, initialValue) {
   var hook = updateWorkInProgressHook();
 
   if (currentHook === null) {
     // This is a rerender during a mount.
-    hook.memoizedState = value;
-    return value;
+    return mountDeferredValueImpl(hook, value);
   } else {
     // This is a rerender during an update.
     var prevValue = currentHook.memoizedState;
@@ -11855,43 +12492,54 @@ function rerenderDeferredValue(value) {
   }
 }
 
-function updateDeferredValueImpl(hook, prevValue, value) {
-  var shouldDeferValue = !includesOnlyNonUrgentLanes(renderLanes$1);
-
-  if (shouldDeferValue) {
-    // This is an urgent update. If the value has changed, keep using the
-    // previous value and spawn a deferred render to update it later.
-    if (!objectIs(value, prevValue)) {
-      // Schedule a deferred render
-      var deferredLane = claimNextTransitionLane();
-      currentlyRenderingFiber$1.lanes = mergeLanes(currentlyRenderingFiber$1.lanes, deferredLane);
-      markSkippedUpdateLanes(deferredLane); // Set this to true to indicate that the rendered value is inconsistent
-      // from the latest value. The name "baseState" doesn't really match how we
-      // use it because we're reusing a state hook field instead of creating a
-      // new one.
-
-      hook.baseState = true;
-    } // Reuse the previous value
-
-
-    return prevValue;
-  } else {
-    // This is not an urgent update, so we can use the latest value regardless
-    // of what it is. No need to defer it.
-    // However, if we're currently inside a spawned render, then we need to mark
-    // this as an update to prevent the fiber from bailing out.
-    //
-    // `baseState` is true when the current value is different from the rendered
-    // value. The name doesn't really match how we use it because we're reusing
-    // a state hook field instead of creating a new one.
-    if (hook.baseState) {
-      // Flip this back to false.
-      hook.baseState = false;
-      markWorkInProgressReceivedUpdate();
-    }
-
+function mountDeferredValueImpl(hook, value, initialValue) {
+  {
     hook.memoizedState = value;
     return value;
+  }
+}
+
+function updateDeferredValueImpl(hook, prevValue, value, initialValue) {
+  if (objectIs(value, prevValue)) {
+    // The incoming value is referentially identical to the currently rendered
+    // value, so we can bail out quickly.
+    return value;
+  } else {
+    // Received a new value that's different from the current value.
+    // Check if we're inside a hidden tree
+    if (isCurrentTreeHidden()) {
+      // Revealing a prerendered tree is considered the same as mounting new
+      // one, so we reuse the "mount" path in this case.
+      var resultValue = mountDeferredValueImpl(hook, value); // Unlike during an actual mount, we need to mark this as an update if
+      // the value changed.
+
+      if (!objectIs(resultValue, prevValue)) {
+        markWorkInProgressReceivedUpdate();
+      }
+
+      return resultValue;
+    }
+
+    var shouldDeferValue = !includesOnlyNonUrgentLanes(renderLanes);
+
+    if (shouldDeferValue) {
+      // This is an urgent update. Since the value has changed, keep using the
+      // previous value and spawn a deferred render to update it later.
+      // Schedule a deferred render
+      var deferredLane = requestDeferredLane();
+      currentlyRenderingFiber$1.lanes = mergeLanes(currentlyRenderingFiber$1.lanes, deferredLane);
+      markSkippedUpdateLanes(deferredLane); // Reuse the previous value. We do not need to mark this as an update,
+      // because we did not render a new value.
+
+      return prevValue;
+    } else {
+      // This is not an urgent update, so we can use the latest value regardless
+      // of what it is. No need to defer it.
+      // Mark this as an update to prevent the fiber from bailing out.
+      markWorkInProgressReceivedUpdate();
+      hook.memoizedState = value;
+      return value;
+    }
   }
 }
 
@@ -11899,29 +12547,60 @@ function startTransition(fiber, queue, pendingState, finishedState, callback, op
   var previousPriority = getCurrentUpdatePriority();
   setCurrentUpdatePriority(higherEventPriority(previousPriority, ContinuousEventPriority));
   var prevTransition = ReactCurrentBatchConfig$3.transition;
+  var currentTransition = {};
 
   {
-    ReactCurrentBatchConfig$3.transition = null;
-    dispatchSetState(fiber, queue, pendingState);
+    // We don't really need to use an optimistic update here, because we
+    // schedule a second "revert" update below (which we use to suspend the
+    // transition until the async action scope has finished). But we'll use an
+    // optimistic update anyway to make it less likely the behavior accidentally
+    // diverges; for example, both an optimistic update and this one should
+    // share the same lane.
+    ReactCurrentBatchConfig$3.transition = currentTransition;
+    dispatchOptimisticSetState(fiber, false, queue, pendingState);
   }
-
-  var currentTransition = ReactCurrentBatchConfig$3.transition = {};
 
   {
     ReactCurrentBatchConfig$3.transition._updatedFibers = new Set();
   }
 
   try {
-    var returnValue, thenable, entangledResult, _entangledResult; if (enableAsyncActions) ; else {
-      // Async actions are not enabled.
-      dispatchSetState(fiber, queue, finishedState);
-      callback();
+    if (enableAsyncActions) {
+      var returnValue = callback(); // Check if we're inside an async action scope. If so, we'll entangle
+      // this new action with the existing scope.
+      //
+      // If we're not already inside an async action scope, and this action is
+      // async, then we'll create a new async scope.
+      //
+      // In the async case, the resulting render will suspend until the async
+      // action scope has finished.
+
+      if (returnValue !== null && typeof returnValue === 'object' && typeof returnValue.then === 'function') {
+        var thenable = returnValue; // This is a thenable that resolves to `finishedState` once the async
+        // action scope has finished.
+
+        var entangledResult = requestAsyncActionContext(thenable, finishedState);
+        dispatchSetState(fiber, queue, entangledResult);
+      } else {
+        // This is either `finishedState` or a thenable that resolves to
+        // `finishedState`, depending on whether we're inside an async
+        // action scope.
+        var _entangledResult2 = requestSyncActionContext(returnValue, finishedState);
+
+        dispatchSetState(fiber, queue, _entangledResult2);
+      }
     }
   } catch (error) {
     {
-      // The error rethrowing behavior is only enabled when the async actions
-      // feature is on, even for sync actions.
-      throw error;
+      // This is a trick to get the `useTransition` hook to rethrow the error.
+      // When it unwraps the thenable with the `use` algorithm, the error
+      // will be thrown.
+      var rejectedThenable = {
+        then: function () {},
+        status: 'rejected',
+        reason: error
+      };
+      dispatchSetState(fiber, queue, rejectedThenable);
     }
   } finally {
     setCurrentUpdatePriority(previousPriority);
@@ -11939,6 +12618,59 @@ function startTransition(fiber, queue, pendingState, finishedState, callback, op
       }
     }
   }
+}
+
+function startHostTransition(formFiber, pendingState, callback, formData) {
+
+  if (formFiber.tag !== HostComponent) {
+    throw new Error('Expected the form instance to be a HostComponent. This ' + 'is a bug in React.');
+  }
+
+  var queue;
+
+  if (formFiber.memoizedState === null) {
+    // Upgrade this host component fiber to be stateful. We're going to pretend
+    // it was stateful all along so we can reuse most of the implementation
+    // for function components and useTransition.
+    //
+    // Create the state hook used by TransitionAwareHostComponent. This is
+    // essentially an inlined version of mountState.
+    var newQueue = {
+      pending: null,
+      lanes: NoLanes,
+      // We're going to cheat and intentionally not create a bound dispatch
+      // method, because we can call it directly in startTransition.
+      dispatch: null,
+      lastRenderedReducer: basicStateReducer,
+      lastRenderedState: NotPendingTransition
+    };
+    queue = newQueue;
+    var stateHook = {
+      memoizedState: NotPendingTransition,
+      baseState: NotPendingTransition,
+      baseQueue: null,
+      queue: newQueue,
+      next: null
+    }; // Add the state hook to both fiber alternates. The idea is that the fiber
+    // had this hook all along.
+
+    formFiber.memoizedState = stateHook;
+    var alternate = formFiber.alternate;
+
+    if (alternate !== null) {
+      alternate.memoizedState = stateHook;
+    }
+  } else {
+    // This fiber was already upgraded to be stateful.
+    var _stateHook = formFiber.memoizedState;
+    queue = _stateHook.queue;
+  }
+
+  startTransition(formFiber, queue, pendingState, NotPendingTransition, // TODO: We can avoid this extra wrapper, somehow. Figure out layering
+  // once more of this function is implemented.
+  function () {
+    return callback(formData);
+  });
 }
 
 function mountTransition() {
@@ -11970,6 +12702,12 @@ function rerenderTransition() {
   var isPending = typeof booleanOrThenable === 'boolean' ? booleanOrThenable : // This will suspend until the async action scope has finished.
   useThenable(booleanOrThenable);
   return [isPending, start];
+}
+
+function useHostTransitionStatus() {
+
+  var status = readContext(HostTransitionContext);
+  return status !== null ? status : NotPendingTransition;
 }
 
 function mountId() {
@@ -12178,6 +12916,77 @@ function dispatchSetState(fiber, queue, action) {
   markUpdateInDevTools(fiber, lane);
 }
 
+function dispatchOptimisticSetState(fiber, throwIfDuringRender, queue, action) {
+  {
+    if (ReactCurrentBatchConfig$3.transition === null) {
+      // An optimistic update occurred, but startTransition is not on the stack.
+      // There are two likely scenarios.
+      // One possibility is that the optimistic update is triggered by a regular
+      // event handler (e.g. `onSubmit`) instead of an action. This is a mistake
+      // and we will warn.
+      // The other possibility is the optimistic update is inside an async
+      // action, but after an `await`. In this case, we can make it "just work"
+      // by associating the optimistic update with the pending async action.
+      // Technically it's possible that the optimistic update is unrelated to
+      // the pending action, but we don't have a way of knowing this for sure
+      // because browsers currently do not provide a way to track async scope.
+      // (The AsyncContext proposal, if it lands, will solve this in the
+      // future.) However, this is no different than the problem of unrelated
+      // transitions being grouped together — it's not wrong per se, but it's
+      // not ideal.
+      // Once AsyncContext starts landing in browsers, we will provide better
+      // warnings in development for these cases.
+      if (peekEntangledActionLane() !== NoLane) ; else {
+        // There's no pending async action. The most likely cause is that we're
+        // inside a regular event handler (e.g. onSubmit) instead of an action.
+        error('An optimistic state update occurred outside a transition or ' + 'action. To fix, move the update to an action, or wrap ' + 'with startTransition.');
+      }
+    }
+  }
+
+  var update = {
+    // An optimistic update commits synchronously.
+    lane: SyncLane,
+    // After committing, the optimistic update is "reverted" using the same
+    // lane as the transition it's associated with.
+    revertLane: requestTransitionLane(),
+    action: action,
+    hasEagerState: false,
+    eagerState: null,
+    next: null
+  };
+
+  if (isRenderPhaseUpdate(fiber)) {
+    // When calling startTransition during render, this warns instead of
+    // throwing because throwing would be a breaking change. setOptimisticState
+    // is a new API so it's OK to throw.
+    if (throwIfDuringRender) {
+      throw new Error('Cannot update optimistic state while rendering.');
+    } else {
+      // startTransition was called during render. We don't need to do anything
+      // besides warn here because the render phase update would be overidden by
+      // the second update, anyway. We can remove this branch and make it throw
+      // in a future release.
+      {
+        error('Cannot call startTransition while rendering.');
+      }
+    }
+  } else {
+    var root = enqueueConcurrentHookUpdate(fiber, queue, update, SyncLane);
+
+    if (root !== null) {
+      // NOTE: The optimistic update implementation assumes that the transition
+      // will never be attempted before the optimistic update. This currently
+      // holds because the optimistic update is always synchronous. If we ever
+      // change that, we'll need to account for this.
+      scheduleUpdateOnFiber(root, fiber, SyncLane); // Optimistic updates are always synchronous, so we don't need to call
+      // entangleTransitionUpdate here.
+    }
+  }
+
+  markUpdateInDevTools(fiber, SyncLane);
+}
+
 function isRenderPhaseUpdate(fiber) {
   var alternate = fiber.alternate;
   return fiber === currentlyRenderingFiber$1 || alternate !== null && alternate === currentlyRenderingFiber$1;
@@ -12250,6 +13059,15 @@ var ContextOnlyDispatcher = {
 
 {
   ContextOnlyDispatcher.useCacheRefresh = throwInvalidHookError;
+}
+
+{
+  ContextOnlyDispatcher.useHostTransitionStatus = throwInvalidHookError;
+  ContextOnlyDispatcher.useFormState = throwInvalidHookError;
+}
+
+{
+  ContextOnlyDispatcher.useOptimistic = throwInvalidHookError;
 }
 
 var HooksDispatcherOnMountInDEV = null;
@@ -12356,7 +13174,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       mountHookTypesDev();
       return mountDebugValue();
     },
-    useDeferredValue: function (value) {
+    useDeferredValue: function (value, initialValue) {
       currentHookNameInDev = 'useDeferredValue';
       mountHookTypesDev();
       return mountDeferredValue(value);
@@ -12383,6 +13201,24 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useCacheRefresh';
       mountHookTypesDev();
       return mountRefresh();
+    };
+  }
+
+  {
+    HooksDispatcherOnMountInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    HooksDispatcherOnMountInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      mountHookTypesDev();
+      return mountFormState(action, initialState);
+    };
+  }
+
+  {
+    HooksDispatcherOnMountInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
+      mountHookTypesDev();
+      return mountOptimistic(passthrough);
     };
   }
 
@@ -12467,7 +13303,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return mountDebugValue();
     },
-    useDeferredValue: function (value) {
+    useDeferredValue: function (value, initialValue) {
       currentHookNameInDev = 'useDeferredValue';
       updateHookTypesDev();
       return mountDeferredValue(value);
@@ -12494,6 +13330,24 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useCacheRefresh';
       updateHookTypesDev();
       return mountRefresh();
+    };
+  }
+
+  {
+    HooksDispatcherOnMountWithHookTypesInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    HooksDispatcherOnMountWithHookTypesInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      updateHookTypesDev();
+      return mountFormState(action, initialState);
+    };
+  }
+
+  {
+    HooksDispatcherOnMountWithHookTypesInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
+      updateHookTypesDev();
+      return mountOptimistic(passthrough);
     };
   }
 
@@ -12578,7 +13432,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return updateDebugValue();
     },
-    useDeferredValue: function (value) {
+    useDeferredValue: function (value, initialValue) {
       currentHookNameInDev = 'useDeferredValue';
       updateHookTypesDev();
       return updateDeferredValue(value);
@@ -12605,6 +13459,24 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useCacheRefresh';
       updateHookTypesDev();
       return updateRefresh();
+    };
+  }
+
+  {
+    HooksDispatcherOnUpdateInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    HooksDispatcherOnUpdateInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      updateHookTypesDev();
+      return updateFormState(action);
+    };
+  }
+
+  {
+    HooksDispatcherOnUpdateInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
+      updateHookTypesDev();
+      return updateOptimistic(passthrough, reducer);
     };
   }
 
@@ -12689,7 +13561,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return updateDebugValue();
     },
-    useDeferredValue: function (value) {
+    useDeferredValue: function (value, initialValue) {
       currentHookNameInDev = 'useDeferredValue';
       updateHookTypesDev();
       return rerenderDeferredValue(value);
@@ -12716,6 +13588,24 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useCacheRefresh';
       updateHookTypesDev();
       return updateRefresh();
+    };
+  }
+
+  {
+    HooksDispatcherOnRerenderInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    HooksDispatcherOnRerenderInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      updateHookTypesDev();
+      return rerenderFormState(action);
+    };
+  }
+
+  {
+    HooksDispatcherOnRerenderInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
+      updateHookTypesDev();
+      return rerenderOptimistic(passthrough, reducer);
     };
   }
 
@@ -12815,7 +13705,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       mountHookTypesDev();
       return mountDebugValue();
     },
-    useDeferredValue: function (value) {
+    useDeferredValue: function (value, initialValue) {
       currentHookNameInDev = 'useDeferredValue';
       warnInvalidHookAccess();
       mountHookTypesDev();
@@ -12846,6 +13736,26 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useCacheRefresh';
       mountHookTypesDev();
       return mountRefresh();
+    };
+  }
+
+  {
+    InvalidNestedHooksDispatcherOnMountInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    InvalidNestedHooksDispatcherOnMountInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      warnInvalidHookAccess();
+      mountHookTypesDev();
+      return mountFormState(action, initialState);
+    };
+  }
+
+  {
+    InvalidNestedHooksDispatcherOnMountInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
+      warnInvalidHookAccess();
+      mountHookTypesDev();
+      return mountOptimistic(passthrough);
     };
   }
 
@@ -12945,7 +13855,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return updateDebugValue();
     },
-    useDeferredValue: function (value) {
+    useDeferredValue: function (value, initialValue) {
       currentHookNameInDev = 'useDeferredValue';
       warnInvalidHookAccess();
       updateHookTypesDev();
@@ -12976,6 +13886,26 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useCacheRefresh';
       updateHookTypesDev();
       return updateRefresh();
+    };
+  }
+
+  {
+    InvalidNestedHooksDispatcherOnUpdateInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    InvalidNestedHooksDispatcherOnUpdateInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      warnInvalidHookAccess();
+      updateHookTypesDev();
+      return updateFormState(action);
+    };
+  }
+
+  {
+    InvalidNestedHooksDispatcherOnUpdateInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
+      warnInvalidHookAccess();
+      updateHookTypesDev();
+      return updateOptimistic(passthrough, reducer);
     };
   }
 
@@ -13075,7 +14005,7 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return updateDebugValue();
     },
-    useDeferredValue: function (value) {
+    useDeferredValue: function (value, initialValue) {
       currentHookNameInDev = 'useDeferredValue';
       warnInvalidHookAccess();
       updateHookTypesDev();
@@ -13106,6 +14036,26 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useCacheRefresh';
       updateHookTypesDev();
       return updateRefresh();
+    };
+  }
+
+  {
+    InvalidNestedHooksDispatcherOnRerenderInDEV.useHostTransitionStatus = useHostTransitionStatus;
+
+    InvalidNestedHooksDispatcherOnRerenderInDEV.useFormState = function useFormState(action, initialState, permalink) {
+      currentHookNameInDev = 'useFormState';
+      warnInvalidHookAccess();
+      updateHookTypesDev();
+      return rerenderFormState(action);
+    };
+  }
+
+  {
+    InvalidNestedHooksDispatcherOnRerenderInDEV.useOptimistic = function useOptimistic(passthrough, reducer) {
+      currentHookNameInDev = 'useOptimistic';
+      warnInvalidHookAccess();
+      updateHookTypesDev();
+      return rerenderOptimistic(passthrough, reducer);
     };
   }
 }
@@ -15571,6 +16521,49 @@ function updateHostComponent$1(current, workInProgress, renderLanes) {
     workInProgress.flags |= ContentReset;
   }
 
+  {
+    var memoizedState = workInProgress.memoizedState;
+
+    if (memoizedState !== null) {
+      // This fiber has been upgraded to a stateful component. The only way
+      // happens currently is for form actions. We use hooks to track the
+      // pending and error state of the form.
+      //
+      // Once a fiber is upgraded to be stateful, it remains stateful for the
+      // rest of its lifetime.
+      var newState = renderTransitionAwareHostComponentWithHooks(current, workInProgress, renderLanes); // If the transition state changed, propagate the change to all the
+      // descendents. We use Context as an implementation detail for this.
+      //
+      // This is intentionally set here instead of pushHostContext because
+      // pushHostContext gets called before we process the state hook, to avoid
+      // a state mismatch in the event that something suspends.
+      //
+      // NOTE: This assumes that there cannot be nested transition providers,
+      // because the only renderer that implements this feature is React DOM,
+      // and forms cannot be nested. If we did support nested providers, then
+      // we would need to push a context value even for host fibers that
+      // haven't been upgraded yet.
+
+      {
+        HostTransitionContext._currentValue = newState;
+      }
+
+      {
+        if (didReceiveUpdate) {
+          if (current !== null) {
+            var oldStateHook = current.memoizedState;
+            var oldState = oldStateHook.memoizedState; // This uses regular equality instead of Object.is because we assume
+            // that host transition state doesn't include NaN as a valid type.
+
+            if (oldState !== newState) {
+              propagateContextChange(workInProgress, HostTransitionContext, renderLanes);
+            }
+          }
+        }
+      }
+    }
+  }
+
   markRef$1(current, workInProgress);
   reconcileChildren(current, workInProgress, nextChildren, renderLanes);
   return workInProgress.child;
@@ -17559,9 +18552,7 @@ function popProvider(context, providerFiber) {
   var currentValue = valueCursor.current;
 
   {
-    if (currentValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      context._currentValue = context._defaultValue;
-    } else {
+    {
       context._currentValue = currentValue;
     }
 
@@ -18008,9 +18999,12 @@ function getOffscreenDeferredCache() {
   };
 }
 
+/**
+ * Tag the fiber with an update effect. This turns a Placement into
+ * a PlacementAndUpdate.
+ */
+
 function markUpdate(workInProgress) {
-  // Tag the fiber with an update effect. This turns a Placement into
-  // a PlacementAndUpdate.
   workInProgress.flags |= Update;
 }
 
@@ -18682,7 +19676,9 @@ function completeWork(current, workInProgress, renderLanes) {
           } else {
             var _rootContainerInstance = getRootHostContainer();
 
-            var _instance3 = createInstance(_type2, newProps, _rootContainerInstance, _currentHostContext, workInProgress);
+            var _instance3 = createInstance(_type2, newProps, _rootContainerInstance, _currentHostContext, workInProgress); // TODO: For persistent renderers, we should pass children as part
+            // of the initial instance creation
+
 
             appendAllChildren(_instance3, workInProgress);
             workInProgress.stateNode = _instance3; // Certain renderers require commit-time effects for initial mount.
@@ -23069,9 +24065,9 @@ var workInProgressRootDidAttachPingListener = false; // A contextual version of 
 // HiddenContext module.
 //
 // Most things in the work loop should deal with workInProgressRootRenderLanes.
-// Most things in begin/complete phases should deal with renderLanes.
+// Most things in begin/complete phases should deal with entangledRenderLanes.
 
-var renderLanes = NoLanes; // Whether to root completed, errored, suspended, etc.
+var entangledRenderLanes = NoLanes; // Whether to root completed, errored, suspended, etc.
 
 var workInProgressRootExitStatus = RootInProgress; // A fatal error, if one is thrown
 
@@ -23082,7 +24078,9 @@ var workInProgressRootSkippedLanes = NoLanes; // Lanes that were updated (in an 
 
 var workInProgressRootInterleavedUpdatedLanes = NoLanes; // Lanes that were updated during the render phase (*not* an interleaved event).
 
-var workInProgressRootPingedLanes = NoLanes; // Errors that are thrown during the render phase.
+var workInProgressRootPingedLanes = NoLanes; // If this lane scheduled deferred work, this is the lane of the deferred task.
+
+var workInProgressDeferredLane = NoLane; // Errors that are thrown during the render phase.
 
 var workInProgressRootConcurrentErrors = null; // These are errors that we recovered from without surfacing them to the UI.
 // We will log them once the tree commits.
@@ -23213,6 +24211,32 @@ function requestRetryLane(fiber) {
   return claimNextRetryLane();
 }
 
+function requestDeferredLane() {
+  if (workInProgressDeferredLane === NoLane) {
+    // If there are multiple useDeferredValue hooks in the same render, the
+    // tasks that they spawn should all be batched together, so they should all
+    // receive the same lane.
+    // Check the priority of the current render to decide the priority of the
+    // deferred task.
+    // OffscreenLane is used for prerendering, but we also use OffscreenLane
+    // for incremental hydration. It's given the lowest priority because the
+    // initial HTML is the same as the final UI. But useDeferredValue during
+    // hydration is an exception — we need to upgrade the UI to the final
+    // value. So if we're currently hydrating, we treat it like a transition.
+    var isPrerendering = includesSomeLane(workInProgressRootRenderLanes, OffscreenLane) && !getIsHydrating();
+
+    if (isPrerendering) {
+      // There's only one OffscreenLane, so if it contains deferred work, we
+      // should just reschedule using the same lane.
+      workInProgressDeferredLane = OffscreenLane;
+    } else {
+      // Everything else is spawned as a transition.
+      workInProgressDeferredLane = requestTransitionLane();
+    }
+  }
+
+  return workInProgressDeferredLane;
+}
 function scheduleUpdateOnFiber(root, fiber, lane) {
   {
     if (isRunningInsertionEffect) {
@@ -23234,7 +24258,7 @@ function scheduleUpdateOnFiber(root, fiber, lane) {
     // The incoming update might unblock the current render. Interrupt the
     // current attempt and restart from the top.
     prepareFreshStack(root, NoLanes);
-    markRootSuspended(root, workInProgressRootRenderLanes);
+    markRootSuspended(root, workInProgressRootRenderLanes, workInProgressDeferredLane);
   } // Mark that the root has a pending update.
 
 
@@ -23272,7 +24296,7 @@ function scheduleUpdateOnFiber(root, fiber, lane) {
         // effect of interrupting the current render and switching to the update.
         // TODO: Make sure this doesn't override pings that happen while we've
         // already started rendering.
-        markRootSuspended(root, workInProgressRootRenderLanes);
+        markRootSuspended(root, workInProgressRootRenderLanes, workInProgressDeferredLane);
       }
     }
 
@@ -23365,7 +24389,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
         // The render unwound without completing the tree. This happens in special
         // cases where need to exit the current render without producing a
         // consistent tree or committing.
-        markRootSuspended(root, lanes);
+        markRootSuspended(root, lanes, NoLane);
       } else {
         // The render completed.
         // Check if this render may have yielded to a concurrent event, and if so,
@@ -23401,7 +24425,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
         if (exitStatus === RootFatalErrored) {
           var fatalError = workInProgressRootFatalError;
           prepareFreshStack(root, NoLanes);
-          markRootSuspended(root, lanes);
+          markRootSuspended(root, lanes, NoLane);
           ensureRootIsScheduled(root);
           throw fatalError;
         } // We now have a consistent tree. The next step is either to commit it,
@@ -23515,7 +24539,7 @@ function finishConcurrentRender(root, exitStatus, finishedWork, lanes) {
           // This is a transition, so we should exit without committing a
           // placeholder and without scheduling a timeout. Delay indefinitely
           // until we receive more data.
-          markRootSuspended(root, lanes);
+          markRootSuspended(root, lanes, workInProgressDeferredLane);
           return;
         } // Commit the placeholder.
 
@@ -23538,7 +24562,7 @@ function finishConcurrentRender(root, exitStatus, finishedWork, lanes) {
 
   if (shouldForceFlushFallbacksInDEV()) {
     // We're inside an `act` scope. Commit immediately.
-    commitRoot(root, workInProgressRootRecoverableErrors, workInProgressTransitions);
+    commitRoot(root, workInProgressRootRecoverableErrors, workInProgressTransitions, workInProgressDeferredLane);
   } else {
     if (includesOnlyRetries(lanes) && (alwaysThrottleRetries )) {
       // This render only included retries, no updates. Throttle committing
@@ -23546,7 +24570,7 @@ function finishConcurrentRender(root, exitStatus, finishedWork, lanes) {
       var msUntilTimeout = globalMostRecentFallbackTime + FALLBACK_THROTTLE_MS - now$1(); // Don't bother with a very short suspense time.
 
       if (msUntilTimeout > 10) {
-        markRootSuspended(root, lanes);
+        markRootSuspended(root, lanes, workInProgressDeferredLane);
         var nextLanes = getNextLanes(root, NoLanes);
 
         if (nextLanes !== NoLanes) {
@@ -23560,16 +24584,16 @@ function finishConcurrentRender(root, exitStatus, finishedWork, lanes) {
         // run one after the other.
 
 
-        root.timeoutHandle = scheduleTimeout(commitRootWhenReady.bind(null, root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes), msUntilTimeout);
+        root.timeoutHandle = scheduleTimeout(commitRootWhenReady.bind(null, root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes, workInProgressDeferredLane), msUntilTimeout);
         return;
       }
     }
 
-    commitRootWhenReady(root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes);
+    commitRootWhenReady(root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes, workInProgressDeferredLane);
   }
 }
 
-function commitRootWhenReady(root, finishedWork, recoverableErrors, transitions, lanes) {
+function commitRootWhenReady(root, finishedWork, recoverableErrors, transitions, lanes, spawnedLane) {
   // TODO: Combine retry throttling with Suspensey commits. Right now they run
   // one after the other.
   if (includesOnlyNonUrgentLanes(lanes)) {
@@ -23594,13 +24618,13 @@ function commitRootWhenReady(root, finishedWork, recoverableErrors, transitions,
       // us that it's ready. This will be canceled if we start work on the
       // root again.
       root.cancelPendingCommit = schedulePendingCommit(commitRoot.bind(null, root, recoverableErrors, transitions));
-      markRootSuspended(root, lanes);
+      markRootSuspended(root, lanes, spawnedLane);
       return;
     }
   } // Otherwise, commit immediately.
 
 
-  commitRoot(root, recoverableErrors, transitions);
+  commitRoot(root, recoverableErrors, transitions, spawnedLane);
 }
 
 function isRenderConsistentWithExternalStores(finishedWork) {
@@ -23666,35 +24690,38 @@ function isRenderConsistentWithExternalStores(finishedWork) {
   return true;
 }
 
-function markRootSuspended(root, suspendedLanes) {
+function markRootSuspended(root, suspendedLanes, spawnedLane) {
   // When suspending, we should always exclude lanes that were pinged or (more
   // rarely, since we try to avoid it) updated during the render phase.
   // TODO: Lol maybe there's a better way to factor this besides this
   // obnoxiously named function :)
   suspendedLanes = removeLanes(suspendedLanes, workInProgressRootPingedLanes);
   suspendedLanes = removeLanes(suspendedLanes, workInProgressRootInterleavedUpdatedLanes);
-  markRootSuspended$1(root, suspendedLanes);
+  markRootSuspended$1(root, suspendedLanes, spawnedLane);
 } // This is the entry point for synchronous tasks that don't go
 // through Scheduler
 
 
-function performSyncWorkOnRoot(root) {
-  {
-    syncNestedUpdateFlag();
-  }
-
+function performSyncWorkOnRoot(root, lanes) {
   if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
     throw new Error('Should not already be working.');
   }
 
-  flushPassiveEffects(); // TODO: This was already computed in the caller. Pass it as an argument.
+  var didFlushPassiveEffects = flushPassiveEffects();
 
-  var lanes = getNextLanes(root, NoLanes);
-
-  if (!includesSyncLane(lanes)) {
-    // There's no remaining sync work left.
+  if (didFlushPassiveEffects) {
+    // If passive effects were flushed, exit to the outer work loop in the root
+    // scheduler, so we can recompute the priority.
+    // TODO: We don't actually need this `ensureRootIsScheduled` call because
+    // this path is only reachable if the root is already part of the schedule.
+    // I'm including it only for consistency with the other exit points from
+    // this function. Can address in a subsequent refactor.
     ensureRootIsScheduled(root);
     return null;
+  }
+
+  {
+    syncNestedUpdateFlag();
   }
 
   var exitStatus = renderRootSync(root, lanes);
@@ -23716,7 +24743,7 @@ function performSyncWorkOnRoot(root) {
   if (exitStatus === RootFatalErrored) {
     var fatalError = workInProgressRootFatalError;
     prepareFreshStack(root, NoLanes);
-    markRootSuspended(root, lanes);
+    markRootSuspended(root, lanes, NoLane);
     ensureRootIsScheduled(root);
     throw fatalError;
   }
@@ -23725,7 +24752,7 @@ function performSyncWorkOnRoot(root) {
     // The render unwound without completing the tree. This happens in special
     // cases where need to exit the current render without producing a
     // consistent tree or committing.
-    markRootSuspended(root, lanes);
+    markRootSuspended(root, lanes, NoLane);
     ensureRootIsScheduled(root);
     return null;
   } // We now have a consistent tree. Because this is a sync render, we
@@ -23735,7 +24762,7 @@ function performSyncWorkOnRoot(root) {
   var finishedWork = root.current.alternate;
   root.finishedWork = finishedWork;
   root.finishedLanes = lanes;
-  commitRoot(root, workInProgressRootRecoverableErrors, workInProgressTransitions); // Before exiting, make sure there's a callback scheduled for the next
+  commitRoot(root, workInProgressRootRecoverableErrors, workInProgressTransitions, workInProgressDeferredLane); // Before exiting, make sure there's a callback scheduled for the next
   // pending level.
 
   ensureRootIsScheduled(root);
@@ -23743,7 +24770,7 @@ function performSyncWorkOnRoot(root) {
 }
 function flushRoot(root, lanes) {
   if (lanes !== NoLanes) {
-    markRootEntangled(root, mergeLanes(lanes, SyncLane));
+    upgradePendingLanesToSync(root, lanes);
     ensureRootIsScheduled(root);
 
     if ((executionContext & (RenderContext | CommitContext)) === NoContext) {
@@ -23822,11 +24849,11 @@ function isAlreadyRendering() {
 // place that ever modifies it. Which module it lives in doesn't matter for
 // performance because this function will get inlined regardless
 
-function setRenderLanes(subtreeRenderLanes) {
-  renderLanes = subtreeRenderLanes;
+function setEntangledRenderLanes(newEntangledRenderLanes) {
+  entangledRenderLanes = newEntangledRenderLanes;
 }
-function getRenderLanes() {
-  return renderLanes;
+function getEntangledRenderLanes() {
+  return entangledRenderLanes;
 }
 
 function resetWorkInProgressStack() {
@@ -23877,7 +24904,7 @@ function prepareFreshStack(root, lanes) {
   workInProgressRoot = root;
   var rootWorkInProgress = createWorkInProgress(root.current, null);
   workInProgress = rootWorkInProgress;
-  workInProgressRootRenderLanes = renderLanes = lanes;
+  workInProgressRootRenderLanes = lanes;
   workInProgressSuspendedReason = NotSuspended;
   workInProgressThrownValue = null;
   workInProgressRootDidAttachPingListener = false;
@@ -23886,8 +24913,17 @@ function prepareFreshStack(root, lanes) {
   workInProgressRootSkippedLanes = NoLanes;
   workInProgressRootInterleavedUpdatedLanes = NoLanes;
   workInProgressRootPingedLanes = NoLanes;
+  workInProgressDeferredLane = NoLane;
   workInProgressRootConcurrentErrors = null;
-  workInProgressRootRecoverableErrors = null;
+  workInProgressRootRecoverableErrors = null; // Get the lanes that are entangled with whatever we're about to render. We
+  // track these separately so we can distinguish the priority of the render
+  // task from the priority of the lanes it is entangled with. For example, a
+  // transition may not be allowed to finish unless it includes the Sync lane,
+  // which is currently suspended. We should be able to render the Transition
+  // and Sync lane in the same batch, but at Transition priority, because the
+  // Sync lane already suspended.
+
+  entangledRenderLanes = getEntangledLanes(root, lanes);
   finishQueueingConcurrentUpdates();
 
   {
@@ -24105,7 +25141,7 @@ function renderDidSuspendDelayIfPossible() {
   workInProgressRootExitStatus = RootSuspendedWithDelay; // Check if there are updates that we skipped tree that might have unblocked
   // this render.
 
-  if (workInProgressRoot !== null && (includesNonIdleWork(workInProgressRootSkippedLanes) || includesNonIdleWork(workInProgressRootInterleavedUpdatedLanes))) {
+  if ((includesNonIdleWork(workInProgressRootSkippedLanes) || includesNonIdleWork(workInProgressRootInterleavedUpdatedLanes)) && workInProgressRoot !== null) {
     // Mark the current render as suspended so that we switch to working on
     // the updates that were skipped. Usually we only suspend at the end of
     // the render phase.
@@ -24115,8 +25151,7 @@ function renderDidSuspendDelayIfPossible() {
     // pinged or updated while we were rendering.
     // TODO: Consider unwinding immediately, using the
     // SuspendedOnHydration mechanism.
-    // $FlowFixMe[incompatible-call] need null check workInProgressRoot
-    markRootSuspended(workInProgressRoot, workInProgressRootRenderLanes);
+    markRootSuspended(workInProgressRoot, workInProgressRootRenderLanes, workInProgressDeferredLane);
   }
 }
 function renderDidError(error) {
@@ -24549,10 +25584,10 @@ function performUnitOfWork(unitOfWork) {
 
   if ((unitOfWork.mode & ProfileMode) !== NoMode) {
     startProfilerTimer(unitOfWork);
-    next = beginWork(current, unitOfWork, renderLanes);
+    next = beginWork(current, unitOfWork, entangledRenderLanes);
     stopProfilerTimerIfRunningAndRecordDelta(unitOfWork, true);
   } else {
-    next = beginWork(current, unitOfWork, renderLanes);
+    next = beginWork(current, unitOfWork, entangledRenderLanes);
   }
 
   resetCurrentFiber();
@@ -24648,8 +25683,8 @@ function replaySuspendedUnitOfWork(unitOfWork) {
         // reconciled previously. So it's intentional that we don't call
         // resetSuspendedWorkLoopOnUnwind here.
         unwindInterruptedWork(current, unitOfWork);
-        unitOfWork = workInProgress = resetWorkInProgress(unitOfWork, renderLanes);
-        next = beginWork(current, unitOfWork, renderLanes);
+        unitOfWork = workInProgress = resetWorkInProgress(unitOfWork, entangledRenderLanes);
+        next = beginWork(current, unitOfWork, entangledRenderLanes);
         break;
       }
   }
@@ -24752,10 +25787,10 @@ function completeUnitOfWork(unitOfWork) {
     var next = void 0;
 
     if ((completedWork.mode & ProfileMode) === NoMode) {
-      next = completeWork(current, completedWork, renderLanes);
+      next = completeWork(current, completedWork, entangledRenderLanes);
     } else {
       startProfilerTimer(completedWork);
-      next = completeWork(current, completedWork, renderLanes); // Update render duration assuming we didn't error.
+      next = completeWork(current, completedWork, entangledRenderLanes); // Update render duration assuming we didn't error.
 
       stopProfilerTimerIfRunningAndRecordDelta(completedWork, false);
     }
@@ -24860,7 +25895,7 @@ function unwindUnitOfWork(unitOfWork) {
   workInProgress = null;
 }
 
-function commitRoot(root, recoverableErrors, transitions) {
+function commitRoot(root, recoverableErrors, transitions, spawnedLane) {
   // TODO: This no longer makes any sense. We already wrap the mutation and
   // layout phases. Should be able to remove.
   var previousUpdateLanePriority = getCurrentUpdatePriority();
@@ -24869,7 +25904,7 @@ function commitRoot(root, recoverableErrors, transitions) {
   try {
     ReactCurrentBatchConfig$1.transition = null;
     setCurrentUpdatePriority(DiscreteEventPriority);
-    commitRootImpl(root, recoverableErrors, transitions, previousUpdateLanePriority);
+    commitRootImpl(root, recoverableErrors, transitions, previousUpdateLanePriority, spawnedLane);
   } finally {
     ReactCurrentBatchConfig$1.transition = prevTransition;
     setCurrentUpdatePriority(previousUpdateLanePriority);
@@ -24878,7 +25913,7 @@ function commitRoot(root, recoverableErrors, transitions) {
   return null;
 }
 
-function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLevel) {
+function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLevel, spawnedLane) {
   do {
     // `flushPassiveEffects` will call `flushSyncUpdateQueue` at the end, which
     // means `flushPassiveEffects` will sometimes result in additional
@@ -24936,7 +25971,7 @@ function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLeve
 
   var concurrentlyUpdatedLanes = getConcurrentlyUpdatedLanes();
   remainingLanes = mergeLanes(remainingLanes, concurrentlyUpdatedLanes);
-  markRootFinished(root, remainingLanes);
+  markRootFinished(root, remainingLanes, spawnedLane);
 
   if (root === workInProgressRoot) {
     // We can reset these now that they are finished.
@@ -25131,9 +26166,14 @@ function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLeve
   } // Read this again, since a passive effect might have updated it
 
 
-  remainingLanes = root.pendingLanes;
+  remainingLanes = root.pendingLanes; // Check if this render scheduled a cascading synchronous update. This is a
+  // heurstic to detect infinite update loops. We are intentionally excluding
+  // hydration lanes in this check, because render triggered by selective
+  // hydration is conceptually not an update.
 
-  if (includesSyncLane(remainingLanes)) {
+  if ( // Was the finished render the result of an update (not hydration)?
+  includesSomeLane(lanes, UpdateLanes) && // Did it schedule a sync update?
+  includesSomeLane(remainingLanes, SyncUpdateLanes)) {
     {
       markNestedUpdateScheduled();
     } // Count the number of times the root synchronously re-renders without
@@ -26990,7 +28030,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-canary-09285d5a7-20230925';
+var ReactVersion = '18.3.0-canary-2c338b16f-20231116';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -28270,6 +29310,114 @@ var WheelEventInterface = assign({}, MouseEventInterface, {
 
 var SyntheticWheelEvent = createSyntheticEvent(WheelEventInterface);
 
+/**
+ * This plugin invokes action functions on forms, inputs and buttons if
+ * the form doesn't prevent default.
+ */
+
+function extractEvents$6(dispatchQueue, domEventName, maybeTargetInst, nativeEvent, nativeEventTarget, eventSystemFlags, targetContainer) {
+  if (domEventName !== 'submit') {
+    return;
+  }
+
+  if (!maybeTargetInst || maybeTargetInst.stateNode !== nativeEventTarget) {
+    // If we're inside a parent root that itself is a parent of this root, then
+    // its deepest target won't be the actual form that's being submitted.
+    return;
+  }
+
+  var formInst = maybeTargetInst;
+  var form = nativeEventTarget;
+  var action = getFiberCurrentPropsFromNode(form).action;
+  var submitter = nativeEvent.submitter;
+  var submitterAction;
+
+  if (submitter) {
+    var submitterProps = getFiberCurrentPropsFromNode(submitter);
+    submitterAction = submitterProps ? submitterProps.formAction : submitter.getAttribute('formAction');
+
+    if (submitterAction != null) {
+      // The submitter overrides the form action.
+      action = submitterAction; // If the action is a function, we don't want to pass its name
+      // value to the FormData since it's controlled by the server.
+
+      submitter = null;
+    }
+  }
+
+  if (typeof action !== 'function') {
+    return;
+  }
+
+  var event = new SyntheticEvent('action', 'action', null, nativeEvent, nativeEventTarget);
+
+  function submitForm() {
+    if (nativeEvent.defaultPrevented) {
+      // We let earlier events to prevent the action from submitting.
+      return;
+    } // Prevent native navigation.
+
+
+    event.preventDefault();
+    var formData;
+
+    if (submitter) {
+      // The submitter's value should be included in the FormData.
+      // It should be in the document order in the form.
+      // Since the FormData constructor invokes the formdata event it also
+      // needs to be available before that happens so after construction it's too
+      // late. We use a temporary fake node for the duration of this event.
+      // TODO: FormData takes a second argument that it's the submitter but this
+      // is fairly new so not all browsers support it yet. Switch to that technique
+      // when available.
+      var temp = submitter.ownerDocument.createElement('input');
+      temp.name = submitter.name;
+      temp.value = submitter.value;
+      submitter.parentNode.insertBefore(temp, submitter);
+      formData = new FormData(form);
+      temp.parentNode.removeChild(temp);
+    } else {
+      formData = new FormData(form);
+    }
+
+    var pendingState = {
+      pending: true,
+      data: formData,
+      method: form.method,
+      action: action
+    };
+
+    {
+      Object.freeze(pendingState);
+    }
+
+    startHostTransition(formInst, pendingState, action, formData);
+  }
+
+  dispatchQueue.push({
+    event: event,
+    listeners: [{
+      instance: null,
+      listener: submitForm,
+      currentTarget: form
+    }]
+  });
+}
+function dispatchReplayedFormAction(formInst, form, action, formData) {
+  var pendingState = {
+    pending: true,
+    data: formData,
+    method: form.method,
+    action: action
+  };
+
+  {
+    Object.freeze(pendingState);
+  }
+
+  startHostTransition(formInst, pendingState, action, formData);
+}
+
 // has this definition built-in.
 
 var hasScheduledReplayAttempt = false; // The last of each continuous event type. We only need to replay the last one
@@ -28552,6 +29700,65 @@ function scheduleCallbackIfUnblocked(queuedEvent, unblocked) {
   }
 } // [form, submitter or action, formData...]
 
+
+var lastScheduledReplayQueue = null;
+
+function replayUnblockedFormActions(formReplayingQueue) {
+  if (lastScheduledReplayQueue === formReplayingQueue) {
+    lastScheduledReplayQueue = null;
+  }
+
+  for (var i = 0; i < formReplayingQueue.length; i += 3) {
+    var form = formReplayingQueue[i];
+    var submitterOrAction = formReplayingQueue[i + 1];
+    var formData = formReplayingQueue[i + 2];
+
+    if (typeof submitterOrAction !== 'function') {
+      // This action is not hydrated yet. This might be because it's blocked on
+      // a different React instance or higher up our tree.
+      var blockedOn = findInstanceBlockingTarget(submitterOrAction || form);
+
+      if (blockedOn === null) {
+        // We're not blocked but we don't have an action. This must mean that
+        // this is in another React instance. We'll just skip past it.
+        continue;
+      } else {
+        // We're blocked on something in this React instance. We'll retry later.
+        break;
+      }
+    }
+
+    var formInst = getInstanceFromNode(form);
+
+    if (formInst !== null) {
+      // This is part of our instance.
+      // We're ready to replay this. Let's delete it from the queue.
+      formReplayingQueue.splice(i, 3);
+      i -= 3;
+      dispatchReplayedFormAction(formInst, form, submitterOrAction, formData); // Continue without incrementing the index.
+
+      continue;
+    } // This form must've been part of a different React instance.
+    // If we want to preserve ordering between React instances on the same root
+    // we'd need some way for the other instance to ping us when it's done.
+    // We'll just skip this and let the other instance execute it.
+
+  }
+}
+
+function scheduleReplayQueueIfNeeded(formReplayingQueue) {
+  // Schedule a callback to execute any unblocked form actions in.
+  // We only keep track of the last queue which means that if multiple React oscillate
+  // commits, we could schedule more callbacks than necessary but it's not a big deal
+  // and we only really except one instance.
+  if (lastScheduledReplayQueue !== formReplayingQueue) {
+    lastScheduledReplayQueue = formReplayingQueue;
+    Scheduler.unstable_scheduleCallback(Scheduler.unstable_NormalPriority, function () {
+      return replayUnblockedFormActions(formReplayingQueue);
+    });
+  }
+}
+
 function retryIfBlockedOn(unblocked) {
   if (queuedFocus !== null) {
     scheduleCallbackIfUnblocked(queuedFocus, unblocked);
@@ -28592,6 +29799,79 @@ function retryIfBlockedOn(unblocked) {
       if (nextExplicitTarget.blockedOn === null) {
         // We're unblocked.
         queuedExplicitHydrationTargets.shift();
+      }
+    }
+  }
+
+  {
+    // Check the document if there are any queued form actions.
+    var root = unblocked.getRootNode();
+    var formReplayingQueue = root.$$reactFormReplay;
+
+    if (formReplayingQueue != null) {
+      for (var _i = 0; _i < formReplayingQueue.length; _i += 3) {
+        var form = formReplayingQueue[_i];
+        var submitterOrAction = formReplayingQueue[_i + 1];
+        var formProps = getFiberCurrentPropsFromNode(form);
+
+        if (typeof submitterOrAction === 'function') {
+          // This action has already resolved. We're just waiting to dispatch it.
+          if (!formProps) {
+            // This was not part of this React instance. It might have been recently
+            // unblocking us from dispatching our events. So let's make sure we schedule
+            // a retry.
+            scheduleReplayQueueIfNeeded(formReplayingQueue);
+          }
+
+          continue;
+        }
+
+        var target = form;
+
+        if (formProps) {
+          // This form belongs to this React instance but the submitter might
+          // not be done yet.
+          var action = null;
+          var submitter = submitterOrAction;
+
+          if (submitter && submitter.hasAttribute('formAction')) {
+            // The submitter is the one that is responsible for the action.
+            target = submitter;
+            var submitterProps = getFiberCurrentPropsFromNode(submitter);
+
+            if (submitterProps) {
+              // The submitter is part of this instance.
+              action = submitterProps.formAction;
+            } else {
+              var blockedOn = findInstanceBlockingTarget(target);
+
+              if (blockedOn !== null) {
+                // The submitter is not hydrated yet. We'll wait for it.
+                continue;
+              } // The submitter must have been a part of a different React instance.
+              // Except the form isn't. We don't dispatch actions in this scenario.
+
+            }
+          } else {
+            action = formProps.action;
+          }
+
+          if (typeof action === 'function') {
+            formReplayingQueue[_i + 1] = action;
+          } else {
+            // Something went wrong so let's just delete this action.
+            formReplayingQueue.splice(_i, 3);
+            _i -= 3;
+          } // Schedule a replay in case this unblocked something.
+
+
+          scheduleReplayQueueIfNeeded(formReplayingQueue);
+          continue;
+        } // Something above this target is still blocked so we can't continue yet.
+        // We're not sure if this target is actually part of this React instance
+        // yet. It could be a different React as a child but at least some parent is.
+        // We must continue for any further queued actions.
+
       }
     }
   }
@@ -30424,7 +31704,7 @@ var topLevelEventsToReactNames = new Map(); // NOTE: Capitalization is important
 //
 // prettier-ignore
 
-var simpleEventPluginEvents = ['abort', 'auxClick', 'cancel', 'canPlay', 'canPlayThrough', 'click', 'close', 'contextMenu', 'copy', 'cut', 'drag', 'dragEnd', 'dragEnter', 'dragExit', 'dragLeave', 'dragOver', 'dragStart', 'drop', 'durationChange', 'emptied', 'encrypted', 'ended', 'error', 'gotPointerCapture', 'input', 'invalid', 'keyDown', 'keyPress', 'keyUp', 'load', 'loadedData', 'loadedMetadata', 'loadStart', 'lostPointerCapture', 'mouseDown', 'mouseMove', 'mouseOut', 'mouseOver', 'mouseUp', 'paste', 'pause', 'play', 'playing', 'pointerCancel', 'pointerDown', 'pointerMove', 'pointerOut', 'pointerOver', 'pointerUp', 'progress', 'rateChange', 'reset', 'resize', 'seeked', 'seeking', 'stalled', 'submit', 'suspend', 'timeUpdate', 'touchCancel', 'touchEnd', 'touchStart', 'volumeChange', 'scroll', 'toggle', 'touchMove', 'waiting', 'wheel'];
+var simpleEventPluginEvents = ['abort', 'auxClick', 'cancel', 'canPlay', 'canPlayThrough', 'click', 'close', 'contextMenu', 'copy', 'cut', 'drag', 'dragEnd', 'dragEnter', 'dragExit', 'dragLeave', 'dragOver', 'dragStart', 'drop', 'durationChange', 'emptied', 'encrypted', 'ended', 'error', 'gotPointerCapture', 'input', 'invalid', 'keyDown', 'keyPress', 'keyUp', 'load', 'loadedData', 'loadedMetadata', 'loadStart', 'lostPointerCapture', 'mouseDown', 'mouseMove', 'mouseOut', 'mouseOver', 'mouseUp', 'paste', 'pause', 'play', 'playing', 'pointerCancel', 'pointerDown', 'pointerMove', 'pointerOut', 'pointerOver', 'pointerUp', 'progress', 'rateChange', 'reset', 'resize', 'seeked', 'seeking', 'stalled', 'submit', 'suspend', 'timeUpdate', 'touchCancel', 'touchEnd', 'touchStart', 'volumeChange', 'scroll', 'scrollEnd', 'toggle', 'touchMove', 'waiting', 'wheel'];
 
 function registerSimpleEvent(domEventName, reactName) {
   topLevelEventsToReactNames.set(domEventName, reactName);
@@ -30546,6 +31826,7 @@ function extractEvents$1(dispatchQueue, domEventName, targetInst, nativeEvent, n
       break;
 
     case 'scroll':
+    case 'scrollend':
       SyntheticEventCtor = SyntheticUIEvent;
       break;
 
@@ -30578,11 +31859,11 @@ function extractEvents$1(dispatchQueue, domEventName, targetInst, nativeEvent, n
     // In the past, React has always bubbled them, but this can be surprising.
     // We're going to try aligning closer to the browser behavior by not bubbling
     // them in React either. We'll start by not bubbling onScroll, and then expand.
-    var accumulateTargetOnly = !inCapturePhase && // TODO: ideally, we'd eventually add all events from
+    var accumulateTargetOnly = !inCapturePhase && ( // TODO: ideally, we'd eventually add all events from
     // nonDelegatedEvents list in DOMPluginEventSystem.
     // Then we can remove this special list.
     // This is a breaking change that can wait until React 18.
-    domEventName === 'scroll';
+    domEventName === 'scroll' || domEventName === 'scrollend');
 
     var _listeners = accumulateSinglePhaseListeners(targetInst, reactName, nativeEvent.type, inCapturePhase, accumulateTargetOnly);
 
@@ -30635,6 +31916,10 @@ function extractEvents(dispatchQueue, domEventName, targetInst, nativeEvent, nat
     extractEvents$4(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
     extractEvents$2(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
     extractEvents$5(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
+
+    {
+      extractEvents$6(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
+    }
   }
 } // List of events that need to be individually attached to media elements.
 
@@ -30643,7 +31928,7 @@ var mediaEventTypes = ['abort', 'canplay', 'canplaythrough', 'durationchange', '
 // set them on the actual target element itself. This is primarily
 // because these events do not consistently bubble in the DOM.
 
-var nonDelegatedEvents = new Set(['cancel', 'close', 'invalid', 'load', 'scroll', 'toggle'].concat(mediaEventTypes));
+var nonDelegatedEvents = new Set(['cancel', 'close', 'invalid', 'load', 'scroll', 'scrollend', 'toggle'].concat(mediaEventTypes));
 
 function executeDispatch(event, listener, currentTarget) {
   var type = event.type || 'unknown-event';
@@ -31428,7 +32713,42 @@ function setProp(domElement, tag, key, value, props, prevValue) {
           validateFormActionInDevelopment(tag, key, value, props);
         }
 
-        if (value == null || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
+        {
+          if (typeof value === 'function') {
+            // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
+            // because we'll preventDefault, but it can happen if a form is manually submitted or
+            // if someone calls stopPropagation before React gets the event.
+            // If CSP is used to block javascript: URLs that's fine too. It just won't show this
+            // error message but the URL will be logged.
+            domElement.setAttribute(key, // eslint-disable-next-line no-script-url
+            "javascript:throw new Error('" + 'A React form was unexpectedly submitted. If you called form.submit() manually, ' + "consider using form.requestSubmit() instead. If you\\'re trying to use " + 'event.stopPropagation() in a submit event handler, consider also calling ' + 'event.preventDefault().' + "')");
+            break;
+          } else if (typeof prevValue === 'function') {
+            // When we're switching off a Server Action that was originally hydrated.
+            // The server control these fields during SSR that are now trailing.
+            // The regular diffing doesn't apply since we compare against the previous props.
+            // Instead, we need to force them to be set to whatever they should be now.
+            // This would be a lot cleaner if we did this whole fork in the per-tag approach.
+            if (key === 'formAction') {
+              if (tag !== 'input') {
+                // Setting the name here isn't completely safe for inputs if this is switching
+                // to become a radio button. In that case we let the tag based override take
+                // control.
+                setProp(domElement, tag, 'name', props.name, props, null);
+              }
+
+              setProp(domElement, tag, 'formEncType', props.formEncType, props, null);
+              setProp(domElement, tag, 'formMethod', props.formMethod, props, null);
+              setProp(domElement, tag, 'formTarget', props.formTarget, props, null);
+            } else {
+              setProp(domElement, tag, 'encType', props.encType, props, null);
+              setProp(domElement, tag, 'method', props.method, props, null);
+              setProp(domElement, tag, 'target', props.target, props, null);
+            }
+          }
+        }
+
+        if (value == null || !enableFormActions  || typeof value === 'symbol' || typeof value === 'boolean') {
           domElement.removeAttribute(key);
           break;
         } // `setAttribute` with objects becomes only `[object]` in IE8/9,
@@ -31467,6 +32787,19 @@ function setProp(domElement, tag, key, value, props, prevValue) {
           }
 
           listenToNonDelegatedEvent('scroll', domElement);
+        }
+
+        break;
+      }
+
+    case 'onScrollEnd':
+      {
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          listenToNonDelegatedEvent('scrollend', domElement);
         }
 
         break;
@@ -31790,6 +33123,19 @@ function setPropOnCustomElement(domElement, tag, key, value, props, prevValue) {
           }
 
           listenToNonDelegatedEvent('scroll', domElement);
+        }
+
+        break;
+      }
+
+    case 'onScrollEnd':
+      {
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          listenToNonDelegatedEvent('scrollend', domElement);
         }
 
         break;
@@ -33087,6 +34433,12 @@ function diffHydratedCustomComponent(domElement, tag, props, hostContext, extraA
     }
   }
 } // This is the exact URL string we expect that Fizz renders if we provide a function action.
+// We use this for hydration warnings. It needs to be in sync with Fizz. Maybe makes sense
+// as a shared module for that reason.
+
+
+var EXPECTED_FORM_ACTION_URL = // eslint-disable-next-line no-script-url
+"javascript:throw new Error('A React form was unexpectedly submitted.')";
 
 function diffHydratedGenericElement(domElement, tag, props, hostContext, extraAttributes) {
   for (var propKey in props) {
@@ -33186,6 +34538,37 @@ function diffHydratedGenericElement(domElement, tag, props, hostContext, extraAt
 
       case 'action':
       case 'formAction':
+        {
+          var _serverValue4 = domElement.getAttribute(propKey);
+
+          if (typeof value === 'function') {
+            extraAttributes.delete(propKey.toLowerCase()); // The server can set these extra properties to implement actions.
+            // So we remove them from the extra attributes warnings.
+
+            if (propKey === 'formAction') {
+              extraAttributes.delete('name');
+              extraAttributes.delete('formenctype');
+              extraAttributes.delete('formmethod');
+              extraAttributes.delete('formtarget');
+            } else {
+              extraAttributes.delete('enctype');
+              extraAttributes.delete('method');
+              extraAttributes.delete('target');
+            } // Ideally we should be able to warn if the server value was not a function
+            // however since the function can return any of these attributes any way it
+            // wants as a custom progressive enhancement, there's nothing to compare to.
+            // We can check if the function has the $FORM_ACTION property on the client
+            // and if it's not, warn, but that's an unnecessary constraint that they
+            // have to have the extra extension that doesn't do anything on the client.
+
+
+            continue;
+          } else if (_serverValue4 === EXPECTED_FORM_ACTION_URL) {
+            extraAttributes.delete(propKey.toLowerCase());
+            warnForPropDifference(propKey, 'function', value);
+            continue;
+          }
+        }
 
         hydrateSanitizedAttribute(domElement, propKey, propKey.toLowerCase(), value, extraAttributes);
         continue;
@@ -33492,6 +34875,10 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
     listenToNonDelegatedEvent('scroll', domElement);
   }
 
+  if (props.onScrollEnd != null) {
+    listenToNonDelegatedEvent('scrollend', domElement);
+  }
+
   if (props.onClick != null) {
     // TODO: This cast may not be sound for SVG, MathML or custom elements.
     trapClickOnNonInteractiveElement(domElement);
@@ -33652,6 +35039,8 @@ var SUSPENSE_START_DATA = '$';
 var SUSPENSE_END_DATA = '/$';
 var SUSPENSE_PENDING_START_DATA = '$?';
 var SUSPENSE_FALLBACK_START_DATA = '$!';
+var FORM_STATE_IS_MATCHING = 'F!';
+var FORM_STATE_IS_NOT_MATCHING = 'F';
 var STYLE = 'style';
 var HostContextNamespaceNone = 0;
 var HostContextNamespaceSvg = 1;
@@ -33968,8 +35357,31 @@ function getCurrentEventPriority() {
 
   return getEventPriority(currentEvent.type);
 }
+var currentPopstateTransitionEvent = null;
 function shouldAttemptEagerTransition() {
-  return window.event && window.event.type === 'popstate';
+  var event = window.event;
+
+  if (event && event.type === 'popstate') {
+    // This is a popstate event. Attempt to render any transition during this
+    // event synchronously. Unless we already attempted during this event.
+    if (event === currentPopstateTransitionEvent) {
+      // We already attempted to render this popstate transition synchronously.
+      // Any subsequent attempts must have happened as the result of a derived
+      // update, like startTransition inside useEffect, or useDV. Switch back to
+      // the default behavior for all remaining transitions during the current
+      // popstate event.
+      return false;
+    } else {
+      // Cache the current event in case a derived transition is scheduled.
+      // (Refer to previous branch.)
+      currentPopstateTransitionEvent = event;
+      return true;
+    }
+  } // We're not inside a popstate event.
+
+
+  currentPopstateTransitionEvent = null;
+  return false;
 }
 // if a component just imports ReactDOM (e.g. for findDOMNode).
 // Some environments might not have setTimeout or clearTimeout.
@@ -34246,14 +35658,24 @@ function canHydrateInstance(instance, type, props, inRootOrSingleton) {
     if (element.nodeName.toLowerCase() !== type.toLowerCase()) {
       if (!inRootOrSingleton || !enableHostSingletons) {
         // Usually we error for mismatched tags.
-        {
+        if (element.nodeName === 'INPUT' && element.type === 'hidden') ; else {
           return null;
         }
       } // In root or singleton parents we skip past mismatched instances.
 
     } else if (!inRootOrSingleton || !enableHostSingletons) {
       // Match
-      {
+      if (type === 'input' && element.type === 'hidden') {
+        {
+          checkAttributeStringCoercion(anyProps.name, 'name');
+        }
+
+        var name = anyProps.name == null ? null : '' + anyProps.name;
+
+        if (anyProps.type !== 'hidden' || element.getAttribute('name') !== name) ; else {
+          return element;
+        }
+      } else {
         return element;
       }
     } else if (isMarkedHoistable(element)) ; else {
@@ -34363,7 +35785,7 @@ function canHydrateTextInstance(instance, text, inRootOrSingleton) {
   if (text === '') return null;
 
   while (instance.nodeType !== TEXT_NODE) {
-    if (!inRootOrSingleton || !enableHostSingletons) {
+    if (instance.nodeType === ELEMENT_NODE && instance.nodeName === 'INPUT' && instance.type === 'hidden') ; else if (!inRootOrSingleton || !enableHostSingletons) {
       return null;
     }
 
@@ -34427,6 +35849,33 @@ function getSuspenseInstanceFallbackErrorDetails(instance) {
 function registerSuspenseInstanceRetry(instance, callback) {
   instance._reactRetry = callback;
 }
+function canHydrateFormStateMarker(instance, inRootOrSingleton) {
+  while (instance.nodeType !== COMMENT_NODE) {
+    if (!inRootOrSingleton || !enableHostSingletons) {
+      return null;
+    }
+
+    var nextInstance = getNextHydratableSibling(instance);
+
+    if (nextInstance === null) {
+      return null;
+    }
+
+    instance = nextInstance;
+  }
+
+  var nodeData = instance.data;
+
+  if (nodeData === FORM_STATE_IS_MATCHING || nodeData === FORM_STATE_IS_NOT_MATCHING) {
+    var markerInstance = instance;
+    return markerInstance;
+  }
+
+  return null;
+}
+function isFormStateMarkerMatching(markerInstance) {
+  return markerInstance.data === FORM_STATE_IS_MATCHING;
+}
 
 function getNextHydratable(node) {
   // Skip non-hydratable nodes.
@@ -34440,7 +35889,7 @@ function getNextHydratable(node) {
     if (nodeType === COMMENT_NODE) {
       var nodeData = node.data;
 
-      if (nodeData === SUSPENSE_START_DATA || nodeData === SUSPENSE_FALLBACK_START_DATA || nodeData === SUSPENSE_PENDING_START_DATA || enableFormActions  ) {
+      if (nodeData === SUSPENSE_START_DATA || nodeData === SUSPENSE_FALLBACK_START_DATA || nodeData === SUSPENSE_PENDING_START_DATA || (nodeData === FORM_STATE_IS_MATCHING || nodeData === FORM_STATE_IS_NOT_MATCHING)) {
         break;
       }
 
@@ -34547,6 +35996,9 @@ function commitHydratedContainer(container) {
 function commitHydratedSuspenseInstance(suspenseInstance) {
   // Retry if any event replaying was blocked on this.
   retryIfBlockedOn(suspenseInstance);
+}
+function shouldDeleteUnhydratedTailInstances(parentType) {
+  return (parentType !== 'form' && parentType !== 'button');
 }
 function didNotMatchHydratedContainerTextInstance(parentContainer, textInstance, text, isConcurrentMode, shouldWarnDev) {
   checkForUnmatchedText(textInstance.nodeValue, text, isConcurrentMode, shouldWarnDev);
@@ -34999,7 +36451,7 @@ function preinitStyle(href, precedence, options) {
     var instance = ownerDocument.querySelector(getStylesheetSelectorFromKey(key));
 
     if (instance) {
-      state.loading = Loaded;
+      state.loading = Loaded | Inserted;
     } else {
       // Construct a new instance and insert it
       var stylesheetProps = assign({
@@ -35392,6 +36844,7 @@ function acquireResource(hoistableRoot, resource, props) {
           var _instance = hoistableRoot.querySelector(getStylesheetSelectorFromKey(key));
 
           if (_instance) {
+            resource.state.loading |= Inserted;
             resource.instance = _instance;
             markNodeAsHoistable(_instance);
             return _instance;
@@ -35861,70 +37314,72 @@ function suspendResource(hoistableRoot, resource, props) {
       }
     }
 
-    if (resource.instance === null) {
-      var qualifiedProps = props;
-      var key = getStyleKey(qualifiedProps.href); // Attempt to hydrate instance from DOM
+    if ((resource.state.loading & Inserted) === NotLoaded) {
+      if (resource.instance === null) {
+        var qualifiedProps = props;
+        var key = getStyleKey(qualifiedProps.href); // Attempt to hydrate instance from DOM
 
-      var instance = hoistableRoot.querySelector(getStylesheetSelectorFromKey(key));
+        var instance = hoistableRoot.querySelector(getStylesheetSelectorFromKey(key));
 
-      if (instance) {
-        // If this instance has a loading state it came from the Fizz runtime.
-        // If there is not loading state it is assumed to have been server rendered
-        // as part of the preamble and therefore synchronously loaded. It could have
-        // errored however which we still do not yet have a means to detect. For now
-        // we assume it is loaded.
-        var maybeLoadingState = instance._p;
+        if (instance) {
+          // If this instance has a loading state it came from the Fizz runtime.
+          // If there is not loading state it is assumed to have been server rendered
+          // as part of the preamble and therefore synchronously loaded. It could have
+          // errored however which we still do not yet have a means to detect. For now
+          // we assume it is loaded.
+          var maybeLoadingState = instance._p;
 
-        if (maybeLoadingState !== null && typeof maybeLoadingState === 'object' && // $FlowFixMe[method-unbinding]
-        typeof maybeLoadingState.then === 'function') {
-          var loadingState = maybeLoadingState;
-          state.count++;
-          var ping = onUnsuspend.bind(state);
-          loadingState.then(ping, ping);
+          if (maybeLoadingState !== null && typeof maybeLoadingState === 'object' && // $FlowFixMe[method-unbinding]
+          typeof maybeLoadingState.then === 'function') {
+            var loadingState = maybeLoadingState;
+            state.count++;
+            var ping = onUnsuspend.bind(state);
+            loadingState.then(ping, ping);
+          }
+
+          resource.state.loading |= Inserted;
+          resource.instance = instance;
+          markNodeAsHoistable(instance);
+          return;
         }
 
-        resource.state.loading |= Inserted;
-        resource.instance = instance;
+        var ownerDocument = getDocumentFromRoot(hoistableRoot);
+        var stylesheetProps = stylesheetPropsFromRawProps(props);
+        var preloadProps = preloadPropsMap.get(key);
+
+        if (preloadProps) {
+          adoptPreloadPropsForStylesheet(stylesheetProps, preloadProps);
+        } // Construct and insert a new instance
+
+
+        instance = ownerDocument.createElement('link');
         markNodeAsHoistable(instance);
-        return;
+        var linkInstance = instance; // This Promise is a loading state used by the Fizz runtime. We need this incase there is a race
+        // between this resource being rendered on the client and being rendered with a late completed boundary.
+
+        linkInstance._p = new Promise(function (resolve, reject) {
+          linkInstance.onload = resolve;
+          linkInstance.onerror = reject;
+        });
+        setInitialProperties(instance, 'link', stylesheetProps);
+        resource.instance = instance;
       }
 
-      var ownerDocument = getDocumentFromRoot(hoistableRoot);
-      var stylesheetProps = stylesheetPropsFromRawProps(props);
-      var preloadProps = preloadPropsMap.get(key);
+      if (state.stylesheets === null) {
+        state.stylesheets = new Map();
+      }
 
-      if (preloadProps) {
-        adoptPreloadPropsForStylesheet(stylesheetProps, preloadProps);
-      } // Construct and insert a new instance
+      state.stylesheets.set(resource, hoistableRoot);
+      var preloadEl = resource.state.preload;
 
+      if (preloadEl && (resource.state.loading & Settled) === NotLoaded) {
+        state.count++;
 
-      instance = ownerDocument.createElement('link');
-      markNodeAsHoistable(instance);
-      var linkInstance = instance; // This Promise is a loading state used by the Fizz runtime. We need this incase there is a race
-      // between this resource being rendered on the client and being rendered with a late completed boundary.
+        var _ping = onUnsuspend.bind(state);
 
-      linkInstance._p = new Promise(function (resolve, reject) {
-        linkInstance.onload = resolve;
-        linkInstance.onerror = reject;
-      });
-      setInitialProperties(instance, 'link', stylesheetProps);
-      resource.instance = instance;
-    }
-
-    if (state.stylesheets === null) {
-      state.stylesheets = new Map();
-    }
-
-    state.stylesheets.set(resource, hoistableRoot);
-    var preloadEl = resource.state.preload;
-
-    if (preloadEl && (resource.state.loading & Settled) === NotLoaded) {
-      state.count++;
-
-      var _ping = onUnsuspend.bind(state);
-
-      preloadEl.addEventListener('load', _ping);
-      preloadEl.addEventListener('error', _ping);
+        preloadEl.addEventListener('load', _ping);
+        preloadEl.addEventListener('error', _ping);
+      }
     }
   }
 }
@@ -36077,6 +37532,8 @@ function insertStylesheetIntoRoot(root, resource, map) {
 
   resource.state.loading |= Inserted;
 }
+
+var NotPendingTransition = NotPending;
 
 var Dispatcher$1 = Internals.Dispatcher;
 
@@ -36247,6 +37704,12 @@ function hydrateRoot$1(container, initialChildren, options) {
 
     if (options.unstable_transitionCallbacks !== undefined) {
       transitionCallbacks = options.unstable_transitionCallbacks;
+    }
+
+    {
+      if (options.formState !== undefined) {
+        formState = options.formState;
+      }
     }
   }
 
@@ -36555,6 +38018,25 @@ function unmountComponentAtNode(container) {
   }
 }
 
+function getCrossOriginString(input) {
+  if (typeof input === 'string') {
+    return input === 'use-credentials' ? input : '';
+  }
+
+  return undefined;
+}
+function getCrossOriginStringAs(as, input) {
+  if (as === 'font') {
+    return '';
+  }
+
+  if (typeof input === 'string') {
+    return input === 'use-credentials' ? input : '';
+  }
+
+  return undefined;
+}
+
 var Dispatcher = Internals.Dispatcher;
 function prefetchDNS(href) {
   {
@@ -36594,7 +38076,7 @@ function preconnect(href, options) {
   var dispatcher = Dispatcher.current;
 
   if (dispatcher && typeof href === 'string') {
-    var crossOrigin = options ? getCrossOrigin('preconnect', options.crossOrigin) : null;
+    var crossOrigin = options ? getCrossOriginString(options.crossOrigin) : null;
     dispatcher.preconnect(href, crossOrigin);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
@@ -36625,7 +38107,7 @@ function preload(href, options) {
   if (dispatcher && typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
   typeof options === 'object' && options !== null && typeof options.as === 'string') {
     var as = options.as;
-    var crossOrigin = getCrossOrigin(as, options.crossOrigin);
+    var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
     dispatcher.preload(href, as, {
       crossOrigin: crossOrigin,
       integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
@@ -36664,7 +38146,7 @@ function preloadModule(href, options) {
 
   if (dispatcher && typeof href === 'string') {
     if (options) {
-      var crossOrigin = getCrossOrigin(options.as, options.crossOrigin);
+      var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
       dispatcher.preloadModule(href, {
         as: typeof options.as === 'string' && options.as !== 'script' ? options.as : undefined,
         crossOrigin: crossOrigin,
@@ -36693,7 +38175,7 @@ function preinit(href, options) {
 
   if (dispatcher && typeof href === 'string' && options && typeof options.as === 'string') {
     var as = options.as;
-    var crossOrigin = getCrossOrigin(as, options.crossOrigin);
+    var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
     var integrity = typeof options.integrity === 'string' ? options.integrity : undefined;
     var fetchPriority = typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined;
 
@@ -36755,21 +38237,22 @@ function preinitModule(href, options) {
   var dispatcher = Dispatcher.current;
 
   if (dispatcher && typeof href === 'string') {
-    if (options == null || typeof options === 'object' && (options.as == null || options.as === 'script')) {
-      var crossOrigin = options ? getCrossOrigin(undefined, options.crossOrigin) : undefined;
-      dispatcher.preinitModuleScript(href, {
-        crossOrigin: crossOrigin,
-        integrity: options && typeof options.integrity === 'string' ? options.integrity : undefined
-      });
+    if (typeof options === 'object' && options !== null) {
+      if (options.as == null || options.as === 'script') {
+        var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
+        dispatcher.preinitModuleScript(href, {
+          crossOrigin: crossOrigin,
+          integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
+          nonce: typeof options.nonce === 'string' ? options.nonce : undefined
+        });
+      }
+    } else if (options == null) {
+      dispatcher.preinitModuleScript(href);
     }
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
-}
-
-function getCrossOrigin(as, crossOrigin) {
-  return as === 'font' ? '' : typeof crossOrigin === 'string' ? crossOrigin === 'use-credentials' ? 'use-credentials' : '' : undefined;
 }
 
 function getValueDescriptorExpectingObjectForWarning(thing) {
@@ -36878,6 +38361,8 @@ exports.render = render;
 exports.unmountComponentAtNode = unmountComponentAtNode;
 exports.unstable_batchedUpdates = batchedUpdates$1;
 exports.unstable_renderSubtreeIntoContainer = renderSubtreeIntoContainer;
+exports.useFormState = useFormState;
+exports.useFormStatus = useFormStatus;
 exports.version = ReactVersion;
           /* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
 if (

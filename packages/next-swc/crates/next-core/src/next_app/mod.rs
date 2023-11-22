@@ -285,6 +285,29 @@ impl Display for PathSegment {
 )]
 pub struct AppPath(pub Vec<PathSegment>);
 
+impl AppPath {
+    pub fn is_dynamic(&self) -> bool {
+        self.iter().any(|segment| {
+            matches!(
+                (segment,),
+                (PathSegment::Dynamic(_)
+                    | PathSegment::CatchAll(_)
+                    | PathSegment::OptionalCatchAll(_),)
+            )
+        })
+    }
+
+    pub fn contains(&self, other: &AppPath) -> bool {
+        for (i, segment) in other.0.iter().enumerate() {
+            if self.0.get(i) != Some(segment) {
+                return false;
+            }
+        }
+
+        true
+    }
+}
+
 impl Deref for AppPath {
     type Target = [PathSegment];
 

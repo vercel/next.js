@@ -138,7 +138,7 @@ createNextDescribe(
 )
 
 createNextDescribe(
-  'app dir middleware without pages dir',
+  'app dir - middleware without pages dir',
   {
     files: {
       app: new FileRef(path.join(__dirname, 'app')),
@@ -168,7 +168,7 @@ createNextDescribe(
 )
 
 createNextDescribe(
-  'app dir middleware with middleware in src dir',
+  'app dir - middleware with middleware in src dir',
   {
     files: {
       'src/app': new FileRef(path.join(__dirname, 'app')),

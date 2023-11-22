@@ -338,34 +338,39 @@ describe('Telemetry CLI', () => {
     expect(event).toMatch(/"hasWebpackConfig": true/)
     expect(event).toMatch(/"hasBabelConfig": false/)
   })
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    it('detect static 404 correctly for `next build`', async () => {
+      const { stderr } = await nextBuild(appDir, [], {
+        stderr: true,
+        env: { NEXT_TELEMETRY_DEBUG: 1 },
+      })
 
-  it('detect static 404 correctly for `next build`', async () => {
-    const { stderr } = await nextBuild(appDir, [], {
-      stderr: true,
-      env: { NEXT_TELEMETRY_DEBUG: 1 },
+      const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+        .exec(stderr)
+        .pop()
+      expect(event1).toMatch(/hasStatic404.*?true/)
     })
 
-    const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
-    expect(event1).toMatch(/hasStatic404.*?true/)
-  })
+    it('detect page counts correctly for `next build`', async () => {
+      const { stderr } = await nextBuild(appDir, [], {
+        stderr: true,
+        env: { NEXT_TELEMETRY_DEBUG: 1 },
+      })
 
-  it('detect page counts correctly for `next build`', async () => {
-    const { stderr } = await nextBuild(appDir, [], {
-      stderr: true,
-      env: { NEXT_TELEMETRY_DEBUG: 1 },
+      const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+        .exec(stderr)
+        .pop()
+      expect(event1).toMatch(/"staticPropsPageCount": 2/)
+      expect(event1).toMatch(/"serverPropsPageCount": 2/)
+      expect(event1).toMatch(/"ssrPageCount": 3/)
+      expect(event1).toMatch(/"staticPageCount": 4/)
+      expect(event1).toMatch(/"totalPageCount": 11/)
+      expect(event1).toMatch(/"totalAppPagesCount": 0/)
+      expect(event1).toMatch(/"staticAppPagesCount": 0/)
+      expect(event1).toMatch(/"serverAppPagesCount": 0/)
+      expect(event1).toMatch(/"edgeRuntimeAppCount": 0/)
+      expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)
     })
-
-    const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
-    expect(event1).toMatch(/"staticPropsPageCount": 2/)
-    expect(event1).toMatch(/"serverPropsPageCount": 2/)
-    expect(event1).toMatch(/"ssrPageCount": 3/)
-    expect(event1).toMatch(/"staticPageCount": 4/)
-    expect(event1).toMatch(/"totalPageCount": 11/)
-    expect(event1).toMatch(/"totalAppPagesCount": 0/)
-    expect(event1).toMatch(/"staticAppPagesCount": 0/)
-    expect(event1).toMatch(/"serverAppPagesCount": 0/)
-    expect(event1).toMatch(/"edgeRuntimeAppCount": 0/)
-    expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)
   })
 
   it('detects isSrcDir dir correctly for `next dev`', async () => {

@@ -19,30 +19,8 @@ const INITIALIZING_TEST_CASES = [
   'should build successfully',
 ]
 
+// please make sure this is sorted alphabetically when making changes.
 const SKIPPED_TEST_SUITES = {
-  'test/e2e/basepath.test.ts': [
-    'basePath should 404 when manually adding basePath with router.push',
-    'basePath should 404 when manually adding basePath with router.replace',
-  ],
-  'test/integration/dynamic-routing/test/middleware.test.js': [
-    'Dynamic Routing dev mode should resolve dynamic route href for page added later',
-    'Dynamic Routing production mode should output a routes-manifest correctly',
-  ],
-  'test/integration/css/test/css-modules.test.js': [
-    'CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)',
-  ],
-  'test/development/acceptance/ReactRefreshRequire.test.ts': [
-    'ReactRefreshRequire re-runs accepted modules',
-    'ReactRefreshRequire propagates a hot update to closest accepted module',
-    'ReactRefreshRequire propagates hot update to all inverse dependencies',
-  ],
-  'test/e2e/middleware-rewrites/test/index.test.ts': [
-    'Middleware Rewrite should have props for afterFiles rewrite to SSG page',
-  ],
-  'test/integration/dynamic-routing/test/index.test.js': [
-    'Dynamic Routing production mode should have correct cache entries on prefetch',
-    'Dynamic Routing production mode should render dynamic route with query',
-  ],
   'test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts': [
     'ReactRefreshLogBox app turbo Module not found missing global CSS',
   ],
@@ -50,20 +28,81 @@ const SKIPPED_TEST_SUITES = {
     'ReactRefreshRegression app can fast refresh a page with dynamic rendering',
     'ReactRefreshRegression app can fast refresh a page with config',
   ],
+  'test/development/acceptance-app/ReactRefreshRequire.test.ts': [
+    'ReactRefreshRequire app re-runs accepted modules',
+    'ReactRefreshRequire app propagates a hot update to closest accepted module',
+    'ReactRefreshRequire app propagates hot update to all inverse dependencies',
+  ],
+  'test/development/acceptance/ReactRefreshLogBox.test.ts': [
+    'ReactRefreshLogBox turbo conversion to class component (1)',
+  ],
+  'test/development/acceptance/ReactRefreshRequire.test.ts': [
+    'ReactRefreshRequire re-runs accepted modules',
+    'ReactRefreshRequire propagates a hot update to closest accepted module',
+    'ReactRefreshRequire propagates hot update to all inverse dependencies',
+  ],
+  'test/development/basic/hmr.test.ts': [
+    'basic HMR, basePath: "/docs" Error Recovery should show the error on all pages',
+  ],
+  'test/development/jsconfig-path-reloading/index.test.ts': [
+    /should automatically fast refresh content when path is added without error/,
+    /should recover from module not found when paths is updated/,
+  ],
+  'test/development/tsconfig-path-reloading/index.test.ts': [
+    /should automatically fast refresh content when path is added without error/,
+  ],
+  'test/e2e/app-dir/app-css/index.test.ts': [
+    'app dir - css css support server layouts should support external css imports',
+  ],
+  'test/e2e/app-dir/metadata/metadata.test.ts': [
+    'app dir - metadata file based icons should handle updates to the file icon name and order',
+    'app dir - metadata react cache should have same title and page value on initial load',
+    'app dir - metadata react cache should have same title and page value when navigating',
+    'app dir - metadata static routes should have icons as route',
+    'app dir - metadata twitter should render twitter card summary when image is not present',
+    'app dir - metadata twitter should support default twitter app card',
+    'app dir - metadata twitter should support default twitter player card',
+    'app dir - metadata twitter should support twitter card summary_large_image when image present',
+    'app dir - metadata viewport should support dynamic viewport export',
+  ],
+  'test/e2e/basepath.test.ts': [
+    'basePath should 404 when manually adding basePath with router.push',
+    'basePath should 404 when manually adding basePath with router.replace',
+  ],
+  'test/e2e/middleware-rewrites/test/index.test.ts': [
+    'Middleware Rewrite should have props for afterFiles rewrite to SSG page',
+  ],
   'test/integration/absolute-assetprefix/test/index.test.js': [
     'absolute assetPrefix with path prefix should work with getStaticPaths prerendered',
   ],
-  'test/integration/create-next-app/package-manager.test.ts': [
-    'should use pnpm as the package manager on supplying --use-pnpm',
-    'should use pnpm as the package manager on supplying --use-pnpm with example',
-    'should infer pnpm as the package manager',
-    'should infer pnpm as the package manager with example',
-  ],
-  'test/integration/trailing-slashes/test/index.test.js': [
-    'Trailing slashes dev mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/',
-  ],
   'test/integration/app-document-remove-hmr/test/index.test.js': [
     '_app removal HMR should HMR when _document is removed',
+  ],
+  'test/integration/app-document/test/index.test.js': [
+    'Document and App Client side should detect the changes to pages/_app.js and display it',
+    'Document and App Client side should detect the changes to pages/_document.js and display it',
+  ],
+  'test/integration/css/test/css-modules.test.js': [
+    'CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)',
+    'CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from index)',
+  ],
+  'test/integration/custom-error/test/index.test.js': [/Custom _error/],
+  'test/integration/dynamic-routing/test/index.test.js': [
+    'Dynamic Routing dev mode should work with HMR correctly',
+    'Dynamic Routing production mode should have correct cache entries on prefetch',
+    'Dynamic Routing production mode should render dynamic route with query',
+  ],
+  'test/integration/dynamic-routing/test/middleware.test.js': [
+    'Dynamic Routing dev mode should resolve dynamic route href for page added later',
+    'Dynamic Routing production mode should output a routes-manifest correctly',
+  ],
+  'test/integration/env-config/test/index.test.js': [
+    'Env Config dev mode with hot reload should provide env for SSG',
+    'Env Config dev mode with hot reload should provide env correctly for SSR',
+    'Env Config dev mode with hot reload should provide env correctly for API routes',
+  ],
+  'test/integration/import-assertion/test/index.test.js': [
+    /should handle json assertions/,
   ],
 }
 
@@ -86,6 +125,8 @@ async function updatePassingTests() {
       })
       const skips = SKIPPED_TEST_SUITES[filepath] ?? []
 
+      const skippedPassingNames = []
+
       let initializationFailed = false
       for (const testCase of testResult.assertionResults) {
         let { fullName, status } = testCase
@@ -99,6 +140,7 @@ async function updatePassingTests() {
           status = 'failed'
         }
         if (shouldSkip(fullName, skips)) {
+          if (status === 'passed') skippedPassingNames.push(fullName)
           status = 'flakey'
         }
 
@@ -107,6 +149,18 @@ async function updatePassingTests() {
           throw new Error(`unexpected status "${status}"`)
         }
         statusArray.push(fullName)
+      }
+
+      if (skippedPassingNames.length > 0) {
+        console.log(
+          `${filepath} has ${
+            skippedPassingNames.length
+          } passing tests that are marked as skipped: ${JSON.stringify(
+            skippedPassingNames,
+            0,
+            2
+          )}`
+        )
       }
     }
   }

@@ -5,7 +5,6 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
   nextBuild,
-  nextExport,
   startCleanStaticServer,
   stopApp,
   renderViaHTTP,
@@ -14,14 +13,12 @@ import {
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 
-;(process.env.TURBOPACK ? describe.skip : describe)(
-  'Export Dynamic Pages',
-  () => {
+describe('Export Dynamic Pages', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     let server
     let port
     beforeAll(async () => {
       await nextBuild(appDir)
-      await nextExport(appDir, { outdir })
 
       server = await startCleanStaticServer(outdir)
       port = server.address().port
@@ -48,5 +45,5 @@ const outdir = join(appDir, 'out')
         await browser.close()
       }
     })
-  }
-)
+  })
+})
