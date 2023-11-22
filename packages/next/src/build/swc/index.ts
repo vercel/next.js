@@ -500,8 +500,8 @@ export interface Issue {
   category: string
   filePath: string
   title: StyledString
-  description: StyledString | null
-  detail: StyledString | null
+  description?: StyledString
+  detail?: StyledString
   source?: {
     source: {
       ident: string

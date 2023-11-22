@@ -2588,19 +2588,10 @@ function renderStyledStringToErrorAnsi(string: StyledString): string {
       return bold(red(string.value))
     case 'code':
       return green(string.value)
-    case 'line': {
-      let line = ''
-      for (const styled of string.value) {
-        line += renderStyledStringToErrorAnsi(styled)
-      }
-      return line + '\n'
-    }
+    case 'line':
+      return string.value.map(renderStyledStringToErrorAnsi).join('')
     case 'stack':
-      let stack = ''
-      for (const styled of string.value) {
-        stack += renderStyledStringToErrorAnsi(styled) + '\n'
-      }
-      return stack + '\n'
+      return string.value.map(renderStyledStringToErrorAnsi).join('\n')
     default:
       throw new Error('Unknown StyledString type', string)
   }

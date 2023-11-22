@@ -32,19 +32,10 @@ function styledStringToMarkdown(styled: StyledString): string {
       return '**' + styled.value + '**'
     case 'code':
       return '`' + styled.value + '`'
-    case 'line': {
-      let line = ''
-      for (const part of styled.value) {
-        line += styledStringToMarkdown(part)
-      }
-      return line + '\n'
-    }
+    case 'line':
+      return styled.value.map(styledStringToMarkdown).join('')
     case 'stack':
-      let stack = ''
-      for (const part of styled.value) {
-        stack += styledStringToMarkdown(part) + '\n'
-      }
-      return stack + '\n'
+      return styled.value.map(styledStringToMarkdown).join('\n')
     default:
       throw new Error('Unknown StyledString type', styled)
   }
