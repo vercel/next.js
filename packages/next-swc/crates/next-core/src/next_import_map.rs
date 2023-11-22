@@ -7,6 +7,7 @@ use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileSystem, FileSystemPath},
     turbopack::{
         core::{
+            reference_type::{CommonJsReferenceSubType, ReferenceType},
             resolve::{
                 options::{ConditionValue, ImportMap, ImportMapping, ResolveOptions, ResolvedMap},
                 parse::Request,
@@ -219,6 +220,10 @@ pub fn get_next_build_import_map() -> Vc<ImportMap> {
     import_map.insert_exact_alias("next", external);
     import_map.insert_wildcard_alias("next/", external);
     import_map.insert_exact_alias("styled-jsx", external);
+    import_map.insert_exact_alias(
+        "styled-jsx/style",
+        ImportMapping::External(Some("styled-jsx/style.js".to_string())).cell(),
+    );
     import_map.insert_wildcard_alias("styled-jsx/", external);
 
     import_map.cell()
@@ -293,6 +298,10 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias("react-dom", external);
             import_map.insert_wildcard_alias("react-dom/", external);
             import_map.insert_exact_alias("styled-jsx", external);
+            import_map.insert_exact_alias(
+                "styled-jsx/style",
+                ImportMapping::External(Some("styled-jsx/style.js".to_string())).cell(),
+            );
             import_map.insert_wildcard_alias("styled-jsx/", external);
             // TODO: we should not bundle next/dist/build/utils in the pages renderer at all
             import_map.insert_wildcard_alias("next/dist/build/utils", external);
@@ -508,7 +517,7 @@ async fn insert_next_server_special_aliases(
                 "@opentelemetry/api",
                 // TODO(WEB-625) this actually need to prefer the local version of
                 // @opentelemetry/api
-                external_if_node(pages_dir, "next/dist/compiled/@opentelemetry/api"),
+                external_if_node(pages_dir, "next/dist/compiled/@opentelemetry/api/index.js"),
             );
             insert_alias_to_alternatives(
                 import_map,
@@ -544,7 +553,10 @@ async fn insert_next_server_special_aliases(
                 "@opentelemetry/api",
                 // TODO(WEB-625) this actually need to prefer the local version of
                 // @opentelemetry/api
-                request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/compiled/@opentelemetry/api/index.js",
+                ),
             );
             import_map.insert_exact_alias(
                 "styled-jsx",
@@ -880,6 +892,7 @@ async fn package_lookup_resolve_options(
 pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
     let result = resolve(
         context_directory,
+        Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
         Request::parse(Value::new(Pattern::Constant(
             "next/package.json".to_string(),
         ))),
