@@ -122,17 +122,32 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(await session.hasRedbox(true)).toBe(true)
 
     const source = await session.getRedboxSource()
-    expect(source).toMatchInlineSnapshot(`
-      "./app/page.js:2:0
-      Module not found: Can't resolve 'b'
-        1 | 'use client'
-      > 2 | import Comp from 'b'
-        3 | export default function Oops() {
-        4 |   return (
-        5 |     <div>
+    if (process.env.TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(`
+        "./app/page.js:2:0
+        Module not found: Can't resolve 'b'
+          1 | 'use client'
+        > 2 | import Comp from 'b'
+            | ^^^^^^^^^^^^^^^^^^^^
+          3 | export default function Oops() {
+          4 |   return (
+          5 |     <div>
 
-      https://nextjs.org/docs/messages/module-not-found"
-    `)
+        https://nextjs.org/docs/messages/module-not-found"
+      `)
+    } else {
+      expect(source).toMatchInlineSnapshot(`
+              "./app/page.js:2:0
+              Module not found: Can't resolve 'b'
+                1 | 'use client'
+              > 2 | import Comp from 'b'
+                3 | export default function Oops() {
+                4 |   return (
+                5 |     <div>
+
+              https://nextjs.org/docs/messages/module-not-found"
+          `)
+    }
 
     await cleanup()
   })
@@ -156,18 +171,32 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(await session.hasRedbox(true)).toBe(true)
 
     const source = await session.getRedboxSource()
-    expect(source).toMatchInlineSnapshot(`
-      "./app/page.js:2:0
-      Module not found: Can't resolve './non-existent.css'
-        1 | 'use client'
-      > 2 | import './non-existent.css'
-        3 | export default function Page(props) {
-        4 |   return <p>index page</p>
-        5 | }
+    if (process.env.TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(`
+        "./app/page.js:2:0
+        Module not found: Can't resolve './non-existent.css'
+          1 | 'use client'
+        > 2 | import './non-existent.css'
+            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          3 | export default function Page(props) {
+          4 |   return <p>index page</p>
+          5 | }
 
-      https://nextjs.org/docs/messages/module-not-found"
-    `)
+        https://nextjs.org/docs/messages/module-not-found"
+      `)
+    } else {
+      expect(source).toMatchInlineSnapshot(`
+              "./app/page.js:2:0
+              Module not found: Can't resolve './non-existent.css'
+                1 | 'use client'
+              > 2 | import './non-existent.css'
+                3 | export default function Page(props) {
+                4 |   return <p>index page</p>
+                5 | }
 
+              https://nextjs.org/docs/messages/module-not-found"
+          `)
+    }
     await session.patch(
       'app/page.js',
       outdent`
