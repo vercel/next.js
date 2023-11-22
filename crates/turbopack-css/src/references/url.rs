@@ -170,6 +170,7 @@ impl VisitMut for AssetReferenceReplacer<'_> {
             UrlValue::Str(v) => {
                 if let Some(new) = self.urls.get(&*v.value) {
                     v.value = (&**new).into();
+                    v.raw = None;
                 }
             }
             UrlValue::Raw(v) => {
