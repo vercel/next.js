@@ -450,7 +450,7 @@ jobs:
         with:
           fetch-depth: 25
       - name: Install Vercel CLI
-        run: npm i -g vercel@28.16.15
+        run: npm i -g vercel@latest
       - name: Deploy preview examples
         if: ${{ needs.build.outputs.isRelease != 'true' }}
         run: ./scripts/deploy-examples.sh

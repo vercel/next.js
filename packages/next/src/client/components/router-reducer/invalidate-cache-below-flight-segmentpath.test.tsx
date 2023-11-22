@@ -18,7 +18,7 @@ const getFlightData = (): FlightData => {
           children: ['', {}],
         },
       ],
-      <h1>About Page!</h1>,
+      ['about', null, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
