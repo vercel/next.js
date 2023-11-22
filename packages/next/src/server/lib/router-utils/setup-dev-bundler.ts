@@ -293,12 +293,21 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     function formatIssue(issue: Issue) {
-      const { filePath, title, description, source, detail } = issue
+      const { filePath, title, description, source } = issue
       let { documentationLink } = issue
       let formattedTitle = renderStyledStringToErrorAnsi(title).replace(
         /\n/g,
         '\n    '
       )
+
+      // TODO: Use error codes to identify these
+      // TODO: Generalize adapting Turbopack errors to Next.js errors
+      if (formattedTitle.includes('Module not found')) {
+        // For compatiblity with webpack
+        // TODO: include columns in webpack errors.
+        // ignoreColumns = true
+        documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
+      }
 
       let formattedFilePath = filePath
         .replace('[project]/', './')
@@ -310,31 +319,21 @@ async function startWatcher(opts: SetupOpts) {
       if (source) {
         if (source.range) {
           const { start } = source.range
-          message = `${issue.severity} - ${formattedFilePath}:${
-            start.line + 1
-          }:${start.column}  ${formattedTitle}`
+          message = `${formattedFilePath}:${start.line + 1}:${
+            start.column
+          }\n${formattedTitle}`
         } else {
           message = formattedFilePath
         }
       } else if (formattedFilePath) {
-        message = `${formattedFilePath}  ${formattedTitle}`
+        message = `${formattedFilePath}\n${formattedTitle}`
       } else {
         message = formattedTitle.replace(/\n/g, '\n    ')
       }
+      message += '\n'
 
       if (description) {
-        const rendered = renderStyledStringToErrorAnsi(description)
-        message += `\n${rendered}`
-
-        // TODO: Use error codes to identify these
-        // TODO: Generalize adapting Turbopack errors to Next.js errors
-        if (rendered.includes('Module not found')) {
-          // For compatiblity with webpack
-          // TODO: include columns in webpack errors.
-          ignoreColumns = true
-          documentationLink =
-            'https://nextjs.org/docs/messages/module-not-found'
-        }
+        message += renderStyledStringToErrorAnsi(description)
       }
 
       if (source?.range && source.source.content) {
@@ -366,12 +365,6 @@ async function startWatcher(opts: SetupOpts) {
         )}`
       }
 
-      if (detail) {
-        message += `\n${renderStyledStringToErrorAnsi(detail).replace(
-          /\n/g,
-          '\n    '
-        )}`
-      }
       // TODO: Include a trace from the issue.
 
       if (documentationLink) {
@@ -382,14 +375,12 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     function processIssues(
-      displayName: string,
       name: string,
       result: TurbopackResult,
       throwIssue = false
     ) {
-      const oldSet = issues.get(name) ?? new Map()
-      const newSet = new Map<string, Issue>()
-      issues.set(name, newSet)
+      const newIssues = new Map<string, Issue>()
+      issues.set(name, newIssues)
 
       const relevantIssues = new Set()
 
@@ -398,10 +389,7 @@ async function startWatcher(opts: SetupOpts) {
         if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
         const key = issueKey(issue)
         const formatted = formatIssue(issue)
-        if (!oldSet.has(key) && !newSet.has(key)) {
-          console.error(`  ⚠ ${displayName} ${formatted}\n\n`)
-        }
-        newSet.set(key, issue)
+        newIssues.set(key, issue)
 
         // We show errors in node_modules to the console, but don't throw for them
         if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
@@ -710,7 +698,7 @@ async function startWatcher(opts: SetupOpts) {
       const changed = await changedPromise
 
       for await (const change of changed) {
-        processIssues(key, page, change)
+        processIssues(page, change)
         const payload = await makePayload(page, change)
         if (payload) sendHmr('endpoint-change', key, payload)
       }
@@ -1063,7 +1051,7 @@ async function startWatcher(opts: SetupOpts) {
         await subscription.next()
 
         for await (const data of subscription) {
-          processIssues('hmr', id, data)
+          processIssues(id, data)
           sendTurbopackMessage(data)
         }
       } catch (e) {
@@ -1151,7 +1139,7 @@ async function startWatcher(opts: SetupOpts) {
                 'middleware',
                 await middleware.endpoint.writeToDisk()
               )
-              processIssues('middleware', 'middleware', writtenEndpoint)
+              processIssues('middleware', writtenEndpoint)
               await loadMiddlewareManifest('middleware', 'middleware')
               serverFields.actualMiddlewareFile = 'middleware'
               serverFields.middleware = {
@@ -1400,7 +1388,8 @@ async function startWatcher(opts: SetupOpts) {
             errors.push(new Error(formatIssue(issue)))
           }
         }
-        return errors
+        return []
+        // return errors
       },
       invalidate(/* Unused parameter: { reloadAfterInvalidation } */) {
         // Not implemented yet.
@@ -1426,7 +1415,7 @@ async function startWatcher(opts: SetupOpts) {
                 '_app',
                 await globalEntries.app.writeToDisk()
               )
-              processIssues('_app', '_app', writtenEndpoint)
+              processIssues('_app', writtenEndpoint)
             }
             await loadBuildManifest('_app')
             await loadPagesManifest('_app')
@@ -1445,7 +1434,7 @@ async function startWatcher(opts: SetupOpts) {
                   return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
                 }
               )
-              processIssues('_document', '_document', writtenEndpoint)
+              processIssues('_document', writtenEndpoint)
             }
             await loadPagesManifest('_document')
 
@@ -1454,7 +1443,7 @@ async function startWatcher(opts: SetupOpts) {
                 '_error',
                 await globalEntries.error.writeToDisk()
               )
-              processIssues(page, page, writtenEndpoint)
+              processIssues(page, writtenEndpoint)
             }
             await loadBuildManifest('_error')
             await loadPagesManifest('_error')
@@ -1488,25 +1477,6 @@ async function startWatcher(opts: SetupOpts) {
           throw new PageNotFoundError(`route not found ${page}`)
         }
 
-        let suffix
-        switch (route.type) {
-          case 'app-page':
-            suffix = 'page'
-            break
-          case 'app-route':
-            suffix = 'route'
-            break
-          case 'page':
-          case 'page-api':
-            suffix = ''
-            break
-          default:
-            throw new Error('Unexpected route type ' + route.type)
-        }
-
-        const buildingKey = `${page}${
-          !page.endsWith('/') && suffix.length > 0 ? '/' : ''
-        }${suffix}`
         let finishBuilding: (() => void) | undefined = undefined
 
         try {
@@ -1518,14 +1488,14 @@ async function startWatcher(opts: SetupOpts) {
                 )
               }
 
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(page)
               try {
                 if (globalEntries.app) {
                   const writtenEndpoint = await processResult(
                     '_app',
                     await globalEntries.app.writeToDisk()
                   )
-                  processIssues('_app', '_app', writtenEndpoint)
+                  processIssues('_app', writtenEndpoint)
                 }
                 await loadBuildManifest('_app')
                 await loadPagesManifest('_app')
@@ -1545,7 +1515,7 @@ async function startWatcher(opts: SetupOpts) {
                       return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
                     }
                   )
-                  processIssues('_document', '_document', writtenEndpoint)
+                  processIssues('_document', writtenEndpoint)
                 }
                 await loadPagesManifest('_document')
 
@@ -1571,7 +1541,7 @@ async function startWatcher(opts: SetupOpts) {
                 await writeMiddlewareManifest()
                 await writeLoadableManifest()
 
-                processIssues(page, page, writtenEndpoint)
+                processIssues(page, writtenEndpoint)
               } finally {
                 changeSubscription(
                   page,
@@ -1606,7 +1576,7 @@ async function startWatcher(opts: SetupOpts) {
               // since this can happen when app pages make
               // api requests to page API routes.
 
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(page)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
@@ -1626,12 +1596,12 @@ async function startWatcher(opts: SetupOpts) {
               await writeMiddlewareManifest()
               await writeLoadableManifest()
 
-              processIssues(page, page, writtenEndpoint)
+              processIssues(page, writtenEndpoint)
 
               break
             }
             case 'app-page': {
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(page)
               const writtenEndpoint = await processResult(
                 page,
                 await route.htmlEndpoint.writeToDisk()
@@ -1677,12 +1647,12 @@ async function startWatcher(opts: SetupOpts) {
               await writeActionManifest()
               await writeLoadableManifest()
 
-              processIssues(page, page, writtenEndpoint, true)
+              processIssues(page, writtenEndpoint, true)
 
               break
             }
             case 'app-route': {
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(page)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
@@ -1703,7 +1673,7 @@ async function startWatcher(opts: SetupOpts) {
               await writeMiddlewareManifest()
               await writeLoadableManifest()
 
-              processIssues(page, page, writtenEndpoint, true)
+              processIssues(page, writtenEndpoint, true)
 
               break
             }
