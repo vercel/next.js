@@ -1605,7 +1605,7 @@ export default async function build(
                             httpAgentOptions: config.httpAgentOptions,
                             locales: config.i18n?.locales,
                             defaultLocale: config.i18n?.defaultLocale,
-                            parentId: isPageStaticSpan.id,
+                            parentId: isPageStaticSpan.getId(),
                             pageRuntime,
                             edgeInfo,
                             pageType,

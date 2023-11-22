@@ -86,7 +86,7 @@ async function webpackBuildWithWorker(
       compilerName,
       traceState: {
         ...exportTraceState(),
-        defaultParentSpanId: nextBuildSpan?.id,
+        defaultParentSpanId: nextBuildSpan?.getId(),
         shouldSaveTraceEvents: true,
       },
     })

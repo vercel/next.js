@@ -14,22 +14,24 @@ let savedTraceEvents: TraceEvent[] = []
 // eslint typescript has a bug with TS enums
 /* eslint-disable no-shadow */
 export enum SpanStatus {
-  Started,
-  Stopped,
+  Started = 'started',
+  Stopped = 'stopped',
+}
+
+interface Attributes {
+  [key: string]: string
 }
 
 export class Span {
-  name: string
-  id: SpanId
-  parentId?: SpanId
-  // Duration of the span in *microseconds*.
-  duration: number | null
-  attrs: { [key: string]: any }
-  status: SpanStatus
-  now: number
+  private name: string
+  private id: SpanId
+  private parentId?: SpanId
+  private attrs: { [key: string]: any }
+  private status: SpanStatus
+  private now: number
 
   // Number of nanoseconds since epoch.
-  _start: bigint
+  private _start: bigint
 
   constructor({
     name,
@@ -40,11 +42,10 @@ export class Span {
     name: string
     parentId?: SpanId
     startTime?: bigint
-    attrs?: Object
+    attrs?: Attributes
   }) {
     this.name = name
     this.parentId = parentId ?? defaultParentSpanId
-    this.duration = null
     this.attrs = attrs ? { ...attrs } : {}
     this.status = SpanStatus.Started
     this.id = getId()
@@ -84,7 +85,7 @@ export class Span {
     }
   }
 
-  traceChild(name: string, attrs?: Object) {
+  traceChild(name: string, attrs?: Attributes) {
     return new Span({ name, parentId: this.id, attrs })
   }
 
@@ -94,10 +95,14 @@ export class Span {
     startTime: bigint,
     // Stop time in nanoseconds since epoch.
     stopTime: bigint,
-    attrs?: Object
+    attrs?: Attributes
   ) {
     const span = new Span({ name, parentId: this.id, attrs, startTime })
     span.stop(stopTime)
+  }
+
+  getId() {
+    return this.id
   }
 
   setAttribute(key: string, value: any) {
