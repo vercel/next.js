@@ -107,6 +107,7 @@ export function proxyRequest(
       // request.nextUrl we bail since it includes query
       // values that can be relied on dynamically
       case 'url':
+      case 'cookies':
       case 'body':
       case 'blob':
       case 'json':
