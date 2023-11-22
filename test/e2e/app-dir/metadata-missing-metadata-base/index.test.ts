@@ -35,7 +35,7 @@ createNextDescribe(
       await fetchViaHTTP(next.url, '/unsupported-metadata')
       const output = getCliOutput(logStartPosition)
       expect(output).toInclude(
-        'Unsupported metadata themeColor is configured in metadata export. Please move it to viewport'
+        'Unsupported metadata themeColor is configured in metadata export in /unsupported-metadata. Please move it to viewport'
       )
       expect(output).toInclude(
         'Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport'

@@ -251,7 +251,7 @@ function mergeMetadata({
           key === 'colorScheme'
         ) {
           buildState.warnings.add(
-            `Unsupported metadata ${key} is configured in metadata export. Please move it to viewport export instead.\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport`
+            `Unsupported metadata ${key} is configured in metadata export in ${metadataContext.pathname}. Please move it to viewport export instead.\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport`
           )
         }
         break
