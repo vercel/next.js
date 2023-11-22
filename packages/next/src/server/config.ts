@@ -1004,7 +1004,6 @@ export default async function loadConfig(
         const code = await transpileConfig({
           configPath: path as string,
           configFileName,
-          cwd: dir,
           log: curLog,
         })
         const isCJS = configFileName.endsWith('.cts')

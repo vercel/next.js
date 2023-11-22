@@ -8,7 +8,6 @@ export async function transpileConfig({
 }: {
   configPath: string
   configFileName: string
-  cwd: string
   log: { error: (message: string) => void }
 }) {
   try {
