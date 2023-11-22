@@ -111,7 +111,7 @@ export class NextInstance {
           await fsp.mkdir(path.dirname(outputFilename), { recursive: true })
           await fsp.writeFile(outputFilename, item)
         } else {
-          await fsp.cp(item.fsPath, outputFilename)
+          await fsp.cp(item.fsPath, outputFilename, { recursive: true })
         }
       }
     }
