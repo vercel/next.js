@@ -75,6 +75,7 @@ import { setReferenceManifestsSingleton } from './action-encryption-utils'
 import { createStaticRenderer } from './static/static-renderer'
 import { MissingPostponeDataError } from './is-missing-postpone-error'
 import { DetachedPromise } from '../../lib/detached-promise'
+import { DYNAMIC_ERROR_CODE } from '../../client/components/hooks-server-context'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -816,6 +817,12 @@ async function renderToHTMLOrFlightImpl(
           )
         ) {
           // Ensure that "next dev" prints the red error overlay
+          throw err
+        }
+
+        if (isStaticGeneration && err.digest === DYNAMIC_ERROR_CODE) {
+          // ensure that DynamicUsageErrors bubble up during static generation
+          // as this will indicate that the page needs to be dynamically rendered
           throw err
         }
 
