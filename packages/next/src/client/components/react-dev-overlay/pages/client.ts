@@ -1,11 +1,11 @@
 import * as Bus from './internal/bus'
-import { parseStack } from './internal/helpers/parseStack'
-import { parseComponentStack } from 'next/dist/client/components/react-dev-overlay/internal/helpers/parse-component-stack'
+import { parseStack } from '../internal/helpers/parseStack'
+import { parseComponentStack } from '../internal/helpers/parse-component-stack'
 import {
   hydrationErrorComponentStack,
   hydrationErrorWarning,
   patchConsoleError,
-} from 'next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info'
+} from '../internal/helpers/hydration-error-info'
 
 // Patch console.error to collect information about hydration errors
 patchConsoleError()
@@ -114,8 +114,8 @@ function onBeforeRefresh() {
   Bus.emit({ type: Bus.TYPE_BEFORE_REFRESH })
 }
 
-export { getErrorByType } from './internal/helpers/getErrorByType'
-export { getServerError } from './internal/helpers/nodeStackFrames'
+export { getErrorByType } from '../internal/helpers/getErrorByType'
+export { getServerError } from '../internal/helpers/nodeStackFrames'
 export { default as ReactDevOverlay } from './internal/ReactDevOverlay'
 export {
   onBuildOk,

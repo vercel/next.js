@@ -40,7 +40,6 @@ use crate::{
 pub async fn get_next_client_import_map(
     project_path: Vc<FileSystemPath>,
     ty: Value<ClientContextType>,
-    mode: NextMode,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -51,7 +50,6 @@ pub async fn get_next_client_import_map(
         project_path,
         execution_context,
         next_config,
-        mode,
     )
     .await?;
 
@@ -261,7 +259,6 @@ pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> Vc<I
 pub async fn get_next_server_import_map(
     project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -272,7 +269,6 @@ pub async fn get_next_server_import_map(
         project_path,
         execution_context,
         next_config,
-        mode,
     )
     .await?;
 
@@ -338,7 +334,6 @@ pub async fn get_next_server_import_map(
 pub async fn get_next_edge_import_map(
     project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -399,7 +394,6 @@ pub async fn get_next_edge_import_map(
         project_path,
         execution_context,
         next_config,
-        mode,
     )
     .await?;
 
@@ -745,7 +739,6 @@ async fn insert_next_shared_aliases(
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     next_config: Vc<NextConfig>,
-    mode: NextMode,
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
@@ -758,15 +751,6 @@ async fn insert_next_shared_aliases(
                 request_to_import_mapping(project_path, "./src/mdx-components"),
                 request_to_import_mapping(project_path, "@mdx-js/react"),
             ],
-        );
-    }
-
-    if mode != NextMode::Development {
-        // we use the next.js hydration code, so we replace the error overlay with our
-        // own
-        import_map.insert_exact_alias(
-            "next/dist/compiled/@next/react-dev-overlay/dist/client",
-            request_to_import_mapping(package_root, "./overlay/client.ts"),
         );
     }
 

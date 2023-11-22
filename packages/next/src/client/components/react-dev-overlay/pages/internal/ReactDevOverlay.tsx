@@ -1,14 +1,15 @@
 import * as React from 'react'
 
+import { ShadowPortal } from '../../internal/components/ShadowPortal'
+import type { SupportedErrorEvent } from '../../internal/container/Errors'
+import { Errors } from '../../internal/container/Errors'
+
+import { Base } from '../../internal/styles/Base'
+import { ComponentStyles } from '../../internal/styles/ComponentStyles'
+import { CssReset } from '../../internal/styles/CssReset'
+
 import * as Bus from './bus'
-import { ShadowPortal } from './components/ShadowPortal'
-import { BuildError } from './container/BuildError'
-import type { SupportedErrorEvent } from './container/Errors'
-import { Errors } from './container/Errors'
 import { ErrorBoundary } from './ErrorBoundary'
-import { Base } from './styles/Base'
-import { ComponentStyles } from './styles/ComponentStyles'
-import { CssReset } from './styles/CssReset'
 
 type RefreshState =
   | {
@@ -128,69 +129,70 @@ type ReactDevOverlayProps = {
   globalOverlay?: boolean
 }
 
-const ReactDevOverlay: React.FunctionComponent<ReactDevOverlayProps> =
-  function ReactDevOverlay({ children, preventDisplay, globalOverlay }) {
-    const [state, dispatch] = React.useReducer<
-      React.Reducer<OverlayState, Bus.BusEvent>
-    >(reducer, {
-      nextId: 1,
-      buildError: null,
-      errors: [],
-      refreshState: {
-        type: 'idle',
-      },
-    })
+export default function ReactDevOverlay({
+  children,
+  preventDisplay,
+  globalOverlay,
+}: ReactDevOverlayProps): React.ReactNode {
+  const [state, dispatch] = React.useReducer<
+    React.Reducer<OverlayState, Bus.BusEvent>
+  >(reducer, {
+    nextId: 1,
+    buildError: null,
+    errors: [],
+    refreshState: {
+      type: 'idle',
+    },
+  })
 
-    React.useEffect(() => {
-      Bus.on(dispatch)
-      return function () {
-        Bus.off(dispatch)
-      }
-    }, [dispatch])
+  React.useEffect(() => {
+    Bus.on(dispatch)
+    return function () {
+      Bus.off(dispatch)
+    }
+  }, [dispatch])
 
-    const onComponentError = React.useCallback(
-      (_error: Error, _componentStack: string | null) => {
-        // TODO: special handling
-      },
-      []
-    )
+  const onComponentError = React.useCallback(
+    (_error: Error, _componentStack: string | null) => {
+      // TODO: special handling
+    },
+    []
+  )
 
-    const hasBuildError = state.buildError != null
-    const hasRuntimeErrors = Boolean(state.errors.length)
-    const errorType = hasBuildError
-      ? 'build'
-      : hasRuntimeErrors
-      ? 'runtime'
-      : null
-    const isMounted = errorType !== null
+  const hasBuildError = state.buildError != null
+  const hasRuntimeErrors = Boolean(state.errors.length)
+  const errorType = hasBuildError
+    ? 'build'
+    : hasRuntimeErrors
+    ? 'runtime'
+    : null
+  const isMounted = hasBuildError || hasRuntimeErrors
 
-    return (
-      <React.Fragment>
-        <ErrorBoundary
-          globalOverlay={globalOverlay}
-          isMounted={isMounted}
-          onError={onComponentError}
-        >
-          {children ?? null}
-        </ErrorBoundary>
-        {isMounted ? (
-          <ShadowPortal globalOverlay={globalOverlay}>
-            <CssReset />
-            <Base />
-            <ComponentStyles />
+  return (
+    <React.Fragment>
+      <ErrorBoundary
+        globalOverlay={globalOverlay}
+        isMounted={isMounted}
+        onError={onComponentError}
+      >
+        {children ?? null}
+      </ErrorBoundary>
+      {isMounted ? (
+        <ShadowPortal>
+          <CssReset />
+          <Base />
+          <ComponentStyles />
 
-            {shouldPreventDisplay(
-              errorType,
-              preventDisplay
-            ) ? null : hasBuildError ? (
-              <BuildError message={state.buildError!} />
-            ) : hasRuntimeErrors ? (
-              <Errors errors={state.errors} />
-            ) : undefined}
-          </ShadowPortal>
-        ) : undefined}
-      </React.Fragment>
-    )
-  }
-
-export default ReactDevOverlay
+          {shouldPreventDisplay(errorType, preventDisplay) ? null : (
+            <Errors
+              errors={state.errors}
+              buildErrors={
+                state.buildError ? [{ message: state.buildError }] : []
+              }
+            />
+          )}
+        </ShadowPortal>
+      ) : undefined}
+    </React.Fragment>
+  )
+}

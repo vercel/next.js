@@ -180,7 +180,7 @@ class Container extends React.Component<{
     } else {
       const {
         ReactDevOverlay,
-      } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
+      } = require('./components/react-dev-overlay/pages/client')
       return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
     }
   }
@@ -905,7 +905,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   if (process.env.NODE_ENV === 'development') {
     const {
       getServerError,
-    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
+    } = require('./components/react-dev-overlay/pages/client')
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {

@@ -1,23 +1,23 @@
-import { codeFrameColumns } from '@babel/code-frame'
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import { constants as FS, promises as fs } from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
-import type { NullableMappedPosition, RawSourceMap } from 'source-map'
+import type { RawSourceMap } from 'source-map'
 import { SourceMapConsumer } from 'source-map'
 import type { StackFrame } from 'stacktrace-parser'
 import url from 'url'
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
 import type webpack from 'webpack'
-import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
-import { launchEditor } from './internal/helpers/launchEditor'
+import { getRawSourceMap } from '../internal/helpers/getRawSourceMap'
+import { launchEditor } from '../internal/helpers/launchEditor'
 
-export { getErrorSource } from './internal/helpers/nodeStackFrames'
+export { getErrorSource } from '../internal/helpers/nodeStackFrames'
 export {
   decorateServerError,
   getServerError,
-} from './internal/helpers/nodeStackFrames'
-export { parseStack } from './internal/helpers/parseStack'
+} from '../internal/helpers/nodeStackFrames'
+export { parseStack } from '../internal/helpers/parseStack'
 
 export type OverlayMiddlewareOptions = {
   rootDirectory: string
@@ -87,12 +87,10 @@ async function findOriginalSourcePositionAndContent(
 ) {
   const consumer = await new SourceMapConsumer(webpackSource.map())
   try {
-    const sourcePosition: NullableMappedPosition = consumer.originalPositionFor(
-      {
-        line: position.line,
-        column: position.column ?? 0,
-      }
-    )
+    const sourcePosition = consumer.originalPositionFor({
+      line: position.line,
+      column: position.column ?? 0,
+    })
 
     if (!sourcePosition.source) {
       return null

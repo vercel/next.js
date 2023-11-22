@@ -4,8 +4,8 @@ import type { OriginalStackFrameResponse } from './middleware'
 
 import fs, { constants as FS } from 'fs/promises'
 import url from 'url'
-import { codeFrameColumns } from '@babel/code-frame'
-import { launchEditor } from './internal/helpers/launchEditor'
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
+import { launchEditor } from '../internal/helpers/launchEditor'
 
 interface Project {
   getSourceForAsset(filePath: string): Promise<string | null>
