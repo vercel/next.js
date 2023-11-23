@@ -25,7 +25,7 @@ const setupAppDir = async () => {
       }
     `
   )
-  await fsp.ensureFile(path.join(__dirname, '../app/hello/page.js'))
+  await fsp.writeFile(path.join(__dirname, '../app/hello/page.js'), '')
   await fsp.writeFile(
     path.join(__dirname, '../app/hello/page.js'),
     'export default function Page() { return "hello world" }'
@@ -173,7 +173,7 @@ describe('page features telemetry', () => {
           const teardown = await setupAppDir()
 
           try {
-            await fsp.ensureFile(path.join(__dirname, '../app/ssr/page.js'))
+            await fsp.writeFile(path.join(__dirname, '../app/ssr/page.js'), '')
             await fsp.writeFile(
               path.join(__dirname, '../app/ssr/page.js'),
               `
@@ -183,8 +183,9 @@ describe('page features telemetry', () => {
           }
         `
             )
-            await fsp.ensureFile(
-              path.join(__dirname, '../app/edge-ssr/page.js')
+            await fsp.writeFile(
+              path.join(__dirname, '../app/edge-ssr/page.js'),
+              ''
             )
             await fsp.writeFile(
               path.join(__dirname, '../app/edge-ssr/page.js'),
@@ -195,8 +196,9 @@ describe('page features telemetry', () => {
           }
         `
             )
-            await fsp.ensureFile(
-              path.join(__dirname, '../app/app-ssg/[slug]/page.js')
+            await fsp.writeFile(
+              path.join(__dirname, '../app/app-ssg/[slug]/page.js'),
+              ''
             )
             await fsp.writeFile(
               path.join(__dirname, '../app/app-ssg/[slug]/page.js'),
