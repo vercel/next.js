@@ -587,9 +587,7 @@ export default async function getBaseWebpackConfig(
 
   const resolveConfig: webpack.Configuration['resolve'] = {
     // Disable .mjs for node_modules bundling
-    extensions: isNodeServer
-      ? ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm']
-      : ['.mjs', '.js', '.tsx', '.ts', '.jsx', '.json', '.wasm'],
+    extensions: ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm'],
     extensionAlias: config.experimental.extensionAlias,
     modules: [
       'node_modules',
