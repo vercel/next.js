@@ -498,7 +498,11 @@ export class NextInstance {
   public async deleteFile(filename: string) {
     await this.handleDevWatchDelayBeforeChange(filename)
 
-    await fsp.unlink(path.join(this.testDir, filename))
+    await fsp.rm(path.join(this.testDir, filename), {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+    })
 
     await this.handleDevWatchDelayAfterChange(filename)
   }
