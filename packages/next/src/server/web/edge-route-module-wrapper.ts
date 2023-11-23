@@ -72,6 +72,13 @@ export class EdgeRouteModuleWrapper {
     // slashes for matching.
     let pathname = removeTrailingSlash(new URL(request.url).pathname)
 
+    // Check if middleware rewrite exists to prevent this issue: https://github.com/vercel/next.js/issues/48295
+    const invokePath = request.headers.get('x-invoke-path')
+
+    if (invokePath) {
+      pathname = invokePath
+    }
+
     // Get the base path and strip it from the pathname if it exists.
     const { basePath } = request.nextUrl
     if (basePath) {
