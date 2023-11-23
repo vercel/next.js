@@ -2,8 +2,9 @@
 import { bold, cyan, green, red, yellow } from '../lib/picocolors'
 import type { CliCommand } from '../lib/commands'
 import { Telemetry } from '../telemetry/storage'
+import type { validArgs } from './next-telemetry-args'
 
-const nextTelemetry: CliCommand = (args) => {
+const nextTelemetry: CliCommand<typeof validArgs> = (args) => {
   if (args['--help']) {
     console.log(
       `

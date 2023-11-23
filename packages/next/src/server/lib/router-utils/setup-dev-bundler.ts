@@ -1853,7 +1853,14 @@ async function startWatcher(opts: SetupOpts) {
     wp.on('aggregated', async () => {
       let middlewareMatchers: MiddlewareMatcher[] | undefined
       const routedPages: string[] = []
-      const knownFiles = wp.getTimeInfoEntries()
+      const knownFiles: Map<
+        string,
+        {
+          safeTime: number
+          timestamp: number
+          accuracy?: number
+        }
+      > = wp.getTimeInfoEntries()
       const appPaths: Record<string, string[]> = {}
       const pageNameSet = new Set<string>()
       const conflictingAppPagePaths = new Set<string>()

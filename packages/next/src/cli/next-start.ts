@@ -8,8 +8,9 @@ import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
+import type { validArgs } from './next-start-args'
 
-const nextStart: CliCommand = async (args) => {
+const nextStart: CliCommand<typeof validArgs> = async (args) => {
   if (args['--help']) {
     console.log(`
       Description

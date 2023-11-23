@@ -8,8 +8,9 @@ import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
+import type { validArgs } from './next-build-args'
 
-const nextBuild: CliCommand = (args) => {
+const nextBuild: CliCommand<typeof validArgs> = (args) => {
   if (args['--help']) {
     printAndExit(
       `
@@ -58,13 +59,17 @@ const nextBuild: CliCommand = (args) => {
   return build(
     dir,
     args['--profile'],
-    args['--debug'] || process.env.NEXT_DEBUG_BUILD,
+    args['--debug'] || !!process.env.NEXT_DEBUG_BUILD,
     !args['--no-lint'],
     args['--no-mangling'],
     args['--experimental-app-only'],
     !!process.env.TURBOPACK,
     args['--experimental-turbo-root'],
-    args['--build-mode'] || 'default'
+    // FIXME: this needs to be validated either here or in `build`
+    (args['--build-mode'] as
+      | 'default'
+      | 'experimental-compile'
+      | 'experimental-generate') || 'default'
   ).catch((err) => {
     console.error('')
     if (

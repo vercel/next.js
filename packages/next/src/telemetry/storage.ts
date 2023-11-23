@@ -273,7 +273,7 @@ export class Telemetry {
 
   private submitRecord = async (
     _events: TelemetryEvent | TelemetryEvent[]
-  ): Promise<any> => {
+  ): Promise<void> => {
     let events: TelemetryEvent[]
     if (Array.isArray(_events)) {
       events = _events
@@ -309,19 +309,23 @@ export class Telemetry {
     }
     const meta: EventMeta = getAnonymousMeta()
     const postController = new AbortController()
-    const res = _postPayload(
-      `https://telemetry.nextjs.org/api/v1/record`,
+
+    return Object.assign(
+      _postPayload(
+        `https://telemetry.nextjs.org/api/v1/record`,
+        {
+          context,
+          meta,
+          events: events.map(({ eventName, payload }) => ({
+            eventName,
+            fields: payload,
+          })) as Array<EventBatchShape>,
+        },
+        postController.signal
+      ),
       {
-        context,
-        meta,
-        events: events.map(({ eventName, payload }) => ({
-          eventName,
-          fields: payload,
-        })) as Array<EventBatchShape>,
-      },
-      postController.signal
+        _controller: postController,
+      }
     )
-    res._controller = postController
-    return res
   }
 }

@@ -1,6 +1,6 @@
-import type arg from 'next/dist/compiled/arg/index.js'
+import type arg from 'next/dist/compiled/arg'
 
-export const validArgs: arg.Spec = {
+export const validArgs = {
   // Types
   '--help': Boolean,
   '--port': Number,
@@ -12,4 +12,4 @@ export const validArgs: arg.Spec = {
   '-h': '--help',
   '-p': '--port',
   '-H': '--hostname',
-}
+} satisfies arg.Spec

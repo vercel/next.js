@@ -33,6 +33,7 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import os from 'os'
+import type { validArgs } from './next-dev-args'
 
 let dir: string
 let child: undefined | ReturnType<typeof fork>
@@ -111,7 +112,7 @@ const handleSessionStop = async (signal: string | null) => {
 process.on('SIGINT', () => handleSessionStop('SIGINT'))
 process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
 
-const nextDev: CliCommand = async (args) => {
+const nextDev: CliCommand<typeof validArgs> = async (args) => {
   if (args['--help']) {
     console.log(`
       Description

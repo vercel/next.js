@@ -16,8 +16,12 @@ import { CompileError } from '../lib/compile-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
+import type { validArgs, validEslintArgs } from './next-lint-args'
 
-const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
+const eslintOptions = (
+  args: arg.Result<typeof validEslintArgs>,
+  defaultCacheLocation: string
+) => ({
   overrideConfigFile: args['--config'] || null,
   extensions: args['--ext'] ?? [
     '.js',
@@ -46,7 +50,7 @@ const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
     : false,
 })
 
-const nextLint: CliCommand = async (args) => {
+const nextLint: CliCommand<typeof validArgs> = async (args) => {
   if (args['--help']) {
     printAndExit(
       `
@@ -117,8 +121,8 @@ const nextLint: CliCommand = async (args) => {
   const nextConfig = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
 
   const files: string[] = args['--file'] ?? []
-  const dirs: string[] = args['--dir'] ?? nextConfig.eslint?.dirs
-  const filesToLint = [...(dirs ?? []), ...files]
+  const dirs: string[] = args['--dir'] ?? nextConfig.eslint?.dirs ?? []
+  const filesToLint = [...dirs, ...files]
 
   const pathsToLint = (
     filesToLint.length ? filesToLint : ESLINT_DEFAULT_DIRS

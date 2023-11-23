@@ -24,34 +24,40 @@ module.exports = function (task) {
     let precompiled = options.precompiled !== false
     delete options.precompiled
 
+    // ncc (and a lot of other bundlers) take the tsconfig paths as aliases even though the docs clearly state they're
+    // only for telling typescript where to resolve something and should actually mirror what other tools do.
+    process.env.TS_NODE_PROJECT = join(__dirname, 'tsconfig.base.json')
+
     return ncc(join(__dirname, file.dir, file.base), {
       filename: file.base,
       minify: options.minify === false ? false : true,
       assetBuilds: true,
       ...options,
-    }).then(({ code, assets }) => {
-      Object.keys(assets).forEach((key) => {
-        let data = assets[key].source
-
-        this._.files.push({
-          data,
-          base: basename(key),
-          dir: join(file.dir, dirname(key)),
-        })
-      })
-
-      if (options && options.packageName) {
-        writePackageManifest.call(
-          this,
-          options.packageName,
-          file.base,
-          options.bundleName,
-          precompiled
-        )
-      }
-
-      file.data = Buffer.from(code, 'utf8')
     })
+      .then(({ code, assets }) => {
+        Object.keys(assets).forEach((key) => {
+          let data = assets[key].source
+
+          this._.files.push({
+            data,
+            base: basename(key),
+            dir: join(file.dir, dirname(key)),
+          })
+        })
+
+        if (options && options.packageName) {
+          writePackageManifest.call(
+            this,
+            options.packageName,
+            file.base,
+            options.bundleName,
+            precompiled
+          )
+        }
+
+        file.data = Buffer.from(code, 'utf8')
+      })
+      .finally(() => {})
   })
 }
 

@@ -1,6 +1,6 @@
-import type arg from 'next/dist/compiled/arg/index.js'
+import type arg from 'next/dist/compiled/arg'
 
-const validEslintArgs: arg.Spec = {
+export const validEslintArgs = {
   // Types
   '--config': String,
   '--ext': [String],
@@ -26,9 +26,9 @@ const validEslintArgs: arg.Spec = {
   '-c': '--config',
   '-f': '--format',
   '-o': '--output-file',
-}
+} satisfies arg.Spec
 
-export const validArgs: arg.Spec = {
+export const validArgs = {
   // Types
   '--help': Boolean,
   '--base-dir': String,
@@ -41,4 +41,4 @@ export const validArgs: arg.Spec = {
   '-b': '--base-dir',
   '-d': '--dir',
   ...validEslintArgs,
-}
+} satisfies arg.Spec

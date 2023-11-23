@@ -1,6 +1,8 @@
-import type { getValidatedArgs } from './get-validated-args'
+import type arg from 'next/dist/compiled/arg'
 
-export type CliCommand = (args: ReturnType<typeof getValidatedArgs>) => void
+export type CliCommand<ARGS extends arg.Spec = arg.Spec> = (
+  args: arg.Result<ARGS>
+) => void
 
 export const commands: { [command: string]: () => Promise<CliCommand> } = {
   build: () => Promise.resolve(require('../cli/next-build').nextBuild),

@@ -7,6 +7,7 @@ import { bold, cyan, yellow } from '../lib/picocolors'
 import type { CliCommand } from '../lib/commands'
 import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
+import type { validArgs } from './next-info-args'
 
 const dir = process.cwd()
 
@@ -579,7 +580,7 @@ async function printVerbose() {
  * There are 2 modes, by default it collects basic next.js installation with runtime information. If
  * `--verbose` mode is enabled it'll try to collect, verify more data for next-swc installation and others.
  */
-const nextInfo: CliCommand = async (args) => {
+const nextInfo: CliCommand<typeof validArgs> = async (args) => {
   if (args['--help']) {
     printHelp()
     return

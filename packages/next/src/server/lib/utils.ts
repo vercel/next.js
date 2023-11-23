@@ -28,7 +28,13 @@ export function getNodeOptionsWithoutInspect() {
   return (process.env.NODE_OPTIONS || '').replace(NODE_INSPECT_RE, '')
 }
 
-export function getPort(args: arg.Result<arg.Spec>): number {
+interface PortArgs extends arg.Spec {
+  '--port': NumberConstructor
+}
+
+export function getPort<ARGS extends PortArgs = PortArgs>(
+  args: arg.Result<ARGS>
+): number {
   if (typeof args['--port'] === 'number') {
     return args['--port']
   }
