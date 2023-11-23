@@ -40,11 +40,14 @@ async fn json_only(resolve_options: Vc<ResolveOptions>) -> Result<Vc<ResolveOpti
     Ok(opts.cell())
 }
 
+type TsConfigs = Vec<(Vc<FileJsonContent>, Vc<Box<dyn Source>>)>;
+
+#[tracing::instrument(skip_all)]
 pub async fn read_tsconfigs(
     mut data: Vc<FileContent>,
     mut tsconfig: Vc<Box<dyn Source>>,
     resolve_options: Vc<ResolveOptions>,
-) -> Result<Vec<(Vc<FileJsonContent>, Vc<Box<dyn Source>>)>> {
+) -> Result<TsConfigs> {
     let mut configs = Vec::new();
     let resolve_options = json_only(resolve_options);
     loop {
@@ -87,7 +90,7 @@ pub async fn read_tsconfigs(
                         TsConfigIssue {
                             severity: IssueSeverity::Error.into(),
                             source_ident: tsconfig.ident(),
-                            message: "extends doesn't resolve correctly".to_string(),
+                            message: format!("extends: \"{}\" doesn't resolve correctly", extends),
                         }
                         .cell()
                         .emit();
@@ -102,6 +105,7 @@ pub async fn read_tsconfigs(
 
 /// Resolves tsconfig files according to TS's implementation:
 /// https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3294-L3326
+#[tracing::instrument(skip_all)]
 async fn resolve_extends(
     tsconfig: Vc<Box<dyn Source>>,
     extends: &str,
