@@ -1,4 +1,3 @@
-import type { BaseNextRequest } from '../../base-http'
 import type { SpanTypes } from './constants'
 import { NextVanillaSpanAllowlist } from './constants'
 
