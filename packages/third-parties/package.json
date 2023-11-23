@@ -9,6 +9,13 @@
     "./google": "./dist/google/index.js"
   },
   "types": "dist/types/google.d.ts",
+  "typesVersions": {
+    "*": {
+      "google": [
+        "dist/google"
+      ]
+    }
+  },
   "files": [
     "dist"
   ],
