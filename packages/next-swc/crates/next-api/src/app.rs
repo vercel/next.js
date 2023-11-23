@@ -826,6 +826,7 @@ impl AppEndpoint {
                 let (loader, manifest) = create_server_actions_manifest(
                     Vc::upcast(app_entry.rsc_entry),
                     get_app_server_reference_modules(client_reference_types),
+                    this.app_project.project().project_path(),
                     node_root,
                     &app_entry.pathname,
                     &app_entry.original_name,
@@ -977,6 +978,7 @@ impl AppEndpoint {
                 let (loader, manifest) = create_server_actions_manifest(
                     Vc::upcast(app_entry.rsc_entry),
                     get_app_server_reference_modules(client_reference_types),
+                    this.app_project.project().project_path(),
                     node_root,
                     &app_entry.pathname,
                     &app_entry.original_name,

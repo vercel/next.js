@@ -257,8 +257,7 @@ export function patchFetch({
         const isOnlyNoStore =
           staticGenerationStore.fetchCache === 'only-no-store'
         const isForceNoStore =
-          staticGenerationStore.fetchCache === 'force-no-store' ||
-          staticGenerationStore.forceDynamic
+          staticGenerationStore.fetchCache === 'force-no-store'
 
         let _cache = getRequestMeta('cache')
         let cacheReason = ''
