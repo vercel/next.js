@@ -551,6 +551,9 @@ importers:
       ws:
         specifier: 8.2.3
         version: 8.2.3
+      yargs:
+        specifier: 16.2.0
+        version: 16.2.0
 
   bench/app-router-server:
     dependencies:
