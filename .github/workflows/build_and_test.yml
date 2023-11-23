@@ -239,7 +239,7 @@ jobs:
     with:
       nodeVersion: 18.17.0
       skipForDocsOnly: 'yes'
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type integration
     secrets: inherit
 
   test-ppr-dev:
@@ -265,7 +265,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type production
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type production
     secrets: inherit
 
   report-test-results:
