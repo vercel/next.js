@@ -36,7 +36,11 @@ export async function generateProjects() {
               {
                 title: 'Resetting project',
                 task: async () => {
-                  await resetProject(TEST_TEAM_NAME, ORIGIN_PROJECT_NAME)
+                  await resetProject({
+                    teamId: TEST_TEAM_NAME,
+                    projectName: ORIGIN_PROJECT_NAME,
+                    disableDeploymentProtection: true,
+                  })
                 },
               },
               {
@@ -73,7 +77,11 @@ export async function generateProjects() {
               {
                 title: 'Resetting project',
                 task: async () => {
-                  await resetProject(TEST_TEAM_NAME, HEAD_PROJECT_NAME)
+                  await resetProject({
+                    teamId: TEST_TEAM_NAME,
+                    projectName: HEAD_PROJECT_NAME,
+                    disableDeploymentProtection: true,
+                  })
                 },
               },
               {

@@ -4,10 +4,12 @@ export const TEST_PROJECT_NAME = 'vtest314-e2e-tests'
 export const TEST_TEAM_NAME = process.env.VERCEL_TEST_TEAM
 export const TEST_TOKEN = process.env.VERCEL_TEST_TOKEN
 
-export async function resetProject(
+export async function resetProject({
   teamId = TEST_TEAM_NAME,
-  projectName = TEST_PROJECT_NAME
-) {
+  projectName = TEST_PROJECT_NAME,
+  disableDeploymentProtection,
+}) {
+  console.log(`Resetting project ${teamId}/${projectName}`)
   // TODO: error/bail if existing deployments are pending
   const deleteRes = await fetch(
     `https://vercel.com/api/v8/projects/${encodeURIComponent(
@@ -46,10 +48,44 @@ export async function resetProject(
 
   if (!createRes.ok) {
     throw new Error(
-      `Failed to create project got status ${
+      `Failed to create project. Got status: ${
         createRes.status
       }, ${await createRes.text()}`
     )
+  }
+
+  const { id: projectId } = await createRes.json()
+
+  if (!projectId) {
+    throw new Error("Couldn't get projectId from create project response")
+  }
+
+  if (disableDeploymentProtection) {
+    console.log('Disabling deployment protection...')
+
+    const patchRes = await fetch(
+      `https://vercel.com/api/v8/projects/${encodeURIComponent(
+        projectId
+      )}?teamId=${teamId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+          Authorization: `Bearer ${TEST_TOKEN}`,
+        },
+        body: JSON.stringify({
+          ssoProtection: null,
+        }),
+      }
+    )
+
+    if (!patchRes.ok) {
+      throw new Error(
+        `Failed to disable deployment protection. Got status: ${
+          patchRes.status
+        }, ${await patchRes.text()}`
+      )
+    }
   }
 
   console.log(
