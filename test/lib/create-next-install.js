@@ -178,7 +178,11 @@ async function createNextInstall({
       }
 
       if (!keepRepoDir && tmpRepoDir) {
-        await fsp.rm(tmpRepoDir, { recursive: true, force: true })
+        await fsp.rm(tmpRepoDir, {
+          recursive: true,
+          force: true,
+          maxRetries: 3,
+        })
       }
 
       return {

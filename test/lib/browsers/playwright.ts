@@ -140,7 +140,11 @@ export class Playwright extends BrowserInterface {
         `playwright-${this.activeTrace}-${Date.now()}.zip`
       )
 
-      await fsp.rm(traceOutputPath, { recursive: true, force: true })
+      await fsp.rm(traceOutputPath, {
+        recursive: true,
+        force: true,
+        maxRetries: 3,
+      })
       await context.tracing
         .stop({
           path: traceOutputPath,

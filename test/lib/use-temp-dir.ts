@@ -24,7 +24,7 @@ export async function useTempDir(
     await fn(folder)
   } finally {
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-      await fsp.rm(folder, { recursive: true, force: true })
+      await fsp.rm(folder, { recursive: true, force: true, maxRetries: 3 })
     }
   }
 }

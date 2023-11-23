@@ -331,10 +331,7 @@ export class NextInstance {
     ]
     for (const file of await fsp.readdir(this.testDir)) {
       if (!keptFiles.includes(file)) {
-        await fsp.rm(path.join(this.testDir, file), {
-          recursive: true,
-          force: true,
-        })
+        await fsp.unlink(path.join(this.testDir, file))
       }
     }
     await this.writeInitialFiles()
@@ -401,7 +398,11 @@ export class NextInstance {
       }
 
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-        await fsp.rm(this.testDir, { recursive: true, force: true })
+        await fsp.rm(this.testDir, {
+          recursive: true,
+          force: true,
+          maxRetries: 3,
+        })
       }
       require('console').log(`destroyed next instance`)
     } catch (err) {
@@ -497,10 +498,8 @@ export class NextInstance {
   public async deleteFile(filename: string) {
     await this.handleDevWatchDelayBeforeChange(filename)
 
-    await fsp.rm(path.join(this.testDir, filename), {
-      recursive: true,
-      force: true,
-    })
+    await fsp.unlink(path.join(this.testDir, filename))
+
     await this.handleDevWatchDelayAfterChange(filename)
   }
 
