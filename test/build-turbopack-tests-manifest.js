@@ -1,6 +1,10 @@
-const fetch = require('node-fetch')
 const fs = require('fs')
+const os = require('os')
+const path = require('path')
+
 const prettier = require('prettier')
+const execa = require('execa')
+const { bold } = require('kleur')
 
 async function format(text) {
   const options = await prettier.resolveConfig(__filename)
@@ -9,10 +13,8 @@ async function format(text) {
 
 const override = process.argv.includes('--override')
 
-const RESULT_URL =
-  'https://raw.githubusercontent.com/vercel/turbo/nextjs-integration-test-data/test-results/main/nextjs-test-results.json'
 const PASSING_JSON_PATH = `${__dirname}/turbopack-tests-manifest.json`
-const WORKING_PATH = '/home/runner/work/turbo/turbo/'
+const WORKING_PATH = '/root/actions-runner/_work/next.js/next.js/'
 
 const INITIALIZING_TEST_CASES = [
   'compile successfully',
@@ -106,11 +108,93 @@ const SKIPPED_TEST_SUITES = {
   ],
 }
 
-async function updatePassingTests() {
-  const passing = { __proto__: null }
-  const res = await fetch(RESULT_URL)
-  const results = await res.json()
+/**
+ * @param title {string}
+ * @param file {string}
+ * @param args {readonly string[]}
+ * @returns {execa.ExecaChildProcess}
+ */
+function exec(title, file, args) {
+  logCommand(title, `${file} ${args.join(' ')}`)
 
+  return execa(file, args, {
+    stderr: 'inherit',
+  })
+}
+
+/**
+ * @param {string} title
+ * @param {string} [command]
+ */
+function logCommand(title, command) {
+  let message = `\n${bold().underline(title)}\n`
+
+  if (command) {
+    message += `> ${bold(command)}\n`
+  }
+
+  console.log(message)
+}
+
+/**
+ * @returns {Promise<Artifact>}
+ */
+async function fetchLatestTestArtifact() {
+  const { stdout } = await exec(
+    'Getting latest test artifacts from GitHub actions',
+    'gh',
+    ['api', '/repos/vercel/next.js/actions/artifacts?name=test-results']
+  )
+
+  /** @type {ListArtifactsResponse} */
+  const res = JSON.parse(stdout)
+
+  for (const artifact of res.artifacts) {
+    if (artifact.expired || artifact.workflow_run.head_branch !== 'canary') {
+      continue
+    }
+
+    return artifact
+  }
+
+  throw new Error('no valid test-results artifact was found for branch canary')
+}
+
+/**
+ * @returns {Promise<TestResultManifest>}
+ */
+async function fetchTestResults() {
+  const artifact = await fetchLatestTestArtifact()
+
+  const subprocess = exec('Downloading artifact archive', 'gh', [
+    'api',
+    `/repos/vercel/next.js/actions/artifacts/${artifact.id}/zip`,
+  ])
+
+  const filePath = path.join(
+    os.tmpdir(),
+    `next-test-results.${Math.floor(Math.random() * 1000).toString(16)}.zip`
+  )
+
+  subprocess.stdout.pipe(fs.createWriteStream(filePath))
+
+  await subprocess
+
+  const { stdout } = await exec('Extracting test results manifest', 'unzip', [
+    '-pj',
+    filePath,
+    'nextjs-test-results.json',
+  ])
+
+  return JSON.parse(stdout)
+}
+
+async function updatePassingTests() {
+  const results = await fetchTestResults()
+
+  logCommand('Processing results...')
+
+  const passing = { __proto__: null }
   for (const result of results.result) {
     const runtimeError = result.data.numRuntimeErrorTestSuites > 0
     for (const testResult of result.data.testResults) {
@@ -153,13 +237,11 @@ async function updatePassingTests() {
 
       if (skippedPassingNames.length > 0) {
         console.log(
-          `${filepath} has ${
+          `${bold().red(filepath)} has ${
             skippedPassingNames.length
-          } passing tests that are marked as skipped: ${JSON.stringify(
-            skippedPassingNames,
-            0,
-            2
-          )}`
+          } passing tests that are marked as skipped:\n${skippedPassingNames
+            .map((name) => `  - ${name}`)
+            .join('\n')}\n`
         )
       }
     }
@@ -190,9 +272,12 @@ async function updatePassingTests() {
         oldData.passed.filter((name) => newData.failed.includes(name))
       )
       if (shouldPass.size > 0) {
-        const list = JSON.stringify([...shouldPass], 0, 2)
         console.log(
-          `${file} has ${shouldPass.size} test(s) that should pass but failed: ${list}`
+          `${bold().red(file)} has ${
+            shouldPass.size
+          } test(s) that should pass but failed:\n${Array.from(shouldPass)
+            .map((name) => `  - ${name}`)
+            .join('\n')}\n`
         )
       }
       // Merge the old passing tests with the new ones
@@ -203,7 +288,9 @@ async function updatePassingTests() {
         .sort()
 
       if (!oldData.runtimeError && newData.runtimeError) {
-        console.log(`${file} has a runtime error that is shouldn't have`)
+        console.log(
+          `${bold().red(file)} has a runtime error that is shouldn't have\n`
+        )
         newData.runtimeError = false
       }
     }
@@ -246,4 +333,7 @@ function stripWorkingPath(path) {
   return path.slice(WORKING_PATH.length)
 }
 
-updatePassingTests()
+updatePassingTests().catch((e) => {
+  console.error(e)
+  process.exit(1)
+})

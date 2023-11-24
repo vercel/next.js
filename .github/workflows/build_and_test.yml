@@ -22,7 +22,7 @@ env:
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  DATADOG_TRACE_NEXTJS_TEST: 'true'
+  NEXT_JUNIT_TEST_REPORT: 'true'
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
@@ -240,11 +240,28 @@ jobs:
         'test-turbopack-dev',
         'test-turbopack-integration',
       ]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      skipForDocsOnly: 'yes'
-      uploadTestTrace: 'yes'
-    secrets: inherit
+    if: always()
+    runs-on: ubuntu-latest
+    name: report test results to datadog
+    steps:
+      - name: Download test report artifacts
+        id: download-test-reports
+        uses: actions/download-artifact@v3
+        with:
+          name: test-reports
+          path: test
+
+      - name: Upload test report to datadog
+        run: |
+          if [ -d ./test/test-junit-report ]; then
+            # Add a `test.type` tag to distinguish between turbopack and next.js runs
+            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs --service nextjs ./test/test-junit-report
+          fi
+
+          if [ -d ./test/turbopack-test-junit-report ]; then
+            # Add a `test.type` tag to distinguish between turbopack and next.js runs
+            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack --service nextjs ./test/turbopack-test-junit-report
+          fi
 
   tests-pass:
     needs:

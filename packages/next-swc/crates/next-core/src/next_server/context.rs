@@ -126,6 +126,8 @@ pub async fn get_server_resolve_options_context(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
+        // TODO(sokra) esmExternals support
+        false,
     );
     let ty = ty.into_value();
 
@@ -144,6 +146,8 @@ pub async fn get_server_resolve_options_context(
         project_path,
         project_path.root(),
         ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
+        // TODO(sokra) esmExternals support
+        false,
     );
 
     let next_external_plugin = NextExternalResolvePlugin::new(project_path);
@@ -189,6 +193,7 @@ pub async fn get_server_resolve_options_context(
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
+        enable_mjs_extension: true,
         rules: vec![(
             foreign_code_context_condition,
             resolve_options_context.clone().cell(),

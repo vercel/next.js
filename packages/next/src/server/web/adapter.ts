@@ -16,6 +16,8 @@ import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import { ensureInstrumentationRegistered } from './globals'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
+import { getTracer } from '../lib/trace/tracer'
+import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -41,6 +43,11 @@ class NextRequestHint extends NextRequest {
   waitUntil() {
     throw new PageSignatureError({ page: this.sourcePage })
   }
+}
+
+const headersGetter: TextMapGetter<Headers> = {
+  keys: (headers) => Array.from(headers.keys()),
+  get: (headers, key) => headers.get(key) ?? undefined,
 }
 
 export type AdapterOptions = {
@@ -176,31 +183,37 @@ export async function adapter(
   let response
   let cookiesFromResponse
 
-  // we only care to make async storage available for middleware
-  const isMiddleware =
-    params.page === '/middleware' || params.page === '/src/middleware'
-  if (isMiddleware) {
-    response = await RequestAsyncStorageWrapper.wrap(
-      requestAsyncStorage,
-      {
-        req: request,
-        renderOpts: {
-          onUpdateCookies: (cookies) => {
-            cookiesFromResponse = cookies
+  const tracer = getTracer()
+  response = await tracer.withPropagatedContext(
+    request.headers,
+    () => {
+      // we only care to make async storage available for middleware
+      const isMiddleware =
+        params.page === '/middleware' || params.page === '/src/middleware'
+      if (isMiddleware) {
+        return RequestAsyncStorageWrapper.wrap(
+          requestAsyncStorage,
+          {
+            req: request,
+            renderOpts: {
+              onUpdateCookies: (cookies) => {
+                cookiesFromResponse = cookies
+              },
+              // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
+              previewProps: prerenderManifest?.preview || {
+                previewModeId: 'development-id',
+                previewModeEncryptionKey: '',
+                previewModeSigningKey: '',
+              },
+            },
           },
-          // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
-          previewProps: prerenderManifest?.preview || {
-            previewModeId: 'development-id',
-            previewModeEncryptionKey: '',
-            previewModeSigningKey: '',
-          },
-        },
-      },
-      () => params.handler(request, event)
-    )
-  } else {
-    response = await params.handler(request, event)
-  }
+          () => params.handler(request, event)
+        )
+      }
+      return params.handler(request, event)
+    },
+    headersGetter
+  )
 
   // check if response is a Response object
   if (response && !(response instanceof Response)) {
