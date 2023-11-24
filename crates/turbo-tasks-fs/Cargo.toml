@@ -17,6 +17,8 @@ harness = false
 # A binary built with this option **is not portable**, the directory
 # path will be embedded into the binary.
 dynamic_embed_contents = []
+# Write a hashed version of each file to allow to debug conflicting writes
+write_version = []
 
 [lints]
 workspace = true

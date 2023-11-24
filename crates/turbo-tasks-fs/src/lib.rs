@@ -798,6 +798,22 @@ impl FileSystem for DiskFileSystem {
                         tokio::io::copy(&mut file.read(), &mut f).await?;
                         #[cfg(target_family = "unix")]
                         f.set_permissions(file.meta.permissions.into()).await?;
+                        #[cfg(feature = "write_version")]
+                        {
+                            let mut full_path = full_path;
+                            let hash = hash_xxh3_hash64(file);
+                            let ext = full_path.extension();
+                            let ext = if let Some(ext) = ext {
+                                format!("{:016x}.{}", hash, ext.to_string_lossy())
+                            } else {
+                                format!("{:016x}", hash)
+                            };
+                            full_path.set_extension(ext);
+                            let mut f = fs::File::create(&full_path).await?;
+                            tokio::io::copy(&mut file.read(), &mut f).await?;
+                            #[cfg(target_family = "unix")]
+                            f.set_permissions(file.meta.permissions.into()).await?;
+                        }
                         Ok::<(), io::Error>(())
                     }
                 })
