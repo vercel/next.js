@@ -1,6 +1,6 @@
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { flushAllTraces } from '../../trace'
+import { type Span, flushAllTraces, trace } from '../../trace'
 import {
   teardownCrashReporter,
   teardownHeapProfiler,
@@ -54,6 +54,7 @@ let startTime = 0
 let trigger = '' // default, use empty string for trigger
 let triggerUrl: string | undefined = undefined
 let loadingLogTimer: NodeJS.Timeout | null = null
+let traceSpan: Span | null = null
 
 store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
@@ -69,6 +70,9 @@ store.subscribe((state) => {
       trigger = state.trigger
       triggerUrl = state.url
       if (trigger !== 'initial') {
+        traceSpan = trace('compile-path', undefined, {
+          trigger: trigger,
+        })
         if (!loadingLogTimer) {
           // Only log compiling if compiled is not finished in 3 seconds
           loadingLogTimer = setTimeout(() => {
@@ -154,6 +158,10 @@ store.subscribe((state) => {
     if (loadingLogTimer) {
       clearTimeout(loadingLogTimer)
       loadingLogTimer = null
+    }
+    if (traceSpan) {
+      traceSpan.stop()
+      traceSpan = null
     }
     Log.event(
       `Compiled${trigger ? ' ' + trigger : ''}${timeMessage}${modulesMessage}`

@@ -174,10 +174,12 @@ class NextTracerImpl implements NextTracer {
   }
 
   public withPropagatedContext<T>(req: BaseNextRequest, fn: () => T): T {
-    if (context.active() !== ROOT_CONTEXT) {
+    const activeContext = context.active()
+    if (trace.getSpanContext(activeContext)) {
+      // Active span is already set, too late to propagate.
       return fn()
     }
-    const remoteContext = propagation.extract(ROOT_CONTEXT, req.headers)
+    const remoteContext = propagation.extract(activeContext, req.headers)
     return context.with(remoteContext, fn)
   }
 
