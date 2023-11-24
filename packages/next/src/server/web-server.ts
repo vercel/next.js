@@ -280,7 +280,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     page,
     query,
     params,
-    url,
+    url: _url,
   }: {
     page: string
     query: NextParsedUrlQuery
@@ -345,7 +345,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
 
   protected async getFallbackErrorComponents(
-    url?: string
+    _url?: string
   ): Promise<LoadComponentsReturnType | null> {
     // The web server does not need to handle fallback errors in production.
     return null

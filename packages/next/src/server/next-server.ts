@@ -663,7 +663,7 @@ export default class NextNodeServer extends BaseServer {
     query,
     params,
     isAppPath,
-    url,
+    url: _url,
   }: {
     page: string
     query: NextParsedUrlQuery
@@ -1916,7 +1916,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async getFallbackErrorComponents(
-    url?: string
+    _url?: string
   ): Promise<LoadComponentsReturnType | null> {
     // Not implemented for production use cases, this is implemented on the
     // development server.

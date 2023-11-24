@@ -1365,12 +1365,12 @@ async function startWatcher(opts: SetupOpts) {
         // appPaths,
         definition,
         isApp,
-        url,
+        url: requestUrl,
       }) {
         let page = definition?.pathname ?? inputPage
 
         if (page === '/_error') {
-          let finishBuilding = startBuilding(page, url)
+          let finishBuilding = startBuilding(page, requestUrl)
           try {
             if (globalEntries.app) {
               const writtenEndpoint = await processResult(
@@ -1469,7 +1469,7 @@ async function startWatcher(opts: SetupOpts) {
                 )
               }
 
-              finishBuilding = startBuilding(buildingKey, url)
+              finishBuilding = startBuilding(buildingKey, requestUrl)
               try {
                 if (globalEntries.app) {
                   const writtenEndpoint = await processResult(
@@ -1557,7 +1557,7 @@ async function startWatcher(opts: SetupOpts) {
               // since this can happen when app pages make
               // api requests to page API routes.
 
-              finishBuilding = startBuilding(buildingKey, url)
+              finishBuilding = startBuilding(buildingKey, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
@@ -1582,7 +1582,7 @@ async function startWatcher(opts: SetupOpts) {
               break
             }
             case 'app-page': {
-              finishBuilding = startBuilding(buildingKey, url)
+              finishBuilding = startBuilding(buildingKey, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.htmlEndpoint.writeToDisk()
@@ -1633,7 +1633,7 @@ async function startWatcher(opts: SetupOpts) {
               break
             }
             case 'app-route': {
-              finishBuilding = startBuilding(buildingKey, url)
+              finishBuilding = startBuilding(buildingKey, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
