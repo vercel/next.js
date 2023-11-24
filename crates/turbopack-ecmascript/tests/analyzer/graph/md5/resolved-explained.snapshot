@@ -20,6 +20,7 @@ a#18 = ???*0*
 
 a#7 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 b#14 = ???*0*
 - *0* arguments[2]
@@ -43,14 +44,17 @@ b#18 = ???*0*
 
 b#7 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 bitRotateLeft = (...) => ???*0*
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 bytes = (???*0* | ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* unknown new expression
+  ⚠️  This value might have side effects
 
 bytesToWords = (...) => output
 
@@ -72,6 +76,7 @@ c#18 = ???*0*
 
 c#7 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 cnt = ???*0*
 - *0* arguments[1]
@@ -95,6 +100,7 @@ d#18 = ???*0*
 
 d#7 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 hex = (???*0* | ???*1*)
 - *0* hex
@@ -104,15 +110,20 @@ hex = (???*0* | ???*1*)
         16
     )
   ⚠️  unknown callee
+  ⚠️  This value might have side effects
 - *2* FreeVar(parseInt)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *3* unsupported expression
+  ⚠️  This value might have side effects
 - *4* unsupported expression
+  ⚠️  This value might have side effects
 
 hexTab = "0123456789abcdef"
 
 i#3 = (0 | ???*0*)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 i#5 = (???*0* | 0 | ((???*1* | 0 | ???*2*) + 8))
 - *0* i
@@ -164,16 +175,21 @@ len = ???*0*
 
 length32 = ???*0*
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 length8 = ???*0*
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 lsw = (???*0* + ???*1*)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 
 md5 = (...) => md5ToHexEncodedArray(wordsToMd5(bytesToWords(bytes), ???*0*))
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 md5ToHexEncodedArray = (...) => output
 
@@ -184,26 +200,35 @@ md5cmn = (...) => safeAdd(
 
 md5ff = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 md5gg = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 md5hh = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 md5ii = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 msg = ???*0*
 - *0* ???*1*(FreeVar(encodeURIComponent)(bytes))
   ⚠️  unknown callee
+  ⚠️  This value might have side effects
 - *1* FreeVar(unescape)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 
 msw = (???*0* + ???*1* + ???*2*)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 
 num = ???*0*
 - *0* arguments[0]
@@ -211,15 +236,19 @@ num = ???*0*
 
 olda = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 oldb = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 oldc = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 oldd = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 output#5 = []
 
@@ -251,6 +280,7 @@ s#18 = ???*0*
 
 safeAdd = (...) => ???*0*
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 t#14 = ???*0*
 - *0* arguments[5]
@@ -302,6 +332,7 @@ x#5 = (???*0* | ???*1*)
 - *0* x
   ⚠️  pattern without value
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 
 x#7 = ???*0*
 - *0* arguments[0]

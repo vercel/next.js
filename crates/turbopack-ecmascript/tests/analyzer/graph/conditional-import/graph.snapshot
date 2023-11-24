@@ -22,8 +22,8 @@
         Alternatives(
             8,
             [
-                Unknown(
-                    Some(
+                Unknown {
+                    original_value: Some(
                         Variable(
                             (
                                 "b",
@@ -31,8 +31,9 @@
                             ),
                         ),
                     ),
-                    "pattern without value",
-                ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
                 Call(
                     3,
                     FreeVar(

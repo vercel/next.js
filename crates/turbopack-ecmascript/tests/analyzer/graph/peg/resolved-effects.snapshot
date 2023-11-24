@@ -2,19 +2,23 @@
 
 0 -> 12 conditional = (???*0* === "function")
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 12 -> 14 free var = FreeVar(Error)
 
 12 -> 15 member call = ???*0*["captureStackTrace"](???*1*, (...) => undefined)
 - *0* FreeVar(Error)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 
 0 -> 16 free var = FreeVar(Error)
 
 0 -> 17 call = (...) => undefined((...) => undefined, ???*0*)
 - *0* FreeVar(Error)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 
 0 -> 20 call = (...) => s["replace"](/\\/g, "\\\\")["replace"](/"/g, "\\\"")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)(???*0*)
 - *0* ???*1*["text"]
@@ -292,25 +296,36 @@
 
 0 -> 96 member call = ???*0*["sort"]()
 - *0* unknown new expression
+  ⚠️  This value might have side effects
 
 0 -> 101 conditional = (???*0* !== ???*3*)
 - *0* ???*1*[???*2*]
   ⚠️  unknown object
+  ⚠️  This value might have side effects
 - *1* unknown new expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 - *3* ???*4*[i]
   ⚠️  unknown object
+  ⚠️  This value might have side effects
 - *4* unknown new expression
+  ⚠️  This value might have side effects
 
 0 -> 111 member call = ???*0*["slice"](0, ???*1*)
 - *0* unknown new expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 
 0 -> 112 member call = ???*0*["join"](", ")
 - *0* ???*1*["slice"](0, ???*2*)
   ⚠️  unknown callee object
+  ⚠️  This value might have side effects
 - *1* unknown new expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 
 0 -> 115 conditional = ???*0*
 - *0* arguments[0]
@@ -327,7 +342,9 @@
   | `${descriptions["slice"](0, ???*0*)["join"](", ")}, or ${descriptions[???*1*]}`
 )(???*2*)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
@@ -345,9 +362,11 @@
 - *3* options
   ⚠️  circular variable reference
 - *4* unsupported expression
+  ⚠️  This value might have side effects
 - *5* options
   ⚠️  circular variable reference
 - *6* unsupported expression
+  ⚠️  This value might have side effects
 
 0 -> 120 call = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}("*", false)
 
@@ -390,6 +409,7 @@
 134 -> 137 call = ???*0*(???*1*, 16)
 - *0* FreeVar(parseInt)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *1* ???*2*["substring"](peg$savedPos, peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
@@ -402,6 +422,7 @@
 134 -> 140 call = ???*0*(???*1*)
 - *0* FreeVar(parseFloat)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *1* ???*2*["substring"](peg$savedPos, peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
@@ -508,16 +529,20 @@
 0 -> 191 call = ???*0*(???*1*, 16)
 - *0* FreeVar(parseInt)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 0 -> 192 member call = ???*0*["fromCharCode"](???*1*)
 - *0* FreeVar(String)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *1* ???*2*(digits, 16)
   ⚠️  unknown callee
+  ⚠️  This value might have side effects
 - *2* FreeVar(parseInt)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 
 0 -> 193 call = (...) => {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}([["0", "9"], ["a", "f"]], false, true)
 
@@ -595,6 +620,7 @@
 0 -> 220 call = ???*0*(???*1*)
 - *0* FreeVar(Number)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *1* ???*2*["substring"](peg$savedPos, peg$currPos)
   ⚠️  unknown callee object
 - *2* arguments[0]
@@ -606,6 +632,7 @@
 
 0 -> 223 conditional = !(???*0*)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 223 -> 224 free var = FreeVar(Error)
 
@@ -613,24 +640,31 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 230 call = (...) => {
     "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
     "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
 }(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 231 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 231 -> 232 call = (...) => {
     "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
     "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
 }(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 233 call = (...) => {"type": "other", "description": description}(???*0*)
 - *0* arguments[0]
@@ -640,10 +674,13 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 236 call = (...) => ???*0*([{"type": "other", "description": ???*1*}], ???*2*, ???*4*)
 - *0* unknown new expression
+  ⚠️  This value might have side effects
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 - *2* ???*3*["substring"](peg$savedPos, peg$currPos)
@@ -651,22 +688,28 @@
 - *3* arguments[0]
   ⚠️  function calls are not analysed yet
 - *4* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 237 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 237 -> 238 call = (...) => {
     "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
     "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
 }(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 239 call = (...) => ???*0*(???*1*, ???*2*)
 - *0* unknown new expression
+  ⚠️  This value might have side effects
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 - *2* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 241 conditional = ({"line": 1, "column": 1} | ???*0* | {"line": ???*2*, "column": ???*4*})
 - *0* [][???*1*]
@@ -688,7 +731,9 @@
 - *1* p
   ⚠️  pattern without value
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 - *3* updated with update expression
+  ⚠️  This value might have side effects
 
 241 -> 248 conditional = (???*0* === 10)
 - *0* ???*1*["charCodeAt"](p)
@@ -718,11 +763,13 @@
 
 0 -> 264 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 264 -> 265 call = (...) => s0()
 
 264 -> 266 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 266 -> 267 call = (...) => s0()
 
@@ -732,11 +779,13 @@
 
 268 -> 269 call = (...) => {"type": "sql", "body": body}(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 270 call = (...) => s0()
 
 0 -> 271 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 271 -> 272 call = (...) => s0()
 
@@ -748,99 +797,125 @@
 
 273 -> 275 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 275 -> 276 call = (...) => s0()
 
 275 -> 277 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 277 -> 278 call = (...) => s0()
 
 277 -> 279 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 279 -> 280 call = (...) => v(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 273 -> 281 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 281 -> 282 call = (...) => s0()
 
 281 -> 283 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 283 -> 284 call = (...) => s0()
 
 283 -> 285 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 285 -> 286 call = (...) => s0()
 
 285 -> 287 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 287 -> 288 call = (...) => s0()
 
 287 -> 289 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 289 -> 290 call = (...) => s0()
 
 289 -> 291 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 291 -> 292 call = (...) => s0()
 
 291 -> 293 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 293 -> 294 call = (...) => v(???*0*, ???*1*, ???*2*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 287 -> 295 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 295 -> 296 call = (...) => s0()
 
 295 -> 297 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 297 -> 298 call = (...) => s0()
 
 297 -> 299 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 299 -> 300 call = (...) => s0()
 
 299 -> 301 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 301 -> 302 call = (...) => s0()
 
 301 -> 303 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 303 -> 304 call = (...) => v(???*0*, ???*1*, ???*2*, ???*3*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *3* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 297 -> 305 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 305 -> 306 call = (...) => s0()
 
 305 -> 307 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 307 -> 308 call = (...) => s0()
 
 307 -> 309 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 309 -> 310 call = (...) => s0()
 
@@ -852,6 +927,7 @@
 
 311 -> 313 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 313 -> 314 call = (...) => s0()
 
@@ -863,16 +939,23 @@
 
 315 -> 317 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 317 -> 318 call = (...) => v(???*0*, ???*1*, ???*2*, ???*3*, ???*4*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *3* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *4* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 307 -> 319 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 319 -> 320 call = (...) => {
     "type": "select_query",
@@ -883,15 +966,21 @@
     "orderBy": orderBy
 }(???*0*, ???*1*, ???*2*, ???*3*, ???*4*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *3* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *4* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 322 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 323 conditional = (???*0* === 42)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -901,6 +990,7 @@
 
 323 -> 324 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 324 -> 325 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "*", "ignoreCase": false}
@@ -908,27 +998,33 @@
 
 0 -> 326 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 326 -> 327 call = (...) => {"type": "select_specification", "*": true}()
 
 0 -> 328 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 328 -> 329 call = (...) => s0()
 
 328 -> 330 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 330 -> 331 call = (...) => {"type": "select_specification", "properties": properties}(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 328 -> 332 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 332 -> 333 call = (...) => s0()
 
 332 -> 334 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 334 -> 335 call = (...) => s0()
 
@@ -940,24 +1036,29 @@
 
 336 -> 338 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 338 -> 339 call = (...) => {"type": "select_specification", "value": value}(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 340 call = (...) => s0()
 
 0 -> 341 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 341 -> 342 call = (...) => s0()
 
 341 -> 343 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 343 -> 345 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 343 -> 346 conditional = (???*0* === 44)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -967,6 +1068,7 @@
 
 346 -> 347 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 347 -> 348 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ",", "ignoreCase": false}
@@ -986,25 +1088,31 @@
 
 351 -> 353 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 353 -> 354 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 341 -> 356 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 341 -> 357 call = (...) => s0()
 
 341 -> 358 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 358 -> 360 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 358 -> 361 conditional = (???*0* === 44)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1014,6 +1122,7 @@
 
 361 -> 362 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 362 -> 363 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ",", "ignoreCase": false}
@@ -1033,10 +1142,13 @@
 
 366 -> 368 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 368 -> 369 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 341 -> 370 conditional = ((???*0* | []) !== {})
 - *0* s2
@@ -1044,7 +1156,9 @@
 
 370 -> 371 call = (...) => {"type": "object_property_list", "properties": ???*0*}(???*1*, (???*2* | []))
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* s2
   ⚠️  pattern without value
 
@@ -1052,16 +1166,19 @@
 
 0 -> 373 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 373 -> 374 call = (...) => s0()
 
 373 -> 375 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 375 -> 376 call = (...) => s0()
 
 375 -> 377 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 377 -> 378 call = (...) => s0()
 
@@ -1073,25 +1190,31 @@
 
 379 -> 381 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 381 -> 382 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 373 -> 384 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 373 -> 385 call = (...) => s0()
 
 373 -> 386 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 386 -> 387 call = (...) => s0()
 
 386 -> 388 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 388 -> 389 call = (...) => s0()
 
@@ -1103,10 +1226,13 @@
 
 390 -> 392 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 392 -> 393 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 373 -> 394 conditional = ((???*0* | []) !== {})
 - *0* s2
@@ -1114,6 +1240,7 @@
 
 394 -> 395 call = (...) => {"type": "from_specification", "source": source, "joins": joins}(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* s2
   ⚠️  pattern without value
 
@@ -1121,79 +1248,99 @@
 
 0 -> 397 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 397 -> 398 call = (...) => s0()
 
 397 -> 399 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 399 -> 400 call = (...) => s0()
 
 399 -> 401 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 401 -> 402 call = (...) => s0()
 
 401 -> 403 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 403 -> 404 call = (...) => s0()
 
 403 -> 405 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 405 -> 406 call = (...) => {"type": "from_source", "expression": expression, "alias": alias, "iteration": true}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 407 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 407 -> 408 call = (...) => s0()
 
 407 -> 409 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 409 -> 410 call = (...) => s0()
 
 409 -> 411 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 411 -> 412 call = (...) => s0()
 
 409 -> 413 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 413 -> 414 call = (...) => s0()
 
 413 -> 415 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 415 -> 416 call = (...) => s0()
 
 415 -> 417 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 417 -> 418 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 409 -> 419 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 419 -> 420 call = (...) => {"type": "from_source", "expression": expression, "alias": alias}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 421 call = (...) => s0()
 
 0 -> 422 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 422 -> 423 call = (...) => s0()
 
 422 -> 424 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 424 -> 425 call = (...) => s0()
 
@@ -1201,24 +1348,29 @@
 
 0 -> 427 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 427 -> 428 call = (...) => {"type": "filter_condition", "condition": condition}(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 429 call = (...) => s0()
 
 0 -> 430 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 430 -> 431 call = (...) => s0()
 
 430 -> 432 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 432 -> 434 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 432 -> 435 conditional = (???*0* === 44)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1228,6 +1380,7 @@
 
 435 -> 436 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 436 -> 437 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ",", "ignoreCase": false}
@@ -1247,25 +1400,31 @@
 
 440 -> 442 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 442 -> 443 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 430 -> 445 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 430 -> 446 call = (...) => s0()
 
 430 -> 447 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 447 -> 449 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 447 -> 450 conditional = (???*0* === 44)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1275,6 +1434,7 @@
 
 450 -> 451 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 451 -> 452 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ",", "ignoreCase": false}
@@ -1294,10 +1454,13 @@
 
 455 -> 457 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 457 -> 458 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 430 -> 459 conditional = ((???*0* | []) !== {})
 - *0* s2
@@ -1305,7 +1468,9 @@
 
 459 -> 460 call = (...) => {"type": "sort_specification", "expressions": ???*0*}(???*1*, (???*2* | []))
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* s2
   ⚠️  pattern without value
 
@@ -1313,37 +1478,47 @@
 
 0 -> 462 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 462 -> 463 call = (...) => s0()
 
 462 -> 464 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 464 -> 465 call = (...) => s0()
 
 464 -> 466 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 466 -> 467 call = (...) => s0()
 
 464 -> 468 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 468 -> 469 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 462 -> 470 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 470 -> 471 call = (...) => {"type": "sort_expression", "expression": expression, "order": order}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 472 call = (...) => s0()
 
 0 -> 473 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 473 -> 474 call = (...) => s0()
 
@@ -1355,6 +1530,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 475 -> 478 conditional = (???*0* === 46)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1364,6 +1540,7 @@
 
 478 -> 479 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 479 -> 480 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ".", "ignoreCase": false}
@@ -1383,6 +1560,7 @@
 
 483 -> 485 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 485 -> 486 call = (...) => s0()
 
@@ -1394,6 +1572,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 487 -> 490 conditional = (???*0* === 40)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1403,6 +1582,7 @@
 
 490 -> 491 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 491 -> 492 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "(", "ignoreCase": false}
@@ -1422,6 +1602,7 @@
 
 495 -> 497 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 497 -> 498 call = (...) => s0()
 
@@ -1433,6 +1614,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 499 -> 502 conditional = (???*0* === 41)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1442,6 +1624,7 @@
 
 502 -> 503 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 503 -> 504 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ")", "ignoreCase": false}
@@ -1453,15 +1636,19 @@
 
 505 -> 506 call = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 507 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 507 -> 508 call = (...) => s0()
 
 507 -> 509 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 509 -> 510 call = (...) => s0()
 
@@ -1473,6 +1660,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 511 -> 514 conditional = (???*0* === 40)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1482,6 +1670,7 @@
 
 514 -> 515 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 515 -> 516 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "(", "ignoreCase": false}
@@ -1501,6 +1690,7 @@
 
 519 -> 521 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 521 -> 522 call = (...) => s0()
 
@@ -1512,6 +1702,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 523 -> 526 conditional = (???*0* === 41)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1521,6 +1712,7 @@
 
 526 -> 527 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 527 -> 528 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ")", "ignoreCase": false}
@@ -1532,12 +1724,15 @@
 
 529 -> 530 call = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 532 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 533 conditional = (???*0* === 123)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1547,6 +1742,7 @@
 
 533 -> 534 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 534 -> 535 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "{", "ignoreCase": false}
@@ -1554,6 +1750,7 @@
 
 0 -> 536 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 536 -> 537 call = (...) => s0()
 
@@ -1565,16 +1762,19 @@
 
 538 -> 540 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 540 -> 541 call = (...) => s0()
 
 540 -> 542 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 542 -> 544 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 542 -> 545 conditional = (???*0* === 44)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1584,6 +1784,7 @@
 
 545 -> 546 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 546 -> 547 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ",", "ignoreCase": false}
@@ -1603,25 +1804,31 @@
 
 550 -> 552 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 552 -> 553 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 540 -> 555 member call = (???*0* | [])["push"](???*1*)
 - *0* s4
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 540 -> 556 call = (...) => s0()
 
 540 -> 557 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 557 -> 559 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 557 -> 560 conditional = (???*0* === 44)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1631,6 +1838,7 @@
 
 560 -> 561 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 561 -> 562 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ",", "ignoreCase": false}
@@ -1650,10 +1858,13 @@
 
 565 -> 567 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 567 -> 568 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 540 -> 569 conditional = ((???*0* | []) !== {})
 - *0* s4
@@ -1663,11 +1874,13 @@
 
 569 -> 571 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 571 -> 573 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 571 -> 574 conditional = (???*0* === 125)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1677,6 +1890,7 @@
 
 574 -> 575 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 575 -> 576 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "}", "ignoreCase": false}
@@ -1684,10 +1898,13 @@
 
 571 -> 577 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 577 -> 578 call = (...) => {"type": "scalar_object_expression", "properties": (head ? ???*0* : [])}(???*1*, (???*2* | []))
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* s4
   ⚠️  pattern without value
 
@@ -1695,6 +1912,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 581 conditional = (???*0* === 91)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1704,6 +1922,7 @@
 
 581 -> 582 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 582 -> 583 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "[", "ignoreCase": false}
@@ -1711,6 +1930,7 @@
 
 0 -> 584 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 584 -> 585 call = (...) => s0()
 
@@ -1722,6 +1942,7 @@
 
 586 -> 588 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 588 -> 589 call = (...) => s0()
 
@@ -1733,6 +1954,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 590 -> 593 conditional = (???*0* === 93)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1742,6 +1964,7 @@
 
 593 -> 594 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 594 -> 595 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "]", "ignoreCase": false}
@@ -1753,36 +1976,43 @@
 
 596 -> 597 call = (...) => {"type": "scalar_array_expression", "elements": elements}(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 598 call = (...) => s0()
 
 0 -> 599 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 599 -> 600 call = (...) => s0()
 
 599 -> 601 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 601 -> 602 call = (...) => s0()
 
 601 -> 603 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 603 -> 604 call = (...) => s0()
 
 603 -> 605 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 605 -> 606 call = (...) => s0()
 
 605 -> 607 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 607 -> 608 call = (...) => s0()
 
 607 -> 609 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 609 -> 610 call = (...) => s0()
 
@@ -1790,6 +2020,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 613 conditional = (???*0* === "undefined")
 - *0* ???*1*["substr"](peg$currPos, 9)
@@ -1799,6 +2030,7 @@
 
 613 -> 614 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 614 -> 615 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "undefined", "ignoreCase": false}
@@ -1814,6 +2046,7 @@
 
 0 -> 619 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 619 -> 620 call = (...) => {"type": "null_constant"}()
 
@@ -1821,16 +2054,19 @@
 
 0 -> 622 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 622 -> 623 call = (...) => {"type": "boolean_constant", "value": false}()
 
 0 -> 624 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 624 -> 625 call = (...) => s0()
 
 624 -> 626 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 626 -> 627 call = (...) => {"type": "boolean_constant", "value": true}()
 
@@ -1838,6 +2074,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 630 conditional = (???*0* === 45)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1847,6 +2084,7 @@
 
 630 -> 631 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 631 -> 632 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "-", "ignoreCase": false}
@@ -1861,17 +2099,22 @@
   ⚠️  pattern without value
 - *3* ???*4*(text(), 16)
   ⚠️  unknown callee
+  ⚠️  This value might have side effects
 - *4* FreeVar(parseInt)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *5* ???*6*(text())
   ⚠️  unknown callee
+  ⚠️  This value might have side effects
 - *6* FreeVar(parseFloat)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 
 633 -> 635 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 633 -> 636 conditional = (???*0* === "0x")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -1881,6 +2124,7 @@
 
 636 -> 637 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 637 -> 638 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "0x", "ignoreCase": false}
@@ -1894,6 +2138,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 639 -> 643 member call = /^[0-9]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
@@ -1911,9 +2156,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 644 -> 647 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 647 -> 648 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
@@ -1921,16 +2168,19 @@
 
 639 -> 649 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 649 -> 651 member call = (???*0* | [] | {})["push"](???*1*)
 - *0* s3
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 649 -> 654 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 649 -> 655 member call = /^[0-9]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
@@ -1948,9 +2198,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 656 -> 659 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 659 -> 660 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
@@ -1964,6 +2216,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 661 -> 664 conditional = (???*0* === 46)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -1973,6 +2226,7 @@
 
 664 -> 665 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 665 -> 666 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ".", "ignoreCase": false}
@@ -1990,6 +2244,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 667 -> 671 member call = /^[0-9]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
@@ -2007,9 +2262,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 672 -> 675 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 675 -> 676 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
@@ -2037,6 +2294,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 677 -> 683 member call = /^[0-9]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
@@ -2054,9 +2312,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 684 -> 687 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 687 -> 688 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
@@ -2064,6 +2324,7 @@
 
 661 -> 689 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 689 -> 690 call = (...) => {
     "type": "number_constant",
@@ -2076,6 +2337,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 693 conditional = (???*0* === 34)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -2085,6 +2347,7 @@
 
 693 -> 694 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 694 -> 695 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "\"", "ignoreCase": false}
@@ -2114,6 +2377,7 @@
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 696 -> 700 call = (...) => s0()
 
@@ -2125,6 +2389,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 701 -> 704 conditional = (???*0* === 34)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -2134,6 +2399,7 @@
 
 704 -> 705 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 705 -> 706 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "\"", "ignoreCase": false}
@@ -2141,6 +2407,7 @@
 
 701 -> 707 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 707 -> 708 call = (...) => {"type": "string_constant", "value": chars["join"]("")}((???*0* | []))
 - *0* s2
@@ -2148,11 +2415,13 @@
 
 0 -> 709 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 709 -> 711 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 709 -> 712 conditional = (???*0* === 39)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -2162,6 +2431,7 @@
 
 712 -> 713 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 713 -> 714 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "'", "ignoreCase": false}
@@ -2191,6 +2461,7 @@
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 715 -> 719 call = (...) => s0()
 
@@ -2202,6 +2473,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 720 -> 723 conditional = (???*0* === 39)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -2211,6 +2483,7 @@
 
 723 -> 724 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 724 -> 725 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "'", "ignoreCase": false}
@@ -2218,6 +2491,7 @@
 
 720 -> 726 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 726 -> 727 call = (...) => {"type": "string_constant", "value": chars["join"]("")}((???*0* | []))
 - *0* s2
@@ -2227,6 +2501,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 730 conditional = (???*0* === 91)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -2236,6 +2511,7 @@
 
 730 -> 731 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 731 -> 732 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "[", "ignoreCase": false}
@@ -2243,6 +2519,7 @@
 
 0 -> 733 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 733 -> 734 call = (...) => s0()
 
@@ -2254,16 +2531,19 @@
 
 735 -> 737 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 737 -> 738 call = (...) => s0()
 
 737 -> 739 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 739 -> 741 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 739 -> 742 conditional = (???*0* === 44)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -2273,6 +2553,7 @@
 
 742 -> 743 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 743 -> 744 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ",", "ignoreCase": false}
@@ -2292,25 +2573,31 @@
 
 747 -> 749 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 749 -> 750 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 737 -> 752 member call = (???*0* | [])["push"](???*1*)
 - *0* s4
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 737 -> 753 call = (...) => s0()
 
 737 -> 754 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 754 -> 756 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 754 -> 757 conditional = (???*0* === 44)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -2320,6 +2607,7 @@
 
 757 -> 758 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 758 -> 759 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ",", "ignoreCase": false}
@@ -2339,10 +2627,13 @@
 
 762 -> 764 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 764 -> 765 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 737 -> 766 conditional = ((???*0* | []) !== {})
 - *0* s4
@@ -2352,11 +2643,13 @@
 
 766 -> 768 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 768 -> 770 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 768 -> 771 conditional = (???*0* === 93)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -2366,6 +2659,7 @@
 
 771 -> 772 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 772 -> 773 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "]", "ignoreCase": false}
@@ -2373,10 +2667,13 @@
 
 768 -> 774 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 774 -> 775 call = (...) => {"type": "array_constant", "elements": ???*0*}(???*1*, (???*2* | []))
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* s4
   ⚠️  pattern without value
 
@@ -2384,6 +2681,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 778 conditional = (???*0* === 123)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -2393,6 +2691,7 @@
 
 778 -> 779 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 779 -> 780 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "{", "ignoreCase": false}
@@ -2400,6 +2699,7 @@
 
 0 -> 781 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 781 -> 782 call = (...) => s0()
 
@@ -2411,16 +2711,19 @@
 
 783 -> 785 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 785 -> 786 call = (...) => s0()
 
 785 -> 787 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 787 -> 789 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 787 -> 790 conditional = (???*0* === 44)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -2430,6 +2733,7 @@
 
 790 -> 791 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 791 -> 792 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ",", "ignoreCase": false}
@@ -2449,25 +2753,31 @@
 
 795 -> 797 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 797 -> 798 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 785 -> 800 member call = (???*0* | [])["push"](???*1*)
 - *0* s4
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 785 -> 801 call = (...) => s0()
 
 785 -> 802 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 802 -> 804 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 802 -> 805 conditional = (???*0* === 44)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -2477,6 +2787,7 @@
 
 805 -> 806 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 806 -> 807 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ",", "ignoreCase": false}
@@ -2496,10 +2807,13 @@
 
 810 -> 812 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 812 -> 813 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 785 -> 814 conditional = ((???*0* | []) !== {})
 - *0* s4
@@ -2509,11 +2823,13 @@
 
 814 -> 816 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 816 -> 818 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 816 -> 819 conditional = (???*0* === 125)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -2523,6 +2839,7 @@
 
 819 -> 820 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 820 -> 821 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "}", "ignoreCase": false}
@@ -2530,10 +2847,13 @@
 
 816 -> 822 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 822 -> 823 call = (...) => {"type": "object_constant", "properties": ???*0*}(???*1*, (???*2* | []))
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* s4
   ⚠️  pattern without value
 
@@ -2541,6 +2861,7 @@
 
 0 -> 825 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 825 -> 826 call = (...) => s0()
 
@@ -2548,11 +2869,13 @@
 - *0* s0
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 829 call = (...) => s0()
 
 0 -> 830 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 830 -> 831 call = (...) => s0()
 
@@ -2560,6 +2883,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 835 member call = /^[ \t\n\r]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
@@ -2577,9 +2901,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 836 -> 839 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 839 -> 840 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "class", "parts": [" ", "\t", "\n", "\r"], "inverted": false, "ignoreCase": false}
@@ -2589,6 +2915,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 843 conditional = (???*0* === "--")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -2598,6 +2925,7 @@
 
 843 -> 844 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 844 -> 845 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "--", "ignoreCase": false}
@@ -2615,6 +2943,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 846 -> 850 member call = /^[\n\r]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
@@ -2632,9 +2961,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 851 -> 854 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 854 -> 855 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "class", "parts": ["\n", "\r"], "inverted": false, "ignoreCase": false}
@@ -2642,6 +2973,7 @@
 
 846 -> 856 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 856 -> 857 call = (...) => s0()
 
@@ -2649,11 +2981,13 @@
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 846 -> 862 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 846 -> 863 member call = /^[\n\r]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
@@ -2671,9 +3005,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 864 -> 867 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 867 -> 868 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "class", "parts": ["\n", "\r"], "inverted": false, "ignoreCase": false}
@@ -2681,6 +3017,7 @@
 
 846 -> 869 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 869 -> 870 call = (...) => s0()
 
@@ -2688,6 +3025,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 874 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 6)
@@ -2709,9 +3047,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 875 -> 878 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 878 -> 879 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "SELECT", "ignoreCase": true}
@@ -2719,6 +3059,7 @@
 
 0 -> 880 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 880 -> 881 call = (...) => s0()
 
@@ -2726,6 +3067,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 885 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 3)
@@ -2747,9 +3089,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 886 -> 889 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 889 -> 890 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "TOP", "ignoreCase": true}
@@ -2757,6 +3101,7 @@
 
 0 -> 891 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 891 -> 892 call = (...) => s0()
 
@@ -2764,6 +3109,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 896 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 4)
@@ -2785,9 +3131,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 897 -> 900 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 900 -> 901 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "FROM", "ignoreCase": true}
@@ -2795,6 +3143,7 @@
 
 0 -> 902 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 902 -> 903 call = (...) => s0()
 
@@ -2802,6 +3151,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 907 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 5)
@@ -2823,9 +3173,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 908 -> 911 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 911 -> 912 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "WHERE", "ignoreCase": true}
@@ -2833,6 +3185,7 @@
 
 0 -> 913 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 913 -> 914 call = (...) => s0()
 
@@ -2840,6 +3193,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 918 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 5)
@@ -2861,9 +3215,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 919 -> 922 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 922 -> 923 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "ORDER", "ignoreCase": true}
@@ -2871,6 +3227,7 @@
 
 0 -> 924 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 924 -> 925 call = (...) => s0()
 
@@ -2878,6 +3235,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 929 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -2899,9 +3257,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 930 -> 933 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 933 -> 934 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "BY", "ignoreCase": true}
@@ -2909,6 +3269,7 @@
 
 0 -> 935 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 935 -> 936 call = (...) => s0()
 
@@ -2916,6 +3277,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 940 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -2937,9 +3299,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 941 -> 944 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 944 -> 945 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "AS", "ignoreCase": true}
@@ -2947,6 +3311,7 @@
 
 0 -> 946 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 946 -> 947 call = (...) => s0()
 
@@ -2954,6 +3319,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 951 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 4)
@@ -2975,9 +3341,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 952 -> 955 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 955 -> 956 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "JOIN", "ignoreCase": true}
@@ -2985,6 +3353,7 @@
 
 0 -> 957 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 957 -> 958 call = (...) => s0()
 
@@ -2992,6 +3361,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 962 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -3013,9 +3383,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 963 -> 966 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 966 -> 967 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "IN", "ignoreCase": true}
@@ -3023,6 +3395,7 @@
 
 0 -> 968 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 968 -> 969 call = (...) => s0()
 
@@ -3030,6 +3403,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 973 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 5)
@@ -3051,9 +3425,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 974 -> 977 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 977 -> 978 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "VALUE", "ignoreCase": true}
@@ -3061,6 +3437,7 @@
 
 0 -> 979 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 979 -> 980 call = (...) => s0()
 
@@ -3068,6 +3445,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 984 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 3)
@@ -3089,9 +3467,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 985 -> 988 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 988 -> 989 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "ASC", "ignoreCase": true}
@@ -3109,6 +3489,7 @@
 
 990 -> 992 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 992 -> 993 call = (...) => "ASC"()
 
@@ -3116,6 +3497,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 997 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 4)
@@ -3137,9 +3519,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 998 -> 1001 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1001 -> 1002 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "DESC", "ignoreCase": true}
@@ -3157,6 +3541,7 @@
 
 1003 -> 1005 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1005 -> 1006 call = (...) => "DESC"()
 
@@ -3164,6 +3549,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1010 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 3)
@@ -3185,9 +3571,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1011 -> 1014 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1014 -> 1015 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "AND", "ignoreCase": true}
@@ -3205,6 +3593,7 @@
 
 1016 -> 1018 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1018 -> 1019 call = (...) => "AND"()
 
@@ -3212,6 +3601,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1023 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -3233,9 +3623,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1024 -> 1027 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1027 -> 1028 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "OR", "ignoreCase": true}
@@ -3253,6 +3645,7 @@
 
 1029 -> 1031 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1031 -> 1032 call = (...) => "OR"()
 
@@ -3260,6 +3653,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1036 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 3)
@@ -3281,9 +3675,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1037 -> 1040 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1040 -> 1041 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "NOT", "ignoreCase": true}
@@ -3301,6 +3697,7 @@
 
 1042 -> 1044 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1044 -> 1045 call = (...) => "NOT"()
 
@@ -3308,6 +3705,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1049 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 7)
@@ -3329,9 +3727,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1050 -> 1053 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1053 -> 1054 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "BETWEEN", "ignoreCase": true}
@@ -3339,6 +3739,7 @@
 
 0 -> 1055 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1055 -> 1056 call = (...) => s0()
 
@@ -3346,6 +3747,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1060 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 6)
@@ -3367,9 +3769,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1061 -> 1064 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1064 -> 1065 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "EXISTS", "ignoreCase": true}
@@ -3377,6 +3781,7 @@
 
 0 -> 1066 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1066 -> 1067 call = (...) => s0()
 
@@ -3384,6 +3789,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1071 member call = ???*0*["toLowerCase"]()
 - *0* ???*1*["substr"](peg$currPos, 5)
@@ -3405,9 +3811,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1072 -> 1075 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1075 -> 1076 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "ARRAY", "ignoreCase": true}
@@ -3415,6 +3823,7 @@
 
 0 -> 1077 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1077 -> 1078 call = (...) => s0()
 
@@ -3422,6 +3831,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1081 conditional = (???*0* === "null")
 - *0* ???*1*["substr"](peg$currPos, 4)
@@ -3431,6 +3841,7 @@
 
 1081 -> 1082 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1082 -> 1083 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "null", "ignoreCase": false}
@@ -3438,6 +3849,7 @@
 
 0 -> 1084 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1084 -> 1085 call = (...) => s0()
 
@@ -3445,6 +3857,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1088 conditional = (???*0* === "true")
 - *0* ???*1*["substr"](peg$currPos, 4)
@@ -3454,6 +3867,7 @@
 
 1088 -> 1089 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1089 -> 1090 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "true", "ignoreCase": false}
@@ -3461,6 +3875,7 @@
 
 0 -> 1091 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1091 -> 1092 call = (...) => s0()
 
@@ -3468,6 +3883,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1095 conditional = (???*0* === "false")
 - *0* ???*1*["substr"](peg$currPos, 5)
@@ -3477,6 +3893,7 @@
 
 1095 -> 1096 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1096 -> 1097 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "false", "ignoreCase": false}
@@ -3484,6 +3901,7 @@
 
 0 -> 1098 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1098 -> 1099 call = (...) => s0()
 
@@ -3491,6 +3909,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1102 conditional = (???*0* === "udf")
 - *0* ???*1*["substr"](peg$currPos, 3)
@@ -3500,6 +3919,7 @@
 
 1102 -> 1103 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1103 -> 1104 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "udf", "ignoreCase": false}
@@ -3507,6 +3927,7 @@
 
 0 -> 1105 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1105 -> 1106 call = (...) => s0()
 
@@ -3514,106 +3935,127 @@
 
 0 -> 1108 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1108 -> 1109 call = (...) => s0()
 
 1108 -> 1110 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1110 -> 1111 call = (...) => s0()
 
 1110 -> 1112 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1112 -> 1113 call = (...) => s0()
 
 1112 -> 1114 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1114 -> 1115 call = (...) => s0()
 
 1114 -> 1116 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1116 -> 1117 call = (...) => s0()
 
 1116 -> 1118 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1118 -> 1119 call = (...) => s0()
 
 1118 -> 1120 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1120 -> 1121 call = (...) => s0()
 
 1120 -> 1122 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1122 -> 1123 call = (...) => s0()
 
 1122 -> 1124 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1124 -> 1125 call = (...) => s0()
 
 1124 -> 1126 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1126 -> 1127 call = (...) => s0()
 
 1126 -> 1128 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1128 -> 1129 call = (...) => s0()
 
 1128 -> 1130 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1130 -> 1131 call = (...) => s0()
 
 1130 -> 1132 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1132 -> 1133 call = (...) => s0()
 
 1132 -> 1134 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1134 -> 1135 call = (...) => s0()
 
 1134 -> 1136 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1136 -> 1137 call = (...) => s0()
 
 1136 -> 1138 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1138 -> 1139 call = (...) => s0()
 
 1138 -> 1140 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1140 -> 1141 call = (...) => s0()
 
 1140 -> 1142 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1142 -> 1143 call = (...) => s0()
 
 1142 -> 1144 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1144 -> 1145 call = (...) => s0()
 
 1144 -> 1146 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1146 -> 1147 call = (...) => s0()
 
 1146 -> 1148 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1148 -> 1149 call = (...) => s0()
 
@@ -3621,19 +4063,23 @@
 
 0 -> 1151 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1151 -> 1152 call = (...) => s0()
 
 1151 -> 1153 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1153 -> 1154 call = (...) => {"type": "identifier", "name": name}(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1157 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1158 member call = /^[a-zA-Z_]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
@@ -3651,9 +4097,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1159 -> 1162 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1162 -> 1163 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "class", "parts": [["a", "z"], ["A", "Z"], "_"], "inverted": false, "ignoreCase": false}
@@ -3685,6 +4133,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1165 -> 1169 member call = /^[a-zA-Z0-9_]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
@@ -3702,9 +4151,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1170 -> 1173 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1173 -> 1174 call = (...) => (undefined | FreeVar(undefined))(
     {
@@ -3729,6 +4180,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1165 -> 1180 member call = /^[a-zA-Z0-9_]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
@@ -3746,9 +4198,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1181 -> 1184 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1184 -> 1185 call = (...) => (undefined | FreeVar(undefined))(
     {
@@ -3790,6 +4244,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1190 conditional = (???*0* === 64)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -3799,6 +4254,7 @@
 
 1190 -> 1191 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1191 -> 1192 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "@", "ignoreCase": false}
@@ -3816,6 +4272,7 @@
 
 1193 -> 1195 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1195 -> 1196 call = (...) => {"type": "parameter_name", "name": text()}()
 
@@ -3823,6 +4280,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1199 conditional = (???*0* === 43)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -3832,6 +4290,7 @@
 
 1199 -> 1200 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1200 -> 1201 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "+", "ignoreCase": false}
@@ -3839,11 +4298,13 @@
 
 0 -> 1202 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1202 -> 1204 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1202 -> 1205 conditional = (???*0* === 45)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -3853,6 +4314,7 @@
 
 1205 -> 1206 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1206 -> 1207 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "-", "ignoreCase": false}
@@ -3860,11 +4322,13 @@
 
 1202 -> 1208 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1208 -> 1210 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1208 -> 1211 conditional = (???*0* === 126)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -3874,6 +4338,7 @@
 
 1211 -> 1212 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1212 -> 1213 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "~", "ignoreCase": false}
@@ -3881,6 +4346,7 @@
 
 1208 -> 1214 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1214 -> 1215 call = (...) => s0()
 
@@ -3888,6 +4354,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1218 conditional = (???*0* === 34)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -3897,6 +4364,7 @@
 
 1218 -> 1219 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1219 -> 1220 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "\"", "ignoreCase": false}
@@ -3904,11 +4372,13 @@
 
 0 -> 1221 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1221 -> 1223 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1221 -> 1224 conditional = (???*0* === 92)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -3918,6 +4388,7 @@
 
 1224 -> 1225 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1225 -> 1226 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "\\", "ignoreCase": false}
@@ -3925,21 +4396,25 @@
 
 0 -> 1227 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1227 -> 1228 call = (...) => s0()
 
 1227 -> 1229 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1229 -> 1230 call = (...) => text()()
 
 0 -> 1231 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1231 -> 1233 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1231 -> 1234 conditional = (???*0* === 92)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -3949,6 +4424,7 @@
 
 1234 -> 1235 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1235 -> 1236 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "\\", "ignoreCase": false}
@@ -3956,19 +4432,23 @@
 
 1231 -> 1237 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1237 -> 1238 call = (...) => s0()
 
 1237 -> 1239 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1239 -> 1240 call = (...) => seq(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1242 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1243 conditional = (???*0* === 39)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -3978,6 +4458,7 @@
 
 1243 -> 1244 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1244 -> 1245 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "'", "ignoreCase": false}
@@ -3985,11 +4466,13 @@
 
 0 -> 1246 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1246 -> 1248 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1246 -> 1249 conditional = (???*0* === 92)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -3999,6 +4482,7 @@
 
 1249 -> 1250 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1250 -> 1251 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "\\", "ignoreCase": false}
@@ -4006,21 +4490,25 @@
 
 0 -> 1252 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1252 -> 1253 call = (...) => s0()
 
 1252 -> 1254 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1254 -> 1255 call = (...) => text()()
 
 0 -> 1256 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1256 -> 1258 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1256 -> 1259 conditional = (???*0* === 92)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4030,6 +4518,7 @@
 
 1259 -> 1260 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1260 -> 1261 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "\\", "ignoreCase": false}
@@ -4037,22 +4526,27 @@
 
 1256 -> 1262 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1262 -> 1263 call = (...) => s0()
 
 1262 -> 1264 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1264 -> 1265 call = (...) => seq(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1268 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1269 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1269 -> 1270 call = (...) => (undefined | FreeVar(undefined))({"type": "any"})
 
@@ -4060,6 +4554,7 @@
 
 0 -> 1272 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1272 -> 1273 call = (...) => s0()
 
@@ -4067,6 +4562,7 @@
 
 0 -> 1275 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1275 -> 1276 call = (...) => s0()
 
@@ -4074,6 +4570,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1279 conditional = (???*0* === 39)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4083,6 +4580,7 @@
 
 1279 -> 1280 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1280 -> 1281 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "'", "ignoreCase": false}
@@ -4090,11 +4588,13 @@
 
 0 -> 1282 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1282 -> 1284 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1282 -> 1285 conditional = (???*0* === 34)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4104,6 +4604,7 @@
 
 1285 -> 1286 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1286 -> 1287 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "\"", "ignoreCase": false}
@@ -4111,11 +4612,13 @@
 
 1282 -> 1288 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1288 -> 1290 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1288 -> 1291 conditional = (???*0* === 92)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4125,6 +4628,7 @@
 
 1291 -> 1292 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1292 -> 1293 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "\\", "ignoreCase": false}
@@ -4132,11 +4636,13 @@
 
 1288 -> 1294 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1294 -> 1296 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1294 -> 1297 conditional = (???*0* === 98)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4146,6 +4652,7 @@
 
 1297 -> 1298 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1298 -> 1299 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "b", "ignoreCase": false}
@@ -4159,11 +4666,13 @@
 
 1294 -> 1302 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1302 -> 1304 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1302 -> 1305 conditional = (???*0* === 102)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4173,6 +4682,7 @@
 
 1305 -> 1306 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1306 -> 1307 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "f", "ignoreCase": false}
@@ -4186,11 +4696,13 @@
 
 1302 -> 1310 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1310 -> 1312 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1310 -> 1313 conditional = (???*0* === 110)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4200,6 +4712,7 @@
 
 1313 -> 1314 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1314 -> 1315 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "n", "ignoreCase": false}
@@ -4213,11 +4726,13 @@
 
 1310 -> 1318 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1318 -> 1320 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1318 -> 1321 conditional = (???*0* === 114)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4227,6 +4742,7 @@
 
 1321 -> 1322 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1322 -> 1323 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "r", "ignoreCase": false}
@@ -4240,11 +4756,13 @@
 
 1318 -> 1326 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1326 -> 1328 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1326 -> 1329 conditional = (???*0* === 116)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4254,6 +4772,7 @@
 
 1329 -> 1330 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1330 -> 1331 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "t", "ignoreCase": false}
@@ -4269,11 +4788,13 @@
 
 0 -> 1335 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1335 -> 1336 call = (...) => s0()
 
 1335 -> 1337 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1337 -> 1338 call = (...) => text()()
 
@@ -4281,11 +4802,13 @@
 
 0 -> 1340 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1340 -> 1342 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1340 -> 1343 conditional = (???*0* === 117)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4295,6 +4818,7 @@
 
 1343 -> 1344 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1344 -> 1345 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "u", "ignoreCase": false}
@@ -4304,6 +4828,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1348 conditional = (???*0* === 117)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4313,6 +4838,7 @@
 
 1348 -> 1349 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1349 -> 1350 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "u", "ignoreCase": false}
@@ -4320,6 +4846,7 @@
 
 0 -> 1351 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1351 -> 1352 call = (...) => s0()
 
@@ -4380,23 +4907,29 @@
 
 1351 -> 1359 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1359 -> 1361 member call = ???*0*["substring"](???*1*, ???*2*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1351 -> 1362 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1362 -> 1363 call = (...) => FreeVar(String)["fromCharCode"](FreeVar(parseInt)(digits, 16))(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1366 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1367 member call = /^[0-9a-f]/i["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
@@ -4414,9 +4947,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1368 -> 1371 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1371 -> 1372 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "class", "parts": [["0", "9"], ["a", "f"]], "inverted": false, "ignoreCase": true}
@@ -4426,72 +4961,89 @@
 
 0 -> 1374 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1374 -> 1375 call = (...) => s0()
 
 1374 -> 1376 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1376 -> 1377 call = (...) => s0()
 
 1374 -> 1378 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1378 -> 1379 call = (...) => s0()
 
 1378 -> 1380 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1380 -> 1381 call = (...) => s0()
 
 1380 -> 1382 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1382 -> 1383 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1374 -> 1384 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1384 -> 1385 call = (...) => {"property": property, "alias": alias}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1386 call = (...) => s0()
 
 0 -> 1387 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1387 -> 1388 call = (...) => s0()
 
 1387 -> 1389 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1389 -> 1390 call = (...) => s0()
 
 1389 -> 1391 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1391 -> 1392 call = (...) => s0()
 
 1391 -> 1393 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1393 -> 1394 call = (...) => s0()
 
 1393 -> 1395 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1395 -> 1396 call = (...) => s0()
 
 1395 -> 1397 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1397 -> 1399 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1397 -> 1400 conditional = (???*0* === 40)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4501,6 +5053,7 @@
 
 1400 -> 1401 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1401 -> 1402 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "(", "ignoreCase": false}
@@ -4508,6 +5061,7 @@
 
 1397 -> 1403 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1403 -> 1404 call = (...) => s0()
 
@@ -4519,6 +5073,7 @@
 
 1405 -> 1407 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1407 -> 1408 call = (...) => s0()
 
@@ -4530,6 +5085,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1409 -> 1412 conditional = (???*0* === 41)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4539,6 +5095,7 @@
 
 1412 -> 1413 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1413 -> 1414 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ")", "ignoreCase": false}
@@ -4550,16 +5107,19 @@
 
 1415 -> 1416 call = (...) => expression(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1417 call = (...) => s0()
 
 0 -> 1418 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1418 -> 1419 call = (...) => s0()
 
 1418 -> 1420 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1420 -> 1421 call = (...) => s0()
 
@@ -4567,6 +5127,7 @@
 
 0 -> 1423 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1423 -> 1424 call = (...) => s0()
 
@@ -4578,14 +5139,17 @@
 
 1425 -> 1427 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1427 -> 1428 call = (...) => {"type": "array_subquery_expression", "expression": expression}(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1429 call = (...) => s0()
 
 0 -> 1430 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1430 -> 1431 call = (...) => s0()
 
@@ -4597,32 +5161,39 @@
 
 1432 -> 1434 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1434 -> 1435 call = (...) => {"type": "exists_subquery_expression", "expression": expression}(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1436 call = (...) => s0()
 
 0 -> 1437 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1437 -> 1438 call = (...) => {"type": "scalar_subquery_expression", "expression": expression}(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1439 call = (...) => s0()
 
 0 -> 1440 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1440 -> 1441 call = (...) => s0()
 
 1440 -> 1442 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1442 -> 1444 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1442 -> 1445 conditional = (???*0* === 46)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4632,6 +5203,7 @@
 
 1445 -> 1446 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1446 -> 1447 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ".", "ignoreCase": false}
@@ -4651,6 +5223,7 @@
 
 1450 -> 1452 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1452 -> 1453 call = (...) => s0()
 
@@ -4660,20 +5233,25 @@
 
 1454 -> 1455 call = (...) => {"property": property, "computed": false}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1440 -> 1456 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1456 -> 1457 call = (...) => s0()
 
 1456 -> 1458 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1458 -> 1460 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1458 -> 1461 conditional = (???*0* === 91)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4683,6 +5261,7 @@
 
 1461 -> 1462 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1462 -> 1463 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "[", "ignoreCase": false}
@@ -4702,16 +5281,19 @@
 
 1466 -> 1468 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1468 -> 1469 call = (...) => s0()
 
 1468 -> 1470 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1470 -> 1471 call = (...) => s0()
 
 1466 -> 1472 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1472 -> 1473 call = (...) => s0()
 
@@ -4723,6 +5305,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1474 -> 1477 conditional = (???*0* === 93)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4732,6 +5315,7 @@
 
 1477 -> 1478 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1478 -> 1479 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "]", "ignoreCase": false}
@@ -4743,22 +5327,27 @@
 
 1480 -> 1481 call = (...) => {"property": property, "computed": true}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1440 -> 1483 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1440 -> 1484 call = (...) => s0()
 
 1440 -> 1485 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1485 -> 1487 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1485 -> 1488 conditional = (???*0* === 46)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4768,6 +5357,7 @@
 
 1488 -> 1489 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1489 -> 1490 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ".", "ignoreCase": false}
@@ -4787,6 +5377,7 @@
 
 1493 -> 1495 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1495 -> 1496 call = (...) => s0()
 
@@ -4796,20 +5387,25 @@
 
 1497 -> 1498 call = (...) => {"property": property, "computed": false}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1440 -> 1499 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1499 -> 1500 call = (...) => s0()
 
 1499 -> 1501 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1501 -> 1503 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1501 -> 1504 conditional = (???*0* === 91)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4819,6 +5415,7 @@
 
 1504 -> 1505 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1505 -> 1506 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "[", "ignoreCase": false}
@@ -4838,16 +5435,19 @@
 
 1509 -> 1511 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1511 -> 1512 call = (...) => s0()
 
 1511 -> 1513 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1513 -> 1514 call = (...) => s0()
 
 1509 -> 1515 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1515 -> 1516 call = (...) => s0()
 
@@ -4859,6 +5459,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1517 -> 1520 conditional = (???*0* === 93)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4868,6 +5469,7 @@
 
 1520 -> 1521 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1521 -> 1522 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "]", "ignoreCase": false}
@@ -4879,7 +5481,9 @@
 
 1523 -> 1524 call = (...) => {"property": property, "computed": true}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1440 -> 1525 conditional = ((???*0* | []) !== {})
 - *0* s2
@@ -4887,6 +5491,7 @@
 
 1525 -> 1526 call = (...) => tail["reduce"](*arrow function 13694*, head)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* s2
   ⚠️  pattern without value
 
@@ -4894,16 +5499,19 @@
 
 0 -> 1528 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1528 -> 1529 call = (...) => s0()
 
 1528 -> 1530 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1530 -> 1531 call = (...) => s0()
 
 1530 -> 1532 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1532 -> 1533 call = (...) => s0()
 
@@ -4915,15 +5523,19 @@
 
 1534 -> 1536 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1536 -> 1537 call = (...) => {"type": "scalar_unary_expression", "operator": operator, "argument": argument}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1538 call = (...) => s0()
 
 0 -> 1539 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1539 -> 1540 call = (...) => s0()
 
@@ -4935,6 +5547,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1541 -> 1544 conditional = (???*0* === 63)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4944,6 +5557,7 @@
 
 1544 -> 1545 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1545 -> 1546 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "?", "ignoreCase": false}
@@ -4963,6 +5577,7 @@
 
 1549 -> 1551 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1551 -> 1552 call = (...) => s0()
 
@@ -4974,6 +5589,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1553 -> 1556 conditional = (???*0* === 58)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -4983,6 +5599,7 @@
 
 1556 -> 1557 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1557 -> 1558 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ":", "ignoreCase": false}
@@ -5002,6 +5619,7 @@
 
 1561 -> 1563 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1563 -> 1564 call = (...) => {
     "type": "scalar_conditional_expression",
@@ -5010,11 +5628,15 @@
     "alternate": alternate
 }(???*0*, ???*1*, ???*2*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1565 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1565 -> 1566 call = (...) => s0()
 
@@ -5022,21 +5644,25 @@
 
 0 -> 1568 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1568 -> 1569 call = (...) => s0()
 
 1568 -> 1570 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1570 -> 1571 call = (...) => s0()
 
 1570 -> 1572 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1572 -> 1574 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1572 -> 1575 conditional = (???*0* === "??")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -5046,6 +5672,7 @@
 
 1575 -> 1576 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1576 -> 1577 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "??", "ignoreCase": false}
@@ -5053,6 +5680,7 @@
 
 1570 -> 1578 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1578 -> 1579 call = (...) => s0()
 
@@ -5066,21 +5694,25 @@
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1568 -> 1584 call = (...) => s0()
 
 1568 -> 1585 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1585 -> 1586 call = (...) => s0()
 
 1585 -> 1587 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1587 -> 1589 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1587 -> 1590 conditional = (???*0* === "??")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -5090,6 +5722,7 @@
 
 1590 -> 1591 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1591 -> 1592 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "??", "ignoreCase": false}
@@ -5097,6 +5730,7 @@
 
 1585 -> 1593 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1593 -> 1594 call = (...) => s0()
 
@@ -5112,6 +5746,7 @@
 
 1597 -> 1598 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* s2
   ⚠️  pattern without value
 
@@ -5119,16 +5754,19 @@
 
 0 -> 1600 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1600 -> 1601 call = (...) => s0()
 
 1600 -> 1602 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1602 -> 1603 call = (...) => s0()
 
 1602 -> 1604 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1604 -> 1605 call = (...) => s0()
 
@@ -5142,16 +5780,19 @@
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1600 -> 1610 call = (...) => s0()
 
 1600 -> 1611 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1611 -> 1612 call = (...) => s0()
 
 1611 -> 1613 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1613 -> 1614 call = (...) => s0()
 
@@ -5167,6 +5808,7 @@
 
 1617 -> 1618 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* s2
   ⚠️  pattern without value
 
@@ -5174,16 +5816,19 @@
 
 0 -> 1620 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1620 -> 1621 call = (...) => s0()
 
 1620 -> 1622 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1622 -> 1624 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1622 -> 1625 conditional = (???*0* === 61)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5193,6 +5838,7 @@
 
 1625 -> 1626 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1626 -> 1627 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "=", "ignoreCase": false}
@@ -5206,6 +5852,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1628 -> 1631 conditional = (???*0* === "!=")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -5215,6 +5862,7 @@
 
 1631 -> 1632 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1632 -> 1633 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "!=", "ignoreCase": false}
@@ -5228,6 +5876,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1634 -> 1637 conditional = (???*0* === "<>")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -5237,6 +5886,7 @@
 
 1637 -> 1638 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1638 -> 1639 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "<>", "ignoreCase": false}
@@ -5258,16 +5908,19 @@
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1620 -> 1646 call = (...) => s0()
 
 1620 -> 1647 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1647 -> 1649 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1647 -> 1650 conditional = (???*0* === 61)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5277,6 +5930,7 @@
 
 1650 -> 1651 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1651 -> 1652 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "=", "ignoreCase": false}
@@ -5290,6 +5944,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1653 -> 1656 conditional = (???*0* === "!=")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -5299,6 +5954,7 @@
 
 1656 -> 1657 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1657 -> 1658 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "!=", "ignoreCase": false}
@@ -5312,6 +5968,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1659 -> 1662 conditional = (???*0* === "<>")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -5321,6 +5978,7 @@
 
 1662 -> 1663 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1663 -> 1664 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "<>", "ignoreCase": false}
@@ -5344,6 +6002,7 @@
 
 1669 -> 1670 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* s2
   ⚠️  pattern without value
 
@@ -5351,16 +6010,19 @@
 
 0 -> 1672 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1672 -> 1673 call = (...) => s0()
 
 1672 -> 1674 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1674 -> 1676 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1674 -> 1677 conditional = (???*0* === "<=")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -5370,6 +6032,7 @@
 
 1677 -> 1678 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1678 -> 1679 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "<=", "ignoreCase": false}
@@ -5383,6 +6046,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1680 -> 1683 conditional = (???*0* === ">=")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -5392,6 +6056,7 @@
 
 1683 -> 1684 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1684 -> 1685 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ">=", "ignoreCase": false}
@@ -5405,6 +6070,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1686 -> 1689 conditional = (???*0* === 60)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5414,6 +6080,7 @@
 
 1689 -> 1690 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1690 -> 1691 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "<", "ignoreCase": false}
@@ -5427,6 +6094,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1692 -> 1695 conditional = (???*0* === 62)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5436,6 +6104,7 @@
 
 1695 -> 1696 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1696 -> 1697 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ">", "ignoreCase": false}
@@ -5457,16 +6126,19 @@
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1672 -> 1704 call = (...) => s0()
 
 1672 -> 1705 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1705 -> 1707 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1705 -> 1708 conditional = (???*0* === "<=")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -5476,6 +6148,7 @@
 
 1708 -> 1709 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1709 -> 1710 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "<=", "ignoreCase": false}
@@ -5489,6 +6162,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1711 -> 1714 conditional = (???*0* === ">=")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -5498,6 +6172,7 @@
 
 1714 -> 1715 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1715 -> 1716 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ">=", "ignoreCase": false}
@@ -5511,6 +6186,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1717 -> 1720 conditional = (???*0* === 60)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5520,6 +6196,7 @@
 
 1720 -> 1721 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1721 -> 1722 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "<", "ignoreCase": false}
@@ -5533,6 +6210,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1723 -> 1726 conditional = (???*0* === 62)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5542,6 +6220,7 @@
 
 1726 -> 1727 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1727 -> 1728 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ">", "ignoreCase": false}
@@ -5565,6 +6244,7 @@
 
 1733 -> 1734 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* s2
   ⚠️  pattern without value
 
@@ -5572,6 +6252,7 @@
 
 0 -> 1736 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1736 -> 1737 call = (...) => s0()
 
@@ -5583,6 +6264,7 @@
 
 1738 -> 1740 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1740 -> 1741 call = (...) => s0()
 
@@ -5594,6 +6276,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1742 -> 1745 conditional = (???*0* === 40)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5603,6 +6286,7 @@
 
 1745 -> 1746 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1746 -> 1747 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "(", "ignoreCase": false}
@@ -5622,6 +6306,7 @@
 
 1750 -> 1752 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1752 -> 1753 call = (...) => s0()
 
@@ -5633,6 +6318,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1754 -> 1757 conditional = (???*0* === 41)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5642,6 +6328,7 @@
 
 1757 -> 1758 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1758 -> 1759 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ")", "ignoreCase": false}
@@ -5653,10 +6340,13 @@
 
 1760 -> 1761 call = (...) => {"type": "scalar_in_expression", "value": value, "list": list}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1762 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1762 -> 1763 call = (...) => s0()
 
@@ -5664,6 +6354,7 @@
 
 0 -> 1765 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1765 -> 1766 call = (...) => s0()
 
@@ -5675,6 +6366,7 @@
 
 1767 -> 1769 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1769 -> 1770 call = (...) => s0()
 
@@ -5686,6 +6378,7 @@
 
 1771 -> 1773 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1773 -> 1774 call = (...) => s0()
 
@@ -5697,6 +6390,7 @@
 
 1775 -> 1777 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1777 -> 1778 call = (...) => s0()
 
@@ -5708,14 +6402,19 @@
 
 1779 -> 1781 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1781 -> 1782 call = (...) => {"type": "scalar_between_expression", "value": value, "begin": begin, "end": end}(???*0*, ???*1*, ???*2*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 1783 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1783 -> 1784 call = (...) => s0()
 
@@ -5723,16 +6422,19 @@
 
 0 -> 1786 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1786 -> 1787 call = (...) => s0()
 
 1786 -> 1788 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1788 -> 1790 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1788 -> 1791 conditional = (???*0* === 124)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5742,6 +6444,7 @@
 
 1791 -> 1792 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1792 -> 1793 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "|", "ignoreCase": false}
@@ -5763,16 +6466,19 @@
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1786 -> 1800 call = (...) => s0()
 
 1786 -> 1801 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1801 -> 1803 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1801 -> 1804 conditional = (???*0* === 124)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5782,6 +6488,7 @@
 
 1804 -> 1805 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1805 -> 1806 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "|", "ignoreCase": false}
@@ -5805,6 +6512,7 @@
 
 1811 -> 1812 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* s2
   ⚠️  pattern without value
 
@@ -5812,16 +6520,19 @@
 
 0 -> 1814 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1814 -> 1815 call = (...) => s0()
 
 1814 -> 1816 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1816 -> 1818 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1816 -> 1819 conditional = (???*0* === 94)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5831,6 +6542,7 @@
 
 1819 -> 1820 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1820 -> 1821 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "^", "ignoreCase": false}
@@ -5852,16 +6564,19 @@
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1814 -> 1828 call = (...) => s0()
 
 1814 -> 1829 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1829 -> 1831 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1829 -> 1832 conditional = (???*0* === 94)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5871,6 +6586,7 @@
 
 1832 -> 1833 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1833 -> 1834 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "^", "ignoreCase": false}
@@ -5894,6 +6610,7 @@
 
 1839 -> 1840 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* s2
   ⚠️  pattern without value
 
@@ -5901,16 +6618,19 @@
 
 0 -> 1842 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1842 -> 1843 call = (...) => s0()
 
 1842 -> 1844 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1844 -> 1846 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1844 -> 1847 conditional = (???*0* === 38)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5920,6 +6640,7 @@
 
 1847 -> 1848 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1848 -> 1849 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "&", "ignoreCase": false}
@@ -5941,16 +6662,19 @@
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1842 -> 1856 call = (...) => s0()
 
 1842 -> 1857 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1857 -> 1859 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1857 -> 1860 conditional = (???*0* === 38)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -5960,6 +6684,7 @@
 
 1860 -> 1861 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1861 -> 1862 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "&", "ignoreCase": false}
@@ -5983,6 +6708,7 @@
 
 1867 -> 1868 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* s2
   ⚠️  pattern without value
 
@@ -5990,16 +6716,19 @@
 
 0 -> 1870 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1870 -> 1871 call = (...) => s0()
 
 1870 -> 1872 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1872 -> 1874 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1872 -> 1875 conditional = (???*0* === "<<")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -6009,6 +6738,7 @@
 
 1875 -> 1876 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1876 -> 1877 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "<<", "ignoreCase": false}
@@ -6022,6 +6752,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1878 -> 1881 conditional = (???*0* === ">>>")
 - *0* ???*1*["substr"](peg$currPos, 3)
@@ -6031,6 +6762,7 @@
 
 1881 -> 1882 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1882 -> 1883 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ">>>", "ignoreCase": false}
@@ -6044,6 +6776,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1884 -> 1887 conditional = (???*0* === ">>")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -6053,6 +6786,7 @@
 
 1887 -> 1888 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1888 -> 1889 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ">>", "ignoreCase": false}
@@ -6074,16 +6808,19 @@
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1870 -> 1896 call = (...) => s0()
 
 1870 -> 1897 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1897 -> 1899 member call = ???*0*["substr"](???*1*, 2)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1897 -> 1900 conditional = (???*0* === "<<")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -6093,6 +6830,7 @@
 
 1900 -> 1901 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1901 -> 1902 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "<<", "ignoreCase": false}
@@ -6106,6 +6844,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1903 -> 1906 conditional = (???*0* === ">>>")
 - *0* ???*1*["substr"](peg$currPos, 3)
@@ -6115,6 +6854,7 @@
 
 1906 -> 1907 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1907 -> 1908 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ">>>", "ignoreCase": false}
@@ -6128,6 +6868,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1909 -> 1912 conditional = (???*0* === ">>")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -6137,6 +6878,7 @@
 
 1912 -> 1913 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1913 -> 1914 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ">>", "ignoreCase": false}
@@ -6160,6 +6902,7 @@
 
 1919 -> 1920 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* s2
   ⚠️  pattern without value
 
@@ -6167,16 +6910,19 @@
 
 0 -> 1922 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1922 -> 1923 call = (...) => s0()
 
 1922 -> 1924 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1924 -> 1926 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1924 -> 1927 conditional = (???*0* === 43)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6186,6 +6932,7 @@
 
 1927 -> 1928 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1928 -> 1929 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "+", "ignoreCase": false}
@@ -6199,6 +6946,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1930 -> 1933 conditional = (???*0* === 45)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6208,6 +6956,7 @@
 
 1933 -> 1934 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1934 -> 1935 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "-", "ignoreCase": false}
@@ -6221,6 +6970,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1936 -> 1939 conditional = (???*0* === "||")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -6230,6 +6980,7 @@
 
 1939 -> 1940 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1940 -> 1941 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "||", "ignoreCase": false}
@@ -6251,16 +7002,19 @@
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1922 -> 1948 call = (...) => s0()
 
 1922 -> 1949 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1949 -> 1951 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1949 -> 1952 conditional = (???*0* === 43)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6270,6 +7024,7 @@
 
 1952 -> 1953 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1953 -> 1954 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "+", "ignoreCase": false}
@@ -6283,6 +7038,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1955 -> 1958 conditional = (???*0* === 45)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6292,6 +7048,7 @@
 
 1958 -> 1959 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1959 -> 1960 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "-", "ignoreCase": false}
@@ -6305,6 +7062,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1961 -> 1964 conditional = (???*0* === "||")
 - *0* ???*1*["substr"](peg$currPos, 2)
@@ -6314,6 +7072,7 @@
 
 1964 -> 1965 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1965 -> 1966 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "||", "ignoreCase": false}
@@ -6337,6 +7096,7 @@
 
 1971 -> 1972 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* s2
   ⚠️  pattern without value
 
@@ -6344,16 +7104,19 @@
 
 0 -> 1974 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1974 -> 1975 call = (...) => s0()
 
 1974 -> 1976 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1976 -> 1978 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1976 -> 1979 conditional = (???*0* === 42)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6363,6 +7126,7 @@
 
 1979 -> 1980 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1980 -> 1981 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "*", "ignoreCase": false}
@@ -6376,6 +7140,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1982 -> 1985 conditional = (???*0* === 47)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6385,6 +7150,7 @@
 
 1985 -> 1986 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1986 -> 1987 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "/", "ignoreCase": false}
@@ -6398,6 +7164,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1988 -> 1991 conditional = (???*0* === 37)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6407,6 +7174,7 @@
 
 1991 -> 1992 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 1992 -> 1993 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "%", "ignoreCase": false}
@@ -6428,16 +7196,19 @@
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 1974 -> 2000 call = (...) => s0()
 
 1974 -> 2001 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2001 -> 2003 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2001 -> 2004 conditional = (???*0* === 42)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6447,6 +7218,7 @@
 
 2004 -> 2005 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2005 -> 2006 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "*", "ignoreCase": false}
@@ -6460,6 +7232,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2007 -> 2010 conditional = (???*0* === 47)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6469,6 +7242,7 @@
 
 2010 -> 2011 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2011 -> 2012 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "/", "ignoreCase": false}
@@ -6482,6 +7256,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2013 -> 2016 conditional = (???*0* === 37)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6491,6 +7266,7 @@
 
 2016 -> 2017 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2017 -> 2018 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "%", "ignoreCase": false}
@@ -6514,6 +7290,7 @@
 
 2023 -> 2024 call = (...) => buildBinaryExpression(head, tail)(???*0*, (???*1* | []))
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* s2
   ⚠️  pattern without value
 
@@ -6521,11 +7298,13 @@
 
 0 -> 2026 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2026 -> 2027 call = (...) => s0()
 
 0 -> 2028 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2028 -> 2029 call = (...) => s0()
 
@@ -6537,6 +7316,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2030 -> 2033 conditional = (???*0* === 58)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6546,6 +7326,7 @@
 
 2033 -> 2034 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2034 -> 2035 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ":", "ignoreCase": false}
@@ -6565,20 +7346,25 @@
 
 2038 -> 2040 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2040 -> 2041 call = (...) => {"key": key, "value": value}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 2042 call = (...) => s0()
 
 0 -> 2043 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2043 -> 2044 call = (...) => s0()
 
 0 -> 2045 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2045 -> 2046 call = (...) => s0()
 
@@ -6590,6 +7376,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2047 -> 2050 conditional = (???*0* === 58)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6599,6 +7386,7 @@
 
 2050 -> 2051 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2051 -> 2052 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ":", "ignoreCase": false}
@@ -6618,33 +7406,41 @@
 
 2055 -> 2057 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2057 -> 2058 call = (...) => {"key": key, "value": value}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 2059 call = (...) => s0()
 
 0 -> 2060 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2060 -> 2061 call = (...) => {"type": "collection_expression", "expression": expression}(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 2062 call = (...) => s0()
 
 0 -> 2063 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2063 -> 2064 call = (...) => s0()
 
 2063 -> 2065 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2065 -> 2067 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2065 -> 2068 conditional = (???*0* === 46)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6654,6 +7450,7 @@
 
 2068 -> 2069 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2069 -> 2070 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ".", "ignoreCase": false}
@@ -6673,6 +7470,7 @@
 
 2073 -> 2075 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2075 -> 2076 call = (...) => s0()
 
@@ -6682,20 +7480,25 @@
 
 2077 -> 2078 call = (...) => {"property": property, "computed": false}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2063 -> 2079 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2079 -> 2080 call = (...) => s0()
 
 2079 -> 2081 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2081 -> 2083 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2081 -> 2084 conditional = (???*0* === 91)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6705,6 +7508,7 @@
 
 2084 -> 2085 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2085 -> 2086 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "[", "ignoreCase": false}
@@ -6724,16 +7528,19 @@
 
 2089 -> 2091 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2091 -> 2092 call = (...) => s0()
 
 2091 -> 2093 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2093 -> 2094 call = (...) => s0()
 
 2089 -> 2095 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2095 -> 2096 call = (...) => s0()
 
@@ -6745,6 +7552,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2097 -> 2100 conditional = (???*0* === 93)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6754,6 +7562,7 @@
 
 2100 -> 2101 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2101 -> 2102 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "]", "ignoreCase": false}
@@ -6765,25 +7574,31 @@
 
 2103 -> 2104 call = (...) => {"property": property, "computed": true}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2063 -> 2105 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2105 -> 2107 member call = (???*0* | [] | {})["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2105 -> 2108 call = (...) => s0()
 
 2105 -> 2109 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2109 -> 2111 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2109 -> 2112 conditional = (???*0* === 46)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6793,6 +7608,7 @@
 
 2112 -> 2113 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2113 -> 2114 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ".", "ignoreCase": false}
@@ -6812,6 +7628,7 @@
 
 2117 -> 2119 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2119 -> 2120 call = (...) => s0()
 
@@ -6821,20 +7638,25 @@
 
 2121 -> 2122 call = (...) => {"property": property, "computed": false}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2105 -> 2123 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2123 -> 2124 call = (...) => s0()
 
 2123 -> 2125 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2125 -> 2127 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2125 -> 2128 conditional = (???*0* === 91)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6844,6 +7666,7 @@
 
 2128 -> 2129 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2129 -> 2130 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "[", "ignoreCase": false}
@@ -6863,16 +7686,19 @@
 
 2133 -> 2135 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2135 -> 2136 call = (...) => s0()
 
 2135 -> 2137 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2137 -> 2138 call = (...) => s0()
 
 2133 -> 2139 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2139 -> 2140 call = (...) => s0()
 
@@ -6884,6 +7710,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2141 -> 2144 conditional = (???*0* === 93)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -6893,6 +7720,7 @@
 
 2144 -> 2145 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2145 -> 2146 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "]", "ignoreCase": false}
@@ -6904,7 +7732,9 @@
 
 2147 -> 2148 call = (...) => {"property": property, "computed": true}(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2063 -> 2149 conditional = ((???*0* | [] | {}) !== {})
 - *0* s2
@@ -6912,6 +7742,7 @@
 
 2149 -> 2150 call = (...) => tail["reduce"](*arrow function 16259*, head)(???*0*, (???*1* | [] | {}))
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* s2
   ⚠️  pattern without value
 
@@ -6919,27 +7750,33 @@
 
 0 -> 2152 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2152 -> 2153 call = (...) => {"type": "collection_subquery_expression", "expression": expression}(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 2154 call = (...) => s0()
 
 0 -> 2155 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2155 -> 2156 call = (...) => s0()
 
 0 -> 2157 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2157 -> 2158 call = (...) => {"type": "top_specification", "value": value}(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 2161 member call = ???*0*["charAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 2162 member call = /^[0-9]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
@@ -6957,9 +7794,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2163 -> 2166 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2166 -> 2167 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
@@ -6978,8 +7817,10 @@
   ⚠️  pattern without value
 - *1* ???*2*(text())
   ⚠️  unknown callee
+  ⚠️  This value might have side effects
 - *2* FreeVar(Number)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *3* s2
   ⚠️  pattern without value
 - *4* ???*5*["charAt"](peg$currPos)
@@ -6991,6 +7832,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2168 -> 2174 member call = /^[0-9]/["test"](???*0*)
 - *0* ???*1*["charAt"](peg$currPos)
@@ -7008,9 +7850,11 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2175 -> 2178 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2178 -> 2179 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
@@ -7021,8 +7865,10 @@
   ⚠️  pattern without value
 - *1* ???*2*(text())
   ⚠️  unknown callee
+  ⚠️  This value might have side effects
 - *2* FreeVar(Number)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 
 2180 -> 2181 call = (...) => {"type": "number_constant", "value": FreeVar(Number)(text())}()
 
@@ -7030,16 +7876,19 @@
 
 0 -> 2183 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2183 -> 2184 call = (...) => s0()
 
 2183 -> 2185 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2185 -> 2187 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2185 -> 2188 conditional = (???*0* === 44)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -7049,6 +7898,7 @@
 
 2188 -> 2189 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2189 -> 2190 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ",", "ignoreCase": false}
@@ -7068,25 +7918,31 @@
 
 2193 -> 2195 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2195 -> 2196 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2183 -> 2198 member call = (???*0* | [])["push"](???*1*)
 - *0* s2
   ⚠️  pattern without value
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2183 -> 2199 call = (...) => s0()
 
 2183 -> 2200 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2200 -> 2202 member call = ???*0*["charCodeAt"](???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2200 -> 2203 conditional = (???*0* === 44)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -7096,6 +7952,7 @@
 
 2203 -> 2204 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2204 -> 2205 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ",", "ignoreCase": false}
@@ -7115,10 +7972,13 @@
 
 2208 -> 2210 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2210 -> 2211 call = (...) => v(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2183 -> 2212 conditional = ((???*0* | []) !== {})
 - *0* s2
@@ -7126,7 +7986,9 @@
 
 2212 -> 2213 call = (...) => (head ? ???*0* : [])(???*1*, (???*2* | []))
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *2* s2
   ⚠️  pattern without value
 
@@ -7134,6 +7996,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 2216 conditional = (???*0* === 40)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -7143,6 +8006,7 @@
 
 2216 -> 2217 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2217 -> 2218 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": "(", "ignoreCase": false}
@@ -7150,6 +8014,7 @@
 
 0 -> 2219 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2219 -> 2220 call = (...) => s0()
 
@@ -7161,6 +8026,7 @@
 
 2221 -> 2223 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2223 -> 2224 call = (...) => s0()
 
@@ -7172,6 +8038,7 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2225 -> 2228 conditional = (???*0* === 41)
 - *0* ???*1*["charCodeAt"](peg$currPos)
@@ -7181,6 +8048,7 @@
 
 2228 -> 2229 conditional = ((0 | ???*0*) === 0)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 2229 -> 2230 call = (...) => (undefined | FreeVar(undefined))(
     {"type": "literal", "text": ")", "ignoreCase": false}
@@ -7192,6 +8060,7 @@
 
 2231 -> 2232 call = (...) => subquery(???*0*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 2234 member call = ???*0*["reduce"](
     (...) => {"type": "scalar_binary_expression", "left": left, "operator": operator, "right": right},
@@ -7205,6 +8074,7 @@
 0 -> 2235 call = ((...) => s0 | ???*0*)()
 - *0* {}[???*1*]
   ⚠️  unknown object prototype methods or values
+  ⚠️  This value might have side effects
 - *1* ???*2*["startRule"]
   ⚠️  unknown object
 - *2* arguments[1]
@@ -7212,9 +8082,11 @@
 
 0 -> 2237 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2237 -> 2239 conditional = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2239 -> 2240 call = (...) => {"type": "end"}()
 
@@ -7224,28 +8096,36 @@
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2237 -> 2246 call = (...) => {
     "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
     "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
 }(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2237 -> 2247 call = (...) => {
     "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
     "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
 }(???*0*, ???*1*)
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 - *1* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 2237 -> 2248 call = (...) => ???*0*([], (???*1* ? ???*2* : null), ???*4*)
 - *0* unknown new expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* ???*3*["charAt"](peg$maxFailPos)
   ⚠️  unknown callee object
 - *3* arguments[0]
   ⚠️  function calls are not analysed yet
 - *4* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 0 -> 2250 free var = FreeVar(module)

@@ -4,8 +4,8 @@
         Alternatives(
             9,
             [
-                Unknown(
-                    Some(
+                Unknown {
+                    original_value: Some(
                         Variable(
                             (
                                 "binPath",
@@ -13,8 +13,9 @@
                             ),
                         ),
                     ),
-                    "pattern without value",
-                ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
                 MemberCall(
                     7,
                     FreeVar(
@@ -59,8 +60,8 @@
     ),
     (
         "e",
-        Unknown(
-            Some(
+        Unknown {
+            original_value: Some(
                 Variable(
                     (
                         "e",
@@ -68,8 +69,9 @@
                     ),
                 ),
             ),
-            "pattern without value",
-        ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
     ),
     (
         "generateBinPath",
@@ -182,8 +184,8 @@
         Alternatives(
             5,
             [
-                Unknown(
-                    Some(
+                Unknown {
+                    original_value: Some(
                         Variable(
                             (
                                 "pkg",
@@ -191,8 +193,9 @@
                             ),
                         ),
                     ),
-                    "pattern without value",
-                ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
                 Member(
                     3,
                     Variable(
@@ -279,8 +282,8 @@
         Alternatives(
             3,
             [
-                Unknown(
-                    Some(
+                Unknown {
+                    original_value: Some(
                         Variable(
                             (
                                 "subpath",
@@ -288,8 +291,9 @@
                             ),
                         ),
                     ),
-                    "pattern without value",
-                ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
                 Constant(
                     Str(
                         Word(

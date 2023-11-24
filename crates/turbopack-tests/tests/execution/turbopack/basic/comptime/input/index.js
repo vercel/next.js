@@ -101,3 +101,42 @@ it("should evaluate NODE_ENV", () => {
     import("fail");
   }
 });
+
+it("should keep side-effects in if statements", () => {
+  {
+    let ok = false;
+    let ok2 = true;
+    if (((ok = true), false)) {
+      ok2 = false;
+      // TODO improve static analysis to detect that this is unreachable
+      // require("fail");
+    }
+    expect(ok).toBe(true);
+    expect(ok2).toBe(true);
+  }
+  {
+    let ok = false;
+    let ok2 = false;
+    let ok3 = true;
+    if (((ok = true), true)) {
+      ok2 = true;
+    } else {
+      ok3 = false;
+      // TODO improve static analysis to detect that this is unreachable
+      // require("fail");
+    }
+    expect(ok).toBe(true);
+    expect(ok2).toBe(true);
+    expect(ok3).toBe(true);
+  }
+  {
+    let ok = 0;
+    if ((ok++, true)) {
+      ok++;
+    } else {
+      // TODO improve static analysis to detect that this is unreachable
+      // require("fail");
+    }
+    expect(ok).toBe(2);
+  }
+});

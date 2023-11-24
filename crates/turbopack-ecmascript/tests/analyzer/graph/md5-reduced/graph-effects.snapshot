@@ -6,10 +6,11 @@
                 #3,
             ),
         ),
-        prop: Unknown(
-            None,
-            "unsupported expression",
-        ),
+        prop: Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
         ast_path: [
             Program(
                 Script,
@@ -76,10 +77,11 @@
         prop: Add(
             3,
             [
-                Unknown(
-                    None,
-                    "unsupported expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
                 Constant(
                     Num(
                         ConstantNumber(
@@ -373,10 +375,11 @@
                 ),
             ),
             Value(
-                Unknown(
-                    None,
-                    "unsupported expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ),
         ],
         ast_path: [
@@ -628,10 +631,11 @@
                 ),
             ),
             Value(
-                Unknown(
-                    None,
-                    "unsupported expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ),
         ],
         ast_path: [
@@ -1141,10 +1145,11 @@
                 ),
             ),
             Value(
-                Unknown(
-                    None,
-                    "unsupported expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ),
         ],
         ast_path: [
@@ -1396,10 +1401,11 @@
                 ),
             ),
             Value(
-                Unknown(
-                    None,
-                    "unsupported expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ),
         ],
         ast_path: [
@@ -1909,10 +1915,11 @@
                 ),
             ),
             Value(
-                Unknown(
-                    None,
-                    "unsupported expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ),
         ],
         ast_path: [
@@ -2164,10 +2171,11 @@
                 ),
             ),
             Value(
-                Unknown(
-                    None,
-                    "unsupported expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ),
         ],
         ast_path: [
@@ -2677,10 +2685,11 @@
                 ),
             ),
             Value(
-                Unknown(
-                    None,
-                    "unsupported expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ),
         ],
         ast_path: [
@@ -2932,10 +2941,11 @@
                 ),
             ),
             Value(
-                Unknown(
-                    None,
-                    "unsupported expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ),
         ],
         ast_path: [
@@ -3187,10 +3197,11 @@
                 ),
             ),
             Value(
-                Unknown(
-                    None,
-                    "unsupported expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ),
         ],
         ast_path: [
@@ -3700,10 +3711,11 @@
                 ),
             ),
             Value(
-                Unknown(
-                    None,
-                    "unsupported expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ),
         ],
         ast_path: [
@@ -3955,10 +3967,11 @@
                 ),
             ),
             Value(
-                Unknown(
-                    None,
-                    "unsupported expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ),
         ],
         ast_path: [
@@ -5264,10 +5277,11 @@
         ),
         args: [
             Value(
-                Unknown(
-                    None,
-                    "unsupported expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
             ),
             Value(
                 Variable(

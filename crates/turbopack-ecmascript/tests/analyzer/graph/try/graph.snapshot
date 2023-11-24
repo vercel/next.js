@@ -1,8 +1,8 @@
 [
     (
         "e",
-        Unknown(
-            Some(
+        Unknown {
+            original_value: Some(
                 Variable(
                     (
                         "e",
@@ -10,16 +10,17 @@
                     ),
                 ),
             ),
-            "pattern without value",
-        ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
     ),
     (
         "pkg",
         Alternatives(
             8,
             [
-                Unknown(
-                    Some(
+                Unknown {
+                    original_value: Some(
                         Variable(
                             (
                                 "pkg",
@@ -27,8 +28,9 @@
                             ),
                         ),
                     ),
-                    "pattern without value",
-                ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
                 Call(
                     3,
                     FreeVar(

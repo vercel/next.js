@@ -7,10 +7,12 @@ c = true
 chain1 = ???*0*
 - *0* FreeVar(global)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 
 chain2 = (???*0* | 3)
 - *0* FreeVar(global)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 
 d = false
 
@@ -19,12 +21,14 @@ e = true
 resolve1 = (???*0* | 4)
 - *0* FreeVar(global)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 
 resolve2 = 0
 
 resolve3 = (???*0* | true)
 - *0* FreeVar(global)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 
 resolve4 = true
 

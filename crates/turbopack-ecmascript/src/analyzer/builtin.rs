@@ -10,49 +10,81 @@ use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, ObjectPart}
 pub fn early_replace_builtin(value: &mut JsValue) -> bool {
     match value {
         // matching calls like `callee(arg1, arg2, ...)`
-        JsValue::Call(_, box ref mut callee, _) => match callee {
-            // We don't know what the callee is, so we can early return
-            JsValue::Unknown(_, _) => {
-                value.make_unknown("unknown callee");
-                true
-            }
-            // We known that these callee will lead to an error at runtime, so we can skip
-            // processing them
-            JsValue::Constant(_)
-            | JsValue::Url(_)
-            | JsValue::WellKnownObject(_)
-            | JsValue::Array { .. }
-            | JsValue::Object { .. }
-            | JsValue::Alternatives(_, _)
-            | JsValue::Concat(_, _)
-            | JsValue::Add(_, _)
-            | JsValue::Not(_, _) => {
-                value.make_unknown("non-function callee");
-                true
-            }
-            _ => false,
-        },
-        // matching calls with this context like `obj.prop(arg1, arg2, ...)`
-        JsValue::MemberCall(_, box ref mut obj, box ref mut prop, _) => match obj {
-            // We don't know what the callee is, so we can early return
-            JsValue::Unknown(_, _) => {
-                value.make_unknown("unknown callee object");
-                true
-            }
-            // otherwise we need to look at the property
-            _ => match prop {
-                // We don't know what the property is, so we can early return
-                JsValue::Unknown(_, _) => {
-                    value.make_unknown("unknown callee property");
+        JsValue::Call(_, box ref mut callee, args) => {
+            let args_have_side_effects = || args.iter().any(|arg| arg.has_side_effects());
+            match callee {
+                // We don't know what the callee is, so we can early return
+                &mut JsValue::Unknown {
+                    original_value: _,
+                    reason: _,
+                    has_side_effects,
+                } => {
+                    let has_side_effects = has_side_effects || args_have_side_effects();
+                    value.make_unknown(has_side_effects, "unknown callee");
+                    true
+                }
+                // We known that these callee will lead to an error at runtime, so we can skip
+                // processing them
+                JsValue::Constant(_)
+                | JsValue::Url(_)
+                | JsValue::WellKnownObject(_)
+                | JsValue::Array { .. }
+                | JsValue::Object { .. }
+                | JsValue::Alternatives(_, _)
+                | JsValue::Concat(_, _)
+                | JsValue::Add(_, _)
+                | JsValue::Not(_, _) => {
+                    let has_side_effects = args_have_side_effects();
+                    value.make_unknown(has_side_effects, "non-function callee");
                     true
                 }
                 _ => false,
-            },
-        },
+            }
+        }
+        // matching calls with this context like `obj.prop(arg1, arg2, ...)`
+        JsValue::MemberCall(_, box ref mut obj, box ref mut prop, args) => {
+            let args_have_side_effects = || args.iter().any(|arg| arg.has_side_effects());
+            match obj {
+                // We don't know what the callee is, so we can early return
+                &mut JsValue::Unknown {
+                    original_value: _,
+                    reason: _,
+                    has_side_effects,
+                } => {
+                    let side_effects =
+                        has_side_effects || prop.has_side_effects() || args_have_side_effects();
+                    value.make_unknown(side_effects, "unknown callee object");
+                    true
+                }
+                // otherwise we need to look at the property
+                _ => match prop {
+                    // We don't know what the property is, so we can early return
+                    &mut JsValue::Unknown {
+                        original_value: _,
+                        reason: _,
+                        has_side_effects,
+                    } => {
+                        let side_effects = has_side_effects || args_have_side_effects();
+                        value.make_unknown(side_effects, "unknown callee property");
+                        true
+                    }
+                    _ => false,
+                },
+            }
+        }
         // matching property access like `obj.prop` when we don't know what the obj is.
         // We can early return here
-        JsValue::Member(_, box JsValue::Unknown(_, _), _) => {
-            value.make_unknown("unknown object");
+        &mut JsValue::Member(
+            _,
+            box JsValue::Unknown {
+                original_value: _,
+                reason: _,
+                has_side_effects,
+            },
+            box ref mut prop,
+        ) => {
+            let side_effects = has_side_effects || prop.has_side_effects();
+            value.make_unknown(side_effects, "unknown object");
             true
         }
         _ => false,
@@ -88,6 +120,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 fn items_to_alternatives(items: &mut Vec<JsValue>, prop: &mut JsValue) -> JsValue {
                     items.push(JsValue::unknown(
                         JsValue::member(Box::new(JsValue::array(Vec::new())), Box::new(take(prop))),
+                        false,
                         "unknown array prototype methods or values",
                     ));
                     JsValue::alternatives(take(items))
@@ -100,25 +133,26 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             if index < items.len() {
                                 *value = items.swap_remove(index);
                                 if mutable {
-                                    value.add_unknown_mutations();
+                                    value.add_unknown_mutations(true);
                                 }
                                 true
                             } else {
                                 *value = JsValue::unknown(
                                     JsValue::member(Box::new(take(obj)), Box::new(take(prop))),
+                                    false,
                                     "invalid index",
                                 );
                                 true
                             }
                         } else {
-                            value.make_unknown("non-num constant property on array");
+                            value.make_unknown(false, "non-num constant property on array");
                             true
                         }
                     }
                     // accessing a non-numeric property on an array like `[1,2,3].length`
                     // We don't know what happens here
                     JsValue::Constant(_) => {
-                        value.make_unknown("non-num constant property on array");
+                        value.make_unknown(false, "non-num constant property on array");
                         true
                     }
                     // accessing multiple alternative properties on an array like `[1,2,3][(1 | 2 |
@@ -163,6 +197,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                         Box::new(JsValue::object(vec![take(part)])),
                                         prop.clone(),
                                     ),
+                                    true,
                                     "spreaded object",
                                 ));
                             }
@@ -174,6 +209,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 Box::new(JsValue::object(Vec::new())),
                                 Box::new(take(prop)),
                             ),
+                            true,
                             "unknown object prototype methods or values",
                         ));
                     }
@@ -230,7 +266,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                                 );
                                             }
                                             if mutable {
-                                                value.add_unknown_mutations();
+                                                value.add_unknown_mutations(true);
                                             }
                                             return true;
                                         }
@@ -239,7 +275,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                     }
                                 }
                                 ObjectPart::Spread(_) => {
-                                    value.make_unknown("spread object");
+                                    value.make_unknown(true, "spread object");
                                     return true;
                                 }
                             }
@@ -255,7 +291,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             );
                         }
                         if mutable {
-                            value.add_unknown_mutations();
+                            value.add_unknown_mutations(true);
                         }
                         true
                     }

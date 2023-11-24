@@ -4,6 +4,7 @@
 
 0 -> 3 conditional = (???*0* === 0)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 3 -> 4 call = (...) => (undefined | a | (r((a + 1)) + 1))((???*0* + 1))
 - *0* arguments[0]

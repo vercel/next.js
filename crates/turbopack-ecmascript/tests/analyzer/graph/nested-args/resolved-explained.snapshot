@@ -31,6 +31,7 @@ v1 = (???*0* + 2)
 v2 = (undefined | 2 | (???*0* + 1))
 - *0* (...) => (undefined | a | (r((a + 1)) + 1))((2 + 1))
   ⚠️  recursive function call
+  ⚠️  This value might have side effects
 
 v3 = `ab`
 

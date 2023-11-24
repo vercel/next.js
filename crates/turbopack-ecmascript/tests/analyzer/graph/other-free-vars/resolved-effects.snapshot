@@ -5,13 +5,17 @@
 0 -> 4 member call = ???*0*["keys"](???*1*)
 - *0* FreeVar(Object)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *1* FreeVar(Object)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 
 0 -> 6 free var = FreeVar(Object)
 
 0 -> 7 member call = ???*0*["keys"](???*1*)
 - *0* FreeVar(Object)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *1* FreeVar(Object)
   ⚠️  unknown global
+  ⚠️  This value might have side effects

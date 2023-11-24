@@ -135,10 +135,11 @@
     Conditional {
         condition: Binary(
             3,
-            Unknown(
-                None,
-                "unsupported expression",
-            ),
+            Unknown {
+                original_value: None,
+                reason: "unsupported expression",
+                has_side_effects: true,
+            },
             StrictEqual,
             Constant(
                 Num(
