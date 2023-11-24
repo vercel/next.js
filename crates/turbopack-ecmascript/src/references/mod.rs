@@ -828,7 +828,7 @@ pub(crate) async fn analyze_ecmascript_module(
                     &ast_path,
                     span,
                     func,
-                    JsValue::unknown_empty("no this provided"),
+                    JsValue::unknown_empty(false, "no this provided"),
                     args,
                     &analysis_state,
                     &add_effects,
@@ -865,7 +865,7 @@ pub(crate) async fn analyze_ecmascript_module(
                             if let JsValue::Function(_, func_ident, _) = value {
                                 let mut closure_arg = JsValue::alternatives(take(values));
                                 if mutable {
-                                    closure_arg.add_unknown_mutations();
+                                    closure_arg.add_unknown_mutations(true);
                                 }
                                 analysis_state
                                     .fun_args_values
@@ -1045,7 +1045,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             add_effects(block.effects);
                             value
                         }
-                        EffectArg::Spread => JsValue::unknown_empty("spread is not supported yet"),
+                        EffectArg::Spread => {
+                            JsValue::unknown_empty(true, "spread is not supported yet")
+                        }
                     };
                     state.link_value(value, in_try).await
                 }
@@ -2054,7 +2056,10 @@ async fn value_visitor_inner(
         ) => {
             // TODO: figure out how to do static analysis without invalidating the while
             // analysis when a new file gets added
-            v.into_unknown("require.context() static analysis is currently limited")
+            v.into_unknown(
+                true,
+                "require.context() static analysis is currently limited",
+            )
         }
         JsValue::FreeVar(ref kind) => match &**kind {
             "__dirname" => as_abs_path(origin.origin_path().parent()).await?,
@@ -2097,13 +2102,15 @@ async fn value_visitor_inner(
                     "@grpc/proto-loader" => {
                         JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader)
                     }
-                    _ => v.into_unknown("cross module analyzing is not yet supported"),
+                    _ => v.into_unknown(true, "cross module analyzing is not yet supported"),
                 }
             } else {
-                v.into_unknown("cross module analyzing is not yet supported")
+                v.into_unknown(true, "cross module analyzing is not yet supported")
             }
         }
-        JsValue::Argument(..) => v.into_unknown("cross function analyzing is not yet supported"),
+        JsValue::Argument(..) => {
+            v.into_unknown(true, "cross function analyzing is not yet supported")
+        }
         _ => {
             let (mut v, mut modified) = replace_well_known(v, compile_time_info).await?;
             modified = replace_builtin(&mut v) || modified;
@@ -2139,6 +2146,7 @@ async fn require_resolve_visitor(
                     )),
                     args,
                 ),
+                false,
                 "unresolveable request",
             ),
             1 => values.pop().unwrap(),
@@ -2152,6 +2160,7 @@ async fn require_resolve_visitor(
                 )),
                 args,
             ),
+            true,
             "only a single argument is supported",
         )
     })
@@ -2172,6 +2181,7 @@ async fn require_context_visitor(
                     )),
                     args,
                 ),
+                true,
                 PrettyPrintError(&err).to_string(),
             ))
         }

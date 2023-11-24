@@ -79,6 +79,7 @@
 
 *anonymous function 16837* = (...) => (head ? ???*0* : [])
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 
 *anonymous function 16925* = (...) => subquery
 
@@ -119,6 +120,7 @@
 
 *anonymous function 4960* = (...) => {"type": "object_property_list", "properties": ???*0*}
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 
 *anonymous function 5104* = (...) => v
 
@@ -134,6 +136,7 @@
 
 *anonymous function 5793* = (...) => {"type": "sort_specification", "expressions": ???*0*}
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 
 *anonymous function 5936* = (...) => {"type": "sort_expression", "expression": expression, "order": order}
 
@@ -145,6 +148,7 @@
 
 *anonymous function 6748* = (...) => {"type": "scalar_object_expression", "properties": (head ? ???*0* : [])}
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 
 *anonymous function 702* = (...) => `"${literalEscape(expectation["text"])}"`
 
@@ -169,9 +173,11 @@
 
 *anonymous function 8336* = (...) => {"type": "array_constant", "elements": ???*0*}
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 
 *anonymous function 8472* = (...) => {"type": "object_constant", "properties": ???*0*}
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 
 *anonymous function 9682* = (...) => "ASC"
 
@@ -285,7 +291,9 @@ describeExpected = (...) => (
   | `${descriptions["slice"](0, ???*0*)["join"](", ")}, or ${descriptions[???*1*]}`
 )
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 
 describeFound = (...) => (found ? `"${literalEscape(found)}"` : "end of input")
 
@@ -299,6 +307,7 @@ description#111 = ???*0*
 
 descriptions = ???*0*
 - *0* unknown new expression
+  ⚠️  This value might have side effects
 
 details = (
   | {"line": 1, "column": 1}
@@ -310,6 +319,7 @@ details = (
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 - *2* unknown mutation
+  ⚠️  This value might have side effects
 - *3* ???*4*["line"]
   ⚠️  unknown object
 - *4* [][???*5*]
@@ -317,6 +327,7 @@ details = (
 - *5* arguments[0]
   ⚠️  function calls are not analysed yet
 - *6* unknown mutation
+  ⚠️  This value might have side effects
 - *7* ???*8*["column"]
   ⚠️  unknown object
 - *8* [][???*9*]
@@ -364,6 +375,7 @@ escapedParts = ("" | (("" | ???*0*) + ???*12*))
 - *2* (???*3* ? ???*4* : ???*9*)
   ⚠️  nested operation
 - *3* unsupported expression
+  ⚠️  This value might have side effects
 - *4* `${???*5*}-${???*7*}`
   ⚠️  nested operation
 - *5* ???*6*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
@@ -383,6 +395,7 @@ escapedParts = ("" | (("" | ???*0*) + ???*12*))
 - *12* (???*13* ? ???*14* : ???*21*)
   ⚠️  nested operation
 - *13* unsupported expression
+  ⚠️  This value might have side effects
 - *14* `${???*15*}-${???*18*}`
   ⚠️  nested operation
 - *15* ???*16*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
@@ -586,11 +599,13 @@ i#22 = (???*0* | 0 | ???*1* | 1)
 - *0* i
   ⚠️  pattern without value
 - *1* updated with update expression
+  ⚠️  This value might have side effects
 
 i#9 = (???*0* | 0 | ???*1*)
 - *0* i
   ⚠️  pattern without value
 - *1* updated with update expression
+  ⚠️  This value might have side effects
 
 ignoreCase#107 = ???*0*
 - *0* arguments[1]
@@ -612,6 +627,7 @@ j = (???*0* | 1 | ???*1*)
 - *0* j
   ⚠️  pattern without value
 - *1* updated with update expression
+  ⚠️  This value might have side effects
 
 joins = ???*0*
 - *0* arguments[1]
@@ -633,9 +649,11 @@ literalEscape = (...) => s["replace"](/\\/g, "\\\\")["replace"](/"/g, "\\\"")["r
 
 location#105 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 location#106 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 location#123 = ???*0*
 - *0* arguments[1]
@@ -705,9 +723,11 @@ options = (???*0* | (???*1* ? (???*9* | ???*10*) : {}))
 - *5* options
   ⚠️  circular variable reference
 - *6* unsupported expression
+  ⚠️  This value might have side effects
 - *7* options
   ⚠️  circular variable reference
 - *8* unsupported expression
+  ⚠️  This value might have side effects
 - *9* arguments[1]
   ⚠️  function calls are not analysed yet
 - *10* (???*11* ? ???*14* : {})
@@ -717,6 +737,7 @@ options = (???*0* | (???*1* ? (???*9* | ???*10*) : {}))
 - *12* options
   ⚠️  circular variable reference
 - *13* unsupported expression
+  ⚠️  This value might have side effects
 - *14* options
   ⚠️  circular variable reference
 
@@ -732,7 +753,9 @@ p = (???*0* | ???*1* | ???*2*)
 - *0* p
   ⚠️  pattern without value
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* updated with update expression
+  ⚠️  This value might have side effects
 
 parent = ???*0*
 - *0* arguments[1]
@@ -750,9 +773,11 @@ peg$anyExpectation = (...) => {"type": "any"}
 
 peg$buildSimpleError = (...) => ???*0*
 - *0* unknown new expression
+  ⚠️  This value might have side effects
 
 peg$buildStructuredError = (...) => ???*0*
 - *0* unknown new expression
+  ⚠️  This value might have side effects
 
 peg$c0 = (...) => {"type": "sql", "body": body}
 
@@ -853,6 +878,7 @@ peg$c139 = (...) => "\f"
 
 peg$c14 = (...) => {"type": "object_property_list", "properties": ???*0*}
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 
 peg$c140 = "n"
 
@@ -1015,6 +1041,7 @@ peg$c209 = (...) => tail["reduce"](*arrow function 16259*, head)
 
 peg$c21 = (...) => {"type": "sort_specification", "expressions": ???*0*}
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 
 peg$c210 = (...) => {"type": "collection_subquery_expression", "expression": expression}
 
@@ -1024,6 +1051,7 @@ peg$c212 = (...) => {"type": "number_constant", "value": FreeVar(Number)(text())
 
 peg$c213 = (...) => (head ? ???*0* : [])
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 
 peg$c214 = (...) => subquery
 
@@ -1057,6 +1085,7 @@ peg$c34 = {"type": "literal", "text": "}", "ignoreCase": false}
 
 peg$c35 = (...) => {"type": "scalar_object_expression", "properties": (head ? ???*0* : [])}
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 
 peg$c36 = "["
 
@@ -1120,11 +1149,13 @@ peg$c58 = {"type": "literal", "text": "'", "ignoreCase": false}
 
 peg$c59 = (...) => {"type": "array_constant", "elements": ???*0*}
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 
 peg$c6 = "*"
 
 peg$c60 = (...) => {"type": "object_constant", "properties": ???*0*}
 - *0* spread is not supported
+  ⚠️  This value might have side effects
 
 peg$c61 = /^[ \t\n\r]/
 
@@ -1221,6 +1252,7 @@ peg$computePosDetails = (...) => (undefined | details)
 
 peg$currPos = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 peg$endExpectation = (...) => {"type": "end"}
 
@@ -1232,6 +1264,7 @@ peg$maxFailExpected = []
 
 peg$maxFailPos = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 peg$otherExpectation = (...) => {"type": "other", "description": description}
 
@@ -1425,16 +1458,20 @@ peg$posDetailsCache = [{"line": 1, "column": 1}]
 
 peg$result = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 peg$savedPos = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 peg$silentFails = (0 | ???*0*)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 peg$startRuleFunction = ((...) => s0 | ???*0*)
 - *0* {}[???*1*]
   ⚠️  unknown object prototype methods or values
+  ⚠️  This value might have side effects
 - *1* ???*2*["startRule"]
   ⚠️  unknown object
 - *2* arguments[1]
@@ -1482,12 +1519,15 @@ s#18 = ???*0*
 
 s0#1019 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1026 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1031 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1049 = (???*0* | ???*1* | {})
 - *0* s0
@@ -1499,156 +1539,207 @@ s0#1049 = (???*0* | ???*1* | {})
 
 s0#1053 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1070 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1093 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1096 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1103 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1110 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1112 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1186 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1195 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1221 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#125 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1251 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1273 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1317 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#132 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1369 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1395 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1415 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1443 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1471 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1499 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1543 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1587 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1631 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1646 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1661 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1663 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1739 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1741 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1744 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1755 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#1784 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#187 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#201 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#229 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#251 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#279 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#282 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#284 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#312 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#323 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#376 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#419 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#436 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#443 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#448 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#450 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#454 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#497 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#525 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#567 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#609 = (???*0* | [])
 - *0* s0
@@ -1664,78 +1755,103 @@ s0#613 = (???*0* | ???*1* | {})
 
 s0#617 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#644 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#654 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#664 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#674 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#684 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#694 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#704 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#714 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#724 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#734 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#744 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#754 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#764 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#774 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#784 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#794 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#804 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#814 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#824 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#834 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#844 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#854 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#864 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#886 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#893 = (???*0* | ???*1* | {})
 - *0* s0
@@ -1747,18 +1863,23 @@ s0#893 = (???*0* | ???*1* | {})
 
 s0#897 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#909 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#917 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#930 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#952 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#974 = (???*0* | ???*1* | {})
 - *0* s0
@@ -1770,146 +1891,193 @@ s0#974 = (???*0* | ???*1* | {})
 
 s0#978 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#980 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s0#982 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1019 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1031 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1053 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1070 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1096 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1103 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1110 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1112 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1186 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1195 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1221 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#125 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1251 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1273 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1317 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#132 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1369 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1395 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1415 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1443 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1471 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1499 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1543 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1587 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1631 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1646 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1661 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1663 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1739 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1741 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1744 = (???*0* | [] | {} | {"type": "number_constant", "value": ???*1*})
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*(text())
   ⚠️  unknown callee
+  ⚠️  This value might have side effects
 - *2* FreeVar(Number)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 
 s1#1755 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#1784 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#187 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#201 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#229 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#251 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#282 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#284 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#312 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#323 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#376 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#419 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#443 = (???*0* | "undefined" | {} | {"type": "undefined_constant"})
 - *0* s1
@@ -1917,9 +2085,11 @@ s1#443 = (???*0* | "undefined" | {} | {"type": "undefined_constant"})
 
 s1#448 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#450 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#454 = (
   | ???*0*
@@ -1937,12 +2107,16 @@ s1#454 = (
   ⚠️  pattern without value
 - *2* ???*3*(text(), 16)
   ⚠️  unknown callee
+  ⚠️  This value might have side effects
 - *3* FreeVar(parseInt)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *4* ???*5*(text())
   ⚠️  unknown callee
+  ⚠️  This value might have side effects
 - *5* FreeVar(parseFloat)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 
 s1#497 = (
   | ???*0*
@@ -1964,12 +2138,15 @@ s1#497 = (
 
 s1#525 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#567 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#609 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#617 = (
   | ???*0*
@@ -1990,33 +2167,43 @@ s1#617 = (
 
 s1#644 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#654 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#664 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#674 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#684 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#694 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#704 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#714 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#724 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#734 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#744 = (???*0* | ???*1* | {} | "ASC")
 - *0* s1
@@ -2060,27 +2247,35 @@ s1#784 = (???*0* | ???*1* | {} | "NOT")
 
 s1#794 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#804 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#814 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#824 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#834 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#844 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#854 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#886 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#897 = (
   | ???*0*
@@ -2131,9 +2326,11 @@ s1#909 = (???*0* | "@" | {} | {"type": "parameter_name", "name": ???*1*})
 
 s1#930 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#952 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s1#982 = (???*0* | "b" | {} | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t")
 - *0* s1
@@ -2141,6 +2338,7 @@ s1#982 = (???*0* | "b" | {} | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" 
 
 s10#132 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s10#323 = (???*0* | [])
 - *0* s10
@@ -2148,6 +2346,7 @@ s10#323 = (???*0* | [])
 
 s11#132 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s11#323 = (???*0* | ")" | {})
 - *0* s11
@@ -2155,6 +2354,7 @@ s11#323 = (???*0* | ")" | {})
 
 s12 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s13 = (???*0* | [])
 - *0* s13
@@ -2162,6 +2362,7 @@ s13 = (???*0* | [])
 
 s14 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s15 = (???*0* | [])
 - *0* s15
@@ -2169,15 +2370,19 @@ s15 = (???*0* | [])
 
 s16 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#1019 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#1031 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#1053 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#1070 = (???*0* | [])
 - *0* s2
@@ -2209,6 +2414,7 @@ s2#1221 = (???*0* | [])
 
 s2#125 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#1251 = (???*0* | [])
 - *0* s2
@@ -2300,6 +2506,7 @@ s2#229 = (???*0* | [])
 
 s2#251 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#284 = (???*0* | [])
 - *0* s2
@@ -2307,6 +2514,7 @@ s2#284 = (???*0* | [])
 
 s2#312 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#323 = (???*0* | [])
 - *0* s2
@@ -2342,72 +2550,95 @@ s2#617 = (???*0* | [])
 
 s2#644 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#654 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#664 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#674 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#684 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#694 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#704 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#714 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#724 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#734 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#744 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#754 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#764 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#774 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#784 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#794 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#804 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#814 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#824 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#834 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#844 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#854 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#886 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#897 = (???*0* | [])
 - *0* s2
@@ -2415,33 +2646,43 @@ s2#897 = (???*0* | [])
 
 s2#909 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#930 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s2#952 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1031 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1053 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1070 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1096 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1103 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1112 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1186 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1195 = (???*0* | "?" | {})
 - *0* s3
@@ -2449,6 +2690,7 @@ s3#1195 = (???*0* | "?" | {})
 
 s3#1221 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#125 = (???*0* | [])
 - *0* s3
@@ -2456,39 +2698,51 @@ s3#125 = (???*0* | [])
 
 s3#1251 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1273 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1317 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#132 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1369 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1395 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1415 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1443 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1471 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1499 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1543 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1587 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1631 = (???*0* | ":" | {})
 - *0* s3
@@ -2500,30 +2754,39 @@ s3#1646 = (???*0* | ":" | {})
 
 s3#1663 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1755 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#1784 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#187 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#201 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#229 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#251 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#284 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#312 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#323 = (???*0* | "." | {} | "(")
 - *0* s3
@@ -2531,9 +2794,11 @@ s3#323 = (???*0* | "." | {} | "(")
 
 s3#376 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#419 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#454 = (???*0* | [] | {})
 - *0* s3
@@ -2541,15 +2806,19 @@ s3#454 = (???*0* | [] | {})
 
 s3#497 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#525 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#567 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#617 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s3#644 = (???*0* | ???*1* | {})
 - *0* s3
@@ -2804,6 +3073,7 @@ s4#1031 = (
 
 s4#1053 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1070 = (???*0* | [])
 - *0* s4
@@ -2811,6 +3081,7 @@ s4#1070 = (???*0* | [])
 
 s4#1112 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1195 = (???*0* | [])
 - *0* s4
@@ -2818,18 +3089,23 @@ s4#1195 = (???*0* | [])
 
 s4#1221 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1251 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1273 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1317 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#132 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1369 = (???*0* | [])
 - *0* s4
@@ -2841,21 +3117,27 @@ s4#1395 = (???*0* | [])
 
 s4#1415 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1443 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1471 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1499 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1543 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1587 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1631 = (???*0* | [])
 - *0* s4
@@ -2867,9 +3149,11 @@ s4#1646 = (???*0* | [])
 
 s4#1663 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1755 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#1784 = (???*0* | [])
 - *0* s4
@@ -2877,18 +3161,23 @@ s4#1784 = (???*0* | [])
 
 s4#201 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#229 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#251 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#284 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#312 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#323 = (???*0* | [])
 - *0* s4
@@ -2904,6 +3193,7 @@ s4#419 = (???*0* | [])
 
 s4#454 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s4#525 = (???*0* | [])
 - *0* s4
@@ -2915,6 +3205,7 @@ s4#567 = (???*0* | [])
 
 s4#617 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#1031 = (???*0* | ???*1* | {})
 - *0* s5
@@ -2926,6 +3217,7 @@ s5#1031 = (???*0* | ???*1* | {})
 
 s5#1053 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#1070 = (???*0* | ")" | {})
 - *0* s5
@@ -2937,12 +3229,15 @@ s5#1112 = (???*0* | "." | {} | "[")
 
 s5#1195 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#1221 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#1251 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#1273 = (???*0* | "=" | {} | "!=" | "<>")
 - *0* s5
@@ -2954,6 +3249,7 @@ s5#1317 = (???*0* | "<=" | {} | ">=" | "<" | ">")
 
 s5#132 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#1369 = (???*0* | "(" | {})
 - *0* s5
@@ -2961,6 +3257,7 @@ s5#1369 = (???*0* | "(" | {})
 
 s5#1395 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#1415 = (???*0* | "|" | {})
 - *0* s5
@@ -2988,9 +3285,11 @@ s5#1587 = (???*0* | "*" | {} | "/" | "%")
 
 s5#1631 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#1646 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#1663 = (???*0* | "." | {} | "[")
 - *0* s5
@@ -3010,9 +3309,11 @@ s5#201 = (???*0* | "," | {})
 
 s5#229 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#251 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#284 = (???*0* | "," | {})
 - *0* s5
@@ -3020,9 +3321,11 @@ s5#284 = (???*0* | "," | {})
 
 s5#323 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#376 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#419 = (???*0* | "]" | {})
 - *0* s5
@@ -3047,9 +3350,11 @@ s5#454 = (
 
 s5#525 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#567 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s5#617 = (???*0* | ???*1* | {})
 - *0* s5
@@ -3093,6 +3398,7 @@ s6#1317 = (???*0* | [])
 
 s6#132 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s6#1369 = (???*0* | [])
 - *0* s6
@@ -3152,6 +3458,7 @@ s6#323 = (???*0* | [])
 
 s6#376 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s6#454 = (???*0* | [] | {})
 - *0* s6
@@ -3159,9 +3466,11 @@ s6#454 = (???*0* | [] | {})
 
 s6#525 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s6#567 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1031 = (???*0* | ???*1* | {})
 - *0* s7
@@ -3173,6 +3482,7 @@ s7#1031 = (???*0* | ???*1* | {})
 
 s7#1112 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1195 = (???*0* | ":" | {})
 - *0* s7
@@ -3180,57 +3490,75 @@ s7#1195 = (???*0* | ":" | {})
 
 s7#1221 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1251 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1273 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1317 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#132 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1369 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1395 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1415 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1443 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1471 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1499 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1543 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1587 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1663 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#1755 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#201 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#229 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#284 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s7#323 = (???*0* | "(" | {} | ")")
 - *0* s7
@@ -3266,6 +3594,7 @@ s8#1195 = (???*0* | [])
 
 s8#132 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s8#1369 = (???*0* | [])
 - *0* s8
@@ -3301,9 +3630,11 @@ s9#1112 = (???*0* | "]" | {})
 
 s9#1195 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s9#132 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s9#1369 = (???*0* | ")" | {})
 - *0* s9
@@ -3311,6 +3642,7 @@ s9#1369 = (???*0* | ")" | {})
 
 s9#1395 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s9#1663 = (???*0* | "]" | {})
 - *0* s9
@@ -3318,15 +3650,19 @@ s9#1663 = (???*0* | "]" | {})
 
 s9#323 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s9#376 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s9#525 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 s9#567 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 select#31 = ???*0*
 - *0* arguments[1]

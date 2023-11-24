@@ -2,15 +2,19 @@
 
 *anonymous function 5013* = (...) => (???*0* + b)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 *anonymous function 5163* = (...) => (???*0* + b)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 *anonymous function 5313* = (...) => (???*0* + b)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 *anonymous function 5454* = (...) => (???*0* + b)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 *anonymous function 5685* = (...) => ((options && options["asBytes"]) ? digestbytes : ((options && options["asString"]) ? bin["bytesToString"](digestbytes) : crypt["bytesToHex"](digestbytes)))
 
@@ -45,16 +49,27 @@ a#4 = (
   | ???*10*
 )
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 - *3* unsupported expression
+  ⚠️  This value might have side effects
 - *4* unsupported expression
+  ⚠️  This value might have side effects
 - *5* unsupported expression
+  ⚠️  This value might have side effects
 - *6* unsupported expression
+  ⚠️  This value might have side effects
 - *7* unsupported expression
+  ⚠️  This value might have side effects
 - *8* unsupported expression
+  ⚠️  This value might have side effects
 - *9* unsupported expression
+  ⚠️  This value might have side effects
 - *10* unsupported expression
+  ⚠️  This value might have side effects
 
 a#7 = arguments[0]
 
@@ -86,18 +101,31 @@ b#4 = (
   | II(b, c, d, a, m[(i + 9)], 21, ???*12*)
 )
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 - *3* unsupported expression
+  ⚠️  This value might have side effects
 - *4* unsupported expression
+  ⚠️  This value might have side effects
 - *5* unsupported expression
+  ⚠️  This value might have side effects
 - *6* unsupported expression
+  ⚠️  This value might have side effects
 - *7* unsupported expression
+  ⚠️  This value might have side effects
 - *8* unsupported expression
+  ⚠️  This value might have side effects
 - *9* unsupported expression
+  ⚠️  This value might have side effects
 - *10* unsupported expression
+  ⚠️  This value might have side effects
 - *11* unsupported expression
+  ⚠️  This value might have side effects
 - *12* unsupported expression
+  ⚠️  This value might have side effects
 
 b#7 = arguments[1]
 
@@ -131,16 +159,27 @@ c#4 = (
   | II(c, d, a, b, m[(i + 2)], 15, 718787259)
 )
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 - *3* unsupported expression
+  ⚠️  This value might have side effects
 - *4* unsupported expression
+  ⚠️  This value might have side effects
 - *5* unsupported expression
+  ⚠️  This value might have side effects
 - *6* unsupported expression
+  ⚠️  This value might have side effects
 - *7* unsupported expression
+  ⚠️  This value might have side effects
 - *8* unsupported expression
+  ⚠️  This value might have side effects
 - *9* unsupported expression
+  ⚠️  This value might have side effects
 - *10* unsupported expression
+  ⚠️  This value might have side effects
 
 c#7 = arguments[2]
 
@@ -175,18 +214,31 @@ d#4 = (
   | ???*12*
 )
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 - *3* unsupported expression
+  ⚠️  This value might have side effects
 - *4* unsupported expression
+  ⚠️  This value might have side effects
 - *5* unsupported expression
+  ⚠️  This value might have side effects
 - *6* unsupported expression
+  ⚠️  This value might have side effects
 - *7* unsupported expression
+  ⚠️  This value might have side effects
 - *8* unsupported expression
+  ⚠️  This value might have side effects
 - *9* unsupported expression
+  ⚠️  This value might have side effects
 - *10* unsupported expression
+  ⚠️  This value might have side effects
 - *11* unsupported expression
+  ⚠️  This value might have side effects
 - *12* unsupported expression
+  ⚠️  This value might have side effects
 
 d#7 = arguments[3]
 
@@ -200,11 +252,13 @@ digestbytes = crypt["wordsToBytes"](md5(message, options))
 
 i = (0 | ???*0* | (i + 16))
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 isBuffer = FreeVar(require)("is-buffer")
 
 l = ???*0*
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 m = crypt["bytesToWords"](message)
 
@@ -222,19 +276,27 @@ message#4 = (
 
 n#10 = (a + ???*0* + ???*1* + t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 
 n#7 = (a + ???*0* + ???*1* + t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 
 n#8 = (a + ???*0* + ???*1* + t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 
 n#9 = (a + ???*0* + ???*1* + t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 
 options#11 = arguments[1]
 

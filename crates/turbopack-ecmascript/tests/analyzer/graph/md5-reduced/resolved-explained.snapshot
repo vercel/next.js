@@ -1,5 +1,6 @@
 a#3 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 a#5 = ???*0*
 - *0* arguments[1]
@@ -11,6 +12,7 @@ a#6 = ???*0*
 
 b#3 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 b#5 = ???*0*
 - *0* arguments[2]
@@ -22,6 +24,7 @@ b#6 = ???*0*
 
 c#3 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 c#6 = ???*0*
 - *0* arguments[2]
@@ -29,6 +32,7 @@ c#6 = ???*0*
 
 d#3 = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 d#6 = ???*0*
 - *0* arguments[3]
@@ -58,18 +62,23 @@ md5cmn = (...) => FreeVar(safeAdd)(
 
 md5ff = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 olda = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 oldb = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 oldc = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 oldd = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 q = ???*0*
 - *0* arguments[0]

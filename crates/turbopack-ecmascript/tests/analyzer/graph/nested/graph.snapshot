@@ -59,10 +59,11 @@
     ),
     (
         "d",
-        Unknown(
-            None,
-            "unsupported expression",
-        ),
+        Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
     ),
     (
         "e",

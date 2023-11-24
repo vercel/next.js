@@ -44,10 +44,11 @@
                         ),
                     ),
                 ),
-                Unknown(
-                    None,
-                    "unsupported assign operation",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported assign operation",
+                    has_side_effects: true,
+                },
             ],
         ),
     ),
@@ -63,10 +64,11 @@
                         ),
                     ),
                 ),
-                Unknown(
-                    None,
-                    "updated with update expression",
-                ),
+                Unknown {
+                    original_value: None,
+                    reason: "updated with update expression",
+                    has_side_effects: true,
+                },
             ],
         ),
     ),

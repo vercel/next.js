@@ -2,8 +2,10 @@
 
 BaseClass = ???*0*
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 SubClass = ???*0*
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 fn = arguments[0]

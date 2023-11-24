@@ -22,11 +22,15 @@
   ⚠️  pattern without value
 - *2* {}[???*3*]
   ⚠️  unknown object prototype methods or values
+  ⚠️  This value might have side effects
 - *3* FreeVar(platformKey)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *4* unknown mutation
+  ⚠️  This value might have side effects
 - *5* subpath
   ⚠️  pattern without value
 - *6* unknown mutation
+  ⚠️  This value might have side effects
 
 0 -> 11 call = (...) => binPath()

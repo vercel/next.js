@@ -6,7 +6,9 @@ a#3 = (
   | md5ff(a, b, c, d, x[(i + 12)], 7, 1804603682)
 )
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 
 a#5 = arguments[1]
 
@@ -20,9 +22,13 @@ b#3 = (
   | md5ff(b, c, d, a, x[(i + 15)], 22, 1236535329)
 )
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 - *3* unsupported expression
+  ⚠️  This value might have side effects
 
 b#5 = arguments[2]
 
@@ -36,9 +42,13 @@ c#3 = (
   | md5ff(c, d, a, b, x[(i + 14)], 17, ???*3*)
 )
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 - *3* unsupported expression
+  ⚠️  This value might have side effects
 
 c#6 = arguments[2]
 
@@ -50,8 +60,11 @@ d#3 = (
   | md5ff(d, a, b, c, x[(i + 13)], 12, ???*2*)
 )
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 
 d#6 = arguments[3]
 
@@ -71,6 +84,7 @@ md5cmn = (...) => FreeVar(safeAdd)(
 
 md5ff = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 olda = (???*0* | a)
 - *0* olda

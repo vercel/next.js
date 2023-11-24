@@ -308,7 +308,7 @@ impl EvalContext {
                             values.push(JsValue::from(v.clone()));
                         }
                         // This is actually unreachable
-                        None => return JsValue::unknown_empty(""),
+                        None => return JsValue::unknown_empty(true, ""),
                     }
                 }
             } else {
@@ -459,7 +459,7 @@ impl EvalContext {
                 {
                     self.eval_tpl(tpl, true)
                 } else {
-                    JsValue::unknown_empty("tagged template literal is not supported yet")
+                    JsValue::unknown_empty(true, "tagged template literal is not supported yet")
                 }
             }
 
@@ -480,14 +480,20 @@ impl EvalContext {
 
             Expr::Await(AwaitExpr { arg, .. }) => self.eval(arg),
 
-            Expr::New(..) => JsValue::unknown_empty("unknown new expression"),
+            Expr::New(..) => JsValue::unknown_empty(true, "unknown new expression"),
 
             Expr::Seq(e) => {
-                if let Some(e) = e.exprs.last() {
-                    self.eval(e)
-                } else {
-                    unreachable!()
+                let mut seq = e.exprs.iter().map(|e| self.eval(e)).peekable();
+                let mut side_effects = false;
+                let mut last = seq.next().unwrap();
+                for e in seq {
+                    side_effects |= last.has_side_effects();
+                    last = e;
                 }
+                if side_effects {
+                    last.make_unknown(true, "sequence with side effects");
+                }
+                last
             }
 
             Expr::Member(MemberExpr {
@@ -516,7 +522,10 @@ impl EvalContext {
             }) => {
                 // We currently do not handle spreads.
                 if args.iter().any(|arg| arg.spread.is_some()) {
-                    return JsValue::unknown_empty("spread in function calls is not supported");
+                    return JsValue::unknown_empty(
+                        true,
+                        "spread in function calls is not supported",
+                    );
                 }
 
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
@@ -527,6 +536,7 @@ impl EvalContext {
                         MemberProp::Ident(i) => i.sym.clone().into(),
                         MemberProp::PrivateName(_) => {
                             return JsValue::unknown_empty(
+                                false,
                                 "private names in function calls is not supported",
                             );
                         }
@@ -547,7 +557,10 @@ impl EvalContext {
             }) => {
                 // We currently do not handle spreads.
                 if args.iter().any(|arg| arg.spread.is_some()) {
-                    return JsValue::unknown_empty("spread in function calls is not supported");
+                    return JsValue::unknown_empty(
+                        true,
+                        "spread in function calls is not supported",
+                    );
                 }
 
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
@@ -562,7 +575,7 @@ impl EvalContext {
             }) => {
                 // We currently do not handle spreads.
                 if args.iter().any(|arg| arg.spread.is_some()) {
-                    return JsValue::unknown_empty("spread in import() is not supported");
+                    return JsValue::unknown_empty(true, "spread in import() is not supported");
                 }
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
 
@@ -573,7 +586,7 @@ impl EvalContext {
 
             Expr::Array(arr) => {
                 if arr.elems.iter().flatten().any(|v| v.spread.is_some()) {
-                    return JsValue::unknown_empty("spread is not supported");
+                    return JsValue::unknown_empty(true, "spread is not supported");
                 }
 
                 let arr = arr
@@ -604,6 +617,7 @@ impl EvalContext {
                                 self.eval(&Expr::Ident(ident.clone())),
                             ),
                             _ => ObjectPart::Spread(JsValue::unknown_empty(
+                                true,
                                 "unsupported object part",
                             )),
                         })
@@ -611,7 +625,7 @@ impl EvalContext {
                 )
             }
 
-            _ => JsValue::unknown_empty("unsupported expression"),
+            _ => JsValue::unknown_empty(true, "unsupported expression"),
         }
     }
 }
@@ -1006,7 +1020,7 @@ impl VisitAstPath for Analyzer<'_> {
                                 let right = self.eval_context.eval(&n.right);
                                 Some(JsValue::add(vec![left, right]))
                             }
-                            _ => Some(JsValue::unknown_empty("unsupported assign operation")),
+                            _ => Some(JsValue::unknown_empty(true, "unsupported assign operation")),
                         };
                         if let Some(value) = value {
                             self.add_value(key.to_id(), value);
@@ -1043,7 +1057,7 @@ impl VisitAstPath for Analyzer<'_> {
         if let Some(key) = n.arg.as_ident() {
             self.add_value(
                 key.to_id(),
-                JsValue::unknown_empty("updated with update expression"),
+                JsValue::unknown_empty(true, "updated with update expression"),
             );
         }
 
@@ -1408,7 +1422,11 @@ impl VisitAstPath for Analyzer<'_> {
                 self.add_value(
                     i.to_id(),
                     value.unwrap_or_else(|| {
-                        JsValue::unknown(JsValue::Variable(i.to_id()), "pattern without value")
+                        JsValue::unknown(
+                            JsValue::Variable(i.to_id()),
+                            false,
+                            "pattern without value",
+                        )
                     }),
                 );
             }

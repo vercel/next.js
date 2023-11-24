@@ -14,3 +14,4 @@ z4_joined = "foo/bar"
 z5_joined = `foo/baz${("/" | "")}${???*0*}${("/" | "")}../foo`
 - *0* FreeVar(global)
   ⚠️  unknown global
+  ⚠️  This value might have side effects

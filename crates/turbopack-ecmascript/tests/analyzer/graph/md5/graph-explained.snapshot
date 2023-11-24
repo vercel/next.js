@@ -29,15 +29,25 @@ a#7 = (
   | safeAdd(a, olda)
 )
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 - *3* unsupported expression
+  ⚠️  This value might have side effects
 - *4* unsupported expression
+  ⚠️  This value might have side effects
 - *5* unsupported expression
+  ⚠️  This value might have side effects
 - *6* unsupported expression
+  ⚠️  This value might have side effects
 - *7* unsupported expression
+  ⚠️  This value might have side effects
 - *8* unsupported expression
+  ⚠️  This value might have side effects
 - *9* unsupported expression
+  ⚠️  This value might have side effects
 
 b#14 = arguments[2]
 
@@ -70,24 +80,39 @@ b#7 = (
   | safeAdd(b, oldb)
 )
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 - *3* unsupported expression
+  ⚠️  This value might have side effects
 - *4* unsupported expression
+  ⚠️  This value might have side effects
 - *5* unsupported expression
+  ⚠️  This value might have side effects
 - *6* unsupported expression
+  ⚠️  This value might have side effects
 - *7* unsupported expression
+  ⚠️  This value might have side effects
 - *8* unsupported expression
+  ⚠️  This value might have side effects
 - *9* unsupported expression
+  ⚠️  This value might have side effects
 - *10* unsupported expression
+  ⚠️  This value might have side effects
 - *11* unsupported expression
+  ⚠️  This value might have side effects
 - *12* unsupported expression
+  ⚠️  This value might have side effects
 
 bitRotateLeft = (...) => ???*0*
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 bytes = (arguments[0] | ???*0*)
 - *0* unknown new expression
+  ⚠️  This value might have side effects
 
 bytesToWords = (...) => output
 
@@ -120,16 +145,27 @@ c#7 = (
   | safeAdd(c, oldc)
 )
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 - *3* unsupported expression
+  ⚠️  This value might have side effects
 - *4* unsupported expression
+  ⚠️  This value might have side effects
 - *5* unsupported expression
+  ⚠️  This value might have side effects
 - *6* unsupported expression
+  ⚠️  This value might have side effects
 - *7* unsupported expression
+  ⚠️  This value might have side effects
 - *8* unsupported expression
+  ⚠️  This value might have side effects
 - *9* unsupported expression
+  ⚠️  This value might have side effects
 - *10* unsupported expression
+  ⚠️  This value might have side effects
 
 cnt = arguments[1]
 
@@ -162,17 +198,29 @@ d#7 = (
   | safeAdd(d, oldd)
 )
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 - *3* unsupported expression
+  ⚠️  This value might have side effects
 - *4* unsupported expression
+  ⚠️  This value might have side effects
 - *5* unsupported expression
+  ⚠️  This value might have side effects
 - *6* unsupported expression
+  ⚠️  This value might have side effects
 - *7* unsupported expression
+  ⚠️  This value might have side effects
 - *8* unsupported expression
+  ⚠️  This value might have side effects
 - *9* unsupported expression
+  ⚠️  This value might have side effects
 - *10* unsupported expression
+  ⚠️  This value might have side effects
 - *11* unsupported expression
+  ⚠️  This value might have side effects
 
 hex = (
   | ???*0*
@@ -184,12 +232,15 @@ hex = (
 - *0* hex
   ⚠️  pattern without value
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 
 hexTab = "0123456789abcdef"
 
 i#3 = (0 | ???*0*)
 - *0* updated with update expression
+  ⚠️  This value might have side effects
 
 i#5 = (???*0* | 0 | (i + 8))
 - *0* i
@@ -211,16 +262,21 @@ len = arguments[1]
 
 length32 = ???*0*
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 length8 = ???*0*
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 lsw = (???*0* + ???*1*)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 
 md5 = (...) => md5ToHexEncodedArray(wordsToMd5(bytesToWords(bytes), ???*0*))
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 md5ToHexEncodedArray = (...) => output
 
@@ -231,22 +287,29 @@ md5cmn = (...) => safeAdd(
 
 md5ff = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 md5gg = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 md5hh = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 md5ii = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 msg = FreeVar(unescape)(FreeVar(encodeURIComponent)(bytes))
 
 msw = (???*0* + ???*1* + ???*2*)
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 - *2* unsupported expression
+  ⚠️  This value might have side effects
 
 num = arguments[0]
 
@@ -284,6 +347,7 @@ s#18 = arguments[5]
 
 safeAdd = (...) => ???*0*
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 t#14 = arguments[5]
 
@@ -313,6 +377,7 @@ x#5 = (???*0* | ???*1*)
 - *0* x
   ⚠️  pattern without value
 - *1* unsupported expression
+  ⚠️  This value might have side effects
 
 x#7 = arguments[0]
 

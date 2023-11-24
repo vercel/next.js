@@ -10,6 +10,7 @@
 
 args = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 binPath = (???*0* | ???*1* | ???*8*)
 - *0* binPath
@@ -18,37 +19,49 @@ binPath = (???*0* | ???*1* | ???*8*)
         `${(???*3* | ???*4* | ???*5* | "esbuild-linux-64")}/${(???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*)}`
     )
   ⚠️  require.resolve non constant
+  ⚠️  This value might have side effects
 - *2* require.resolve: The require.resolve method from CommonJS
 - *3* pkg
   ⚠️  pattern without value
 - *4* FreeVar(undefined)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *5* unknown mutation
+  ⚠️  This value might have side effects
 - *6* subpath
   ⚠️  pattern without value
 - *7* unknown mutation
+  ⚠️  This value might have side effects
 - *8* ???*9*(pkg, subpath)
   ⚠️  unknown callee
+  ⚠️  This value might have side effects
 - *9* FreeVar(downloadedBinPath)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 
 binTargetPath = `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*0* | ???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
 - *0* pkg
   ⚠️  pattern without value
 - *1* FreeVar(undefined)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *2* unknown mutation
+  ⚠️  This value might have side effects
 - *3* ???*4*((???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*))
   ⚠️  unknown callee
+  ⚠️  This value might have side effects
 - *4* path*5*["basename"]
   ⚠️  unsupported property on Node.js path module
+  ⚠️  This value might have side effects
 - *5* path: The Node.js path module: https://nodejs.org/api/path.html
 - *6* subpath
   ⚠️  pattern without value
 - *7* unknown mutation
+  ⚠️  This value might have side effects
 
 command = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects
 
 e#10 = ???*0*
 - *0* e
@@ -112,14 +125,18 @@ pkg#3 = (???*0* | ???*1* | ???*2* | "esbuild-linux-64")
   ⚠️  pattern without value
 - *1* FreeVar(undefined)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *2* unknown mutation
+  ⚠️  This value might have side effects
 
 pkg#7 = (???*0* | ???*1* | ???*2* | "esbuild-linux-64")
 - *0* pkg
   ⚠️  pattern without value
 - *1* FreeVar(undefined)
   ⚠️  unknown global
+  ⚠️  This value might have side effects
 - *2* unknown mutation
+  ⚠️  This value might have side effects
 
 pkgAndSubpathForCurrentPlatform = (...) => {"pkg": pkg, "subpath": subpath}
 
@@ -133,6 +150,8 @@ subpath#7 = (???*0* | "esbuild.exe" | "bin/esbuild" | ???*1*)
 - *0* subpath
   ⚠️  pattern without value
 - *1* unknown mutation
+  ⚠️  This value might have side effects
 
 x = ???*0*
 - *0* max number of linking steps reached
+  ⚠️  This value might have side effects

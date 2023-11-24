@@ -378,7 +378,11 @@ pub enum JsValue {
     WellKnownFunction(WellKnownFunctionKind),
     /// Not-analyzable value. Might contain the original value for additional
     /// info. Has a reason string for explanation.
-    Unknown(Option<Arc<JsValue>>, Cow<'static, str>),
+    Unknown {
+        original_value: Option<Arc<JsValue>>,
+        reason: Cow<'static, str>,
+        has_side_effects: bool,
+    },
 
     // NESTED VALUES
     // ----------------------------
@@ -493,14 +497,16 @@ impl From<&CompileTimeDefineValue> for JsValue {
         match v {
             CompileTimeDefineValue::String(s) => JsValue::Constant(s.as_str().into()),
             CompileTimeDefineValue::Bool(b) => JsValue::Constant((*b).into()),
-            CompileTimeDefineValue::JSON(_) => JsValue::unknown_empty("compile time injected JSON"),
+            CompileTimeDefineValue::JSON(_) => {
+                JsValue::unknown_empty(false, "compile time injected JSON")
+            }
         }
     }
 }
 
 impl Default for JsValue {
     fn default() -> Self {
-        JsValue::unknown_empty("")
+        JsValue::unknown_empty(false, "")
     }
 }
 
@@ -611,7 +617,7 @@ impl Display for JsValue {
             }) => {
                 write!(f, "Module({}, {})", name, annotations)
             }
-            JsValue::Unknown(..) => write!(f, "???"),
+            JsValue::Unknown { .. } => write!(f, "???"),
             JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({:?})", obj),
             JsValue::WellKnownFunction(func) => write!(f, "WellKnownFunction({:?})", func),
             JsValue::Function(_, func_ident, return_value) => {
@@ -676,7 +682,7 @@ impl JsValue {
             | JsValue::Url(..)
             | JsValue::WellKnownObject(..)
             | JsValue::WellKnownFunction(..)
-            | JsValue::Unknown(..) => JsValueMetaKind::Leaf,
+            | JsValue::Unknown { .. } => JsValueMetaKind::Leaf,
             JsValue::Array { .. }
             | JsValue::Object { .. }
             | JsValue::Alternatives(..)
@@ -847,12 +853,24 @@ impl JsValue {
         Self::Member(1 + o.total_nodes() + p.total_nodes(), o, p)
     }
 
-    pub fn unknown(value: impl Into<Arc<JsValue>>, reason: impl Into<Cow<'static, str>>) -> Self {
-        Self::Unknown(Some(value.into()), reason.into())
+    pub fn unknown(
+        value: impl Into<Arc<JsValue>>,
+        side_effects: bool,
+        reason: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        Self::Unknown {
+            original_value: Some(value.into()),
+            reason: reason.into(),
+            has_side_effects: side_effects,
+        }
     }
 
-    pub fn unknown_empty(reason: impl Into<Cow<'static, str>>) -> Self {
-        Self::Unknown(None, reason.into())
+    pub fn unknown_empty(side_effects: bool, reason: impl Into<Cow<'static, str>>) -> Self {
+        Self::Unknown {
+            original_value: None,
+            reason: reason.into(),
+            has_side_effects: side_effects,
+        }
     }
 }
 
@@ -867,7 +885,7 @@ impl JsValue {
             | JsValue::Module(..)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
-            | JsValue::Unknown(_, _)
+            | JsValue::Unknown { .. }
             | JsValue::Argument(..) => 1,
 
             JsValue::Array { total_nodes: c, .. }
@@ -896,7 +914,7 @@ impl JsValue {
             | JsValue::Module(..)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
-            | JsValue::Unknown(_, _)
+            | JsValue::Unknown { .. }
             | JsValue::Argument(..) => {}
 
             JsValue::Array {
@@ -971,10 +989,16 @@ impl JsValue {
         fn cmp_nodes(a: &JsValue, b: &JsValue) -> Ordering {
             a.total_nodes().cmp(&b.total_nodes())
         }
-        fn make_max_unknown<'a>(iter: impl Iterator<Item = &'a mut JsValue>) {
-            if let Some(item) = iter.max_by(|a, b| cmp_nodes(a, b)) {
-                item.make_unknown_without_content("node limit reached");
+        fn make_max_unknown<'a>(mut iter: impl Iterator<Item = &'a mut JsValue>) {
+            let mut max = iter.next().unwrap();
+            let mut side_effects = max.has_side_effects();
+            for item in iter {
+                side_effects |= item.has_side_effects();
+                if cmp_nodes(item, max) == Ordering::Greater {
+                    max = item;
+                }
             }
+            max.make_unknown_without_content(side_effects, "node limit reached");
         }
         if self.total_nodes() > limit {
             match self {
@@ -985,8 +1009,14 @@ impl JsValue {
                 | JsValue::Module(..)
                 | JsValue::WellKnownObject(_)
                 | JsValue::WellKnownFunction(_)
-                | JsValue::Unknown(_, _)
-                | JsValue::Argument(..) => self.make_unknown_without_content("node limit reached"),
+                | JsValue::Argument(..) => {
+                    self.make_unknown_without_content(false, "node limit reached")
+                }
+                &mut JsValue::Unknown {
+                    original_value: _,
+                    reason: _,
+                    has_side_effects,
+                } => self.make_unknown_without_content(has_side_effects, "node limit reached"),
 
                 JsValue::Array { items: list, .. }
                 | JsValue::Alternatives(_, list)
@@ -997,13 +1027,13 @@ impl JsValue {
                     self.update_total_nodes();
                 }
                 JsValue::Not(_, r) => {
-                    r.make_unknown_without_content("node limit reached");
+                    r.make_unknown_without_content(false, "node limit reached");
                 }
                 JsValue::Binary(_, a, _, b) => {
                     if a.total_nodes() > b.total_nodes() {
-                        a.make_unknown_without_content("node limit reached");
+                        a.make_unknown_without_content(b.has_side_effects(), "node limit reached");
                     } else {
-                        b.make_unknown_without_content("node limit reached");
+                        b.make_unknown_without_content(a.has_side_effects(), "node limit reached");
                     }
                     self.update_total_nodes();
                 }
@@ -1036,7 +1066,7 @@ impl JsValue {
                     self.update_total_nodes();
                 }
                 JsValue::Function(_, _, r) => {
-                    r.make_unknown_without_content("node limit reached");
+                    r.make_unknown_without_content(false, "node limit reached");
                 }
             }
         }
@@ -1332,23 +1362,42 @@ impl JsValue {
             }) => {
                 format!("module<{}, {}>", name, annotations)
             }
-            JsValue::Unknown(inner, explainer) => {
+            JsValue::Unknown {
+                original_value: inner,
+                reason: explainer,
+                has_side_effects,
+            } => {
+                let has_side_effects = *has_side_effects;
                 if unknown_depth == 0 || explainer.is_empty() {
                     "???".to_string()
                 } else if let Some(inner) = inner {
                     let i = hints.len();
                     hints.push(String::new());
                     hints[i] = format!(
-                        "- *{}* {}\n  ⚠️  {}",
+                        "- *{}* {}\n  ⚠️  {}{}",
                         i,
                         inner.explain_internal(hints, 1, depth, unknown_depth - 1),
                         explainer,
+                        if has_side_effects {
+                            "\n  ⚠️  This value might have side effects"
+                        } else {
+                            ""
+                        }
                     );
                     format!("???*{}*", i)
                 } else {
                     let i = hints.len();
                     hints.push(String::new());
-                    hints[i] = format!("- *{}* {}", i, explainer);
+                    hints[i] = format!(
+                        "- *{}* {}{}",
+                        i,
+                        explainer,
+                        if has_side_effects {
+                            "\n  ⚠️  This value might have side effects"
+                        } else {
+                            ""
+                        }
+                    );
                     format!("???*{}*", i)
                 }
             }
@@ -1551,27 +1600,35 @@ impl JsValue {
 // Unknown management
 impl JsValue {
     /// Convert the value into unknown with a specific reason.
-    pub fn make_unknown(&mut self, reason: impl Into<Cow<'static, str>>) {
-        *self = JsValue::unknown(take(self), reason);
+    pub fn make_unknown(&mut self, side_effects: bool, reason: impl Into<Cow<'static, str>>) {
+        *self = JsValue::unknown(take(self), side_effects || self.has_side_effects(), reason);
     }
 
     /// Convert the owned value into unknown with a specific reason.
-    pub fn into_unknown(mut self, reason: impl Into<Cow<'static, str>>) -> Self {
-        self.make_unknown(reason);
+    pub fn into_unknown(
+        mut self,
+        side_effects: bool,
+        reason: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        self.make_unknown(side_effects, reason);
         self
     }
 
     /// Convert the value into unknown with a specific reason, but don't retain
     /// the original value.
-    pub fn make_unknown_without_content(&mut self, reason: impl Into<Cow<'static, str>>) {
-        *self = JsValue::unknown_empty(reason);
+    pub fn make_unknown_without_content(
+        &mut self,
+        side_effects: bool,
+        reason: impl Into<Cow<'static, str>>,
+    ) {
+        *self = JsValue::unknown_empty(side_effects || self.has_side_effects(), reason);
     }
 
     /// Make all nested operations unknown when the value is an operation.
     pub fn make_nested_operations_unknown(&mut self) -> bool {
         fn inner(this: &mut JsValue) -> bool {
             if matches!(this.meta_type(), JsValueMetaKind::Operation) {
-                this.make_unknown("nested operation");
+                this.make_unknown(false, "nested operation");
                 true
             } else {
                 this.for_each_children_mut(&mut inner)
@@ -1584,8 +1641,8 @@ impl JsValue {
         }
     }
 
-    pub fn add_unknown_mutations(&mut self) {
-        self.add_alt(JsValue::unknown_empty("unknown mutation"));
+    pub fn add_unknown_mutations(&mut self, side_effects: bool) {
+        self.add_alt(JsValue::unknown_empty(side_effects, "unknown mutation"));
     }
 }
 
@@ -1689,6 +1746,47 @@ impl JsValue {
         match self {
             JsValue::Constant(c) => c.as_bool(),
             _ => None,
+        }
+    }
+
+    pub fn has_side_effects(&self) -> bool {
+        match self {
+            JsValue::Constant(_) => false,
+            JsValue::Concat(_, list)
+            | JsValue::Add(_, list)
+            | JsValue::Logical(_, _, list)
+            | JsValue::Alternatives(_, list) => list.iter().any(JsValue::has_side_effects),
+            JsValue::Binary(_, a, _, b) => a.has_side_effects() || b.has_side_effects(),
+            JsValue::Tenary(_, test, cons, alt) => {
+                test.has_side_effects() || cons.has_side_effects() || alt.has_side_effects()
+            }
+            JsValue::Not(_, value) => value.has_side_effects(),
+            JsValue::Array { items, .. } => items.iter().any(JsValue::has_side_effects),
+            JsValue::Object { parts, .. } => parts.iter().any(|v| match v {
+                ObjectPart::KeyValue(k, v) => k.has_side_effects() || v.has_side_effects(),
+                ObjectPart::Spread(v) => v.has_side_effects(),
+            }),
+            JsValue::Call(_, callee, args) => {
+                callee.has_side_effects() || args.iter().any(JsValue::has_side_effects)
+            }
+            JsValue::SuperCall(_, args) => args.iter().any(JsValue::has_side_effects),
+            JsValue::MemberCall(_, obj, prop, args) => {
+                obj.has_side_effects()
+                    || prop.has_side_effects()
+                    || args.iter().any(JsValue::has_side_effects)
+            }
+            JsValue::Member(_, obj, prop) => obj.has_side_effects() || prop.has_side_effects(),
+            JsValue::Function(_, _, _) => false,
+            JsValue::Url(_) => false,
+            JsValue::Variable(_) => false,
+            JsValue::Module(_) => false,
+            JsValue::WellKnownObject(_) => false,
+            JsValue::WellKnownFunction(_) => false,
+            JsValue::FreeVar(_) => false,
+            JsValue::Unknown {
+                has_side_effects, ..
+            } => *has_side_effects,
+            JsValue::Argument(_, _) => false,
         }
     }
 
@@ -1839,7 +1937,7 @@ impl JsValue {
     /// doesn't make sense. This is for optimization purposes.
     pub fn is_unknown(&self) -> bool {
         match self {
-            JsValue::Unknown(..) => true,
+            JsValue::Unknown { .. } => true,
             JsValue::Alternatives(_, list) => list.iter().any(|x| x.is_unknown()),
             _ => false,
         }
@@ -1896,7 +1994,7 @@ impl JsValue {
 
             JsValue::FreeVar(..)
             | JsValue::Variable(_)
-            | JsValue::Unknown(..)
+            | JsValue::Unknown { .. }
             | JsValue::Argument(..)
             | JsValue::Call(..)
             | JsValue::MemberCall(..)
@@ -2182,7 +2280,7 @@ macro_rules! for_each_children_async {
             | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
-            | JsValue::Unknown(..)
+            | JsValue::Unknown { .. }
             | JsValue::Argument(..) => ($value, false),
         })
     }
@@ -2463,7 +2561,7 @@ impl JsValue {
             | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
-            | JsValue::Unknown(..)
+            | JsValue::Unknown { .. }
             | JsValue::Argument(..) => false,
         }
     }
@@ -2619,7 +2717,7 @@ impl JsValue {
             | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
-            | JsValue::Unknown(..)
+            | JsValue::Unknown { .. }
             | JsValue::Argument(..) => {}
         }
     }
@@ -2874,7 +2972,18 @@ impl JsValue {
             ) => l == r && la == ra,
             (JsValue::WellKnownObject(l), JsValue::WellKnownObject(r)) => l == r,
             (JsValue::WellKnownFunction(l), JsValue::WellKnownFunction(r)) => l == r,
-            (JsValue::Unknown(_, l), JsValue::Unknown(_, r)) => l == r,
+            (
+                JsValue::Unknown {
+                    original_value: _,
+                    reason: l,
+                    has_side_effects: ls,
+                },
+                JsValue::Unknown {
+                    original_value: _,
+                    reason: r,
+                    has_side_effects: rs,
+                },
+            ) => l == r && ls == rs,
             (JsValue::Function(lc, _, l), JsValue::Function(rc, _, r)) => {
                 lc == rc && l.similar(r, depth - 1)
             }
@@ -2961,7 +3070,14 @@ impl JsValue {
             }
             JsValue::WellKnownObject(v) => Hash::hash(v, state),
             JsValue::WellKnownFunction(v) => Hash::hash(v, state),
-            JsValue::Unknown(_, v) => Hash::hash(v, state),
+            JsValue::Unknown {
+                original_value: _,
+                reason: v,
+                has_side_effects,
+            } => {
+                Hash::hash(v, state);
+                Hash::hash(has_side_effects, state);
+            }
             JsValue::Function(_, _, v) => v.similar_hash(state, depth - 1),
             JsValue::Argument(i, v) => {
                 Hash::hash(i, state);
@@ -3243,7 +3359,7 @@ pub mod test_utils {
                     module: v.to_string().into(),
                     annotations: ImportAnnotations::default(),
                 }),
-                _ => v.into_unknown("import() non constant"),
+                _ => v.into_unknown(true, "import() non constant"),
             },
             JsValue::Call(
                 _,
@@ -3251,7 +3367,7 @@ pub mod test_utils {
                 ref args,
             ) => match &args[0] {
                 JsValue::Constant(v) => (v.to_string() + "/resolved/lib/index.js").into(),
-                _ => v.into_unknown("require.resolve non constant"),
+                _ => v.into_unknown(true, "require.resolve non constant"),
             },
             JsValue::Call(
                 _,
@@ -3269,7 +3385,7 @@ pub mod test_utils {
                         Vc::cell(map),
                     ))
                 }
-                Err(err) => v.into_unknown(PrettyPrintError(&err).to_string()),
+                Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string()),
             },
             JsValue::FreeVar(ref var) => match &**var {
                 "import" => JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
@@ -3278,7 +3394,7 @@ pub mod test_utils {
                 "__dirname" => "__dirname".into(),
                 "__filename" => "__filename".into(),
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
-                _ => v.into_unknown("unknown global"),
+                _ => v.into_unknown(true, "unknown global"),
             },
             JsValue::Module(ModuleValue {
                 module: ref name, ..
@@ -3481,7 +3597,7 @@ mod tests {
                                         );
                                     }
                                     EffectArg::Spread => {
-                                        new_args.push(JsValue::unknown_empty("spread"));
+                                        new_args.push(JsValue::unknown_empty(true, "spread"));
                                     }
                                 }
                             }

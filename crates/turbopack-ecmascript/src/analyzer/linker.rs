@@ -79,6 +79,7 @@ where
                 if cycle_stack.contains(&var) {
                     done.push(JsValue::unknown(
                         JsValue::Variable(var.clone()),
+                        false,
                         "circular variable reference",
                     ));
                 } else {
@@ -92,6 +93,7 @@ where
                         total_nodes += 1;
                         done.push(JsValue::unknown(
                             JsValue::Variable(var.clone()),
+                            false,
                             "no value of this variable analysed",
                         ));
                     };
@@ -112,6 +114,7 @@ where
                     } else {
                         total_nodes += 1;
                         done.push(JsValue::unknown_empty(
+                            false,
                             "unknown function argument (out of bounds)",
                         ));
                     }
@@ -119,6 +122,7 @@ where
                     total_nodes += 1;
                     done.push(JsValue::unknown(
                         JsValue::Argument(func_ident, index),
+                        false,
                         "function calls are not analysed yet",
                     ));
                 }
@@ -148,6 +152,7 @@ where
                     total_nodes += 1;
                     done.push(JsValue::unknown(
                         JsValue::call(Box::new(JsValue::function(func_ident, return_value)), args),
+                        true,
                         "recursive function call",
                     ));
                 }
@@ -200,7 +205,7 @@ where
                 total_nodes -= val.total_nodes();
                 if val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;
-                    done.push(JsValue::unknown_empty("node limit reached"));
+                    done.push(JsValue::unknown_empty(true, "node limit reached"));
                     continue;
                 }
 
@@ -208,7 +213,7 @@ where
                 val.debug_assert_total_nodes_up_to_date();
                 if visit_modified && val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;
-                    done.push(JsValue::unknown_empty("node limit reached"));
+                    done.push(JsValue::unknown_empty(true, "node limit reached"));
                     continue;
                 }
 
@@ -217,7 +222,10 @@ where
                     // There is always space for one more node since we just popped at least one
                     // count
                     total_nodes += 1;
-                    done.push(JsValue::unknown_empty("in progress nodes limit reached"));
+                    done.push(JsValue::unknown_empty(
+                        true,
+                        "in progress nodes limit reached",
+                    ));
                     continue;
                 }
                 total_nodes += count;
@@ -249,7 +257,7 @@ where
 
                 if val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;
-                    done.push(JsValue::unknown_empty("node limit reached"));
+                    done.push(JsValue::unknown_empty(true, "node limit reached"));
                     continue;
                 }
                 val.normalize_shallow();
@@ -272,7 +280,7 @@ where
 
                 if val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;
-                    done.push(JsValue::unknown_empty("node limit reached"));
+                    done.push(JsValue::unknown_empty(true, "node limit reached"));
                     continue;
                 }
                 val.normalize_shallow();
@@ -294,7 +302,7 @@ where
                     val.debug_assert_total_nodes_up_to_date();
                     if val.total_nodes() > LIMIT_NODE_SIZE {
                         total_nodes += 1;
-                        done.push(JsValue::unknown_empty("node limit reached"));
+                        done.push(JsValue::unknown_empty(true, "node limit reached"));
                         continue;
                     }
                 }
@@ -304,7 +312,10 @@ where
                     // There is always space for one more node since we just popped at least one
                     // count
                     total_nodes += 1;
-                    done.push(JsValue::unknown_empty("in progress nodes limit reached"));
+                    done.push(JsValue::unknown_empty(
+                        true,
+                        "in progress nodes limit reached",
+                    ));
                     continue;
                 }
                 total_nodes += count;
@@ -317,6 +328,7 @@ where
         }
         if steps > LIMIT_LINK_STEPS {
             return Ok(JsValue::unknown_empty(
+                true,
                 "max number of linking steps reached",
             ));
         }

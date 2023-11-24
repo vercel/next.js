@@ -13,10 +13,11 @@
                     ),
                 ),
                 [
-                    Unknown(
-                        None,
-                        "unsupported expression",
-                    ),
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                        has_side_effects: true,
+                    },
                 ],
             ),
         ),
@@ -46,8 +47,8 @@
     ),
     (
         "__unused_webpack_module",
-        Unknown(
-            Some(
+        Unknown {
+            original_value: Some(
                 Variable(
                     (
                         "__unused_webpack_module",
@@ -55,8 +56,9 @@
                     ),
                 ),
             ),
-            "pattern without value",
-        ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
     ),
     (
         "__webpack_exec__",
@@ -90,8 +92,8 @@
     ),
     (
         "__webpack_exports__#4",
-        Unknown(
-            Some(
+        Unknown {
+            original_value: Some(
                 Variable(
                     (
                         "__webpack_exports__",
@@ -99,8 +101,9 @@
                     ),
                 ),
             ),
-            "pattern without value",
-        ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
     ),
     (
         "__webpack_require__#3",
@@ -122,8 +125,8 @@
     ),
     (
         "__webpack_require__#4",
-        Unknown(
-            Some(
+        Unknown {
+            original_value: Some(
                 Variable(
                     (
                         "__webpack_require__",
@@ -131,8 +134,9 @@
                     ),
                 ),
             ),
-            "pattern without value",
-        ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
     ),
     (
         "_req",
@@ -196,8 +200,8 @@
     ),
     (
         "moduleId",
-        Unknown(
-            Some(
+        Unknown {
+            original_value: Some(
                 Variable(
                     (
                         "moduleId",
@@ -205,8 +209,9 @@
                     ),
                 ),
             ),
-            "pattern without value",
-        ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
     ),
     (
         "promises_namespaceObject",

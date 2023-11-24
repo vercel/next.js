@@ -121,8 +121,8 @@
         Alternatives(
             13,
             [
-                Unknown(
-                    Some(
+                Unknown {
+                    original_value: Some(
                         Variable(
                             (
                                 "binPath",
@@ -130,8 +130,9 @@
                             ),
                         ),
                     ),
-                    "pattern without value",
-                ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
                 MemberCall(
                     7,
                     FreeVar(
@@ -295,8 +296,8 @@
     ),
     (
         "e#10",
-        Unknown(
-            Some(
+        Unknown {
+            original_value: Some(
                 Variable(
                     (
                         "e",
@@ -304,13 +305,14 @@
                     ),
                 ),
             ),
-            "pattern without value",
-        ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
     ),
     (
         "e#15",
-        Unknown(
-            Some(
+        Unknown {
+            original_value: Some(
                 Variable(
                     (
                         "e",
@@ -318,8 +320,9 @@
                     ),
                 ),
             ),
-            "pattern without value",
-        ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
     ),
     (
         "esbuildCommandAndArgs",
@@ -779,8 +782,8 @@
         Alternatives(
             8,
             [
-                Unknown(
-                    Some(
+                Unknown {
+                    original_value: Some(
                         Variable(
                             (
                                 "pkg",
@@ -788,8 +791,9 @@
                             ),
                         ),
                     ),
-                    "pattern without value",
-                ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
                 Member(
                     3,
                     Variable(
@@ -963,8 +967,8 @@
         Alternatives(
             4,
             [
-                Unknown(
-                    Some(
+                Unknown {
+                    original_value: Some(
                         Variable(
                             (
                                 "subpath",
@@ -972,8 +976,9 @@
                             ),
                         ),
                     ),
-                    "pattern without value",
-                ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
                 Constant(
                     Str(
                         Word(

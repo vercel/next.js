@@ -18,6 +18,7 @@ dd = d
 
 e = ???*0*
 - *0* unsupported expression
+  ⚠️  This value might have side effects
 
 ee = e
 
