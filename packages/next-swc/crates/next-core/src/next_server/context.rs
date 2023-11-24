@@ -193,6 +193,7 @@ pub async fn get_server_resolve_options_context(
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
+        enable_mjs_extension: true,
         rules: vec![(
             foreign_code_context_condition,
             resolve_options_context.clone().cell(),
