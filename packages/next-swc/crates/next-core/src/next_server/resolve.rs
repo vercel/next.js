@@ -186,9 +186,9 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
             }
             (FileType::CommonJs, _) => {
                 // mark as external
-                return Ok(ResolveResultOption::some(
+                Ok(ResolveResultOption::some(
                     ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
-                ));
+                ))
             }
             (FileType::EcmaScriptModule, true) => {
                 // mark as external
