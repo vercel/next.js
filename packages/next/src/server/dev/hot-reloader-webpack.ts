@@ -51,6 +51,7 @@ import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import {
   difference,
+  isInstrumentationHookFile,
   isMiddlewareFile,
   isMiddlewareFilename,
 } from '../../build/utils'
@@ -955,7 +956,8 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                 } else if (
                   !isMiddlewareFile(page) &&
                   !isInternalComponent(relativeRequest) &&
-                  !isNonRoutePagesPage(page)
+                  !isNonRoutePagesPage(page) &&
+                  !(isInstrumentationHookFile(page) && pageType === 'root')
                 ) {
                   value = getRouteLoaderEntry({
                     kind: RouteKind.PAGES,
