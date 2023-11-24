@@ -21,7 +21,7 @@ var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-experimental-746890329-20231108';
+var ReactVersion = '18.3.0-experimental-2c338b16f-20231116';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -6540,6 +6540,9 @@ function emitEarlyPreloads(renderState, resumableState, shellComplete) {
     var headers = renderState.headers;
 
     if (headers) {
+      // Even if onHeaders throws we don't want to call this again so
+      // we drop the headers state from this point onwards.
+      renderState.headers = null;
       var linkHeader = headers.preconnects;
 
       if (headers.fontPreloads) {
@@ -6610,7 +6613,6 @@ function emitEarlyPreloads(renderState, resumableState, shellComplete) {
         onHeaders({});
       }
 
-      renderState.headers = null;
       return;
     }
   }
@@ -10601,11 +10603,19 @@ function trackPostpone(request, trackedPostpones, task, segment) {
     var children = [];
 
     if (boundaryKeyPath === keyPath && task.childIndex === -1) {
-      // Since we postponed directly in the Suspense boundary we can't have written anything
-      // to its segment. Therefore this will end up becoming the root segment.
-      segment.id = boundary.rootSegmentID; // We postponed directly inside the Suspense boundary so we mark this for resuming.
+      // Assign ID
+      if (segment.id === -1) {
+        if (segment.parentFlushed) {
+          // If this segment's parent was already flushed, it means we really just
+          // skipped the parent and this segment is now the root.
+          segment.id = boundary.rootSegmentID;
+        } else {
+          segment.id = request.nextSegmentId++;
+        }
+      } // We postponed directly inside the Suspense boundary so we mark this for resuming.
 
-      var boundaryNode = [boundaryKeyPath[1], boundaryKeyPath[2], children, boundary.rootSegmentID, fallbackReplayNode, boundary.rootSegmentID];
+
+      var boundaryNode = [boundaryKeyPath[1], boundaryKeyPath[2], children, segment.id, fallbackReplayNode, boundary.rootSegmentID];
       trackedPostpones.workingMap.set(boundaryKeyPath, boundaryNode);
       addToReplayParent(boundaryNode, boundaryKeyPath[0], trackedPostpones);
       return;
@@ -11145,6 +11155,15 @@ function abortTask(task, request, error) {
   if (request.allPendingTasks === 0) {
     completeAll(request);
   }
+}
+
+function safelyEmitEarlyPreloads(request, shellComplete) {
+  try {
+    emitEarlyPreloads(request.renderState, request.resumableState, shellComplete);
+  } catch (error) {
+    // We assume preloads are optimistic and thus non-fatal if errored.
+    logRecoverableError(request, error);
+  }
 } // I extracted this function out because we want to ensure we consistently emit preloads before
 // transitioning to the next request stage and this transition can happen in multiple places in this
 // implementation.
@@ -11158,7 +11177,7 @@ function completeShell(request) {
     // we should only be calling completeShell when the shell is complete so we
     // just use a literal here
     var shellComplete = true;
-    emitEarlyPreloads(request.renderState, request.resumableState, shellComplete);
+    safelyEmitEarlyPreloads(request, shellComplete);
   } // We have completed the shell so the shell can't error anymore.
 
 
@@ -11178,13 +11197,13 @@ function completeAll(request) {
   var shellComplete = request.trackedPostpones === null ? // Render, we assume it is completed
   true : // Prerender Request, we use the state of the root segment
   request.completedRootSegment === null || request.completedRootSegment.status !== POSTPONED;
-  emitEarlyPreloads(request.renderState, request.resumableState, shellComplete);
+  safelyEmitEarlyPreloads(request, shellComplete);
   var onAllReady = request.onAllReady;
   onAllReady();
 }
 
 function queueCompletedSegment(boundary, segment) {
-  if (segment.chunks.length === 0 && segment.children.length === 1 && segment.children[0].boundary === null) {
+  if (segment.chunks.length === 0 && segment.children.length === 1 && segment.children[0].boundary === null && segment.children[0].id === -1) {
     // This is an empty segment. There's nothing to write, so we can instead transfer the ID
     // to the child. That way any existing references point to the child.
     var childSegment = segment.children[0];
@@ -11914,7 +11933,7 @@ function startWork(request) {
 
 function enqueueEarlyPreloadsAfterInitialWork(request) {
   var shellComplete = request.pendingRootTasks === 0;
-  emitEarlyPreloads(request.renderState, request.resumableState, shellComplete);
+  safelyEmitEarlyPreloads(request, shellComplete);
 }
 
 function enqueueFlush(request) {
@@ -11950,7 +11969,7 @@ function prepareForStartFlowingIfBeforeAllReady(request) {
   var shellComplete = request.trackedPostpones === null ? // Render Request, we define shell complete by the pending root tasks
   request.pendingRootTasks === 0 : // Prerender Request, we define shell complete by completedRootSegemtn
   request.completedRootSegment === null ? request.pendingRootTasks === 0 : request.completedRootSegment.status !== POSTPONED;
-  emitEarlyPreloads(request.renderState, request.resumableState, shellComplete);
+  safelyEmitEarlyPreloads(request, shellComplete);
 }
 function startFlowing(request, destination) {
   if (request.status === CLOSING) {

@@ -10,7 +10,6 @@ import {
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
-import { createRecordFromThenable } from '../create-record-from-thenable'
 // // eslint-disable-next-line import/no-extraneous-dependencies
 // import { createFromFetch } from 'react-server-dom-webpack/client'
 // // eslint-disable-next-line import/no-extraneous-dependencies
@@ -158,9 +157,8 @@ export function serverActionReducer(
     return handleMutable(state, mutable)
   }
 
-  mutable.inFlightServerAction = createRecordFromThenable(
-    fetchServerAction(state, action)
-  )
+  mutable.preserveCustomHistoryState = false
+  mutable.inFlightServerAction = fetchServerAction(state, action)
 
   // suspends until the server action is resolved.
 
@@ -237,7 +235,9 @@ export function serverActionReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [subTreeData, head] = flightDataPath.slice(-2)
+        const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
+        const subTreeData =
+          cacheNodeSeedData !== null ? cacheNodeSeedData[2] : null
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (subTreeData !== null) {
@@ -248,6 +248,7 @@ export function serverActionReducer(
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
             undefined,
             treePatch,
+            cacheNodeSeedData,
             head
           )
           mutable.cache = cache

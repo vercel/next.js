@@ -1,6 +1,5 @@
 #![feature(future_join)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 mod app;
 mod dynamic_imports;
