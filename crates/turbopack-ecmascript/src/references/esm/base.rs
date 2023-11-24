@@ -256,10 +256,14 @@ impl CodeGenerateable for EsmAssetReference {
                         }));
                     }
                     ReferencedAsset::OriginalReferenceTypeExternal(request) => {
-                        if !*chunking_context.environment().node_externals().await? {
+                        if !*chunking_context
+                            .environment()
+                            .supports_commonjs_externals()
+                            .await?
+                        {
                             bail!(
-                                "the chunking context does not support Node.js external modules \
-                                 (request: {})",
+                                "the chunking context does not support external modules (request: \
+                                 {})",
                                 request
                             );
                         }

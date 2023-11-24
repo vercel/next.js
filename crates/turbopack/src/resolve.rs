@@ -69,6 +69,8 @@ const NODE_EXTERNALS: [&str; 51] = [
     "pnpapi",
 ];
 
+const EDGE_NODE_EXTERNALS: [&str; 5] = ["buffer", "events", "assert", "util", "async_hooks"];
+
 #[turbo_tasks::function]
 async fn base_resolve_options(
     resolve_path: Vc<FileSystemPath>,
@@ -93,6 +95,18 @@ async fn base_resolve_options(
             direct_mappings.insert(
                 AliasPattern::exact(req),
                 ImportMapping::External(None).into(),
+            );
+            direct_mappings.insert(
+                AliasPattern::exact(format!("node:{req}")),
+                ImportMapping::External(None).into(),
+            );
+        }
+    }
+    if opt.enable_edge_node_externals {
+        for req in EDGE_NODE_EXTERNALS {
+            direct_mappings.insert(
+                AliasPattern::exact(req),
+                ImportMapping::External(Some(format!("node:{req}"))).into(),
             );
             direct_mappings.insert(
                 AliasPattern::exact(format!("node:{req}")),

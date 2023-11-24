@@ -224,6 +224,19 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
+    pub async fn supports_commonjs_externals(self: Vc<Self>) -> Result<Vc<bool>> {
+        let this = self.await?;
+        Ok(match this.execution {
+            ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
+                Vc::cell(true)
+            }
+            ExecutionEnvironment::Browser(_) => Vc::cell(false),
+            ExecutionEnvironment::EdgeWorker(_) => Vc::cell(true),
+            ExecutionEnvironment::Custom(_) => todo!(),
+        })
+    }
+
+    #[turbo_tasks::function]
     pub async fn resolve_extensions(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
         let env = self.await?;
         Ok(match env.execution {
