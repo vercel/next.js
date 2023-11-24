@@ -35,6 +35,9 @@ pub struct ResolveOptionsContext {
     /// Mark well-known Node.js modules as external imports and load them using
     /// native `require`. e.g. url, querystring, os
     pub enable_node_externals: bool,
+    /// Mark well-known Edge modules as external imports and load them using
+    /// native `require`. e.g. buffer, events, assert
+    pub enable_edge_node_externals: bool,
     #[serde(default)]
     /// Enables the "browser" field and export condition in package.json
     pub browser: bool,
