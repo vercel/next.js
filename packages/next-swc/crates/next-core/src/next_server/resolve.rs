@@ -107,11 +107,6 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 } else {
                     return Ok(ResolveResultOption::none());
                 }
-
-                // mark as external
-                return Ok(ResolveResultOption::some(
-                    ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
-                ));
             }
         }
 
