@@ -10,7 +10,7 @@ import {
 } from './interface'
 import type { Compilation, Compiler } from 'webpack'
 import { join } from 'path'
-import { getTargets, isWebpack5 } from './utils'
+import { getTargets } from './utils'
 import { Buffer } from 'buffer'
 
 const pkgPath = join(__dirname, '../package.json')

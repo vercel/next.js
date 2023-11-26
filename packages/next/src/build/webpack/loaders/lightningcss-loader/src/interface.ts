@@ -1,15 +1,12 @@
-import type { transform as transformCss } from 'lightningcss'
+import type { transform as transformCss, TransformOptions } from 'lightningcss'
 
-type TransformOptions = {}
-
-type Filter = string | RegExp
 type Implementation = {
   transformCss: typeof transformCss
 }
 
 // minify plugin
 type AllowTransformOpts = Omit<
-  TransformOptions,
+  TransformOptions<{}>,
   'filename' | 'code' | 'minify' | 'cssModules' | 'targets'
   /**
    * allow
@@ -25,8 +22,6 @@ type AllowTransformOpts = Omit<
 >
 
 export interface IMinifyPluginOpts extends AllowTransformOpts {
-  include?: Filter | Filter[]
-  exclude?: Filter | Filter[]
   targets?: string | string[]
   test?: RegExp
   implementation?: Implementation
@@ -34,7 +29,7 @@ export interface IMinifyPluginOpts extends AllowTransformOpts {
 
 // loader
 type AllowLoaderTransformOpts = Omit<
-  TransformOptions,
+  TransformOptions<{}>,
   'filename' | 'code' | 'targets' | 'inputSourceMap'
   /**
    * allow
