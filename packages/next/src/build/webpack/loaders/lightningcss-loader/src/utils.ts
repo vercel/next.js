@@ -1,30 +1,7 @@
-import type { Compilation } from 'next/dist/compiled/webpack/webpack'
-import type { SyncHook, SyncBailHook, AsyncSeriesHook, HookMap } from 'tapable'
-import type { Source } from 'webpack-sources'
 import browserslist from 'next/dist/compiled/browserslist'
 import { browserslistToTargets } from '../../../../swc/lightningcss/browserslistToTargets'
 import type { Targets } from '../../../../swc/lightningcss/targets'
 import type { ECacheKey } from './interface'
-
-type StatsPrinter = {
-  hooks: {
-    print: HookMap<SyncBailHook<any, string>>
-  }
-}
-
-type Wp5Compilation = Compilation & {
-  hooks: Compilation['hooks'] & {
-    processAssets: AsyncSeriesHook<Record<string, Source>>
-    statsPrinter: SyncHook<StatsPrinter>
-  }
-  constructor: {
-    PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE: 400
-  }
-}
-
-export const isWebpack5 = (
-  compilation: Compilation
-): compilation is Wp5Compilation => 'processAssets' in compilation.hooks
 
 let targetsCache: Record<string, Targets> = {}
 export const getTargets = (opts: {
