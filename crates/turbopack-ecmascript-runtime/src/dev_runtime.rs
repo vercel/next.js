@@ -64,9 +64,19 @@ pub async fn get_dev_runtime_code(
     code.push_code(&*shared_runtime_utils_code.await?);
     code.push_code(&*runtime_base_code.await?);
 
-    if matches!(chunk_loading, ChunkLoading::NodeJs) {
+    if *environment.supports_commonjs_externals().await? {
         code.push_code(
-            &*embed_static_code(asset_context, "shared-node/node-utils.ts".to_string()).await?,
+            &*embed_static_code(
+                asset_context,
+                "shared-node/node-externals-utils.ts".to_string(),
+            )
+            .await?,
+        );
+    }
+    if *environment.supports_wasm().await? {
+        code.push_code(
+            &*embed_static_code(asset_context, "shared-node/node-wasm-utils.ts".to_string())
+                .await?,
         );
     }
 

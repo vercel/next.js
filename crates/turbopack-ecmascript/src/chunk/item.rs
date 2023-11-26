@@ -36,7 +36,10 @@ impl EcmascriptChunkItemContent {
         async_module_options: Vc<OptionAsyncModuleOptions>,
     ) -> Result<Vc<Self>> {
         let refresh = *chunking_context.has_react_refresh().await?;
-        let externals = *chunking_context.environment().node_externals().await?;
+        let externals = *chunking_context
+            .environment()
+            .supports_commonjs_externals()
+            .await?;
 
         let content = content.await?;
         Ok(EcmascriptChunkItemContent {

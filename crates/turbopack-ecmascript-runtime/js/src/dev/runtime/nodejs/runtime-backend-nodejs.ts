@@ -6,7 +6,8 @@
  */
 
 /// <reference path="../base/runtime-base.ts" />
-/// <reference path="../../../shared-node/node-utils.ts" />
+/// <reference path="../../../shared-node/node-externals-utils.ts" />
+/// <reference path="../../../shared-node/node-wasm-utils.ts" />
 
 interface RequireContextEntry {
   // Only the Node.js backend has this flag.
