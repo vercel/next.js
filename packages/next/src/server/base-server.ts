@@ -784,7 +784,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const method = req.method.toUpperCase()
 
     const tracer = getTracer()
-    return tracer.withPropagatedContext(req, () => {
+    return tracer.withPropagatedContext(req.headers, () => {
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
