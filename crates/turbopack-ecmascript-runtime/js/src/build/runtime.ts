@@ -1,5 +1,6 @@
 /// <reference path="../shared/runtime-utils.ts" />
-/// <reference path="../shared-node/node-utils.ts" />
+/// <reference path="../shared-node/node-externals-utils.ts" />
+/// <reference path="../shared-node/node-wasm-utils.ts" />
 
 declare var RUNTIME_PUBLIC_PATH: string;
 declare var OUTPUT_ROOT: string;
@@ -19,21 +20,21 @@ enum SourceType {
 
 type SourceInfo =
   | {
-    type: SourceType.Runtime;
-    chunkPath: ChunkPath;
-  }
+      type: SourceType.Runtime;
+      chunkPath: ChunkPath;
+    }
   | {
-    type: SourceType.Parent;
-    parentId: ModuleId;
-  };
+      type: SourceType.Parent;
+      parentId: ModuleId;
+    };
 
 type ExternalRequire = (id: ModuleId) => Exports | EsmNamespaceObject;
 type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>;
 
 interface TurbopackNodeBuildContext extends TurbopackBaseContext {
-  p: ResolveAbsolutePath
-  U: RelativeURL,
-  R: ResolvePathFromModule,
+  p: ResolveAbsolutePath;
+  U: RelativeURL;
+  R: ResolvePathFromModule;
   x: ExternalRequire;
   y: ExternalImport;
 }
@@ -44,11 +45,14 @@ type ModuleFactory = (
 ) => undefined;
 
 const path = require("path");
-const url = require('url');
+const url = require("url");
 
 const relativePathToRuntimeRoot = path.relative(RUNTIME_PUBLIC_PATH, ".");
 // Compute the relative path to the `distDir`.
-const relativePathToDistRoot = path.relative(path.join(OUTPUT_ROOT, RUNTIME_PUBLIC_PATH), ".");
+const relativePathToDistRoot = path.relative(
+  path.join(OUTPUT_ROOT, RUNTIME_PUBLIC_PATH),
+  "."
+);
 const RUNTIME_ROOT = path.resolve(__filename, relativePathToRuntimeRoot);
 // Compute the absolute path to the root, by stripping distDir from the absolute path to this file.
 const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
@@ -91,27 +95,38 @@ var relativeURL = function (this: any, inputUrl: string) {
   values.pathname = outputUrl.replace(/[?#].*/, "");
   values.origin = values.protocol = "";
   values.toString = values.toJSON = (..._args: Array<any>) => outputUrl;
-  for (var key in values) Object.defineProperty(this, key, { enumerable: true, configurable: true, value: values[key] });
-}
+  for (var key in values)
+    Object.defineProperty(this, key, {
+      enumerable: true,
+      configurable: true,
+      value: values[key],
+    });
+};
 
 relativeURL.prototype = URL.prototype;
 
 /**
  * Returns an absolute path to the given module's id.
  */
-function createResolvePathFromModule(resolver: (moduleId: string) => Exports): (moduleId: string) => string {
+function createResolvePathFromModule(
+  resolver: (moduleId: string) => Exports
+): (moduleId: string) => string {
   return function resolvePathFromModule(moduleId: string): string {
     const exported = resolver(moduleId);
     const exportedPath = exported?.default ?? exported;
-    if (typeof exportedPath !== 'string') {
+    if (typeof exportedPath !== "string") {
       return exported as any;
     }
 
     const strippedAssetPrefix = exportedPath.slice(ASSET_PREFIX.length);
-    const resolved = path.resolve(ABSOLUTE_ROOT, OUTPUT_ROOT, strippedAssetPrefix);
+    const resolved = path.resolve(
+      ABSOLUTE_ROOT,
+      OUTPUT_ROOT,
+      strippedAssetPrefix
+    );
 
     return url.pathToFileURL(resolved);
-  }
+  };
 }
 
 function loadChunk(chunkData: ChunkData): void {

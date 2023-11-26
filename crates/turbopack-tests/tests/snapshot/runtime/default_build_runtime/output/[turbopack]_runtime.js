@@ -302,6 +302,7 @@ function externalRequire(id, esm = false) {
 externalRequire.resolve = (id, options)=>{
     return require.resolve(id, options);
 };
+/// <reference path="../shared/runtime-utils.ts" />
 function readWebAssemblyAsResponse(path) {
     const { createReadStream } = require("fs");
     const { Readable } = require("stream");
@@ -323,7 +324,8 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
     return instance.exports;
 }
 /// <reference path="../shared/runtime-utils.ts" />
-/// <reference path="../shared-node/node-utils.ts" />
+/// <reference path="../shared-node/node-externals-utils.ts" />
+/// <reference path="../shared-node/node-wasm-utils.ts" />
 let SourceType;
 (function(SourceType) {
     /**
@@ -335,7 +337,7 @@ let SourceType;
    */ SourceType[SourceType["Parent"] = 1] = "Parent";
 })(SourceType || (SourceType = {}));
 const path = require("path");
-const url = require('url');
+const url = require("url");
 const relativePathToRuntimeRoot = path.relative(RUNTIME_PUBLIC_PATH, ".");
 // Compute the relative path to the `distDir`.
 const relativePathToDistRoot = path.relative(path.join(OUTPUT_ROOT, RUNTIME_PUBLIC_PATH), ".");
@@ -389,7 +391,7 @@ relativeURL.prototype = URL.prototype;
     return function resolvePathFromModule(moduleId) {
         const exported = resolver(moduleId);
         const exportedPath = exported?.default ?? exported;
-        if (typeof exportedPath !== 'string') {
+        if (typeof exportedPath !== "string") {
             return exported;
         }
         const strippedAssetPrefix = exportedPath.slice(ASSET_PREFIX.length);

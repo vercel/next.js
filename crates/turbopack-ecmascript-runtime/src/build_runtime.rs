@@ -14,13 +14,18 @@ pub async fn get_build_runtime_code(environment: Vc<Environment>) -> Result<Vc<C
 
     let shared_runtime_utils_code =
         embed_static_code(asset_context, "shared/runtime-utils.ts".to_string());
-    let shared_node_utils_code =
-        embed_static_code(asset_context, "shared-node/node-utils.ts".to_string());
+    let shared_node_external_utils_code = embed_static_code(
+        asset_context,
+        "shared-node/node-externals-utils.ts".to_string(),
+    );
+    let shared_node_wasm_utils_code =
+        embed_static_code(asset_context, "shared-node/node-wasm-utils.ts".to_string());
     let runtime_code = embed_static_code(asset_context, "build/runtime.ts".to_string());
 
     let mut code = CodeBuilder::default();
     code.push_code(&*shared_runtime_utils_code.await?);
-    code.push_code(&*shared_node_utils_code.await?);
+    code.push_code(&*shared_node_external_utils_code.await?);
+    code.push_code(&*shared_node_wasm_utils_code.await?);
     code.push_code(&*runtime_code.await?);
 
     Ok(Code::cell(code.build()))
