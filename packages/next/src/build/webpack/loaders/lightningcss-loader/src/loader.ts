@@ -1,7 +1,7 @@
 import type { LoaderContext } from 'webpack'
 import type { ILightningCssLoaderConfig } from './interface'
 import { ECacheKey } from './interface'
-import { transformCss } from '../../../../swc'
+import { transform as transformCss } from 'lightningcss'
 import { Buffer } from 'buffer'
 import { getTargets } from './utils'
 
