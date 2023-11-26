@@ -10,7 +10,6 @@ import {
 import type { ReduxDevToolsInstance } from '../../../client/components/use-reducer-with-devtools'
 import { reducer } from '../../../client/components/router-reducer/router-reducer'
 import React, { startTransition } from 'react'
-import { createEmptyCacheNode } from '../../../client/components/app-router'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -82,7 +81,6 @@ async function runAction({
         actionQueue.dispatch(
           {
             type: ACTION_REFRESH,
-            cache: createEmptyCacheNode(),
             mutable: {},
             origin: window.location.origin,
           },
