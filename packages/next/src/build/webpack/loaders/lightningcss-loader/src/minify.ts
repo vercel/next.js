@@ -1,7 +1,7 @@
 // @ts-ignore
 import { matchObject } from 'webpack/lib/ModuleFilenameHelpers'
 import { RawSource, SourceMapSource } from 'webpack-sources'
-import { transformCss } from '../../../../swc'
+import { transform as transformCss } from 'lightningcss'
 import {
   ECacheKey,
   type IMinifyPluginOpts,

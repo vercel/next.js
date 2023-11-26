@@ -1,4 +1,4 @@
-import { transformCss } from '../../../../swc'
+import type { transform as transformCss } from 'lightningcss'
 
 type TransformOptions = {}
 
