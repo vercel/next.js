@@ -8,7 +8,6 @@
     "lint:prettier": "prettier -c . --cache --ignore-path=../../../.prettierignore"
   },
   "devDependencies": {
-    "@turbo/eslint-config": "workspace:*",
     "@types/node": "^18.11.18",
     "@vercel/ncc": "0.34.0",
     "typescript": "^4.4.4"

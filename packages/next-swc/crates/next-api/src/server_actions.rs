@@ -45,6 +45,7 @@ use turbopack_binding::{
 pub(crate) async fn create_server_actions_manifest(
     rsc_entry: Vc<Box<dyn Module>>,
     server_reference_modules: Vc<Vec<Vc<Box<dyn Module>>>>,
+    project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     pathname: &str,
     page_name: &str,
@@ -53,7 +54,8 @@ pub(crate) async fn create_server_actions_manifest(
     chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
 ) -> Result<(Vc<Box<dyn EvaluatableAsset>>, Vc<Box<dyn OutputAsset>>)> {
     let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
-    let loader = build_server_actions_loader(node_root, page_name, actions, asset_context).await?;
+    let loader =
+        build_server_actions_loader(project_path, page_name, actions, asset_context).await?;
     let Some(evaluable) = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader).await?
     else {
         bail!("loader module must be evaluatable");
@@ -75,7 +77,7 @@ pub(crate) async fn create_server_actions_manifest(
 /// file's name and the action name). This hash matches the id sent to the
 /// client and present inside the paired manifest.
 async fn build_server_actions_loader(
-    node_root: Vc<FileSystemPath>,
+    project_path: Vc<FileSystemPath>,
     page_name: &str,
     actions: Vc<AllActions>,
     asset_context: Vc<Box<dyn AssetContext>>,
@@ -100,7 +102,7 @@ async fn build_server_actions_loader(
     }
     write!(contents, "}});")?;
 
-    let output_path = node_root.join(format!("server/app{page_name}/actions.js"));
+    let output_path = project_path.join(format!(".next-internal/server/app{page_name}/actions.js"));
     let file = File::from(contents.build());
     let source = VirtualSource::new(output_path, AssetContent::file(file.into()));
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
