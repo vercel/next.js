@@ -80,17 +80,21 @@ export async function GET(request) {
 }
 ```
 
-## `redirect()`
+## `redirect()` and `permanentRedirect()`
 
-Produce a response that redirects to a [URL](https://developer.mozilla.org/docs/Web/API/URL).
+Produce a response that redirects to a [URL](https://developer.mozilla.org/docs/Web/API/URL). `NextResponse.redirect()` produces a temporary redirect response with a `307` status code by default, while `NextResponse.permanentRedirect()` produces a permanent redirect response with a `308` status code.
 
 ```ts
 import { NextResponse } from 'next/server'
 
+// For temporary redirects:
 return NextResponse.redirect(new URL('/new', request.url))
+
+// For permanent redirects:
+return NextResponse.permanentRedirect(new URL('/new', request.url))
 ```
 
-The [URL](https://developer.mozilla.org/docs/Web/API/URL) can be created and modified before being used in the `NextResponse.redirect()` method. For example, you can use the `request.nextUrl` property to get the current URL, and then modify it to redirect to a different URL.
+The [URL](https://developer.mozilla.org/docs/Web/API/URL) can be created and modified before being used in the `NextResponse.redirect()` and `NextResponse.permanentRedirect()` methods. For example, you can use the `request.nextUrl` property to get the current URL, and then modify it to redirect to a different URL.
 
 ```ts
 import { NextResponse } from 'next/server'
@@ -102,6 +106,22 @@ loginUrl.searchParams.set('from', request.nextUrl.pathname)
 // And redirect to the new URL
 return NextResponse.redirect(loginUrl)
 ```
+
+### Use other status codes for redirects
+
+If you need to use `301`, `302` or `303` status codes for redirects, the second argument of `NextResponse.redirect()` can be used to specify the status code. Note that `NextResponse.permanentRedirect()` doesn't allow this and always uses the `308` status code.
+
+```ts
+import { NextResponse } from 'next/server'
+
+// You can use a number to specify the status code
+return NextResponse.redirect(new URL('/new', request.url), 301)
+
+// or use an object
+return NextResponse.redirect(new URL('/new', request.url), { status: 301 })
+```
+
+> **Good to know**: Only `301`, `302`, `303`, `307` and `308` status codes are allowed here. Using other status codes will result in an error.
 
 ## `rewrite()`
 

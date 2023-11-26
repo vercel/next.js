@@ -184,6 +184,21 @@ createNextDescribe(
           expect(await res.text()).toBeEmpty()
         })
 
+        it('supports the NextResponse.permanentRedirect() helper', async () => {
+          const res = await next.fetch(
+            basePath + '/hooks/permanent-redirect/response',
+            {
+              // "Manually" perform the redirect, we want to inspect the
+              // redirection response, so don't actually follow it.
+              redirect: 'manual',
+            }
+          )
+
+          expect(res.status).toEqual(308)
+          expect(res.headers.get('location')).toEqual('https://nextjs.org/')
+          expect(await res.text()).toBeEmpty()
+        })
+
         it('supports the NextResponse.json() helper', async () => {
           const meta = { ping: 'pong' }
           const res = await next.fetch(basePath + '/hooks/json', {
