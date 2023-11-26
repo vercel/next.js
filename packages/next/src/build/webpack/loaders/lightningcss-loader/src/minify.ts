@@ -47,31 +47,24 @@ export class LightningCssMinifyPlugin {
         hash.update(meta)
       )
 
-      if (isWebpack5(compilation)) {
-        compilation.hooks.processAssets.tapPromise(
-          {
-            name: PLUGIN_NAME,
-            stage: compilation.constructor.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
-            additionalAssets: true,
-          },
-          async () => await this.transformAssets(compilation)
-        )
+      compilation.hooks.processAssets.tapPromise(
+        {
+          name: PLUGIN_NAME,
+          stage: compilation.constructor.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
+          additionalAssets: true,
+        },
+        async () => await this.transformAssets(compilation)
+      )
 
-        compilation.hooks.statsPrinter.tap(PLUGIN_NAME, (statsPrinter) => {
-          statsPrinter.hooks.print
-            .for('asset.info.minimized')
+      compilation.hooks.statsPrinter.tap(PLUGIN_NAME, (statsPrinter) => {
+        statsPrinter.hooks.print
+          .for('asset.info.minimized')
+          // @ts-ignore
+          .tap(PLUGIN_NAME, (minimized, { green, formatFlag }) => {
             // @ts-ignore
-            .tap(PLUGIN_NAME, (minimized, { green, formatFlag }) => {
-              // @ts-ignore
-              return minimized ? green(formatFlag('minimized')) : undefined
-            })
-        })
-      } else {
-        compilation.hooks.optimizeChunkAssets.tapPromise(
-          PLUGIN_NAME,
-          async () => await this.transformAssets(compilation)
-        )
-      }
+            return minimized ? green(formatFlag('minimized')) : undefined
+          })
+      })
     })
   }
 
