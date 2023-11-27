@@ -280,11 +280,13 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     page,
     query,
     params,
+    url: _url,
   }: {
     page: string
     query: NextParsedUrlQuery
     params: Params | null
     isAppPath: boolean
+    url?: string
   }) {
     const result = await this.serverOptions.webServerConfig.loadComponent(page)
     if (!result) return null
@@ -342,7 +344,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // The web server does not support web sockets.
   }
 
-  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
+  protected async getFallbackErrorComponents(
+    _url?: string
+  ): Promise<LoadComponentsReturnType | null> {
     // The web server does not need to handle fallback errors in production.
     return null
   }
