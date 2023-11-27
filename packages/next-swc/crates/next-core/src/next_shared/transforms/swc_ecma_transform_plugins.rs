@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::ecmascript::OptionTransformPlugin;
@@ -83,7 +83,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
             None,
         )
         .await?;
-        let plugin_module = *plugin_wasm_module_resolve_result
+        let plugin_module = plugin_wasm_module_resolve_result
             .first_module()
             .await?
             .context("Expected to find module")?;
