@@ -332,6 +332,9 @@ importers:
       json5:
         specifier: 2.2.3
         version: 2.2.3
+      kleur:
+        specifier: ^4.1.0
+        version: 4.1.3
       ky:
         specifier: 0.19.1
         version: 0.19.1
@@ -735,7 +738,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.0.4-canary.10
+        specifier: 14.0.4-canary.18
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -800,7 +803,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.0.4-canary.10
+        specifier: 14.0.4-canary.18
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.2
@@ -811,6 +814,9 @@ importers:
       caniuse-lite:
         specifier: 1.0.30001406
         version: 1.0.30001406
+      graceful-fs:
+        specifier: ^4.2.11
+        version: 4.2.11
       postcss:
         specifier: 8.4.31
         version: 8.4.31
@@ -924,19 +930,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 14.0.4-canary.10
+        specifier: 14.0.4-canary.18
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.0.4-canary.10
+        specifier: 14.0.4-canary.18
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 14.0.4-canary.10
+        specifier: 14.0.4-canary.18
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 14.0.4-canary.10
+        specifier: 14.0.4-canary.18
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.0.4-canary.10
+        specifier: 14.0.4-canary.18
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1001,6 +1007,9 @@ importers:
       '@types/glob':
         specifier: 7.1.1
         version: 7.1.1
+      '@types/graceful-fs':
+        specifier: 4.1.9
+        version: 4.1.9
       '@types/jsonwebtoken':
         specifier: 9.0.0
         version: 9.0.0
@@ -1065,8 +1074,8 @@ importers:
         specifier: 0.22.6
         version: 0.22.6
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231122.2
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231122.2(react-refresh@0.12.0)(webpack@5.86.0)'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231127.3
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231127.3(react-refresh@0.12.0)(webpack@5.86.0)'
       acorn:
         specifier: 8.5.0
         version: 8.5.0
@@ -1587,7 +1596,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.0.4-canary.10
+        specifier: 14.0.4-canary.18
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -4220,7 +4229,7 @@ packages:
       chalk: 4.1.2
       convert-source-map: 2.0.0
       fast-json-stable-stringify: 2.1.0
-      graceful-fs: 4.2.10
+      graceful-fs: 4.2.11
       jest-haste-map: 29.5.0
       jest-regex-util: 29.4.3
       jest-util: 29.5.0
@@ -6485,8 +6494,8 @@ packages:
       '@types/node': 20.2.5
     dev: true
 
-  /@types/graceful-fs@4.1.3:
-    resolution: {integrity: sha512-AiHRaEB50LQg0pZmm659vNBb9f4SJ0qrAnteuzhSeAUcJKxoYgEnprg/83kppCnc2zvtCKbdZry1a5pVY3lOTQ==}
+  /@types/graceful-fs@4.1.9:
+    resolution: {integrity: sha512-olP3sd1qOEe5dXTSaFvQG+02VdRXcdytWLAZsAq1PecU8uqQAhkrnbli7DagjtXKW/Bl7YJbUsa8MPcuc8LHEQ==}
     dependencies:
       '@types/node': 20.2.5
     dev: true
@@ -7146,7 +7155,7 @@ packages:
       bindings: 1.5.0
       estree-walker: 2.0.2
       glob: 7.2.0
-      graceful-fs: 4.2.10
+      graceful-fs: 4.2.11
       micromatch: 4.0.4
       node-gyp-build: 4.2.3
       resolve-from: 5.0.0
@@ -12418,7 +12427,7 @@ packages:
     engines: {node: '>=10'}
     dependencies:
       at-least-node: 1.0.0
-      graceful-fs: 4.2.9
+      graceful-fs: 4.2.11
       jsonfile: 6.0.1
       universalify: 1.0.0
     dev: true
@@ -12962,15 +12971,8 @@ packages:
       url-parse-lax: 3.0.0
     dev: true
 
-  /graceful-fs@4.2.10:
-    resolution: {integrity: sha512-9ByhssR2fPVsNZj478qUUbKfmL0+t5BDVyjShtyZZLiK7ZDAArFFfopyOTj0M05wE2tJPisA4iTnnXl2YoPvOA==}
-    dev: true
-
   /graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
-
-  /graceful-fs@4.2.9:
-    resolution: {integrity: sha512-NtNxqUcXgpW2iMrfqSfR73Glt39K+BLwWsPs94yR63v45T0Wbej7eRmL5cWfwEgqXnmjQp3zaJTshdRW/qC2ZQ==}
 
   /grapheme-splitter@1.0.4:
     resolution: {integrity: sha512-bzh50DW9kTPM00T8y4o8vQg89Di9oLJVLW/KaOGIXJWP/iqCN6WKYkbNOF04vFLJhwcpYUh9ydh/+5vpOqV4YQ==}
@@ -14820,7 +14822,7 @@ packages:
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dependencies:
       '@jest/types': 29.5.0
-      '@types/graceful-fs': 4.1.3
+      '@types/graceful-fs': 4.1.9
       '@types/node': 20.2.5
       anymatch: 3.1.3
       fb-watchman: 2.0.1
@@ -14839,7 +14841,7 @@ packages:
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dependencies:
       '@jest/types': 29.6.3
-      '@types/graceful-fs': 4.1.3
+      '@types/graceful-fs': 4.1.9
       '@types/node': 20.2.5
       anymatch: 3.1.3
       fb-watchman: 2.0.1
@@ -15225,7 +15227,7 @@ packages:
       babel-core: 7.0.0-bridge.0(@babel/core@7.22.5)
       chalk: 4.1.2
       flow-parser: 0.131.0
-      graceful-fs: 4.2.9
+      graceful-fs: 4.2.11
       micromatch: 3.1.10
       neo-async: 2.6.2
       node-dir: 0.1.17
@@ -24646,9 +24648,9 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231122.2(react-refresh@0.12.0)(webpack@5.86.0)':
-    resolution: {registry: https://registry.npmjs.org/, tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231122.2}
-    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231122.2'
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231127.3(react-refresh@0.12.0)(webpack@5.86.0)':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231127.3}
+    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231127.3'
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:

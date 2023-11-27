@@ -30,7 +30,7 @@ env:
   NEXT_TELEMETRY_DISABLED: 1
   TEST_CONCURRENCY: 6
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  DATADOG_TRACE_NEXTJS_TEST: 'true'
+  NEXT_JUNIT_TEST_REPORT: 'true'
   DD_ENV: 'ci'
   # Turbopack specific customization for the test runner
   TURBOPACK: 1
@@ -96,10 +96,10 @@ jobs:
           # marker to parse log output, do not delete / change.
           NEXT_INTEGRATION_TEST: true
 
-      - name: Upload test reports artifact
+      - name: Upload test report artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: Test trace reports
+          name: test-reports
           path: |
             test/turbopack-test-junit-report
 
@@ -140,10 +140,10 @@ jobs:
         env:
           NEXT_INTEGRATION_TEST: true
 
-      - name: Upload test reports artifact
+      - name: Upload test report artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: Test trace reports
+          name: test-reports
           path: |
             test/turbopack-test-junit-report
 
@@ -183,9 +183,9 @@ jobs:
             passed-test-path-list.json
             slack-payload.json
 
-  upload_test_trace:
+  upload_test_report:
     needs: [test-dev, test-integration]
-    name: Upload test trace to datadog
+    name: Upload test report to datadog
     runs-on:
       - 'self-hosted'
       - 'linux'
@@ -194,27 +194,14 @@ jobs:
 
     if: always()
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Download test reports artifact
+      - name: Download test report artifacts
         id: download-test-reports
         uses: actions/download-artifact@v3
         with:
-          name: Test trace reports
-          path: test
-      - name: Upload test trace to datadog
-        run: |
-          npm install -g @datadog/datadog-ci@2.18.1
-          ls -al ./test/*.xml
-          # We'll tag this to the Turbopack service, not the next.js
-          DD_ENV=ci datadog-ci junit upload --tags test.type:turbopack.daily --service Turbopack test
+          name: test-reports
+          path: test/reports
 
-      # For the debugging purpose, upload the test trace to github artifact.
-      # So we can manually analyze test reports.
-      - name: Upload test reports artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: Merged test trace reports
-          path: |
-            nextjs-test-result-junit.xml
-            ./**/*.xml
+      - name: Upload to datadog
+        run: |
+          # We'll tag this to the "Turbopack" datadog service, not "nextjs"
+          DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack.daily --service Turbopack ./test/report

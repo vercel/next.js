@@ -626,6 +626,7 @@ export default class NextNodeServer extends BaseServer {
     query,
     params,
     isAppPath,
+    url,
   }: {
     page: string
     query: NextParsedUrlQuery
@@ -636,6 +637,7 @@ export default class NextNodeServer extends BaseServer {
     sriEnabled?: boolean
     appPaths?: ReadonlyArray<string> | null
     shouldEnsure: boolean
+    url?: string
   }): Promise<FindComponentsResult | null> {
     return getTracer().trace(
       NextNodeServerSpan.findPageComponents,
@@ -651,6 +653,7 @@ export default class NextNodeServer extends BaseServer {
           query,
           params,
           isAppPath,
+          url,
         })
     )
   }
@@ -660,11 +663,13 @@ export default class NextNodeServer extends BaseServer {
     query,
     params,
     isAppPath,
+    url: _url,
   }: {
     page: string
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
+    url?: string
   }): Promise<FindComponentsResult | null> {
     const pagePaths: string[] = [page]
     if (query.amp) {
@@ -977,6 +982,7 @@ export default class NextNodeServer extends BaseServer {
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     match?: RouteMatch
+    url?: string
   }): Promise<void> {
     throw new Error(
       'Invariant: ensurePage can only be called on the development server'
@@ -1119,7 +1125,7 @@ export default class NextNodeServer extends BaseServer {
                 }
               }
 
-              return `${'  │ '.repeat(nestedLevel)}`
+              return nestedLevel === 0 ? ' ' : `${'  │ '.repeat(nestedLevel)}`
             }
 
             for (let i = 0; i < fetchMetrics.length; i++) {
@@ -1167,16 +1173,16 @@ export default class NextNodeServer extends BaseServer {
               if (enabledVerboseLogging) {
                 const newLineLeadingChar = '│'
                 const nestedIndent = calcNestedLevel(
-                  fetchMetrics.slice(0, i),
+                  fetchMetrics.slice(0, i + 1),
                   metric.start
                 )
 
                 writeStdoutLine(
-                  `${`${newLineLeadingChar}${nestedIndent}${
-                    i === 0 ? ' ' : ''
-                  }${white(bold(metric.method))} ${gray(url)} ${
-                    metric.status
-                  } in ${getDurationStr(duration)} (cache: ${cacheStatus})`}`
+                  ` ${`${newLineLeadingChar}${nestedIndent}${white(
+                    bold(metric.method)
+                  )} ${gray(url)} ${metric.status} in ${getDurationStr(
+                    duration
+                  )} (cache: ${cacheStatus})`}`
                 )
                 if (cacheReasonStr) {
                   const nextNestedIndent = calcNestedLevel(
@@ -1184,9 +1190,10 @@ export default class NextNodeServer extends BaseServer {
                     metric.start
                   )
                   writeStdoutLine(
-                    newLineLeadingChar +
+                    ' ' +
+                      newLineLeadingChar +
                       nextNestedIndent +
-                      (i > 0 ? ' ' : '  ') +
+                      ' ' +
                       newLineLeadingChar +
                       '  ' +
                       cacheReasonStr
@@ -1288,6 +1295,7 @@ export default class NextNodeServer extends BaseServer {
         await this.ensurePage({
           page: notFoundPathname,
           clientOnly: false,
+          url: req.url,
         }).catch(() => {})
       }
 
@@ -1453,10 +1461,11 @@ export default class NextNodeServer extends BaseServer {
    * It will make sure that the root middleware or an edge function has been compiled
    * so that we can run it.
    */
-  protected async ensureMiddleware() {}
+  protected async ensureMiddleware(_url?: string) {}
   protected async ensureEdgeFunction(_params: {
     page: string
     appPaths: string[] | null
+    url?: string
   }) {}
 
   /**
@@ -1523,7 +1532,7 @@ export default class NextNodeServer extends BaseServer {
       return { finished: false }
     }
 
-    await this.ensureMiddleware()
+    await this.ensureMiddleware(params.request.url)
     const middlewareInfo = this.getEdgeFunctionInfo({
       page: middleware.page,
       middleware: true,
@@ -1634,7 +1643,7 @@ export default class NextNodeServer extends BaseServer {
     this.stripInternalHeaders(req)
 
     try {
-      await this.ensureMiddleware()
+      await this.ensureMiddleware(req.url)
 
       result = await this.runMiddleware({
         request: req,
@@ -1796,7 +1805,11 @@ export default class NextNodeServer extends BaseServer {
     const { query, page, match } = params
 
     if (!match)
-      await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
+      await this.ensureEdgeFunction({
+        page,
+        appPaths: params.appPaths,
+        url: params.req.url,
+      })
     edgeInfo = this.getEdgeFunctionInfo({
       page,
       middleware: false,
@@ -1903,7 +1916,9 @@ export default class NextNodeServer extends BaseServer {
     return serverDistDir
   }
 
-  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
+  protected async getFallbackErrorComponents(
+    _url?: string
+  ): Promise<LoadComponentsReturnType | null> {
     // Not implemented for production use cases, this is implemented on the
     // development server.
     return null

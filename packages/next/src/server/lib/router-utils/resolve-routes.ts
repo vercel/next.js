@@ -49,7 +49,7 @@ export function getResolveRoutes(
   opts: Parameters<typeof initialize>[0],
   renderServer: RenderServer,
   renderServerOpts: Parameters<RenderServer['initialize']>[0],
-  ensureMiddleware?: () => Promise<void>
+  ensureMiddleware?: (url?: string) => Promise<void>
 ) {
   type Route = {
     /**
@@ -446,7 +446,7 @@ export function getResolveRoutes(
             // @ts-expect-error BaseNextRequest stuff
             match?.(parsedUrl.pathname, req, parsedUrl.query) &&
             (!ensureMiddleware ||
-              (await ensureMiddleware?.()
+              (await ensureMiddleware?.(req.url)
                 .then(() => true)
                 .catch(() => false)))
           ) {
