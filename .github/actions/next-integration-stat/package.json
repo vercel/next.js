@@ -1,10 +1,10 @@
 {
   "name": "next-integration-stat",
   "private": true,
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "scripts": {
     "lint": "eslint src/",
-    "build": "ncc -t -o . build src/index.ts",
+    "build": "ncc build src/index.ts -t -o dist",
     "lint:prettier": "prettier -c . --cache --ignore-path=../../../.prettierignore"
   },
   "devDependencies": {

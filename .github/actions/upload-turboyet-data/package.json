@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "ncc build src/main.js -o dist/main --source-map"
+    "build": "ncc build src/main.js -o dist --source-map"
   },
   "dependencies": {
     "@vercel/kv": "^0.2.3"
