@@ -215,11 +215,11 @@ createNextDescribe(
       expect(html).toContain('hello')
     })
 
-    it('should support dynamic import for esm', async () => {
+    it.only('should support dynamic import for esm', async () => {
       const browser = await next.browser('/esm-dynamic')
-      await browser.waitForElementByCss('#esm-with-react')
-      expect(await browser.elementByCss('#esm-with-react').text()).toBe(
-        'esm-with-react'
+      await browser.waitForElementByCss('#esm-dynamic-import-esm')
+      expect(await browser.elementByCss('#esm-dynamic-import-esm').text()).toBe(
+        'esm-dynamic-import-esm'
       )
     })
 

@@ -8,10 +8,6 @@ const DynamicEsmComponent = dynamic(
   { ssr: false }
 )
 
-export default function Index() {
-  return (
-    <div>
-      <DynamicEsmComponent />
-    </div>
-  )
+export default function Page() {
+  return <DynamicEsmComponent />
 }
