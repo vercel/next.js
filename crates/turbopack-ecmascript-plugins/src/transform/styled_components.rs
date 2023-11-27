@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::{
-    common::FileName,
+    common::{comments::NoopComments, FileName},
     ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith},
 };
 use turbo_tasks::{ValueDefault, Vc};
@@ -95,6 +95,7 @@ impl CustomTransformer for StyledComponentsTransformer {
             FileName::Real(PathBuf::from(ctx.file_path_str)),
             ctx.file_name_hash,
             self.config.clone(),
+            NoopComments,
         ));
 
         Ok(())
