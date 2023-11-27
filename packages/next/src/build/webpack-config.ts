@@ -729,8 +729,13 @@ export default async function getBaseWebpackConfig(
   const shouldIncludeExternalDirs =
     config.experimental.externalDir || !!config.transpilePackages
 
-  function createLoaderRuleExclude(skipNodeModules: boolean) {
-    return (excludePath: string) => {
+  const codeCondition = {
+    test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
+    ...(shouldIncludeExternalDirs
+      ? // Allowing importing TS/TSX files from outside of the root dir.
+        {}
+      : { include: [dir, ...babelIncludeRegexes] }),
+    exclude: (excludePath: string) => {
       if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
         return false
       }
@@ -741,17 +746,8 @@ export default async function getBaseWebpackConfig(
       )
       if (shouldBeBundled) return false
 
-      return skipNodeModules && excludePath.includes('node_modules')
-    }
-  }
-
-  const codeCondition = {
-    test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
-    ...(shouldIncludeExternalDirs
-      ? // Allowing importing TS/TSX files from outside of the root dir.
-        {}
-      : { include: [dir, ...babelIncludeRegexes] }),
-    exclude: createLoaderRuleExclude(true),
+      return excludePath.includes('node_modules')
+    },
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -1414,6 +1410,7 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
+                    exclude: codeCondition.exclude,
                     issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
                     use: swcLoaderForClientLayer,
                     resolve: {
