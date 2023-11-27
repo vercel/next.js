@@ -191,7 +191,7 @@ function setNextVersion(code) {
       `"${require('./package.json').version}"`
     )
     .replace(
-      /process\.env\.__REQUIRED_NODE_VERSION/g,
+      /process\.env\.__NEXT_REQUIRED_NODE_VERSION/g,
       `"${require('./package.json').engines.node.replace('>=', '')}"`
     )
     .replace(
