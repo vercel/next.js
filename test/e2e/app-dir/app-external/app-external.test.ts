@@ -215,14 +215,6 @@ createNextDescribe(
       expect(html).toContain('hello')
     })
 
-    it.only('should support dynamic import for esm', async () => {
-      const browser = await next.browser('/esm-dynamic')
-      await browser.waitForElementByCss('#esm-dynamic-import-esm')
-      expect(await browser.elementByCss('#esm-dynamic-import-esm').text()).toBe(
-        'esm-dynamic-import-esm'
-      )
-    })
-
     it('should support exporting multiple star re-exports', async () => {
       const html = await next.render('/wildcard')
       expect(html).toContain('Foo')

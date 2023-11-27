@@ -1389,7 +1389,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: isWebpackServerLayer,
-                    exclude: asyncStoragesRegex,
+                    exclude: [asyncStoragesRegex, codeCondition.exclude],
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -1410,7 +1410,7 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
-                    // exclude: codeCondition.exclude,
+                    exclude: codeCondition.exclude,
                     issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
                     use: swcLoaderForClientLayer,
                     resolve: {
