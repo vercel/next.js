@@ -1,9 +1,9 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
     core::{
+        context::ProcessResult,
         file_source::FileSource,
-        module::OptionModule,
         reference_type::{EntryReferenceSubType, ReferenceType},
         source::Source,
     },
@@ -50,7 +50,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         source: Vc<Box<dyn Source>>,
         context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
-    ) -> Result<Vc<OptionModule>> {
+    ) -> Result<Vc<ProcessResult>> {
         let context = self.process_context(context);
 
         let this = self.await?;
@@ -75,8 +75,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
                     EntryReferenceSubType::AppClientComponent,
                 )),
             )
-            .await?
-            .context("Could not process client module")?;
+            .module();
 
         let ssr_module = this
             .ssr_transition
@@ -87,8 +86,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
                     EntryReferenceSubType::AppClientComponent,
                 )),
             )
-            .await?
-            .context("Could not process SSR module")?;
+            .module();
 
         let Some(client_module) =
             Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
@@ -113,13 +111,14 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             context.layer,
         );
 
-        Ok(Vc::cell(Some(Vc::upcast(
-            EcmascriptClientReferenceProxyModule::new(
+        Ok(
+            ProcessResult::Module(Vc::upcast(EcmascriptClientReferenceProxyModule::new(
                 source.ident(),
                 Vc::upcast(server_context),
                 client_module,
                 ssr_module,
-            ),
-        ))))
+            )))
+            .cell(),
+        )
     }
 }

@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use indexmap::indexmap;
 use serde::Serialize;
 use turbo_tasks::Vc;
@@ -45,8 +45,7 @@ pub async fn create_page_ssr_entry_module(
 
     let ssr_module = ssr_module_context
         .process(source, reference_type.clone())
-        .await?
-        .context("could not process SSR module")?;
+        .module();
 
     let reference_type = reference_type.into_value();
 
@@ -126,8 +125,7 @@ pub async fn create_page_ssr_entry_module(
                 INNER.to_string() => ssr_module,
             }))),
         )
-        .await?
-        .context("could not process SSR module")?;
+        .module();
 
     if matches!(runtime, NextRuntime::Edge) {
         if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
@@ -220,8 +218,7 @@ async fn wrap_edge_page(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
-        .await?
-        .context("could not process wrapped edge page")?;
+        .module();
 
     Ok(wrap_edge_entry(
         context,

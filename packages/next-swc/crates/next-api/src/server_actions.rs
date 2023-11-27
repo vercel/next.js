@@ -112,8 +112,7 @@ async fn build_server_actions_loader(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(import_map))),
         )
-        .await?
-        .context("could not process actions loader module")?;
+        .module();
 
     let Some(placeable) =
         Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
@@ -253,8 +252,7 @@ async fn to_rsc_context(
     };
     let module = asset_context
         .process(Vc::upcast(source), Value::new(ty))
-        .await?
-        .context("could not process module")?;
+        .module();
     Ok(module)
 }
 

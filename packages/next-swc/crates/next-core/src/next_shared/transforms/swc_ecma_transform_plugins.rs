@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::ecmascript::OptionTransformPlugin;
@@ -33,7 +33,7 @@ pub async fn get_swc_ecma_transform_plugin_impl(
     project_path: Vc<FileSystemPath>,
     plugin_configs: &[(String, serde_json::Value)],
 ) -> Result<Vc<OptionTransformPlugin>> {
-    use anyhow::bail;
+    use anyhow::{bail, Context};
     use turbo_tasks::Value;
     use turbo_tasks_fs::FileContent;
     use turbopack_binding::turbopack::{

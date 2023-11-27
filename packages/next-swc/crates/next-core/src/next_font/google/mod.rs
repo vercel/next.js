@@ -464,8 +464,7 @@ async fn get_mock_stylesheet(
             )),
             Value::new(ReferenceType::Internal(InnerAssets::empty())),
         )
-        .await?
-        .context("Failed to process mock stylesheet")?;
+        .module();
 
     let root = mock_fs.root();
     let val = evaluate(

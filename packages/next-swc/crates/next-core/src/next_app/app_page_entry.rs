@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use indexmap::indexmap;
 use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_binding::{
@@ -111,8 +111,7 @@ pub async fn get_app_page_entry(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
-        .await?
-        .context("could not process internal module")?;
+        .module();
 
     if is_edge {
         rsc_entry = wrap_edge_page(
@@ -198,8 +197,7 @@ async fn wrap_edge_page(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
-        .await?
-        .context("could not process internal module")?;
+        .module();
 
     Ok(wrap_edge_entry(
         context,

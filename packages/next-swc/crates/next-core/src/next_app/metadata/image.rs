@@ -2,7 +2,7 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-image-loader`
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use indoc::formatdoc;
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -70,8 +70,7 @@ pub async fn dynamic_image_metadata_source(
                 EcmaScriptModulesReferenceSubType::Undefined,
             )),
         )
-        .await?
-        .context("could not process module")?;
+        .module();
     let exports = &*collect_direct_exports(module).await?;
     let exported_fields_excluding_default = exports
         .iter()

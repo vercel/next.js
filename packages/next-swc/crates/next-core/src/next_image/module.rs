@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks::{TaskInput, Vc};
 use turbopack_binding::{
@@ -47,7 +47,7 @@ impl StructuredImageModuleType {
         context: Vc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
         let static_asset = StaticModuleAsset::new(source, Vc::upcast(context));
-        let Some(module) = *context
+        let module = context
             .process(
                 Vc::upcast(
                     StructuredImageFileSource {
@@ -60,10 +60,7 @@ impl StructuredImageModuleType {
                     "IMAGE".to_string() => Vc::upcast(static_asset)
                 )))),
             )
-            .await?
-        else {
-            bail!("Could not process image source")
-        };
+            .module();
         Ok(module)
     }
 

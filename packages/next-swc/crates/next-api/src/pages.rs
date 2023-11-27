@@ -647,8 +647,7 @@ impl PageEndpoint {
 
             let ssr_module = module_context
                 .process(self.source(), reference_type.clone())
-                .await?
-                .context("could not process page loader entry module")?;
+                .module();
 
             let config = parse_config_from_source(ssr_module).await?;
             let is_edge = matches!(config.runtime, NextRuntime::Edge);
@@ -668,7 +667,7 @@ impl PageEndpoint {
                 let mut evaluatable_assets = edge_runtime_entries.await?.clone_value();
                 let evaluatable = Vc::try_resolve_sidecast(ssr_module)
                     .await?
-                    .context("Entry module must be evaluatable")?;
+                    .context("could not process page loader entry module")?;
                 evaluatable_assets.push(evaluatable);
 
                 let edge_files = edge_chunking_context.evaluated_chunk_group(

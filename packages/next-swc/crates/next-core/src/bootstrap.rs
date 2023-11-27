@@ -94,8 +94,7 @@ pub async fn bootstrap(
             )),
             Value::new(ReferenceType::Internal(InnerAssets::empty())),
         )
-        .await?
-        .context("could not process bootstrap config")?;
+        .module();
 
     let mut inner_assets = inner_assets.await?.clone_value();
     inner_assets.insert("ENTRY".to_string(), asset);
@@ -106,8 +105,7 @@ pub async fn bootstrap(
             bootstrap_asset,
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
-        .await?
-        .context("could not process internal module")?;
+        .module();
 
     let asset = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(asset)
         .await?

@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, path::MAIN_SEPARATOR};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
 use next_core::{
     all_assets_from_entries,
@@ -740,8 +740,7 @@ impl Project {
                 source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
             )
-            .await?
-            .context("Could not process middleware module")?;
+            .module();
 
         Ok(MiddlewareEndpoint::new(self, context, module))
     }
