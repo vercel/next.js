@@ -1491,7 +1491,7 @@ async function startWatcher(opts: SetupOpts) {
                 )
               }
 
-              finishBuilding = startBuilding(buildingKey, requestUrl)
+              finishBuilding = startBuilding(page, requestUrl)
               try {
                 if (globalEntries.app) {
                   const writtenEndpoint = await processResult(
@@ -1579,7 +1579,7 @@ async function startWatcher(opts: SetupOpts) {
               // since this can happen when app pages make
               // api requests to page API routes.
 
-              finishBuilding = startBuilding(buildingKey, requestUrl)
+              finishBuilding = startBuilding(page, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
@@ -1604,7 +1604,7 @@ async function startWatcher(opts: SetupOpts) {
               break
             }
             case 'app-page': {
-              finishBuilding = startBuilding(buildingKey, requestUrl)
+              finishBuilding = startBuilding(page, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.htmlEndpoint.writeToDisk()
@@ -1655,7 +1655,7 @@ async function startWatcher(opts: SetupOpts) {
               break
             }
             case 'app-route': {
-              finishBuilding = startBuilding(buildingKey, requestUrl)
+              finishBuilding = startBuilding(page, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
