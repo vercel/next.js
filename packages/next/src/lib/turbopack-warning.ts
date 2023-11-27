@@ -66,6 +66,8 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.useDeploymentId',
   'experimental.useDeploymentIdServerActions',
   'experimental.deploymentId',
+  'experimental.useLightningcss',
+  'experimental.windowHistorySupport',
 
   // Experimental options that don't affect compilation
   'experimental.ppr',

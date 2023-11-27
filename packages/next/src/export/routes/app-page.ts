@@ -37,7 +37,14 @@ async function generatePrefetchRsc(
   htmlFilepath: string,
   renderOpts: RenderOpts,
   fileWriter: FileWriter
-) {
+): Promise<boolean> {
+  // TODO: Re-enable once this is better supported client-side
+  // It's currently not reliable to generate these prefetches because the client router
+  // depends on the RSC payload being generated with FlightRouterState. When we generate these prefetches
+  // without router state, it causes mismatches on client-side nav, resulting in subtle navigation bugs
+  // like unnecessarily re-rendering layouts.
+  return false
+
   // When we're in PPR, the RSC payload is emitted as the prefetch payload, so
   // attempting to generate a prefetch RSC is an error.
   if (renderOpts.experimental.ppr) {
@@ -64,13 +71,15 @@ async function generatePrefetchRsc(
 
   const prefetchRscData = await prefetchRenderResult.toUnchunkedString(true)
 
-  if ((renderOpts as any).store.staticPrefetchBailout) return
+  if ((renderOpts as any).store.staticPrefetchBailout) return false
 
   await fileWriter(
     ExportedAppPageFiles.FLIGHT,
     htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
     prefetchRscData
   )
+
+  return true
 }
 
 export async function exportAppPage(
@@ -94,7 +103,7 @@ export async function exportAppPage(
 
   try {
     if (isAppPrefetch) {
-      await generatePrefetchRsc(
+      const generated = await generatePrefetchRsc(
         req,
         path,
         res,
@@ -104,7 +113,9 @@ export async function exportAppPage(
         fileWriter
       )
 
-      return { revalidate: 0 }
+      if (generated) {
+        return { revalidate: 0 }
+      }
     }
 
     const result = await lazyRenderAppPage(
@@ -149,17 +160,11 @@ export async function exportAppPage(
       const { staticBailoutInfo = {} } = metadata
 
       if (revalidate === 0 && debugOutput && staticBailoutInfo?.description) {
-        const err = new Error(
-          `Static generation failed due to dynamic usage on ${path}, reason: ${staticBailoutInfo.description}`
-        )
-
-        // Update the stack if it was provided via the bailout info.
-        const { stack } = staticBailoutInfo
-        if (stack) {
-          err.stack = err.message + stack.substring(stack.indexOf('\n'))
-        }
-
-        console.warn(err)
+        logDynamicUsageWarning({
+          path,
+          description: staticBailoutInfo.description,
+          stack: staticBailoutInfo.stack,
+        })
       }
 
       return { revalidate: 0 }
@@ -223,6 +228,37 @@ export async function exportAppPage(
       throw err
     }
 
+    if (debugOutput) {
+      const { dynamicUsageDescription, dynamicUsageStack } = (renderOpts as any)
+        .store
+
+      logDynamicUsageWarning({
+        path,
+        description: dynamicUsageDescription,
+        stack: dynamicUsageStack,
+      })
+    }
+
     return { revalidate: 0 }
   }
+}
+
+function logDynamicUsageWarning({
+  path,
+  description,
+  stack,
+}: {
+  path: string
+  description: string
+  stack?: string
+}) {
+  const errMessage = new Error(
+    `Static generation failed due to dynamic usage on ${path}, reason: ${description}`
+  )
+
+  if (stack) {
+    errMessage.stack = errMessage.message + stack.substring(stack.indexOf('\n'))
+  }
+
+  console.warn(errMessage)
 }

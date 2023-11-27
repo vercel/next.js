@@ -12,7 +12,10 @@ use turbopack_binding::{
             context::AssetContext,
             file_source::FileSource,
             ident::AssetIdent,
-            issue::{Issue, IssueDescriptionExt, IssueExt, IssueSeverity, StyledString},
+            issue::{
+                Issue, IssueDescriptionExt, IssueExt, IssueSeverity, OptionStyledString,
+                StyledString,
+            },
             reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
             resolve::{
                 find_context_file,
@@ -503,6 +506,8 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+
+    use_lightningcss: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -765,6 +770,13 @@ impl NextConfig {
     pub async fn enable_taint(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.await?.experimental.taint.unwrap_or(false)))
     }
+
+    #[turbo_tasks::function]
+    pub async fn use_lightningcss(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.experimental.use_lightningcss.unwrap_or(false),
+        ))
+    }
 }
 
 fn next_configs() -> Vc<Vec<String>> {
@@ -823,6 +835,10 @@ async fn load_next_config_and_custom_routes_internal(
     import_map.insert_exact_alias("next", ImportMapping::External(None).into());
     import_map.insert_wildcard_alias("next/", ImportMapping::External(None).into());
     import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
+    import_map.insert_exact_alias(
+        "styled-jsx/style",
+        ImportMapping::External(Some("styled-jsx/style.js".to_string())).cell(),
+    );
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
     let context = node_evaluate_asset_context(
@@ -970,15 +986,19 @@ impl Issue for OutdatedConfigIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell(format!(
-            "\"{}\" has been replaced by \"{}\"",
-            self.old_name, self.new_name
-        ))
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Line(vec![
+            StyledString::Code(self.old_name.clone()),
+            StyledString::Text(" has been replaced by ".to_string()),
+            StyledString::Code(self.new_name.clone()),
+        ])
+        .cell()
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        StyledString::Text(self.description.to_string()).cell()
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(self.description.to_string()).cell(),
+        ))
     }
 }

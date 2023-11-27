@@ -691,7 +691,7 @@ export async function exportAppImpl(
           optimizeCss: nextConfig.experimental.optimizeCss,
           disableOptimizedLoading:
             nextConfig.experimental.disableOptimizedLoading,
-          parentSpanId: pageExportSpan.id,
+          parentSpanId: pageExportSpan.getId(),
           httpAgentOptions: nextConfig.httpAgentOptions,
           debugOutput: options.debugOutput,
           isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
