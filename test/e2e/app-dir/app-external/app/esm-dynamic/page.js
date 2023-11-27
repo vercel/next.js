@@ -11,7 +11,7 @@ const DynamicEsmComponent = dynamic(
 export default function Index() {
   return (
     <div>
-      <h2 id="dynamic-esm-version">
+      <h2 id="esm-dynamic">
         <DynamicEsmComponent />
       </h2>
     </div>
