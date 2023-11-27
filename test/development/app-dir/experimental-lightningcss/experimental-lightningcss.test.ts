@@ -1,7 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
-import { describeVariants as describe } from 'next-test-utils'
 
-describe.each(['turbo'])('experimental-lightningcss', () => {
+describe('experimental-lightningcss', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
