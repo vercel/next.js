@@ -32,7 +32,7 @@ export function getRedirectError(
 /**
  * When used in a streaming context, this will insert a meta tag to
  * redirect the user to the target page. When used in a custom app route, it
- * will serve a 307/302 to the caller.
+ * will serve a 307/303 to the caller.
  *
  * @param url the url to redirect to
  */
