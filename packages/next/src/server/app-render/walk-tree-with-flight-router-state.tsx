@@ -122,64 +122,56 @@ export async function walkTreeWithFlightRouterState({
       flightRouterState &&
       canSegmentBeOverridden(actualSegment, flightRouterState[0])
         ? flightRouterState[0]
-        : null
+        : actualSegment
 
-    return [
-      [
-        overriddenSegment ?? actualSegment,
-        createFlightRouterStateFromLoaderTree(
-          // Create router state using the slice of the loaderTree
-          loaderTreeToFilter,
-          getDynamicParamFromSegment,
-          query
-        ),
-        shouldSkipComponentTree
-          ? null
-          : // Create component tree using the slice of the loaderTree
+    const routerState = createFlightRouterStateFromLoaderTree(
+      // Create router state using the slice of the loaderTree
+      loaderTreeToFilter,
+      getDynamicParamFromSegment,
+      query
+    )
 
-            React.createElement(async () => {
-              const { Component } = await createComponentTree(
-                // This ensures flightRouterPath is valid and filters down the tree
-                {
-                  ctx,
-                  createSegmentPath,
-                  loaderTree: loaderTreeToFilter,
-                  parentParams: currentParams,
-                  firstItem: isFirst,
-                  injectedCSS,
-                  injectedJS,
-                  injectedFontPreloadTags,
-                  // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
-                  rootLayoutIncluded,
-                  asNotFound,
-                  metadataOutlet,
-                }
-              )
+    if (shouldSkipComponentTree) {
+      // Send only the router state
+      return [[overriddenSegment, routerState, null, null]]
+    } else {
+      // Create component tree using the slice of the loaderTree
+      const { seedData } = await createComponentTree(
+        // This ensures flightRouterPath is valid and filters down the tree
+        {
+          ctx,
+          createSegmentPath,
+          loaderTree: loaderTreeToFilter,
+          parentParams: currentParams,
+          firstItem: isFirst,
+          injectedCSS,
+          injectedJS,
+          injectedFontPreloadTags,
+          // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+          rootLayoutIncluded,
+          asNotFound,
+          metadataOutlet,
+        }
+      )
 
-              return <Component />
-            }),
-        shouldSkipComponentTree
-          ? null
-          : (() => {
-              const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
+      // Create head
+      const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
+      const layerAssets = getLayerAssets({
+        ctx,
+        layoutOrPagePath,
+        injectedCSS: new Set(injectedCSS),
+        injectedJS: new Set(injectedJS),
+        injectedFontPreloadTags: new Set(injectedFontPreloadTags),
+      })
+      const head = (
+        <>
+          {layerAssets}
+          {rscPayloadHead}
+        </>
+      )
 
-              const layerAssets = getLayerAssets({
-                ctx,
-                layoutOrPagePath,
-                injectedCSS: new Set(injectedCSS),
-                injectedJS: new Set(injectedJS),
-                injectedFontPreloadTags: new Set(injectedFontPreloadTags),
-              })
-
-              return (
-                <>
-                  {layerAssets}
-                  {rscPayloadHead}
-                </>
-              )
-            })(),
-      ],
-    ]
+      return [[overriddenSegment, routerState, seedData, head]]
+    }
   }
 
   // If we are not rendering on this level we need to check if the current

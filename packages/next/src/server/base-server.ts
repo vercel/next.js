@@ -23,7 +23,6 @@ import {
 } from '../shared/lib/utils'
 import type { PreviewData, ServerRuntime, SizeLimit } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { OutgoingHttpHeaders } from 'http'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type {
   ManifestRewriteRoute,
@@ -85,7 +84,6 @@ import {
   NEXT_RSC_UNION_QUERY,
   ACTION,
   NEXT_ROUTER_PREFETCH_HEADER,
-  RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -345,6 +343,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     sriEnabled?: boolean
     appPaths?: ReadonlyArray<string> | null
     shouldEnsure?: boolean
+    url?: string
   }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
@@ -786,7 +785,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const method = req.method.toUpperCase()
 
     const tracer = getTracer()
-    return tracer.withPropagatedContext(req, () => {
+    return tracer.withPropagatedContext(req.headers, () => {
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
@@ -911,7 +910,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         )
       }
 
-      req.headers['x-forwarded-host'] ??= `${this.hostname}:${this.port}`
+      req.headers['x-forwarded-host'] ??= req.headers['host'] ?? this.hostname
       req.headers['x-forwarded-port'] ??= this.port?.toString()
       const { originalRequest } = req as NodeNextRequest
       req.headers['x-forwarded-proto'] ??= (originalRequest.socket as TLSSocket)
@@ -2166,8 +2165,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // HTML (it's dynamic).
         isDynamicRSCRequest
 
-      let headers: OutgoingHttpHeaders | undefined
-
       const origQuery = parseUrl(req.url || '', true).query
 
       // clear any dynamic route params so they aren't in
@@ -2261,7 +2258,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               const blob = await response.blob()
 
               // Copy the headers from the response.
-              headers = toNodeOutgoingHttpHeaders(response.headers)
+              const headers = toNodeOutgoingHttpHeaders(response.headers)
 
               if (cacheTags) {
                 headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
@@ -2318,28 +2315,29 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             { page: pathname, params: opts.params, query, renderOpts }
           )
         } else if (isAppPageRouteModule(routeModule)) {
-          if (
-            !opts.experimental.ppr &&
-            isPrefetchRSCRequest &&
-            process.env.NODE_ENV === 'production' &&
-            !this.minimalMode
-          ) {
-            try {
-              const prefetchRsc = await this.getPrefetchRsc(resolvedUrlPathname)
-              if (prefetchRsc) {
-                res.setHeader(
-                  'cache-control',
-                  'private, no-cache, no-store, max-age=0, must-revalidate'
-                )
-                res.setHeader('content-type', RSC_CONTENT_TYPE_HEADER)
-                res.body(prefetchRsc).send()
-                return null
-              }
-            } catch {
-              // We fallback to invoking the function if prefetch data is not
-              // available.
-            }
-          }
+          // TODO: Re-enable once static prefetches re-land
+          // if (
+          //   !opts.experimental.ppr &&
+          //   isPrefetchRSCRequest &&
+          //   process.env.NODE_ENV === 'production' &&
+          //   !this.minimalMode
+          // ) {
+          //   try {
+          //     const prefetchRsc = await this.getPrefetchRsc(resolvedUrlPathname)
+          //     if (prefetchRsc) {
+          //       res.setHeader(
+          //         'cache-control',
+          //         'private, no-cache, no-store, max-age=0, must-revalidate'
+          //       )
+          //       res.setHeader('content-type', RSC_CONTENT_TYPE_HEADER)
+          //       res.body(prefetchRsc).send()
+          //       return null
+          //     }
+          //   } catch {
+          //     // We fallback to invoking the function if prefetch data is not
+          //     // available.
+          //   }
+          // }
 
           const module = components.routeModule as AppPageRouteModule
 
@@ -2371,10 +2369,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       const { metadata } = result
 
-      // Add any fetch tags that were on the page to the response headers.
-      const cacheTags = metadata.fetchTags
-
-      headers = { ...metadata.extraHeaders }
+      const {
+        headers = {},
+        // Add any fetch tags that were on the page to the response headers.
+        fetchTags: cacheTags,
+      } = metadata
 
       if (cacheTags) {
         headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
@@ -2776,18 +2775,24 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       if (cachedData.headers) {
-        const resHeaders = cachedData.headers
-        for (const key of Object.keys(resHeaders)) {
-          if (key === NEXT_CACHE_TAGS_HEADER) {
-            // Not sure if needs to be special.
-            continue
-          }
-          let v = resHeaders[key]
-          if (typeof v !== 'undefined') {
-            if (typeof v === 'number') {
-              v = v.toString()
+        const headers = { ...cachedData.headers }
+
+        if (!this.minimalMode || !isSSG) {
+          delete headers[NEXT_CACHE_TAGS_HEADER]
+        }
+
+        for (let [key, value] of Object.entries(headers)) {
+          if (typeof value === 'undefined') continue
+
+          if (Array.isArray(value)) {
+            for (const v of value) {
+              res.appendHeader(key, v)
             }
-            res.setHeader(key, v)
+          } else if (typeof value === 'number') {
+            value = value.toString()
+            res.appendHeader(key, value)
+          } else {
+            res.appendHeader(key, value)
           }
         }
       }
@@ -3002,7 +3007,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   protected abstract getMiddleware(): MiddlewareRoutingItem | undefined
-  protected abstract getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null>
+  protected abstract getFallbackErrorComponents(
+    url?: string
+  ): Promise<LoadComponentsReturnType | null>
   protected abstract getRoutesManifest(): NormalizedRouteManifest | undefined
 
   private async renderToResponseImpl(
@@ -3245,6 +3252,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             params: {},
             isAppPath: true,
             shouldEnsure: true,
+            url: ctx.req.url,
           })
           using404Page = result !== null
         }
@@ -3257,6 +3265,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             isAppPath: false,
             // Ensuring can't be done here because you never "match" a 404 route.
             shouldEnsure: true,
+            url: ctx.req.url,
           })
           using404Page = result !== null
         }
@@ -3279,6 +3288,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             // Ensuring can't be done here because you never "match" a 500
             // route.
             shouldEnsure: true,
+            url: ctx.req.url,
           })
         }
       }
@@ -3292,6 +3302,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // Ensuring can't be done here because you never "match" an error
           // route.
           shouldEnsure: true,
+          url: ctx.req.url,
         })
         statusPage = '/_error'
       }
@@ -3372,7 +3383,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         this.logError(renderToHtmlError)
       }
       res.statusCode = 500
-      const fallbackComponents = await this.getFallbackErrorComponents()
+      const fallbackComponents = await this.getFallbackErrorComponents(
+        ctx.req.url
+      )
 
       if (fallbackComponents) {
         // There was an error, so use it's definition from the route module

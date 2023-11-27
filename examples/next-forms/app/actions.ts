@@ -13,9 +13,15 @@ export async function createTodo(prevState: any, formData: FormData) {
   const schema = z.object({
     todo: z.string().min(1),
   })
-  const data = schema.parse({
+  const parse = schema.safeParse({
     todo: formData.get('todo'),
   })
+
+  if (!parse.success) {
+    return { message: 'Failed to create todo' }
+  }
+
+  const data = parse.data
 
   try {
     await sql`

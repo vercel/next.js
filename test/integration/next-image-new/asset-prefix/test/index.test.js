@@ -17,9 +17,18 @@ let app
 
 describe('Image Component assetPrefix Tests', () => {
   describe('dev mode', () => {
+    let stdout = ''
+    let stderr = ''
     beforeAll(async () => {
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, {
+        onStdout(msg) {
+          stdout += msg
+        },
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
     })
     afterAll(() => killApp(app))
 
@@ -33,12 +42,30 @@ describe('Image Component assetPrefix Tests', () => {
         /\/_next\/image\?url=https%3A%2F%2Fexample\.vercel\.sh%2Fpre%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=8&q=70/
       )
     })
+
+    it('should not log a deprecation warning about using `images.domains`', async () => {
+      await webdriver(appPort, '/')
+      const warningMessage =
+        'The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.'
+
+      expect(stderr).not.toContain(warningMessage)
+      expect(stdout).not.toContain(warningMessage)
+    })
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    let stdout = ''
+    let stderr = ''
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        onStdout(msg) {
+          stdout += msg
+        },
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
     })
     afterAll(() => killApp(app))
 
@@ -49,6 +76,15 @@ describe('Image Component assetPrefix Tests', () => {
         `document.getElementById('${id}').style['background-image']`
       )
       expect(bgImage).toMatch('data:image/jpeg;base64')
+    })
+
+    it('should not log a deprecation warning about using `images.domains`', async () => {
+      await webdriver(appPort, '/')
+      const warningMessage =
+        'The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.'
+
+      expect(stderr).not.toContain(warningMessage)
+      expect(stdout).not.toContain(warningMessage)
     })
   })
 })

@@ -27,7 +27,6 @@ import { createSelfSignedCertificate } from '../lib/mkcert'
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
-import { trace } from '../trace'
 import { fork } from 'child_process'
 import {
   getReservedPortExplanation,
@@ -273,6 +272,19 @@ const nextDev: CliCommand = async (args) => {
           return
         }
         if (code === RESTART_EXIT_CODE) {
+          // Starting the dev server will overwrite the `.next/trace` file, so we
+          // must upload the existing contents before restarting the server to
+          // preserve the metrics.
+          if (traceUploadUrl) {
+            uploadTrace({
+              traceUploadUrl,
+              mode: 'dev',
+              isTurboSession,
+              projectDir: dir,
+              distDir: config.distDir,
+              sync: true,
+            })
+          }
           return startServer(options)
         }
         await handleSessionStop(signal)
@@ -318,9 +330,7 @@ const nextDev: CliCommand = async (args) => {
     }
   }
 
-  await trace('start-dev-server').traceAsyncFn(async (_) => {
-    await runDevServer(false)
-  })
+  await runDevServer(false)
 }
 
 function cleanup() {
