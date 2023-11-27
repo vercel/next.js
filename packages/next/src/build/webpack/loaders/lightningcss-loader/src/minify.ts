@@ -1,5 +1,6 @@
 // @ts-ignore
 import { matchObject } from 'webpack/lib/ModuleFilenameHelpers'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { RawSource, SourceMapSource } from 'webpack-sources'
 import { transform as transformCss } from 'lightningcss'
 import {
@@ -50,7 +51,7 @@ export class LightningCssMinifyPlugin {
       compilation.hooks.processAssets.tapPromise(
         {
           name: PLUGIN_NAME,
-          stage: compilation.constructor.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
           additionalAssets: true,
         },
         async () => await this.transformAssets(compilation)
