@@ -3,6 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 describe('experimental-lightningcss', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    dependencies: ['lightningcss@^1'],
   })
 
   it('should support css modules', async () => {
