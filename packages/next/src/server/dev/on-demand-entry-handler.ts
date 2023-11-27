@@ -678,11 +678,13 @@ export function onDemandEntryHandler({
     appPaths,
     definition,
     isApp,
+    url,
   }: {
     page: string
     appPaths: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
     isApp: boolean | undefined
+    url?: string
   }): Promise<void> {
     const stalledTime = 60
     const stalledEnsureTimeout = setTimeout(() => {
@@ -834,7 +836,7 @@ export function onDemandEntryHandler({
 
       if (hasNewEntry) {
         const routePage = isApp ? route.page : normalizeAppPath(route.page)
-        reportTrigger(routePage)
+        reportTrigger(routePage, url)
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
@@ -877,6 +879,7 @@ export function onDemandEntryHandler({
     appPaths?: ReadonlyArray<string> | null
     definition?: RouteDefinition
     isApp?: boolean
+    url?: string
   }
 
   // Make sure that we won't have multiple invalidations ongoing concurrently.
@@ -900,6 +903,7 @@ export function onDemandEntryHandler({
       appPaths = null,
       definition,
       isApp,
+      url,
     }: EnsurePageOptions) {
       // If the route is actually an app page route, then we should have access
       // to the app route definition, and therefore, the appPaths from it.
@@ -916,6 +920,7 @@ export function onDemandEntryHandler({
           appPaths,
           definition,
           isApp,
+          url,
         })
       })
     },
