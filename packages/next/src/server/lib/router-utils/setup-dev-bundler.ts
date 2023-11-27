@@ -2089,15 +2089,21 @@ async function startWatcher(opts: SetupOpts) {
                   (item) => item === currentResolvedBaseUrl
                 )
 
-                if (
-                  resolvedBaseUrl &&
-                  resolvedBaseUrl !== currentResolvedBaseUrl
-                ) {
-                  // remove old baseUrl and add new one
-                  if (resolvedUrlIndex && resolvedUrlIndex > -1) {
-                    config.resolve?.modules?.splice(resolvedUrlIndex, 1)
+                if (resolvedBaseUrl) {
+                  if (
+                    resolvedBaseUrl.baseUrl !== currentResolvedBaseUrl.baseUrl
+                  ) {
+                    // remove old baseUrl and add new one
+                    if (resolvedUrlIndex && resolvedUrlIndex > -1) {
+                      config.resolve?.modules?.splice(resolvedUrlIndex, 1)
+                    }
+
+                    // If the resolvedBaseUrl is implicit we only remove the previous value.
+                    // Only add the baseUrl if it's explicitly set in tsconfig/jsconfig
+                    if (!resolvedBaseUrl.isImplicit) {
+                      config.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
+                    }
                   }
-                  config.resolve?.modules?.push(resolvedBaseUrl)
                 }
 
                 if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
