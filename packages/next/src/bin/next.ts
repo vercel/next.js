@@ -115,6 +115,18 @@ async function main() {
     }
   }
 
+  const nodeVersions = process.versions.node.split('.').map((v) => Number(v))
+  // Node.js version check, if it's less than v18 or v18.17, quit the process.
+  if (
+    nodeVersions[0] < 18 ||
+    (nodeVersions[0] === 18 && nodeVersions[1] < 17)
+  ) {
+    console.error(
+      `You are using Node.js ${process.versions.node}. Node.js >= v18.17 is required.`
+    )
+    process.exit(1)
+  }
+
   await commands[command]()
     .then((exec) => exec(validatedArgs))
     .then(() => {
