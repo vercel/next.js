@@ -115,14 +115,18 @@ async function main() {
     }
   }
 
+  const requiredNodeVersions = process.env
+    .__REQUIRED_NODE_VERSION!.split('.')
+    .map((v) => Number(v))
   const nodeVersions = process.versions.node.split('.').map((v) => Number(v))
   // Node.js version check, if it's less than v18 or v18.17, quit the process.
   if (
-    nodeVersions[0] < 18 ||
-    (nodeVersions[0] === 18 && nodeVersions[1] < 17)
+    nodeVersions[0] < requiredNodeVersions[0] ||
+    (nodeVersions[0] === requiredNodeVersions[0] &&
+      nodeVersions[1] < requiredNodeVersions[1])
   ) {
     console.error(
-      `You are using Node.js ${process.versions.node}. Node.js >= v18.17 is required.`
+      `You are using Node.js ${process.versions.node}. For Next.js, Node.js version >= v${process.env.__REQUIRED_NODE_VERSION} is required.`
     )
     process.exit(1)
   }
