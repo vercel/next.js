@@ -370,6 +370,13 @@ async fn process_default(
                                 transforms: transforms.extend(*additional_transforms),
                                 options,
                             }),
+                            Some(ModuleType::Mdx {
+                                transforms,
+                                options,
+                            }) => Some(ModuleType::Mdx {
+                                transforms: transforms.extend(*additional_transforms),
+                                options,
+                            }),
                             Some(module_type) => {
                                 ModuleIssue {
                                     ident,
