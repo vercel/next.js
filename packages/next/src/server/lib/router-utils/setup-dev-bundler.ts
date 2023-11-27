@@ -104,7 +104,7 @@ import {
   getOverlayMiddleware,
   createOriginalStackFrame as createOriginalTurboStackFrame,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
-import { mkdir, readFile, writeFile, rename, unlink } from 'fs/promises'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import {
   type ClientBuildManifest,
@@ -128,6 +128,7 @@ import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-p
 import type { LoadableManifest } from '../../load-components'
 import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
 import { bold, green, red } from '../../../lib/picocolors'
+import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -452,7 +453,11 @@ async function startWatcher(opts: SetupOpts) {
     const buildingIds = new Set()
     const readyIds = new Set()
 
-    function startBuilding(id: string, forceRebuild: boolean = false) {
+    function startBuilding(
+      id: string,
+      requestUrl: string | undefined,
+      forceRebuild: boolean = false
+    ) {
       if (!forceRebuild && readyIds.has(id)) {
         return () => {}
       }
@@ -461,6 +466,7 @@ async function startWatcher(opts: SetupOpts) {
           {
             loading: true,
             trigger: id,
+            url: requestUrl,
           } as OutputState,
           true
         )
@@ -812,24 +818,6 @@ async function startWatcher(opts: SetupOpts) {
       return manifest
     }
 
-    async function writeFileAtomic(
-      filePath: string,
-      content: string
-    ): Promise<void> {
-      const tempPath = filePath + '.tmp.' + Math.random().toString(36).slice(2)
-      try {
-        await writeFile(tempPath, content, 'utf-8')
-        await rename(tempPath, filePath)
-      } catch (e) {
-        try {
-          await unlink(tempPath)
-        } catch {
-          // ignore
-        }
-        throw e
-      }
-    }
-
     async function writeBuildManifest(
       rewrites: SetupOpts['fsChecker']['rewrites']
     ): Promise<void> {
@@ -1144,7 +1132,11 @@ async function startWatcher(opts: SetupOpts) {
               false,
               middleware.endpoint,
               async () => {
-                const finishBuilding = startBuilding('middleware', true)
+                const finishBuilding = startBuilding(
+                  'middleware',
+                  undefined,
+                  true
+                )
                 await processMiddleware()
                 await propagateServerField(
                   'actualMiddlewareFile',
@@ -1248,6 +1240,7 @@ async function startWatcher(opts: SetupOpts) {
                 page: denormalizedPagePath,
                 clientOnly: false,
                 definition: undefined,
+                url: req.url,
               })
               .catch(console.error)
           }
@@ -1355,11 +1348,12 @@ async function startWatcher(opts: SetupOpts) {
         // appPaths,
         definition,
         isApp,
+        url: requestUrl,
       }) {
         let page = definition?.pathname ?? inputPage
 
         if (page === '/_error') {
-          let finishBuilding = startBuilding(page)
+          let finishBuilding = startBuilding(page, requestUrl)
           try {
             if (globalEntries.app) {
               const writtenEndpoint = await processResult(
@@ -1458,7 +1452,7 @@ async function startWatcher(opts: SetupOpts) {
                 )
               }
 
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(buildingKey, requestUrl)
               try {
                 if (globalEntries.app) {
                   const writtenEndpoint = await processResult(
@@ -1546,7 +1540,7 @@ async function startWatcher(opts: SetupOpts) {
               // since this can happen when app pages make
               // api requests to page API routes.
 
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(buildingKey, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
@@ -1571,7 +1565,7 @@ async function startWatcher(opts: SetupOpts) {
               break
             }
             case 'app-page': {
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(buildingKey, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.htmlEndpoint.writeToDisk()
@@ -1622,7 +1616,7 @@ async function startWatcher(opts: SetupOpts) {
               break
             }
             case 'app-route': {
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(buildingKey, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
@@ -2479,12 +2473,13 @@ async function startWatcher(opts: SetupOpts) {
     requestHandler,
     logErrorWithOriginalStack,
 
-    async ensureMiddleware() {
+    async ensureMiddleware(requestUrl?: string) {
       if (!serverFields.actualMiddlewareFile) return
       return hotReloader.ensurePage({
         page: serverFields.actualMiddlewareFile,
         clientOnly: false,
         definition: undefined,
+        url: requestUrl,
       })
     },
   }
@@ -2504,7 +2499,7 @@ export async function setupDevBundler(opts: SetupOpts) {
       {
         webpackVersion: 5,
         isSrcDir,
-        turboFlag: false,
+        turboFlag: !!opts.turbo,
         cliCommand: 'dev',
         appDir: !!opts.appDir,
         pagesDir: !!opts.pagesDir,

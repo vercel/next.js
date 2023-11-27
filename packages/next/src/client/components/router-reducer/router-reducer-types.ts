@@ -52,14 +52,12 @@ export interface ServerActionMutable extends Mutable {
  */
 export interface RefreshAction {
   type: typeof ACTION_REFRESH
-  cache: CacheNode
   mutable: Mutable
   origin: Location['origin']
 }
 
 export interface FastRefreshAction {
   type: typeof ACTION_FAST_REFRESH
-  cache: CacheNode
   mutable: Mutable
   origin: Location['origin']
 }
@@ -77,7 +75,6 @@ export interface ServerActionAction {
   actionArgs: any[]
   resolve: (value: any) => void
   reject: (reason?: any) => void
-  cache: CacheNode
   mutable: ServerActionMutable
 }
 
@@ -118,7 +115,6 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   shouldScroll: boolean
-  cache: CacheNode
   mutable: Mutable
 }
 
@@ -145,7 +141,6 @@ export interface ServerPatchAction {
   flightData: FlightData
   previousTree: FlightRouterState
   overrideCanonicalUrl: URL | undefined
-  cache: CacheNode
   mutable: Mutable
 }
 
