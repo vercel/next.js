@@ -21,8 +21,13 @@ import WebResponseCache from './response-cache/web'
 import { isAPIRoute } from '../lib/is-api-route'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
+import {
+  interpolateDynamicPath,
+  normalizeVercelUrl,
+  normalizeDynamicRouteParams,
+} from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { IncrementalCache } from './lib/incremental-cache'
 
 interface WebServerOptions extends Options {
@@ -158,7 +163,25 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
       if (isDynamicRoute(pathname)) {
         const routeRegex = getNamedRouteRegex(pathname, false)
-        pathname = interpolateDynamicPath(pathname, query, routeRegex)
+        const dynamicRouteMatcher = getRouteMatcher(routeRegex)
+        const defaultRouteMatches = dynamicRouteMatcher(
+          pathname
+        ) as NextParsedUrlQuery
+        const paramsResult = normalizeDynamicRouteParams(
+          query,
+          false,
+          routeRegex,
+          defaultRouteMatches
+        )
+        const normalizedParams = paramsResult.hasValidParams
+          ? paramsResult.params
+          : query
+
+        pathname = interpolateDynamicPath(
+          pathname,
+          normalizedParams,
+          routeRegex
+        )
         normalizeVercelUrl(
           req,
           true,
