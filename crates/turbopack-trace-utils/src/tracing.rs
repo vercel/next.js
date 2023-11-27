@@ -17,9 +17,11 @@ pub enum TraceRow<'a> {
         /// Id of the parent span, if any.
         parent: Option<u64>,
         /// The name of the span.
-        name: &'a str,
+        #[serde(borrow)]
+        name: Cow<'a, str>,
         /// The target of the span.
-        target: &'a str,
+        #[serde(borrow)]
+        target: Cow<'a, str>,
         /// A list of key-value pairs for all attributes of the span.
         #[serde(borrow)]
         values: Vec<(Cow<'a, str>, TraceValue<'a>)>,
@@ -46,6 +48,8 @@ pub enum TraceRow<'a> {
         ts: u64,
         /// Unique id for this span. Must be entered by a `Enter` event before.
         id: u64,
+        /// The thread id of the thread that exits the span.
+        thread_id: u64,
     },
     /// A event has happened for some span.
     Event {
@@ -92,6 +96,16 @@ impl<'a> TraceValue<'a> {
         match self {
             TraceValue::String(s) => Some(s),
             _ => None,
+        }
+    }
+
+    pub fn into_static(self) -> TraceValue<'static> {
+        match self {
+            TraceValue::String(s) => TraceValue::String(s.into_owned().into()),
+            TraceValue::Bool(b) => TraceValue::Bool(b),
+            TraceValue::UInt(u) => TraceValue::UInt(u),
+            TraceValue::Int(i) => TraceValue::Int(i),
+            TraceValue::Float(fl) => TraceValue::Float(fl),
         }
     }
 }

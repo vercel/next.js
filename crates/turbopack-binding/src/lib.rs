@@ -96,6 +96,8 @@ pub mod turbopack {
     pub use turbopack_test_utils as test_utils;
     #[cfg(feature = "__turbopack_tests")]
     pub use turbopack_tests as tests;
+    #[cfg(feature = "__turbopack_trace_utils")]
+    pub use turbopack_trace_utils as trace_utils;
 }
 
 #[cfg(feature = "__features")]

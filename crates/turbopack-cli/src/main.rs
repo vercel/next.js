@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 use turbopack_cli::{arguments::Arguments, register};
-use turbopack_cli_utils::{
+use turbopack_trace_utils::{
     exit::ExitGuard,
     raw_trace::RawTraceLayer,
     trace_writer::TraceWriter,

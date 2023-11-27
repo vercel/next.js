@@ -53,8 +53,8 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
             } else {
                 attrs.parent().map(|p| p.into_u64())
             },
-            name: attrs.metadata().name(),
-            target: attrs.metadata().target(),
+            name: attrs.metadata().name().into(),
+            target: attrs.metadata().target().into(),
             values: values.values,
         });
     }
@@ -79,9 +79,11 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
 
     fn on_exit(&self, id: &span::Id, _ctx: tracing_subscriber::layer::Context<'_, S>) {
         let ts = self.start.elapsed().as_micros() as u64;
+        let thread_id = thread::current().id().as_u64().into();
         self.write(TraceRow::Exit {
             ts,
             id: id.into_u64(),
+            thread_id,
         });
     }
 
