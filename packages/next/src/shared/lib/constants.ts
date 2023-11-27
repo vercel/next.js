@@ -160,6 +160,7 @@ export const SYSTEM_ENTRYPOINTS = new Set<string>([
 export enum RedirectStatusCode {
   MovedPermanently = 301,
   Found = 302,
+  SeeOther = 303,
   TemporaryRedirect = 307,
   PermanentRedirect = 308,
 }

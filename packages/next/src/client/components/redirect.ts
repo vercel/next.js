@@ -44,11 +44,11 @@ export function redirect(
   throw getRedirectError(
     url,
     type,
-    // If we're in an action, we want to use a 302 redirect
+    // If we're in an action, we want to use a 303 redirect
     // as we don't want the POST request to follow the redirect,
     // as it could result in erroneous re-submissions.
     actionStore?.isAction
-      ? RedirectStatusCode.Found
+      ? RedirectStatusCode.SeeOther
       : RedirectStatusCode.TemporaryRedirect
   )
 }
@@ -56,7 +56,7 @@ export function redirect(
 /**
  * When used in a streaming context, this will insert a meta tag to
  * redirect the user to the target page. When used in a custom app route, it
- * will serve a 308/301 to the caller.
+ * will serve a 308/303 to the caller.
  *
  * @param url the url to redirect to
  */
@@ -68,11 +68,11 @@ export function permanentRedirect(
   throw getRedirectError(
     url,
     type,
-    // If we're in an action, we want to use a 301 redirect
+    // If we're in an action, we want to use a 303 redirect
     // as we don't want the POST request to follow the redirect,
     // as it could result in erroneous re-submissions.
     actionStore?.isAction
-      ? RedirectStatusCode.MovedPermanently
+      ? RedirectStatusCode.SeeOther
       : RedirectStatusCode.PermanentRedirect
   )
 }

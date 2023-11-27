@@ -888,7 +888,7 @@ createNextDescribe(
 
         // verify that the POST request was only made to the action handler
         expect(postRequests).toEqual(['/redirects/api-redirect'])
-        expect(responseCodes).toEqual([302])
+        expect(responseCodes).toEqual([303])
       })
 
       it('redirects properly when server action handler uses `permanentRedirect`', async () => {
@@ -920,7 +920,7 @@ createNextDescribe(
 
         // verify that the POST request was only made to the action handler
         expect(postRequests).toEqual(['/redirects/api-redirect-permanent'])
-        expect(responseCodes).toEqual([301])
+        expect(responseCodes).toEqual([303])
       })
     })
   }
