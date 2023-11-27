@@ -3,8 +3,8 @@ import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
   isRedirectError,
+  getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
-import { getRedirectStatusCodeFromError } from '../../client/components/get-redirect-status-code-from-error'
 import { renderToReadableStream } from 'react-dom/server.edge'
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 
