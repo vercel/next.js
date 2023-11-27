@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::indexmap;
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -47,10 +47,15 @@ pub async fn get_middleware_module(
         INNER.to_string() => userland_module
     };
 
-    let module = context.process(
-        source,
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    );
+    let Some(module) = *context
+        .process(
+            source,
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .await?
+    else {
+        bail!("Could not process middleware source")
+    };
 
     Ok(module)
 }

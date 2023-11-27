@@ -3,7 +3,7 @@ use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
     core::{
         file_source::FileSource,
-        module::Module,
+        module::OptionModule,
         reference_type::{EntryReferenceSubType, ReferenceType},
         source::Source,
     },
@@ -50,7 +50,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         source: Vc<Box<dyn Source>>,
         context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
-    ) -> Result<Vc<Box<dyn Module>>> {
+    ) -> Result<Vc<OptionModule>> {
         let context = self.process_context(context);
 
         let this = self.await?;
@@ -66,21 +66,33 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         } else {
             source
         };
-        let client_module = this.client_transition.process(
-            client_source,
-            context,
-            Value::new(ReferenceType::Entry(
-                EntryReferenceSubType::AppClientComponent,
-            )),
-        );
+        let Some(client_module) = *this
+            .client_transition
+            .process(
+                client_source,
+                context,
+                Value::new(ReferenceType::Entry(
+                    EntryReferenceSubType::AppClientComponent,
+                )),
+            )
+            .await?
+        else {
+            bail!("Could not process client module");
+        };
 
-        let ssr_module = this.ssr_transition.process(
-            source,
-            context,
-            Value::new(ReferenceType::Entry(
-                EntryReferenceSubType::AppClientComponent,
-            )),
-        );
+        let Some(ssr_module) = *this
+            .ssr_transition
+            .process(
+                source,
+                context,
+                Value::new(ReferenceType::Entry(
+                    EntryReferenceSubType::AppClientComponent,
+                )),
+            )
+            .await?
+        else {
+            bail!("Could not process SSR module");
+        };
 
         let Some(client_module) =
             Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
@@ -105,11 +117,13 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             context.layer,
         );
 
-        Ok(Vc::upcast(EcmascriptClientReferenceProxyModule::new(
-            source.ident(),
-            Vc::upcast(server_context),
-            client_module,
-            ssr_module,
-        )))
+        Ok(Vc::cell(Some(Vc::upcast(
+            EcmascriptClientReferenceProxyModule::new(
+                source.ident(),
+                Vc::upcast(server_context),
+                client_module,
+                ssr_module,
+            ),
+        ))))
     }
 }

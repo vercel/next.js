@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, path::MAIN_SEPARATOR};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::{map::Entry, IndexMap};
 use next_core::{
     all_assets_from_entries,
@@ -729,15 +729,23 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn middleware_endpoint(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Vc<MiddlewareEndpoint> {
+    async fn middleware_endpoint(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+    ) -> Result<Vc<MiddlewareEndpoint>> {
         let context = self.middleware_context();
 
-        let module = context.process(
-            source,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
-        );
+        let Some(module) = *context
+            .process(
+                source,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
+            )
+            .await?
+        else {
+            bail!("Could not process middleware module");
+        };
 
-        MiddlewareEndpoint::new(self, context, module)
+        Ok(MiddlewareEndpoint::new(self, context, module))
     }
 
     #[turbo_tasks::function]

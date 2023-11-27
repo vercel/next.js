@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -849,19 +849,32 @@ async fn load_next_config_and_custom_routes_internal(
     );
     let config_asset = config_file.map(FileSource::new);
 
-    let config_changed = config_asset.map_or_else(Completion::immutable, |config_asset| {
+    let config_changed = if let Some(config_asset) = config_asset {
         // This invalidates the execution when anything referenced by the config file
         // changes
-        let config_asset = context.process(
-            Vc::upcast(config_asset),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
-        );
-        any_content_changed_of_module(config_asset)
-    });
-    let load_next_config_asset = context.process(
-        next_asset("entry/config/next.js".to_string()),
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-    );
+        if let Some(config_asset) = *context
+            .process(
+                Vc::upcast(config_asset),
+                Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            )
+            .await?
+        {
+            any_content_changed_of_module(config_asset)
+        } else {
+            Completion::immutable()
+        }
+    } else {
+        Completion::immutable()
+    };
+    let Some(load_next_config_asset) = *context
+        .process(
+            next_asset("entry/config/next.js".to_string()),
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+        )
+        .await?
+    else {
+        bail!("Failed to process next.js config")
+    };
     let config_value = evaluate(
         load_next_config_asset,
         project_path,

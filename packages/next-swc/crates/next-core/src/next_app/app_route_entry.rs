@@ -67,19 +67,29 @@ pub async fn get_app_route_entry(
     )
     .await?;
 
-    let userland_module = context.process(
-        source,
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
-    );
+    let Some(userland_module) = *context
+        .process(
+            source,
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
+        )
+        .await?
+    else {
+        bail!("could not process app route source");
+    };
 
     let inner_assets = indexmap! {
         INNER.to_string() => userland_module
     };
 
-    let mut rsc_entry = context.process(
-        Vc::upcast(virtual_source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    );
+    let Some(mut rsc_entry) = *context
+        .process(
+            Vc::upcast(virtual_source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .await?
+    else {
+        bail!("could not process app route source");
+    };
 
     if is_edge {
         rsc_entry = wrap_edge_route(
@@ -129,10 +139,15 @@ async fn wrap_edge_route(
         INNER.to_string() => entry
     };
 
-    let wrapped = context.process(
-        Vc::upcast(source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    );
+    let Some(wrapped) = *context
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .await?
+    else {
+        bail!("could not process wrapped edge route")
+    };
 
     Ok(wrap_edge_entry(context, project_root, wrapped, pathname))
 }

@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use async_recursion::async_recursion;
 use indexmap::IndexMap;
 use indoc::formatdoc;
@@ -146,9 +146,13 @@ impl LoaderTreeBuilder {
                 EcmaScriptModulesReferenceSubType::Undefined,
             ));
 
-            let module =
-                self.server_component_transition
-                    .process(source, self.context, reference_ty);
+            let Some(module) = *self
+                .server_component_transition
+                .process(source, self.context, reference_ty)
+                .await?
+            else {
+                bail!("Could not process component module")
+            };
 
             self.inner_assets.insert(format!("COMPONENT_{i}"), module);
         }
@@ -268,15 +272,19 @@ impl LoaderTreeBuilder {
                     app_page.clone(),
                 );
 
-                self.inner_assets.insert(
-                    inner_module_id,
-                    self.context.process(
+                let Some(value) = *self
+                    .context
+                    .process(
                         source,
                         Value::new(ReferenceType::EcmaScriptModules(
                             EcmaScriptModulesReferenceSubType::Undefined,
                         )),
-                    ),
-                );
+                    )
+                    .await?
+                else {
+                    bail!("Could not process dynamic image metadata source")
+                };
+                self.inner_assets.insert(inner_module_id, value);
 
                 let s = "      ";
                 writeln!(self.loader_tree_code, "{s}{identifier},")?;
@@ -346,15 +354,19 @@ impl LoaderTreeBuilder {
             let inner_module_id = format!("METADATA_ALT_{i}");
             self.imports
                 .push(format!("import {identifier} from \"{inner_module_id}\";"));
-            self.inner_assets.insert(
-                inner_module_id,
-                self.context.process(
+            let Some(module) = *self
+                .context
+                .process(
                     Vc::upcast(TextContentFileSource::new(Vc::upcast(FileSource::new(
                         alt_path,
                     )))),
                     Value::new(ReferenceType::Internal(InnerAssets::empty())),
-                ),
-            );
+                )
+                .await?
+            else {
+                bail!("Could not process alt text source")
+            };
+            self.inner_assets.insert(inner_module_id, module);
 
             writeln!(self.loader_tree_code, "{s}  alt: {identifier},")?;
         }

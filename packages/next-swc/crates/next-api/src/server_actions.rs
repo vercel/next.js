@@ -108,10 +108,15 @@ async fn build_server_actions_loader(
     let file = File::from(contents.build());
     let source = VirtualSource::new(output_path, AssetContent::file(file.into()));
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
-    let module = asset_context.process(
-        Vc::upcast(source),
-        Value::new(ReferenceType::Internal(Vc::cell(import_map))),
-    );
+    let Some(module) = *asset_context
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::Internal(Vc::cell(import_map))),
+        )
+        .await?
+    else {
+        bail!("could not process actions loader module");
+    };
 
     let Some(placeable) =
         Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
@@ -249,7 +254,13 @@ async fn to_rsc_context(
     } else {
         ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
     };
-    Ok(asset_context.process(Vc::upcast(source), Value::new(ty)))
+    let Some(module) = *asset_context
+        .process(Vc::upcast(source), Value::new(ty))
+        .await?
+    else {
+        bail!("could not process module");
+    };
+    Ok(module)
 }
 
 /// Our graph traversal visitor, which finds the primary modules directly
