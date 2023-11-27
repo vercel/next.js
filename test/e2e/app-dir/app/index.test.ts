@@ -135,7 +135,7 @@ createNextDescribe(
     })
 
     it('should return normalized dynamic route params for catch-all edge page', async () => {
-      const html = await next.render('/catch-all-edge/hello123')
+      const html = await next.render('/catch-all-edge/a/b/c')
       const $ = cheerio.load(html)
 
       expect(JSON.parse($('#params').text())).toEqual({
