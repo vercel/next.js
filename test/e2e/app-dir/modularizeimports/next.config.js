@@ -12,7 +12,7 @@ const nextConfig = {
     },
   },
   experimental: {
-    // mdxRs: true,
+    mdxRs: true,
   },
 }
 
