@@ -2,10 +2,6 @@
   "private": true,
   "main": "main/index.js",
   "productName": "ElectronTypescriptNext",
-  "name": "electron-typescript-next",
-  "description": "This is a demo electron app using Next.js",
-  "version": "0.0.1",
-  "author": "NextJS",
   "scripts": {
     "clean": "rimraf dist main renderer/out renderer/.next",
     "dev": "npm run build-electron && electron .",
