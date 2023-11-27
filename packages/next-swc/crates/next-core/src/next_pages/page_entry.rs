@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::indexmap;
 use serde::Serialize;
 use turbo_tasks::Vc;
@@ -43,12 +43,10 @@ pub async fn create_page_ssr_entry_module(
     let definition_page = &*next_original_name.await?;
     let definition_pathname = &*pathname.await?;
 
-    let Some(ssr_module) = *ssr_module_context
+    let ssr_module = ssr_module_context
         .process(source, reference_type.clone())
         .await?
-    else {
-        bail!("could not process SSR module");
-    };
+        .context("could not process SSR module")?;
 
     let reference_type = reference_type.into_value();
 
@@ -121,7 +119,7 @@ pub async fn create_page_ssr_entry_module(
         ));
     }
 
-    let Some(mut ssr_module) = *ssr_module_context
+    let mut ssr_module = ssr_module_context
         .process(
             source,
             Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
@@ -129,9 +127,7 @@ pub async fn create_page_ssr_entry_module(
             }))),
         )
         .await?
-    else {
-        bail!("could not process SSR module");
-    };
+        .context("could not process SSR module")?;
 
     if matches!(runtime, NextRuntime::Edge) {
         if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
@@ -219,15 +215,13 @@ async fn wrap_edge_page(
         INNER.to_string() => entry
     };
 
-    let Some(wrapped) = *context
+    let wrapped = context
         .process(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
         .await?
-    else {
-        bail!("could not process wrapped edge page");
-    };
+        .context("could not process wrapped edge page")?;
 
     Ok(wrap_edge_entry(
         context,

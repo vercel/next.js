@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
@@ -77,7 +77,7 @@ pub async fn bootstrap(
     config.insert("PAGE".to_string(), path.to_string());
     config.insert("PATHNAME".to_string(), pathname);
 
-    let Some(config_asset) = *context
+    let config_asset = context
         .process(
             Vc::upcast(VirtualSource::new(
                 asset.ident().path().join("bootstrap-config.ts".to_string()),
@@ -95,27 +95,23 @@ pub async fn bootstrap(
             Value::new(ReferenceType::Internal(InnerAssets::empty())),
         )
         .await?
-    else {
-        bail!("could not process bootstrap config");
-    };
+        .context("could not process bootstrap config")?;
 
     let mut inner_assets = inner_assets.await?.clone_value();
     inner_assets.insert("ENTRY".to_string(), asset);
     inner_assets.insert("BOOTSTRAP_CONFIG".to_string(), config_asset);
 
-    let Some(asset) = *context
+    let asset = context
         .process(
             bootstrap_asset,
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
         .await?
-    else {
-        bail!("could not process internal module");
-    };
+        .context("could not process internal module")?;
 
-    let Some(asset) = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(asset).await? else {
-        bail!("internal module must be evaluatable");
-    };
+    let asset = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(asset)
+        .await?
+        .context("internal module must be evaluatable")?;
 
     Ok(asset)
 }

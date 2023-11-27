@@ -446,7 +446,7 @@ async fn get_mock_stylesheet(
     let context =
         node_evaluate_asset_context(execution_context, None, None, "next_font".to_string());
     let loader_path = mock_fs.root().join("loader.js".to_string());
-    let Some(mocked_response_asset) = *context
+    let mocked_response_asset = context
         .process(
             Vc::upcast(VirtualSource::new(
                 loader_path,
@@ -465,9 +465,7 @@ async fn get_mock_stylesheet(
             Value::new(ReferenceType::Internal(InnerAssets::empty())),
         )
         .await?
-    else {
-        bail!("Failed to process mock stylesheet");
-    };
+        .context("Failed to process mock stylesheet")?;
 
     let root = mock_fs.root();
     let val = evaluate(

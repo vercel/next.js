@@ -85,9 +85,9 @@ impl MiddlewareEndpoint {
             bail!("Entry module must be evaluatable");
         };
 
-        let Some(evaluatable) = Vc::try_resolve_sidecast(module).await? else {
-            bail!("Entry module must be evaluatable");
-        };
+        let evaluatable = Vc::try_resolve_sidecast(module)
+            .await?
+            .context("Entry module must be evaluatable")?;
         evaluatable_assets.push(evaluatable);
 
         let edge_chunking_context = self.project.edge_chunking_context();

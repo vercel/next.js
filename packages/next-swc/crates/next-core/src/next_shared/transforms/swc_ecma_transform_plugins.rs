@@ -83,9 +83,10 @@ pub async fn get_swc_ecma_transform_plugin_impl(
             None,
         )
         .await?;
-        let Some(plugin_module) = *plugin_wasm_module_resolve_result.first_module().await? else {
-            bail!("Expected to find module");
-        };
+        let plugin_module = *plugin_wasm_module_resolve_result
+            .first_module()
+            .await?
+            .context("Expected to find module")?;
 
         let content = &*plugin_module.content().file_content().await?;
 

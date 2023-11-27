@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::indexmap;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_binding::{
@@ -67,29 +67,25 @@ pub async fn get_app_route_entry(
     )
     .await?;
 
-    let Some(userland_module) = *context
+    let userland_module = context
         .process(
             source,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
         )
         .await?
-    else {
-        bail!("could not process app route source");
-    };
+        .context("could not process app route source")?;
 
     let inner_assets = indexmap! {
         INNER.to_string() => userland_module
     };
 
-    let Some(mut rsc_entry) = *context
+    let mut rsc_entry = context
         .process(
             Vc::upcast(virtual_source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
         .await?
-    else {
-        bail!("could not process app route source");
-    };
+        .context("could not process app route source")?;
 
     if is_edge {
         rsc_entry = wrap_edge_route(

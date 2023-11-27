@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::indexmap;
 use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::FileSystemPathOption;
@@ -53,17 +53,15 @@ pub async fn create_page_loader_entry_module(
         AssetContent::file(file.into()),
     ));
 
-    let Some(module) = *client_context
+    let module = client_context
         .process(
             entry_asset,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
         )
         .await?
-    else {
-        bail!("could not process page loader entry module");
-    };
+        .context("could not process page loader entry module")?;
 
-    let Some(module) = *client_context
+    let module = client_context
         .process(
             virtual_source,
             Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
@@ -71,9 +69,7 @@ pub async fn create_page_loader_entry_module(
             }))),
         )
         .await?
-    else {
-        bail!("could not process page loader entry module");
-    };
+        .context("could not process page loader entry module")?;
     Ok(module)
 }
 

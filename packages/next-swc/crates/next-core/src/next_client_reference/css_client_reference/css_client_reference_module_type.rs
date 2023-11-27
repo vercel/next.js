@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
     core::{
@@ -39,7 +39,7 @@ impl CustomModuleType for CssClientReferenceModuleType {
         context: Vc<ModuleAssetContext>,
         _part: Option<Vc<ModulePart>>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let Some(client_module) = *self
+        let client_module = self
             .client_transition
             .process(
                 source,
@@ -47,9 +47,7 @@ impl CustomModuleType for CssClientReferenceModuleType {
                 Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
             )
             .await?
-        else {
-            bail!("Could not process CSS source");
-        };
+            .context("Could not process CSS source")?;
 
         let Some(client_module) =
             Vc::try_resolve_sidecast::<Box<dyn CssChunkPlaceable>>(client_module).await?

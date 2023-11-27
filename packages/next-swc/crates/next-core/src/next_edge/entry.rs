@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Context, Result};
 use indexmap::indexmap;
 use indoc::formatdoc;
 use turbo_tasks::{Value, Vc};
@@ -39,14 +39,12 @@ pub async fn wrap_edge_entry(
         "MODULE".to_string() => entry
     };
 
-    let Some(module) = *context
+    let module = context
         .process(
             Vc::upcast(virtual_source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
         .await?
-    else {
-        bail!("could not process wrapped edge entry");
-    };
+        .context("could not process wrapped edge entry")?;
     Ok(module)
 }

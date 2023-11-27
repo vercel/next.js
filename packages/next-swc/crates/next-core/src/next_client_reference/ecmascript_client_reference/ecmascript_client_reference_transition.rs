@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
     core::{
@@ -66,7 +66,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         } else {
             source
         };
-        let Some(client_module) = *this
+        let client_module = this
             .client_transition
             .process(
                 client_source,
@@ -76,11 +76,9 @@ impl Transition for NextEcmascriptClientReferenceTransition {
                 )),
             )
             .await?
-        else {
-            bail!("Could not process client module");
-        };
+            .context("Could not process client module")?;
 
-        let Some(ssr_module) = *this
+        let ssr_module = this
             .ssr_transition
             .process(
                 source,
@@ -90,9 +88,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
                 )),
             )
             .await?
-        else {
-            bail!("Could not process SSR module");
-        };
+            .context("Could not process SSR module")?;
 
         let Some(client_module) =
             Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?

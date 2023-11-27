@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::indexmap;
 use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_binding::{
@@ -106,15 +106,13 @@ pub async fn get_app_page_entry(
     let file = File::from(result.build());
     let source = VirtualSource::new(source.ident().path(), AssetContent::file(file.into()));
 
-    let Some(mut rsc_entry) = *context
+    let mut rsc_entry = context
         .process(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
         .await?
-    else {
-        bail!("could not process internal module");
-    };
+        .context("could not process internal module")?;
 
     if is_edge {
         rsc_entry = wrap_edge_page(
@@ -195,15 +193,13 @@ async fn wrap_edge_page(
         INNER.to_string() => entry
     };
 
-    let Some(wrapped) = *context
+    let wrapped = context
         .process(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
         .await?
-    else {
-        bail!("could not process internal module");
-    };
+        .context("could not process internal module")?;
 
     Ok(wrap_edge_entry(
         context,
