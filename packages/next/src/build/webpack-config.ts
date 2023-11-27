@@ -1410,7 +1410,7 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
-                    exclude: codeCondition.exclude,
+                    // exclude: codeCondition.exclude,
                     issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
                     use: swcLoaderForClientLayer,
                     resolve: {
