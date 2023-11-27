@@ -122,68 +122,56 @@ export async function walkTreeWithFlightRouterState({
       flightRouterState &&
       canSegmentBeOverridden(actualSegment, flightRouterState[0])
         ? flightRouterState[0]
-        : null
+        : actualSegment
 
-    return [
-      [
-        overriddenSegment ?? actualSegment,
-        createFlightRouterStateFromLoaderTree(
-          // Create router state using the slice of the loaderTree
-          loaderTreeToFilter,
-          getDynamicParamFromSegment,
-          query
-        ),
-        shouldSkipComponentTree
-          ? null
-          : // Create component tree using the slice of the loaderTree
-            // TODO: Not sure why this ts error started happening, after a
-            // seemingly innocuous change. But I'm also not sure why this extra
-            // wrapper element exists. We should just remove it.
-            // @ts-expect-error: Type is referenced directly or indirectly in the fulfillment callback of its own 'then' method.
-            React.createElement(async () => {
-              const { seedData } = await createComponentTree(
-                // This ensures flightRouterPath is valid and filters down the tree
-                {
-                  ctx,
-                  createSegmentPath,
-                  loaderTree: loaderTreeToFilter,
-                  parentParams: currentParams,
-                  firstItem: isFirst,
-                  injectedCSS,
-                  injectedJS,
-                  injectedFontPreloadTags,
-                  // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
-                  rootLayoutIncluded,
-                  asNotFound,
-                  metadataOutlet,
-                }
-              )
-              const componentNode = seedData[2]
-              return componentNode
-            }),
-        shouldSkipComponentTree
-          ? null
-          : (() => {
-              const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
+    const routerState = createFlightRouterStateFromLoaderTree(
+      // Create router state using the slice of the loaderTree
+      loaderTreeToFilter,
+      getDynamicParamFromSegment,
+      query
+    )
 
-              const layerAssets = getLayerAssets({
-                ctx,
-                layoutOrPagePath,
-                injectedCSS: new Set(injectedCSS),
-                injectedJS: new Set(injectedJS),
-                injectedFontPreloadTags: new Set(injectedFontPreloadTags),
-              })
+    if (shouldSkipComponentTree) {
+      // Send only the router state
+      return [[overriddenSegment, routerState, null, null]]
+    } else {
+      // Create component tree using the slice of the loaderTree
+      const { seedData } = await createComponentTree(
+        // This ensures flightRouterPath is valid and filters down the tree
+        {
+          ctx,
+          createSegmentPath,
+          loaderTree: loaderTreeToFilter,
+          parentParams: currentParams,
+          firstItem: isFirst,
+          injectedCSS,
+          injectedJS,
+          injectedFontPreloadTags,
+          // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+          rootLayoutIncluded,
+          asNotFound,
+          metadataOutlet,
+        }
+      )
 
-              return (
-                <>
-                  {layerAssets}
-                  {rscPayloadHead}
-                </>
-              )
-            })(),
-        null,
-      ],
-    ]
+      // Create head
+      const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
+      const layerAssets = getLayerAssets({
+        ctx,
+        layoutOrPagePath,
+        injectedCSS: new Set(injectedCSS),
+        injectedJS: new Set(injectedJS),
+        injectedFontPreloadTags: new Set(injectedFontPreloadTags),
+      })
+      const head = (
+        <>
+          {layerAssets}
+          {rscPayloadHead}
+        </>
+      )
+
+      return [[overriddenSegment, routerState, seedData, head]]
+    }
   }
 
   // If we are not rendering on this level we need to check if the current

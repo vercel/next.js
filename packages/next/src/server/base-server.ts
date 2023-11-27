@@ -82,9 +82,7 @@ import {
   RSC_HEADER,
   RSC_VARY_HEADER,
   NEXT_RSC_UNION_QUERY,
-  ACTION,
   NEXT_ROUTER_PREFETCH_HEADER,
-  RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -130,6 +128,7 @@ import {
 } from './future/route-modules/checks'
 import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
+import { getIsServerAction } from './lib/server-action-request-meta'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -344,6 +343,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     sriEnabled?: boolean
     appPaths?: ReadonlyArray<string> | null
     shouldEnsure?: boolean
+    url?: string
   }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
@@ -785,7 +785,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const method = req.method.toUpperCase()
 
     const tracer = getTracer()
-    return tracer.withPropagatedContext(req, () => {
+    return tracer.withPropagatedContext(req.headers, () => {
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
@@ -1749,15 +1749,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isAppPath = components.isAppPath === true
     const hasServerProps = !!components.getServerSideProps
     let hasStaticPaths = !!components.getStaticPaths
-    const actionId = req.headers[ACTION.toLowerCase()] as string
-    const contentType = req.headers['content-type']
-    const isMultipartAction =
-      req.method === 'POST' && contentType?.startsWith('multipart/form-data')
-    const isFetchAction =
-      actionId !== undefined &&
-      typeof actionId === 'string' &&
-      req.method === 'POST'
-    const isServerAction = isFetchAction || isMultipartAction
+    const isServerAction = getIsServerAction(req)
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
 
@@ -2315,28 +2307,29 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             { page: pathname, params: opts.params, query, renderOpts }
           )
         } else if (isAppPageRouteModule(routeModule)) {
-          if (
-            !opts.experimental.ppr &&
-            isPrefetchRSCRequest &&
-            process.env.NODE_ENV === 'production' &&
-            !this.minimalMode
-          ) {
-            try {
-              const prefetchRsc = await this.getPrefetchRsc(resolvedUrlPathname)
-              if (prefetchRsc) {
-                res.setHeader(
-                  'cache-control',
-                  'private, no-cache, no-store, max-age=0, must-revalidate'
-                )
-                res.setHeader('content-type', RSC_CONTENT_TYPE_HEADER)
-                res.body(prefetchRsc).send()
-                return null
-              }
-            } catch {
-              // We fallback to invoking the function if prefetch data is not
-              // available.
-            }
-          }
+          // TODO: Re-enable once static prefetches re-land
+          // if (
+          //   !opts.experimental.ppr &&
+          //   isPrefetchRSCRequest &&
+          //   process.env.NODE_ENV === 'production' &&
+          //   !this.minimalMode
+          // ) {
+          //   try {
+          //     const prefetchRsc = await this.getPrefetchRsc(resolvedUrlPathname)
+          //     if (prefetchRsc) {
+          //       res.setHeader(
+          //         'cache-control',
+          //         'private, no-cache, no-store, max-age=0, must-revalidate'
+          //       )
+          //       res.setHeader('content-type', RSC_CONTENT_TYPE_HEADER)
+          //       res.body(prefetchRsc).send()
+          //       return null
+          //     }
+          //   } catch {
+          //     // We fallback to invoking the function if prefetch data is not
+          //     // available.
+          //   }
+          // }
 
           const module = components.routeModule as AppPageRouteModule
 
@@ -3006,7 +2999,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   protected abstract getMiddleware(): MiddlewareRoutingItem | undefined
-  protected abstract getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null>
+  protected abstract getFallbackErrorComponents(
+    url?: string
+  ): Promise<LoadComponentsReturnType | null>
   protected abstract getRoutesManifest(): NormalizedRouteManifest | undefined
 
   private async renderToResponseImpl(
@@ -3249,6 +3244,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             params: {},
             isAppPath: true,
             shouldEnsure: true,
+            url: ctx.req.url,
           })
           using404Page = result !== null
         }
@@ -3261,6 +3257,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             isAppPath: false,
             // Ensuring can't be done here because you never "match" a 404 route.
             shouldEnsure: true,
+            url: ctx.req.url,
           })
           using404Page = result !== null
         }
@@ -3283,6 +3280,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             // Ensuring can't be done here because you never "match" a 500
             // route.
             shouldEnsure: true,
+            url: ctx.req.url,
           })
         }
       }
@@ -3296,6 +3294,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // Ensuring can't be done here because you never "match" an error
           // route.
           shouldEnsure: true,
+          url: ctx.req.url,
         })
         statusPage = '/_error'
       }
@@ -3376,7 +3375,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         this.logError(renderToHtmlError)
       }
       res.statusCode = 500
-      const fallbackComponents = await this.getFallbackErrorComponents()
+      const fallbackComponents = await this.getFallbackErrorComponents(
+        ctx.req.url
+      )
 
       if (fallbackComponents) {
         // There was an error, so use it's definition from the route module
