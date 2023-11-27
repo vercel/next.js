@@ -3,6 +3,7 @@ performance.mark('next-start')
 import '../server/require-hook'
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
+import semver from 'next/dist/compiled/semver'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { commands } from '../lib/commands'
 import { commandArgs } from '../lib/command-args'
@@ -115,15 +116,8 @@ async function main() {
     }
   }
 
-  const requiredNodeVersions = process.env
-    .__NEXT_REQUIRED_NODE_VERSION!.split('.')
-    .map((v) => Number(v))
-  const nodeVersions = process.versions.node.split('.').map((v) => Number(v))
-  // Node.js version check, if it's less than v18 or v18.17, quit the process.
   if (
-    nodeVersions[0] < requiredNodeVersions[0] ||
-    (nodeVersions[0] === requiredNodeVersions[0] &&
-      nodeVersions[1] < requiredNodeVersions[1])
+    semver.lt(process.versions.node, process.env.__NEXT_REQUIRED_NODE_VERSION!)
   ) {
     console.error(
       `You are using Node.js ${process.versions.node}. For Next.js, Node.js version >= v${process.env.__NEXT_REQUIRED_NODE_VERSION} is required.`
