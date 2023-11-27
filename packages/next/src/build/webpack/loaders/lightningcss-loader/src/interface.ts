@@ -7,7 +7,13 @@ type Implementation = {
 // minify plugin
 type AllowTransformOpts = Omit<
   TransformOptions<{}>,
-  'filename' | 'code' | 'minify' | 'cssModules' | 'targets'
+  | 'filename'
+  | 'code'
+  | 'minify'
+  | 'cssModules'
+  | 'targets'
+  | 'include'
+  | 'exclude'
   /**
    * allow
    *
@@ -22,6 +28,8 @@ type AllowTransformOpts = Omit<
 >
 
 export interface IMinifyPluginOpts extends AllowTransformOpts {
+  include?: string | RegExp | (string | RegExp)[]
+  exclude?: string | RegExp | (string | RegExp)[]
   targets?: string | string[]
   test?: RegExp
   implementation?: Implementation
