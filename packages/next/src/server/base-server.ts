@@ -343,6 +343,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     sriEnabled?: boolean
     appPaths?: ReadonlyArray<string> | null
     shouldEnsure?: boolean
+    url?: string
   }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
@@ -3006,7 +3007,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   protected abstract getMiddleware(): MiddlewareRoutingItem | undefined
-  protected abstract getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null>
+  protected abstract getFallbackErrorComponents(
+    url?: string
+  ): Promise<LoadComponentsReturnType | null>
   protected abstract getRoutesManifest(): NormalizedRouteManifest | undefined
 
   private async renderToResponseImpl(
@@ -3249,6 +3252,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             params: {},
             isAppPath: true,
             shouldEnsure: true,
+            url: ctx.req.url,
           })
           using404Page = result !== null
         }
@@ -3261,6 +3265,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             isAppPath: false,
             // Ensuring can't be done here because you never "match" a 404 route.
             shouldEnsure: true,
+            url: ctx.req.url,
           })
           using404Page = result !== null
         }
@@ -3283,6 +3288,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             // Ensuring can't be done here because you never "match" a 500
             // route.
             shouldEnsure: true,
+            url: ctx.req.url,
           })
         }
       }
@@ -3296,6 +3302,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // Ensuring can't be done here because you never "match" an error
           // route.
           shouldEnsure: true,
+          url: ctx.req.url,
         })
         statusPage = '/_error'
       }
@@ -3376,7 +3383,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         this.logError(renderToHtmlError)
       }
       res.statusCode = 500
-      const fallbackComponents = await this.getFallbackErrorComponents()
+      const fallbackComponents = await this.getFallbackErrorComponents(
+        ctx.req.url
+      )
 
       if (fallbackComponents) {
         // There was an error, so use it's definition from the route module
