@@ -49,10 +49,6 @@ on:
         required: false
         description: 'if swc artifact needs uploading'
         type: string
-      uploadTestTrace:
-        required: false
-        description: 'if test trace needs uploading'
-        type: string
       rustCacheKey:
         required: false
         description: 'rustCacheKey to cache shared target assets'
@@ -73,7 +69,7 @@ env:
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  DATADOG_TRACE_NEXTJS_TEST: 'true'
+  NEXT_JUNIT_TEST_REPORT: 'true'
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
@@ -187,6 +183,7 @@ jobs:
         with:
           name: turbo run summary
           path: .turbo/runs
+          if-no-files-found: ignore
 
       - name: Upload bundle analyzer artifacts
         uses: actions/upload-artifact@v3
@@ -195,33 +192,12 @@ jobs:
           name: webpack bundle analysis stats
           path: packages/next/dist/compiled/next-server/report.*.html
 
-      - name: Upload test reports artifact
+      - name: Upload test report artifacts
         uses: actions/upload-artifact@v3
-        if: ${{ inputs.afterBuild }}
+        if: ${{ inputs.afterBuild && always() }}
         with:
-          name: Test trace reports
+          name: test-reports
           path: |
             test/test-junit-report
             test/turbopack-test-junit-report
           if-no-files-found: ignore
-
-      - name: Download test reports artifact
-        id: download-test-reports
-        uses: actions/download-artifact@v3
-        continue-on-error: true
-        if: ${{ inputs.uploadTestTrace == 'yes' && (inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope') }}
-        with:
-          name: Test trace reports
-          path: test
-
-      - name: Upload test trace to datadog
-        if: ${{ inputs.uploadTestTrace == 'yes' && (inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope') }}
-        continue-on-error: true
-        run: |
-          ls -al ./test
-          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0 @aws-sdk/property-provider@3
-          jrm ./nextjs-test-result-junit.xml "test/test-junit-report/**/*.xml"
-          jrm ./turbopack-test-result-junit.xml "test/turbopack-test-junit-report/**/*.xml"
-          # Put a separate tag for the tests with turbopack to distinguish between same test names
-          DD_ENV=ci datadog-ci junit upload --tags test.type:nextjs --service nextjs ./nextjs-test-result-junit.xml
-          DD_ENV=ci datadog-ci junit upload --tags test.type:turbopack --service nextjs ./turbopack-test-result-junit.xml

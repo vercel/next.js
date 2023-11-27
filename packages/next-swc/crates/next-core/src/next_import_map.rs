@@ -511,14 +511,16 @@ async fn insert_next_server_special_aliases(
         NextRuntime::Edge => request_to_import_mapping(context_dir, request),
         NextRuntime::NodeJs => external_request_to_import_mapping(request),
     };
+
+    import_map.insert_exact_alias(
+        "@opentelemetry/api",
+        // TODO(WEB-625) this actually need to prefer the local version of
+        // @opentelemetry/api
+        external_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
+    );
+
     match ty {
         ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
-            import_map.insert_exact_alias(
-                "@opentelemetry/api",
-                // TODO(WEB-625) this actually need to prefer the local version of
-                // @opentelemetry/api
-                external_if_node(pages_dir, "next/dist/compiled/@opentelemetry/api/index.js"),
-            );
             insert_alias_to_alternatives(
                 import_map,
                 format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
@@ -549,15 +551,6 @@ async fn insert_next_server_special_aliases(
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir, .. }
         | ServerContextType::AppRoute { app_dir } => {
-            import_map.insert_exact_alias(
-                "@opentelemetry/api",
-                // TODO(WEB-625) this actually need to prefer the local version of
-                // @opentelemetry/api
-                request_to_import_mapping(
-                    app_dir,
-                    "next/dist/compiled/@opentelemetry/api/index.js",
-                ),
-            );
             import_map.insert_exact_alias(
                 "styled-jsx",
                 request_to_import_mapping(get_next_package(app_dir), "styled-jsx"),

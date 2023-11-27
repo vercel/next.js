@@ -1,6 +1,6 @@
 {
   "name": "@next/third-parties",
-  "version": "14.0.4-canary.10",
+  "version": "14.0.4-canary.18",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/third-parties"
@@ -23,7 +23,7 @@
     "third-party-capital": "1.0.20"
   },
   "devDependencies": {
-    "next": "14.0.4-canary.10",
+    "next": "14.0.4-canary.18",
     "outdent": "0.8.0",
     "prettier": "2.5.1"
   },

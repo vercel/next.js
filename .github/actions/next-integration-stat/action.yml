@@ -3,20 +3,18 @@ author: Turbopack team
 description: 'Display next.js integration test failure status'
 
 inputs:
-  # Github token to use to create test report comment. If not specified, the default token will be used with username 'github-actions'
   token:
     default: ${{ github.token }}
+    description: 'GitHub token used to create the test report comment. If not specified, the default GitHub actions token will be used'
 
-  # The base of the test results to compare against. If not specified, will try to compare with latest main branch's test results.
   diff_base:
     default: 'main'
+    description: "The base of the test results to compare against. If not specified, will try to compare with latest main branch's test results."
 
-  # Include full test failure message in the report.
-  # This is currently disabled as we have too many failed test cases, causes
-  # too many report comment generated.
   expand_full_result_message:
     default: 'false'
+    description: 'Whether to include the full test failure message in the report. This is currently disabled as we have too many failed test cases, which would lead to massive comments.'
 
 runs:
-  using: node16
+  using: node20
   main: index.js

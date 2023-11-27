@@ -1318,7 +1318,9 @@ export default async function build(
           pagesDir: true,
           appDir: true,
           fetchCache: true,
-          flushToDisk: config.experimental.isrFlushToDisk,
+          flushToDisk: ciEnvironment.hasNextSupport
+            ? false
+            : config.experimental.isrFlushToDisk,
           serverDistDir: path.join(distDir, 'server'),
           fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
           maxMemoryCacheSize: config.experimental.isrMemoryCacheSize,
@@ -1605,13 +1607,15 @@ export default async function build(
                             httpAgentOptions: config.httpAgentOptions,
                             locales: config.i18n?.locales,
                             defaultLocale: config.i18n?.defaultLocale,
-                            parentId: isPageStaticSpan.id,
+                            parentId: isPageStaticSpan.getId(),
                             pageRuntime,
                             edgeInfo,
                             pageType,
                             incrementalCacheHandlerPath:
                               config.experimental.incrementalCacheHandlerPath,
-                            isrFlushToDisk: config.experimental.isrFlushToDisk,
+                            isrFlushToDisk: ciEnvironment.hasNextSupport
+                              ? false
+                              : config.experimental.isrFlushToDisk,
                             maxMemoryCacheSize:
                               config.experimental.isrMemoryCacheSize,
                             nextConfigOutput: config.output,
