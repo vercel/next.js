@@ -11,7 +11,6 @@ import type { AppRenderContext, GenerateFlight } from './app-render'
 import type { AppPageModule } from '../../server/future/route-modules/app-page/module'
 
 import {
-  ACTION,
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../client/components/app-router-headers'
@@ -36,6 +35,10 @@ import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
+import {
+  getIsServerAction,
+  getServerActionRequestMetadata,
+} from '../lib/server-action-request-meta'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -271,20 +274,13 @@ export async function handleAction({
       formState?: any
     }
 > {
-  let actionId = req.headers[ACTION.toLowerCase()] as string
   const contentType = req.headers['content-type']
-  const isURLEncodedAction =
-    req.method === 'POST' && contentType === 'application/x-www-form-urlencoded'
-  const isMultipartAction =
-    req.method === 'POST' && contentType?.startsWith('multipart/form-data')
 
-  const isFetchAction =
-    actionId !== undefined &&
-    typeof actionId === 'string' &&
-    req.method === 'POST'
+  const { actionId, isURLEncodedAction, isMultipartAction, isFetchAction } =
+    getServerActionRequestMetadata(req)
 
   // If it's not a Server Action, skip handling.
-  if (!(isFetchAction || isURLEncodedAction || isMultipartAction)) {
+  if (!getIsServerAction(req)) {
     return
   }
 
@@ -528,6 +524,10 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
 
       let actionModId: string
       try {
+        if (!actionId) {
+          throw new Error('Invariant: actionId should be set')
+        }
+
         actionModId = serverModuleMap[actionId].id
       } catch (err) {
         // When this happens, it could be a deployment skew where the action came

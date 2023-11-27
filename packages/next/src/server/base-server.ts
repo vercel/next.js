@@ -82,7 +82,6 @@ import {
   RSC_HEADER,
   RSC_VARY_HEADER,
   NEXT_RSC_UNION_QUERY,
-  ACTION,
   NEXT_ROUTER_PREFETCH_HEADER,
 } from '../client/components/app-router-headers'
 import type {
@@ -129,6 +128,7 @@ import {
 } from './future/route-modules/checks'
 import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
+import { getIsServerAction } from './lib/server-action-request-meta'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1749,15 +1749,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isAppPath = components.isAppPath === true
     const hasServerProps = !!components.getServerSideProps
     let hasStaticPaths = !!components.getStaticPaths
-    const actionId = req.headers[ACTION.toLowerCase()] as string
-    const contentType = req.headers['content-type']
-    const isMultipartAction =
-      req.method === 'POST' && contentType?.startsWith('multipart/form-data')
-    const isFetchAction =
-      actionId !== undefined &&
-      typeof actionId === 'string' &&
-      req.method === 'POST'
-    const isServerAction = isFetchAction || isMultipartAction
+    const isServerAction = getIsServerAction(req)
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
 
