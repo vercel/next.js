@@ -1,5 +1,5 @@
 // @ts-ignore
-import { matchObject } from 'webpack/lib/ModuleFilenameHelpers'
+import { ModuleFilenameHelpers } from 'next/dist/compiled/webpack/webpack'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { RawSource, SourceMapSource } from 'webpack-sources'
 import { transform as transformCss } from 'lightningcss'
@@ -93,7 +93,7 @@ export class LightningCssMinifyPlugin {
         !asset.info.minimized &&
         // Filter out by file type
         (testRegExp || CSS_FILE_REG).test(asset.name) &&
-        matchObject({ include, exclude }, asset.name)
+        ModuleFilenameHelpers.matchObject({ include, exclude }, asset.name)
     )
 
     await Promise.all(
