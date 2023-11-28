@@ -592,7 +592,17 @@ createNextDescribe(
       })
 
       it('should handle redirect to a relative URL in a single pass', async () => {
-        const browser = await next.browser('/client')
+        let responseCode: number
+        const browser = await next.browser('/client', {
+          beforePageLoad(page) {
+            page.on('response', async (res: Response) => {
+              const headers = await res.allHeaders()
+              if (headers['x-action-redirect']) {
+                responseCode = res.status()
+              }
+            })
+          },
+        })
 
         await waitFor(3000)
 
@@ -606,6 +616,7 @@ createNextDescribe(
 
         // no other requests should be made
         expect(requests).toEqual(['/client'])
+        await check(() => responseCode, 303)
       })
 
       it('should handle regular redirects', async () => {
