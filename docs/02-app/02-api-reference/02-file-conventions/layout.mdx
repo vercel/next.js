@@ -107,9 +107,8 @@ For example, in the following directory structure, `dashboard/layout.tsx` is the
   width="1600"
   height="687"
 />
-When navigating from `/dashboard/settings` to `/dashboard/analytics`, `page.tsx`
-in `/dashboard/analytics` will rerender on the server, while `dashboard/layout.tsx`
-will **not** rerender because it's a common UI shared between the two routes.
+
+When navigating from `/dashboard/settings` to `/dashboard/analytics`, `page.tsx` in `/dashboard/analytics` will rerender on the server, while `dashboard/layout.tsx` will **not** rerender because it's a common UI shared between the two routes.
 
 This performance optimization allows navigation between pages that share a layout to be quicker as only the data fetching and rendering for the page has to run, instead of the entire route that could include shared layouts that fetch their own data.
 
