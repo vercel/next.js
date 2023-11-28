@@ -1269,15 +1269,17 @@ export default async function getBaseWebpackConfig(
                     },
                   ],
                 },
+                type: 'javascript/auto',
                 resolve: {
-                  byDependency: {
-                    esm: {
-                      mainFields: getMainField(compilerType, true),
-                    },
-                    commonjs: {
-                      mainFields: getMainField(compilerType, false),
-                    },
-                  },
+                  mainFields: getMainField(compilerType, true),
+                  // byDependency: {
+                  //   esm: {
+                  //     mainFields: getMainField(compilerType, false),
+                  //   },
+                  //   commonjs: {
+                  //     mainFields: getMainField(compilerType, true),
+                  //   },
+                  // },
                   conditionNames: reactServerCondition,
                   // If missing the alias override here, the default alias will be used which aliases
                   // react to the direct file path, not the package name. In that case the condition
@@ -1396,7 +1398,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: isWebpackServerLayer,
-                    exclude: [asyncStoragesRegex, codeCondition.exclude],
+                    exclude: [asyncStoragesRegex],
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -1417,19 +1419,21 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
-                    exclude: codeCondition.exclude,
+                    type: 'javascript/auto',
+                    // exclude: codeCondition.exclude,
                     issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
                     use: swcLoaderForClientLayer,
                     resolve: {
+                      mainFields: getMainField(compilerType, true),
                       // For SSR layer determine main fields based on the module type
-                      byDependency: {
-                        esm: {
-                          mainFields: getMainField(compilerType, true),
-                        },
-                        commonjs: {
-                          mainFields: getMainField(compilerType, false),
-                        },
-                      },
+                      // byDependency: {
+                      //   esm: {
+                      //     mainFields: getMainField(compilerType, false),
+                      //   },
+                      //   commonjs: {
+                      //     mainFields: getMainField(compilerType, true),
+                      //   },
+                      // },
                     },
                   },
                 ]
