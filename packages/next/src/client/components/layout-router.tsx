@@ -4,7 +4,6 @@ import type { ChildSegmentMap } from '../../shared/lib/app-router-context.shared
 import type {
   FlightRouterState,
   FlightSegmentPath,
-  ChildProp,
   Segment,
 } from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
@@ -315,7 +314,6 @@ function InnerLayoutRouter({
   parallelRouterKey,
   url,
   childNodes,
-  childProp,
   segmentPath,
   tree,
   // TODO-APP: implement `<Offscreen>` when available.
@@ -325,7 +323,6 @@ function InnerLayoutRouter({
   parallelRouterKey: string
   url: string
   childNodes: ChildSegmentMap
-  childProp: ChildProp | null
   segmentPath: FlightSegmentPath
   tree: FlightRouterState
   isActive: boolean
@@ -340,33 +337,6 @@ function InnerLayoutRouter({
 
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(cacheKey)
-
-  // If childProp is available this means it's the Flight / SSR case.
-  if (
-    childProp &&
-    // TODO-APP: verify if this can be null based on user code
-    childProp.current !== null
-  ) {
-    if (!childNode) {
-      // Add the segment's subTreeData to the cache.
-      // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
-      childNode = {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: childProp.current,
-        parallelRoutes: new Map(),
-      }
-
-      childNodes.set(cacheKey, childNode)
-    } else {
-      if (childNode.status === CacheStates.LAZY_INITIALIZED) {
-        // @ts-expect-error we're changing it's type!
-        childNode.status = CacheStates.READY
-        // @ts-expect-error
-        childNode.subTreeData = childProp.current
-      }
-    }
-  }
 
   // When childNode is not available during rendering client-side we need to fetch it from the server.
   if (!childNode || childNode.status === CacheStates.LAZY_INITIALIZED) {
@@ -498,7 +468,6 @@ function LoadingBoundary({
 export default function OuterLayoutRouter({
   parallelRouterKey,
   segmentPath,
-  childProp,
   error,
   errorStyles,
   errorScripts,
@@ -515,7 +484,6 @@ export default function OuterLayoutRouter({
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
-  childProp: ChildProp
   error: ErrorComponent
   errorStyles: React.ReactNode | undefined
   errorScripts: React.ReactNode | undefined
@@ -550,8 +518,6 @@ export default function OuterLayoutRouter({
   // The reason arrays are used in the data format is that these are transferred from the server to the browser so it's optimized to save bytes.
   const treeSegment = tree[1][parallelRouterKey][0]
 
-  const childPropSegment = childProp.segment
-
   // If segment is an array it's a dynamic route and we want to read the dynamic route value as the segment to get from the cache.
   const currentChildSegmentValue = getSegmentValue(treeSegment)
 
@@ -565,10 +531,6 @@ export default function OuterLayoutRouter({
     <>
       {styles}
       {preservedSegments.map((preservedSegment) => {
-        const isChildPropSegment = matchSegment(
-          preservedSegment,
-          childPropSegment
-        )
         const preservedSegmentValue = getSegmentValue(preservedSegment)
         const cacheKey = createRouterCacheKey(preservedSegment)
 
@@ -607,7 +569,6 @@ export default function OuterLayoutRouter({
                           url={url}
                           tree={tree}
                           childNodes={childNodesForParallelRouter!}
-                          childProp={isChildPropSegment ? childProp : null}
                           segmentPath={segmentPath}
                           cacheKey={cacheKey}
                           isActive={

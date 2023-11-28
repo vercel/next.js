@@ -423,6 +423,19 @@ createNextDescribe(
         })
       })
 
+      describe('req.cookies', () => {
+        it('gets the correct values', async () => {
+          const res = await next.fetch(basePath + '/hooks/cookies/req', {
+            headers: cookieWithRequestMeta({ ping: 'pong' }),
+          })
+
+          expect(res.status).toEqual(200)
+
+          const meta = getRequestMeta(res.headers)
+          expect(meta.ping).toEqual('pong')
+        })
+      })
+
       describe('cookies().has()', () => {
         it('gets the correct values', async () => {
           const res = await next.fetch(basePath + '/hooks/cookies/has')

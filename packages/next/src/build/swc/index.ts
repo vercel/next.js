@@ -473,13 +473,35 @@ export interface TurboEngineOptions {
   memoryLimit?: number
 }
 
+export type StyledString =
+  | {
+      type: 'text'
+      value: string
+    }
+  | {
+      type: 'code'
+      value: string
+    }
+  | {
+      type: 'strong'
+      value: string
+    }
+  | {
+      type: 'stack'
+      value: StyledString[]
+    }
+  | {
+      type: 'line'
+      value: StyledString[]
+    }
+
 export interface Issue {
   severity: string
   category: string
   filePath: string
-  title: string
-  description: string
-  detail: string
+  title: StyledString
+  description?: StyledString
+  detail?: StyledString
   source?: {
     source: {
       ident: string

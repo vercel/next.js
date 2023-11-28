@@ -166,7 +166,6 @@ function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
           mutable: {},
-          cache: createEmptyCacheNode(),
         })
       })
     },
@@ -193,7 +192,6 @@ function useChangeByServerResponse(
           flightData,
           previousTree,
           overrideCanonicalUrl,
-          cache: createEmptyCacheNode(),
           mutable: {},
         })
       })
@@ -204,7 +202,7 @@ function useChangeByServerResponse(
 
 function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
-    (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
+    (href, navigateType, shouldScroll) => {
       const url = new URL(addBasePath(href), location.href)
 
       return dispatch({
@@ -212,10 +210,8 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         url,
         isExternalUrl: isExternalURL(url),
         locationSearch: location.search,
-        forceOptimisticNavigation,
         shouldScroll: shouldScroll ?? true,
         navigateType,
-        cache: createEmptyCacheNode(),
         mutable: {},
       })
     },
@@ -233,6 +229,7 @@ const originalReplaceState =
     : null
 
 function copyNextJsInternalHistoryState(data: any) {
+  if (data == null) data = {}
   const currentState = window.history.state
   const __NA = currentState?.__NA
   if (__NA) {
@@ -243,6 +240,8 @@ function copyNextJsInternalHistoryState(data: any) {
   if (__PRIVATE_NEXTJS_INTERNALS_TREE) {
     data.__PRIVATE_NEXTJS_INTERNALS_TREE = __PRIVATE_NEXTJS_INTERNALS_TREE
   }
+
+  return data
 }
 
 /**
@@ -253,14 +252,14 @@ function Router({
   initialHead,
   initialTree,
   initialCanonicalUrl,
-  children,
+  initialSeedData,
   assetPrefix,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>
       createInitialRouterState({
         buildId,
-        children,
+        initialSeedData,
         initialCanonicalUrl,
         initialTree,
         initialParallelRoutes,
@@ -268,7 +267,7 @@ function Router({
         location: !isServer ? window.location : null,
         initialHead,
       }),
-    [buildId, children, initialCanonicalUrl, initialTree, initialHead]
+    [buildId, initialSeedData, initialCanonicalUrl, initialTree, initialHead]
   )
   const [reducerState, dispatch, sync] =
     useReducerWithReduxDevtools(initialState)
@@ -315,7 +314,7 @@ function Router({
         ) {
           return
         }
-        const url = new URL(addBasePath(href), location.href)
+        const url = new URL(addBasePath(href), window.location.href)
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return
@@ -330,29 +329,18 @@ function Router({
       },
       replace: (href, options = {}) => {
         startTransition(() => {
-          navigate(
-            href,
-            'replace',
-            Boolean(options.forceOptimisticNavigation),
-            options.scroll ?? true
-          )
+          navigate(href, 'replace', options.scroll ?? true)
         })
       },
       push: (href, options = {}) => {
         startTransition(() => {
-          navigate(
-            href,
-            'push',
-            Boolean(options.forceOptimisticNavigation),
-            options.scroll ?? true
-          )
+          navigate(href, 'push', options.scroll ?? true)
         })
       },
       refresh: () => {
         startTransition(() => {
           dispatch({
             type: ACTION_REFRESH,
-            cache: createEmptyCacheNode(),
             mutable: {},
             origin: window.location.origin,
           })
@@ -368,7 +356,6 @@ function Router({
           startTransition(() => {
             dispatch({
               type: ACTION_FAST_REFRESH,
-              cache: createEmptyCacheNode(),
               mutable: {},
               origin: window.location.origin,
             })
@@ -415,8 +402,9 @@ function Router({
       if (
         !event.persisted ||
         !window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
-      )
+      ) {
         return
+      }
 
       dispatch({
         type: ACTION_RESTORE,
@@ -467,10 +455,11 @@ function Router({
       const applyUrlFromHistoryPushReplace = (
         url: string | URL | null | undefined
       ) => {
+        const href = window.location.href
         startTransition(() => {
           dispatch({
             type: ACTION_RESTORE,
-            url: new URL(url ?? window.location.href),
+            url: new URL(url ?? href, href),
             tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
           })
         })
@@ -487,7 +476,7 @@ function Router({
           _unused: string,
           url?: string | URL | null
         ): void {
-          copyNextJsInternalHistoryState(data)
+          data = copyNextJsInternalHistoryState(data)
 
           applyUrlFromHistoryPushReplace(url)
 
@@ -505,7 +494,7 @@ function Router({
           _unused: string,
           url?: string | URL | null
         ): void {
-          copyNextJsInternalHistoryState(data)
+          data = copyNextJsInternalHistoryState(data)
 
           if (url) {
             applyUrlFromHistoryPushReplace(url)

@@ -32,9 +32,13 @@ import { createHrefFromUrl } from '../create-href-from-url'
 import { handleExternalUrl } from './navigate-reducer'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
+import {
+  CacheStates,
+  type CacheNode,
+} from '../../../../shared/lib/app-router-context.shared-runtime'
 import { handleMutable } from '../handle-mutable'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
+import { createEmptyCacheNode } from '../../app-router'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -145,7 +149,7 @@ export function serverActionReducer(
   state: ReadonlyReducerState,
   action: ServerActionAction
 ): ReducerState {
-  const { mutable, cache, resolve, reject } = action
+  const { mutable, resolve, reject } = action
   const href = state.canonicalUrl
 
   let currentTree = state.tree
@@ -235,10 +239,13 @@ export function serverActionReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [subTreeData, head] = flightDataPath.slice(-2)
+        const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
+        const subTreeData =
+          cacheNodeSeedData !== null ? cacheNodeSeedData[2] : null
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (subTreeData !== null) {
+          const cache: CacheNode = createEmptyCacheNode()
           cache.status = CacheStates.READY
           cache.subTreeData = subTreeData
           fillLazyItemsTillLeafWithHead(
@@ -246,6 +253,7 @@ export function serverActionReducer(
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
             undefined,
             treePatch,
+            cacheNodeSeedData,
             head
           )
           mutable.cache = cache

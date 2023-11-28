@@ -13,7 +13,7 @@ use turbo_tasks::{
 };
 use turbopack_binding::{
     turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath},
-    turbopack::core::issue::{Issue, IssueExt, IssueSeverity},
+    turbopack::core::issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
 };
 
 use crate::{
@@ -468,11 +468,12 @@ fn conflict_issue(
 
     DirectoryTreeIssue {
         app_dir,
-        message: Vc::cell(format!(
+        message: StyledString::Text(format!(
             "Conflicting {} at {}: {a} at {value_a} and {b} at {value_b}",
             item_names,
             e.key(),
-        )),
+        ))
+        .cell(),
         severity: IssueSeverity::Error.cell(),
     }
     .cell()
@@ -781,11 +782,12 @@ async fn directory_tree_to_loader_tree(
                 // TODO: improve error message to have the full paths
                 DirectoryTreeIssue {
                     app_dir,
-                    message: Vc::cell(format!(
+                    message: StyledString::Text(format!(
                         "You cannot have two parallel pages that resolve to the same path. Route \
                          {} has multiple matches in {}",
                         for_app_path, app_page
-                    )),
+                    ))
+                    .cell(),
                     severity: IssueSeverity::Error.cell(),
                 }
                 .cell()
@@ -1127,7 +1129,7 @@ pub async fn get_global_metadata(
 struct DirectoryTreeIssue {
     pub severity: Vc<IssueSeverity>,
     pub app_dir: Vc<FileSystemPath>,
-    pub message: Vc<String>,
+    pub message: Vc<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
@@ -1138,10 +1140,11 @@ impl Issue for DirectoryTreeIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(
-            "An issue occurred while preparing your Next.js app".to_string(),
-        ))
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(
+            StyledString::Text("An issue occurred while preparing your Next.js app".to_string())
+                .cell(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -1155,7 +1158,7 @@ impl Issue for DirectoryTreeIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        self.message
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.message))
     }
 }
