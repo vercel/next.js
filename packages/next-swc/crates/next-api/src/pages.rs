@@ -42,7 +42,7 @@ use turbopack_binding::{
             chunk::{availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
-            issue::{IssueSeverity, OptionIssueSource},
+            issue::IssueSeverity,
             module::Module,
             output::{OutputAsset, OutputAssets},
             reference_type::{
@@ -264,6 +264,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
+            Vc::cell("client".to_string()),
         )
     }
 
@@ -303,6 +304,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
+            Vc::cell("client".to_string()),
         ))
     }
 
@@ -313,6 +315,21 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
+            Vc::cell("ssr".to_string()),
+        )
+    }
+
+    /// Returns a context specific to pages/api.
+    /// This mimics the current configuration in next-dev.
+    /// (https://github.com/vercel/next.js/blob/9b4b0847ed4a1025e73bec16a9ee11766e632e14/packages/next/src/build/webpack-config.ts#L1381-L1385)
+    #[turbo_tasks::function]
+    pub(super) fn api_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
+        ModuleAssetContext::new(
+            self.transitions(),
+            self.project().server_compile_time_info(),
+            self.api_module_options_context(),
+            self.ssr_resolve_options_context(),
+            Vc::cell("api".to_string()),
         )
     }
 
@@ -323,6 +340,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.ssr_data_module_options_context(),
             self.ssr_resolve_options_context(),
+            Vc::cell("ssr-data".to_string()),
         )
     }
 
@@ -333,6 +351,18 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
+            Vc::cell("edge-ssr".to_string()),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn edge_api_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
+        ModuleAssetContext::new(
+            Default::default(),
+            self.project().edge_compile_time_info(),
+            self.api_module_options_context(),
+            self.edge_ssr_resolve_options_context(),
+            Vc::cell("edge-api".to_string()),
         )
     }
 
@@ -343,6 +373,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.ssr_data_module_options_context(),
             self.edge_ssr_resolve_options_context(),
+            Vc::cell("edge-ssr-data".to_string()),
         )
     }
 
@@ -353,6 +384,20 @@ impl PagesProject {
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::Pages {
+                pages_dir: self.pages_dir(),
+            }),
+            this.mode,
+            self.project().next_config(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn api_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let this = self.await?;
+        Ok(get_server_module_options_context(
+            self.project().project_path(),
+            self.project().execution_context(),
+            Value::new(ServerContextType::PagesApi {
                 pages_dir: self.pages_dir(),
             }),
             this.mode,
@@ -539,8 +584,8 @@ impl PageEndpoint {
                 "next/dist/client/next-dev-turbopack.js".to_string(),
             ))),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-            OptionIssueSource::none(),
             IssueSeverity::Error.cell(),
+            None,
         )
         .first_module()
         .await?
@@ -606,6 +651,7 @@ impl PageEndpoint {
                 self.source(),
                 this.original_name,
                 config.runtime,
+                this.pages_project.project().next_config(),
             );
 
             let mut evaluatable_assets = edge_runtime_entries.await?.clone_value();
@@ -639,6 +685,7 @@ impl PageEndpoint {
                 self.source(),
                 this.original_name,
                 config.runtime,
+                this.pages_project.project().next_config(),
             );
 
             let asset_path = get_asset_path_from_pathname(&this.pathname.await?, ".js");
@@ -677,8 +724,8 @@ impl PageEndpoint {
             this.pages_project.project().project_path(),
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
-            this.pages_project.project().ssr_chunking_context(),
-            this.pages_project.project().edge_ssr_chunking_context(),
+            this.pages_project.project().server_chunking_context(),
+            this.pages_project.project().edge_chunking_context(),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
@@ -696,10 +743,8 @@ impl PageEndpoint {
             this.pages_project.project().project_path(),
             this.pages_project.ssr_data_module_context(),
             this.pages_project.edge_ssr_data_module_context(),
-            this.pages_project.project().ssr_data_chunking_context(),
-            this.pages_project
-                .project()
-                .edge_ssr_data_chunking_context(),
+            this.pages_project.project().server_chunking_context(),
+            this.pages_project.project().edge_chunking_context(),
             this.pages_project.ssr_data_runtime_entries(),
             this.pages_project.edge_ssr_data_runtime_entries(),
         ))
@@ -715,10 +760,10 @@ impl PageEndpoint {
                 .node_root()
                 .join("server".to_string()),
             this.pages_project.project().project_path(),
-            this.pages_project.ssr_module_context(),
-            this.pages_project.edge_ssr_module_context(),
-            this.pages_project.project().ssr_chunking_context(),
-            this.pages_project.project().edge_ssr_chunking_context(),
+            this.pages_project.api_module_context(),
+            this.pages_project.edge_api_module_context(),
+            this.pages_project.project().server_chunking_context(),
+            this.pages_project.project().edge_chunking_context(),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
@@ -922,8 +967,19 @@ impl PageEndpoint {
                 }
                 server_assets.extend(files_value.iter().copied());
 
+                // the next-edge-ssr-loader templates expect the manifests to be stored in
+                // global variables defined in these files
+                //
+                // they are created in `setup-dev-bundler.ts`
+                let mut file_paths_from_root = vec![
+                    "server/server-reference-manifest.js".to_string(),
+                    "server/middleware-build-manifest.js".to_string(),
+                    "server/middleware-react-loadable-manifest.js".to_string(),
+                    "server/next-font-manifest.js".to_string(),
+                ];
+
                 let node_root_value = node_root.await?;
-                let files_paths_from_root: Vec<String> = files_value
+                let middleware_paths_from_root: Vec<String> = files_value
                     .iter()
                     .map(move |&file| {
                         let node_root_value = node_root_value.clone();
@@ -936,6 +992,8 @@ impl PageEndpoint {
                     .try_flat_join()
                     .await?;
 
+                file_paths_from_root.extend(middleware_paths_from_root);
+
                 let pathname = this.pathname.await?;
                 let named_regex = get_named_middleware_regex(&pathname);
                 let matchers = MiddlewareMatcher {
@@ -945,7 +1003,7 @@ impl PageEndpoint {
                 };
                 let original_name = this.original_name.await?;
                 let edge_function_definition = EdgeFunctionDefinition {
-                    files: files_paths_from_root,
+                    files: file_paths_from_root,
                     name: pathname.to_string(),
                     page: original_name.to_string(),
                     regions: None,

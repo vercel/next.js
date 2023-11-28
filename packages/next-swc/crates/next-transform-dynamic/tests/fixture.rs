@@ -100,8 +100,8 @@ fn next_dynamic_fixture_run(
     input: &Path,
     output: &str,
     is_development: bool,
-    is_server: bool,
-    is_server_components: bool,
+    is_server_compiler: bool,
+    is_react_server_layer: bool,
     mode: NextDynamicMode,
 ) {
     let output = input.parent().unwrap().join(output);
@@ -110,8 +110,8 @@ fn next_dynamic_fixture_run(
         &|_tr| {
             next_dynamic(
                 is_development,
-                is_server,
-                is_server_components,
+                is_server_compiler,
+                is_react_server_layer,
                 mode.clone(),
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),

@@ -37,16 +37,6 @@ With Server Actions, you don't need to manually create API endpoints. Instead, y
 
 Server Actions can be defined in Server Components or called from Client Components. Defining the action in a Server Component allows the form to function without JavaScript, providing progressive enhancement.
 
-Enable Server Actions in your `next.config.js` file:
-
-```js filename="next.config.js"
-module.exports = {
-  experimental: {
-    serverActions: true,
-  },
-}
-```
-
 > **Good to know:**
 >
 > - Forms calling Server Actions from Server Components can function without JavaScript.
@@ -370,7 +360,7 @@ export default async function submit(formData) {
 
 <AppOnly>
 
-Use the `useFormStatus` hook to show a loading state when a form is submitting on the server. The `useFormStatus` hook can only be used as a child of a `form` element using a Server Action.
+Use the [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a loading state when a form is submitting on the server. The `useFormStatus` hook can only be used as a child of a `form` element using a Server Action.
 
 For example, the following submit button:
 
@@ -736,12 +726,12 @@ export default function Page() {
 
 ### Optimistic Updates
 
-Use `useOptimistic` to optimistically update the UI before the Server Action finishes, rather than waiting for the response:
+Use [`useOptimistic`](https://react.dev/reference/react/useOptimistic) to optimistically update the UI before the Server Action finishes, rather than waiting for the response:
 
 ```tsx filename="app/page.tsx" switcher
 'use client'
 
-import { experimental_useOptimistic as useOptimistic } from 'react'
+import { useOptimistic } from 'react'
 import { send } from './actions'
 
 type Message = {
@@ -780,7 +770,7 @@ export function Thread({ messages }: { messages: Message[] }) {
 ```jsx filename="app/page.jsx" switcher
 'use client'
 
-import { experimental_useOptimistic as useOptimistic } from 'react'
+import { useOptimistic } from 'react'
 import { send } from './actions'
 
 export function Thread({ messages }) {

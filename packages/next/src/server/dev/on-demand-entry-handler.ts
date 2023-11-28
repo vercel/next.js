@@ -1,12 +1,15 @@
 import type ws from 'next/dist/compiled/ws'
-import origDebug from 'next/dist/compiled/debug'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import type {
   DynamicParamTypesShort,
   FlightRouterState,
 } from '../app-render/types'
+import type { CompilerNameValues } from '../../shared/lib/constants'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type HotReloader from './hot-reloader-webpack'
 
+import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
 import {
@@ -32,15 +35,13 @@ import {
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
-import type { CompilerNameValues } from '../../shared/lib/constants'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import type HotReloader from './hot-reloader-webpack'
 import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
-import { scheduleOnNextTick } from '../lib/schedule-on-next-tick'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
-const debug = origDebug('next:on-demand-entry-handler')
+const debug = createDebug('next:on-demand-entry-handler')
 
 /**
  * Returns object keys with type inferred from the object key
@@ -674,16 +675,16 @@ export function onDemandEntryHandler({
 
   async function ensurePageImpl({
     page,
-    clientOnly,
     appPaths,
     definition,
     isApp,
+    url,
   }: {
     page: string
-    clientOnly: boolean
     appPaths: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
     isApp: boolean | undefined
+    url?: string
   }): Promise<void> {
     const stalledTime = 60
     const stalledEnsureTimeout = setTimeout(() => {
@@ -834,7 +835,8 @@ export function onDemandEntryHandler({
       const hasNewEntry = addedValues.some((entry) => entry.newEntry)
 
       if (hasNewEntry) {
-        reportTrigger(!clientOnly && hasNewEntry ? `${route.page}` : route.page)
+        const routePage = isApp ? route.page : normalizeAppPath(route.page)
+        reportTrigger(routePage, url)
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
@@ -874,10 +876,10 @@ export function onDemandEntryHandler({
 
   type EnsurePageOptions = {
     page: string
-    clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     definition?: RouteDefinition
     isApp?: boolean
+    url?: string
   }
 
   // Make sure that we won't have multiple invalidations ongoing concurrently.
@@ -898,10 +900,10 @@ export function onDemandEntryHandler({
   return {
     async ensurePage({
       page,
-      clientOnly,
       appPaths = null,
       definition,
       isApp,
+      url,
     }: EnsurePageOptions) {
       // If the route is actually an app page route, then we should have access
       // to the app route definition, and therefore, the appPaths from it.
@@ -912,18 +914,15 @@ export function onDemandEntryHandler({
       // Wrap the invocation of the ensurePageImpl function in the pending
       // wrapper, which will ensure that we don't have multiple compilations
       // for the same page happening concurrently.
-      return batcher.batch(
-        { page, clientOnly, appPaths, definition, isApp },
-        async () => {
-          await ensurePageImpl({
-            page,
-            clientOnly,
-            appPaths,
-            definition,
-            isApp,
-          })
-        }
-      )
+      return batcher.batch({ page, appPaths, definition, isApp }, async () => {
+        await ensurePageImpl({
+          page,
+          appPaths,
+          definition,
+          isApp,
+          url,
+        })
+      })
     },
     onHMR(client: ws, getHmrServerError: () => Error | null) {
       let bufferedHmrServerError: Error | null = null

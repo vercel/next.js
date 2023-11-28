@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { nextBuild, nextExport, File } from 'next-test-utils'
+import { nextBuild, File } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
@@ -16,6 +16,7 @@ describe('Export with cloudinary loader next/image component', () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
+          output: 'export',
           images: {
             loader: 'cloudinary',
             path: 'https://example.com/',
@@ -27,11 +28,6 @@ describe('Export with cloudinary loader next/image component', () => {
       await fs.remove(join(appDir, '.next'))
       const { code } = await nextBuild(appDir)
       if (code !== 0) throw new Error(`build failed with status ${code}`)
-    })
-
-    it('should export successfully', async () => {
-      const { code } = await nextExport(appDir, { outdir })
-      if (code !== 0) throw new Error(`export failed with status ${code}`)
     })
 
     it('should contain img element in html output', async () => {
@@ -52,6 +48,7 @@ describe('Export with custom loader next/image component', () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
+          output: 'export',
           images: {
             loader: 'custom',
           },
@@ -66,11 +63,6 @@ describe('Export with custom loader next/image component', () => {
       await fs.remove(join(appDir, '.next'))
       const { code } = await nextBuild(appDir)
       if (code !== 0) throw new Error(`build failed with status ${code}`)
-    })
-
-    it('should export successfully', async () => {
-      const { code } = await nextExport(appDir, { outdir })
-      if (code !== 0) throw new Error(`export failed with status ${code}`)
     })
 
     it('should contain img element with same src in html output', async () => {
@@ -92,6 +84,7 @@ describe('Export with custom loader config but no loader prop on next/image', ()
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
+          output: 'export',
           images: {
             loader: 'custom',
           },
@@ -120,6 +113,7 @@ describe('Export with loaderFile config next/image component', () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
+          output: 'export',
           images: {
             loader: 'custom',
             loaderFile: './dummy-loader.js',
@@ -131,11 +125,6 @@ describe('Export with loaderFile config next/image component', () => {
       await fs.remove(join(appDir, '.next'))
       const { code } = await nextBuild(appDir)
       if (code !== 0) throw new Error(`build failed with status ${code}`)
-    })
-
-    it('should export successfully', async () => {
-      const { code } = await nextExport(appDir, { outdir })
-      if (code !== 0) throw new Error(`export failed with status ${code}`)
     })
 
     it('should contain img element with same src in html output', async () => {
@@ -157,6 +146,7 @@ describe('Export with unoptimized next/image component', () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
+          output: 'export',
           images: {
             unoptimized: true,
           },
@@ -167,11 +157,6 @@ describe('Export with unoptimized next/image component', () => {
       await fs.remove(join(appDir, '.next'))
       const { code } = await nextBuild(appDir)
       if (code !== 0) throw new Error(`build failed with status ${code}`)
-    })
-
-    it('should export successfully', async () => {
-      const { code } = await nextExport(appDir, { outdir })
-      if (code !== 0) throw new Error(`export failed with status ${code}`)
     })
 
     it('should contain img element with same src in html output', async () => {

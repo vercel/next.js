@@ -17,7 +17,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
     expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Error: The default export is not a React Component in page: \\"/_app\\""`
+      `"Error: The default export is not a React Component in page: "/_app""`
     )
 
     await session.patch(
@@ -40,7 +40,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
     expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Error: The default export is not a React Component in page: \\"/_document\\""`
+      `"Error: The default export is not a React Component in page: "/_document""`
     )
 
     await session.patch(

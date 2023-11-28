@@ -1,6 +1,6 @@
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { flushAllTraces } from '../../trace'
+import { type Span, flushAllTraces, trace } from '../../trace'
 import {
   teardownCrashReporter,
   teardownHeapProfiler,
@@ -8,7 +8,7 @@ import {
 } from '../swc'
 import * as Log from './log'
 
-const MAX_DURATION = 3 * 1000
+const MAX_LOG_SKIP_DURATION = 500 // 500ms
 
 export type OutputState =
   | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
@@ -16,6 +16,7 @@ export type OutputState =
       | {
           loading: true
           trigger: string | undefined
+          url: string | undefined
         }
       | {
           loading: false
@@ -51,7 +52,9 @@ function hasStoreChanged(nextStore: OutputState) {
 
 let startTime = 0
 let trigger = '' // default, use empty string for trigger
+let triggerUrl: string | undefined = undefined
 let loadingLogTimer: NodeJS.Timeout | null = null
+let traceSpan: Span | null = null
 
 store.subscribe((state) => {
   if (!hasStoreChanged(state)) {
@@ -65,12 +68,24 @@ store.subscribe((state) => {
   if (state.loading) {
     if (state.trigger) {
       trigger = state.trigger
+      triggerUrl = state.url
       if (trigger !== 'initial') {
+        traceSpan = trace('compile-path', undefined, {
+          trigger: trigger,
+        })
         if (!loadingLogTimer) {
           // Only log compiling if compiled is not finished in 3 seconds
           loadingLogTimer = setTimeout(() => {
-            Log.wait(`Compiling ${trigger} ...`)
-          }, MAX_DURATION)
+            if (
+              triggerUrl &&
+              triggerUrl !== trigger &&
+              process.env.NEXT_TRIGGER_URL
+            ) {
+              Log.wait(`Compiling ${trigger} (${triggerUrl}) ...`)
+            } else {
+              Log.wait(`Compiling ${trigger} ...`)
+            }
+          }, MAX_LOG_SKIP_DURATION)
         }
       }
     }
@@ -143,6 +158,10 @@ store.subscribe((state) => {
     if (loadingLogTimer) {
       clearTimeout(loadingLogTimer)
       loadingLogTimer = null
+    }
+    if (traceSpan) {
+      traceSpan.stop()
+      traceSpan = null
     }
     Log.event(
       `Compiled${trigger ? ' ' + trigger : ''}${timeMessage}${modulesMessage}`

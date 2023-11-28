@@ -49,20 +49,6 @@ export async function getFontDefinitionFromNetwork(
   return result
 }
 
-export function getFontDefinitionFromManifest(
-  url: string,
-  manifest: FontManifest
-): string {
-  return (
-    manifest.find((font) => {
-      if (font && font.url === url) {
-        return true
-      }
-      return false
-    })?.content || ''
-  )
-}
-
 function parseGoogleFontName(css: string): Array<string> {
   const regex = /font-family: ([^;]*)/g
   const matches = css.matchAll(regex)

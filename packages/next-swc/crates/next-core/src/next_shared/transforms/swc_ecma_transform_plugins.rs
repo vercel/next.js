@@ -39,8 +39,8 @@ pub async fn get_swc_ecma_transform_plugin_impl(
     use turbopack_binding::turbopack::{
         core::{
             asset::Asset,
-            issue::{IssueSeverity, OptionIssueSource},
-            reference_type::ReferenceType,
+            issue::IssueSeverity,
+            reference_type::{CommonJsReferenceSubType, ReferenceType},
             resolve::{handle_resolve_error, parse::Request, pattern::Pattern, resolve},
         },
         ecmascript_plugin::transform::swc_ecma_transform_plugins::{
@@ -68,13 +68,19 @@ pub async fn get_swc_ecma_transform_plugin_impl(
         );
 
         let plugin_wasm_module_resolve_result = handle_resolve_error(
-            resolve(project_path, request, resolve_options).as_raw_module_result(),
-            Value::new(ReferenceType::Undefined),
+            resolve(
+                project_path,
+                Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
+                request,
+                resolve_options,
+            )
+            .as_raw_module_result(),
+            Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
             project_path,
             request,
             resolve_options,
-            OptionIssueSource::none(),
             IssueSeverity::Error.cell(),
+            None,
         )
         .await?;
         let Some(plugin_module) = *plugin_wasm_module_resolve_result.first_module().await? else {

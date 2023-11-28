@@ -84,7 +84,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -123,6 +123,7 @@ describe('serverPatchReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: true,
       },
       focusAndScrollRef: {
         apply: false,
@@ -238,7 +239,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -248,7 +249,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -290,6 +291,7 @@ describe('serverPatchReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: true,
       },
       focusAndScrollRef: {
         apply: false,

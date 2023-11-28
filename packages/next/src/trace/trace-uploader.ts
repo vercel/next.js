@@ -18,6 +18,10 @@ const EVENT_FILTER = new Set([
   'webpack-invalid-client',
   'webpack-invalidated-server',
   'navigation-to-hydration',
+  'start-dev-server',
+  'compile-path',
+  'memory-usage',
+  'server-restart-close-to-memory-threshold',
 ])
 
 const {

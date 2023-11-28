@@ -1,10 +1,9 @@
-import '../../server/node-polyfill-headers'
-
 import {
   AppRouteRouteModule,
   type AppRouteRouteModuleOptions,
 } from '../../server/future/route-modules/app-route/module.compiled'
 import { RouteKind } from '../../server/future/route-kind'
+import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
 
 import * as userland from 'VAR_USERLAND'
 
@@ -43,6 +42,10 @@ const {
 
 const originalPathname = 'VAR_ORIGINAL_PATHNAME'
 
+function patchFetch() {
+  return _patchFetch({ serverHooks, staticGenerationAsyncStorage })
+}
+
 export {
   routeModule,
   requestAsyncStorage,
@@ -51,4 +54,5 @@ export {
   headerHooks,
   staticGenerationBailout,
   originalPathname,
+  patchFetch,
 }

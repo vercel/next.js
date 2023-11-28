@@ -4,9 +4,6 @@ import os from 'os'
 import childProcess from 'child_process'
 
 import { bold, cyan, yellow } from '../lib/picocolors'
-const { fetch } = require('next/dist/compiled/undici') as {
-  fetch: typeof global.fetch
-}
 import type { CliCommand } from '../lib/commands'
 import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
@@ -62,6 +59,9 @@ async function getNextConfig() {
 
   return {
     output: config.output ?? 'N/A',
+    experimental: {
+      useWasmBinary: config.experimental?.useWasmBinary,
+    },
   }
 }
 
@@ -353,8 +353,11 @@ async function printVerbose() {
 
           // First, try to load next-swc via loadBindings.
           try {
+            let nextConfig = await getNextConfig()
             const { loadBindings } = require('../build/swc')
-            const bindings = await loadBindings()
+            const bindings = await loadBindings(
+              nextConfig.experimental?.useWasmBinary
+            )
             // Run arbitary function to verify the bindings are loaded correctly.
             const target = bindings.getTargetTriple()
 
