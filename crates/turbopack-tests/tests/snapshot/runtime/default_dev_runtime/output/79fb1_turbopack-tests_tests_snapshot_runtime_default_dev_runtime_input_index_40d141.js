@@ -9,6 +9,8 @@ if (!Array.isArray(globalThis.TURBOPACK)) {
 }
 
 const CHUNK_BASE_PATH = "";
+const RUNTIME_PUBLIC_PATH = "";
+const OUTPUT_ROOT = "crates/turbopack-tests/tests/snapshot/runtime/default_dev_runtime";
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -272,6 +274,29 @@ function asyncModule(module, body, hasAwait) {
     }
 }
 /**
+ * A pseudo, `fake` URL object to resolve to the its relative path.
+ * When urlrewritebehavior is set to relative, calls to the `new URL()` will construct url without base using this
+ * runtime function to generate context-agnostic urls between different rendering context, i.e ssr / client to avoid
+ * hydration mismatch.
+ *
+ * This is largely based on the webpack's existing implementation at
+ * https://github.com/webpack/webpack/blob/87660921808566ef3b8796f8df61bd79fc026108/lib/runtime/RelativeUrlRuntimeModule.js
+ */ var relativeURL = function(inputUrl) {
+    const realUrl = new URL(inputUrl, "x:/");
+    const values = {};
+    for(var key in realUrl)values[key] = realUrl[key];
+    values.href = inputUrl;
+    values.pathname = inputUrl.replace(/[?#].*/, "");
+    values.origin = values.protocol = "";
+    values.toString = values.toJSON = (..._args)=>inputUrl;
+    for(var key in values)Object.defineProperty(this, key, {
+        enumerable: true,
+        configurable: true,
+        value: values[key]
+    });
+};
+relativeURL.prototype = URL.prototype;
+/**
  * This file contains runtime types and functions that are shared between all
  * Turbopack *development* ECMAScript runtimes.
  *
@@ -488,6 +513,7 @@ function instantiateModule(id, source) {
                 w: loadWebAssembly.bind(null, sourceInfo),
                 u: loadWebAssemblyModule.bind(null, sourceInfo),
                 g: globalThis,
+                U: relativeURL,
                 k: refresh,
                 __dirname: module.id.replace(/(^|\/)\/+$/, "")
             }));
@@ -1289,10 +1315,6 @@ async function loadWebAssembly(_source, wasmChunkPath, importsObj) {
 async function loadWebAssemblyModule(_source, wasmChunkPath) {
     const req = fetchWebAssembly(wasmChunkPath);
     return await WebAssembly.compileStreaming(req);
-}
-// [TODO] need to match behavior as similar to UrlAssetReference
-function resolveAbsolutePath(modulePath) {
-    throw new Error("resolveAbsolutePath is not implemented in the DOM runtime");
 }
 (()=>{
     BACKEND = {

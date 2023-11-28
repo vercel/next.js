@@ -6,7 +6,7 @@
  */
 
 /// <reference path="../base/runtime-base.ts" />
-/// <reference path="../../../shared-node/node-externals-utils.ts" />
+/// <reference path="../../../shared-node/base-externals-utils.ts" />
 
 type ChunkRunner = {
   requiredChunks: Set<ChunkPath>;
@@ -47,11 +47,6 @@ async function loadWebAssemblyModule(
   _id: ModuleId
 ): Promise<any> {
   throw new Error("loading WebAssembly is not supported");
-}
-
-// [TODO] should this behaves same as dom runtime?
-function resolveAbsolutePath(modulePath?: string) {
-  throw new Error("resolveAbsolutePath is not implemented");
 }
 
 (() => {

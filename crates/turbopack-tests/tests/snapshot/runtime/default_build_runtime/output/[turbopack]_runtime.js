@@ -263,7 +263,33 @@ function asyncModule(module, body, hasAwait) {
         queue.resolved = false;
     }
 }
+/**
+ * A pseudo, `fake` URL object to resolve to the its relative path.
+ * When urlrewritebehavior is set to relative, calls to the `new URL()` will construct url without base using this
+ * runtime function to generate context-agnostic urls between different rendering context, i.e ssr / client to avoid
+ * hydration mismatch.
+ *
+ * This is largely based on the webpack's existing implementation at
+ * https://github.com/webpack/webpack/blob/87660921808566ef3b8796f8df61bd79fc026108/lib/runtime/RelativeUrlRuntimeModule.js
+ */ var relativeURL = function(inputUrl) {
+    const realUrl = new URL(inputUrl, "x:/");
+    const values = {};
+    for(var key in realUrl)values[key] = realUrl[key];
+    values.href = inputUrl;
+    values.pathname = inputUrl.replace(/[?#].*/, "");
+    values.origin = values.protocol = "";
+    values.toString = values.toJSON = (..._args)=>inputUrl;
+    for(var key in values)Object.defineProperty(this, key, {
+        enumerable: true,
+        configurable: true,
+        value: values[key]
+    });
+};
+relativeURL.prototype = URL.prototype;
 /// <reference path="../shared/runtime-utils.ts" />
+/// A 'base' utilities to support runtime can have externals.
+/// Currently this is for node.js / edge runtime both.
+/// If a fn requires node.js specific behavior it should be placed in `node-external-utils` instead.
 function commonJsRequireContext(entry, sourceModule) {
     return entry.external ? externalRequire(entry.id(), false) : commonJsRequire(sourceModule, entry.id());
 }
@@ -302,6 +328,28 @@ function externalRequire(id, esm = false) {
 externalRequire.resolve = (id, options)=>{
     return require.resolve(id, options);
 };
+const path = require("path");
+const relativePathToRuntimeRoot = path.relative(RUNTIME_PUBLIC_PATH, ".");
+// Compute the relative path to the `distDir`.
+const relativePathToDistRoot = path.relative(path.join(OUTPUT_ROOT, RUNTIME_PUBLIC_PATH), ".");
+const RUNTIME_ROOT = path.resolve(__filename, relativePathToRuntimeRoot);
+// Compute the absolute path to the root, by stripping distDir from the absolute path to this file.
+const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
+/**
+ * Returns an absolute path to the given module path.
+ * Module path should be relative, either path to a file or a directory.
+ *
+ * This fn allows to calculate an absolute path for some global static values, such as
+ * `__dirname` or `import.meta.url` that Turbopack will not embeds in compile time.
+ * See ImportMetaBinding::code_generation for the usage.
+ */ function resolveAbsolutePath(modulePath) {
+    if (modulePath) {
+        // Module path can contain common relative path to the root, recalaute to avoid duplicated joined path.
+        const relativePathToRoot = path.relative(ABSOLUTE_ROOT, modulePath);
+        return path.join(ABSOLUTE_ROOT, relativePathToRoot);
+    }
+    return ABSOLUTE_ROOT;
+}
 /// <reference path="../shared/runtime-utils.ts" />
 function readWebAssemblyAsResponse(path) {
     const { createReadStream } = require("fs");
@@ -324,6 +372,7 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
     return instance.exports;
 }
 /// <reference path="../shared/runtime-utils.ts" />
+/// <reference path="../shared-node/base-externals-utils.ts" />
 /// <reference path="../shared-node/node-externals-utils.ts" />
 /// <reference path="../shared-node/node-wasm-utils.ts" />
 let SourceType;
@@ -336,55 +385,9 @@ let SourceType;
    * The module was instantiated because a parent module imported it.
    */ SourceType[SourceType["Parent"] = 1] = "Parent";
 })(SourceType || (SourceType = {}));
-const path = require("path");
 const url = require("url");
-const relativePathToRuntimeRoot = path.relative(RUNTIME_PUBLIC_PATH, ".");
-// Compute the relative path to the `distDir`.
-const relativePathToDistRoot = path.relative(path.join(OUTPUT_ROOT, RUNTIME_PUBLIC_PATH), ".");
-const RUNTIME_ROOT = path.resolve(__filename, relativePathToRuntimeRoot);
-// Compute the absolute path to the root, by stripping distDir from the absolute path to this file.
-const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
 const moduleFactories = Object.create(null);
 const moduleCache = Object.create(null);
-/**
- * Returns an absolute path to the given module path.
- * Module path should be relative, either path to a file or a directory.
- *
- * This fn allows to calculate an absolute path for some global static values, such as
- * `__dirname` or `import.meta.url` that Turbopack will not embeds in compile time.
- * See ImportMetaBinding::code_generation for the usage.
- */ function resolveAbsolutePath(modulePath) {
-    if (modulePath) {
-        // Module path can contain common relative path to the root, recalaute to avoid duplicated joined path.
-        const relativePathToRoot = path.relative(ABSOLUTE_ROOT, modulePath);
-        return path.join(ABSOLUTE_ROOT, relativePathToRoot);
-    }
-    return ABSOLUTE_ROOT;
-}
-/**
- * A pseudo, `fake` URL object to resolve to the its relative path.
- * When urlrewritebehavior is set to relative, calls to the `new URL()` will construct url without base using this
- * runtime function to generate context-agnostic urls between different rendering context, i.e ssr / client to avoid
- * hydration mismatch.
- *
- * This is largely based on the webpack's existing implementation at
- * https://github.com/webpack/webpack/blob/87660921808566ef3b8796f8df61bd79fc026108/lib/runtime/RelativeUrlRuntimeModule.js
- */ var relativeURL = function(inputUrl) {
-    const outputUrl = inputUrl;
-    const realUrl = new URL(outputUrl, "x:/");
-    const values = {};
-    for(var key in realUrl)values[key] = realUrl[key];
-    values.href = outputUrl;
-    values.pathname = outputUrl.replace(/[?#].*/, "");
-    values.origin = values.protocol = "";
-    values.toString = values.toJSON = (..._args)=>outputUrl;
-    for(var key in values)Object.defineProperty(this, key, {
-        enumerable: true,
-        configurable: true,
-        value: values[key]
-    });
-};
-relativeURL.prototype = URL.prototype;
 /**
  * Returns an absolute path to the given module's id.
  */ function createResolvePathFromModule(resolver) {

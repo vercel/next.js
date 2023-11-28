@@ -23,5 +23,4 @@ declare var loadWebAssemblyModule: (
   source: SourceInfo,
   wasmChunkPath: ChunkPath
 ) => WebAssembly.Module;
-declare var resolveAbsolutePath: (modulePath?: string) => string;
 declare var relativeURL: (inputUrl: string) => void;

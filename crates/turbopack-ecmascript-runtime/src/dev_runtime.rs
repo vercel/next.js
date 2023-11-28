@@ -17,6 +17,7 @@ use crate::{asset_context::get_runtime_asset_context, embed_js::embed_static_cod
 pub async fn get_dev_runtime_code(
     environment: Vc<Environment>,
     chunk_base_path: Vc<Option<String>>,
+    output_root: Vc<String>,
 ) -> Result<Vc<Code>> {
     let asset_context = get_runtime_asset_context(environment);
 
@@ -43,6 +44,9 @@ pub async fn get_dev_runtime_code(
     );
 
     let mut code: CodeBuilder = CodeBuilder::default();
+    let output_root = output_root.await?.to_string();
+    let chunk_base_path = &*chunk_base_path.await?;
+    let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
 
     writedoc!(
         code,
@@ -53,18 +57,27 @@ pub async fn get_dev_runtime_code(
             }}
 
             const CHUNK_BASE_PATH = {};
+            const RUNTIME_PUBLIC_PATH = {};
+            const OUTPUT_ROOT = {};
         "#,
-        StringifyJs(if let Some(chunk_base_path) = &*chunk_base_path.await? {
-            chunk_base_path.as_str()
-        } else {
-            ""
-        })
+        StringifyJs(chunk_base_path),
+        StringifyJs(chunk_base_path),
+        StringifyJs(output_root.as_str()),
     )?;
 
     code.push_code(&*shared_runtime_utils_code.await?);
     code.push_code(&*runtime_base_code.await?);
 
     if *environment.supports_commonjs_externals().await? {
+        code.push_code(
+            &*embed_static_code(
+                asset_context,
+                "shared-node/base-externals-utils.ts".to_string(),
+            )
+            .await?,
+        );
+    }
+    if *environment.node_externals().await? {
         code.push_code(
             &*embed_static_code(
                 asset_context,
