@@ -1,4 +1,4 @@
-import { RichTextCustomElement } from 'payload/types'
+import { RichTextCustomElement } from '@payloadcms/richtext-slate'
 import Button from './Button'
 import Element from './Element'
 import withLargeBody from './plugin'

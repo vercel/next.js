@@ -6,6 +6,9 @@ import { MainMenu } from './globals/MainMenu'
 import { cloudStorage } from '@payloadcms/plugin-cloud-storage'
 import { s3Adapter } from '@payloadcms/plugin-cloud-storage/s3'
 import { Media } from './collections/Media'
+import { slateEditor } from '@payloadcms/richtext-slate'
+import { mongooseAdapter } from '@payloadcms/db-mongodb'
+import { webpackBundler } from '@payloadcms/bundler-webpack'
 
 const adapter = s3Adapter({
   config: {
@@ -21,6 +24,13 @@ const adapter = s3Adapter({
 })
 
 export default buildConfig({
+  editor: slateEditor({}),
+  db: mongooseAdapter({
+    url: process.env.MONGODB_URI as string,
+  }),
+  admin: {
+    bundler: webpackBundler()
+  },
   collections: [Pages, Users, Media],
   globals: [MainMenu],
   typescript: {

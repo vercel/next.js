@@ -1,14 +1,15 @@
 import {
   RichTextElement,
-  RichTextField,
+  FieldProps,
   RichTextLeaf,
-} from 'payload/dist/fields/config/types'
+} from '@payloadcms/richtext-slate'
+import { RichTextField } from 'payload/types'
 import deepMerge from '../../utilities/deepMerge'
 import elements from './elements'
 import leaves from './leaves'
 
 type RichText = (
-  overrides?: Partial<RichTextField>,
+  overrides?: Partial<FieldProps>,
   additions?: {
     elements?: RichTextElement[]
     leaves?: RichTextLeaf[]
@@ -21,11 +22,10 @@ const richText: RichText = (
     elements: [],
     leaves: [],
   }
-) =>
-  deepMerge<RichTextField, Partial<RichTextField>>(
+) => {
+  const base = deepMerge<FieldProps, Partial<FieldProps>>(
     {
       name: 'richText',
-      type: 'richText',
       required: true,
       admin: {
         elements: [...elements, ...(additions.elements || [])],
@@ -34,5 +34,11 @@ const richText: RichText = (
     },
     overrides || {}
   )
+
+  return {
+    ...base,
+    type: 'richText',
+  }
+}
 
 export default richText
