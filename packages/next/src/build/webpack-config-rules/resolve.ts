@@ -24,8 +24,8 @@ const mainFieldsPerCompiler: Record<
 }
 
 export function getMainField(
-  pageType: 'app' | 'pages',
-  compilerType: CompilerNameValues
+  compilerType: CompilerNameValues,
+  preferEsm: boolean
 ) {
   if (compilerType === COMPILER_NAMES.edgeServer) {
     return edgeConditionNames
@@ -34,7 +34,7 @@ export function getMainField(
   }
 
   // Prefer module fields over main fields for isomorphic packages on server layer
-  return pageType === 'app'
+  return preferEsm
     ? mainFieldsPerCompiler['app-router-server']
     : mainFieldsPerCompiler[COMPILER_NAMES.server]
 }

@@ -614,7 +614,7 @@ export default async function getBaseWebpackConfig(
         }
       : undefined),
     // default main fields use pages dir ones, and customize app router ones in loaders.
-    mainFields: getMainField('pages', compilerType),
+    mainFields: getMainField(compilerType, false),
     ...(isEdgeServer && {
       conditionNames: edgeConditionNames,
     }),
@@ -1270,7 +1270,14 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
-                  mainFields: getMainField('app', compilerType),
+                  byDependency: {
+                    esm: {
+                      mainFields: getMainField(compilerType, true),
+                    },
+                    commonjs: {
+                      mainFields: getMainField(compilerType, false),
+                    },
+                  },
                   conditionNames: reactServerCondition,
                   // If missing the alias override here, the default alias will be used which aliases
                   // react to the direct file path, not the package name. In that case the condition
@@ -1405,7 +1412,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: [WEBPACK_LAYERS.appPagesBrowser],
                     use: swcLoaderForClientLayer,
                     resolve: {
-                      mainFields: getMainField('app', compilerType),
+                      mainFields: getMainField(compilerType, true),
                     },
                   },
                   {
@@ -1414,7 +1421,15 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
                     use: swcLoaderForClientLayer,
                     resolve: {
-                      mainFields: getMainField('app', compilerType),
+                      // For SSR layer determine main fields based on the module type
+                      byDependency: {
+                        esm: {
+                          mainFields: getMainField(compilerType, true),
+                        },
+                        commonjs: {
+                          mainFields: getMainField(compilerType, false),
+                        },
+                      },
                     },
                   },
                 ]
