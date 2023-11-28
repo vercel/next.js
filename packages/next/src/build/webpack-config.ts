@@ -1272,14 +1272,6 @@ export default async function getBaseWebpackConfig(
                 type: 'javascript/auto',
                 resolve: {
                   mainFields: getMainField(compilerType, true),
-                  // byDependency: {
-                  //   esm: {
-                  //     mainFields: getMainField(compilerType, false),
-                  //   },
-                  //   commonjs: {
-                  //     mainFields: getMainField(compilerType, true),
-                  //   },
-                  // },
                   conditionNames: reactServerCondition,
                   // If missing the alias override here, the default alias will be used which aliases
                   // react to the direct file path, not the package name. In that case the condition
@@ -1420,20 +1412,10 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     type: 'javascript/auto',
-                    // exclude: codeCondition.exclude,
                     issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
                     use: swcLoaderForClientLayer,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
-                      // For SSR layer determine main fields based on the module type
-                      // byDependency: {
-                      //   esm: {
-                      //     mainFields: getMainField(compilerType, false),
-                      //   },
-                      //   commonjs: {
-                      //     mainFields: getMainField(compilerType, true),
-                      //   },
-                      // },
                     },
                   },
                 ]
