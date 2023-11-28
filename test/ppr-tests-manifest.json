@@ -37,15 +37,6 @@
         "app dir - rsc basics should render server components correctly"
       ]
     },
-    "test/e2e/app-dir/navigation/navigation.test.ts": {
-      "failed": [
-        "app dir - navigation redirect status code should respond with 308 status code if permanent flag is set",
-        "app dir - navigation redirect status code should respond with 307 status code in client component",
-        "app dir - navigation redirect status code should respond with 307 status code in server component",
-        "app dir - navigation bots should block rendering for bots and return 404 status",
-        "app dir - navigation navigation between pages and app should not continously initiate a mpa navigation to the same URL when router state changes"
-      ]
-    },
     "test/production/app-dir/unexpected-error/unexpected-error.test.ts": {
       "failed": [
         "unexpected-error should set response status to 500 for unexpected errors in ssr app route",
@@ -68,7 +59,9 @@
       "test/e2e/app-dir/interception-middleware-rewrite/interception-middleware-rewrite.test.ts",
       "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts",
       "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts",
-      "test/e2e/app-dir/app-static/app-static.test.ts"
+      "test/e2e/app-dir/app-static/app-static.test.ts",
+      "test/e2e/app-dir/app-static/app-static-custom-cache-handler-esm.test.ts",
+      "test/e2e/app-dir/navigation/navigation.test.ts"
     ]
   }
 }
