@@ -236,6 +236,10 @@ export function navigateReducer(
                   state.buildId
                 )
             )
+            if (prefetchValues) {
+              // Update status to avoid re-fetching
+              prefetchValues.lastUsedTime = Date.now()
+            }
           }
 
           const hardNavigate = shouldHardNavigate(

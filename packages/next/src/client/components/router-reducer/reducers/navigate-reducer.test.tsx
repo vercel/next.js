@@ -35,6 +35,25 @@ const flightData: FlightData = [
   ],
 ]
 
+const dynamicFlightData: FlightData = [
+  [
+    'children',
+    'linking',
+    'children',
+    'dynamic',
+    [
+      'dynamic',
+      {
+        children: ['__PAGE__', {}],
+      },
+    ],
+    null,
+    <>
+      <title>Dynamic page!</title>
+    </>,
+  ],
+]
+
 const demographicsFlightData: FlightData = [
   [
     [
@@ -80,6 +99,9 @@ jest.mock('../fetch-server-response', () => {
       }
       if (url.pathname === '/linking/about') {
         return Promise.resolve([flightData, undefined])
+      }
+      if (url.pathname === '/linking/dynamic') {
+        return Promise.resolve([dynamicFlightData, undefined])
       }
 
       if (url.pathname === '/parallel-tab-bar/demographics') {
@@ -1232,6 +1254,210 @@ describe('navigateReducer', () => {
               {
                 "children": [
                   "about",
+                  {
+                    "children": [
+                      "__PAGE__",
+                      {},
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          ,
+          ,
+          true,
+        ],
+      }
+    `)
+  })
+
+  it('should apply navigation with stale prefetched data', async () => {
+    const initialTree = getInitialRouterStateTree()
+    const initialCanonicalUrl = '/linking'
+    const children = (
+      <html>
+        <head></head>
+        <body>Root layout</body>
+      </html>
+    )
+    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+      [
+        'children',
+        new Map([
+          [
+            'linking',
+            {
+              status: CacheStates.READY,
+              parallelRoutes: new Map([
+                [
+                  'children',
+                  new Map([
+                    [
+                      '__PAGE__',
+                      {
+                        status: CacheStates.READY,
+                        data: null,
+                        subTreeData: <>Linking page</>,
+                        parallelRoutes: new Map(),
+                      },
+                    ],
+                  ]),
+                ],
+              ]),
+              data: null,
+              subTreeData: <>Linking layout level</>,
+            },
+          ],
+        ]),
+      ],
+    ])
+
+    const url = new URL('/linking/dynamic', 'https://localhost')
+    const prefetchAction: PrefetchAction = {
+      type: ACTION_PREFETCH,
+      url,
+      kind: PrefetchKind.AUTO,
+    }
+
+    const state = createInitialRouterState({
+      buildId,
+      initialTree,
+      initialHead: null,
+      initialCanonicalUrl,
+      initialSeedData: ['', null, children],
+      initialParallelRoutes,
+      isServer: false,
+      location: new URL('/linking', 'https://localhost') as any,
+    })
+
+    const prefetchedState = await runPromiseThrowChain(() =>
+      prefetchReducer(state, prefetchAction)
+    )
+    const cacheKey = url.pathname + url.search
+    await prefetchedState.prefetchCache.get(cacheKey)?.data
+    // Fake cache fetch time before 30s
+    prefetchedState.prefetchCache.get(cacheKey)!.prefetchTime -= 30000
+    prefetchedState.prefetchCache.get(cacheKey)!.lastUsedTime =
+      prefetchedState.prefetchCache.get(cacheKey)!.prefetchTime - 30000
+
+    const action: NavigateAction = {
+      type: ACTION_NAVIGATE,
+      url: new URL('/linking/dynamic', 'https://localhost'),
+      isExternalUrl: false,
+      navigateType: 'push',
+      locationSearch: '',
+      shouldScroll: true,
+      cache: {
+        status: CacheStates.LAZY_INITIALIZED,
+        data: null,
+        subTreeData: null,
+        parallelRoutes: new Map(),
+      },
+      mutable: {},
+    }
+
+    const newState = await runPromiseThrowChain(() =>
+      navigateReducer(prefetchedState, action)
+    )
+
+    expect(newState).toMatchInlineSnapshot(`
+      {
+        "buildId": "development",
+        "cache": {
+          "data": null,
+          "parallelRoutes": Map {
+            "children" => Map {
+              "linking" => {
+                "data": null,
+                "parallelRoutes": Map {
+                  "children" => Map {
+                    "__PAGE__" => {
+                      "data": null,
+                      "parallelRoutes": Map {},
+                      "status": "READY",
+                      "subTreeData": <React.Fragment>
+                        Linking page
+                      </React.Fragment>,
+                    },
+                    "dynamic" => {
+                      "data": Promise {},
+                      "parallelRoutes": Map {},
+                      "status": "DATAFETCH",
+                      "subTreeData": null,
+                    },
+                  },
+                },
+                "status": "READY",
+                "subTreeData": <React.Fragment>
+                  Linking layout level
+                </React.Fragment>,
+              },
+            },
+          },
+          "status": "READY",
+          "subTreeData": <html>
+            <head />
+            <body>
+              Root layout
+            </body>
+          </html>,
+        },
+        "canonicalUrl": "/linking/dynamic",
+        "focusAndScrollRef": {
+          "apply": true,
+          "hashFragment": null,
+          "onlyHashChange": false,
+          "segmentPaths": [
+            [
+              "children",
+              "linking",
+              "children",
+              "dynamic",
+              "children",
+              "__PAGE__",
+            ],
+          ],
+        },
+        "nextUrl": "/linking/dynamic",
+        "prefetchCache": Map {
+          "/linking/dynamic" => {
+            "data": Promise {},
+            "kind": "auto",
+            "lastUsedTime": 1690329600000,
+            "prefetchTime": 1690329570000,
+            "treeAtTimeOfPrefetch": [
+              "",
+              {
+                "children": [
+                  "linking",
+                  {
+                    "children": [
+                      "__PAGE__",
+                      {},
+                    ],
+                  },
+                ],
+              },
+              undefined,
+              undefined,
+              true,
+            ],
+          },
+        },
+        "pushRef": {
+          "mpaNavigation": false,
+          "pendingPush": true,
+          "preserveCustomHistoryState": false,
+        },
+        "tree": [
+          "",
+          {
+            "children": [
+              "linking",
+              {
+                "children": [
+                  "dynamic",
                   {
                     "children": [
                       "__PAGE__",
