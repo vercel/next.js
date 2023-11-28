@@ -316,7 +316,7 @@ async function startWatcher(opts: SetupOpts) {
       } else if (formattedFilePath) {
         message = `${formattedFilePath}  ${formattedTitle}`
       } else {
-        message = `${formattedTitle}`
+        message = formattedTitle
       }
 
       if (source?.range && source.source.content) {
