@@ -193,6 +193,7 @@ pub async fn get_server_resolve_options_context(
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
+        enable_mjs_extension: true,
         rules: vec![(
             foreign_code_context_condition,
             resolve_options_context.clone().cell(),
@@ -254,7 +255,9 @@ pub async fn get_server_module_options_context(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value(), mode).await?;
-    let internal_custom_rules = get_next_server_internal_transforms_rules(ty.into_value()).await?;
+    let internal_custom_rules =
+        get_next_server_internal_transforms_rules(ty.into_value(), *next_config.mdx_rs().await?)
+            .await?;
 
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
