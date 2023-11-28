@@ -231,6 +231,7 @@ jobs:
     secrets: inherit
 
   report-test-results:
+    name: report test results to datadog
     needs:
       [
         'test-unit',
@@ -241,27 +242,11 @@ jobs:
         'test-turbopack-integration',
       ]
     if: always()
-    runs-on: ubuntu-latest
-    name: report test results to datadog
-    steps:
-      - name: Download test report artifacts
-        id: download-test-reports
-        uses: actions/download-artifact@v3
-        with:
-          name: test-reports
-          path: test
-
-      - name: Upload test report to datadog
-        run: |
-          if [ -d ./test/test-junit-report ]; then
-            # Add a `test.type` tag to distinguish between turbopack and next.js runs
-            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs --service nextjs ./test/test-junit-report
-          fi
-
-          if [ -d ./test/turbopack-test-junit-report ]; then
-            # Add a `test.type` tag to distinguish between turbopack and next.js runs
-            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack --service nextjs ./test/turbopack-test-junit-report
-          fi
+    secrets: inherit
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      uploadTestReportsDatadog: 'yes'
 
   tests-pass:
     needs:
