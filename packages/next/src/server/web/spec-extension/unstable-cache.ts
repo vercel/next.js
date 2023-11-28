@@ -166,12 +166,11 @@ export function unstable_cache<T extends Callback>(
             return invokeCallback()
           } else {
             if (!store.pendingRevalidates) {
-              store.pendingRevalidates = []
+              store.pendingRevalidates = {}
             }
-            store.pendingRevalidates.push(
-              invokeCallback().catch((err) =>
+            store.pendingRevalidates[joinedKey] = invokeCallback().catch(
+              (err) =>
                 console.error(`revalidating cache with key: ${joinedKey}`, err)
-              )
             )
           }
         }
