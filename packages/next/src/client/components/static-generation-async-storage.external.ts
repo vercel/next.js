@@ -28,7 +28,7 @@ export interface StaticGenerationStore {
   revalidate?: Revalidate
   forceStatic?: boolean
   dynamicShouldError?: boolean
-  pendingRevalidates?: Promise<any>[]
+  pendingRevalidates?: Record<string, Promise<any>>
   postponeWasTriggered?: boolean
   postpone?: (reason: string) => never
 

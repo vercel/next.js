@@ -1071,7 +1071,9 @@ async function renderToHTMLOrFlightImpl(
 
   // If we have pending revalidates, wait until they are all resolved.
   if (staticGenerationStore.pendingRevalidates) {
-    options.waitUntil = Promise.all(staticGenerationStore.pendingRevalidates)
+    options.waitUntil = Promise.all(
+      Object.values(staticGenerationStore.pendingRevalidates)
+    )
   }
 
   addImplicitTags(staticGenerationStore)
