@@ -959,3 +959,39 @@ export function onDemandEntryHandler({
     },
   }
 }
+
+export function appPathsToRouterState(appPaths: string[]): FlightRouterState {
+  const parallelRoutes: { [parallelRouterKey: string]: FlightRouterState } = {}
+
+  for (const appPath of appPaths) {
+    const [, routeName, ...rest] = appPath.split('/')
+
+    let routeChildren: { [parallelRouterKey: string]: FlightRouterState } = {}
+    let currentChildren = routeChildren
+
+    for (const part of rest) {
+      let nextChildren = {}
+      currentChildren.children = [
+        part === 'page' ? PAGE_SEGMENT_KEY : part,
+        nextChildren,
+      ]
+      currentChildren = nextChildren
+    }
+
+    if (routeName.startsWith('@')) {
+      const name = routeName.slice(1)
+      parallelRoutes[name] = ['page$', routeChildren]
+    } else {
+      if (parallelRoutes.children) {
+        throw new Error('Expected only one `children` parallel route')
+      }
+
+      parallelRoutes.children = [
+        routeName === 'page' ? PAGE_SEGMENT_KEY : routeName,
+        routeChildren,
+      ]
+    }
+  }
+
+  return ['', parallelRoutes, undefined, undefined, true]
+}
