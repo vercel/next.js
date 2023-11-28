@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-process.env.NODE_ENV = 'production'
-
 require('../../../test/lib/react-channel-require-hook')
 
 console.time('next-cold-start')
