@@ -162,6 +162,7 @@
     "jest-extended": "4.0.2",
     "jest-junit": "16.0.0",
     "json5": "2.2.3",
+    "kleur": "^4.1.0",
     "ky": "0.19.1",
     "ky-universal": "0.6.0",
     "lerna": "4.0.0",
