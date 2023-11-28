@@ -1,8 +1,6 @@
 console.time('next-wall-time')
 // Usage: node scripts/minimal-server.js <path-to-app-dir-build> <path-to-page>
-// This script is used to run a minimal Next.js server in production mode.
-
-process.env.NODE_ENV = 'production'
+// This script is used to run a minimal Next.js server
 
 // Change this to 'experimental' to opt into the React experimental channel (needed for server actions, ppr)
 process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = 'next'

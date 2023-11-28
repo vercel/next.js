@@ -1986,7 +1986,6 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 const dir = path.join(__dirname)
 
-process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
