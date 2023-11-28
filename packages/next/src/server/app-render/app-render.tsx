@@ -1037,7 +1037,7 @@ async function renderToHTMLOrFlightImpl(
       pageData: await stringifiedFlightPayloadPromise,
       // If we have pending revalidates, wait until they are all resolved.
       waitUntil: staticGenerationStore.pendingRevalidates
-        ? Promise.all(staticGenerationStore.pendingRevalidates)
+        ? Promise.all(Object.values(staticGenerationStore.pendingRevalidates))
         : undefined,
     }
   )
