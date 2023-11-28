@@ -818,9 +818,6 @@ function assignDefaults(
         '*': 'react-bootstrap/{{member}}',
       },
     },
-    antd: {
-      transform: 'antd/es/{{kebabCase member}}',
-    },
     ahooks: {
       transform: {
         createUpdateEffect:
