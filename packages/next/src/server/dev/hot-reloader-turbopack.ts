@@ -296,6 +296,12 @@ export async function createHotReloaderTurbopack(
   }
 
   function sendTurbopackMessage(payload: TurbopackUpdate) {
+    // TODO(PACK-2049): For some reason we end up emitting hundreds of issues messages on bigger apps,
+    //   a lot of which are duplicates.
+    //   They are currently not handled on the client at all, so might as well not send them for now.
+    payload.diagnostics = []
+    payload.issues = []
+
     for (const client of clients) {
       const state = clientStates.get(client)
       if (!state) continue
