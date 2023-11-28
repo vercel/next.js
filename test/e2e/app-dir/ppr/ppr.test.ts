@@ -5,7 +5,6 @@ createNextDescribe(
   'ppr',
   {
     files: __dirname,
-    skipDeployment: true,
   },
   ({ next, isNextDev, isNextStart }) => {
     it('should indicate the feature is experimental', async () => {
