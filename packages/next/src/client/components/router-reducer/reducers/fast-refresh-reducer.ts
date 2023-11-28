@@ -10,13 +10,15 @@ import type {
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import { createEmptyCacheNode } from '../../app-router'
 
 // A version of refresh reducer that keeps the cache around instead of wiping all of it.
 function fastRefreshReducerImpl(
   state: ReadonlyReducerState,
   action: FastRefreshAction
 ): ReducerState {
-  const { cache, mutable, origin } = action
+  const { mutable, origin } = action
   const href = state.canonicalUrl
 
   const isForCurrentTree =
@@ -28,16 +30,15 @@ function fastRefreshReducerImpl(
 
   mutable.preserveCustomHistoryState = false
 
-  if (!cache.data) {
-    // TODO-APP: verify that `href` is not an external url.
-    // Fetch data from the root of the tree.
-    cache.data = fetchServerResponse(
-      new URL(href, origin),
-      [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
-      state.nextUrl,
-      state.buildId
-    )
-  }
+  const cache: CacheNode = createEmptyCacheNode()
+  // TODO-APP: verify that `href` is not an external url.
+  // Fetch data from the root of the tree.
+  cache.data = fetchServerResponse(
+    new URL(href, origin),
+    [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
+    state.nextUrl,
+    state.buildId
+  )
 
   return cache.data.then(
     ([flightData, canonicalUrlOverride]) => {
