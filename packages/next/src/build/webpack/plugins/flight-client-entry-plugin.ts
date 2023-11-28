@@ -32,7 +32,6 @@ import {
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
-import semver from 'next/dist/compiled/semver'
 import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
 
 interface Options {
@@ -787,17 +786,6 @@ export class FlightClientEntryPlugin {
     fromClient?: boolean
   }) {
     const actionsArray = Array.from(actions.entries())
-
-    // Node < 18.11 does not have sufficient support for FormData
-    if (actionsArray.length > 0 && semver.lt(process.version, '18.11.0')) {
-      compilation.errors.push(
-        new compilation.compiler.webpack.WebpackError(
-          'Your version of Node does not support server actions. Please upgrade to Node 18.11 or higher.'
-        )
-      )
-
-      return Promise.resolve()
-    }
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),

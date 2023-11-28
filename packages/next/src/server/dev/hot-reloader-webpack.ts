@@ -51,6 +51,7 @@ import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import {
   difference,
+  isInstrumentationHookFile,
   isMiddlewareFile,
   isMiddlewareFilename,
 } from '../../build/utils'
@@ -312,7 +313,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
 
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
-          await this.ensurePage({ page, clientOnly: true })
+          await this.ensurePage({ page, clientOnly: true, url: req.url })
         } catch (error) {
           return await renderScriptError(pageBundleRes, getProperError(error))
         }
@@ -955,7 +956,8 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                 } else if (
                   !isMiddlewareFile(page) &&
                   !isInternalComponent(relativeRequest) &&
-                  !isNonRoutePagesPage(page)
+                  !isNonRoutePagesPage(page) &&
+                  !(isInstrumentationHookFile(page) && pageType === 'root')
                 ) {
                   value = getRouteLoaderEntry({
                     kind: RouteKind.PAGES,
@@ -1469,12 +1471,14 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     appPaths,
     definition,
     isApp,
+    url,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
     definition?: RouteDefinition
+    url?: string
   }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
@@ -1492,6 +1496,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       appPaths,
       definition,
       isApp,
+      url,
     })
   }
 }

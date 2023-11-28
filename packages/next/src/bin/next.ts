@@ -3,6 +3,7 @@ performance.mark('next-start')
 import '../server/require-hook'
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
+import semver from 'next/dist/compiled/semver'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { commands } from '../lib/commands'
 import { commandArgs } from '../lib/command-args'
@@ -113,6 +114,15 @@ async function main() {
         `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
       )
     }
+  }
+
+  if (
+    semver.lt(process.versions.node, process.env.__NEXT_REQUIRED_NODE_VERSION!)
+  ) {
+    console.error(
+      `You are using Node.js ${process.versions.node}. For Next.js, Node.js version >= v${process.env.__NEXT_REQUIRED_NODE_VERSION} is required.`
+    )
+    process.exit(1)
   }
 
   await commands[command]()

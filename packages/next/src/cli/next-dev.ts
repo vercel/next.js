@@ -272,6 +272,19 @@ const nextDev: CliCommand = async (args) => {
           return
         }
         if (code === RESTART_EXIT_CODE) {
+          // Starting the dev server will overwrite the `.next/trace` file, so we
+          // must upload the existing contents before restarting the server to
+          // preserve the metrics.
+          if (traceUploadUrl) {
+            uploadTrace({
+              traceUploadUrl,
+              mode: 'dev',
+              isTurboSession,
+              projectDir: dir,
+              distDir: config.distDir,
+              sync: true,
+            })
+          }
           return startServer(options)
         }
         await handleSessionStop(signal)

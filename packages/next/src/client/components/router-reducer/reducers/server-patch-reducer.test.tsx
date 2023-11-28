@@ -171,12 +171,6 @@ describe('serverPatchReducer', () => {
         true,
       ],
       overrideCanonicalUrl: undefined,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
@@ -363,12 +357,6 @@ describe('serverPatchReducer', () => {
         true,
       ],
       overrideCanonicalUrl: undefined,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
@@ -502,12 +490,6 @@ describe('serverPatchReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
@@ -544,12 +526,6 @@ describe('serverPatchReducer', () => {
         true,
       ],
       overrideCanonicalUrl: undefined,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
