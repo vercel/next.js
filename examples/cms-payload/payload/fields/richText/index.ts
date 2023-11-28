@@ -2,6 +2,7 @@ import {
   RichTextElement,
   FieldProps,
   RichTextLeaf,
+  slateEditor,
 } from '@payloadcms/richtext-slate'
 import { RichTextField } from 'payload/types'
 import deepMerge from '../../utilities/deepMerge'
@@ -27,10 +28,12 @@ const richText: RichText = (
     {
       name: 'richText',
       required: true,
-      admin: {
-        elements: [...elements, ...(additions.elements || [])],
-        leaves: [...leaves, ...(additions.leaves || [])],
-      },
+      editor: slateEditor({
+        admin: {
+          elements: [...elements, ...(additions.elements || [])],
+          leaves: [...leaves, ...(additions.leaves || [])],
+        },
+      })
     },
     overrides || {}
   )

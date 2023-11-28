@@ -1,4 +1,4 @@
-import { RichTextLeaf } from 'payload/dist/fields/config/types'
+import { RichTextLeaf } from '@payloadcms/richtext-slate'
 
 const defaultLeaves: RichTextLeaf[] = ['bold', 'italic', 'underline']
 

@@ -30,7 +30,6 @@ export const getPayloadClient = async () => {
   if (!cached.promise) {
     cached.promise = await getPayload({
       // Make sure that your environment variables are filled out accordingly
-      mongoURL: process.env.MONGODB_URI as string,
       secret: process.env.PAYLOAD_SECRET as string,
       config: config,
     })
