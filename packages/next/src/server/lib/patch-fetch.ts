@@ -266,9 +266,13 @@ export function patchFetch({
           typeof _cache === 'string' &&
           typeof curRevalidate !== 'undefined'
         ) {
-          Log.warn(
-            `fetch for ${fetchUrl} on ${staticGenerationStore.urlPathname} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
-          )
+          // when providing fetch with a Request input, it'll automatically set a cache value of 'default'
+          // we only want to warn if the user is explicitly setting a cache value
+          if (!(isRequestInput && _cache === 'default')) {
+            Log.warn(
+              `fetch for ${fetchUrl} on ${staticGenerationStore.urlPathname} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
+            )
+          }
           _cache = undefined
         }
 

@@ -43,8 +43,10 @@ use serde::Deserialize;
 use turbopack_binding::swc::{
     core::{
         common::{
-            chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
-            SyntaxContext,
+            chain,
+            comments::{Comments, NoopComments},
+            pass::Optional,
+            FileName, Mark, SourceFile, SourceMap, SyntaxContext,
         },
         ecma::{
             ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
@@ -214,6 +216,7 @@ where
                     file.name.clone(),
                     file.src_hash,
                     config.clone(),
+                    NoopComments
                 )
             ),
             None => Either::Right(noop()),
@@ -230,7 +233,7 @@ where
                 Some(config) if config.truthy() => match config {
                     // Always enable the Server Components mode for both
                     // server and client layers.
-                    react_server_components::Config::WithOptions(_) => true,
+                    react_server_components::Config::WithOptions(config) => config.is_react_server_layer,
                     _ => false,
                 },
                 _ => false,

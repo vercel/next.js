@@ -6,6 +6,7 @@ import type {
   WrittenEndpoint,
   Issue,
   Project,
+  StyledString,
 } from '../../../build/swc'
 import type { Socket } from 'net'
 import type { FilesystemDynamicRoute } from './filesystem'
@@ -103,7 +104,7 @@ import {
   getOverlayMiddleware,
   createOriginalStackFrame as createOriginalTurboStackFrame,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
-import { mkdir, readFile, writeFile, rename, unlink } from 'fs/promises'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import {
   type ClientBuildManifest,
@@ -126,6 +127,8 @@ import type { ActionManifest } from '../../../build/webpack/plugins/flight-clien
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import type { LoadableManifest } from '../../load-components'
 import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
+import { bold, green, red } from '../../../lib/picocolors'
+import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -279,52 +282,73 @@ async function startWatcher(opts: SetupOpts) {
     const issues = new Map<string, Map<string, Issue>>()
 
     function issueKey(issue: Issue): string {
-      return `${issue.severity} - ${issue.filePath} - ${issue.title}\n${issue.description}\n\n`
+      return [
+        issue.severity,
+        issue.filePath,
+        issue.title,
+        JSON.stringify(issue.description),
+      ].join('-')
     }
 
     function formatIssue(issue: Issue) {
       const { filePath, title, description, source, detail } = issue
-      let formattedTitle = title.replace(/\n/g, '\n    ')
-      let message = ''
+      let formattedTitle = renderStyledStringToErrorAnsi(title).replace(
+        /\n/g,
+        '\n    '
+      )
 
       let formattedFilePath = filePath
         .replace('[project]/', '')
         .replaceAll('/./', '/')
         .replace('\\\\?\\', '')
 
+      let message
+
       if (source) {
         if (source.range) {
-          const { start, end } = source.range
+          const { start } = source.range
           message = `${issue.severity} - ${formattedFilePath}:${
             start.line + 1
           }:${start.column}  ${formattedTitle}`
-
-          if (source.source.content) {
-            const {
-              codeFrameColumns,
-            } = require('next/dist/compiled/babel/code-frame')
-            message +=
-              '\n\n' +
-              codeFrameColumns(
-                source.source.content,
-                {
-                  start: { line: start.line + 1, column: start.column + 1 },
-                  end: { line: end.line + 1, column: end.column + 1 },
-                },
-                { forceColor: true }
-              )
-          }
         } else {
           message = `${issue.severity} - ${formattedFilePath}  ${formattedTitle}`
         }
+      } else if (formattedFilePath) {
+        message = `${formattedFilePath}  ${formattedTitle}`
       } else {
         message = `${formattedTitle}`
       }
-      if (description) {
-        message += `\n${description.replace(/\n/g, '\n    ')}`
+
+      if (source?.range && source.source.content) {
+        const { start, end } = source.range
+        const {
+          codeFrameColumns,
+        } = require('next/dist/compiled/babel/code-frame')
+
+        message +=
+          '\n\n' +
+          codeFrameColumns(
+            source.source.content,
+            {
+              start: { line: start.line + 1, column: start.column + 1 },
+              end: { line: end.line + 1, column: end.column + 1 },
+            },
+            { forceColor: true }
+          )
       }
+
+      if (description) {
+        message += `\n${renderStyledStringToErrorAnsi(description).replace(
+          /\n/g,
+          '\n    '
+        )}`
+      }
+
       if (detail) {
-        message += `\n${detail.replace(/\n/g, '\n    ')}`
+        message += `\n${renderStyledStringToErrorAnsi(detail).replace(
+          /\n/g,
+          '\n    '
+        )}`
       }
 
       return message
@@ -350,9 +374,12 @@ async function startWatcher(opts: SetupOpts) {
         const key = issueKey(issue)
         const formatted = formatIssue(issue)
         if (!oldSet.has(key) && !newSet.has(key)) {
-          console.error(`  ⚠ ${displayName} ${key} ${formatted}\n\n`)
+          console.error(`  ⚠ ${displayName} ${formatted}\n\n`)
         }
         newSet.set(key, issue)
+
+        // We show errors in node_modules to the console, but don't throw for them
+        if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
         relevantIssues.add(formatted)
       }
 
@@ -426,7 +453,11 @@ async function startWatcher(opts: SetupOpts) {
     const buildingIds = new Set()
     const readyIds = new Set()
 
-    function startBuilding(id: string, forceRebuild: boolean = false) {
+    function startBuilding(
+      id: string,
+      requestUrl: string | undefined,
+      forceRebuild: boolean = false
+    ) {
       if (!forceRebuild && readyIds.has(id)) {
         return () => {}
       }
@@ -435,6 +466,7 @@ async function startWatcher(opts: SetupOpts) {
           {
             loading: true,
             trigger: id,
+            url: requestUrl,
           } as OutputState,
           true
         )
@@ -482,7 +514,9 @@ async function startWatcher(opts: SetupOpts) {
 
           errors.set(key, {
             message,
-            details: issue.detail,
+            details: issue.detail
+              ? renderStyledStringToErrorAnsi(issue.detail)
+              : undefined,
           })
         }
       }
@@ -782,24 +816,6 @@ async function startWatcher(opts: SetupOpts) {
         Object.assign(manifest, m)
       }
       return manifest
-    }
-
-    async function writeFileAtomic(
-      filePath: string,
-      content: string
-    ): Promise<void> {
-      const tempPath = filePath + '.tmp.' + Math.random().toString(36).slice(2)
-      try {
-        await writeFile(tempPath, content, 'utf-8')
-        await rename(tempPath, filePath)
-      } catch (e) {
-        try {
-          await unlink(tempPath)
-        } catch {
-          // ignore
-        }
-        throw e
-      }
     }
 
     async function writeBuildManifest(
@@ -1116,7 +1132,11 @@ async function startWatcher(opts: SetupOpts) {
               false,
               middleware.endpoint,
               async () => {
-                const finishBuilding = startBuilding('middleware', true)
+                const finishBuilding = startBuilding(
+                  'middleware',
+                  undefined,
+                  true
+                )
                 await processMiddleware()
                 await propagateServerField(
                   'actualMiddlewareFile',
@@ -1198,7 +1218,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     const overlayMiddleware = getOverlayMiddleware(project)
-    const turbopackHotReloader: NextJsHotReloaderInterface = {
+    hotReloader = {
       turbopackProject: project,
       activeWebpackConfigs: undefined,
       serverStats: null,
@@ -1220,6 +1240,7 @@ async function startWatcher(opts: SetupOpts) {
                 page: denormalizedPagePath,
                 clientOnly: false,
                 definition: undefined,
+                url: req.url,
               })
               .catch(console.error)
           }
@@ -1327,11 +1348,12 @@ async function startWatcher(opts: SetupOpts) {
         // appPaths,
         definition,
         isApp,
+        url: requestUrl,
       }) {
         let page = definition?.pathname ?? inputPage
 
         if (page === '/_error') {
-          let finishBuilding = startBuilding(page)
+          let finishBuilding = startBuilding(page, requestUrl)
           try {
             if (globalEntries.app) {
               const writtenEndpoint = await processResult(
@@ -1395,6 +1417,7 @@ async function startWatcher(opts: SetupOpts) {
           if (page === '/_app') return
           if (page === '/_document') return
           if (page === '/middleware') return
+          if (page === '/src/middleware') return
 
           throw new PageNotFoundError(`route not found ${page}`)
         }
@@ -1429,7 +1452,7 @@ async function startWatcher(opts: SetupOpts) {
                 )
               }
 
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(buildingKey, requestUrl)
               try {
                 if (globalEntries.app) {
                   const writtenEndpoint = await processResult(
@@ -1517,7 +1540,7 @@ async function startWatcher(opts: SetupOpts) {
               // since this can happen when app pages make
               // api requests to page API routes.
 
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(buildingKey, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
@@ -1542,7 +1565,7 @@ async function startWatcher(opts: SetupOpts) {
               break
             }
             case 'app-page': {
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(buildingKey, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.htmlEndpoint.writeToDisk()
@@ -1593,7 +1616,7 @@ async function startWatcher(opts: SetupOpts) {
               break
             }
             case 'app-route': {
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(buildingKey, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
@@ -1629,8 +1652,6 @@ async function startWatcher(opts: SetupOpts) {
         }
       },
     }
-
-    hotReloader = turbopackHotReloader
   } else {
     hotReloader = new HotReloader(opts.dir, {
       appDir,
@@ -2452,12 +2473,13 @@ async function startWatcher(opts: SetupOpts) {
     requestHandler,
     logErrorWithOriginalStack,
 
-    async ensureMiddleware() {
+    async ensureMiddleware(requestUrl?: string) {
       if (!serverFields.actualMiddlewareFile) return
       return hotReloader.ensurePage({
         page: serverFields.actualMiddlewareFile,
         clientOnly: false,
         definition: undefined,
+        url: requestUrl,
       })
     },
   }
@@ -2477,7 +2499,7 @@ export async function setupDevBundler(opts: SetupOpts) {
       {
         webpackVersion: 5,
         isSrcDir,
-        turboFlag: false,
+        turboFlag: !!opts.turbo,
         cliCommand: 'dev',
         appDir: !!opts.appDir,
         pagesDir: !!opts.pagesDir,
@@ -2490,3 +2512,20 @@ export async function setupDevBundler(opts: SetupOpts) {
 }
 
 export type DevBundler = Awaited<ReturnType<typeof setupDevBundler>>
+
+function renderStyledStringToErrorAnsi(string: StyledString): string {
+  switch (string.type) {
+    case 'text':
+      return string.value
+    case 'strong':
+      return bold(red(string.value))
+    case 'code':
+      return green(string.value)
+    case 'line':
+      return string.value.map(renderStyledStringToErrorAnsi).join('')
+    case 'stack':
+      return string.value.map(renderStyledStringToErrorAnsi).join('\n')
+    default:
+      throw new Error('Unknown StyledString type', string)
+  }
+}

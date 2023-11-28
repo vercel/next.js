@@ -1,5 +1,4 @@
 import { fetchServerResponse } from '../fetch-server-response'
-import { createRecordFromThenable } from '../create-record-from-thenable'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
@@ -10,14 +9,18 @@ import type {
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
+import {
+  CacheStates,
+  type CacheNode,
+} from '../../../../shared/lib/app-router-context.shared-runtime'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
+import { createEmptyCacheNode } from '../../app-router'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
   action: RefreshAction
 ): ReducerState {
-  const { cache, mutable, origin } = action
+  const { mutable, origin } = action
   const href = state.canonicalUrl
 
   let currentTree = state.tree
@@ -29,18 +32,17 @@ export function refreshReducer(
     return handleMutable(state, mutable)
   }
 
-  if (!cache.data) {
-    // TODO-APP: verify that `href` is not an external url.
-    // Fetch data from the root of the tree.
-    cache.data = createRecordFromThenable(
-      fetchServerResponse(
-        new URL(href, origin),
-        [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
-        state.nextUrl,
-        state.buildId
-      )
-    )
-  }
+  mutable.preserveCustomHistoryState = false
+
+  const cache: CacheNode = createEmptyCacheNode()
+  // TODO-APP: verify that `href` is not an external url.
+  // Fetch data from the root of the tree.
+  cache.data = fetchServerResponse(
+    new URL(href, origin),
+    [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
+    state.nextUrl,
+    state.buildId
+  )
 
   return cache.data.then(
     ([flightData, canonicalUrlOverride]) => {
@@ -96,10 +98,11 @@ export function refreshReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [subTreeData, head] = flightDataPath.slice(-2)
+        const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
-        if (subTreeData !== null) {
+        if (cacheNodeSeedData !== null) {
+          const subTreeData = cacheNodeSeedData[2]
           cache.status = CacheStates.READY
           cache.subTreeData = subTreeData
           fillLazyItemsTillLeafWithHead(
@@ -107,6 +110,7 @@ export function refreshReducer(
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
             undefined,
             treePatch,
+            cacheNodeSeedData,
             head
           )
           mutable.cache = cache

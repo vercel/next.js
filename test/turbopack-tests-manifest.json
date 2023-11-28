@@ -308,7 +308,6 @@
       "navigateReducer should apply navigation",
       "navigateReducer should apply navigation for external url (push)",
       "navigateReducer should apply navigation for external url (replace)",
-      "navigateReducer should apply navigation for forceOptimisticNavigation",
       "navigateReducer should apply navigation for hash fragments within a different tree",
       "navigateReducer should apply navigation for hash fragments within the same tree",
       "navigateReducer should apply navigation for scroll",
@@ -2114,8 +2113,7 @@
     "runtimeError": false
   },
   "test/e2e/404-page-router/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /not/a/real/page should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of false and i18n of false and middleware false should not throw any errors when re-fetching the route info",
@@ -2129,6 +2127,7 @@
       "404-page-router 404-page-router with basePath of true and i18n of true and middleware false for /not/a/real/page?with=query should have the correct router parameters after it is ready",
       "404-page-router 404-page-router with basePath of true and i18n of true and middleware false should not throw any errors when re-fetching the route info"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": true
@@ -2455,6 +2454,7 @@
   "test/e2e/app-dir/app-middleware/app-middleware.test.ts": {
     "passed": [
       "app dir - middleware without pages dir Updates headers",
+      "app dir - middleware with middleware in src dir works without crashing when using requestAsyncStorage",
       "app-dir with middleware Mutate request headers for Edge Functions Supports draft mode",
       "app-dir with middleware Mutate request headers for Serverless Functions Adds new headers",
       "app-dir with middleware Mutate request headers for Serverless Functions Deletes headers",
@@ -2464,14 +2464,12 @@
       "app-dir with middleware Mutate request headers for next/headers Deletes headers",
       "app-dir with middleware Mutate request headers for next/headers Supports draft mode",
       "app-dir with middleware Mutate request headers for next/headers Updates headers",
-      "app-dir with middleware should filter correctly after middleware rewrite"
-    ],
-    "failed": [
-      "app dir - middleware with middleware in src dir works without crashing when using requestAsyncStorage",
       "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
       "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
-      "app-dir with middleware Mutate request headers for Edge Functions Updates headers"
+      "app-dir with middleware Mutate request headers for Edge Functions Updates headers",
+      "app-dir with middleware should filter correctly after middleware rewrite"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3357,7 +3355,6 @@
       "app dir - metadata dynamic routes should use localhost for local prod and fallback to deployment url when metadataBase is falsy",
       "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
       "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
-      "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime",
       "app dir - metadata dynamic routes social image routes should handle manifest.[ext] dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
@@ -3369,7 +3366,8 @@
       "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used"
     ],
     "failed": [
-      "app dir - metadata dynamic routes should error if the default export of dynamic image is missing"
+      "app dir - metadata dynamic routes should error if the default export of dynamic image is missing",
+      "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime"
     ],
     "pending": [],
     "flakey": [],
@@ -3683,6 +3681,7 @@
     ],
     "failed": [
       "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
+      "parallel-routes-and-interception parallel routes Should match the catch-all routes of the more specific path, If there is more than one catch-all route",
       "parallel-routes-and-interception parallel routes should throw an error when a route groups causes a conflict with a parallel segment"
     ],
     "pending": [],
@@ -8267,16 +8266,15 @@
     "runtimeError": false
   },
   "test/integration/edge-runtime-module-errors/test/module-imports.test.js": {
-    "passed": [
-      "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime",
-      "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime"
-    ],
+    "passed": [],
     "failed": [
       "Edge runtime code with imports Edge API dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime",
       "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
       "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
     ],
     "pending": [
@@ -12120,11 +12118,10 @@
   },
   "test/integration/middleware-src/test/index.test.js": {
     "passed": [
-      "Middleware in src/ and / folders dev mode loads and runs only root middleware"
-    ],
-    "failed": [
+      "Middleware in src/ and / folders dev mode loads and runs only root middleware",
       "Middleware in src/ folder dev mode loads an runs src middleware"
     ],
+    "failed": [],
     "pending": [
       "Middleware in src/ and / folders production mode should warn about middleware on export",
       "Middleware in src/ folder production mode should warn about middleware on export"
@@ -14884,16 +14881,16 @@
   },
   "test/integration/url/test/index.test.js": {
     "passed": [
-      "Handle new URL asset references in next dev should client-render the /ssg page",
-      "Handle new URL asset references in next dev should client-render the /ssr page",
       "Handle new URL asset references in next dev should client-render the /static page",
       "Handle new URL asset references in next dev should render the /ssg page",
       "Handle new URL asset references in next dev should render the /ssr page",
       "Handle new URL asset references in next dev should render the /static page",
-      "Handle new URL asset references in next dev should respond on basename api"
+      "Handle new URL asset references in next dev should respond on basename api",
+      "Handle new URL asset references in next dev should respond on size api"
     ],
     "failed": [
-      "Handle new URL asset references in next dev should respond on size api"
+      "Handle new URL asset references in next dev should client-render the /ssg page",
+      "Handle new URL asset references in next dev should client-render the /ssr page"
     ],
     "pending": [
       "Handle new URL asset references in next build should client-render the /ssg page",

@@ -5,6 +5,10 @@ import type {
   ReducerState,
 } from './router-reducer-types'
 
+function isNotUndefined<T>(value: T): value is Exclude<T, undefined> {
+  return typeof value !== 'undefined'
+}
+
 export function handleMutable(
   state: ReadonlyReducerState,
   mutable: Mutable
@@ -15,26 +19,28 @@ export function handleMutable(
   return {
     buildId: state.buildId,
     // Set href.
-    canonicalUrl:
-      mutable.canonicalUrl != null
-        ? mutable.canonicalUrl === state.canonicalUrl
-          ? state.canonicalUrl
-          : mutable.canonicalUrl
-        : state.canonicalUrl,
+    canonicalUrl: isNotUndefined(mutable.canonicalUrl)
+      ? mutable.canonicalUrl === state.canonicalUrl
+        ? state.canonicalUrl
+        : mutable.canonicalUrl
+      : state.canonicalUrl,
     pushRef: {
-      pendingPush:
-        mutable.pendingPush != null
-          ? mutable.pendingPush
-          : state.pushRef.pendingPush,
-      mpaNavigation:
-        mutable.mpaNavigation != null
-          ? mutable.mpaNavigation
-          : state.pushRef.mpaNavigation,
+      pendingPush: isNotUndefined(mutable.pendingPush)
+        ? mutable.pendingPush
+        : state.pushRef.pendingPush,
+      mpaNavigation: isNotUndefined(mutable.mpaNavigation)
+        ? mutable.mpaNavigation
+        : state.pushRef.mpaNavigation,
+      preserveCustomHistoryState: isNotUndefined(
+        mutable.preserveCustomHistoryState
+      )
+        ? mutable.preserveCustomHistoryState
+        : state.pushRef.preserveCustomHistoryState,
     },
     // All navigation requires scroll and focus management to trigger.
     focusAndScrollRef: {
       apply: shouldScroll
-        ? mutable?.scrollableSegments !== undefined
+        ? isNotUndefined(mutable?.scrollableSegments)
           ? true
           : state.focusAndScrollRef.apply
         : // If shouldScroll is false then we should not apply scroll and focus management.
@@ -63,11 +69,12 @@ export function handleMutable(
       ? mutable.prefetchCache
       : state.prefetchCache,
     // Apply patched router state.
-    tree: mutable.patchedTree !== undefined ? mutable.patchedTree : state.tree,
-    nextUrl:
-      mutable.patchedTree !== undefined
-        ? computeChangedPath(state.tree, mutable.patchedTree) ??
-          state.canonicalUrl
-        : state.nextUrl,
+    tree: isNotUndefined(mutable.patchedTree)
+      ? mutable.patchedTree
+      : state.tree,
+    nextUrl: isNotUndefined(mutable.patchedTree)
+      ? computeChangedPath(state.tree, mutable.patchedTree) ??
+        state.canonicalUrl
+      : state.nextUrl,
   }
 }
