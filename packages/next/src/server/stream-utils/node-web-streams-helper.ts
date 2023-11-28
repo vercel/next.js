@@ -442,7 +442,7 @@ function chainTransformers<T>(
 
 export type ContinueStreamOptions = {
   inlinedDataStream: ReadableStream<Uint8Array> | undefined
-  generateStaticHTML: boolean
+  isStaticGeneration: boolean
   getServerInsertedHTML: (() => Promise<string>) | undefined
   serverInsertedHTMLToHead: boolean
   validateRootLayout:
@@ -462,7 +462,7 @@ export async function continueFizzStream(
   {
     suffix,
     inlinedDataStream,
-    generateStaticHTML,
+    isStaticGeneration,
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
     validateRootLayout,
@@ -475,7 +475,7 @@ export async function continueFizzStream(
 
   // If we're generating static HTML and there's an `allReady` promise on the
   // stream, we need to wait for it to resolve before continuing.
-  if (generateStaticHTML && 'allReady' in renderStream) {
+  if (isStaticGeneration && 'allReady' in renderStream) {
     await renderStream.allReady
   }
 
@@ -518,7 +518,7 @@ export async function continueFizzStream(
 type ContinuePostponedStreamOptions = Pick<
   ContinueStreamOptions,
   | 'inlinedDataStream'
-  | 'generateStaticHTML'
+  | 'isStaticGeneration'
   | 'getServerInsertedHTML'
   | 'serverInsertedHTMLToHead'
 >
@@ -527,7 +527,7 @@ export async function continuePostponedFizzStream(
   renderStream: ReactReadableStream,
   {
     inlinedDataStream,
-    generateStaticHTML,
+    isStaticGeneration,
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
   }: ContinuePostponedStreamOptions
@@ -536,7 +536,7 @@ export async function continuePostponedFizzStream(
 
   // If we're generating static HTML and there's an `allReady` promise on the
   // stream, we need to wait for it to resolve before continuing.
-  if (generateStaticHTML && 'allReady' in renderStream) {
+  if (isStaticGeneration && 'allReady' in renderStream) {
     await renderStream.allReady
   }
 
