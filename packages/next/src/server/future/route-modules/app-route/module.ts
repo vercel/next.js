@@ -368,7 +368,9 @@ export class AppRouteRouteModule extends RouteModule<
                       staticGenerationStore.fetchMetrics
 
                     context.renderOpts.waitUntil = Promise.all(
-                      staticGenerationStore.pendingRevalidates || []
+                      Object.values(
+                        staticGenerationStore.pendingRevalidates || []
+                      )
                     )
 
                     addImplicitTags(staticGenerationStore)

@@ -23,18 +23,18 @@ use turbopack_binding::{
         tasks_memory::MemoryBackend,
     },
     turbopack::{
-        cli_utils::{
-            exit::ExitGuard,
-            raw_trace::RawTraceLayer,
-            trace_writer::{TraceWriter, TraceWriterGuard},
-            tracing_presets::TRACING_OVERVIEW_TARGETS,
-        },
         core::{
             error::PrettyPrintError,
             source_map::{GenerateSourceMap, Token},
             version::{PartialUpdate, TotalUpdate, Update},
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
+        trace_utils::{
+            exit::ExitGuard,
+            raw_trace::RawTraceLayer,
+            trace_writer::{TraceWriter, TraceWriterGuard},
+            tracing_presets::TRACING_OVERVIEW_TARGETS,
+        },
     },
 };
 use url::Url;
