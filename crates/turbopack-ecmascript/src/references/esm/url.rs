@@ -171,25 +171,34 @@ impl CodeGenerateable for UrlAssetReference {
                             .await?;
 
                         visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
-                            if let Expr::New(NewExpr { args: Some(args), callee, .. }) = new_expr {
-                                *callee = Box::new(quote!("__turbopack_relative_url__" as Expr));
-                                if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
-                                    *expr = quote!(
-                                        "__turbopack_require__($id)" as Expr,
-                                        id: Expr = module_id_to_lit(&id),
-                                    );
-                                }
+                            let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
+                                matches!(args.first(), Some(ExprOrSpread { .. }))
+                            } else {
+                                false
+                            };
+
+                            if should_rewrite_to_relative {
+                                *new_expr = quote!(
+                                    "new __turbopack_relative_url__(__turbopack_require__($id))" as Expr,
+                                    id: Expr = module_id_to_lit(&id),
+                                );
                             }
                         }));
                     }
                     ReferencedAsset::OriginalReferenceTypeExternal(request) => {
                         let request = request.to_string();
                         visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
-                            if let Expr::New(NewExpr { args: Some(args), callee, .. }) = new_expr {
-                                *callee = Box::new(quote!("__turbopack_relative_url__" as Expr));
-                                if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
-                                    *expr = request.as_str().into()
-                                }
+                            let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
+                                matches!(args.first(), Some(ExprOrSpread { .. }))
+                            } else {
+                                false
+                            };
+
+                            if should_rewrite_to_relative {
+                                *new_expr = quote!(
+                                    "new __turbopack_relative_url__($id)" as Expr,
+                                    id: Expr = request.as_str().into(),
+                                );
                             }
                         }));
                     }
@@ -223,7 +232,7 @@ impl CodeGenerateable for UrlAssetReference {
                         // If there's a rewrite to the base url, then the current rendering
                         // environment should able to resolve the asset path
                         // (asset_url) from the base. Wrap the module id
-                        // with __turbopack_require_ which returns the asset_url.
+                        // with __turbopack_require__ which returns the asset_url.
                         //
                         // Otherwise, the envioronment should provide an absolute path to the actual
                         // output asset; delegate those calculation to the

@@ -338,6 +338,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           w: loadWebAssembly.bind(null, sourceInfo),
           u: loadWebAssemblyModule.bind(null, sourceInfo),
           g: globalThis,
+          U: relativeURL,
           k: refresh,
           __dirname: module.id.replace(/(^|\/)\/+$/, ""),
         })
