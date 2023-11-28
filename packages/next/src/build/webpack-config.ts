@@ -1810,7 +1810,6 @@ export default async function getBaseWebpackConfig(
 
   // Support tsconfig and jsconfig baseUrl
   // Only add the baseUrl if it's explicitly set in tsconfig/jsconfig
-  console.log({ resolvedBaseUrl })
   if (resolvedBaseUrl && !resolvedBaseUrl.isImplicit) {
     webpackConfig.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
   }
