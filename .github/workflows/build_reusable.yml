@@ -53,6 +53,10 @@ on:
         required: false
         description: 'rustCacheKey to cache shared target assets'
         type: string
+      uploadTestReportsDatadog:
+        required: false
+        description: 'Upload test reports to datadog'
+        type: string
 
 env:
   NAPI_CLI_VERSION: 2.14.7
@@ -201,3 +205,24 @@ jobs:
             test/test-junit-report
             test/turbopack-test-junit-report
           if-no-files-found: ignore
+
+      - name: Download test reports
+        if: ${{inputs.uploadTestReportsDatadog && (inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope')}}
+        id: download-test-reports
+        uses: actions/download-artifact@v3
+        with:
+          name: test-reports
+          path: test
+
+      - name: Upload test reports to datadog
+        if: ${{inputs.uploadTestReportsDatadog && (inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope')}}
+        run: |
+          if [ -d ./test/test-junit-report ]; then
+            # Add a `test.type` tag to distinguish between turbopack and next.js runs
+            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs --service nextjs ./test/test-junit-report
+          fi
+
+          if [ -d ./test/turbopack-test-junit-report ]; then
+            # Add a `test.type` tag to distinguish between turbopack and next.js runs
+            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack --service nextjs ./test/turbopack-test-junit-report
+          fi
