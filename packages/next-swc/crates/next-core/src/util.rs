@@ -12,7 +12,7 @@ use turbopack_binding::{
             asset::AssetContent,
             environment::{ServerAddr, ServerInfo},
             ident::AssetIdent,
-            issue::{Issue, IssueExt, IssueSeverity, StyledString},
+            issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
             module::Module,
             source::Source,
             virtual_source::VirtualSource,
@@ -165,7 +165,7 @@ impl ValueDefault for NextSourceConfig {
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
     ident: Vc<AssetIdent>,
-    detail: Vc<String>,
+    detail: Vc<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
@@ -176,8 +176,8 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Unable to parse config export in source file".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Unable to parse config export in source file".to_string()).cell()
     }
 
     #[turbo_tasks::function]
@@ -191,18 +191,20 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        StyledString::Text(
-            "The exported configuration object in a source file need to have a very specific \
-             format from which some properties can be statically parsed at compiled-time."
-                .to_string(),
-        )
-        .cell()
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(
+                "The exported configuration object in a source file need to have a very specific \
+                 format from which some properties can be statically parsed at compiled-time."
+                    .to_string(),
+            )
+            .cell(),
+        ))
     }
 
     #[turbo_tasks::function]
-    fn detail(&self) -> Vc<String> {
-        self.detail
+    fn detail(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.detail))
     }
 }
 
@@ -238,11 +240,12 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                             } else {
                                 NextSourceConfigParsingIssue {
                                     ident: module.ident(),
-                                    detail: Vc::cell(
+                                    detail: StyledString::Text(
                                         "The exported config object must contain an variable \
                                          initializer."
                                             .to_string(),
-                                    ),
+                                    )
+                                    .cell(),
                                 }
                                 .cell()
                                 .emit()
@@ -256,10 +259,11 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                         {
                             let runtime_value_issue = NextSourceConfigParsingIssue {
                                 ident: module.ident(),
-                                detail: Vc::cell(
+                                detail: StyledString::Text(
                                     "The runtime property must be either \"nodejs\" or \"edge\"."
                                         .to_string(),
-                                ),
+                                )
+                                .cell(),
                             }
                             .cell();
                             if let Some(init) = decl.init.as_ref() {
@@ -288,11 +292,12 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                             } else {
                                 NextSourceConfigParsingIssue {
                                     ident: module.ident(),
-                                    detail: Vc::cell(
+                                    detail: StyledString::Text(
                                         "The exported segment runtime option must contain an \
                                          variable initializer."
                                             .to_string(),
-                                    ),
+                                    )
+                                    .cell(),
                                 }
                                 .cell()
                                 .emit()
@@ -312,7 +317,7 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
         let (explainer, hints) = value.explain(2, 0);
         NextSourceConfigParsingIssue {
             ident: module.ident(),
-            detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
+            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}")).cell(),
         }
         .cell()
         .emit()

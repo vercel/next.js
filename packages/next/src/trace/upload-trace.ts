@@ -4,12 +4,14 @@ export default function uploadTrace({
   isTurboSession,
   projectDir,
   distDir,
+  sync,
 }: {
   traceUploadUrl: string
   mode: 'dev'
   isTurboSession: boolean
   projectDir: string
   distDir: string
+  sync?: boolean
 }) {
   const { NEXT_TRACE_UPLOAD_DEBUG } = process.env
 
@@ -20,9 +22,10 @@ export default function uploadTrace({
 
   // we use spawnSync when debugging to ensure logs are piped
   // correctly to stdout/stderr
-  const spawn = NEXT_TRACE_UPLOAD_DEBUG
-    ? child_process.spawnSync
-    : child_process.spawn
+  const spawn =
+    NEXT_TRACE_UPLOAD_DEBUG || sync
+      ? child_process.spawnSync
+      : child_process.spawn
 
   spawn(
     process.execPath,

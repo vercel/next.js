@@ -22,7 +22,7 @@ env:
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  DATADOG_TRACE_NEXTJS_TEST: 'true'
+  NEXT_JUNIT_TEST_REPORT: 'true'
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
@@ -183,12 +183,10 @@ jobs:
       fail-fast: false
       matrix:
         group: [1, 2, 3]
-
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
       afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type development
-
     secrets: inherit
 
   test-prod:
@@ -198,7 +196,6 @@ jobs:
       fail-fast: false
       matrix:
         group: [1, 2, 3, 4, 5]
-
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipForDocsOnly: 'yes'
@@ -212,7 +209,6 @@ jobs:
       fail-fast: false
       matrix:
         group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.17.0
@@ -230,6 +226,48 @@ jobs:
       afterBuild: pnpm playwright install && BROWSER_NAME=firefox node run-tests.js test/production/pages-dir/production/test/index.test.ts && BROWSER_NAME=safari NEXT_TEST_MODE=start node run-tests.js -c 1 test/production/pages-dir/production/test/index.test.ts test/e2e/basepath.test.ts && BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
     secrets: inherit
 
+  # TODO: remove these jobs once PPR is the default
+  # Manifest generated via: https://gist.github.com/wyattjoh/2ceaebd82a5bcff4819600fd60126431
+  test-ppr-integration:
+    name: test ppr integration
+    needs: ['build-native', 'build-next']
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.17.0
+      skipForDocsOnly: 'yes'
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type integration
+    secrets: inherit
+
+  test-ppr-dev:
+    name: test ppr dev
+    needs: ['build-native', 'build-next']
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type development
+    secrets: inherit
+
+  test-ppr-prod:
+    name: test ppr prod
+    needs: ['build-native', 'build-next']
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipForDocsOnly: 'yes'
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type production
+    secrets: inherit
+
   report-test-results:
     needs:
       [
@@ -237,14 +275,34 @@ jobs:
         'test-dev',
         'test-prod',
         'test-integration',
+        'test-ppr-dev',
+        'test-ppr-prod',
+        'test-ppr-integration',
         'test-turbopack-dev',
         'test-turbopack-integration',
       ]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      skipForDocsOnly: 'yes'
-      uploadTestTrace: 'yes'
-    secrets: inherit
+    if: always()
+    runs-on: ubuntu-latest
+    name: report test results to datadog
+    steps:
+      - name: Download test report artifacts
+        id: download-test-reports
+        uses: actions/download-artifact@v3
+        with:
+          name: test-reports
+          path: test
+
+      - name: Upload test report to datadog
+        run: |
+          if [ -d ./test/test-junit-report ]; then
+            # Add a `test.type` tag to distinguish between turbopack and next.js runs
+            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs --service nextjs ./test/test-junit-report
+          fi
+
+          if [ -d ./test/turbopack-test-junit-report ]; then
+            # Add a `test.type` tag to distinguish between turbopack and next.js runs
+            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack --service nextjs ./test/turbopack-test-junit-report
+          fi
 
   tests-pass:
     needs:
@@ -258,6 +316,9 @@ jobs:
         'test-dev',
         'test-prod',
         'test-integration',
+        'test-ppr-dev',
+        'test-ppr-prod',
+        'test-ppr-integration',
         'test-cargo-unit',
         'test-cargo-integration',
         'test-cargo-bench',

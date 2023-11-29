@@ -257,8 +257,7 @@ export function patchFetch({
         const isOnlyNoStore =
           staticGenerationStore.fetchCache === 'only-no-store'
         const isForceNoStore =
-          staticGenerationStore.fetchCache === 'force-no-store' ||
-          staticGenerationStore.forceDynamic
+          staticGenerationStore.fetchCache === 'force-no-store'
 
         let _cache = getRequestMeta('cache')
         let cacheReason = ''
@@ -547,12 +546,11 @@ export function patchFetch({
             // so the revalidated entry has the updated data
             if (!(staticGenerationStore.isRevalidate && entry.isStale)) {
               if (entry.isStale) {
-                if (!staticGenerationStore.pendingRevalidates) {
-                  staticGenerationStore.pendingRevalidates = []
+                staticGenerationStore.pendingRevalidates ??= {}
+                if (!staticGenerationStore.pendingRevalidates[cacheKey]) {
+                  staticGenerationStore.pendingRevalidates[cacheKey] =
+                    doOriginalFetch(true).catch(console.error)
                 }
-                staticGenerationStore.pendingRevalidates.push(
-                  doOriginalFetch(true).catch(console.error)
-                )
               }
               const resData = entry.value.data
 

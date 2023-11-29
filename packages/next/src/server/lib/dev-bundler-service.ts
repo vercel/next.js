@@ -26,7 +26,7 @@ export class DevBundlerService {
       return await this.bundler.logErrorWithOriginalStack(...args)
     }
 
-  public async getFallbackErrorComponents() {
+  public async getFallbackErrorComponents(url?: string) {
     await this.bundler.hotReloader.buildFallbackError()
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
@@ -34,6 +34,7 @@ export class DevBundlerService {
       page: '/_error',
       clientOnly: false,
       definition: undefined,
+      url,
     })
   }
 
