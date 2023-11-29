@@ -577,12 +577,14 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       const redirectUrl = getURLFromRedirectError(err)
       const statusCode = getRedirectStatusCodeFromError(err)
 
-      // if it's a fetch action, we don't want to mess with the status code
-      // and we'll handle it on the client router
       await addRevalidationHeader(res, {
         staticGenerationStore,
         requestStore,
       })
+
+      // if it's a fetch action, we'll set the status code for logging/debugging purposes
+      // but we won't set a Location header, as the redirect will be handled by the client router
+      res.statusCode = statusCode
 
       if (isFetchAction) {
         return {
@@ -607,7 +609,6 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       }
 
       res.setHeader('Location', redirectUrl)
-      res.statusCode = statusCode
       return {
         type: 'done',
         result: RenderResult.fromStatic(''),
