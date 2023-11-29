@@ -11,12 +11,12 @@ import type { AppRenderContext, GenerateFlight } from './app-render'
 import type { AppPageModule } from '../../server/future/route-modules/app-page/module'
 
 import {
-  ACTION,
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
+  getRedirectStatusCodeFromError,
   getURLFromRedirectError,
   isRedirectError,
 } from '../../client/components/redirect'
@@ -36,6 +36,10 @@ import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
+import {
+  getIsServerAction,
+  getServerActionRequestMetadata,
+} from '../lib/server-action-request-meta'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -108,7 +112,9 @@ async function addRevalidationHeader(
     requestStore: RequestStore
   }
 ) {
-  await Promise.all(staticGenerationStore.pendingRevalidates || [])
+  await Promise.all(
+    Object.values(staticGenerationStore.pendingRevalidates || [])
+  )
 
   // If a tag was revalidated, the client router needs to invalidate all the
   // client router cache as they may be stale. And if a path was revalidated, the
@@ -205,7 +211,8 @@ async function createRedirectRenderResult(
       console.error(`failed to get redirect response`, err)
     }
   }
-  return new RenderResult(JSON.stringify({}))
+
+  return RenderResult.fromStatic('{}')
 }
 
 // Used to compare Host header and Origin header.
@@ -271,20 +278,13 @@ export async function handleAction({
       formState?: any
     }
 > {
-  let actionId = req.headers[ACTION.toLowerCase()] as string
   const contentType = req.headers['content-type']
-  const isURLEncodedAction =
-    req.method === 'POST' && contentType === 'application/x-www-form-urlencoded'
-  const isMultipartAction =
-    req.method === 'POST' && contentType?.startsWith('multipart/form-data')
 
-  const isFetchAction =
-    actionId !== undefined &&
-    typeof actionId === 'string' &&
-    req.method === 'POST'
+  const { actionId, isURLEncodedAction, isMultipartAction, isFetchAction } =
+    getServerActionRequestMetadata(req)
 
   // If it's not a Server Action, skip handling.
-  if (!(isFetchAction || isURLEncodedAction || isMultipartAction)) {
+  if (!getIsServerAction(req)) {
     return
   }
 
@@ -352,7 +352,9 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
-        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        await Promise.all(
+          Object.values(staticGenerationStore.pendingRevalidates || [])
+        )
 
         const promise = Promise.reject(error)
         try {
@@ -528,6 +530,10 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
 
       let actionModId: string
       try {
+        if (!actionId) {
+          throw new Error('Invariant: actionId should be set')
+        }
+
         actionModId = serverModuleMap[actionId].id
       } catch (err) {
         // When this happens, it could be a deployment skew where the action came
@@ -569,6 +575,7 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
   } catch (err) {
     if (isRedirectError(err)) {
       const redirectUrl = getURLFromRedirectError(err)
+      const statusCode = getRedirectStatusCodeFromError(err)
 
       // if it's a fetch action, we don't want to mess with the status code
       // and we'll handle it on the client router
@@ -600,10 +607,10 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       }
 
       res.setHeader('Location', redirectUrl)
-      res.statusCode = 303
+      res.statusCode = statusCode
       return {
         type: 'done',
-        result: new RenderResult(''),
+        result: RenderResult.fromStatic(''),
       }
     } else if (isNotFoundError(err)) {
       res.statusCode = 404
@@ -640,7 +647,9 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
 
     if (isFetchAction) {
       res.statusCode = 500
-      await Promise.all(staticGenerationStore.pendingRevalidates || [])
+      await Promise.all(
+        Object.values(staticGenerationStore.pendingRevalidates || [])
+      )
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early
