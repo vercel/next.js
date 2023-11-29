@@ -11,6 +11,7 @@ jobs:
   update_manifest:
     name: Update and upload Turbopack test manifest
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'vercel'
     steps:
       - name: Checkout
         uses: actions/checkout@v3
