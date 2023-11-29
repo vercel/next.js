@@ -11,7 +11,7 @@ use next_core::{
     util::parse_config_from_source,
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{Completion, TryFlatJoinIterExt, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileContent, FileSystemPath},
     turbopack::{
