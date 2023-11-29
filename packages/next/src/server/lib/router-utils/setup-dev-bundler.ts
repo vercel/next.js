@@ -83,7 +83,6 @@ import {
   REACT_LOADABLE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
-  PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
@@ -131,9 +130,6 @@ import type { LoadableManifest } from '../../load-components'
 import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
 import { bold, green, red } from '../../../lib/picocolors'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
-import type { RouteDefinition } from '../../future/route-definitions/route-definition'
-import type { AppPageRouteDefinition } from '../../future/route-definitions/app-page-route-definition'
-import { appPathsToRouterState } from '../../dev/on-demand-entry-handler'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -287,16 +283,12 @@ async function startWatcher(opts: SetupOpts) {
     let hmrBuilding = false
 
     const issues = new Map<string, Map<string, Issue>>()
-    const definitionByPage = new Map<
-      string,
-      RouteDefinition | AppPageRouteDefinition
-    >()
 
     function issueKey(issue: Issue): string {
       return [
         issue.severity,
         issue.filePath,
-        JSON.stringify(issue.title),
+        issue.title,
         JSON.stringify(issue.description),
       ].join('-')
     }
@@ -1334,6 +1326,7 @@ async function startWatcher(opts: SetupOpts) {
       // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
       onHMR(req, socket: Socket, head) {
         wsServer.handleUpgrade(req, socket, head, (client) => {
+          let hasPinged = false
           clients.add(client)
           client.on('close', () => clients.delete(client))
 
@@ -1344,9 +1337,37 @@ async function startWatcher(opts: SetupOpts) {
 
             // Next.js messages
             switch (parsedData.event) {
-              case 'ping':
-                // Ping doesn't need additional handling in Turbopack.
+              case 'ping': {
+                if (hasPinged) {
+                  break
+                }
+
+                hasPinged = true
+
+                const page = parsedData.page
+                const errors = []
+                const pageIssues = issues.get(page)
+                if (!pageIssues) {
+                  throw new Error('Expected page to exist in issues map')
+                }
+                for (const issue of pageIssues.values()) {
+                  errors.push({ file: '', message: formatIssue(issue) })
+                }
+
+                const sync: SyncAction = {
+                  action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+                  errors,
+                  warnings: [],
+                  hash: '',
+                  versionInfo: {
+                    installed: '0.0.0',
+                    staleness: 'unknown',
+                  },
+                }
+
+                this.send(sync)
                 break
+              }
               case 'span-end':
               case 'client-error': // { errorCount, clientId }
               case 'client-warning': // { warningCount, clientId }
@@ -1389,37 +1410,6 @@ async function startWatcher(opts: SetupOpts) {
             type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
           }
           client.send(JSON.stringify(turbopackConnected))
-
-          const errors = []
-          for (const [page, pageIssues] of issues) {
-            const definition = definitionByPage.get(page)
-            if (!definition) {
-              continue
-            }
-
-            // @ts-ignore
-            const appPaths = definition.appPaths
-            for (const issue of pageIssues.values()) {
-              errors.push({
-                path: appPaths ? appPathsToRouterState(appPaths) : null,
-                file: '',
-                message: formatIssue(issue),
-              })
-            }
-          }
-
-          const sync: SyncAction = {
-            action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
-            errors,
-            warnings: [],
-            hash: '',
-            versionInfo: {
-              installed: '0.0.0',
-              staleness: 'unknown',
-            },
-          }
-
-          this.send(sync)
         })
       },
 
@@ -1476,9 +1466,6 @@ async function startWatcher(opts: SetupOpts) {
         url: requestUrl,
       }) {
         let page = definition?.pathname ?? inputPage
-        if (definition && !definitionByPage.get(definition.pathname)) {
-          definitionByPage.set(definition.pathname, definition)
-        }
 
         if (page === '/_error') {
           let finishBuilding = startBuilding(page, requestUrl)
