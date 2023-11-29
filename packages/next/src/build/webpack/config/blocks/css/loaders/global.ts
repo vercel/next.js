@@ -25,27 +25,33 @@ export function getGlobalCssLoader(
   }
 
   // Resolve CSS `@import`s and `url()`s
-  loaders.push({
-    loader: require.resolve('../../../../loaders/css-loader/src'),
-    options: {
-      postcss,
-      importLoaders: 1 + preProcessors.length,
-      // Next.js controls CSS Modules eligibility:
-      modules: false,
-      url: (url: string, resourcePath: string) =>
-        cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
-      import: (url: string, _: any, resourcePath: string) =>
-        cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
-    },
-  })
+  if (ctx.experimental.useLightningcss) {
+    loaders.push({
+      loader: require.resolve('../../../../loaders/lightningcss-loader/src'),
+    })
+  } else {
+    loaders.push({
+      loader: require.resolve('../../../../loaders/css-loader/src'),
+      options: {
+        postcss,
+        importLoaders: 1 + preProcessors.length,
+        // Next.js controls CSS Modules eligibility:
+        modules: false,
+        url: (url: string, resourcePath: string) =>
+          cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
+        import: (url: string, _: any, resourcePath: string) =>
+          cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
+      },
+    })
 
-  // Compile CSS
-  loaders.push({
-    loader: require.resolve('../../../../loaders/postcss-loader/src'),
-    options: {
-      postcss,
-    },
-  })
+    // Compile CSS
+    loaders.push({
+      loader: require.resolve('../../../../loaders/postcss-loader/src'),
+      options: {
+        postcss,
+      },
+    })
+  }
 
   loaders.push(
     // Webpack loaders run like a stack, so we need to reverse the natural
