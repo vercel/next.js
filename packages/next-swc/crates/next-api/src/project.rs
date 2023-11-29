@@ -14,7 +14,7 @@ use next_core::{
     next_config::{JsConfig, NextConfig},
     next_server::{
         get_server_chunking_context, get_server_compile_time_info,
-        get_server_module_options_context, ServerContextType,
+        get_server_module_options_context, get_server_resolve_options_context, ServerContextType,
     },
     next_telemetry::NextFeatureTelemetry,
 };
@@ -751,7 +751,7 @@ impl Project {
                 NextMode::Development,
                 self.next_config(),
             ),
-            get_edge_resolve_options_context(
+            get_server_resolve_options_context(
                 self.project_path(),
                 Value::new(ServerContextType::Instrumentation),
                 NextMode::Development,
