@@ -17,7 +17,7 @@ There are four ways you can fetch data:
 
 Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/docs/Web/API/Fetch_API) to allow you to configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server. React extends `fetch` to automatically [memoize](/docs/app/building-your-application/data-fetching/patterns#fetching-data-where-its-needed) fetch requests while rendering a React component tree.
 
-You can use `fetch` with `async`/`await` in Server Components, in [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and in [Server Actions](/docs/app/building-your-application/data-fetching/forms-and-mutations).
+You can use `fetch` with `async`/`await` in Server Components, in [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
 For example:
 
@@ -117,7 +117,7 @@ Learn more about [time-based revalidation](/docs/app/building-your-application/c
 
 #### On-demand Revalidation
 
-Data can be revalidated on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)) inside a [Server Action](/docs/app/building-your-application/data-fetching/forms-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+Data can be revalidated on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)) inside a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 Next.js has a cache tagging system for invalidating `fetch` requests across routes.
 
