@@ -42,6 +42,7 @@ import { requestAsyncStorage } from '../../../../client/components/request-async
 import { staticGenerationAsyncStorage } from '../../../../client/components/static-generation-async-storage.external'
 import { actionAsyncStorage } from '../../../../client/components/action-async-storage.external'
 import * as sharedModules from './shared-modules'
+import { getIsServerAction } from '../../../lib/server-action-request-meta'
 
 /**
  * The AppRouteModule is the type of the module exported by the bundled App
@@ -274,6 +275,7 @@ export class AppRouteRouteModule extends RouteModule<
     const response: unknown = await this.actionAsyncStorage.run(
       {
         isAppRoute: true,
+        isAction: getIsServerAction(request),
       },
       () =>
         RequestAsyncStorageWrapper.wrap(
@@ -368,7 +370,9 @@ export class AppRouteRouteModule extends RouteModule<
                       staticGenerationStore.fetchMetrics
 
                     context.renderOpts.waitUntil = Promise.all(
-                      staticGenerationStore.pendingRevalidates || []
+                      Object.values(
+                        staticGenerationStore.pendingRevalidates || []
+                      )
                     )
 
                     addImplicitTags(staticGenerationStore)
