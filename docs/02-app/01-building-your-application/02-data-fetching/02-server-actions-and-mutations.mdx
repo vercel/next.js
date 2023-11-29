@@ -99,9 +99,59 @@ export async function create(formData) {
 
 ### Server-only Forms
 
-#### Server-only Forms
+<AppOnly>
 
-- [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
+React extends the HTML [`<form>`](https://developer.mozilla.org/docs/Web/HTML/Element/form) element to allow Server Actions to be called with the `action` prop.
+
+When called in a form, the action automatically receives the [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData/FormData) object containing the captured form data. You can extract the data using the native [`FormData` methods](https://developer.mozilla.org/en-US/docs/Web/API/FormData#instance_methods):
+
+```tsx filename="app/invoices/page.tsx" switcher
+export default function Page() {
+  async function createInvoice(formData: FormData) {
+    'use server'
+
+    const rawFormData = {
+      customerId: formData.get('customerId'),
+      amount: formData.get('amount'),
+      status: formData.get('status'),
+    }
+
+    // mutate data
+    // revalidate cache
+  }
+
+  return <form action={createInvoice}>...</form>
+}
+```
+
+```jsx filename="app/invoices/page.jsx" switcher
+export default function Page() {
+  async function createInvoice(formData) {
+    'use server'
+
+    const rawFormData = {
+      customerId: formData.get('customerId'),
+      amount: formData.get('amount'),
+      status: formData.get('status'),
+    }
+
+    // mutate data
+    // revalidate cache
+  }
+
+  return <form action={createInvoice}>...</form>
+}
+```
+
+> **Good to know:** When working with forms that have many fields, you may want to consider using the [`entries()`](https://developer.mozilla.org/en-US/docs/Web/API/FormData/entries) method with JavaScript's [`Object.fromEntries()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries). For example: `const rawFormData = Object.fromEntries(formData.entries())`
+
+To learn more about the `"use server"` directive and forms in React, see the following resources:
+
+- [React `<form>` documentation](https://react.dev/reference/react-dom/components/form#handle-form-submission-with-a-server-action)
+- [React `use server` documentation](https://react.dev/reference/react/use-server)
+- Next.js Example: [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
+
+</AppOnly>
 
 <PagesOnly>
 
@@ -185,36 +235,6 @@ export default function Page() {
 </PagesOnly>
 
 <AppOnly>
-
-To create a server-only form, define the Server Action in a Server Component. The action can either be defined inline with the `"use server"` directive at the top of the function, or in a separate file with the directive at the top of the file.
-
-```tsx filename="app/page.tsx" switcher
-export default function Page() {
-  async function create(formData: FormData) {
-    'use server'
-
-    // mutate data
-    // revalidate cache
-  }
-
-  return <form action={create}>...</form>
-}
-```
-
-```jsx filename="app/page.jsx" switcher
-export default function Page() {
-  async function create(formData) {
-    'use server'
-
-    // mutate data
-    // revalidate cache
-  }
-
-  return <form action={create}>...</form>
-}
-```
-
-> **Good to know**: `<form action={create}>` takes the [FormData](https://developer.mozilla.org/docs/Web/API/FormData/FormData) data type. In the example above, the FormData submitted via the HTML [`form`](https://developer.mozilla.org/docs/Web/HTML/Element/form) is accessible in the server action `create`.
 
 #### Revalidating Data
 
