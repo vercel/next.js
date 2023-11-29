@@ -12,13 +12,16 @@ description: Learn how to handle form submissions and data mutations with Next.j
 
 Server Actions are **asynchronous server functions** that can be called directly from your React components. They provide a powerful and flexible way to handle form submissions and data mutations in your Next.js applications.
 
+> **🎥 Watch:** Learn more about forms and mutations with the App Router → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
+
 ## How Server Actions work
 
-- Server Actions are a React feature that integrates deeply with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When the action is called, Next.js can return both the updated UI and new data in a single round trip.
-- Since Server Actions execute on the server, they are an alternative to creating [Route Handlers](/docs/app/building-your-application/routing/route-handlers) (API endpoints) to mutate data.
+- Server Actions are a React feature that integrates deeply with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When an action is called, Next.js can return both the updated UI and new data in a single server round trip.
+- Server Actions can be defined inline in Server Components or called from Client Components.
 - In Server Components, Server Actions can be used to handle forms without JavaScript, providing progressive enhancement.
 - In Client Components, forms calling Server Actions will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
 - Rather than being limited to a single form per route like traditional applications, Server Actions enable having multiple actions per route. The browser also does not refresh on form submission.
+- Since Server Actions execute on the server, they are an alternative to creating [Route Handlers](/docs/app/building-your-application/routing/route-handlers) (API endpoints) to mutate data.
 - Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
 - The return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
 
@@ -37,6 +40,62 @@ Forms enable you to create and update data in web applications. Next.js provides
 </PagesOnly>
 
 ## Examples
+
+<AppOnly>
+
+A Server Action can be defined with the React [´"use server"`](https://react.dev/reference/react/use-server) directive. By adding `"use server"` directive, the function will execute on the server regardless of whether it's called from a Server or Client Component.
+
+In Server Components, the action can be inlined and the `"use server"` added at the top of the function body:
+
+```tsx filename="app/page.tsx" switcher
+export default function Page() {
+  // Server Action
+  async function create(formData: FormData) {
+    'use server'
+
+    // ...
+  }
+
+  return (
+    // ...
+  )
+}
+```
+
+```jsx filename="app/page.jsx" switcher
+export default function Page() {
+  // Server Action
+  async function create(formData) {
+    'use server'
+
+    // ...
+  }
+
+  return (
+    // ...
+  )
+}
+```
+
+To call a Server Action in a Client Component, create a new file and add the `"use server"` directive at the top of it. All functions within the file will be marked as Server Actions that can be reused in both Client and Server Components:
+
+```tsx filename="app/actions.ts" switcher
+'use server'
+
+export async function create(formData: FormData) {
+  // ...
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+export async function create(formData) {
+  // ...
+}
+```
+
+</AppOnly>
 
 ### Server-only Forms
 
