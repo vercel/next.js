@@ -780,10 +780,12 @@ impl Project {
             self.node_instrumentation_context()
         };
 
-        let module = context.process(
-            source,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-        );
+        let module = context
+            .process(
+                source,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+            )
+            .module();
 
         InstrumentationEndpoint::new(self, context, module, is_edge)
     }
