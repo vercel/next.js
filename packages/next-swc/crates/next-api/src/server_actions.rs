@@ -96,9 +96,10 @@ async fn build_server_actions_loader(
         let module_name = import_map
             .entry(*module)
             .or_insert_with(|| format!("ACTIONS_MODULE{index}"));
-        write!(
+        writeln!(
             contents,
-            "  '{hash_id}': (...args) => (0, require('{module_name}')['{name}'])(...args),",
+            "  '{hash_id}': (...args) => Promise.resolve(require('{module_name}')).then(mod => \
+             (0, mod['{name}'])(...args)),",
         )?;
     }
     write!(contents, "}});")?;
