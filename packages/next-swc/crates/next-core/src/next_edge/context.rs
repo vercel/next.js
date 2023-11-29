@@ -117,7 +117,8 @@ pub async fn get_edge_resolve_options_context(
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppSSR { .. }
-        | ServerContextType::Middleware { .. } => {}
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. } => {}
     };
 
     let resolve_options_context = ResolveOptionsContext {

@@ -4,6 +4,7 @@
 mod app;
 mod dynamic_imports;
 mod entrypoints;
+mod instrumentation;
 mod middleware;
 mod pages;
 pub mod project;
