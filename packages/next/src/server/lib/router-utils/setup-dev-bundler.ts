@@ -288,7 +288,7 @@ async function startWatcher(opts: SetupOpts) {
       return [
         issue.severity,
         issue.filePath,
-        issue.title,
+        JSON.stringify(issue.title),
         JSON.stringify(issue.description),
       ].join('-')
     }
@@ -386,7 +386,6 @@ async function startWatcher(opts: SetupOpts) {
       const relevantIssues = new Set()
 
       for (const issue of result.issues) {
-        // TODO better formatting
         if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
         const key = issueKey(issue)
         const formatted = formatIssue(issue)
@@ -396,13 +395,6 @@ async function startWatcher(opts: SetupOpts) {
         if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
         relevantIssues.add(formatted)
       }
-
-      // TODO: Format these messages correctly.
-      // for (const issue of oldSet.keys()) {
-      //   if (!newSet.has(issue)) {
-      //     console.error(`✅ ${displayName} fixed ${issue}`)
-      //   }
-      // }
 
       if (relevantIssues.size && throwIssue) {
         throw new ModuleBuildError([...relevantIssues].join('\n\n'))
@@ -1151,7 +1143,7 @@ async function startWatcher(opts: SetupOpts) {
                 displayName,
                 await instrumentation[prop].writeToDisk()
               )
-              processIssues(displayName, name, writtenEndpoint)
+              processIssues(name, writtenEndpoint)
             }
             await processInstrumentation(
               'instrumentation (node.js)',
@@ -1326,7 +1318,6 @@ async function startWatcher(opts: SetupOpts) {
       // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
       onHMR(req, socket: Socket, head) {
         wsServer.handleUpgrade(req, socket, head, (client) => {
-          let hasPinged = false
           clients.add(client)
           client.on('close', () => clients.delete(client))
 
@@ -1337,37 +1328,9 @@ async function startWatcher(opts: SetupOpts) {
 
             // Next.js messages
             switch (parsedData.event) {
-              case 'ping': {
-                if (hasPinged) {
-                  break
-                }
-
-                hasPinged = true
-
-                const page = parsedData.page
-                const errors = []
-                const pageIssues = issues.get(page)
-                if (!pageIssues) {
-                  throw new Error('Expected page to exist in issues map')
-                }
-                for (const issue of pageIssues.values()) {
-                  errors.push({ file: '', message: formatIssue(issue) })
-                }
-
-                const sync: SyncAction = {
-                  action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
-                  errors,
-                  warnings: [],
-                  hash: '',
-                  versionInfo: {
-                    installed: '0.0.0',
-                    staleness: 'unknown',
-                  },
-                }
-
-                this.send(sync)
+              case 'ping':
+                // Ping doesn't need additional handling in Turbopack.
                 break
-              }
               case 'span-end':
               case 'client-error': // { errorCount, clientId }
               case 'client-warning': // { warningCount, clientId }
@@ -1410,6 +1373,28 @@ async function startWatcher(opts: SetupOpts) {
             type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
           }
           client.send(JSON.stringify(turbopackConnected))
+
+          const errors = []
+          for (const pageIssues of issues.values()) {
+            for (const issue of pageIssues.values()) {
+              errors.push({
+                message: formatIssue(issue),
+              })
+            }
+          }
+
+          const sync: SyncAction = {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+            errors,
+            warnings: [],
+            hash: '',
+            versionInfo: {
+              installed: '0.0.0',
+              staleness: 'unknown',
+            },
+          }
+
+          this.send(sync)
         })
       },
 
