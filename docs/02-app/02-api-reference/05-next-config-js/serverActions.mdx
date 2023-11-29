@@ -1,0 +1,21 @@
+---
+title: serverActions
+description: x
+---
+
+# Options
+
+## `allowedOrigins`
+
+List of safe origin domains from which Server Actions can be invoked. If not provided, only the same origin is allowed.
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+module.exports = {
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['my-proxy.com'],
+    },
+  },
+}
+```
