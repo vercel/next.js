@@ -306,7 +306,6 @@ async function startWatcher(opts: SetupOpts) {
       if (formattedTitle.includes('Module not found')) {
         // For compatiblity with webpack
         // TODO: include columns in webpack errors.
-        // ignoreColumns = true
         documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
       }
 
