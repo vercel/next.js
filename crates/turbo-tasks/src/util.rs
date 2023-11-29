@@ -24,11 +24,8 @@ pub struct SharedError {
 
 impl SharedError {
     pub fn new(err: Error) -> Self {
-        match err.downcast::<SharedError>() {
-            Ok(shared) => shared,
-            Err(plain) => Self {
-                inner: Arc::new(plain),
-            },
+        Self {
+            inner: Arc::new(err),
         }
     }
 }
