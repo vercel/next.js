@@ -6,24 +6,7 @@ description: Learn how to handle form submissions and data mutations with Next.j
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-<PagesOnly>
-
-Forms enable you to create and update data in web applications. Next.js provides a powerful way to handle form submissions and data mutations using **API Routes**.
-
-> **Good to know:**
->
-> - We will soon recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router and using [Server Actions](/docs/app/building-your-application/data-fetching/forms-and-mutations#how-server-actions-work) for handling form submissions and data mutations. Server Actions allow you to define asynchronous server functions that can be called directly from your components, without needing to manually create an API Route.
-> - API Routes [do not specify CORS headers](https://developer.mozilla.org/docs/Web/HTTP/CORS), meaning they are same-origin only by default.
-> - Since API Routes run on the server, we're able to use sensitive values (like API keys) through [Environment Variables](/docs/pages/building-your-application/configuring/environment-variables) without exposing them to the client. This is critical for the security of your application.
-
-</PagesOnly>
-
 <AppOnly>
-
-Forms enable you to create and update data in web applications. Next.js provides a powerful way to handle form submissions and data mutations using **Server Actions**.
-
-<details>
-  <summary>Examples</summary>
 
 - [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
 
@@ -54,9 +37,21 @@ View the examples below for [revalidating data from Server Actions](#revalidatin
 
 </AppOnly>
 
-## Examples
+<PagesOnly>
 
-### Server-only Forms
+Forms enable you to create and update data in web applications. Next.js provides a powerful way to handle form submissions and data mutations using **API Routes**.
+
+> **Good to know:**
+>
+> - We will soon recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router and using [Server Actions](/docs/app/building-your-application/data-fetching/forms-and-mutations#how-server-actions-work) for handling form submissions and data mutations. Server Actions allow you to define asynchronous server functions that can be called directly from your components, without needing to manually create an API Route.
+> - API Routes [do not specify CORS headers](https://developer.mozilla.org/docs/Web/HTTP/CORS), meaning they are same-origin only by default.
+> - Since API Routes run on the server, we're able to use sensitive values (like API keys) through [Environment Variables](/docs/pages/building-your-application/configuring/environment-variables) without exposing them to the client. This is critical for the security of your application.
+
+</PagesOnly>
+
+### Examples
+
+#### Server-only Forms
 
 <PagesOnly>
 
@@ -171,7 +166,7 @@ export default function Page() {
 
 > **Good to know**: `<form action={create}>` takes the [FormData](https://developer.mozilla.org/docs/Web/API/FormData/FormData) data type. In the example above, the FormData submitted via the HTML [`form`](https://developer.mozilla.org/docs/Web/HTML/Element/form) is accessible in the server action `create`.
 
-### Revalidating Data
+#### Revalidating Data
 
 Server Actions allow you to invalidate the [Next.js Cache](/docs/app/building-your-application/caching) on demand. You can invalidate an entire route segment with [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath):
 
@@ -223,7 +218,7 @@ export default async function submit() {
 
 </AppOnly>
 
-### Redirecting
+#### Redirecting
 
 <PagesOnly>
 
@@ -282,7 +277,7 @@ export default async function submit() {
 
 </AppOnly>
 
-### Form Validation
+#### Form Validation
 
 We recommend using HTML validation like `required` and `type="email"` for basic form validation.
 
@@ -356,7 +351,7 @@ export default async function submit(formData) {
 
 </AppOnly>
 
-### Displaying Loading State
+#### Displaying Loading State
 
 <AppOnly>
 
@@ -510,7 +505,7 @@ export default function Page() {
 
 </PagesOnly>
 
-### Error Handling
+#### Error Handling
 
 <AppOnly>
 
@@ -724,7 +719,7 @@ export default function Page() {
 
 <AppOnly>
 
-### Optimistic Updates
+#### Optimistic Updates
 
 Use [`useOptimistic`](https://react.dev/reference/react/useOptimistic) to optimistically update the UI before the Server Action finishes, rather than waiting for the response:
 
@@ -801,7 +796,7 @@ export function Thread({ messages }) {
 
 </AppOnly>
 
-### Setting Cookies
+#### Setting Cookies
 
 <PagesOnly>
 
@@ -856,7 +851,7 @@ export async function create() {
 
 </AppOnly>
 
-### Reading Cookies
+#### Reading Cookies
 
 <PagesOnly>
 
@@ -911,7 +906,7 @@ export async function read() {
 
 </AppOnly>
 
-### Deleting Cookies
+#### Deleting Cookies
 
 <PagesOnly>
 
@@ -967,3 +962,17 @@ export async function delete() {
 See [additional examples](/docs/app/api-reference/functions/cookies#deleting-cookies) for deleting cookies from Server Actions.
 
 </AppOnly>
+
+## Calling a Server Action from outside a form
+
+### Examples
+
+#### `useEffect
+
+## Security
+
+### Using React's `taintObjectReference` API
+
+### Built-in CSRF Protection
+
+### Setting Encryption Keys
