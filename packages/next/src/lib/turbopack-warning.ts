@@ -68,6 +68,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.deploymentId',
   'experimental.useLightningcss',
   'experimental.windowHistorySupport',
+  'experimental.instrumentationHook',
 
   // Experimental options that don't affect compilation
   'experimental.ppr',
@@ -106,7 +107,6 @@ const supportedTurbopackNextConfigOptions = [
   // 'compiler.removeConsole',
   // 'compiler.styledComponents',
   // 'experimental.fetchCacheKeyPrefix',
-  // 'experimental.instrumentationHook',
 
   // Left to be implemented
   'excludeDefaultMomentLocales',
