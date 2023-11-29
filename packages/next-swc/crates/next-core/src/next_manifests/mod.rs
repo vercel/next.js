@@ -29,6 +29,7 @@ pub struct BuildManifest {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase", tag = "version")]
+#[allow(clippy::large_enum_variant)]
 pub enum MiddlewaresManifest {
     #[serde(rename = "2")]
     MiddlewaresManifestV2(MiddlewaresManifestV2),
