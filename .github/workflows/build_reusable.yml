@@ -89,6 +89,8 @@ jobs:
       - run: corepack enable
       - run: pwd
 
+      - run: rm -rf .git
+
       - uses: actions/checkout@v3
         with:
           fetch-depth: 25
