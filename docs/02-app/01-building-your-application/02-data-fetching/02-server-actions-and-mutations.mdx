@@ -1095,3 +1095,22 @@ export default async function handler(req, res) {
 ### Built-in CSRF Protection
 
 ### Setting Encryption Keys
+
+All Server Actions can be invoked by plain `<form>`, which could open them up to [CSRF attacks](https://developer.mozilla.org/en-US/docs/Glossary/CSRF).
+
+Behind the scenes, Server Actions use the `POST` method, and only this HTTP method is allowed to invoke them. This prevents most CSRF vulnerabilities in modern browsers, particularly with [SameSite cookies](https://web.dev/articles/samesite-cookies-explained) being the default.
+
+As an additional protection, Server Actions in Next.js also compares the [Origin header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin) to the [Host header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Host) (or `X-Forwarded-Host`). If these don't match, the request will be aborted. In other words, Server Actions can only be invoked on the same host as the page that hosts it.
+
+For large applications and organizations that use reverse proxies or multi-layered backend architectures (where the server API differs from the production domain), it's recommended to use the Next Config [`serverActions.allowedOrigins`](/docs/app/api-reference/next-config-js/serverActions) option to specify a list of safe origins. The option accepts an array of strings.
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+module.exports = {
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['my-proxy.com'],
+    },
+  },
+}
+```
