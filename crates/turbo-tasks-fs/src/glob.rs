@@ -3,7 +3,6 @@ use std::mem::take;
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, Vc};
-use unicode_segmentation::GraphemeCursor;
 
 #[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, Serialize, Deserialize)]
 enum GlobPart {
@@ -158,7 +157,7 @@ impl GlobPart {
             part: self,
             match_partial,
             previous_part_is_path_separator_equivalent,
-            cursor: GraphemeCursor::new(0, path.len(), true),
+            index: 0,
             glob_iterator: None,
         }
     }
@@ -214,38 +213,25 @@ impl GlobPart {
             _ => {
                 let mut is_escaped = false;
                 let mut literal = String::new();
-
-                let mut cursor = GraphemeCursor::new(0, input.len(), true);
-
-                let mut start = cursor.cur_cursor();
-                let mut end_cursor = cursor
-                    .next_boundary(input, 0)
-                    .map_err(|e| anyhow!("{:?}", e))?;
-
-                while let Some(end) = end_cursor {
-                    let c = &input[start..end];
+                let mut index = 0;
+                for c in input.chars() {
                     if is_escaped {
                         is_escaped = false;
-                    } else if c == "\\" {
+                    } else if c == '\\' {
                         is_escaped = true;
-                    } else if c == "/"
-                        || c == "*"
-                        || c == "?"
-                        || c == "["
-                        || c == "{"
-                        || (inside_of_braces && (c == "," || c == "}"))
+                    } else if c == '/'
+                        || c == '*'
+                        || c == '?'
+                        || c == '['
+                        || c == '{'
+                        || (inside_of_braces && (c == ',' || c == '}'))
                     {
                         break;
                     }
-                    literal.push_str(c);
-
-                    start = cursor.cur_cursor();
-                    end_cursor = cursor
-                        .next_boundary(input, end)
-                        .map_err(|e| anyhow!("{:?}", e))?;
+                    literal.push(c);
+                    index += 1;
                 }
-
-                Ok((GlobPart::File(literal), &input[start..]))
+                Ok((GlobPart::File(literal), &input[index..]))
             }
         }
     }
@@ -256,7 +242,7 @@ struct GlobPartMatchesIterator<'a> {
     part: &'a GlobPart,
     match_partial: bool,
     previous_part_is_path_separator_equivalent: bool,
-    cursor: GraphemeCursor,
+    index: usize,
     glob_iterator: Option<Box<GlobMatchesIterator<'a>>>,
 }
 
@@ -266,52 +252,37 @@ impl<'a> Iterator for GlobPartMatchesIterator<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         match self.part {
             GlobPart::AnyDirectories => {
-                if self.cursor.cur_cursor() == 0 {
-                    let end = self.cursor.next_boundary(self.path, 0);
-                    match end {
-                        Ok(Some(_)) => {}
-                        Ok(None) => return None,
-                        Err(..) => return None,
-                    }
+                if self.index == 0 {
+                    self.index += 1;
                     return Some((self.path, true));
                 }
+                let mut iter = self.path.chars();
+                if iter.advance_by(self.index - 1).is_err() {
+                    return None;
+                }
                 loop {
-                    let start = self.cursor.cur_cursor();
-                    let end = match self.cursor.next_boundary(self.path, 0) {
-                        Ok(end) => end,
-                        _ => return None,
-                    };
-
-                    match end {
-                        Some(end) => {
-                            if &self.path[start..end] == "/" {
-                                return Some((&self.path[end..], true));
-                            }
+                    self.index += 1;
+                    match iter.next() {
+                        Some('/') => {
+                            return Some((&self.path[self.index - 1..], true));
                         }
+                        Some(_) => {}
                         None => {
-                            return Some((&self.path[start..], false));
+                            return Some((&self.path[self.index - 2..], false));
                         }
                     }
                 }
             }
             GlobPart::AnyFile => {
-                let end = self.cursor.next_boundary(self.path, 0);
-                match end {
-                    Ok(Some(_)) => {}
-                    Ok(None) => return None,
-                    Err(..) => return None,
-                }
-
-                let idx = self.path[0..self.cursor.cur_cursor()].len();
-
+                self.index += 1;
                 // TODO verify if `*` does match zero chars?
-                if let Some(slice) = self.path.get(0..self.cursor.cur_cursor()) {
+                if let Some(slice) = self.path.get(0..self.index) {
                     if slice.ends_with('/') {
                         None
                     } else {
                         Some((
-                            &self.path[self.cursor.cur_cursor()..],
-                            self.previous_part_is_path_separator_equivalent && idx == 1,
+                            &self.path[self.index..],
+                            self.previous_part_is_path_separator_equivalent && self.index == 1,
                         ))
                     }
                 } else {
@@ -320,13 +291,8 @@ impl<'a> Iterator for GlobPartMatchesIterator<'a> {
             }
             GlobPart::AnyFileChar => todo!(),
             GlobPart::PathSeparator => {
-                if self.cursor.cur_cursor() == 0 {
-                    let end = self.cursor.next_boundary(self.path, 0);
-                    match end {
-                        Ok(Some(_)) => {}
-                        Ok(None) => return None,
-                        Err(..) => return None,
-                    }
+                if self.index == 0 {
+                    self.index = 1;
                     if self.path.starts_with('/') {
                         Some((&self.path[1..], true))
                     } else if self.previous_part_is_path_separator_equivalent {
@@ -339,27 +305,18 @@ impl<'a> Iterator for GlobPartMatchesIterator<'a> {
                 }
             }
             GlobPart::FileChar(chars) => loop {
-                let end = match self.cursor.next_boundary(self.path, 0) {
-                    Ok(Some(end)) => end,
-                    _ => return None,
-                };
-
-                let c = &chars[self.cursor.cur_cursor()..end]
-                    .iter()
-                    .cloned()
-                    .collect::<String>();
-                if self.path.starts_with(c) {
-                    return Some((&self.path[c.len()..], false));
+                if let Some(c) = chars.get(self.index) {
+                    self.index += 1;
+                    if self.path.starts_with(*c) {
+                        return Some((&self.path[1..], false));
+                    }
+                } else {
+                    return None;
                 }
             },
             GlobPart::File(name) => {
-                if self.cursor.cur_cursor() == 0 && self.path.starts_with(name) {
-                    let end = self.cursor.next_boundary(self.path, 0);
-                    match end {
-                        Ok(Some(_)) => {}
-                        Ok(None) => return None,
-                        Err(..) => return None,
-                    }
+                if self.index == 0 && self.path.starts_with(name) {
+                    self.index += 1;
                     Some((&self.path[name.len()..], false))
                 } else {
                     None
@@ -370,15 +327,10 @@ impl<'a> Iterator for GlobPartMatchesIterator<'a> {
                     if let Some((path, is_path_separator_equivalent)) = glob_iterator.next() {
                         return Some((path, is_path_separator_equivalent));
                     } else {
-                        let end = self.cursor.next_boundary(self.path, 0);
+                        self.index += 1;
                         self.glob_iterator = None;
-                        match end {
-                            Ok(Some(_)) => {}
-                            Ok(None) => return None,
-                            Err(..) => return None,
-                        }
                     }
-                } else if let Some(alternative) = alternatives.get(self.cursor.cur_cursor()) {
+                } else if let Some(alternative) = alternatives.get(self.index) {
                     self.glob_iterator = Some(Box::new(alternative.iter_matches(
                         self.path,
                         self.previous_part_is_path_separator_equivalent,
@@ -416,7 +368,6 @@ mod tests {
 
     #[rstest]
     #[case::file("file.js", "file.js")]
-    #[case::dir_and_file("../public/äöüščří.png", "../public/äöüščří.png")]
     #[case::dir_and_file("dir/file.js", "dir/file.js")]
     #[case::dir_and_file_partial("dir/file.js", "dir/")]
     #[case::file_braces("file.{ts,js}", "file.js")]
