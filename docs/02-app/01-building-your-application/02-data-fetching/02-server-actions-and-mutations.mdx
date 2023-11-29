@@ -8,34 +8,19 @@ description: Learn how to handle form submissions and data mutations with Next.j
 
 <AppOnly>
 
-- [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
-
 ## What are Server Actions?
 
 Server Actions are **asynchronous server functions** that can be called directly from your React components. They provide a powerful and flexible way to handle form submissions and data mutations in your Next.js applications.
 
-## How Server Actions Work
+## How Server Actions work
 
-With Server Actions, you don't need to manually create API endpoints. Instead, you define asynchronous server functions that can be called directly from your components.
-
-> **🎥 Watch:** Learn more about forms and mutations with the App Router → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
-
-Server Actions can be defined in Server Components or called from Client Components. Defining the action in a Server Component allows the form to function without JavaScript, providing progressive enhancement.
-
-> **Good to know:**
->
-> - Forms calling Server Actions from Server Components can function without JavaScript.
-> - Forms calling Server Actions from Client Components will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
-> - Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
-> - Server Actions work with fully static routes (including revalidating data with ISR).
-
-## Revalidating Cached Data
-
-Server Actions integrate deeply with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When a form is submitted, the Server Action can update cached data and revalidate any cache keys that should change.
-
-Rather than being limited to a single form per route like traditional applications, Server Actions enable having multiple actions per route. Further, the browser does not need to refresh on form submission. In a single network roundtrip, Next.js can return both the updated UI and the refreshed data.
-
-View the examples below for [revalidating data from Server Actions](#revalidating-data).
+- Server Actions are a React feature that integrates deeply with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When the action is called, Next.js can return both the updated UI and new data in a single round trip.
+- Since Server Actions execute on the server, they are an alternative to creating [Route Handlers](/docs/app/building-your-application/routing/route-handlers) (API endpoints) to mutate data.
+- In Server Components, Server Actions can be used to handle forms without JavaScript, providing progressive enhancement.
+- In Client Components, forms calling Server Actions will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
+- Rather than being limited to a single form per route like traditional applications, Server Actions enable having multiple actions per route. The browser also does not refresh on form submission.
+- Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
+- The return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
 
 </AppOnly>
 
@@ -51,9 +36,13 @@ Forms enable you to create and update data in web applications. Next.js provides
 
 </PagesOnly>
 
-### Examples
+## Examples
+
+### Server-only Forms
 
 #### Server-only Forms
+
+- [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
 
 <PagesOnly>
 
