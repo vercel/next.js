@@ -546,12 +546,11 @@ export function patchFetch({
             // so the revalidated entry has the updated data
             if (!(staticGenerationStore.isRevalidate && entry.isStale)) {
               if (entry.isStale) {
-                if (!staticGenerationStore.pendingRevalidates) {
-                  staticGenerationStore.pendingRevalidates = []
+                staticGenerationStore.pendingRevalidates ??= {}
+                if (!staticGenerationStore.pendingRevalidates[cacheKey]) {
+                  staticGenerationStore.pendingRevalidates[cacheKey] =
+                    doOriginalFetch(true).catch(console.error)
                 }
-                staticGenerationStore.pendingRevalidates.push(
-                  doOriginalFetch(true).catch(console.error)
-                )
               }
               const resData = entry.value.data
 

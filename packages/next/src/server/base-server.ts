@@ -2406,7 +2406,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // should return.
 
       // Handle `isNotFound`.
-      if (metadata.isNotFound) {
+      if ('isNotFound' in metadata && metadata.isNotFound) {
         return { value: null, revalidate: metadata.revalidate }
       }
 
@@ -2415,7 +2415,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return {
           value: {
             kind: 'REDIRECT',
-            props: metadata.pageData,
+            props: metadata.pageData ?? metadata.flightData,
           },
           revalidate: metadata.revalidate,
         }
@@ -2431,7 +2431,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         value: {
           kind: 'PAGE',
           html: result,
-          pageData: metadata.pageData,
+          pageData: metadata.pageData ?? metadata.flightData,
           postponed: metadata.postponed,
           headers,
           status: isAppPath ? res.statusCode : undefined,
@@ -3224,7 +3224,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (this.renderOpts.dev && ctx.pathname === '/favicon.ico') {
       return {
         type: 'html',
-        body: new RenderResult(''),
+        body: RenderResult.fromStatic(''),
       }
     }
     const { res, query } = ctx
