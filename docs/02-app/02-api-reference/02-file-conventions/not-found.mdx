@@ -8,7 +8,7 @@ The **not-found** file is used to render UI when the [`notFound`](/docs/app/api-
 ```tsx filename="app/blog/not-found.tsx" switcher
 import Link from 'next/link'
 
-export default function NotFound() {
+export default function notFound() {
   return (
     <div>
       <h2>Not Found</h2>
@@ -22,7 +22,7 @@ export default function NotFound() {
 ```jsx filename="app/blog/not-found.js" switcher
 import Link from 'next/link'
 
-export default function NotFound() {
+export default function notFound() {
   return (
     <div>
       <h2>Not Found</h2>
@@ -47,7 +47,7 @@ By default, `not-found` is a Server Component. You can mark it as `async` to fet
 import Link from 'next/link'
 import { headers } from 'next/headers'
 
-export default async function NotFound() {
+export default async function notFound() {
   const headersList = headers()
   const domain = headersList.get('host')
   const data = await getSiteData(domain)
@@ -67,7 +67,7 @@ export default async function NotFound() {
 import Link from 'next/link'
 import { headers } from 'next/headers'
 
-export default async function NotFound() {
+export default async function notFound() {
   const headersList = headers()
   const domain = headersList.get('host')
   const data = await getSiteData(domain)
