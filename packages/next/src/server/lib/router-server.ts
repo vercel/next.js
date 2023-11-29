@@ -29,7 +29,7 @@ import { isPostpone } from './router-utils/is-postpone'
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
-  PERMANENT_REDIRECT_STATUS,
+  RedirectStatusCode,
 } from '../../shared/lib/constants'
 import { DevBundlerService } from './dev-bundler-service'
 import { type Span, trace } from '../../trace'
@@ -353,7 +353,7 @@ export async function initialize(opts: {
         res.statusCode = statusCode
         res.setHeader('location', destination)
 
-        if (statusCode === PERMANENT_REDIRECT_STATUS) {
+        if (statusCode === RedirectStatusCode.PermanentRedirect) {
           res.setHeader('Refresh', `0;url=${destination}`)
         }
         return res.end(destination)

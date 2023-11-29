@@ -16,6 +16,7 @@ import {
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
+  getRedirectStatusCodeFromError,
   getURLFromRedirectError,
   isRedirectError,
 } from '../../client/components/redirect'
@@ -574,6 +575,7 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
   } catch (err) {
     if (isRedirectError(err)) {
       const redirectUrl = getURLFromRedirectError(err)
+      const statusCode = getRedirectStatusCodeFromError(err)
 
       // if it's a fetch action, we don't want to mess with the status code
       // and we'll handle it on the client router
@@ -605,7 +607,7 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       }
 
       res.setHeader('Location', redirectUrl)
-      res.statusCode = 303
+      res.statusCode = statusCode
       return {
         type: 'done',
         result: RenderResult.fromStatic(''),
