@@ -573,13 +573,18 @@ async function startWatcher(opts: SetupOpts) {
     async function loadPartialManifest<T>(
       name: string,
       pageName: string,
-      type: 'pages' | 'app' | 'app-route' | 'middleware' = 'pages'
+      type:
+        | 'pages'
+        | 'app'
+        | 'app-route'
+        | 'middleware'
+        | 'instrumentation' = 'pages'
     ): Promise<T> {
       const manifestPath = path.posix.join(
         distDir,
         `server`,
         type === 'app-route' ? 'app' : type,
-        type === 'middleware'
+        type === 'middleware' || type === 'instrumentation'
           ? ''
           : pageName === '/'
           ? 'index'
@@ -594,11 +599,18 @@ async function startWatcher(opts: SetupOpts) {
       ) as T
     }
 
+    type TurbopackMiddlewareManifest = MiddlewareManifest & {
+      instrumentation?: {
+        files: string[]
+        name: 'instrumentation'
+      }
+    }
+
     const buildManifests = new Map<string, BuildManifest>()
     const appBuildManifests = new Map<string, AppBuildManifest>()
     const pagesManifests = new Map<string, PagesManifest>()
     const appPathsManifests = new Map<string, PagesManifest>()
-    const middlewareManifests = new Map<string, MiddlewareManifest>()
+    const middlewareManifests = new Map<string, TurbopackMiddlewareManifest>()
     const actionManifests = new Map<string, ActionManifest>()
     const clientToHmrSubscription = new Map<
       ws,
@@ -609,7 +621,7 @@ async function startWatcher(opts: SetupOpts) {
 
     async function loadMiddlewareManifest(
       pageName: string,
-      type: 'pages' | 'app' | 'app-route' | 'middleware'
+      type: 'pages' | 'app' | 'app-route' | 'middleware' | 'instrumentation'
     ): Promise<void> {
       middlewareManifests.set(
         pageName,
@@ -751,7 +763,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     function mergeMiddlewareManifests(
-      manifests: Iterable<MiddlewareManifest>
+      manifests: Iterable<TurbopackMiddlewareManifest>
     ): MiddlewareManifest {
       const manifest: MiddlewareManifest = {
         version: 2,
@@ -759,13 +771,20 @@ async function startWatcher(opts: SetupOpts) {
         sortedMiddleware: [],
         functions: {},
       }
+      let instrumentation = undefined
       for (const m of manifests) {
         Object.assign(manifest.functions, m.functions)
         Object.assign(manifest.middleware, m.middleware)
+        if (m.instrumentation) {
+          instrumentation = m.instrumentation
+        }
       }
       for (const fun of Object.values(manifest.functions).concat(
         Object.values(manifest.middleware)
       )) {
+        if (instrumentation) {
+          fun.files.unshift(...instrumentation.files)
+        }
         for (const matcher of fun.matchers) {
           if (!matcher.regexp) {
             matcher.regexp = pathToRegexp(matcher.originalSource, [], {
@@ -777,6 +796,7 @@ async function startWatcher(opts: SetupOpts) {
         }
       }
       manifest.sortedMiddleware = Object.keys(manifest.middleware)
+
       return manifest
     }
 
@@ -1091,7 +1111,7 @@ async function startWatcher(opts: SetupOpts) {
             }
           }
 
-          const { middleware } = entrypoints
+          const { middleware, instrumentation } = entrypoints
           // We check for explicit true/false, since it's initialized to
           // undefined during the first loop (middlewareChanges event is
           // unnecessary during the first serve)
@@ -1106,6 +1126,43 @@ async function startWatcher(opts: SetupOpts) {
             sendHmr('endpoint-change', 'middleware', {
               event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
+          }
+          if (instrumentation) {
+            const processInstrumentation = async (
+              displayName: string,
+              name: string,
+              prop: 'nodeJs' | 'edge'
+            ) => {
+              const writtenEndpoint = await processResult(
+                displayName,
+                await instrumentation[prop].writeToDisk()
+              )
+              processIssues(displayName, name, writtenEndpoint)
+            }
+            await processInstrumentation(
+              'instrumentation (node.js)',
+              'instrumentation.nodeJs',
+              'nodeJs'
+            )
+            await processInstrumentation(
+              'instrumentation (edge)',
+              'instrumentation.edge',
+              'edge'
+            )
+            await loadMiddlewareManifest('instrumentation', 'instrumentation')
+            NextBuildContext.hasInstrumentationHook = true
+            serverFields.actualInstrumentationHookFile = '/instrumentation'
+            await propagateServerField(
+              'actualInstrumentationHookFile',
+              serverFields.actualInstrumentationHookFile
+            )
+          } else {
+            NextBuildContext.hasInstrumentationHook = false
+            serverFields.actualInstrumentationHookFile = undefined
+            await propagateServerField(
+              'actualInstrumentationHookFile',
+              serverFields.actualInstrumentationHookFile
+            )
           }
           if (middleware) {
             const processMiddleware = async () => {
@@ -1418,6 +1475,8 @@ async function startWatcher(opts: SetupOpts) {
           if (page === '/_document') return
           if (page === '/middleware') return
           if (page === '/src/middleware') return
+          if (page === '/instrumentation') return
+          if (page === '/src/instrumentation') return
 
           throw new PageNotFoundError(`route not found ${page}`)
         }

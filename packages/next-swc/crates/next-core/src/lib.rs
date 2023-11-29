@@ -11,6 +11,7 @@ mod babel;
 mod bootstrap;
 mod embed_js;
 mod emit;
+pub mod instrumentation;
 mod loader_tree;
 pub mod middleware;
 pub mod mode;
