@@ -14886,12 +14886,11 @@
       "Handle new URL asset references in next dev should render the /ssr page",
       "Handle new URL asset references in next dev should render the /static page",
       "Handle new URL asset references in next dev should respond on basename api",
-      "Handle new URL asset references in next dev should respond on size api"
-    ],
-    "failed": [
+      "Handle new URL asset references in next dev should respond on size api",
       "Handle new URL asset references in next dev should client-render the /ssg page",
       "Handle new URL asset references in next dev should client-render the /ssr page"
     ],
+    "failed": [],
     "pending": [
       "Handle new URL asset references in next build should client-render the /ssg page",
       "Handle new URL asset references in next build should client-render the /ssr page",
