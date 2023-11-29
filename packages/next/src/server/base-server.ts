@@ -50,8 +50,8 @@ import {
   APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
   PAGES_MANIFEST,
+  RedirectStatusCode,
   STATIC_STATUS_PAGES,
-  TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
@@ -1213,7 +1213,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         if (redirect) {
           return res
-            .redirect(redirect, TEMPORARY_REDIRECT_STATUS)
+            .redirect(redirect, RedirectStatusCode.TemporaryRedirect)
             .body(redirect)
             .send()
         }
