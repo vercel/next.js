@@ -132,18 +132,17 @@ export default class PagesManifestPlugin
         ...nodeServerPages,
       })
     } else {
-      assets[
-        `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + PAGES_MANIFEST
-      ] = new sources.RawSource(
-        JSON.stringify(
-          {
-            ...edgeServerPages,
-            ...nodeServerPages,
-          },
-          null,
-          2
+      assets[(!this.dev && !this.isEdgeRuntime ? '../' : '') + PAGES_MANIFEST] =
+        new sources.RawSource(
+          JSON.stringify(
+            {
+              ...edgeServerPages,
+              ...nodeServerPages,
+            },
+            null,
+            2
+          )
         )
-      )
     }
 
     if (this.appDirEnabled) {
@@ -159,8 +158,7 @@ export default class PagesManifestPlugin
         })
       } else {
         assets[
-          `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` +
-            APP_PATHS_MANIFEST
+          (!this.dev && !this.isEdgeRuntime ? '../' : '') + APP_PATHS_MANIFEST
         ] = new sources.RawSource(
           JSON.stringify(
             {

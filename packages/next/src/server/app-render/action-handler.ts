@@ -16,6 +16,7 @@ import {
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
+  getRedirectStatusCodeFromError,
   getURLFromRedirectError,
   isRedirectError,
 } from '../../client/components/redirect'
@@ -111,7 +112,9 @@ async function addRevalidationHeader(
     requestStore: RequestStore
   }
 ) {
-  await Promise.all(staticGenerationStore.pendingRevalidates || [])
+  await Promise.all(
+    Object.values(staticGenerationStore.pendingRevalidates || [])
+  )
 
   // If a tag was revalidated, the client router needs to invalidate all the
   // client router cache as they may be stale. And if a path was revalidated, the
@@ -208,7 +211,8 @@ async function createRedirectRenderResult(
       console.error(`failed to get redirect response`, err)
     }
   }
-  return new RenderResult(JSON.stringify({}))
+
+  return RenderResult.fromStatic('{}')
 }
 
 // Used to compare Host header and Origin header.
@@ -348,7 +352,9 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
-        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        await Promise.all(
+          Object.values(staticGenerationStore.pendingRevalidates || [])
+        )
 
         const promise = Promise.reject(error)
         try {
@@ -569,6 +575,7 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
   } catch (err) {
     if (isRedirectError(err)) {
       const redirectUrl = getURLFromRedirectError(err)
+      const statusCode = getRedirectStatusCodeFromError(err)
 
       // if it's a fetch action, we don't want to mess with the status code
       // and we'll handle it on the client router
@@ -600,10 +607,10 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       }
 
       res.setHeader('Location', redirectUrl)
-      res.statusCode = 303
+      res.statusCode = statusCode
       return {
         type: 'done',
-        result: new RenderResult(''),
+        result: RenderResult.fromStatic(''),
       }
     } else if (isNotFoundError(err)) {
       res.statusCode = 404
@@ -640,7 +647,9 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
 
     if (isFetchAction) {
       res.statusCode = 500
-      await Promise.all(staticGenerationStore.pendingRevalidates || [])
+      await Promise.all(
+        Object.values(staticGenerationStore.pendingRevalidates || [])
+      )
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early

@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
-import { Request } from 'playwright-chromium'
+import { Request, Response } from 'playwright-chromium'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -368,6 +368,45 @@ createNextDescribe(
       await submitForm()
 
       expect(requestCount).toBe(1)
+    })
+
+    it('should handle actions executed in quick succession', async () => {
+      let requestCount = 0
+      const browser = await next.browser('/use-transition', {
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            const url = new URL(request.url())
+            if (url.pathname === '/use-transition') {
+              requestCount++
+            }
+          })
+        },
+      })
+
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Transition is: idle'
+      )
+      const button = await browser.elementById('action-button')
+
+      // fire off 6 successive requests by clicking the button 6 times
+      for (let i = 0; i < 6; i++) {
+        await button.click()
+
+        // add a little bit of delay to simulate user behavior & give
+        // the requests a moment to start running
+        await waitFor(500)
+      }
+
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Transition is: pending'
+      )
+
+      await check(() => requestCount, 6)
+
+      await check(
+        () => browser.elementByCss('h1').text(),
+        'Transition is: idle'
+      )
     })
 
     if (isNextStart) {
@@ -856,6 +895,71 @@ createNextDescribe(
         const res = await next.fetch('/encryption')
         const html = await res.text()
         expect(html).not.toContain('qwerty123')
+      })
+    })
+
+    describe('redirects', () => {
+      it('redirects properly when server action handler uses `redirect`', async () => {
+        const postRequests = []
+        const responseCodes = []
+
+        const browser = await next.browser('/redirects', {
+          beforePageLoad(page) {
+            page.on('request', (request: Request) => {
+              const url = new URL(request.url())
+              if (request.method() === 'POST') {
+                postRequests.push(url.pathname)
+              }
+            })
+
+            page.on('response', (response: Response) => {
+              const url = new URL(response.url())
+              const status = response.status()
+
+              if (postRequests.includes(`${url.pathname}${url.search}`)) {
+                responseCodes.push(status)
+              }
+            })
+          },
+        })
+        await browser.elementById('submit-api-redirect').click()
+        await check(() => browser.url(), /success=true/)
+
+        // verify that the POST request was only made to the action handler
+        expect(postRequests).toEqual(['/redirects/api-redirect'])
+        expect(responseCodes).toEqual([303])
+      })
+
+      it('redirects properly when server action handler uses `permanentRedirect`', async () => {
+        const postRequests = []
+        const responseCodes = []
+
+        const browser = await next.browser('/redirects', {
+          beforePageLoad(page) {
+            page.on('request', (request: Request) => {
+              const url = new URL(request.url())
+              if (request.method() === 'POST') {
+                postRequests.push(url.pathname)
+              }
+            })
+
+            page.on('response', (response: Response) => {
+              const url = new URL(response.url())
+              const status = response.status()
+
+              if (postRequests.includes(`${url.pathname}${url.search}`)) {
+                responseCodes.push(status)
+              }
+            })
+          },
+        })
+
+        await browser.elementById('submit-api-redirect-permanent').click()
+        await check(() => browser.url(), /success=true/)
+
+        // verify that the POST request was only made to the action handler
+        expect(postRequests).toEqual(['/redirects/api-redirect-permanent'])
+        expect(responseCodes).toEqual([303])
       })
     })
   }

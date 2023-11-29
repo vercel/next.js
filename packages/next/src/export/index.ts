@@ -632,10 +632,7 @@ export async function exportAppImpl(
 
   const progress =
     !options.silent &&
-    createProgress(
-      filteredPaths.length,
-      `${options.statusMessage || 'Exporting'}`
-    )
+    createProgress(filteredPaths.length, options.statusMessage || 'Exporting')
   const pagesDataDir = options.buildExport
     ? outDir
     : join(outDir, '_next/data', buildId)
