@@ -351,11 +351,92 @@ export default async function submit(id) {
 
 </AppOnly>
 
-#### Form Validation
+<PagesOnly>
 
-We recommend using HTML validation like `required` and `type="email"` for basic form validation.
+If you would like to redirect the user to a different route after a mutation, you can [`redirect`](/docs/pages/building-your-application/routing/api-routes#response-helpers) to any absolute or relative URL:
 
-For more advanced server-side validation, use a schema validation library like [zod](https://zod.dev/) to validate the structure of the parsed form data:
+```ts filename="pages/api/submit.ts" switcher
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  const id = await addPost()
+  res.redirect(307, `/post/${id}`)
+}
+```
+
+```js filename="pages/api/submit.js" switcher
+export default async function handler(req, res) {
+  const id = await addPost()
+  res.redirect(307, `/post/${id}`)
+}
+```
+
+</PagesOnly>
+
+#### Server-side Form Validation
+
+We recommend using HTML validation like `required` and `type="email"` for basic client-side form validation.
+
+For more advanced server-side validation, you can use a schema validation library like [zod](https://zod.dev/) to validate the form fields before mutating the data:
+
+<AppOnly>
+
+```tsx filename="app/actions.ts" switcher
+import { z } from 'zod'
+
+const schema = z.object({
+  id: z.string({
+    invalid_type_error: 'Invalid ID',
+  }),
+})
+
+export default async function submit(formData: FormData) {
+  const validatedFields = schema.safeParse({
+    id: formData.get('id'),
+  })
+
+  // Return early if the form data is invalid
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+    }
+  }
+
+  // ...
+}
+```
+
+```jsx filename="app/actions.js" switcher
+import { z } from 'zod'
+
+const schema = z.object({
+  id: z.string({
+    invalid_type_error: 'Invalid ID',
+  }),
+})
+
+export default async function submit(formData) {
+  const validatedFields = schema.safeParse({
+    id: formData.get('id'),
+  })
+
+  // Return early if the form data is invalid
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+    }
+  }
+
+  // ...
+}
+```
+
+Please refer to the [Zod documentation](https://zod.dev/) for more information.
+
+</AppOnly>
 
 <PagesOnly>
 
@@ -390,40 +471,6 @@ export default async function handler(req, res) {
 ```
 
 </PagesOnly>
-
-<AppOnly>
-
-```tsx filename="app/actions.ts" switcher
-import { z } from 'zod'
-
-const schema = z.object({
-  // ...
-})
-
-export default async function submit(formData: FormData) {
-  const parsed = schema.parse({
-    id: formData.get('id'),
-  })
-  // ...
-}
-```
-
-```jsx filename="app/actions.js" switcher
-import { z } from 'zod'
-
-const schema = z.object({
-  // ...
-})
-
-export default async function submit(formData) {
-  const parsed = schema.parse({
-    id: formData.get('id'),
-  })
-  // ...
-}
-```
-
-</AppOnly>
 
 #### Displaying Loading State
 
