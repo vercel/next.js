@@ -314,7 +314,7 @@ async function startWatcher(opts: SetupOpts) {
         .replaceAll('/./', '/')
         .replace('\\\\?\\', '')
 
-      let message, ignoreColumns
+      let message
 
       if (source) {
         if (source.range) {
@@ -332,43 +332,37 @@ async function startWatcher(opts: SetupOpts) {
       }
       message += '\n'
 
-      if (description) {
-        message += renderStyledStringToErrorAnsi(description)
-      }
-
       if (source?.range && source.source.content) {
         const { start, end } = source.range
         const {
           codeFrameColumns,
         } = require('next/dist/compiled/babel/code-frame')
 
-        message += codeFrameColumns(
-          source.source.content,
-          {
-            start: {
-              line: start.line + 1,
-              column: ignoreColumns ? null : start.column + 1,
+        message +=
+          codeFrameColumns(
+            source.source.content,
+            {
+              start: {
+                line: start.line + 1,
+                column: start.column + 1,
+              },
+              end: {
+                line: end.line + 1,
+                column: end.column + 1,
+              },
             },
-            end: {
-              line: end.line + 1,
-              column: ignoreColumns ? null : end.column + 1,
-            },
-          },
-          { forceColor: true }
-        ).trim()
+            { forceColor: true }
+          ).trim() + '\n\n'
       }
 
       if (description) {
-        message += `\n${renderStyledStringToErrorAnsi(description).replace(
-          /\n/g,
-          '\n    '
-        )}`
+        message += renderStyledStringToErrorAnsi(description) + '\n\n'
       }
 
       // TODO: Include a trace from the issue.
 
       if (documentationLink) {
-        message += `\n\n${documentationLink}`
+        message += documentationLink + '\n\n'
       }
 
       return message
