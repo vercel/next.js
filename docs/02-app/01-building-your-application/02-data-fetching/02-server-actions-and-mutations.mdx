@@ -246,8 +246,13 @@ Server Actions allow you to invalidate the [Next.js Cache](/docs/app/building-yo
 import { revalidatePath } from 'next/cache'
 
 export default async function submit() {
-  await submitForm()
-  revalidatePath('/')
+  try {
+    // ...
+  } catch (error) {
+    // ...
+  }
+
+  revalidatePath('/posts')
 }
 ```
 
@@ -257,8 +262,13 @@ export default async function submit() {
 import { revalidatePath } from 'next/cache'
 
 export default async function submit() {
-  await submitForm()
-  revalidatePath('/')
+  try {
+    // ...
+  } catch (error) {
+    // ...
+  }
+
+  revalidatePath('/posts')
 }
 ```
 
@@ -270,7 +280,12 @@ Or invalidate a specific data fetch with a cache tag using [`revalidateTag`](/do
 import { revalidateTag } from 'next/cache'
 
 export default async function submit() {
-  await addPost()
+  try {
+    // ...
+  } catch (error) {
+    // ...
+  }
+
   revalidateTag('posts')
 }
 ```
@@ -281,7 +296,11 @@ export default async function submit() {
 import { revalidateTag } from 'next/cache'
 
 export default async function submit() {
-  await addPost()
+  try {
+    // ...
+  } catch (error) {
+    // ...
+  }
   revalidateTag('posts')
 }
 ```
@@ -289,31 +308,6 @@ export default async function submit() {
 </AppOnly>
 
 #### Redirecting
-
-<PagesOnly>
-
-If you would like to redirect the user to a different route after a mutation, you can [`redirect`](/docs/pages/building-your-application/routing/api-routes#response-helpers) to any absolute or relative URL:
-
-```ts filename="pages/api/submit.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  const id = await addPost()
-  res.redirect(307, `/post/${id}`)
-}
-```
-
-```js filename="pages/api/submit.js" switcher
-export default async function handler(req, res) {
-  const id = await addPost()
-  res.redirect(307, `/post/${id}`)
-}
-```
-
-</PagesOnly>
 
 <AppOnly>
 
@@ -325,10 +319,15 @@ If you would like to redirect the user to a different route after the completion
 import { redirect } from 'next/navigation'
 import { revalidateTag } from 'next/cache'
 
-export default async function submit() {
-  const id = await addPost()
+export default async function submit(id: string) {
+  try {
+    // ...
+  } catch (error) {
+    // ...
+  }
+
   revalidateTag('posts') // Update cached posts
-  redirect(`/post/${id}`) // Navigate to new route
+  redirect(`/post/${id}`) // Navigate to the new post page
 }
 ```
 
@@ -338,10 +337,15 @@ export default async function submit() {
 import { redirect } from 'next/navigation'
 import { revalidateTag } from 'next/cache'
 
-export default async function submit() {
-  const id = await addPost()
+export default async function submit(id) {
+  try {
+    // ...
+  } catch (error) {
+    // ...
+  }
+
   revalidateTag('posts') // Update cached posts
-  redirect(`/post/${id}`) // Navigate to new route
+  redirect(`/post/${id}`) // Navigate to the new post page
 }
 ```
 
