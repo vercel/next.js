@@ -211,7 +211,8 @@ async function createRedirectRenderResult(
       console.error(`failed to get redirect response`, err)
     }
   }
-  return new RenderResult(JSON.stringify({}))
+
+  return RenderResult.fromStatic('{}')
 }
 
 // Used to compare Host header and Origin header.
@@ -609,7 +610,7 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       res.statusCode = statusCode
       return {
         type: 'done',
-        result: new RenderResult(''),
+        result: RenderResult.fromStatic(''),
       }
     } else if (isNotFoundError(err)) {
       res.statusCode = 404

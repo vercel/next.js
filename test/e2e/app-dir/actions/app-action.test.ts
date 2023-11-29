@@ -370,6 +370,45 @@ createNextDescribe(
       expect(requestCount).toBe(1)
     })
 
+    it('should handle actions executed in quick succession', async () => {
+      let requestCount = 0
+      const browser = await next.browser('/use-transition', {
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            const url = new URL(request.url())
+            if (url.pathname === '/use-transition') {
+              requestCount++
+            }
+          })
+        },
+      })
+
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Transition is: idle'
+      )
+      const button = await browser.elementById('action-button')
+
+      // fire off 6 successive requests by clicking the button 6 times
+      for (let i = 0; i < 6; i++) {
+        await button.click()
+
+        // add a little bit of delay to simulate user behavior & give
+        // the requests a moment to start running
+        await waitFor(500)
+      }
+
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Transition is: pending'
+      )
+
+      await check(() => requestCount, 6)
+
+      await check(
+        () => browser.elementByCss('h1').text(),
+        'Transition is: idle'
+      )
+    })
+
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
