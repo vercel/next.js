@@ -236,7 +236,7 @@ export default function Page() {
 
 <AppOnly>
 
-#### Revalidating Data
+### Revalidating Data
 
 Server Actions allow you to invalidate the [Next.js Cache](/docs/app/building-your-application/caching) on demand. You can invalidate an entire route segment with [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath):
 
@@ -307,7 +307,7 @@ export default async function submit() {
 
 </AppOnly>
 
-#### Redirecting
+### Redirecting
 
 <AppOnly>
 
@@ -376,7 +376,7 @@ export default async function handler(req, res) {
 
 </PagesOnly>
 
-#### Server-side Form Validation
+### Server-side Form Validation
 
 We recommend using HTML validation like `required` and `type="email"` for basic client-side form validation.
 
@@ -472,165 +472,11 @@ export default async function handler(req, res) {
 
 </PagesOnly>
 
-#### Displaying Loading State
+### Error Handling
 
 <AppOnly>
 
-Use the [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a loading state when a form is submitting on the server. The `useFormStatus` hook can only be used as a child of a `form` element using a Server Action.
-
-For example, the following submit button:
-
-```tsx filename="app/submit-button.tsx" switcher
-'use client'
-
-import { useFormStatus } from 'react-dom'
-
-export function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button type="submit" aria-disabled={pending}>
-      Add
-    </button>
-  )
-}
-```
-
-```jsx filename="app/submit-button.jsx" switcher
-'use client'
-
-import { useFormStatus } from 'react-dom'
-
-export function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button type="submit" aria-disabled={pending}>
-      Add
-    </button>
-  )
-}
-```
-
-`<SubmitButton />` can then be used in a form with a Server Action:
-
-```tsx filename="app/page.tsx" switcher
-import { SubmitButton } from '@/app/submit-button'
-
-export default async function Home() {
-  return (
-    <form action={...}>
-      <input type="text" name="field-name" />
-      <SubmitButton />
-    </form>
-  )
-}
-```
-
-```jsx filename="app/page.jsx" switcher
-import { SubmitButton } from '@/app/submit-button'
-
-export default async function Home() {
-  return (
-    <form action={...}>
-      <input type="text" name="field-name" />
-      <SubmitButton />
-    </form>
-  )
-}
-```
-
-</AppOnly>
-
-<PagesOnly>
-
-You can use React state to show a loading state when a form is submitting on the server:
-
-```tsx filename="pages/index.tsx" switcher
-import React, { useState, FormEvent } from 'react'
-
-export default function Page() {
-  const [isLoading, setIsLoading] = useState<boolean>(false)
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setIsLoading(true) // Set loading to true when the request starts
-
-    try {
-      const formData = new FormData(event.currentTarget)
-      const response = await fetch('/api/submit', {
-        method: 'POST',
-        body: formData,
-      })
-
-      // Handle response if necessary
-      const data = await response.json()
-      // ...
-    } catch (error) {
-      // Handle error if necessary
-      console.error(error)
-    } finally {
-      setIsLoading(false) // Set loading to false when the request completes
-    }
-  }
-
-  return (
-    <form onSubmit={onSubmit}>
-      <input type="text" name="name" />
-      <button type="submit" disabled={isLoading}>
-        {isLoading ? 'Loading...' : 'Submit'}
-      </button>
-    </form>
-  )
-}
-```
-
-```jsx filename="pages/index.jsx" switcher
-import React, { useState } from 'react'
-
-export default function Page() {
-  const [isLoading, setIsLoading] = useState(false)
-
-  async function onSubmit(event) {
-    event.preventDefault()
-    setIsLoading(true) // Set loading to true when the request starts
-
-    try {
-      const formData = new FormData(event.currentTarget)
-      const response = await fetch('/api/submit', {
-        method: 'POST',
-        body: formData,
-      })
-
-      // Handle response if necessary
-      const data = await response.json()
-      // ...
-    } catch (error) {
-      // Handle error if necessary
-      console.error(error)
-    } finally {
-      setIsLoading(false) // Set loading to false when the request completes
-    }
-  }
-
-  return (
-    <form onSubmit={onSubmit}>
-      <input type="text" name="name" />
-      <button type="submit" disabled={isLoading}>
-        {isLoading ? 'Loading...' : 'Submit'}
-      </button>
-    </form>
-  )
-}
-```
-
-</PagesOnly>
-
-#### Error Handling
-
-<AppOnly>
-
-Server Actions can also return [serializable objects](https://developer.mozilla.org/docs/Glossary/Serialization). For example, your Server Action might handle errors from creating a new item:
+Server Actions can also return [serializable objects](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values). For example, your Server Action might handle errors from creating a new item:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -838,11 +684,165 @@ export default function Page() {
 
 </PagesOnly>
 
+### Displaying Loading State
+
 <AppOnly>
 
-#### Optimistic Updates
+Use the React [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a loading state when a form is submitting on the server. The `useFormStatus` hook can only be used as a child of a `form` element using a Server Action.
 
-Use [`useOptimistic`](https://react.dev/reference/react/useOptimistic) to optimistically update the UI before the Server Action finishes, rather than waiting for the response:
+For example, the following submit button:
+
+```tsx filename="app/submit-button.tsx" switcher
+'use client'
+
+import { useFormStatus } from 'react-dom'
+
+export function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
+  )
+}
+```
+
+```jsx filename="app/submit-button.jsx" switcher
+'use client'
+
+import { useFormStatus } from 'react-dom'
+
+export function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
+  )
+}
+```
+
+`<SubmitButton />` can then be used in a form with a Server Action:
+
+```tsx filename="app/page.tsx" switcher
+import { SubmitButton } from '@/app/submit-button'
+
+export default async function Home() {
+  return (
+    <form action={...}>
+      <input type="text" name="field-name" />
+      <SubmitButton />
+    </form>
+  )
+}
+```
+
+```jsx filename="app/page.jsx" switcher
+import { SubmitButton } from '@/app/submit-button'
+
+export default async function Home() {
+  return (
+    <form action={...}>
+      <input type="text" name="field-name" />
+      <SubmitButton />
+    </form>
+  )
+}
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+You can use React state to show a loading state when a form is submitting on the server:
+
+```tsx filename="pages/index.tsx" switcher
+import React, { useState, FormEvent } from 'react'
+
+export default function Page() {
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setIsLoading(true) // Set loading to true when the request starts
+
+    try {
+      const formData = new FormData(event.currentTarget)
+      const response = await fetch('/api/submit', {
+        method: 'POST',
+        body: formData,
+      })
+
+      // Handle response if necessary
+      const data = await response.json()
+      // ...
+    } catch (error) {
+      // Handle error if necessary
+      console.error(error)
+    } finally {
+      setIsLoading(false) // Set loading to false when the request completes
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit}>
+      <input type="text" name="name" />
+      <button type="submit" disabled={isLoading}>
+        {isLoading ? 'Loading...' : 'Submit'}
+      </button>
+    </form>
+  )
+}
+```
+
+```jsx filename="pages/index.jsx" switcher
+import React, { useState } from 'react'
+
+export default function Page() {
+  const [isLoading, setIsLoading] = useState(false)
+
+  async function onSubmit(event) {
+    event.preventDefault()
+    setIsLoading(true) // Set loading to true when the request starts
+
+    try {
+      const formData = new FormData(event.currentTarget)
+      const response = await fetch('/api/submit', {
+        method: 'POST',
+        body: formData,
+      })
+
+      // Handle response if necessary
+      const data = await response.json()
+      // ...
+    } catch (error) {
+      // Handle error if necessary
+      console.error(error)
+    } finally {
+      setIsLoading(false) // Set loading to false when the request completes
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit}>
+      <input type="text" name="name" />
+      <button type="submit" disabled={isLoading}>
+        {isLoading ? 'Loading...' : 'Submit'}
+      </button>
+    </form>
+  )
+}
+```
+
+</PagesOnly>
+
+<AppOnly>
+
+### Optimistic Updates
+
+Use React [`useOptimistic`](https://react.dev/reference/react/useOptimistic) to optimistically update the UI before the Server Action finishes, rather than waiting for the response:
 
 ```tsx filename="app/page.tsx" switcher
 'use client'
@@ -917,32 +917,7 @@ export function Thread({ messages }) {
 
 </AppOnly>
 
-#### Setting Cookies
-
-<PagesOnly>
-
-You can set cookies inside an API Route using the `setHeader` method on the response:
-
-```ts filename="pages/api/cookie.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  res.setHeader('Set-Cookie', 'username=lee; Path=/; HttpOnly')
-  res.status(200).send('Cookie has been set.')
-}
-```
-
-```js filename="pages/api/cookie.js" switcher
-export default async function handler(req, res) {
-  res.setHeader('Set-Cookie', 'username=lee; Path=/; HttpOnly')
-  res.status(200).send('Cookie has been set.')
-}
-```
-
-</PagesOnly>
+### Setting Cookies
 
 <AppOnly>
 
@@ -972,11 +947,9 @@ export async function create() {
 
 </AppOnly>
 
-#### Reading Cookies
-
 <PagesOnly>
 
-You can read cookies inside an API Route using the [`cookies`](/docs/pages/building-your-application/routing/api-routes#request-helpers) request helper:
+You can set cookies inside an API Route using the `setHeader` method on the response:
 
 ```ts filename="pages/api/cookie.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'
@@ -985,19 +958,21 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const auth = req.cookies.authorization
-  // ...
+  res.setHeader('Set-Cookie', 'username=lee; Path=/; HttpOnly')
+  res.status(200).send('Cookie has been set.')
 }
 ```
 
 ```js filename="pages/api/cookie.js" switcher
 export default async function handler(req, res) {
-  const auth = req.cookies.authorization
-  // ...
+  res.setHeader('Set-Cookie', 'username=lee; Path=/; HttpOnly')
+  res.status(200).send('Cookie has been set.')
 }
 ```
 
 </PagesOnly>
+
+### Reading Cookies
 
 <AppOnly>
 
@@ -1027,11 +1002,9 @@ export async function read() {
 
 </AppOnly>
 
-#### Deleting Cookies
-
 <PagesOnly>
 
-You can delete cookies inside an API Route using the `setHeader` method on the response:
+You can read cookies inside an API Route using the [`cookies`](/docs/pages/building-your-application/routing/api-routes#request-helpers) request helper:
 
 ```ts filename="pages/api/cookie.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'
@@ -1040,19 +1013,21 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  res.setHeader('Set-Cookie', 'username=; Path=/; HttpOnly; Max-Age=0')
-  res.status(200).send('Cookie has been deleted.')
+  const auth = req.cookies.authorization
+  // ...
 }
 ```
 
 ```js filename="pages/api/cookie.js" switcher
 export default async function handler(req, res) {
-  res.setHeader('Set-Cookie', 'username=; Path=/; HttpOnly; Max-Age=0')
-  res.status(200).send('Cookie has been deleted.')
+  const auth = req.cookies.authorization
+  // ...
 }
 ```
 
 </PagesOnly>
+
+### Deleting Cookies
 
 <AppOnly>
 
@@ -1083,6 +1058,31 @@ export async function delete() {
 See [additional examples](/docs/app/api-reference/functions/cookies#deleting-cookies) for deleting cookies from Server Actions.
 
 </AppOnly>
+
+<PagesOnly>
+
+You can delete cookies inside an API Route using the `setHeader` method on the response:
+
+```ts filename="pages/api/cookie.ts" switcher
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  res.setHeader('Set-Cookie', 'username=; Path=/; HttpOnly; Max-Age=0')
+  res.status(200).send('Cookie has been deleted.')
+}
+```
+
+```js filename="pages/api/cookie.js" switcher
+export default async function handler(req, res) {
+  res.setHeader('Set-Cookie', 'username=; Path=/; HttpOnly; Max-Age=0')
+  res.status(200).send('Cookie has been deleted.')
+}
+```
+
+</PagesOnly>
 
 ## Calling a Server Action from outside a form
 
