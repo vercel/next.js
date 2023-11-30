@@ -311,3 +311,72 @@ The `utils/get-item` exports can be used by Layouts, Pages, or other components 
 > **Good to know:**
 >
 > - We recommend using the [`server-only` package](/docs/app/building-your-application/rendering/composition-patterns#keeping-server-only-code-out-of-the-client-environment) to make sure server data fetching functions are never used on the client.
+
+## Tainting
+
+We recommend using React's taint APIs, [`taintObjectReference`](https://react.dev/reference/react/experimental_taintObjectReference) and [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue), to prevent whole object instances or sensitive values from being passed to the client.
+
+To enable tainting in your application, set the Next.js Config [`experimental.taint`](/docs/app/api-reference/next-config-js/experimental#taint) option to `true`:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    taint: true,
+  },
+}
+```
+
+Then pass the object or value you want to taint to the `experimental_taintObjectReference` or `experimental_taintUniqueValue` functions:
+
+```ts filename="app/actions.ts" switcher
+import { experimental_taintObjectReference, experimental_taintUniqueValue } from 'react';
+
+export async function getUserData(id: string) {
+  const data = ...
+  experimental_taintObjectReference(
+    'Do not pass the whole user object to the client',
+    data
+  );
+  experimental_taintUniqueValue(
+    'Do not pass the user\'s phone number to the client',
+    data,
+    data.phoneNumber
+  );
+  return data;
+}
+```
+
+```js filename="app/actions.js" switcher
+import {  experimental_taintObjectReference, experimental_taintUniqueValue } from 'react';
+
+export async function getUserData(id) {
+  const data = ...
+  experimental_taintObjectReference(
+    "Do not pass the whole user object to the client",
+    data
+  );
+  experimental_taintUniqueValue(
+    "Do not pass the user's phone number to the client",
+    data,
+    data.phoneNumber
+  );
+  return data;
+```
+
+```tsx filename="app/page.tsx" switcher
+import { getUserData } from './data'
+
+export async function Page({ searchParams }: { searchParams: { id: number } }) {
+  const userData = getUserData(searchParams.id)
+  return <ClientComponent user={userData} /> // error
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { getUserData } from './data'
+
+export async function Page({ searchParams }) {
+  const userData = getUserData(searchParams.id)
+  return <ClientComponent user={userData} /> // error
+}
+```
