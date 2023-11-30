@@ -97,7 +97,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     await cleanup()
   })
 
-  test.only('Module not found (empty import trace)', async () => {
+  test('Module not found (empty import trace)', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
