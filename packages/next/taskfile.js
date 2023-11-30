@@ -2375,6 +2375,7 @@ export async function next_compile(task, opts) {
       'nextbuild',
       'nextbuildjest',
       'nextbuildstatic',
+      'nextbuildstatic_esm',
       'nextbuild_esm',
       'pages',
       'pages_esm',
@@ -2522,6 +2523,14 @@ export async function nextbuildstatic(task, opts) {
     .target('dist/export')
 }
 
+// export is a reserved keyword for functions
+export async function nextbuildstatic_esm(task, opts) {
+  await task
+    .source('src/export/**/!(*.test).+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/esm/export')
+}
+
 export async function pages_app(task, opts) {
   await task
     .source('src/pages/_app.tsx')
@@ -2641,6 +2650,7 @@ export default async function (task) {
     opts
   )
   await task.watch('src/export', 'nextbuildstatic', opts)
+  await task.watch('src/export', 'nextbuildstatic_esm', opts)
   await task.watch('src/client', 'client', opts)
   await task.watch('src/client', 'client_esm', opts)
   await task.watch('src/lib', 'lib', opts)
