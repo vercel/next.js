@@ -213,7 +213,7 @@ createNextDescribe(
     describe('mixed syntax external modules', () => {
       it('should handle mixed module with next/dynamic', async () => {
         const browser = await next.browser('/mixed/dynamic')
-        expect(await browser.elementByCss('#dynamic').text()).toContain(
+        expect(await browser.elementByCss('#component').text()).toContain(
           'mixed-syntax-esm'
         )
       })

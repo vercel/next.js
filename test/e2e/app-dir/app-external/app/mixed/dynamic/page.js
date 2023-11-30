@@ -8,9 +8,5 @@ const Dynamic = dynamic(
 )
 
 export default function Page() {
-  return (
-    <div id="dynamic">
-      <Dynamic />
-    </div>
-  )
+  return <Dynamic />
 }
