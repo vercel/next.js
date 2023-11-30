@@ -222,6 +222,9 @@ createNextDescribe(
         const $ = await next.render$('/mixed/import')
         expect(await $('#server').text()).toContain('server:mixed-syntax-esm')
         expect(await $('#client').text()).toContain('client:mixed-syntax-esm')
+        expect(await $('#relative-mixed').text()).toContain(
+          'relative-mixed-syntax-esm'
+        )
       })
     })
 
