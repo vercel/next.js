@@ -6,7 +6,7 @@ description: Learn about common data fetching patterns in React and Next.js.
 
 There are a few recommended patterns and best practices for fetching data in React and Next.js. This page will go over some of the most common patterns and how to use them.
 
-### Fetching Data on the Server
+## Fetching Data on the Server
 
 Whenever possible, we recommend fetching data on the server. This allows you to:
 
@@ -19,7 +19,7 @@ Whenever possible, we recommend fetching data on the server. This allows you to:
 
 You can fetch data on the server using Server Components, [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
-### Fetching Data Where It's Needed
+## Fetching Data Where It's Needed
 
 If you need to use the same data (e.g. current user) in multiple components in a tree, you do not have to fetch data globally, nor forward props between components. Instead, you can use `fetch` or React `cache` in the component that needs the data without worrying about the performance implications of making multiple requests for the same data.
 
@@ -27,7 +27,7 @@ This is possible because `fetch` requests are automatically memoized. Learn more
 
 > **Good to know**: This also applies to layouts, since it's not possible to pass data between a parent layout and its children.
 
-### Streaming
+## Streaming
 
 Streaming and [Suspense](https://react.dev/reference/react/Suspense) are React features that allow you to progressively render and incrementally stream rendered units of the UI to the client.
 
@@ -58,7 +58,7 @@ When fetching data inside React components, you need to be aware of two data fet
 - With **sequential data fetching**, requests in a route are dependent on each other and therefore create waterfalls. There may be cases where you want this pattern because one fetch depends on the result of the other, or you want a condition to be satisfied before the next fetch to save resources. However, this behavior can also be unintentional and lead to longer loading times.
 - With **parallel data fetching**, requests in a route are eagerly initiated and will load data at the same time. This reduces client-server waterfalls and the total time it takes to load data.
 
-#### Sequential Data Fetching
+### Sequential Data Fetching
 
 If you have nested components, and each component fetches its own data, then data fetching will happen sequentially if those data requests are different (this doesn't apply to requests for the same data as they are automatically [memoized](/docs/app/building-your-application/caching#request-memoization)).
 
@@ -140,7 +140,7 @@ This will prevent the whole route from being blocked by data fetching, and the u
 >
 > Any fetch requests with `await` will block rendering and data fetching for the entire tree beneath it, unless they are wrapped in a `<Suspense>` boundary or `loading.js` is used. Another alternative is to use [parallel data fetching](#parallel-data-fetching) or the [preload pattern](#preloading-data).
 
-#### Parallel Data Fetching
+### Parallel Data Fetching
 
 To fetch data in parallel, you can eagerly initiate requests by defining them outside the components that use the data, then calling them from inside the component. This saves time by initiating both requests in parallel, however, the user won't see the rendered result until both promises are resolved.
 
@@ -212,7 +212,7 @@ export default async function Page({ params: { username } }) {
 
 To improve the user experience, you can add a [Suspense Boundary](/docs/app/building-your-application/routing/loading-ui-and-streaming) to break up the rendering work and show part of the result as soon as possible.
 
-### Preloading Data
+## Preloading Data
 
 Another way to prevent waterfalls is to use the preload pattern. You can optionally create a `preload` function to further optimize parallel data fetching. With this approach, you don't have to pass promises down as props. The `preload` function can also have any name as it's a pattern, not an API.
 
