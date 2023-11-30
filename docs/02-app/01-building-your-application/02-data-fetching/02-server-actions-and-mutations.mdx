@@ -625,184 +625,65 @@ See [additional examples](/docs/app/api-reference/functions/cookies#deleting-coo
 
 ## Security
 
-#### Using React's `taintObjectReference` API
+#### Closures and Encryption
 
-For initial load Next.js will run both the Server Components and the Client Components on the server to produce HTML.
+Server Actions can be defined as [closures](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures). For example, the `publish` action has access to the `publishVersion` variable in its parent scope:
 
-Server Components (RSC) execute in a separate module system from the Client Components to avoid accidentally exposing information between the two modules.
+```tsx filename="app/page.tsx" switcher
+export default function Page() {
+  const publishVersion = await getLatestVersion();
 
-Client Components that render through Server-side Rendering (SSR) should be considered as the same security policy as the browser client. It should not gain access to any privileged data or private APIs. It's highly discouraged to use hacks to try to circumvent this protection (such as stashing data on the global object). The principle is that this code should be able to execute the same on the server as the client. In alignment with secure by default practices, Next.js will fail the build if server-only modules are imported from a Client Component.
+  async function publish(formData: FormData) {
+    "use server";
+    if (publishVersion !== await getLatestVersion()) {
+      throw new Error('The version has changed since pressing publish');
+    }
+    ...
+  }
 
-Recommend React taint API - general, users should not be relying on the encryption alone
-
-As we cannot control what data get sent to the client
-Encryption is the last resort - for enterprise
-
-In this approach you'll want to audit your "use client" files carefully. While auditing and reviewing PRs, look at all the exported functions and if the type signature accepts overly broad objects like User, or contains props like token or creditCard. Even privacy sensitive fields like phoneNumber need extra scrutiny. A Client Component should not accept more data than the minimal data it needs to perform its job.
-
-A Client Component should not accept more data than the minimal data it needs to perform its job.
-
-```jsx
-import Profile from './components/profile.tsx'
-
-export async function Page({ params: { slug } }) {
-  const [rows] = await sql`SELECT * FROM user WHERE slug = ${slug}`
-  const userData = rows[0]
-  // EXPOSED: This exposes all the fields in userData to the client because
-  // we are passing the data from the Server Component to the Client.
-  // This is similar to returning `userData` in `getServerSideProps`
-  return <Profile user={userData} />
+  return <button action={publish}>Publish</button>;
 }
 ```
 
-```jsx
-'use client'
-// BAD: This is a bad props interface because it accepts way more data than the
-// Client Component needs and it encourages server components to pass all that
-// data down. A better solution would be to accept a limited object with just
-// the fields necessary for rendering the profile.
-export default async function Profile({ user }: { user: User }) {
-  return (
-    <div>
-      <h1>{user.name}</h1>
-      ...
-    </div>
-  )
+```jsx filename="app/page.js" switcher
+export default function Page() {
+  const publishVersion = await getLatestVersion();
+
+  async function publish() {
+    "use server";
+    if (publishVersion !== await getLatestVersion()) {
+      throw new Error('The version has changed since pressing publish');
+    }
+    ...
+  }
+
+  return <button action={publish}>Publish</button>;
 }
 ```
 
-Server Only
-Code that should only ever execute on the server can be marked with:
+Closures are useful when you need to capture a _snapshot_ of data (e.g. `publishVersion`) at the time of rendering, and use it later when the action is invoked.
 
-import 'server-only';
-This will cause the build to error if a Client Component tries to import this module. This can be used to ensure that proprietary/sensitive code or internal business logic doesn't accidentally leak to the client.
+However, the captured variables must be sent to the client when the action is invoked. To prevent sensitive data from being exposed, Next.js automatically encrypts all closed-over variables with the action ID. Each time a Next.js application is built (or redeployed), a new private key is generated for the action, meaning each Server Action can only be invoked for a specific build. Encryption works when deploying to Vercel or other platforms.
 
-The primary way to transfer data is using the React Server Components protocol which happens automatically when passing props to the Client Components. This serialization supports a superset of JSON. Transferring custom classes is not supported and will result in an error.
+> **Good to know:** We don't recommend relying on encryption alone to prevent sensitive values from being exposed on the client. Instead, you should use the [React taint APIs](/docs/app/building-your-application/data-fetching/patterns#tainting) to prevent specific data from being sent to the client.
 
-Therefore, a nice trick to avoid too large objects being accidentally exposed to the client is to use class for your data access records.
+#### Overwriting Encryption Keys
 
-In the upcoming Next.js 14 release, you can also try out the experimental React Taint APIs by enable the taint flag in next.config.js.
+When self-hosting your application across multiple servers, each server instance may end up with a different encryption key, leading to potential inconsistencies.
 
-```js
-module.exports = {
-  experimental: {
-    taint: true,
-  },
-}
-```
+To mitigate this, you can overwrite the encryption key using the `process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` environment variable. Specifying this variable ensures that your encryption keys are persistent across builds and all server instances use the same key.
 
-This lets you mark an object that should not be allowed to be passed to the client as is.
+This is an advanced use case where consistent encryption behavior across multiple deployments is critical for your application.
 
-app/data.ts
+#### Allowed Origins
 
-```jsx
-import { experimental_taintObjectReference } from 'react';
-
-export async function getUserData(id) {
-  const data = ...;
-  experimental_taintObjectReference(
-    'Do not pass user data to the client',
-    data
-  );
-  return data;
-}
-```
-
-app/page.tsx
-
-import { getUserData } from './data';
-
-export async function Page({ searchParams }) {
-  const userData = getUserData(searchParams.id);
-  return <ClientComponent user={userData} />; // error
-}
-This does not protect against extracting data fields out of this object and passing them along:
-
-app/page.tsx
-
-export async function Page({ searchParams }) {
-  const { name, phone } = getUserData(searchParams.id);
-  // Intentionally exposing personal data
-  return <ClientComponent name={name} phoneNumber={phone} />;
-}
-For unique strings such as tokens, the raw value can be blocked as well using taintUniqueValue.
-
-app/data.ts
-
-import { experimental_taintObjectReference, experimental_taintUniqueValue } from 'react';
-
-export async function getUserData(id) {
-  const data = ...;
-  experimental_taintObjectReference(
-    'Do not pass user data to the client',
-    data
-  );
-  experimental_taintUniqueValue(
-    'Do not pass tokens to the client',
-    data,
-    data.token
-  );
-  return data;
-}
-However, even this doesn't block derived values.
-
-It's better to avoid data getting into the Server Components in the first place - using a Data Access Layer. Taint checking provides an additional layer of protection against mistakes by specifying the value, please be mindful that functions and classes are already blocked from being passed to Client Components. More layers the minimize risk of something slipping through.
-
-By default, environment variables are only available on the Server. By convention, Next.js also exposes any environment variable prefixed with NEXT*PUBLIC* to the client. This lets you expose certain explicit configuration that should be available to the client.
-
-### Encryption
-
-Encryption for variables that are sent to the client, user might not be aware of it as it’s automated
-
-If you define an action inside a server component,
-
-When you reference variables outside “use server”.
-
-That works automatically, when deploying to Vercel and other platforms
-
-All this works outside of Vercel
-
-Encryption key is changed every time you build your application, meaning redeploying
-
-Prob: If you self host your application in multiple servers, each will get a different key
-
-process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY - if you specify this variable, you can make sure your keys are identical on each server.
-
-More of an advanced use case.
-
-By default a private key is generated automatically during the build of a Next.js project. Each rebuild generates a new private key which means that each Server Action can only be invoked for a specific build. You might want to use Skew Protection to ensure that you always invoke the correction version during redeploys.
-
-If you need a key that rotates more frequently or is persistent across multiple builds, you can configure it manually using NEXT_SERVER_ACTIONS_ENCRYPTION_KEY environment variable.
-
-By encrypting all closed over variables, you don't accidentally expose any secrets in them. By signing it, it makes it harder for an attacker to mess with the input to the action.
-
-Another alternative to using closures is to use the .bind(...) function in JavaScript. These are NOT encrypted. This provides an opt-out for performance and is also consistent with .bind() on the client.
-
-app/page.tsx
-
-async function deletePost(id: number) {
-"use server";
-// verify id and that you can still delete it
-...
-}
-
-export async function Page({ slug }) {
-  const post = await getPost(slug);
-  return <button action={deletePost.bind(null, post.id)}>
-    Delete
-  </button>;
-}
-The principle is that the argument list to Server Actions ("use server") must always be treated as hostile and the input has to be verified.
-
-### Built-in CSRF Protection
-
-All Server Actions can be invoked by plain `<form>`, which could open them up to [CSRF attacks](https://developer.mozilla.org/en-US/docs/Glossary/CSRF).
+All Server Actions can be invoked in a `<form>` element, which could open them up to [CSRF attacks](https://developer.mozilla.org/en-US/docs/Glossary/CSRF).
 
 Behind the scenes, Server Actions use the `POST` method, and only this HTTP method is allowed to invoke them. This prevents most CSRF vulnerabilities in modern browsers, particularly with [SameSite cookies](https://web.dev/articles/samesite-cookies-explained) being the default.
 
 As an additional protection, Server Actions in Next.js also compares the [Origin header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin) to the [Host header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Host) (or `X-Forwarded-Host`). If these don't match, the request will be aborted. In other words, Server Actions can only be invoked on the same host as the page that hosts it.
 
-For large applications and organizations that use reverse proxies or multi-layered backend architectures (where the server API differs from the production domain), it's recommended to use the Next Config [`serverActions.allowedOrigins`](/docs/app/api-reference/next-config-js/serverActions) option to specify a list of safe origins. The option accepts an array of strings.
+For large applications that use reverse proxies or multi-layered backend architectures (where the server API differs from the production domain), it's recommended to use the Next Config [`serverActions.allowedOrigins`](/docs/app/api-reference/next-config-js/serverActions) option to specify a list of safe origins. The option accepts an array of strings.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
@@ -815,76 +696,4 @@ module.exports = {
 }
 ```
 
-serverActions.allowedOrigins and process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY are more advanced cases
-
-Planning to have a call with @Delba on the details - here’s a quick outline:
-
-non-form action calls
-
-use try-catch to handle errors (or return an error code)
-
-errors are hidden with a digest
-
-security
-
-variables from the closure are encrypted
-
-all automatic, rotates on new builds, use process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY to override the encryption key (when self-hosting on multiple servers)
-
-always use the React taint API to prevent accidental leaks. encryption is the last resort
-
-CSRF protection - next.js ensures the action request is coming from the correct domain
-
-use serverActions.allowedOrigins to specify safe origins
-
-link to seb’s security blog post
-
-New APIs
-
-Edge Cases / Examples:
-
-We have examples of calling actions in forms
-
-But it would be good to add examples of calling actions outside forms
-
-Called as normal async functions - await, try/catch
-
-Limitations: The argument to the action call
-
-Other arguments you pass to the action should be serializable
-
-But you can return React Elements, what would be a use case for this?
-
-React will throw the error inside the action again
-
-Actions triggered in useEffect() or 3rd party libraries.
-
-For non-user interactions, but will trigger a mutation
-
-No need to add startTransition in the action call
-
-Example for useOptimistic API, can
-
-Triggering actions in a declarative way, state
-
-Server Actions DX
-
-Right now, server actions are requests in the network tab, there’s not difference
-
-Maybe with the dev tools, we can make it easier to debug
-
-Adding API to middleware, so you can have request.action in your middleware.
-
-Action name, if the function has it
-
-Server Actions can be anonymous functions
-
-https://github.com/vercel/next.js/pull/58023
-
-https://github.com/vercel/next.js/pull/58023/files#diff-5c3571605c187caaae3f7f40595b8eff5c9b38fb3130e41f50423469dbd0237b
-
-https://react.dev/reference/react/useOptimistic
-
-```
-
-```
+Learn more about [Security and Server Actions](https://nextjs.org/blog/security-nextjs-server-components-actions).
