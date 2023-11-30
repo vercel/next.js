@@ -18,6 +18,20 @@ function continueRoute(
   })
 }
 
+async function fetchRoute(
+  route: Route,
+  request: PlaywrightRequest,
+  testHeaders: Record<string, string>
+): Promise<void> {
+  const response = await route.fetch({
+    headers: {
+      ...request.headers(),
+      ...testHeaders,
+    },
+  })
+  return route.fulfill({ response })
+}
+
 export async function handleRoute(
   route: Route,
   page: Page,
@@ -36,7 +50,7 @@ export async function handleRoute(
   const pageOrigin = new URL(page.url()).origin
   const requestOrigin = new URL(request.url()).origin
   if (pageOrigin === requestOrigin) {
-    return continueRoute(route, request, testHeaders)
+    return fetchRoute(route, request, testHeaders)
   }
 
   if (!fetchHandler) {
