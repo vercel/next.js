@@ -38,6 +38,7 @@ import { isNotFoundError } from '../client/components/not-found'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { isRedirectError } from '../client/components/redirect'
+import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -388,15 +389,7 @@ process.on('unhandledRejection', (err: unknown) => {
   }
 
   // we don't want to log these errors
-  if (
-    err &&
-    typeof err === 'object' &&
-    'digest' in err &&
-    (err.digest === DYNAMIC_ERROR_CODE ||
-      isNotFoundError(err) ||
-      err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-      isRedirectError(err))
-  ) {
+  if (isDynamicUsageError(err)) {
     return
   }
 
