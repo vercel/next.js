@@ -17,6 +17,7 @@ Server Actions are **asynchronous server functions** that can be invoked from Re
 - Rather than being limited to a single form per route like traditional applications, Server Actions enable having multiple reusable actions per route. The browser also does not refresh on form submission.
 - The return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
 - Since Server Actions execute on the server, they are an alternative to creating [Route Handlers](/docs/app/building-your-application/routing/route-handlers) (API endpoints) to mutate data.
+  - Server Actions use the `POST` method, and only this HTTP method is allowed to invoke them.
 - Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
 
 ## Examples
@@ -187,7 +188,7 @@ export default async function submit(formData) {
 
 Please refer to the [Zod documentation](https://zod.dev/) for more information.
 
-#### Displaying a Loading State with `useFormStatus`
+#### Displaying a form loading state
 
 Use the React [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a loading state when a form is submitting on the server. The `useFormStatus` hook can only be used as a child of a `form` element using a Server Action.
 
@@ -253,9 +254,9 @@ export default async function Home() {
 }
 ```
 
-#### Error Handling
+#### Error handling in forms
 
-Server Actions can also return [serializable objects](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values). For example, your Server Action might handle errors from creating a new item:
+Server Actions can also return [serializable objects](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values). For example, your Server Action might handle errors from creating a new item by returning a message:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -431,6 +432,21 @@ export function Thread({ messages }) {
   )
 }
 ```
+
+### Handling Errors
+
+TODO: Recommend try/catch, errors are hidden with a digest
+
+Other Edge Cases / Examples:
+
+- Called as normal async functions - await, try/catch
+  - Limitations: The argument to the action call
+  - Other arguments you pass to the action should be serializable
+  - But you can return React Elements, what would be a use case for this?
+  - React will throw the error inside the action again
+  - Actions triggered in useEffect() or 3rd party libraries. For non-user interactions, but will trigger a mutation
+  - No need to add startTransition in the action call
+  - Triggering actions in a declarative way?
 
 ### Revalidating Data
 
