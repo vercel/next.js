@@ -4,44 +4,26 @@ nav_title: Server Actions and Mutations
 description: Learn how to handle form submissions and data mutations with Next.js.
 ---
 
-{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
-
-<AppOnly>
-
 Server Actions are **asynchronous server functions** that can be invoked from React components. They provide a powerful and flexible way to handle form submissions and data mutations in your Next.js applications.
 
 > **🎥 Watch:** Learn more about forms and mutations with the App Router → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
 
 ## How Server Actions work
 
-- Server Actions are a React feature that integrates deeply with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server round trip.
+- Server Actions integrate deeply with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server round trip.
 - Server Actions can be defined inline in Server Components or invoked from Client Components.
-- In Server Components, forms invoking Server Actions support progressive enhancement by default.
-- In Client Components, forms invoking Server Actions will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
-- Rather than being limited to a single form per route like traditional applications, Server Actions enable having multiple actions per route. The browser also does not refresh on form submission.
+  - In Server Components, forms invoking Server Actions support progressive enhancement by default.
+  - In Client Components, forms invoking Server Actions will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
+- Rather than being limited to a single form per route like traditional applications, Server Actions enable having multiple reusable actions per route. The browser also does not refresh on form submission.
+- The return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
 - Since Server Actions execute on the server, they are an alternative to creating [Route Handlers](/docs/app/building-your-application/routing/route-handlers) (API endpoints) to mutate data.
 - Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
-- The return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
-
-</AppOnly>
-
-<PagesOnly>
-
-Forms enable you to create and update data in web applications. Next.js provides a powerful way to handle form submissions and data mutations using **API Routes**.
-
-> **Good to know:**
->
-> - We will soon recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router and using [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#how-server-actions-work) for handling form submissions and data mutations. Server Actions allow you to define asynchronous server functions that can be called directly from your components, without needing to manually create an API Route.
-> - API Routes [do not specify CORS headers](https://developer.mozilla.org/docs/Web/HTTP/CORS), meaning they are same-origin only by default.
-> - Since API Routes run on the server, we're able to use sensitive values (like API keys) through [Environment Variables](/docs/pages/building-your-application/configuring/environment-variables) without exposing them to the client. This is critical for the security of your application.
-
-</PagesOnly>
 
 ## Examples
 
-<AppOnly>
+A Server Action can be defined with the React [´"use server"`](https://react.dev/reference/react/use-server) directive. This denotes the function will execute on the server regardless of whether it's invoked from a Server or Client Component.
 
-A Server Action can be defined with the React [´"use server"`](https://react.dev/reference/react/use-server) directive. By adding `"use server"` directive, the function will execute on the server regardless of whether it's invoked from a Server or Client Component.
+### Server Components
 
 In Server Components, the action can be inlined and the `"use server"` added at the top of the function body:
 
@@ -75,6 +57,8 @@ export default function Page() {
 }
 ```
 
+### Client Components
+
 To call a Server Action in a Client Component, create a new file and add the `"use server"` directive at the top of it. All functions within the file will be marked as Server Actions that can be reused in both Client and Server Components:
 
 ```tsx filename="app/actions.ts" switcher
@@ -93,15 +77,11 @@ export async function create(formData) {
 }
 ```
 
-</AppOnly>
-
-### Server-only Forms
-
-<AppOnly>
+### Forms
 
 React extends the HTML [`<form>`](https://developer.mozilla.org/docs/Web/HTML/Element/form) element to allow Server Actions to be invoked with the `action` prop.
 
-When invoked in a form, the action automatically receives the [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData/FormData) object containing the captured form data. You can extract the data using the native [`FormData` methods](https://developer.mozilla.org/en-US/docs/Web/API/FormData#instance_methods):
+When invoked in a form, the action automatically receives the [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData/FormData) object containing the form data. This means you don't have to use React `useState`, instead you can extract the data using the native [`FormData` methods](https://developer.mozilla.org/en-US/docs/Web/API/FormData#instance_methods):
 
 ```tsx filename="app/invoices/page.tsx" switcher
 export default function Page() {
@@ -143,244 +123,17 @@ export default function Page() {
 
 > **Good to know:** When working with forms that have many fields, you may want to consider using the [`entries()`](https://developer.mozilla.org/en-US/docs/Web/API/FormData/entries) method with JavaScript's [`Object.fromEntries()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries). For example: `const rawFormData = Object.fromEntries(formData.entries())`
 
-To learn more about the `"use server"` directive and forms in React, see the following resources:
+To learn more about the `"use server"` directive and the `<form>` element in React, see the following resources:
 
 - [React `<form>` documentation](https://react.dev/reference/react-dom/components/form#handle-form-submission-with-a-server-action)
 - [React `use server` documentation](https://react.dev/reference/react/use-server)
 - Next.js Example: [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
 
-</AppOnly>
-
-<PagesOnly>
-
-With the Pages Router, you need to manually create API endpoints to handle securely mutating data on the server.
-
-```ts filename="pages/api/submit.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  const data = req.body
-  const id = await createItem(data)
-  res.status(200).json({ id })
-}
-```
-
-```js filename="pages/api/submit.js" switcher
-export default function handler(req, res) {
-  const data = req.body
-  const id = await createItem(data)
-  res.status(200).json({ id })
-}
-```
-
-Then, call the API Route from the client with an event handler:
-
-```tsx filename="pages/index.tsx" switcher
-import { FormEvent } from 'react'
-
-export default function Page() {
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const formData = new FormData(event.currentTarget)
-    const response = await fetch('/api/submit', {
-      method: 'POST',
-      body: formData,
-    })
-
-    // Handle response if necessary
-    const data = await response.json()
-    // ...
-  }
-
-  return (
-    <form onSubmit={onSubmit}>
-      <input type="text" name="name" />
-      <button type="submit">Submit</button>
-    </form>
-  )
-}
-```
-
-```jsx filename="pages/index.jsx" switcher
-export default function Page() {
-  async function onSubmit(event) {
-    event.preventDefault()
-
-    const formData = new FormData(event.target)
-    const response = await fetch('/api/submit', {
-      method: 'POST',
-      body: formData,
-    })
-
-    // Handle response if necessary
-    const data = await response.json()
-    // ...
-  }
-
-  return (
-    <form onSubmit={onSubmit}>
-      <input type="text" name="name" />
-      <button type="submit">Submit</button>
-    </form>
-  )
-}
-```
-
-</PagesOnly>
-
-<AppOnly>
-
-### Revalidating Data
-
-Server Actions allow you to invalidate the [Next.js Cache](/docs/app/building-your-application/caching) on demand. You can invalidate an entire route segment with [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath):
-
-```ts filename="app/actions.ts" switcher
-'use server'
-
-import { revalidatePath } from 'next/cache'
-
-export default async function submit() {
-  try {
-    // ...
-  } catch (error) {
-    // ...
-  }
-
-  revalidatePath('/posts')
-}
-```
-
-```js filename="app/actions.js" switcher
-'use server'
-
-import { revalidatePath } from 'next/cache'
-
-export default async function submit() {
-  try {
-    // ...
-  } catch (error) {
-    // ...
-  }
-
-  revalidatePath('/posts')
-}
-```
-
-Or invalidate a specific data fetch with a cache tag using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag):
-
-```ts filename="app/actions.ts" switcher
-'use server'
-
-import { revalidateTag } from 'next/cache'
-
-export default async function submit() {
-  try {
-    // ...
-  } catch (error) {
-    // ...
-  }
-
-  revalidateTag('posts')
-}
-```
-
-```js filename="app/actions.js" switcher
-'use server'
-
-import { revalidateTag } from 'next/cache'
-
-export default async function submit() {
-  try {
-    // ...
-  } catch (error) {
-    // ...
-  }
-  revalidateTag('posts')
-}
-```
-
-</AppOnly>
-
-### Redirecting
-
-<AppOnly>
-
-If you would like to redirect the user to a different route after the completion of a Server Action, you can use [`redirect`](/docs/app/api-reference/functions/redirect) and any absolute or relative URL:
-
-```ts filename="app/actions.ts" switcher
-'use server'
-
-import { redirect } from 'next/navigation'
-import { revalidateTag } from 'next/cache'
-
-export default async function submit(id: string) {
-  try {
-    // ...
-  } catch (error) {
-    // ...
-  }
-
-  revalidateTag('posts') // Update cached posts
-  redirect(`/post/${id}`) // Navigate to the new post page
-}
-```
-
-```js filename="app/actions.js" switcher
-'use server'
-
-import { redirect } from 'next/navigation'
-import { revalidateTag } from 'next/cache'
-
-export default async function submit(id) {
-  try {
-    // ...
-  } catch (error) {
-    // ...
-  }
-
-  revalidateTag('posts') // Update cached posts
-  redirect(`/post/${id}`) // Navigate to the new post page
-}
-```
-
-</AppOnly>
-
-<PagesOnly>
-
-If you would like to redirect the user to a different route after a mutation, you can [`redirect`](/docs/pages/building-your-application/routing/api-routes#response-helpers) to any absolute or relative URL:
-
-```ts filename="pages/api/submit.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  const id = await addPost()
-  res.redirect(307, `/post/${id}`)
-}
-```
-
-```js filename="pages/api/submit.js" switcher
-export default async function handler(req, res) {
-  const id = await addPost()
-  res.redirect(307, `/post/${id}`)
-}
-```
-
-</PagesOnly>
-
-### Server-side Form Validation
+#### Form Validation
 
 We recommend using HTML validation like `required` and `type="email"` for basic client-side form validation.
 
 For more advanced server-side validation, you can use a schema validation library like [zod](https://zod.dev/) to validate the form fields before mutating the data:
-
-<AppOnly>
 
 ```tsx filename="app/actions.ts" switcher
 import { z } from 'zod'
@@ -434,45 +187,73 @@ export default async function submit(formData) {
 
 Please refer to the [Zod documentation](https://zod.dev/) for more information.
 
-</AppOnly>
+#### Displaying a Loading State with `useFormStatus`
 
-<PagesOnly>
+Use the React [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a loading state when a form is submitting on the server. The `useFormStatus` hook can only be used as a child of a `form` element using a Server Action.
 
-```ts filename="pages/api/submit.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
-import { z } from 'zod'
+For example, the following submit button:
 
-const schema = z.object({
-  // ...
-})
+```tsx filename="app/submit-button.tsx" switcher
+'use client'
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  const parsed = schema.parse(req.body)
-  // ...
+import { useFormStatus } from 'react-dom'
+
+export function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
+  )
 }
 ```
 
-```js filename="pages/api/submit.js" switcher
-import { z } from 'zod'
+```jsx filename="app/submit-button.jsx" switcher
+'use client'
 
-const schema = z.object({
-  // ...
-})
+import { useFormStatus } from 'react-dom'
 
-export default async function handler(req, res) {
-  const parsed = schema.parse(req.body)
-  // ...
+export function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <button type="submit" aria-disabled={pending}>
+      Add
+    </button>
+  )
 }
 ```
 
-</PagesOnly>
+`<SubmitButton />` can then be used in a form with a Server Action:
 
-### Error Handling
+```tsx filename="app/page.tsx" switcher
+import { SubmitButton } from '@/app/submit-button'
 
-<AppOnly>
+export default async function Home() {
+  return (
+    <form action={...}>
+      <input type="text" name="field-name" />
+      <SubmitButton />
+    </form>
+  )
+}
+```
+
+```jsx filename="app/page.jsx" switcher
+import { SubmitButton } from '@/app/submit-button'
+
+export default async function Home() {
+  return (
+    <form action={...}>
+      <input type="text" name="field-name" />
+      <SubmitButton />
+    </form>
+  )
+}
+```
+
+#### Error Handling
 
 Server Actions can also return [serializable objects](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values). For example, your Server Action might handle errors from creating a new item:
 
@@ -576,269 +357,7 @@ export function AddForm() {
 }
 ```
 
-</AppOnly>
-
-<PagesOnly>
-
-You can use React state to show an error message when a form submission fails:
-
-```tsx filename="pages/index.tsx" switcher
-import React, { useState, FormEvent } from 'react'
-
-export default function Page() {
-  const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setIsLoading(true)
-    setError(null) // Clear previous errors when a new request starts
-
-    try {
-      const formData = new FormData(event.currentTarget)
-      const response = await fetch('/api/submit', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to submit the data. Please try again.')
-      }
-
-      // Handle response if necessary
-      const data = await response.json()
-      // ...
-    } catch (error) {
-      // Capture the error message to display to the user
-      setError(error.message)
-      console.error(error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  return (
-    <div>
-      {error && <div style={{ color: 'red' }}>{error}</div>}
-      <form onSubmit={onSubmit}>
-        <input type="text" name="name" />
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? 'Loading...' : 'Submit'}
-        </button>
-      </form>
-    </div>
-  )
-}
-```
-
-```jsx filename="pages/index.jsx" switcher
-import React, { useState } from 'react'
-
-export default function Page() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState(null)
-
-  async function onSubmit(event) {
-    event.preventDefault()
-    setIsLoading(true)
-    setError(null) // Clear previous errors when a new request starts
-
-    try {
-      const formData = new FormData(event.currentTarget)
-      const response = await fetch('/api/submit', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to submit the data. Please try again.')
-      }
-
-      // Handle response if necessary
-      const data = await response.json()
-      // ...
-    } catch (error) {
-      // Capture the error message to display to the user
-      setError(error.message)
-      console.error(error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  return (
-    <div>
-      {error && <div style={{ color: 'red' }}>{error}</div>}
-      <form onSubmit={onSubmit}>
-        <input type="text" name="name" />
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? 'Loading...' : 'Submit'}
-        </button>
-      </form>
-    </div>
-  )
-}
-```
-
-</PagesOnly>
-
-### Displaying Loading State
-
-<AppOnly>
-
-Use the React [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a loading state when a form is submitting on the server. The `useFormStatus` hook can only be used as a child of a `form` element using a Server Action.
-
-For example, the following submit button:
-
-```tsx filename="app/submit-button.tsx" switcher
-'use client'
-
-import { useFormStatus } from 'react-dom'
-
-export function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button type="submit" aria-disabled={pending}>
-      Add
-    </button>
-  )
-}
-```
-
-```jsx filename="app/submit-button.jsx" switcher
-'use client'
-
-import { useFormStatus } from 'react-dom'
-
-export function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button type="submit" aria-disabled={pending}>
-      Add
-    </button>
-  )
-}
-```
-
-`<SubmitButton />` can then be used in a form with a Server Action:
-
-```tsx filename="app/page.tsx" switcher
-import { SubmitButton } from '@/app/submit-button'
-
-export default async function Home() {
-  return (
-    <form action={...}>
-      <input type="text" name="field-name" />
-      <SubmitButton />
-    </form>
-  )
-}
-```
-
-```jsx filename="app/page.jsx" switcher
-import { SubmitButton } from '@/app/submit-button'
-
-export default async function Home() {
-  return (
-    <form action={...}>
-      <input type="text" name="field-name" />
-      <SubmitButton />
-    </form>
-  )
-}
-```
-
-</AppOnly>
-
-<PagesOnly>
-
-You can use React state to show a loading state when a form is submitting on the server:
-
-```tsx filename="pages/index.tsx" switcher
-import React, { useState, FormEvent } from 'react'
-
-export default function Page() {
-  const [isLoading, setIsLoading] = useState<boolean>(false)
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setIsLoading(true) // Set loading to true when the request starts
-
-    try {
-      const formData = new FormData(event.currentTarget)
-      const response = await fetch('/api/submit', {
-        method: 'POST',
-        body: formData,
-      })
-
-      // Handle response if necessary
-      const data = await response.json()
-      // ...
-    } catch (error) {
-      // Handle error if necessary
-      console.error(error)
-    } finally {
-      setIsLoading(false) // Set loading to false when the request completes
-    }
-  }
-
-  return (
-    <form onSubmit={onSubmit}>
-      <input type="text" name="name" />
-      <button type="submit" disabled={isLoading}>
-        {isLoading ? 'Loading...' : 'Submit'}
-      </button>
-    </form>
-  )
-}
-```
-
-```jsx filename="pages/index.jsx" switcher
-import React, { useState } from 'react'
-
-export default function Page() {
-  const [isLoading, setIsLoading] = useState(false)
-
-  async function onSubmit(event) {
-    event.preventDefault()
-    setIsLoading(true) // Set loading to true when the request starts
-
-    try {
-      const formData = new FormData(event.currentTarget)
-      const response = await fetch('/api/submit', {
-        method: 'POST',
-        body: formData,
-      })
-
-      // Handle response if necessary
-      const data = await response.json()
-      // ...
-    } catch (error) {
-      // Handle error if necessary
-      console.error(error)
-    } finally {
-      setIsLoading(false) // Set loading to false when the request completes
-    }
-  }
-
-  return (
-    <form onSubmit={onSubmit}>
-      <input type="text" name="name" />
-      <button type="submit" disabled={isLoading}>
-        {isLoading ? 'Loading...' : 'Submit'}
-      </button>
-    </form>
-  )
-}
-```
-
-</PagesOnly>
-
-<AppOnly>
-
-### Optimistic Updates
+#### Optimistic Updates
 
 Use React [`useOptimistic`](https://react.dev/reference/react/useOptimistic) to optimistically update the UI before the Server Action finishes, rather than waiting for the response:
 
@@ -913,11 +432,118 @@ export function Thread({ messages }) {
 }
 ```
 
-</AppOnly>
+### Revalidating Data
 
-### Setting Cookies
+Server Actions allow you to invalidate the [Next.js Cache](/docs/app/building-your-application/caching) on demand. You can invalidate an entire route segment with [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath):
 
-<AppOnly>
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { revalidatePath } from 'next/cache'
+
+export default async function submit() {
+  try {
+    // ...
+  } catch (error) {
+    // ...
+  }
+
+  revalidatePath('/posts')
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+import { revalidatePath } from 'next/cache'
+
+export default async function submit() {
+  try {
+    // ...
+  } catch (error) {
+    // ...
+  }
+
+  revalidatePath('/posts')
+}
+```
+
+Or invalidate a specific data fetch with a cache tag using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag):
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { revalidateTag } from 'next/cache'
+
+export default async function submit() {
+  try {
+    // ...
+  } catch (error) {
+    // ...
+  }
+
+  revalidateTag('posts')
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+import { revalidateTag } from 'next/cache'
+
+export default async function submit() {
+  try {
+    // ...
+  } catch (error) {
+    // ...
+  }
+  revalidateTag('posts')
+}
+```
+
+### Redirecting
+
+If you would like to redirect the user to a different route after the completion of a Server Action, you can use [`redirect`](/docs/app/api-reference/functions/redirect) and any absolute or relative URL:
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { redirect } from 'next/navigation'
+import { revalidateTag } from 'next/cache'
+
+export default async function submit(id: string) {
+  try {
+    // ...
+  } catch (error) {
+    // ...
+  }
+
+  revalidateTag('posts') // Update cached posts
+  redirect(`/post/${id}`) // Navigate to the new post page
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+import { redirect } from 'next/navigation'
+import { revalidateTag } from 'next/cache'
+
+export default async function submit(id) {
+  try {
+    // ...
+  } catch (error) {
+    // ...
+  }
+
+  revalidateTag('posts') // Update cached posts
+  redirect(`/post/${id}`) // Navigate to the new post page
+}
+```
+
+### Cookies
+
+#### Setting Cookies
 
 You can set cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) function:
 
@@ -943,36 +569,7 @@ export async function create() {
 }
 ```
 
-</AppOnly>
-
-<PagesOnly>
-
-You can set cookies inside an API Route using the `setHeader` method on the response:
-
-```ts filename="pages/api/cookie.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  res.setHeader('Set-Cookie', 'username=lee; Path=/; HttpOnly')
-  res.status(200).send('Cookie has been set.')
-}
-```
-
-```js filename="pages/api/cookie.js" switcher
-export default async function handler(req, res) {
-  res.setHeader('Set-Cookie', 'username=lee; Path=/; HttpOnly')
-  res.status(200).send('Cookie has been set.')
-}
-```
-
-</PagesOnly>
-
-### Reading Cookies
-
-<AppOnly>
+#### Reading Cookies
 
 You can read cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) function:
 
@@ -998,36 +595,7 @@ export async function read() {
 }
 ```
 
-</AppOnly>
-
-<PagesOnly>
-
-You can read cookies inside an API Route using the [`cookies`](/docs/pages/building-your-application/routing/api-routes#request-helpers) request helper:
-
-```ts filename="pages/api/cookie.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  const auth = req.cookies.authorization
-  // ...
-}
-```
-
-```js filename="pages/api/cookie.js" switcher
-export default async function handler(req, res) {
-  const auth = req.cookies.authorization
-  // ...
-}
-```
-
-</PagesOnly>
-
 ### Deleting Cookies
-
-<AppOnly>
 
 You can delete cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) function:
 
@@ -1055,46 +623,178 @@ export async function delete() {
 
 See [additional examples](/docs/app/api-reference/functions/cookies#deleting-cookies) for deleting cookies from Server Actions.
 
-</AppOnly>
-
-<PagesOnly>
-
-You can delete cookies inside an API Route using the `setHeader` method on the response:
-
-```ts filename="pages/api/cookie.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  res.setHeader('Set-Cookie', 'username=; Path=/; HttpOnly; Max-Age=0')
-  res.status(200).send('Cookie has been deleted.')
-}
-```
-
-```js filename="pages/api/cookie.js" switcher
-export default async function handler(req, res) {
-  res.setHeader('Set-Cookie', 'username=; Path=/; HttpOnly; Max-Age=0')
-  res.status(200).send('Cookie has been deleted.')
-}
-```
-
-</PagesOnly>
-
-## Calling a Server Action from outside a form
-
-### Examples
-
-#### `useEffect
-
 ## Security
 
-### Using React's `taintObjectReference` API
+#### Using React's `taintObjectReference` API
+
+For initial load Next.js will run both the Server Components and the Client Components on the server to produce HTML.
+
+Server Components (RSC) execute in a separate module system from the Client Components to avoid accidentally exposing information between the two modules.
+
+Client Components that render through Server-side Rendering (SSR) should be considered as the same security policy as the browser client. It should not gain access to any privileged data or private APIs. It's highly discouraged to use hacks to try to circumvent this protection (such as stashing data on the global object). The principle is that this code should be able to execute the same on the server as the client. In alignment with secure by default practices, Next.js will fail the build if server-only modules are imported from a Client Component.
+
+Recommend React taint API - general, users should not be relying on the encryption alone
+
+As we cannot control what data get sent to the client
+Encryption is the last resort - for enterprise
+
+In this approach you'll want to audit your "use client" files carefully. While auditing and reviewing PRs, look at all the exported functions and if the type signature accepts overly broad objects like User, or contains props like token or creditCard. Even privacy sensitive fields like phoneNumber need extra scrutiny. A Client Component should not accept more data than the minimal data it needs to perform its job.
+
+A Client Component should not accept more data than the minimal data it needs to perform its job.
+
+```jsx
+import Profile from './components/profile.tsx'
+
+export async function Page({ params: { slug } }) {
+  const [rows] = await sql`SELECT * FROM user WHERE slug = ${slug}`
+  const userData = rows[0]
+  // EXPOSED: This exposes all the fields in userData to the client because
+  // we are passing the data from the Server Component to the Client.
+  // This is similar to returning `userData` in `getServerSideProps`
+  return <Profile user={userData} />
+}
+```
+
+```jsx
+'use client'
+// BAD: This is a bad props interface because it accepts way more data than the
+// Client Component needs and it encourages server components to pass all that
+// data down. A better solution would be to accept a limited object with just
+// the fields necessary for rendering the profile.
+export default async function Profile({ user }: { user: User }) {
+  return (
+    <div>
+      <h1>{user.name}</h1>
+      ...
+    </div>
+  )
+}
+```
+
+Server Only
+Code that should only ever execute on the server can be marked with:
+
+import 'server-only';
+This will cause the build to error if a Client Component tries to import this module. This can be used to ensure that proprietary/sensitive code or internal business logic doesn't accidentally leak to the client.
+
+The primary way to transfer data is using the React Server Components protocol which happens automatically when passing props to the Client Components. This serialization supports a superset of JSON. Transferring custom classes is not supported and will result in an error.
+
+Therefore, a nice trick to avoid too large objects being accidentally exposed to the client is to use class for your data access records.
+
+In the upcoming Next.js 14 release, you can also try out the experimental React Taint APIs by enable the taint flag in next.config.js.
+
+```js
+module.exports = {
+  experimental: {
+    taint: true,
+  },
+}
+```
+
+This lets you mark an object that should not be allowed to be passed to the client as is.
+
+app/data.ts
+
+```jsx
+import { experimental_taintObjectReference } from 'react';
+
+export async function getUserData(id) {
+  const data = ...;
+  experimental_taintObjectReference(
+    'Do not pass user data to the client',
+    data
+  );
+  return data;
+}
+```
+
+app/page.tsx
+
+import { getUserData } from './data';
+
+export async function Page({ searchParams }) {
+  const userData = getUserData(searchParams.id);
+  return <ClientComponent user={userData} />; // error
+}
+This does not protect against extracting data fields out of this object and passing them along:
+
+app/page.tsx
+
+export async function Page({ searchParams }) {
+  const { name, phone } = getUserData(searchParams.id);
+  // Intentionally exposing personal data
+  return <ClientComponent name={name} phoneNumber={phone} />;
+}
+For unique strings such as tokens, the raw value can be blocked as well using taintUniqueValue.
+
+app/data.ts
+
+import { experimental_taintObjectReference, experimental_taintUniqueValue } from 'react';
+
+export async function getUserData(id) {
+  const data = ...;
+  experimental_taintObjectReference(
+    'Do not pass user data to the client',
+    data
+  );
+  experimental_taintUniqueValue(
+    'Do not pass tokens to the client',
+    data,
+    data.token
+  );
+  return data;
+}
+However, even this doesn't block derived values.
+
+It's better to avoid data getting into the Server Components in the first place - using a Data Access Layer. Taint checking provides an additional layer of protection against mistakes by specifying the value, please be mindful that functions and classes are already blocked from being passed to Client Components. More layers the minimize risk of something slipping through.
+
+By default, environment variables are only available on the Server. By convention, Next.js also exposes any environment variable prefixed with NEXT*PUBLIC* to the client. This lets you expose certain explicit configuration that should be available to the client.
+
+### Encryption
+
+Encryption for variables that are sent to the client, user might not be aware of it as it’s automated
+
+If you define an action inside a server component,
+
+When you reference variables outside “use server”.
+
+That works automatically, when deploying to Vercel and other platforms
+
+All this works outside of Vercel
+
+Encryption key is changed every time you build your application, meaning redeploying
+
+Prob: If you self host your application in multiple servers, each will get a different key
+
+process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY - if you specify this variable, you can make sure your keys are identical on each server.
+
+More of an advanced use case.
+
+By default a private key is generated automatically during the build of a Next.js project. Each rebuild generates a new private key which means that each Server Action can only be invoked for a specific build. You might want to use Skew Protection to ensure that you always invoke the correction version during redeploys.
+
+If you need a key that rotates more frequently or is persistent across multiple builds, you can configure it manually using NEXT_SERVER_ACTIONS_ENCRYPTION_KEY environment variable.
+
+By encrypting all closed over variables, you don't accidentally expose any secrets in them. By signing it, it makes it harder for an attacker to mess with the input to the action.
+
+Another alternative to using closures is to use the .bind(...) function in JavaScript. These are NOT encrypted. This provides an opt-out for performance and is also consistent with .bind() on the client.
+
+app/page.tsx
+
+async function deletePost(id: number) {
+"use server";
+// verify id and that you can still delete it
+...
+}
+
+export async function Page({ slug }) {
+  const post = await getPost(slug);
+  return <button action={deletePost.bind(null, post.id)}>
+    Delete
+  </button>;
+}
+The principle is that the argument list to Server Actions ("use server") must always be treated as hostile and the input has to be verified.
 
 ### Built-in CSRF Protection
-
-### Setting Encryption Keys
 
 All Server Actions can be invoked by plain `<form>`, which could open them up to [CSRF attacks](https://developer.mozilla.org/en-US/docs/Glossary/CSRF).
 
@@ -1113,4 +813,78 @@ module.exports = {
     },
   },
 }
+```
+
+serverActions.allowedOrigins and process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY are more advanced cases
+
+Planning to have a call with @Delba on the details - here’s a quick outline:
+
+non-form action calls
+
+use try-catch to handle errors (or return an error code)
+
+errors are hidden with a digest
+
+security
+
+variables from the closure are encrypted
+
+all automatic, rotates on new builds, use process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY to override the encryption key (when self-hosting on multiple servers)
+
+always use the React taint API to prevent accidental leaks. encryption is the last resort
+
+CSRF protection - next.js ensures the action request is coming from the correct domain
+
+use serverActions.allowedOrigins to specify safe origins
+
+link to seb’s security blog post
+
+New APIs
+
+Edge Cases / Examples:
+
+We have examples of calling actions in forms
+
+But it would be good to add examples of calling actions outside forms
+
+Called as normal async functions - await, try/catch
+
+Limitations: The argument to the action call
+
+Other arguments you pass to the action should be serializable
+
+But you can return React Elements, what would be a use case for this?
+
+React will throw the error inside the action again
+
+Actions triggered in useEffect() or 3rd party libraries.
+
+For non-user interactions, but will trigger a mutation
+
+No need to add startTransition in the action call
+
+Example for useOptimistic API, can
+
+Triggering actions in a declarative way, state
+
+Server Actions DX
+
+Right now, server actions are requests in the network tab, there’s not difference
+
+Maybe with the dev tools, we can make it easier to debug
+
+Adding API to middleware, so you can have request.action in your middleware.
+
+Action name, if the function has it
+
+Server Actions can be anonymous functions
+
+https://github.com/vercel/next.js/pull/58023
+
+https://github.com/vercel/next.js/pull/58023/files#diff-5c3571605c187caaae3f7f40595b8eff5c9b38fb3130e41f50423469dbd0237b
+
+https://react.dev/reference/react/useOptimistic
+
+```
+
 ```
