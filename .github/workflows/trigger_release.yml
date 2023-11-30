@@ -59,7 +59,7 @@ jobs:
 
       - name: Check if new commits since last tag
         run: |
-          if [ "$LATEST_TAG" = "$LATEST_COMMIT" ]; then
+          if [ "$LATEST_TAG_COMMIT" = "$LATEST_COMMIT" ]; then
             echo "No new commits. Exiting..."
             exit 1
           fi
