@@ -31,5 +31,22 @@ createNextDescribe(
 
       await check(() => browser.waitForElementByCss('#modal').text(), '')
     })
+
+    it('should continue to work after using browser back button and following another intercepting route', async () => {
+      const browser = await next.browser('/')
+      await check(() => browser.elementById('children').text(), 'root')
+
+      await browser.elementByCss('[href="/photos/1"]').click()
+      await check(
+        () => browser.elementById('modal').text(),
+        'Intercepted Photo ID: 1'
+      )
+      await browser.back()
+      await browser.elementByCss('[href="/photos/2"]').click()
+      await check(
+        () => browser.elementById('modal').text(),
+        'Intercepted Photo ID: 2'
+      )
+    })
   }
 )

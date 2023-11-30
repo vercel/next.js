@@ -4,6 +4,7 @@ import type {
   ReducerState,
   RestoreAction,
 } from '../router-reducer-types'
+import { extractPathFromFlightRouterState } from '../compute-changed-path'
 
 export function restoreReducer(
   state: ReadonlyReducerState,
@@ -27,6 +28,6 @@ export function restoreReducer(
     prefetchCache: state.prefetchCache,
     // Restore provided tree
     tree: tree,
-    nextUrl: url.pathname,
+    nextUrl: extractPathFromFlightRouterState(tree) ?? url.pathname,
   }
 }
