@@ -875,10 +875,12 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts": {
-    "passed": [],
+    "passed": [
+      "ReactRefreshLogBox app turbo Module not found empty import trace",
+      "ReactRefreshLogBox app turbo Module not found missing global CSS"
+    ],
     "failed": [
       "ReactRefreshLogBox app turbo Module not found",
-      "ReactRefreshLogBox app turbo Module not found empty import trace",
       "ReactRefreshLogBox app turbo Node.js builtins"
     ],
     "pending": [
@@ -887,9 +889,7 @@
       "ReactRefreshLogBox app default Module not found missing global CSS",
       "ReactRefreshLogBox app default Node.js builtins"
     ],
-    "flakey": [
-      "ReactRefreshLogBox app turbo Module not found missing global CSS"
-    ],
+    "flakey": [],
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshLogBox-scss.test.ts": {
@@ -1211,10 +1211,11 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBox-builtins.test.ts": {
-    "passed": [],
+    "passed": [
+      "ReactRefreshLogBox turbo Module not found (empty import trace)"
+    ],
     "failed": [
       "ReactRefreshLogBox turbo Module not found",
-      "ReactRefreshLogBox turbo Module not found (empty import trace)",
       "ReactRefreshLogBox turbo Module not found (missing global CSS)",
       "ReactRefreshLogBox turbo Node.js builtins"
     ],
@@ -2074,15 +2075,15 @@
   "test/development/tsconfig-path-reloading/index.test.ts": {
     "passed": [
       "tsconfig-path-reloading tsconfig added after starting dev should load with initial paths config correctly",
-      "tsconfig-path-reloading tsconfig added after starting dev should recover from module not found when paths is updated",
-      "tsconfig-path-reloading tsconfig should load with initial paths config correctly",
-      "tsconfig-path-reloading tsconfig should recover from module not found when paths is updated"
+      "tsconfig-path-reloading tsconfig should load with initial paths config correctly"
     ],
     "failed": [],
     "pending": [],
     "flakey": [
       "tsconfig-path-reloading tsconfig added after starting dev should automatically fast refresh content when path is added without error",
-      "tsconfig-path-reloading tsconfig should automatically fast refresh content when path is added without error"
+      "tsconfig-path-reloading tsconfig added after starting dev should recover from module not found when paths is updated",
+      "tsconfig-path-reloading tsconfig should automatically fast refresh content when path is added without error",
+      "tsconfig-path-reloading tsconfig should recover from module not found when paths is updated"
     ],
     "runtimeError": false
   },
@@ -5252,24 +5253,12 @@
   },
   "test/e2e/next-font/index.test.ts": {
     "passed": [
-      "next/font app Fallback fontfaces google Fraunces",
-      "next/font app Fallback fontfaces local Fraunces",
-      "next/font app Fallback fontfaces local Indie flower",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 1",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 2",
       "next/font app computed styles page using fallback fonts",
       "next/font app computed styles page using variables",
       "next/font app computed styles page with fonts",
       "next/font app import values Variable font without weight range",
       "next/font app import values page with font",
       "next/font app import values page with local fonts",
-      "next/font app-old Fallback fontfaces google Fraunces",
-      "next/font app-old Fallback fontfaces local Fraunces",
-      "next/font app-old Fallback fontfaces local Indie flower",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 1",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 2",
       "next/font app-old computed styles page using fallback fonts",
       "next/font app-old computed styles page using variables",
       "next/font app-old computed styles page with fonts",
@@ -5278,14 +5267,26 @@
       "next/font app-old import values page with local fonts"
     ],
     "failed": [
+      "next/font app Fallback fontfaces google Fraunces",
       "next/font app Fallback fontfaces google Indie flower",
+      "next/font app Fallback fontfaces local Fraunces",
+      "next/font app Fallback fontfaces local Indie flower",
+      "next/font app Fallback fontfaces local Roboto multiple weights and styles",
+      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 1",
+      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 2",
       "next/font app preload font without preloadable subsets",
       "next/font app preload font without size adjust",
       "next/font app preload google fonts with multiple weights/styles",
       "next/font app preload page with fonts",
       "next/font app preload page with local fonts",
       "next/font app preload page without fonts",
+      "next/font app-old Fallback fontfaces google Fraunces",
       "next/font app-old Fallback fontfaces google Indie flower",
+      "next/font app-old Fallback fontfaces local Fraunces",
+      "next/font app-old Fallback fontfaces local Indie flower",
+      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles",
+      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 1",
+      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 2",
       "next/font app-old preload font without preloadable subsets",
       "next/font app-old preload font without size adjust",
       "next/font app-old preload google fonts with multiple weights/styles",
@@ -7186,7 +7187,6 @@
   },
   "test/integration/css/test/css-modules.test.js": {
     "passed": [
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "Ordering with Global CSS and Modules (dev) should not execute scripts in any order"
     ],
     "failed": [
@@ -7194,6 +7194,7 @@
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads"
     ],
