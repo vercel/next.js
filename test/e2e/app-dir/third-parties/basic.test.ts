@@ -70,12 +70,12 @@ createNextDescribe(
 
       expect(gaScript.length).toBe(1)
       const dataLayer = await browser.eval('window.dataLayer')
-      expect(dataLayer.length).toBe(3)
+      expect(dataLayer.length).toBe(4)
 
       await browser.elementByCss('#ga-send').click()
 
       const dataLayer2 = await browser.eval('window.dataLayer')
-      expect(dataLayer2.length).toBe(4)
+      expect(dataLayer2.length).toBe(5)
     })
   }
 )
