@@ -827,6 +827,7 @@ export default async function getBaseWebpackConfig(
               ),
           ],
     optimization: {
+      // chunkIds: 'deterministic',
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
@@ -1269,7 +1270,7 @@ export default async function getBaseWebpackConfig(
                     },
                   ],
                 },
-                type: 'javascript/auto',
+                // type: 'javascript/auto',
                 resolve: {
                   mainFields: getMainField(compilerType, true),
                   conditionNames: reactServerCondition,
@@ -1390,7 +1391,10 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: isWebpackServerLayer,
-                    exclude: [asyncStoragesRegex],
+                    exclude: [
+                      asyncStoragesRegex,
+                      // exclude: codeCondition.exclude,
+                    ],
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -1402,7 +1406,7 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
-                    exclude: codeCondition.exclude,
+                    // exclude: codeCondition.exclude,
                     issuerLayer: [WEBPACK_LAYERS.appPagesBrowser],
                     use: swcLoaderForClientLayer,
                     resolve: {
@@ -1411,7 +1415,8 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
-                    type: 'javascript/auto',
+                    // exclude: codeCondition.exclude,
+                    // type: 'javascript/auto',
                     issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
                     use: swcLoaderForClientLayer,
                     resolve: {

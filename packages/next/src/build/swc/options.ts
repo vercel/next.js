@@ -208,6 +208,20 @@ function getStyledComponentsOptions(
   }
 }
 
+/*
+Output module type
+
+For app router where server components is enabled, we prefer to bundle es6 modules,
+Use output module es6 to make sure:
+- the esm module is present
+- if the module is mixed syntax, the esm + cjs code are both present
+
+For pages router will remain untouched
+*/
+function getModuleOptions(serverComponents: boolean) {
+  return serverComponents ? { module: { type: 'es6' } } : {}
+}
+
 function getEmotionOptions(
   emotionConfig: undefined | boolean | EmotionConfig,
   development: boolean
@@ -411,6 +425,7 @@ export function getLoaderSWCOptions({
           node: process.versions.node,
         },
       },
+      ...getModuleOptions(!!serverComponents),
     }
   } else {
     const options = {
@@ -422,7 +437,7 @@ export function getLoaderSWCOptions({
               type: 'commonjs',
             },
           }
-        : {}),
+        : getModuleOptions(!!serverComponents)),
       disableNextSsg: !isPageFile,
       isDevelopment: development,
       isServerCompiler: isServer,

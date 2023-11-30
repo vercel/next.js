@@ -189,4 +189,4 @@ export default function swcLoader(
 }
 
 // accept Buffers instead of strings
-export const raw = true
+// export const raw = true
