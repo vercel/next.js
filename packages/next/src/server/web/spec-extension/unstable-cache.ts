@@ -159,7 +159,8 @@ export function unstable_cache<T extends Callback>(
         if (cacheEntry) {
           const resData = cacheEntry.value.data
           // JSON.stringify(undefined) returns `undefined`, but JSON.parse(undefined) throws an error
-          cachedValue = resData.body !== undefined ? JSON.parse(resData.body) : undefined;
+          cachedValue =
+            resData.body !== undefined ? JSON.parse(resData.body) : undefined
         }
 
         if (isStale) {
