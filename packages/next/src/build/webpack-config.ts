@@ -430,17 +430,26 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  // RSC loaders, prefer ESM, set `esm` to true
   const swcServerLayerLoader = getSwcLoader({
     serverComponents: true,
     isReactServerLayer: true,
+    esm: true,
   })
   const swcClientLayerLoader = getSwcLoader({
     serverComponents: true,
     isReactServerLayer: false,
+    esm: true,
+  })
+  // Default swc loaders for pages, not prefer ESM, set `esm` to false
+  const swcDefaultLoader = getSwcLoader({
+    serverComponents: true,
+    isReactServerLayer: false,
+    esm: false,
   })
 
   const defaultLoaders = {
-    babel: useSWCLoader ? swcClientLayerLoader : babelLoader!,
+    babel: useSWCLoader ? swcDefaultLoader : babelLoader!,
   }
 
   const swcLoaderForServerLayer = hasAppDir
@@ -827,7 +836,6 @@ export default async function getBaseWebpackConfig(
               ),
           ],
     optimization: {
-      // chunkIds: 'deterministic',
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
@@ -1270,7 +1278,6 @@ export default async function getBaseWebpackConfig(
                     },
                   ],
                 },
-                // type: 'javascript/auto',
                 resolve: {
                   mainFields: getMainField(compilerType, true),
                   conditionNames: reactServerCondition,
@@ -1391,10 +1398,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: isWebpackServerLayer,
-                    exclude: [
-                      asyncStoragesRegex,
-                      // exclude: codeCondition.exclude,
-                    ],
+                    exclude: asyncStoragesRegex,
                     use: swcLoaderForServerLayer,
                   },
                   {
@@ -1406,7 +1410,7 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
-                    // exclude: codeCondition.exclude,
+                    exclude: codeCondition.exclude,
                     issuerLayer: [WEBPACK_LAYERS.appPagesBrowser],
                     use: swcLoaderForClientLayer,
                     resolve: {
@@ -1415,8 +1419,6 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
-                    // exclude: codeCondition.exclude,
-                    // type: 'javascript/auto',
                     issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
                     use: swcLoaderForClientLayer,
                     resolve: {

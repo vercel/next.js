@@ -218,8 +218,8 @@ Use output module es6 to make sure:
 
 For pages router will remain untouched
 */
-function getModuleOptions(serverComponents: boolean) {
-  return serverComponents ? { module: { type: 'es6' } } : {}
+function getModuleOptions(esm: boolean) {
+  return esm ? { module: { type: 'es6' } } : {}
 }
 
 function getEmotionOptions(
@@ -330,6 +330,7 @@ export function getLoaderSWCOptions({
   relativeFilePathFromRoot,
   serverComponents,
   isReactServerLayer,
+  esm,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 {
@@ -351,6 +352,7 @@ export function getLoaderSWCOptions({
   supportedBrowsers: string[] | undefined
   swcCacheDir: string
   relativeFilePathFromRoot: string
+  esm?: boolean
   serverComponents?: boolean
   isReactServerLayer?: boolean
 }) {
@@ -425,7 +427,7 @@ export function getLoaderSWCOptions({
           node: process.versions.node,
         },
       },
-      ...getModuleOptions(!!serverComponents),
+      ...getModuleOptions(!!esm),
     }
   } else {
     const options = {
@@ -437,7 +439,7 @@ export function getLoaderSWCOptions({
               type: 'commonjs',
             },
           }
-        : getModuleOptions(!!serverComponents)),
+        : getModuleOptions(!!esm)),
       disableNextSsg: !isPageFile,
       isDevelopment: development,
       isServerCompiler: isServer,
