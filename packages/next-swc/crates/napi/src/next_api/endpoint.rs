@@ -39,8 +39,6 @@ pub struct NapiWrittenEndpoint {
     pub r#type: String,
     pub entry_path: Option<String>,
     pub server_paths: Option<Vec<NapiServerPath>>,
-    pub files: Option<Vec<String>>,
-    pub global_var_name: Option<String>,
     pub config: NapiEndpointConfig,
 }
 
@@ -56,15 +54,9 @@ impl From<&WrittenEndpoint> for NapiWrittenEndpoint {
                 server_paths: Some(server_paths.iter().map(From::from).collect()),
                 ..Default::default()
             },
-            WrittenEndpoint::Edge {
-                files,
-                global_var_name,
-                server_paths,
-            } => Self {
+            WrittenEndpoint::Edge { server_paths } => Self {
                 r#type: "edge".to_string(),
-                files: Some(files.clone()),
                 server_paths: Some(server_paths.iter().map(From::from).collect()),
-                global_var_name: Some(global_var_name.clone()),
                 ..Default::default()
             },
         }

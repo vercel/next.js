@@ -50,8 +50,8 @@ import {
   APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
   PAGES_MANIFEST,
+  RedirectStatusCode,
   STATIC_STATUS_PAGES,
-  TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
@@ -82,7 +82,6 @@ import {
   RSC_HEADER,
   RSC_VARY_HEADER,
   NEXT_RSC_UNION_QUERY,
-  ACTION,
   NEXT_ROUTER_PREFETCH_HEADER,
 } from '../client/components/app-router-headers'
 import type {
@@ -129,6 +128,7 @@ import {
 } from './future/route-modules/checks'
 import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
+import { getIsServerAction } from './lib/server-action-request-meta'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1213,7 +1213,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         if (redirect) {
           return res
-            .redirect(redirect, TEMPORARY_REDIRECT_STATUS)
+            .redirect(redirect, RedirectStatusCode.TemporaryRedirect)
             .body(redirect)
             .send()
         }
@@ -1749,15 +1749,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isAppPath = components.isAppPath === true
     const hasServerProps = !!components.getServerSideProps
     let hasStaticPaths = !!components.getStaticPaths
-    const actionId = req.headers[ACTION.toLowerCase()] as string
-    const contentType = req.headers['content-type']
-    const isMultipartAction =
-      req.method === 'POST' && contentType?.startsWith('multipart/form-data')
-    const isFetchAction =
-      actionId !== undefined &&
-      typeof actionId === 'string' &&
-      req.method === 'POST'
-    const isServerAction = isFetchAction || isMultipartAction
+    const isServerAction = getIsServerAction(req)
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
 
@@ -2414,7 +2406,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // should return.
 
       // Handle `isNotFound`.
-      if (metadata.isNotFound) {
+      if ('isNotFound' in metadata && metadata.isNotFound) {
         return { value: null, revalidate: metadata.revalidate }
       }
 
@@ -2423,7 +2415,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return {
           value: {
             kind: 'REDIRECT',
-            props: metadata.pageData,
+            props: metadata.pageData ?? metadata.flightData,
           },
           revalidate: metadata.revalidate,
         }
@@ -2439,7 +2431,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         value: {
           kind: 'PAGE',
           html: result,
-          pageData: metadata.pageData,
+          pageData: metadata.pageData ?? metadata.flightData,
           postponed: metadata.postponed,
           headers,
           status: isAppPath ? res.statusCode : undefined,
@@ -3232,7 +3224,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (this.renderOpts.dev && ctx.pathname === '/favicon.ico') {
       return {
         type: 'html',
-        body: new RenderResult(''),
+        body: RenderResult.fromStatic(''),
       }
     }
     const { res, query } = ctx

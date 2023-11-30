@@ -1124,8 +1124,7 @@ export default class NextNodeServer extends BaseServer {
                   nestedLevel += 1
                 }
               }
-
-              return `${'  │ '.repeat(nestedLevel)}`
+              return nestedLevel === 0 ? ' ' : '  │ '.repeat(nestedLevel)
             }
 
             for (let i = 0; i < fetchMetrics.length; i++) {
@@ -1138,10 +1137,10 @@ export default class NextNodeServer extends BaseServer {
               if (cacheStatus === 'hit') {
                 cacheStatus = green('HIT')
               } else if (cacheStatus === 'skip') {
-                cacheStatus = `${yellow('SKIP')}`
-                cacheReasonStr = `${gray(
+                cacheStatus = yellow('SKIP')
+                cacheReasonStr = gray(
                   `Cache missed reason: (${white(cacheReason)})`
-                )}`
+                )
               } else {
                 cacheStatus = yellow('MISS')
               }
@@ -1173,16 +1172,16 @@ export default class NextNodeServer extends BaseServer {
               if (enabledVerboseLogging) {
                 const newLineLeadingChar = '│'
                 const nestedIndent = calcNestedLevel(
-                  fetchMetrics.slice(0, i),
+                  fetchMetrics.slice(0, i + 1),
                   metric.start
                 )
 
                 writeStdoutLine(
-                  `${`${newLineLeadingChar}${nestedIndent}${
-                    i === 0 ? ' ' : ''
-                  }${white(bold(metric.method))} ${gray(url)} ${
-                    metric.status
-                  } in ${getDurationStr(duration)} (cache: ${cacheStatus})`}`
+                  ` ${`${newLineLeadingChar}${nestedIndent}${white(
+                    bold(metric.method)
+                  )} ${gray(url)} ${metric.status} in ${getDurationStr(
+                    duration
+                  )} (cache: ${cacheStatus})`}`
                 )
                 if (cacheReasonStr) {
                   const nextNestedIndent = calcNestedLevel(
@@ -1190,9 +1189,10 @@ export default class NextNodeServer extends BaseServer {
                     metric.start
                   )
                   writeStdoutLine(
-                    newLineLeadingChar +
+                    ' ' +
+                      newLineLeadingChar +
                       nextNestedIndent +
-                      (i > 0 ? ' ' : '  ') +
+                      ' ' +
                       newLineLeadingChar +
                       '  ' +
                       cacheReasonStr

@@ -4583,6 +4583,24 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Hedvig Letters Sans": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "math", "symbols"]
+  },
+  "Hedvig Letters Serif": {
+    "weights": ["400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "opsz",
+        "min": 12,
+        "max": 24,
+        "defaultValue": 24
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "math", "symbols"]
+  },
   "Heebo": {
     "weights": [
       "100",
@@ -7124,9 +7142,9 @@
     "subsets": ["latin"]
   },
   "Narnoor": {
-    "weights": ["400"],
+    "weights": ["400", "500", "600", "700", "800"],
     "styles": ["normal"],
-    "subsets": ["gunjala-gondi", "latin", "latin-ext"]
+    "subsets": ["gunjala-gondi", "latin", "latin-ext", "math", "symbols"]
   },
   "Neonderthaw": {
     "weights": ["400"],
@@ -7841,7 +7859,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["gujarati", "latin", "latin-ext"]
+    "subsets": ["gujarati", "latin", "latin-ext", "math", "symbols"]
   },
   "Noto Sans Gunjala Gondi": {
     "weights": ["400", "500", "600", "700", "variable"],
@@ -9370,7 +9388,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["gujarati", "latin", "latin-ext"]
+    "subsets": ["gujarati", "latin", "latin-ext", "math", "symbols"]
   },
   "Noto Serif Gurmukhi": {
     "weights": [

@@ -8078,6 +8078,31 @@ export declare function Headland_One<
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Hedvig_Letters_Sans<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Hedvig_Letters_Serif<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?: '400' | 'variable' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
+  axes?: 'opsz'[]
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Heebo<
   T extends CssVariable | undefined = undefined
 >(options?: {
@@ -12960,14 +12985,20 @@ export declare function Nanum_Pen_Script<
 export declare function Narnoor<
   T extends CssVariable | undefined = undefined
 >(options: {
-  weight: '400' | Array<'400'>
+  weight:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | Array<'400' | '500' | '600' | '700' | '800'>
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'gunjala-gondi' | 'latin' | 'latin-ext'>
+  subsets?: Array<'gunjala-gondi' | 'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Neonderthaw<
   T extends CssVariable | undefined = undefined
@@ -14030,7 +14061,7 @@ export declare function Noto_Sans_Gujarati<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext' | 'math' | 'symbols'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Gunjala_Gondi<
@@ -16178,7 +16209,7 @@ export declare function Noto_Serif_Gujarati<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'gujarati' | 'latin' | 'latin-ext'>
+  subsets?: Array<'gujarati' | 'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Gurmukhi<
   T extends CssVariable | undefined = undefined
