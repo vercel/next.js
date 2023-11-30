@@ -4,6 +4,7 @@ import type {
   EmotionConfig,
   StyledComponentsConfig,
 } from '../../server/config-shared'
+import type { ResolvedBaseUrl } from '../load-jsconfig'
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -52,7 +53,7 @@ function getBaseSWCOptions({
   modularizeImports?: NextConfig['modularizeImports']
   compilerOptions: NextConfig['compiler']
   swcPlugins: ExperimentalConfig['swcPlugins']
-  resolvedBaseUrl?: string
+  resolvedBaseUrl?: ResolvedBaseUrl
   jsConfig: any
   swcCacheDir?: string
   serverComponents?: boolean
@@ -77,7 +78,7 @@ function getBaseSWCOptions({
     jsc: {
       ...(resolvedBaseUrl && paths
         ? {
-            baseUrl: resolvedBaseUrl,
+            baseUrl: resolvedBaseUrl.baseUrl,
             paths,
           }
         : {}),
@@ -271,7 +272,7 @@ export function getJestSWCOptions({
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
-  resolvedBaseUrl?: string
+  resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
   serverComponents?: boolean
 }) {
@@ -312,6 +313,8 @@ export function getJestSWCOptions({
 }
 
 export function getLoaderSWCOptions({
+  // This is not passed yet as "paths" resolving is handled by webpack currently.
+  // resolvedBaseUrl,
   filename,
   development,
   isServer,
@@ -331,9 +334,7 @@ export function getLoaderSWCOptions({
   serverComponents,
   isReactServerLayer,
   esm,
-}: // This is not passed yet as "paths" resolving is handled by webpack currently.
-// resolvedBaseUrl,
-{
+}: {
   filename: string
   development: boolean
   isServer: boolean

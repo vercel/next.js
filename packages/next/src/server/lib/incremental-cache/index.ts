@@ -460,9 +460,7 @@ export class IncrementalCache implements IncrementalCacheType {
       }
 
       revalidate = revalidate || cacheData.value.revalidate
-      const age = Math.round(
-        (Date.now() - (cacheData.lastModified || 0)) / 1000
-      )
+      const age = (Date.now() - (cacheData.lastModified || 0)) / 1000
 
       const isStale = age > revalidate
       const data = cacheData.value.data

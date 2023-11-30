@@ -251,6 +251,15 @@ function assignDefaults(
     {}
   )
 
+  // TODO: remove once we've made PPR default
+  // If this was defaulted to true, it implies that the configuration was
+  // overridden for testing to be defaulted on.
+  if (defaultConfig.experimental?.ppr) {
+    Log.warn(
+      `\`experimental.ppr\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
+    )
+  }
+
   const result = { ...defaultConfig, ...config }
 
   if (

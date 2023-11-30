@@ -1124,8 +1124,7 @@ export default class NextNodeServer extends BaseServer {
                   nestedLevel += 1
                 }
               }
-
-              return nestedLevel === 0 ? ' ' : `${'  │ '.repeat(nestedLevel)}`
+              return nestedLevel === 0 ? ' ' : '  │ '.repeat(nestedLevel)
             }
 
             for (let i = 0; i < fetchMetrics.length; i++) {
@@ -1138,10 +1137,10 @@ export default class NextNodeServer extends BaseServer {
               if (cacheStatus === 'hit') {
                 cacheStatus = green('HIT')
               } else if (cacheStatus === 'skip') {
-                cacheStatus = `${yellow('SKIP')}`
-                cacheReasonStr = `${gray(
+                cacheStatus = yellow('SKIP')
+                cacheReasonStr = gray(
                   `Cache missed reason: (${white(cacheReason)})`
-                )}`
+                )
               } else {
                 cacheStatus = yellow('MISS')
               }

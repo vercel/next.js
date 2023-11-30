@@ -51,7 +51,10 @@ import type {
 } from './webpack/plugins/telemetry-plugin'
 import type { Span } from '../trace'
 import type { MiddlewareMatcher } from './analysis/get-page-static-info'
-import loadJsConfig from './load-jsconfig'
+import loadJsConfig, {
+  type JsConfig,
+  type ResolvedBaseUrl,
+} from './load-jsconfig'
 import { loadBindings } from './swc'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
@@ -231,7 +234,11 @@ export async function loadProjectInfo({
   dir: string
   config: NextConfigComplete
   dev: boolean
-}) {
+}): Promise<{
+  jsConfig: JsConfig
+  resolvedBaseUrl: ResolvedBaseUrl
+  supportedBrowsers: string[] | undefined
+}> {
   const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
   const supportedBrowsers = await getSupportedBrowsers(dir, dev)
   return {
@@ -310,7 +317,7 @@ export default async function getBaseWebpackConfig(
     middlewareMatchers?: MiddlewareMatcher[]
     noMangling?: boolean
     jsConfig: any
-    resolvedBaseUrl: string | undefined
+    resolvedBaseUrl: ResolvedBaseUrl
     supportedBrowsers: string[] | undefined
     clientRouterFilters?: {
       staticFilter: ReturnType<
@@ -1807,16 +1814,17 @@ export default async function getBaseWebpackConfig(
   }
 
   // Support tsconfig and jsconfig baseUrl
-  if (resolvedBaseUrl) {
-    webpackConfig.resolve?.modules?.push(resolvedBaseUrl)
+  // Only add the baseUrl if it's explicitly set in tsconfig/jsconfig
+  if (resolvedBaseUrl && !resolvedBaseUrl.isImplicit) {
+    webpackConfig.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
   }
 
-  // allows add JsConfigPathsPlugin to allow hot-reloading
+  // always add JsConfigPathsPlugin to allow hot-reloading
   // if the config is added/removed
   webpackConfig.resolve?.plugins?.unshift(
     new JsConfigPathsPlugin(
       jsConfig?.compilerOptions?.paths || {},
-      resolvedBaseUrl || dir
+      resolvedBaseUrl
     )
   )
 
