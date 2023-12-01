@@ -1589,7 +1589,6 @@ async function startWatcher(opts: SetupOpts) {
                   false,
                   route.dataEndpoint,
                   (pageName) => {
-                    console.log('server change', pageName)
                     return {
                       event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
                       pages: [pageName],
