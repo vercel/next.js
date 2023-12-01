@@ -338,14 +338,20 @@ function processMessage(
         })
       )
 
-      const isHotUpdate =
-        obj.action !== HMR_ACTIONS_SENT_TO_BROWSER.SYNC &&
-        (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
-        isUpdateAvailable()
+      if (process.env.TURBOPACK) {
+        if (obj.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT) {
+          handleHotUpdate()
+        }
+      } else {
+        const isHotUpdate =
+          obj.action !== HMR_ACTIONS_SENT_TO_BROWSER.SYNC &&
+          (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
+          isUpdateAvailable()
 
-      // Attempt to apply hot updates or reload.
-      if (isHotUpdate) {
-        handleHotUpdate()
+        // Attempt to apply hot updates or reload.
+        if (isHotUpdate) {
+          handleHotUpdate()
+        }
       }
       return
     }
