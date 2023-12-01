@@ -746,7 +746,6 @@ export const defaultConfig: NextConfig = {
   swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
-  transpilePackages: [],
   experimental: {
     windowHistorySupport: false,
     serverMinification: true,

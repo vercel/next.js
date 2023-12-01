@@ -26,9 +26,10 @@ const nodeModulesRegex = /node_modules[/\\].*\.[mc]?js$/
 
 export function isResourceInPackages(
   resource: string,
-  packageNames: string[],
+  packageNames?: string[],
   packageDirMapping?: Map<string, string>
 ): boolean {
+  if (!packageNames) return false
   return packageNames.some((p: string) =>
     packageDirMapping && packageDirMapping.has(p)
       ? resource.startsWith(packageDirMapping.get(p)! + path.sep)
