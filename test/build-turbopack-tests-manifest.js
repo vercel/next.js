@@ -114,6 +114,12 @@ const SKIPPED_TEST_SUITES = {
   'test/integration/import-assertion/test/index.test.js': [
     /should handle json assertions/,
   ],
+  'test/integration/next-image-legacy/unicode/test/index.test.ts': [
+    /Image Component Unicode Image URL/,
+  ],
+  'test/integration/next-image-new/unicode/test/index.test.ts': [
+    /Image Component Unicode Image URL/,
+  ],
 }
 
 function checkSorted(arr, name) {

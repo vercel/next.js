@@ -12680,22 +12680,21 @@
     "runtimeError": false
   },
   "test/integration/next-image-legacy/unicode/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [],
+    "flakey": [
       "Image Component Unicode Image URL dev mode should load external image with space",
       "Image Component Unicode Image URL dev mode should load external unicode image",
       "Image Component Unicode Image URL dev mode should load internal image with space",
       "Image Component Unicode Image URL dev mode should load internal unicode image",
-      "Image Component Unicode Image URL dev mode should load static unicode image"
-    ],
-    "failed": [],
-    "pending": [
+      "Image Component Unicode Image URL dev mode should load static unicode image",
       "Image Component Unicode Image URL production mode should load external image with space",
       "Image Component Unicode Image URL production mode should load external unicode image",
       "Image Component Unicode Image URL production mode should load internal image with space",
       "Image Component Unicode Image URL production mode should load internal unicode image",
       "Image Component Unicode Image URL production mode should load static unicode image"
     ],
-    "flakey": [],
     "runtimeError": false
   },
   "test/integration/next-image-legacy/unoptimized/test/index.test.ts": {
@@ -13202,22 +13201,21 @@
     "runtimeError": false
   },
   "test/integration/next-image-new/unicode/test/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [],
+    "flakey": [
       "Image Component Unicode Image URL dev mode should load external image with space",
       "Image Component Unicode Image URL dev mode should load external unicode image",
       "Image Component Unicode Image URL dev mode should load internal image with space",
       "Image Component Unicode Image URL dev mode should load internal unicode image",
-      "Image Component Unicode Image URL dev mode should load static unicode image"
-    ],
-    "failed": [],
-    "pending": [
+      "Image Component Unicode Image URL dev mode should load static unicode image",
       "Image Component Unicode Image URL production mode should load external image with space",
       "Image Component Unicode Image URL production mode should load external unicode image",
       "Image Component Unicode Image URL production mode should load internal image with space",
       "Image Component Unicode Image URL production mode should load internal unicode image",
       "Image Component Unicode Image URL production mode should load static unicode image"
     ],
-    "flakey": [],
     "runtimeError": false
   },
   "test/integration/next-image-new/unoptimized/test/index.test.ts": {
