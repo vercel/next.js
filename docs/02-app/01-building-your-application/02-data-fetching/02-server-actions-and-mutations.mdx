@@ -170,6 +170,39 @@ To learn more about the `<form>` element in React, see the following resources:
 - [React `<form>` documentation](https://react.dev/reference/react-dom/components/form#handle-form-submission-with-a-server-action)
 - Next.js Example: [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
 
+#### Binding Additional Arguments
+
+You can bind additional arguments to a Server Action using the JavaScript `bind` method.
+
+```jsx filename="app/client-component.jsx" highlight={6}
+'use client'
+
+import { updateUser } from './actions'
+
+export function UserProfile({ userId }) {
+  const updateUserWithId = updateUser.bind(null, userId)
+
+  return (
+    <form action={updateUserWithId}>
+      <input type="text" name="name" />
+      <button type="submit">Update User Name</button>
+    </form>
+  )
+}
+```
+
+`updateUser` Server Action will always receive the `userId` argument, in addition to the form data:
+
+```js filename="app/actions.js"
+'use server'
+
+export async function updateUser(userId, formData) {
+  // ...
+}
+```
+
+> **Good to know**: `.bind` of a Server Action works in both Server and Client Components. It also supports [Progressive Enhancement](#progressive-enhancement).
+
 #### Pending states
 
 You can use the React [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a pending state while the form is being submitted.
@@ -455,44 +488,71 @@ export function Thread({ messages }) {
 }
 ```
 
-Other Edge Cases / Examples:
+### Non-form Elements
 
-- Actions triggered in useEffect() or 3rd party libraries. For non-user interactions, but will trigger a mutation
-- No need to add startTransition in the action call
-- Triggering actions in a declarative way?
+While it's common to use Server Actions with `<form>` elements, they can also be invoked from other parts of your code such as event handlers and `useEffect`.
 
-### Binding Additional Arguments
+#### Event Handlers
 
-You can bind additional arguments to a Server Action using the JavaScript `bind` method.
+```js filename="app/actions.js" switcher
+'use server'
 
-```jsx filename="app/client-component.jsx" highlight={6}
+export default async function incrementLike() {
+  // Mutate database
+  // Return updated data
+}
+```
+
+```tsx filename="app/like-button.tsx" switcher
 'use client'
 
-import { updateUser } from './actions'
+import { incrementLike } from './actions'
+import { useState } from 'react'
 
-export function UserProfile({ userId }) {
-  const updateUserWithId = updateUser.bind(null, userId)
+export default function LikeButton({ initialLikes }: { initialLikes: number }) {
+  const [likes, setLikes] = useState(initialLikes)
 
   return (
-    <form action={updateUserWithId}>
-      <input type="text" name="name" />
-      <button type="submit">Update User Name</button>
-    </form>
+    <>
+      <p>Total Likes: {likes}</p>
+      <button
+        onClick={async () => {
+          const updatedLikes = await incrementLike()
+          setLikes(updatedLikes)
+        }}
+      >
+        Like
+      </button>
+    </>
   )
 }
 ```
 
-`updateUser` Server Action will always receive the `userId` argument, in addition to the form data:
+> **Good to know:** To improve the user experience, we recommend using other React APIs like [`useOptimistic`](https://react.dev/reference/react/useOptimistic) and [`useTransition`](https://react.dev/reference/react/useTransition) to update the UI before the Server Action finishes or show a pending state.
 
-```js filename="app/actions.js"
-'use server'
+#### `useEffect`
 
-export async function updateUser(userId, formData) {
-  // ...
+```tsx filename="app/view-count.tsx" switcher
+'use client'
+
+import { incrementViews } from './actions'
+import { useState, useEffect } from 'react'
+
+export default function ViewCount({ initialViews }: { initialViews: number }) {
+  const [views, setViews] = useState(initialViews)
+
+  useEffect(() => {
+    const updateViews = async () => {
+      const updatedViews = await incrementViews()
+      setViews(updatedViews)
+    }
+
+    updateViews()
+  }, [])
+
+  return <p>Total Views: {views}</p>
 }
 ```
-
-> **Good to know**: `.bind` of a Server Action works in both Server and Client Components. It also supports [Progressive Enhancement](#progressive-enhancement).
 
 ### Error Handling
 
