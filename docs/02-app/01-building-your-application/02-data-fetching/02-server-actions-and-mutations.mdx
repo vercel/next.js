@@ -4,34 +4,38 @@ nav_title: Server Actions and Mutations
 description: Learn how to handle form submissions and data mutations with Next.js.
 ---
 
-Server Actions are **asynchronous server functions** that can be invoked from React components. They provide a powerful and flexible way to handle form submissions and data mutations in your Next.js applications.
+Server Actions are **asynchronous functions** that can be called from the client and are executed on the server. They provide a powerful and flexible way to handle form submissions and data mutations in Next.js applications.
+
+You can use Server Actions in Server and Client Components. Since Server Actions execute on the server, they are an alternative to creating [Route Handlers](/docs/app/building-your-application/routing/route-handlers) (API endpoints) to mutate data.
 
 > **🎥 Watch:** Learn more about forms and mutations with the App Router → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
 
-## How Server Actions work
+## Behavior
 
-- Server Actions integrate deeply with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server round trip.
-- Server Actions can be defined inline in Server Components or invoked from Client Components.
-  - In Server Components, forms invoking Server Actions support progressive enhancement by default.
+- Server actions can be invoked using the `action` attribute in a [`<form>` element](#forms):
+  - Server Components support progressive enhancement by default, meaning the form will be submitted even if JavaScript hasn't loaded yet or is disabled.
   - In Client Components, forms invoking Server Actions will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
-- Rather than being limited to a single form per route like traditional applications, Server Actions enable having multiple reusable actions per route. The browser also does not refresh on form submission.
+  - The browser does not refresh on form submission.
+- Server Actions are not limited to `<form>` elements and can be invoked from event handlers, `useEffect`, and third-party libraries.
+- Server Actions integrate with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server round trip.
+- Behind the scenes, actions use the `POST` method, and only this HTTP method is allowed to invoke them.
 - The return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
-- Since Server Actions execute on the server, they are an alternative to creating [Route Handlers](/docs/app/building-your-application/routing/route-handlers) (API endpoints) to mutate data.
-  - Server Actions use the `POST` method, and only this HTTP method is allowed to invoke them.
+- Server Actions allow multiple reusable actions per route.
 - Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
 
 ## Examples
 
-A Server Action can be defined with the React [´"use server"`](https://react.dev/reference/react/use-server) directive. This denotes the function will execute on the server regardless of whether it's invoked from a Server or Client Component.
+A Server Action can be defined with the React [´"use server"`](https://react.dev/reference/react/use-server) directive. This denotes the function will execute on the server regardless of whether it's called from the client.
 
 ### Server Components
 
 In Server Components, the action can be inlined and the `"use server"` added at the top of the function body:
 
 ```tsx filename="app/page.tsx" switcher
+// Server Component
 export default function Page() {
   // Server Action
-  async function create(formData: FormData) {
+  async function create() {
     'use server'
 
     // ...
@@ -44,9 +48,10 @@ export default function Page() {
 ```
 
 ```jsx filename="app/page.jsx" switcher
+// Server Component
 export default function Page() {
   // Server Action
-  async function create(formData) {
+  async function create() {
     'use server'
 
     // ...
@@ -65,7 +70,7 @@ To call a Server Action in a Client Component, create a new file and add the `"u
 ```tsx filename="app/actions.ts" switcher
 'use server'
 
-export async function create(formData: FormData) {
+export async function create() {
   // ...
 }
 ```
@@ -73,8 +78,28 @@ export async function create(formData: FormData) {
 ```js filename="app/actions.js" switcher
 'use server'
 
-export async function create(formData) {
+export async function create() {
   // ...
+}
+```
+
+```tsx filename="app/ui/button.tsx" switcher
+import { create } from '@/app/actions'
+
+export function Button() {
+  return (
+    // ...
+  )
+}
+```
+
+```jsx filename="app/ui/button.js" switcher
+import { create } from '@/app/actions'
+
+export function Button() {
+  return (
+    // ...
+  )
 }
 ```
 
@@ -82,7 +107,7 @@ export async function create(formData) {
 
 React extends the HTML [`<form>`](https://developer.mozilla.org/docs/Web/HTML/Element/form) element to allow Server Actions to be invoked with the `action` prop.
 
-When invoked in a form, the action automatically receives the [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData/FormData) object containing the form data. This means you don't have to use React `useState`, instead you can extract the data using the native [`FormData` methods](https://developer.mozilla.org/en-US/docs/Web/API/FormData#instance_methods):
+When invoked in a form, the action automatically receives the [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData/FormData) object. This means you don't have to use React `useState` to manage fields, instead you can extract the data using the native [`FormData` methods](https://developer.mozilla.org/en-US/docs/Web/API/FormData#instance_methods):
 
 ```tsx filename="app/invoices/page.tsx" switcher
 export default function Page() {
@@ -124,75 +149,17 @@ export default function Page() {
 
 > **Good to know:** When working with forms that have many fields, you may want to consider using the [`entries()`](https://developer.mozilla.org/en-US/docs/Web/API/FormData/entries) method with JavaScript's [`Object.fromEntries()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries). For example: `const rawFormData = Object.fromEntries(formData.entries())`
 
-To learn more about the `"use server"` directive and the `<form>` element in React, see the following resources:
+To learn more about the `<form>` element in React, see the following resources:
 
 - [React `<form>` documentation](https://react.dev/reference/react-dom/components/form#handle-form-submission-with-a-server-action)
-- [React `use server` documentation](https://react.dev/reference/react/use-server)
 - Next.js Example: [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
 
-#### Form Validation
+#### Pending states
 
-We recommend using HTML validation like `required` and `type="email"` for basic client-side form validation.
+You can use the React [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a pending state while the form is being submitted.
 
-For more advanced server-side validation, you can use a schema validation library like [zod](https://zod.dev/) to validate the form fields before mutating the data:
-
-```tsx filename="app/actions.ts" switcher
-import { z } from 'zod'
-
-const schema = z.object({
-  id: z.string({
-    invalid_type_error: 'Invalid ID',
-  }),
-})
-
-export default async function submit(formData: FormData) {
-  const validatedFields = schema.safeParse({
-    id: formData.get('id'),
-  })
-
-  // Return early if the form data is invalid
-  if (!validatedFields.success) {
-    return {
-      errors: validatedFields.error.flatten().fieldErrors,
-    }
-  }
-
-  // ...
-}
-```
-
-```jsx filename="app/actions.js" switcher
-import { z } from 'zod'
-
-const schema = z.object({
-  id: z.string({
-    invalid_type_error: 'Invalid ID',
-  }),
-})
-
-export default async function submit(formData) {
-  const validatedFields = schema.safeParse({
-    id: formData.get('id'),
-  })
-
-  // Return early if the form data is invalid
-  if (!validatedFields.success) {
-    return {
-      errors: validatedFields.error.flatten().fieldErrors,
-    }
-  }
-
-  // ...
-}
-```
-
-Please refer to the [Zod documentation](https://zod.dev/) for more information.
-
-#### Displaying a form loading state
-
-Use the React [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a loading state when a form is submitting on the server. The `useFormStatus` hook can only be used as a child of a `form` element using a Server Action.
-
-For example, the following submit button:
+- `useFormStatus` returns the status for a specific `<form>`, so it must be defined as a child of the `<form>` element.
+- `useFormStatus` is a hook and therefore must be used in a Client Component.
 
 ```tsx filename="app/submit-button.tsx" switcher
 'use client'
@@ -226,14 +193,14 @@ export function SubmitButton() {
 }
 ```
 
-`<SubmitButton />` can then be used in a form with a Server Action:
+`<SubmitButton />` can then be nested in the form:
 
 ```tsx filename="app/page.tsx" switcher
 import { SubmitButton } from '@/app/submit-button'
 
 export default async function Home() {
   return (
-    <form action={...}>
+    <form action={}>
       <input type="text" name="field-name" />
       <SubmitButton />
     </form>
@@ -246,7 +213,7 @@ import { SubmitButton } from '@/app/submit-button'
 
 export default async function Home() {
   return (
-    <form action={...}>
+    <form action={}>
       <input type="text" name="field-name" />
       <SubmitButton />
     </form>
@@ -254,105 +221,144 @@ export default async function Home() {
 }
 ```
 
-#### Error handling in forms
+#### Form Validation
 
-Server Actions can also return [serializable objects](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values). For example, your Server Action might handle errors from creating a new item by returning a message:
+We recommend using HTML validation like `required` and `type="email"` for basic client-side validation.
 
-```ts filename="app/actions.ts" switcher
+For more advanced server-side validation, you can use a library like [zod](https://zod.dev/) to validate the form fields before mutating the data:
+
+```tsx filename="app/actions.ts" switcher
+import { z } from 'zod'
+
+const schema = z.object({
+  id: z.string({
+    invalid_type_error: 'Invalid ID',
+  }),
+})
+
+export default async function submit(formData: FormData) {
+  const validatedFields = schema.safeParse({
+    id: formData.get('id'),
+  })
+
+  // Return early if the form data is invalid
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+    }
+  }
+
+  // Mutate data
+}
+```
+
+```jsx filename="app/actions.js" switcher
+import { z } from 'zod'
+
+const schema = z.object({
+  id: z.string({
+    invalid_type_error: 'Invalid ID',
+  }),
+})
+
+export default async function submit(formData) {
+  const validatedFields = schema.safeParse({
+    id: formData.get('id'),
+  })
+
+  // Return early if the form data is invalid
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+    }
+  }
+
+  // Mutate data
+}
+```
+
+Please refer to the [Zod documentation](https://zod.dev/) for more information.
+
+#### Error Handling
+
+To handle form errors on the server, you can return a serializable object in your action and use the React [`useFormState`](https://react.dev/reference/react-dom/hooks/useFormState) hook to show a message to the user.
+
+- By passing the action to `useFormState`, the action's function signature changes to receive a new `prevState` or `initialState` parameter as its first argument.
+- `useFormState` is a hook and therefore must be used in a Client Component.
+
+```tsx filename="app/actions.ts" switcher
 'use server'
 
-export async function createTodo(prevState: any, formData: FormData) {
-  try {
-    await createItem(formData.get('todo'))
-    return revalidatePath('/')
-  } catch (e) {
-    return { message: 'Failed to create' }
+export default async function createUser(prevState: any, formData: FormData) {
+  // ...
+  return {
+    message: 'Please enter a valid email',
   }
 }
 ```
 
-```js filename="app/actions.js" switcher
+```jsx filename="app/actions.js" switcher
 'use server'
 
-export async function createTodo(prevState, formData) {
-  try {
-    await createItem(formData.get('todo'))
-    return revalidatePath('/')
-  } catch (e) {
-    return { message: 'Failed to create' }
+export default async function createUser(prevState, formData) {
+  // ...
+  return {
+    message: 'Please enter a valid email',
   }
 }
 ```
 
-Then, from a Client Component, you can read this value and display an error message.
+Then, you can pass your action to the `useFormState` hook and use the returned `state` to display an error message.
 
-```tsx filename="app/add-form.tsx" switcher
+```tsx filename="app/ui/signup.tsx" switcher
 'use client'
 
-import { useFormState, useFormStatus } from 'react-dom'
-import { createTodo } from '@/app/actions'
+import { useFormState } from 'react-dom'
+import { createUser } from '@/app/actions'
 
 const initialState = {
   message: null,
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button type="submit" aria-disabled={pending}>
-      Add
-    </button>
-  )
-}
-
-export function AddForm() {
-  const [state, formAction] = useFormState(createTodo, initialState)
+export function Signup() {
+  const [state, formAction] = useFormState(createUser, initialState)
 
   return (
     <form action={formAction}>
-      <label htmlFor="todo">Enter Task</label>
-      <input type="text" id="todo" name="todo" required />
-      <SubmitButton />
+      <label htmlFor="email">Email</label>
+      <input type="text" id="email" name="email" required />
+      {/* ... */}
       <p aria-live="polite" className="sr-only">
         {state?.message}
       </p>
+      <button>Sign up</button>
     </form>
   )
 }
 ```
 
-```jsx filename="app/add-form.jsx" switcher
+```jsx filename="app/ui/signup.js" switcher
 'use client'
 
-import { useFormState, useFormStatus } from 'react-dom'
-import { createTodo } from '@/app/actions'
+import { useFormState } from 'react-dom'
+import { createUser } from '@/app/actions'
 
 const initialState = {
   message: null,
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button type="submit" aria-disabled={pending}>
-      Add
-    </button>
-  )
-}
-
-export function AddForm() {
-  const [state, formAction] = useFormState(createTodo, initialState)
+export function Signup() {
+  const [state, formAction] = useFormState(createUser, initialState)
 
   return (
     <form action={formAction}>
-      <label htmlFor="todo">Enter Task</label>
-      <input type="text" id="todo" name="todo" required />
-      <SubmitButton />
+      <label htmlFor="email">Email</label>
+      <input type="text" id="email" name="email" required />
+      {/* ... */}
       <p aria-live="polite" className="sr-only">
         {state?.message}
       </p>
+      <button>Sign up</button>
     </form>
   )
 }
@@ -360,7 +366,7 @@ export function AddForm() {
 
 #### Optimistic Updates
 
-Use React [`useOptimistic`](https://react.dev/reference/react/useOptimistic) to optimistically update the UI before the Server Action finishes, rather than waiting for the response:
+You can use the React [`useOptimistic`](https://react.dev/reference/react/useOptimistic) hook to optimistically update the UI before the Server Action finishes, rather than waiting for the response:
 
 ```tsx filename="app/page.tsx" switcher
 'use client'
@@ -433,31 +439,52 @@ export function Thread({ messages }) {
 }
 ```
 
-### Handling Errors
-
-TODO: Recommend try/catch, errors are hidden with a digest
-
 Other Edge Cases / Examples:
 
-- Called as normal async functions - await, try/catch
-  - Limitations: The argument to the action call
-  - Other arguments you pass to the action should be serializable
-  - But you can return React Elements, what would be a use case for this?
-  - React will throw the error inside the action again
-  - Actions triggered in useEffect() or 3rd party libraries. For non-user interactions, but will trigger a mutation
-  - No need to add startTransition in the action call
-  - Triggering actions in a declarative way?
+- Actions triggered in useEffect() or 3rd party libraries. For non-user interactions, but will trigger a mutation
+- No need to add startTransition in the action call
+- Triggering actions in a declarative way?
+
+### Handling Errors
+
+When an error is thrown, it'll be caught by the nearest [error.js](/docs/app/building-your-application/routing/error-handling) boundary on the client. We recommend using `try/catch` to return errors to be handled by your UI.
+
+For example, your Server Action might handle errors from creating a new item by returning a message:
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+export async function createTodo(prevState: any, formData: FormData) {
+  try {
+    await createItem(formData.get('todo'))
+  } catch (e) {
+    throw new Error('Failed to create task')
+  }
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+export async function createTodo(prevState, formData) {
+  try {
+    await createItem(formData.get('todo'))
+  } catch (e) {
+    throw new Error('Failed to create task')
+  }
+}
+```
 
 ### Revalidating Data
 
-Server Actions allow you to invalidate the [Next.js Cache](/docs/app/building-your-application/caching) on demand. You can invalidate an entire route segment with [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath):
+You can revalidate the [Next.js Cache](/docs/app/building-your-application/caching) inside your Server Actions with the [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) API:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
 
 import { revalidatePath } from 'next/cache'
 
-export default async function submit() {
+export default async function createPost() {
   try {
     // ...
   } catch (error) {
@@ -473,7 +500,7 @@ export default async function submit() {
 
 import { revalidatePath } from 'next/cache'
 
-export default async function submit() {
+export default async function createPost() {
   try {
     // ...
   } catch (error) {
@@ -491,7 +518,7 @@ Or invalidate a specific data fetch with a cache tag using [`revalidateTag`](/do
 
 import { revalidateTag } from 'next/cache'
 
-export default async function submit() {
+export default async function createPost() {
   try {
     // ...
   } catch (error) {
@@ -507,7 +534,7 @@ export default async function submit() {
 
 import { revalidateTag } from 'next/cache'
 
-export default async function submit() {
+export default async function createPost() {
   try {
     // ...
   } catch (error) {
@@ -519,7 +546,7 @@ export default async function submit() {
 
 ### Redirecting
 
-If you would like to redirect the user to a different route after the completion of a Server Action, you can use [`redirect`](/docs/app/api-reference/functions/redirect) and any absolute or relative URL:
+If you would like to redirect the user to a different route after the completion of a Server Action, you can use [`redirect`](/docs/app/api-reference/functions/redirect) API:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -527,7 +554,7 @@ If you would like to redirect the user to a different route after the completion
 import { redirect } from 'next/navigation'
 import { revalidateTag } from 'next/cache'
 
-export default async function submit(id: string) {
+export default async function createPost(id: string) {
   try {
     // ...
   } catch (error) {
@@ -545,7 +572,7 @@ export default async function submit(id: string) {
 import { redirect } from 'next/navigation'
 import { revalidateTag } from 'next/cache'
 
-export default async function submit(id) {
+export default async function createPost(id) {
   try {
     // ...
   } catch (error) {
@@ -556,73 +583,27 @@ export default async function submit(id) {
   redirect(`/post/${id}`) // Navigate to the new post page
 }
 ```
+
+> **Good to know:** `redirect` should be called outside of the `try/catch` block.
 
 ### Cookies
 
-#### Setting Cookies
-
-You can set cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) function:
+You can get, set, and delete cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) API:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
 
 import { cookies } from 'next/headers'
 
-export async function create() {
-  const cart = await createCart()
-  cookies().set('cartId', cart.id)
-}
-```
+export async function exampleAction() {
+  // Get cookie
+  const value = cookies().get('name')?.value
 
-```js filename="app/actions.js" switcher
-'use server'
+  // Set cookie
+  cookies().set('name', 123)
 
-import { cookies } from 'next/headers'
-
-export async function create() {
-  const cart = await createCart()
-  cookies().set('cartId', cart.id)
-}
-```
-
-#### Reading Cookies
-
-You can read cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) function:
-
-```ts filename="app/actions.ts" switcher
-'use server'
-
-import { cookies } from 'next/headers'
-
-export async function read() {
-  const auth = cookies().get('authorization')?.value
-  // ...
-}
-```
-
-```js filename="app/actions.js" switcher
-'use server'
-
-import { cookies } from 'next/headers'
-
-export async function read() {
-  const auth = cookies().get('authorization')?.value
-  // ...
-}
-```
-
-### Deleting Cookies
-
-You can delete cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) function:
-
-```ts filename="app/actions.ts" switcher
-'use server'
-
-import { cookies } from 'next/headers'
-
-export async function delete() {
+  // Delete cookie
   cookies().delete('name')
-  // ...
 }
 ```
 
@@ -631,9 +612,15 @@ export async function delete() {
 
 import { cookies } from 'next/headers'
 
-export async function delete() {
+export async function exampleAction() {
+  // Get cookie
+  const value = cookies().get('name')?.value
+
+  // Set cookie
+  cookies().set('name', 123)
+
+  // Delete cookie
   cookies().delete('name')
-  // ...
 }
 ```
 
@@ -643,7 +630,7 @@ See [additional examples](/docs/app/api-reference/functions/cookies#deleting-coo
 
 #### Closures and Encryption
 
-Server Actions can be defined as [closures](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures). For example, the `publish` action has access to the `publishVersion` variable in its parent scope:
+Defining a Server Action inside a component creates a [closure](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures) where the action has access to the outer function's scope. For example, the `publish` action has access to the `publishVersion` variable:
 
 ```tsx filename="app/page.tsx" switcher
 export default function Page() {
@@ -677,23 +664,23 @@ export default function Page() {
 }
 ```
 
-Closures are useful when you need to capture a _snapshot_ of data (e.g. `publishVersion`) at the time of rendering, and use it later when the action is invoked.
+Closures are useful when you need to capture a _snapshot_ of data (e.g. `publishVersion`) at the time of rendering so that it can be used later when the action is invoked.
 
-However, the captured variables must be sent to the client when the action is invoked. To prevent sensitive data from being exposed, Next.js automatically encrypts all closed-over variables with the action ID. Each time a Next.js application is built (or redeployed), a new private key is generated for the action, meaning each Server Action can only be invoked for a specific build. Encryption works when deploying to Vercel or other platforms.
+However, for this to happen, the captured variables are sent to the client and back to the server when the action is invoked. To prevent sensitive data from being exposed on the client, Next.js automatically encrypts the closed-over variables. A new private key is generated for each action every time a Next.js application is built, this means actions can only be invoked for a specific build.
 
-> **Good to know:** We don't recommend relying on encryption alone to prevent sensitive values from being exposed on the client. Instead, you should use the [React taint APIs](/docs/app/building-your-application/data-fetching/patterns#tainting) to prevent specific data from being sent to the client.
+> **Good to know:** We don't recommend relying on encryption alone to prevent sensitive values from being exposed on the client. Instead, you should use the [React taint APIs](/docs/app/building-your-application/data-fetching/patterns#tainting) to proactively prevent specific data from being sent to the client.
 
-#### Overwriting Encryption Keys
+#### Overwriting Encryption Keys (Advanced)
 
-When self-hosting your application across multiple servers, each server instance may end up with a different encryption key, leading to potential inconsistencies.
+Encryption works when deploying to Vercel or other platforms. However, when self-hosting your application across multiple servers, each server instance may end up with a different encryption key, leading to potential inconsistencies.
 
-To mitigate this, you can overwrite the encryption key using the `process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` environment variable. Specifying this variable ensures that your encryption keys are persistent across builds and all server instances use the same key.
+To mitigate this, you can overwrite the encryption key using the `process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` environment variable. Specifying this variable ensures that your encryption keys are persistent across builds, and all server instances use the same key.
 
-This is an advanced use case where consistent encryption behavior across multiple deployments is critical for your application.
+This is an advanced use case where consistent encryption behavior across multiple deployments is critical for your application. You should consider standard security practices such key rotation and signing.
 
-#### Allowed Origins
+#### Allowed Origins (Advanced)
 
-All Server Actions can be invoked in a `<form>` element, which could open them up to [CSRF attacks](https://developer.mozilla.org/en-US/docs/Glossary/CSRF).
+Since Server Actions can be invoked in a `<form>` element, this opens them up to [CSRF attacks](https://developer.mozilla.org/en-US/docs/Glossary/CSRF).
 
 Behind the scenes, Server Actions use the `POST` method, and only this HTTP method is allowed to invoke them. This prevents most CSRF vulnerabilities in modern browsers, particularly with [SameSite cookies](https://web.dev/articles/samesite-cookies-explained) being the default.
 
