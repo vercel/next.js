@@ -27,21 +27,21 @@ const SKIPPED_TEST_SUITES = {
     'ReactRefreshLogBox app turbo Module not found missing global CSS',
   ],
   'test/development/acceptance-app/ReactRefreshRegression.test.ts': [
-    'ReactRefreshRegression app can fast refresh a page with dynamic rendering',
     'ReactRefreshRegression app can fast refresh a page with config',
+    'ReactRefreshRegression app can fast refresh a page with dynamic rendering',
   ],
   'test/development/acceptance-app/ReactRefreshRequire.test.ts': [
-    'ReactRefreshRequire app re-runs accepted modules',
     'ReactRefreshRequire app propagates a hot update to closest accepted module',
     'ReactRefreshRequire app propagates hot update to all inverse dependencies',
+    'ReactRefreshRequire app re-runs accepted modules',
   ],
   'test/development/acceptance/ReactRefreshLogBox.test.ts': [
     'ReactRefreshLogBox turbo conversion to class component (1)',
   ],
   'test/development/acceptance/ReactRefreshRequire.test.ts': [
-    'ReactRefreshRequire re-runs accepted modules',
     'ReactRefreshRequire propagates a hot update to closest accepted module',
     'ReactRefreshRequire propagates hot update to all inverse dependencies',
+    'ReactRefreshRequire re-runs accepted modules',
   ],
   'test/development/basic/hmr.test.ts': [
     'basic HMR, basePath: "/docs" Error Recovery should show the error on all pages',
@@ -91,8 +91,8 @@ const SKIPPED_TEST_SUITES = {
     'Document and App Client side should detect the changes to pages/_document.js and display it',
   ],
   'test/integration/css/test/css-modules.test.js': [
-    'CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)',
     'CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from index)',
+    'CSS Modules Composes Ordering Development Mode should have correct color on index page (on nav from other)',
   ],
   'test/integration/custom-error/test/index.test.js': [/Custom _error/],
   'test/integration/dynamic-routing/test/index.test.js': [
@@ -105,38 +105,36 @@ const SKIPPED_TEST_SUITES = {
     'Dynamic Routing production mode should output a routes-manifest correctly',
   ],
   'test/integration/env-config/test/index.test.js': [
-    'Env Config dev mode with hot reload should provide env for SSG',
-    'Env Config dev mode with hot reload should provide env correctly for SSR',
     'Env Config dev mode with hot reload should provide env correctly for API routes',
+    'Env Config dev mode with hot reload should provide env correctly for SSR',
+    'Env Config dev mode with hot reload should provide env for SSG',
   ],
   'test/integration/import-assertion/test/index.test.js': [
     /should handle json assertions/,
   ],
 }
 
-function checkForSorted() {
-  const keys = Object.keys(SKIPPED_TEST_SUITES)
-  const sortedKeys = keys.sort()
-  if (JSON.stringify(keys) !== JSON.stringify(sortedKeys)) {
-    console.log(
-      `Expected order of SKIPPED_TEST_SUITES:\n${sortedKeys.join('\n')}`
-    )
-    throw new Error('SKIPPED_TEST_SUITES is not sorted')
-  }
-
-  for (const [key, value] of Object.entries(SKIPPED_TEST_SUITES)) {
-    const sortedValue = value.sort()
-    if (JSON.stringify(value) !== JSON.stringify(sortedValue)) {
-      console.log(
-        `Expected order of SKIPPED_TEST_SUITES[${key}]:\n${sortedValue.join(
-          '\n'
-        )}`
-      )
-      throw new Error(`SKIPPED_TEST_SUITES[${key}] is not sorted`)
+function checkSorted(arr, name) {
+  const sorted = [...arr].sort()
+  if (JSON.stringify(arr) !== JSON.stringify(sorted)) {
+    console.log(`Expected order of ${name}:`)
+    for (let i = 0; i < arr.length; i++) {
+      if (arr[i] === sorted[i]) {
+        console.log(`  ${arr[i]}`)
+      } else {
+        console.log(bold().red(`- ${arr[i]}`))
+        console.log(bold().green(`+ ${sorted[i]}`))
+      }
     }
+    throw new Error(`${name} is not sorted`)
   }
 }
-checkForSorted()
+
+checkSorted(Object.keys(SKIPPED_TEST_SUITES), 'SKIPPED_TEST_SUITES')
+
+for (const [key, value] of Object.entries(SKIPPED_TEST_SUITES)) {
+  checkSorted(value, `SKIPPED_TEST_SUITES['${key}']`)
+}
 
 /**
  * @param title {string}
