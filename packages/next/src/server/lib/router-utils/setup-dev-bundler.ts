@@ -1171,7 +1171,6 @@ async function startWatcher(opts: SetupOpts) {
               )
               processIssues('middleware', writtenEndpoint)
               await loadMiddlewareManifest('middleware', 'middleware')
-              serverFields.actualMiddlewareFile = '/middleware'
               serverFields.middleware = {
                 match: null as any,
                 page: '/',
