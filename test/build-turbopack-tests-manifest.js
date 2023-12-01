@@ -50,6 +50,10 @@ const SKIPPED_TEST_SUITES = {
     /should automatically fast refresh content when path is added without error/,
     /should recover from module not found when paths is updated/,
   ],
+  'test/development/middleware-errors/index.test.ts': [
+    'middleware - development errors when there is a compilation error after boot logs the error correctly',
+    'middleware - development errors when there is a compilation error from boot logs the error correctly',
+  ],
   'test/development/tsconfig-path-reloading/index.test.ts': [
     /should automatically fast refresh content when path is added without error/,
   ],
