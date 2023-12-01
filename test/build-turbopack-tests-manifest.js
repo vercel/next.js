@@ -108,6 +108,30 @@ const SKIPPED_TEST_SUITES = {
   ],
 }
 
+function checkForSorted() {
+  const keys = Object.keys(SKIPPED_TEST_SUITES)
+  const sortedKeys = keys.sort()
+  if (JSON.stringify(keys) !== JSON.stringify(sortedKeys)) {
+    console.log(
+      `Expected order of SKIPPED_TEST_SUITES:\n${sortedKeys.join('\n')}`
+    )
+    throw new Error('SKIPPED_TEST_SUITES is not sorted')
+  }
+
+  for (const [key, value] of Object.entries(SKIPPED_TEST_SUITES)) {
+    const sortedValue = value.sort()
+    if (JSON.stringify(value) !== JSON.stringify(sortedValue)) {
+      console.log(
+        `Expected order of SKIPPED_TEST_SUITES[${key}]:\n${sortedValue.join(
+          '\n'
+        )}`
+      )
+      throw new Error(`SKIPPED_TEST_SUITES[${key}] is not sorted`)
+    }
+  }
+}
+checkForSorted()
+
 /**
  * @param title {string}
  * @param file {string}
