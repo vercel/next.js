@@ -13376,8 +13376,8 @@ export declare function Noto_Rashi_Hebrew<
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans<
   T extends CssVariable | undefined = undefined
->(options: {
-  weight:
+>(options?: {
+  weight?:
     | '100'
     | '200'
     | '300'
@@ -13387,6 +13387,7 @@ export declare function Noto_Sans<
     | '700'
     | '800'
     | '900'
+    | 'variable'
     | Array<
         '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
       >
@@ -13406,6 +13407,7 @@ export declare function Noto_Sans<
     | 'latin-ext'
     | 'vietnamese'
   >
+  axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Adlam<
   T extends CssVariable | undefined = undefined
