@@ -14,7 +14,7 @@ describe('with latest sharp', () => {
         packageManager: 'yarn@1.22.19',
       })
     )
-    await execa('yarn', ['add', 'sharp'], {
+    await execa('yarn', ['add', 'sharp@^0.32.0'], {
       cwd: appDir,
       stdio: 'inherit',
     })

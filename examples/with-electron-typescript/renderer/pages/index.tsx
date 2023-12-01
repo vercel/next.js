@@ -6,16 +6,16 @@ const IndexPage = () => {
   useEffect(() => {
     const handleMessage = (_event, args) => alert(args)
 
-    // add a listener to 'message' channel
-    global.ipcRenderer.addListener('message', handleMessage)
+    // listen to the 'message' channel
+    window.electron.receiveHello(handleMessage)
 
     return () => {
-      global.ipcRenderer.removeListener('message', handleMessage)
+      window.electron.stopReceivingHello(handleMessage)
     }
   }, [])
 
   const onSayHiClick = () => {
-    global.ipcRenderer.send('message', 'hi from next')
+    window.electron.sayHello()
   }
 
   return (
