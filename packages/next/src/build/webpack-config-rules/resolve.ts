@@ -12,15 +12,15 @@ export const edgeConditionNames = [
 ]
 
 const mainFieldsPerCompiler: Record<
-  CompilerNameValues | 'app-router-server',
+  CompilerNameValues | 'server-esm',
   string[]
 > = {
   // For default case, prefer CJS over ESM on server side. e.g. pages dir SSR
   [COMPILER_NAMES.server]: ['main', 'module'],
   [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
   [COMPILER_NAMES.edgeServer]: edgeConditionNames,
-  // For app router since everything is bundled, prefer ESM over CJS
-  'app-router-server': ['module', 'main'],
+  // For bundling-all strategy, prefer ESM over CJS
+  ['server-esm']: ['module', 'main'],
 }
 
 export function getMainField(
@@ -35,6 +35,6 @@ export function getMainField(
 
   // Prefer module fields over main fields for isomorphic packages on server layer
   return preferEsm
-    ? mainFieldsPerCompiler['app-router-server']
+    ? mainFieldsPerCompiler['server-esm']
     : mainFieldsPerCompiler[COMPILER_NAMES.server]
 }

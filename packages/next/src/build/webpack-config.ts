@@ -448,7 +448,7 @@ export default async function getBaseWebpackConfig(
     isReactServerLayer: false,
     esm: true,
   })
-  // Default swc loaders for pages, not prefer ESM, set `esm` to false
+  // Default swc loaders for pages doesn't prefer ESM.
   const swcDefaultLoader = getSwcLoader({
     serverComponents: true,
     isReactServerLayer: false,

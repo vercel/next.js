@@ -219,7 +219,9 @@ Use output module es6 to make sure:
 
 For pages router will remain untouched
 */
-function getModuleOptions(esm: boolean) {
+function getModuleOptions(
+  esm: boolean | undefined = false
+): { module: { type: 'es6' } } | {} {
   return esm ? { module: { type: 'es6' } } : {}
 }
 
@@ -428,7 +430,7 @@ export function getLoaderSWCOptions({
           node: process.versions.node,
         },
       },
-      ...getModuleOptions(!!esm),
+      ...getModuleOptions(esm),
     }
   } else {
     const options = {
@@ -440,7 +442,7 @@ export function getLoaderSWCOptions({
               type: 'commonjs',
             },
           }
-        : getModuleOptions(!!esm)),
+        : getModuleOptions(esm)),
       disableNextSsg: !isPageFile,
       isDevelopment: development,
       isServerCompiler: isServer,
