@@ -219,35 +219,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(await session.hasRedbox(true)).toBe(true)
 
     const source = await session.getRedboxSource()
-    expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
-        "./index.js
-        Error: 
-          x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-           ,-[TEST_DIR/index.js:4:1]
-         4 |       <p>lol</p>
-         5 |     div
-         6 |   )
-         7 | }
-           : ^
-           \`----
-
-          x Unexpected eof
-           ,-[TEST_DIR/index.js:4:1]
-         4 |       <p>lol</p>
-         5 |     div
-         6 |   )
-         7 | }
-           \`----
-
-        Caused by:
-            Syntax Error
-
-        Import trace for requested module:
-        ./index.js
-        ./app/page.js"
-      `)
-    )
+    expect(next.normalizeTestDirContent(source)).toMatchSnapshot()
 
     await cleanup()
   })
@@ -669,7 +641,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await cleanup()
   })
 
-  test('Should not show __webpack_exports__ when exporting anonymous arrow function', async () => {
+  test('Should not show __TURBOPACK__default__export__ or __webpack_exports__ when exporting anonymous arrow function', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
@@ -686,7 +658,11 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toMatchSnapshot()
+    const errorSource = await session.getRedboxSource()
+    expect(errorSource).toMatchSnapshot()
+
+    expect(errorSource).not.toContain('__webpack')
+    expect(errorSource).not.toContain('__TURBOPACK')
 
     await cleanup()
   })
@@ -916,7 +892,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toMatchSnapshot()
+    const errorSource = await session.getRedboxSource()
+    expect(errorSource).toBeTruthy()
+    expect(errorSource).toMatchSnapshot()
 
     await cleanup()
   })

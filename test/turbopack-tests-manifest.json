@@ -902,10 +902,8 @@
   "test/development/acceptance-app/ReactRefreshLogBox.test.ts": {
     "passed": [
       "ReactRefreshLogBox app turbo Call stack count is correct for client error",
-      "ReactRefreshLogBox app turbo Can't resolve @import in CSS file",
       "ReactRefreshLogBox app turbo Import trace when module not found in layout",
       "ReactRefreshLogBox app turbo Server component errors should open up in fullscreen",
-      "ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app turbo Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app turbo boundaries",
       "ReactRefreshLogBox app turbo client component can recover from error thrown in the module",
@@ -916,6 +914,8 @@
     ],
     "failed": [
       "ReactRefreshLogBox app turbo Call stack count is correct for server error",
+      "ReactRefreshLogBox app turbo Can't resolve @import in CSS file",
+      "ReactRefreshLogBox app turbo Should not show __TURBOPACK__default__export__ or __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app turbo conversion to class component (1)",
       "ReactRefreshLogBox app turbo css syntax errors",
       "ReactRefreshLogBox app turbo unterminated JSX"
@@ -926,7 +926,7 @@
       "ReactRefreshLogBox app default Can't resolve @import in CSS file",
       "ReactRefreshLogBox app default Import trace when module not found in layout",
       "ReactRefreshLogBox app default Server component errors should open up in fullscreen",
-      "ReactRefreshLogBox app default Should not show __webpack_exports__ when exporting anonymous arrow function",
+      "ReactRefreshLogBox app default Should not show __TURBOPACK__default__export__ or __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app default Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app default boundaries",
       "ReactRefreshLogBox app default client component can recover from error thrown in the module",
