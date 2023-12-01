@@ -868,10 +868,12 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts": {
-    "passed": [],
+    "passed": [
+      "ReactRefreshLogBox app turbo Module not found empty import trace",
+      "ReactRefreshLogBox app turbo Module not found missing global CSS"
+    ],
     "failed": [
       "ReactRefreshLogBox app turbo Module not found",
-      "ReactRefreshLogBox app turbo Module not found empty import trace",
       "ReactRefreshLogBox app turbo Node.js builtins"
     ],
     "pending": [
@@ -880,9 +882,7 @@
       "ReactRefreshLogBox app default Module not found missing global CSS",
       "ReactRefreshLogBox app default Node.js builtins"
     ],
-    "flakey": [
-      "ReactRefreshLogBox app turbo Module not found missing global CSS"
-    ],
+    "flakey": [],
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshLogBox-scss.test.ts": {
@@ -1204,10 +1204,11 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBox-builtins.test.ts": {
-    "passed": [],
+    "passed": [
+      "ReactRefreshLogBox turbo Module not found (empty import trace)"
+    ],
     "failed": [
       "ReactRefreshLogBox turbo Module not found",
-      "ReactRefreshLogBox turbo Module not found (empty import trace)",
       "ReactRefreshLogBox turbo Module not found (missing global CSS)",
       "ReactRefreshLogBox turbo Node.js builtins"
     ],
@@ -1841,6 +1842,7 @@
       "middleware - development errors when middleware throws synchronously renders the error correctly and recovers",
       "middleware - development errors when running invalid dynamic code with eval logs the error correctly",
       "middleware - development errors when there is a compilation error after boot renders the error correctly and recovers",
+      "middleware - development errors when there is a compilation error from boot renders the error correctly and recovers",
       "middleware - development errors when there is an unhandled rejection while loading a dependency does not render the error",
       "middleware - development errors when there is an unhandled rejection while loading a dependency logs the error correctly",
       "middleware - development errors when there is an unhandled rejection while loading the module does not render the error",
@@ -1849,7 +1851,6 @@
     "failed": [
       "middleware - development errors when middleware throws synchronously logs the error correctly",
       "middleware - development errors when running invalid dynamic code with eval renders the error correctly and recovers",
-      "middleware - development errors when there is a compilation error from boot renders the error correctly and recovers",
       "middleware - development errors when throwing while loading the module logs the error correctly",
       "middleware - development errors when throwing while loading the module renders the error correctly and recovers"
     ],
@@ -2075,11 +2076,12 @@
   },
   "test/development/tsconfig-path-reloading/index.test.ts": {
     "passed": [
+      "tsconfig-path-reloading tsconfig should load with initial paths config correctly"
+    ],
+    "failed": [
       "tsconfig-path-reloading tsconfig added after starting dev should recover from module not found when paths is updated",
-      "tsconfig-path-reloading tsconfig should load with initial paths config correctly",
       "tsconfig-path-reloading tsconfig should recover from module not found when paths is updated"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [
       "tsconfig-path-reloading tsconfig added after starting dev should automatically fast refresh content when path is added without error",
@@ -3218,6 +3220,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/global-error/catch-all/index.test.ts": {
+    "passed": [
+      "app dir - global error - with catch-all route should render catch-all route correctly"
+    ],
+    "failed": [
+      "app dir - global error - with catch-all route should render 404 page correctly"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/global-error/layout-error/index.test.ts": {
     "passed": [
       "app dir - global error - layout error should render global error for error in server components"
@@ -3341,11 +3354,11 @@
   },
   "test/e2e/app-dir/logging/fetch-logging.test.ts": {
     "passed": [
+      "app-dir - logging with default logging should not contain trailing word page for app router routes",
       "app-dir - logging with default logging should not log fetch requests at all"
     ],
     "failed": [
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with default logging should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging for edge runtime should not log fetch requests at all",
@@ -5380,24 +5393,12 @@
   },
   "test/e2e/next-font/index.test.ts": {
     "passed": [
-      "next/font app Fallback fontfaces google Fraunces",
-      "next/font app Fallback fontfaces local Fraunces",
-      "next/font app Fallback fontfaces local Indie flower",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 1",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 2",
       "next/font app computed styles page using fallback fonts",
       "next/font app computed styles page using variables",
       "next/font app computed styles page with fonts",
       "next/font app import values Variable font without weight range",
       "next/font app import values page with font",
       "next/font app import values page with local fonts",
-      "next/font app-old Fallback fontfaces google Fraunces",
-      "next/font app-old Fallback fontfaces local Fraunces",
-      "next/font app-old Fallback fontfaces local Indie flower",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 1",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 2",
       "next/font app-old computed styles page using fallback fonts",
       "next/font app-old computed styles page using variables",
       "next/font app-old computed styles page with fonts",
@@ -5406,14 +5407,26 @@
       "next/font app-old import values page with local fonts"
     ],
     "failed": [
+      "next/font app Fallback fontfaces google Fraunces",
       "next/font app Fallback fontfaces google Indie flower",
+      "next/font app Fallback fontfaces local Fraunces",
+      "next/font app Fallback fontfaces local Indie flower",
+      "next/font app Fallback fontfaces local Roboto multiple weights and styles",
+      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 1",
+      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 2",
       "next/font app preload font without preloadable subsets",
       "next/font app preload font without size adjust",
       "next/font app preload google fonts with multiple weights/styles",
       "next/font app preload page with fonts",
       "next/font app preload page with local fonts",
       "next/font app preload page without fonts",
+      "next/font app-old Fallback fontfaces google Fraunces",
       "next/font app-old Fallback fontfaces google Indie flower",
+      "next/font app-old Fallback fontfaces local Fraunces",
+      "next/font app-old Fallback fontfaces local Indie flower",
+      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles",
+      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 1",
+      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 2",
       "next/font app-old preload font without preloadable subsets",
       "next/font app-old preload font without size adjust",
       "next/font app-old preload google fonts with multiple weights/styles",
@@ -7315,7 +7328,6 @@
   },
   "test/integration/css/test/css-modules.test.js": {
     "passed": [
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "Ordering with Global CSS and Modules (dev) should not execute scripts in any order"
     ],
     "failed": [
@@ -7323,6 +7335,7 @@
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)",
       "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering)",
       "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads"
     ],
@@ -8395,11 +8408,12 @@
     "runtimeError": false
   },
   "test/integration/edge-runtime-module-errors/test/module-imports.test.js": {
-    "passed": [],
+    "passed": [
+      "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime"
+    ],
     "failed": [
       "Edge runtime code with imports Edge API dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime",
       "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
@@ -12666,14 +12680,14 @@
     "runtimeError": false
   },
   "test/integration/next-image-legacy/unicode/test/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Image Component Unicode Image URL dev mode should load external image with space",
       "Image Component Unicode Image URL dev mode should load external unicode image",
       "Image Component Unicode Image URL dev mode should load internal image with space",
       "Image Component Unicode Image URL dev mode should load internal unicode image",
       "Image Component Unicode Image URL dev mode should load static unicode image"
     ],
+    "failed": [],
     "pending": [
       "Image Component Unicode Image URL production mode should load external image with space",
       "Image Component Unicode Image URL production mode should load external unicode image",
@@ -13188,14 +13202,14 @@
     "runtimeError": false
   },
   "test/integration/next-image-new/unicode/test/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Image Component Unicode Image URL dev mode should load external image with space",
       "Image Component Unicode Image URL dev mode should load external unicode image",
       "Image Component Unicode Image URL dev mode should load internal image with space",
       "Image Component Unicode Image URL dev mode should load internal unicode image",
       "Image Component Unicode Image URL dev mode should load static unicode image"
     ],
+    "failed": [],
     "pending": [
       "Image Component Unicode Image URL production mode should load external image with space",
       "Image Component Unicode Image URL production mode should load external unicode image",
