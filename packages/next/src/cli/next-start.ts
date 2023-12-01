@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-
 import '../server/lib/cpu-profile'
 import { startServer } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import { getProjectDir } from '../lib/get-project-dir'
-import { CliCommand } from '../lib/commands'
+import type { CliCommand } from '../lib/commands'
 import {
   getReservedPortExplanation,
   isPortIsReserved,

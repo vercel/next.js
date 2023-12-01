@@ -255,8 +255,7 @@ describe('Dynamic Optional Routing', () => {
       })
     })
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       const curConfig = await fs.readFile(nextConfig, 'utf8')
 

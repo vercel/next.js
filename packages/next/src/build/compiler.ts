@@ -1,5 +1,5 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { Span } from '../trace'
+import type { Span } from '../trace'
 
 export type CompilerResult = {
   errors: webpack.StatsError[]
@@ -51,7 +51,7 @@ export function runCompiler(
     compiler.fsStartTime = Date.now()
     compiler.run((err, stats) => {
       const webpackCloseSpan = runWebpackSpan.traceChild('webpack-close', {
-        name: config.name,
+        name: config.name || 'unknown',
       })
       webpackCloseSpan
         .traceAsyncFn(() => closeCompiler(compiler))

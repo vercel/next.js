@@ -5,8 +5,8 @@ import type {
   ProxyResponse,
 } from './proxy'
 import { ClientRequestInterceptor } from 'next/dist/compiled/@mswjs/interceptors/ClientRequest'
-import { WorkerRequestHandler } from '../../server/lib/setup-server-worker'
-import { NodeRequestHandler } from '../../server/next-server'
+import type { WorkerRequestHandler } from '../../server/lib/types'
+import type { NodeRequestHandler } from '../../server/next-server'
 
 interface TestReqInfo {
   url: string
@@ -84,11 +84,26 @@ function buildResponse(proxyResponse: ProxyFetchResponse): Response {
   })
 }
 
+function extractTestInfoFromRequest(req: Request): TestReqInfo | undefined {
+  const proxyPortHeader = req.headers.get('next-test-proxy-port')
+  if (!proxyPortHeader) {
+    return undefined
+  }
+  const url = req.url
+  const proxyPort = Number(proxyPortHeader)
+  const testData = req.headers.get('next-test-data') ?? ''
+  return {
+    url,
+    proxyPort,
+    testData,
+  }
+}
+
 async function handleFetch(
   originalFetch: Fetch,
   request: Request
 ): Promise<Response> {
-  const testInfo = testStorage.getStore()
+  const testInfo = testStorage.getStore() ?? extractTestInfoFromRequest(request)
   if (!testInfo) {
     throw new Error('No test info')
   }
@@ -99,6 +114,10 @@ async function handleFetch(
   const resp = await originalFetch(`http://localhost:${proxyPort}`, {
     method: 'POST',
     body: JSON.stringify(proxyRequest),
+    next: {
+      // @ts-ignore
+      internal: true,
+    },
   })
   if (!resp.ok) {
     throw new Error(`Proxy request failed: ${resp.status}`)

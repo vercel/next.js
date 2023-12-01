@@ -8,6 +8,7 @@ While prerendering a page an error occurred. This can occur for many reasons fro
 
 ## Possible Ways to Fix It
 
+- Use Next.js 13 (or higher) and the [App Router](/docs#app-router-vs-pages-router), which allows [colocation](/docs/app/building-your-application/routing#colocation) of pages and other files (e.g. components, styles, tests, etc)
 - Make sure to move any non-pages out of the `pages` folder
 - Check for any code that assumes a prop is available, even when it might not be
 - Set default values for all dynamic pages' props (avoid `undefined`, use `null` instead so it can be serialized)

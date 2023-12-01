@@ -1,7 +1,13 @@
 import React from 'react'
 import type { fetchServerResponse } from '../fetch-server-response'
 import type { FlightData } from '../../../../server/app-render/types'
-
+import type { FlightRouterState } from '../../../../server/app-render/types'
+import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import { createInitialRouterState } from '../create-initial-router-state'
+import { ACTION_REFRESH } from '../router-reducer-types'
+import type { RefreshAction } from '../router-reducer-types'
+import { refreshReducer } from './refresh-reducer'
 const buildId = 'development'
 
 jest.mock('../fetch-server-response', () => {
@@ -21,12 +27,16 @@ jest.mock('../fetch-server-response', () => {
         null,
         true,
       ],
-      <html>
-        <head></head>
-        <body>
-          <h1>Linking Page!</h1>
-        </body>
-      </html>,
+      [
+        '',
+        null,
+        <html>
+          <head></head>
+          <body>
+            <h1>Linking Page!</h1>
+          </body>
+        </html>,
+      ],
       <>
         <title>Linking page!</title>
       </>,
@@ -42,14 +52,6 @@ jest.mock('../fetch-server-response', () => {
     },
   }
 })
-import { FlightRouterState } from '../../../../server/app-render/types'
-import {
-  CacheNode,
-  CacheStates,
-} from '../../../../shared/lib/app-router-context.shared-runtime'
-import { createInitialRouterState } from '../create-initial-router-state'
-import { RefreshAction, ACTION_REFRESH } from '../router-reducer-types'
-import { refreshReducer } from './refresh-reducer'
 
 const getInitialRouterStateTree = (): FlightRouterState => [
   '',
@@ -65,10 +67,6 @@ const getInitialRouterStateTree = (): FlightRouterState => [
   undefined,
   true,
 ]
-
-const globalMutable = {
-  refresh: () => {},
-}
 
 async function runPromiseThrowChain(fn: any): Promise<any> {
   try {
@@ -130,20 +128,14 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: { globalMutable },
+      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -157,6 +149,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,
@@ -279,7 +272,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -290,7 +283,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -298,13 +291,7 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: { globalMutable },
+      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -320,6 +307,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,
@@ -466,7 +454,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -477,7 +465,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -485,13 +473,7 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: { globalMutable },
+      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -507,6 +489,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,
@@ -699,7 +682,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -712,7 +695,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -721,13 +704,7 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: { globalMutable },
+      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -743,6 +720,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,

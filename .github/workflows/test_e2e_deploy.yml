@@ -1,0 +1,71 @@
+name: test-e2e-deploy
+
+on:
+  schedule:
+    # run every day at midnight
+    - cron: '0 0 * * *'
+  # allow triggering manually as well
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+      VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+      DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+      NAPI_CLI_VERSION: 2.16.2
+      TURBO_VERSION: 1.10.9
+      NODE_LTS_VERSION: 20
+      CARGO_PROFILE_RELEASE_LTO: 'true'
+      TURBO_TEAM: 'vercel'
+      TURBO_REMOTE_ONLY: 'true'
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+      NEXT_TELEMETRY_DISABLED: 1
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2]
+
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+      - run: corepack enable
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 25
+
+      - run: pnpm install
+
+      - run: pnpm run build
+
+      - run: npm i -g vercel@latest
+
+      - run: node scripts/run-e2e-test-project-reset.mjs
+        name: Reset test project
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.35.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && corepack enable > /dev/null && NEXT_JUNIT_TEST_REPORT=true DATADOG_API_KEY=${DATADOG_API_KEY} DD_ENV=ci VERCEL_TEST_TOKEN=${{ secrets.VERCEL_TEST_TOKEN }} VERCEL_TEST_TEAM=vtest314-next-e2e-tests NEXT_TEST_JOB=1 NEXT_TEST_MODE=deploy TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} NEXT_TEST_CONTINUE_ON_ERROR=1 xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2 -c 1 >> /proc/1/fd/1"
+        name: Run test/e2e (deploy)
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-reports
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/test-junit-report
+
+      - name: Upload test report to datadog
+        continue-on-error: true
+        run: |
+          ls -al ./test/*junit
+
+          DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs_deploy_e2e --service nextjs ./test/test-junit-report

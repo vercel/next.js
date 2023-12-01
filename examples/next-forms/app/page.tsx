@@ -17,7 +17,7 @@ export default async function Home() {
         {todos.map((todo) => (
           <li key={todo.id}>
             {todo.text}
-            <DeleteForm id={todo.id} />
+            <DeleteForm id={todo.id} todo={todo.text} />
           </li>
         ))}
       </ul>

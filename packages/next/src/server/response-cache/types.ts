@@ -1,5 +1,7 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
+import type { Revalidate } from '../lib/revalidate'
+import type { RouteKind } from '../../server/future/route-kind'
 
 export interface ResponseCacheBase {
   get(
@@ -9,6 +11,12 @@ export interface ResponseCacheBase {
       isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
       incrementalCache: IncrementalCache
+      /**
+       * This is a hint to the cache to help it determine what kind of route
+       * this is so it knows where to look up the cache entry from. If not
+       * provided it will test the filesystem to check.
+       */
+      routeKind?: RouteKind
     }
   ): Promise<ResponseCacheEntry | null>
 }
@@ -20,10 +28,10 @@ export interface CachedFetchValue {
     body: string
     url: string
     status?: number
-    // tags are only present with file-system-cache
-    // fetch cache stores tags outside of cache entry
-    tags?: string[]
   }
+  // tags are only present with file-system-cache
+  // fetch cache stores tags outside of cache entry
+  tags?: string[]
   revalidate: number
 }
 
@@ -37,9 +45,10 @@ interface CachedPageValue {
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   html: RenderResult
+  postponed: string | undefined
   pageData: Object
-  status?: number
-  headers?: OutgoingHttpHeaders
+  status: number | undefined
+  headers: OutgoingHttpHeaders | undefined
 }
 
 export interface CachedRouteValue {
@@ -66,8 +75,9 @@ interface IncrementalCachedPageValue {
   // the string value
   html: string
   pageData: Object
-  headers?: OutgoingHttpHeaders
-  status?: number
+  postponed: string | undefined
+  headers: OutgoingHttpHeaders | undefined
+  status: number | undefined
 }
 
 export type IncrementalCacheEntry = {
@@ -93,15 +103,20 @@ export type ResponseCacheValue =
   | CachedRouteValue
 
 export type ResponseCacheEntry = {
-  revalidate?: number | false
+  revalidate?: Revalidate
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
 }
 
+/**
+ * @param hasResolved whether the responseGenerator has resolved it's promise
+ * @param previousCacheEntry the previous cache entry if it exists or the current
+ */
 export type ResponseGenerator = (
   hasResolved: boolean,
-  cacheEntry?: IncrementalCacheItem
+  previousCacheEntry?: IncrementalCacheItem,
+  isRevalidating?: boolean
 ) => Promise<ResponseCacheEntry | null>
 
 export type IncrementalCacheItem = {
@@ -113,14 +128,22 @@ export type IncrementalCacheItem = {
   isMiss?: boolean
 } | null
 
+export type IncrementalCacheKindHint = 'app' | 'pages' | 'fetch'
+
 export interface IncrementalCache {
   get: (
     key: string,
-    ctx?: { fetchCache?: boolean }
+    ctx?: {
+      /**
+       * The kind of cache entry to get. If not provided it will try to
+       * determine the kind from the filesystem.
+       */
+      kindHint?: IncrementalCacheKindHint
+    }
   ) => Promise<IncrementalCacheItem>
   set: (
     key: string,
     data: IncrementalCacheValue | null,
-    ctx: { revalidate: number | false }
+    ctx: { revalidate: Revalidate }
   ) => Promise<void>
 }

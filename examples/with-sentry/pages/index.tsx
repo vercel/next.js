@@ -231,10 +231,10 @@ export default function Home() {
         </div>
         <div className={styles.card}>
           <h2 className={inter.className}>
-            NextJS 13 Features <span>-&gt;</span>
+            Next.js 13 Features <span>-&gt;</span>
           </h2>
           <p className={inter.className}>
-            NextJS 13 continues to bring many new features to developers,
+            Next.js 13 continues to bring many new features to developers,
             especially those depoying on Vercel. We are trying to keep up, we
             promise!
           </p>

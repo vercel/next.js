@@ -5,6 +5,7 @@ import type { IncrementalCache } from '../lib/incremental-cache'
 
 export type StaticGenerationContext = {
   urlPathname: string
+  postpone?: (reason: string) => never
   renderOpts: {
     originalPathname?: string
     incrementalCache?: IncrementalCache
@@ -16,6 +17,8 @@ export type StaticGenerationContext = {
     fetchCache?: StaticGenerationStore['fetchCache']
     isDraftMode?: boolean
     isServerAction?: boolean
+    waitUntil?: Promise<any>
+    experimental: { ppr: boolean }
 
     /**
      * A hack around accessing the store value outside the context of the
@@ -35,7 +38,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 > = {
   wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
-    { urlPathname, renderOpts }: StaticGenerationContext,
+    { urlPathname, renderOpts, postpone }: StaticGenerationContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
@@ -74,6 +77,8 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
       isDraftMode: renderOpts.isDraftMode,
+      experimental: renderOpts.experimental,
+      postpone,
     }
 
     // TODO: remove this when we resolve accessing the store outside the execution context

@@ -1,11 +1,14 @@
+import type { AppConfigDynamic } from '../../build/utils'
+
 import { DynamicServerError } from './hooks-server-context'
+import { maybePostpone } from './maybe-postpone'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
 class StaticGenBailoutError extends Error {
   code = 'NEXT_STATIC_GEN_BAILOUT'
 }
 
-type BailoutOpts = { dynamic?: string; link?: string }
+type BailoutOpts = { dynamic?: AppConfigDynamic; link?: string }
 
 export type StaticGenerationBailout = (
   reason: string,
@@ -22,33 +25,42 @@ function formatErrorMessage(reason: string, opts?: BailoutOpts) {
 
 export const staticGenerationBailout: StaticGenerationBailout = (
   reason,
-  opts
+  { dynamic, link } = {}
 ) => {
   const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+  if (!staticGenerationStore) return false
 
-  if (staticGenerationStore?.forceStatic) {
+  if (staticGenerationStore.forceStatic) {
     return true
   }
 
-  if (staticGenerationStore?.dynamicShouldError) {
+  if (staticGenerationStore.dynamicShouldError) {
     throw new StaticGenBailoutError(
-      formatErrorMessage(reason, { ...opts, dynamic: opts?.dynamic ?? 'error' })
+      formatErrorMessage(reason, { link, dynamic: dynamic ?? 'error' })
     )
   }
 
-  if (staticGenerationStore) {
-    staticGenerationStore.revalidate = 0
+  const message = formatErrorMessage(reason, {
+    dynamic,
+    // this error should be caught by Next to bail out of static generation
+    // in case it's uncaught, this link provides some additional context as to why
+    link: 'https://nextjs.org/docs/messages/dynamic-server-error',
+  })
+
+  maybePostpone(staticGenerationStore, reason)
+
+  // As this is a bailout, we don't want to revalidate, so set the revalidate
+  // to 0.
+  staticGenerationStore.revalidate = 0
+
+  if (!dynamic) {
+    // we can statically prefetch pages that opt into dynamic,
+    // but not things like headers/cookies
+    staticGenerationStore.staticPrefetchBailout = true
   }
 
-  if (staticGenerationStore?.isStaticGeneration) {
-    const err = new DynamicServerError(
-      formatErrorMessage(reason, {
-        ...opts,
-        // this error should be caught by Next to bail out of static generation
-        // in case it's uncaught, this link provides some additional context as to why
-        link: 'https://nextjs.org/docs/messages/dynamic-server-error',
-      })
-    )
+  if (staticGenerationStore.isStaticGeneration) {
+    const err = new DynamicServerError(message)
     staticGenerationStore.dynamicUsageDescription = reason
     staticGenerationStore.dynamicUsageStack = err.stack
 

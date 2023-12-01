@@ -13,70 +13,72 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 describe('withRouter', () => {
-  const appDir = join(__dirname, '../')
-  let appPort
-  let app
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(__dirname, '../')
+    let appPort
+    let app
 
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
 
-  afterAll(() => killApp(app))
+    afterAll(() => killApp(app))
 
-  it('allows observation of navigation events using withRouter', async () => {
-    const browser = await webdriver(appPort, '/a')
-    await browser.waitForElementByCss('#page-a')
+    it('allows observation of navigation events using withRouter', async () => {
+      const browser = await webdriver(appPort, '/a')
+      await browser.waitForElementByCss('#page-a')
 
-    let activePage = await browser.elementByCss('.active').text()
-    expect(activePage).toBe('Foo')
+      let activePage = await browser.elementByCss('.active').text()
+      expect(activePage).toBe('Foo')
 
-    await browser.elementByCss('button').click()
-    await browser.waitForElementByCss('#page-b')
+      await browser.elementByCss('button').click()
+      await browser.waitForElementByCss('#page-b')
 
-    activePage = await browser.elementByCss('.active').text()
-    expect(activePage).toBe('Bar')
+      activePage = await browser.elementByCss('.active').text()
+      expect(activePage).toBe('Bar')
 
-    await browser.close()
-  })
+      await browser.close()
+    })
 
-  it('allows observation of navigation events using top level Router', async () => {
-    const browser = await webdriver(appPort, '/a')
-    await browser.waitForElementByCss('#page-a')
+    it('allows observation of navigation events using top level Router', async () => {
+      const browser = await webdriver(appPort, '/a')
+      await browser.waitForElementByCss('#page-a')
 
-    let activePage = await browser
-      .elementByCss('.active-top-level-router')
-      .text()
-    expect(activePage).toBe('Foo')
+      let activePage = await browser
+        .elementByCss('.active-top-level-router')
+        .text()
+      expect(activePage).toBe('Foo')
 
-    await browser.elementByCss('button').click()
-    await browser.waitForElementByCss('#page-b')
+      await browser.elementByCss('button').click()
+      await browser.waitForElementByCss('#page-b')
 
-    activePage = await browser.elementByCss('.active-top-level-router').text()
-    expect(activePage).toBe('Bar')
+      activePage = await browser.elementByCss('.active-top-level-router').text()
+      expect(activePage).toBe('Bar')
 
-    await browser.close()
-  })
+      await browser.close()
+    })
 
-  it('allows observation of navigation events using top level Router deprecated behavior', async () => {
-    const browser = await webdriver(appPort, '/a')
-    await browser.waitForElementByCss('#page-a')
+    it('allows observation of navigation events using top level Router deprecated behavior', async () => {
+      const browser = await webdriver(appPort, '/a')
+      await browser.waitForElementByCss('#page-a')
 
-    let activePage = await browser
-      .elementByCss('.active-top-level-router-deprecated-behavior')
-      .text()
-    expect(activePage).toBe('Foo')
+      let activePage = await browser
+        .elementByCss('.active-top-level-router-deprecated-behavior')
+        .text()
+      expect(activePage).toBe('Foo')
 
-    await browser.elementByCss('button').click()
-    await browser.waitForElementByCss('#page-b')
+      await browser.elementByCss('button').click()
+      await browser.waitForElementByCss('#page-b')
 
-    activePage = await browser
-      .elementByCss('.active-top-level-router-deprecated-behavior')
-      .text()
-    expect(activePage).toBe('Bar')
+      activePage = await browser
+        .elementByCss('.active-top-level-router-deprecated-behavior')
+        .text()
+      expect(activePage).toBe('Bar')
 
-    await browser.close()
+      await browser.close()
+    })
   })
 })
 

@@ -43,6 +43,8 @@ describe('jsconfig-path-reloading', () => {
 
       if (addAfterStart) {
         await next.patchFile(tsConfigFile, tsConfigContent)
+        // wait a bit for the file watcher to pick up the change
+        await new Promise((resolve) => setTimeout(resolve, 200))
       }
     })
     afterAll(() => next.destroy())
@@ -115,7 +117,7 @@ describe('jsconfig-path-reloading', () => {
         await check(async () => {
           const html3 = await browser.eval('document.documentElement.innerHTML')
           return html3.includes('id="first-data"') &&
-            !html3.includes('id="second-data"')
+            !html3.includes('second-data')
             ? 'success'
             : html3
         }, 'success')
