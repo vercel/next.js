@@ -237,7 +237,7 @@ async function updatePassingTests() {
 
       if (skippedPassingNames.length > 0) {
         console.log(
-          `${bold().red(filepath)} has ${
+          `${bold().yellow(filepath)} has ${
             skippedPassingNames.length
           } passing tests that are marked as skipped:\n${skippedPassingNames
             .map((name) => `  - ${name}`)
