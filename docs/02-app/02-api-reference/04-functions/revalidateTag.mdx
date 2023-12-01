@@ -43,6 +43,17 @@ export default async function submit() {
 }
 ```
 
+```js filename="app/actions.js" switcher
+'use server'
+
+import { revalidateTag } from 'next/cache'
+
+export default async function submit() {
+  await addPost()
+  revalidateTag('posts')
+}
+```
+
 ### Route Handler
 
 ```ts filename="app/api/revalidate/route.ts" switcher
