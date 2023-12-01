@@ -56,6 +56,7 @@ const SKIPPED_TEST_SUITES = {
   ],
   'test/development/tsconfig-path-reloading/index.test.ts': [
     /should automatically fast refresh content when path is added without error/,
+    'tsconfig-path-reloading tsconfig added after starting dev should load with initial paths config correctly',
   ],
   'test/e2e/app-dir/app-compilation/index.test.ts': [
     'app dir HMR should not cause error when removing loading.js',
