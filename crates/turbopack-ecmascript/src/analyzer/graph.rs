@@ -5,7 +5,7 @@ use std::{
 };
 
 use swc_core::{
-    common::{pass::AstNodePath, Mark, Span, Spanned, SyntaxContext},
+    common::{pass::AstNodePath, Mark, Span, Spanned, SyntaxContext, GLOBALS},
     ecma::{
         ast::*,
         atoms::js_word,
@@ -339,6 +339,10 @@ impl EvalContext {
     }
 
     pub fn eval(&self, e: &Expr) -> JsValue {
+        debug_assert!(
+            GLOBALS.is_set(),
+            "Eval requires globals from its parsed result"
+        );
         match e {
             Expr::Paren(e) => self.eval(&e.expr),
             Expr::Lit(e) => JsValue::Constant(e.clone().into()),
