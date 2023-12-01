@@ -1126,7 +1126,10 @@ async function startWatcher(opts: SetupOpts) {
               event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
           }
-          if (instrumentation) {
+          if (
+            opts.nextConfig.experimental.instrumentationHook &&
+            instrumentation
+          ) {
             const processInstrumentation = async (
               displayName: string,
               name: string,
@@ -1171,7 +1174,6 @@ async function startWatcher(opts: SetupOpts) {
               )
               processIssues('middleware', writtenEndpoint)
               await loadMiddlewareManifest('middleware', 'middleware')
-              serverFields.actualMiddlewareFile = 'middleware'
               serverFields.middleware = {
                 match: null as any,
                 page: '/',
