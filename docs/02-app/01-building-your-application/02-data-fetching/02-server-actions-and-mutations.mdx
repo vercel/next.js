@@ -16,14 +16,14 @@ You can use Server Actions in Server and Client Components. Since Server Actions
   - Server Components support progressive enhancement by default, meaning the form will be submitted even if JavaScript hasn't loaded yet or is disabled.
   - In Client Components, forms invoking Server Actions will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
   - The browser does not refresh on form submission.
-- Server Actions are not limited to `<form>` elements and can be invoked from event handlers, `useEffect`, and third-party libraries.
+- Server Actions are not limited to `<form>` elements and can be invoked from event handlers, `useEffect`, third-party libraries, and other form elements like `<button>`.
 - Server Actions integrate with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server round trip.
 - Behind the scenes, actions use the `POST` method, and only this HTTP method is allowed to invoke them.
 - The return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
 - Server Actions allow multiple reusable actions per route.
 - Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
 
-## Examples
+## Convention
 
 A Server Action can be defined with the React [´"use server"`](https://react.dev/reference/react/use-server) directive. This denotes the function will execute on the server regardless of whether it's called from the client.
 
@@ -102,6 +102,22 @@ export function Button() {
   )
 }
 ```
+
+In some cases, you might want to pass down a Server Action to a Client Component as a prop:
+
+```jsx
+<ClientComponent updateItem={updateItem} />
+```
+
+```jsx filename="app/client-component.jsx"
+'use client'
+
+export default function ClientComponent({ updateItem }) {
+  return <form action={updateItem}>{/* ... */}</form>
+}
+```
+
+## Examples
 
 ### Forms
 
@@ -445,7 +461,40 @@ Other Edge Cases / Examples:
 - No need to add startTransition in the action call
 - Triggering actions in a declarative way?
 
-### Handling Errors
+### Binding Additional Arguments
+
+You can bind additional arguments to a Server Action using the JavaScript `bind` method.
+
+```jsx filename="app/client-component.jsx" highlight={6}
+'use client'
+
+import { updateUser } from './actions'
+
+export function UserProfile({ userId }) {
+  const updateUserWithId = updateUser.bind(null, userId)
+
+  return (
+    <form action={updateUserWithId}>
+      <input type="text" name="name" />
+      <button type="submit">Update User Name</button>
+    </form>
+  )
+}
+```
+
+`updateUser` Server Action will always receive the `userId` argument, in addition to the form data:
+
+```js filename="app/actions.js"
+'use server'
+
+export async function updateUser(userId, formData) {
+  // ...
+}
+```
+
+> **Good to know**: `.bind` of a Server Action works in both Server and Client Components. It also supports [Progressive Enhancement](#progressive-enhancement).
+
+### Error Handling
 
 When an error is thrown, it'll be caught by the nearest [error.js](/docs/app/building-your-application/routing/error-handling) boundary on the client. We recommend using `try/catch` to return errors to be handled by your UI.
 
@@ -700,3 +749,13 @@ module.exports = {
 ```
 
 Learn more about [Security and Server Actions](https://nextjs.org/blog/security-nextjs-server-components-actions).
+
+## Additional Resources
+
+For more information on Server Actions, check out the following React docs:
+
+- [`"use server"`](https://react.dev/reference/react/use-server)
+- [`<form>`](https://react.dev/reference/react-dom/components/form)
+- [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus)
+- [`useFormState`](https://react.dev/reference/react-dom/hooks/useFormState)
+- [`useOptimistic`](https://react.dev/reference/react/useOptimistic)

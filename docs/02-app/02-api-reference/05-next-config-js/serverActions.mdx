@@ -3,18 +3,37 @@ title: serverActions
 description: Configure Server Actions behavior in your Next.js application.
 ---
 
-# Options
+Options for configuring Server Actions behavior in your Next.js application.
 
 ## `allowedOrigins`
 
-List of safe origin domains from which Server Actions can be invoked. If not provided, only the same origin is allowed.
+A list of safe origin domains from which Server Actions can be invoked. If not provided, only the same origin is allowed.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
+
 module.exports = {
   experimental: {
     serverActions: {
       allowedOrigins: ['my-proxy.com'],
+    },
+  },
+}
+```
+
+## `bodySizeLimit`
+
+By default, the maximum size of the request body sent to a Server Action is 1MB, to prevent the consumption of excessive server resources in parsing large amounts of data.
+
+However, you can configure this limit using the `serverActions.bodySizeLimit` option. It can take the number of bytes or any string format supported by bytes, for example `1000`, `'500kb'` or `'3mb'`.
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+
+module.exports = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
     },
   },
 }
