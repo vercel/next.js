@@ -444,12 +444,12 @@ export function getResolveRoutes(
           const match = fsChecker.getMiddlewareMatchers()
           if (
             // @ts-expect-error BaseNextRequest stuff
-            match?.(parsedUrl.pathname, req, parsedUrl.query) &&
-            (!ensureMiddleware ||
-              (await ensureMiddleware?.(req.url)
-                .then(() => true)
-                .catch(() => false)))
+            match?.(parsedUrl.pathname, req, parsedUrl.query)
           ) {
+            if (ensureMiddleware) {
+              await ensureMiddleware(req.url)
+            }
+
             const serverResult = await renderServer?.initialize(
               renderServerOpts
             )
