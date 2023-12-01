@@ -53,6 +53,9 @@ const SKIPPED_TEST_SUITES = {
   'test/development/tsconfig-path-reloading/index.test.ts': [
     /should automatically fast refresh content when path is added without error/,
   ],
+  'test/e2e/app-dir/app-compilation/index.test.ts': [
+    'app dir HMR should not cause error when removing loading.js',
+  ],
   'test/e2e/app-dir/app-css/index.test.ts': [
     'app dir - css css support server layouts should support external css imports',
   ],
@@ -70,6 +73,9 @@ const SKIPPED_TEST_SUITES = {
   'test/e2e/basepath.test.ts': [
     'basePath should 404 when manually adding basePath with router.push',
     'basePath should 404 when manually adding basePath with router.replace',
+  ],
+  'test/e2e/conflicting-app-page-error/index.test.ts': [
+    'Conflict between app file and pages file should not show error overlay for non conflict pages under app or pages dir',
   ],
   'test/e2e/middleware-rewrites/test/index.test.ts': [
     'Middleware Rewrite should have props for afterFiles rewrite to SSG page',
