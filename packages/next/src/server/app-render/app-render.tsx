@@ -658,7 +658,9 @@ async function renderToHTMLOrFlightImpl(
     : null
 
   // Get the nonce from the incoming request if it has one.
-  const csp = req.headers['content-security-policy']
+  const csp =
+    req.headers['content-security-policy'] ||
+    req.headers['content-security-policy-report-only']
   let nonce: string | undefined
   if (csp && typeof csp === 'string') {
     nonce = getScriptNonceFromHeader(csp)
