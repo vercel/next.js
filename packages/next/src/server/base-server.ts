@@ -1024,15 +1024,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           matchedPath = denormalizePagePath(matchedPath)
 
           let srcPathname = matchedPath
-          const match = await this.matchers.match(matchedPath, {
-            i18n: localeAnalysisResult,
-          })
+          let pageIsDynamic = isDynamicRoute(srcPathname)
+          if (!pageIsDynamic) {
+            const match = await this.matchers.match(urlPathname, {
+              i18n: localeAnalysisResult,
+            })
 
-          // Update the source pathname to the matched page's pathname.
-          if (match) srcPathname = match.definition.pathname
-
-          // The page is dynamic if the params are defined.
-          const pageIsDynamic = typeof match?.params !== 'undefined'
+            // Update the source pathname to the matched page's pathname.
+            if (match) {
+              srcPathname = match.definition.pathname
+              // The page is dynamic if the params are defined.
+              pageIsDynamic = typeof match?.params !== 'undefined'
+            }
+          }
 
           // The rest of this function can't handle i18n properly, so ensure we
           // restore the pathname with the locale information stripped from it
