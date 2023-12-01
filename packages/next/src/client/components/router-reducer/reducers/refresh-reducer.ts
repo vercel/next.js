@@ -9,14 +9,18 @@ import type {
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
+import {
+  CacheStates,
+  type CacheNode,
+} from '../../../../shared/lib/app-router-context.shared-runtime'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
+import { createEmptyCacheNode } from '../../app-router'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
   action: RefreshAction
 ): ReducerState {
-  const { cache, mutable, origin } = action
+  const { mutable, origin } = action
   const href = state.canonicalUrl
 
   let currentTree = state.tree
@@ -30,16 +34,15 @@ export function refreshReducer(
 
   mutable.preserveCustomHistoryState = false
 
-  if (!cache.data) {
-    // TODO-APP: verify that `href` is not an external url.
-    // Fetch data from the root of the tree.
-    cache.data = fetchServerResponse(
-      new URL(href, origin),
-      [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
-      state.nextUrl,
-      state.buildId
-    )
-  }
+  const cache: CacheNode = createEmptyCacheNode()
+  // TODO-APP: verify that `href` is not an external url.
+  // Fetch data from the root of the tree.
+  cache.data = fetchServerResponse(
+    new URL(href, origin),
+    [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
+    state.nextUrl,
+    state.buildId
+  )
 
   return cache.data.then(
     ([flightData, canonicalUrlOverride]) => {

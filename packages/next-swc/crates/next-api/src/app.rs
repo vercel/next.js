@@ -232,7 +232,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.rsc_module_options_context(),
             self.rsc_resolve_options_context(),
-            Vc::cell("rsc".to_string()),
+            Vc::cell("app-rsc".to_string()),
         )
     }
 
@@ -262,7 +262,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.rsc_module_options_context(),
             self.edge_rsc_resolve_options_context(),
-            Vc::cell("edge_rsc".to_string()),
+            Vc::cell("app-edge-rsc".to_string()),
         )
     }
 
@@ -319,7 +319,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("ssr".to_string()),
+            Vc::cell("app-ssr".to_string()),
         )
     }
 
@@ -329,7 +329,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("edge_ssr".to_string()),
+            Vc::cell("app-edge-ssr".to_string()),
         )
     }
 
@@ -918,10 +918,10 @@ impl AppEndpoint {
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
                     sorted_middleware: vec![app_entry.original_name.clone()],
-                    middleware: Default::default(),
                     functions: [(app_entry.original_name.clone(), edge_function_definition)]
                         .into_iter()
                         .collect(),
+                    ..Default::default()
                 };
                 let manifest_path_prefix = get_asset_prefix_from_pathname(&app_entry.pathname);
                 let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
@@ -1111,21 +1111,7 @@ impl Endpoint for AppEndpoint {
                     .to_string(),
                 server_paths,
             },
-            AppEndpointOutput::Edge { files, .. } => WrittenEndpoint::Edge {
-                files: files
-                    .await?
-                    .iter()
-                    .map(|&file| async move {
-                        Ok(node_root_ref
-                            .get_path_to(&*file.ident().path().await?)
-                            .context("edge chunk file path must be inside the node root")?
-                            .to_string())
-                    })
-                    .try_join()
-                    .await?,
-                global_var_name: "TODO".to_string(),
-                server_paths,
-            },
+            AppEndpointOutput::Edge { .. } => WrittenEndpoint::Edge { server_paths },
         };
         Ok(written_endpoint.cell())
     }
