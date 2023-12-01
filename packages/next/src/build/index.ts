@@ -116,7 +116,7 @@ import {
   isReservedPage,
   isAppBuiltinNotFoundPage,
 } from './utils'
-import type { PageInfo, AppConfig } from './utils'
+import type { PageInfo, PageInfos, AppConfig } from './utils'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -1108,7 +1108,8 @@ export default async function build(
                 config,
                 distDir,
                 pageKeys,
-                pageInfos: [],
+                // TODO: Is this wrong?
+                pageInfos: new Map(),
                 staticPages: [],
                 hasSsrAmpPages: false,
                 buildTraceContext,
@@ -1182,7 +1183,7 @@ export default async function build(
       const appNormalizedPaths = new Map<string, string>()
       const appDynamicParamPaths = new Set<string>()
       const appDefaultConfigs = new Map<string, AppConfig>()
-      const pageInfos = new Map<string, PageInfo>()
+      const pageInfos: PageInfos = new Map<string, PageInfo>()
       const pagesManifest = JSON.parse(
         await fs.readFile(manifestPath, 'utf8')
       ) as PagesManifest
@@ -1923,7 +1924,7 @@ export default async function build(
           config,
           distDir,
           pageKeys,
-          pageInfos: Object.entries(pageInfos),
+          pageInfos,
           staticPages: [...staticPages],
           nextBuildSpan,
           hasSsrAmpPages,

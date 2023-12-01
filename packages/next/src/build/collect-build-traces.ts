@@ -14,7 +14,7 @@ import {
 
 import path from 'path'
 import fs from 'fs/promises'
-import type { PageInfo } from './utils'
+import type { PageInfos } from './utils'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -84,7 +84,7 @@ export async function collectBuildTraces({
   staticPages: string[]
   hasSsrAmpPages: boolean
   outputFileTracingRoot: string
-  pageInfos: [string, PageInfo][]
+  pageInfos: PageInfos
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
@@ -626,8 +626,8 @@ export async function collectBuildTraces({
     }
 
     for (let page of pageKeys.pages) {
+      const pageInfo = pageInfos.get(page)
       // edge routes have no trace files
-      const [, pageInfo] = pageInfos.find((item) => item[0] === page) || []
       if (pageInfo?.runtime === 'edge') {
         continue
       }

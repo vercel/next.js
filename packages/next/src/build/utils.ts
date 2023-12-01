@@ -341,6 +341,8 @@ export interface PageInfo {
   isDynamicAppRoute?: boolean
 }
 
+export type PageInfos = Map<string, PageInfo>
+
 export async function printTreeView(
   lists: {
     pages: ReadonlyArray<string>
