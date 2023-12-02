@@ -11,7 +11,7 @@
     "@types/react-dom": "^18.2.7",
     "eslint-config-next": "^14.0.3",
     "mongoose": "^7.4.2",
-    "next": "^14.0.3",
+    "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "swr": "^2.2.0",
