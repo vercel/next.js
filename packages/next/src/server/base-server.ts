@@ -1025,8 +1025,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           let srcPathname = matchedPath
           let pageIsDynamic = isDynamicRoute(srcPathname)
+
           if (!pageIsDynamic) {
-            const match = await this.matchers.match(urlPathname, {
+            const match = await this.matchers.match(srcPathname, {
               i18n: localeAnalysisResult,
             })
 
@@ -1034,7 +1035,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             if (match) {
               srcPathname = match.definition.pathname
               // The page is dynamic if the params are defined.
-              pageIsDynamic = typeof match?.params !== 'undefined'
+              pageIsDynamic = typeof match.params !== 'undefined'
             }
           }
 
