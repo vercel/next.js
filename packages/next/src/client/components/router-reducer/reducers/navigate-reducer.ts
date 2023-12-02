@@ -27,6 +27,7 @@ import {
 } from '../get-prefetch-cache-entry-status'
 import { prunePrefetchCache } from './prune-prefetch-cache'
 import { prefetchQueue } from './prefetch-reducer'
+import { createEmptyCacheNode } from '../../app-router'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -98,8 +99,7 @@ export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
-  const { url, isExternalUrl, navigateType, cache, mutable, shouldScroll } =
-    action
+  const { url, isExternalUrl, navigateType, mutable, shouldScroll } = action
   const { hash } = url
   const href = createHrefFromUrl(url)
   const pendingPush = navigateType === 'push'
@@ -175,10 +175,10 @@ export function navigateReducer(
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
           0,
-          -5
+          -4
         ) as unknown as FlightSegmentPath
         // The one before last item is the router state tree patch
-        const treePatch = flightDataPath.slice(-4)[0] as FlightRouterState
+        const treePatch = flightDataPath.slice(-3)[0] as FlightRouterState
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
@@ -207,6 +207,7 @@ export function navigateReducer(
             return handleExternalUrl(state, mutable, href, pendingPush)
           }
 
+          const cache: CacheNode = createEmptyCacheNode()
           let applied = applyFlightData(
             currentCache,
             cache,

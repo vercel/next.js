@@ -7,7 +7,10 @@ use napi::{
     JsFunction, Status,
 };
 use next_api::{
-    project::{DefineEnv, Middleware, PartialProjectOptions, ProjectContainer, ProjectOptions},
+    project::{
+        DefineEnv, Instrumentation, Middleware, PartialProjectOptions, ProjectContainer,
+        ProjectOptions,
+    },
     route::{Endpoint, Route},
 };
 use next_core::tracing_presets::{
@@ -23,18 +26,18 @@ use turbopack_binding::{
         tasks_memory::MemoryBackend,
     },
     turbopack::{
-        cli_utils::{
-            exit::ExitGuard,
-            raw_trace::RawTraceLayer,
-            trace_writer::{TraceWriter, TraceWriterGuard},
-            tracing_presets::TRACING_OVERVIEW_TARGETS,
-        },
         core::{
             error::PrettyPrintError,
             source_map::{GenerateSourceMap, Token},
             version::{PartialUpdate, TotalUpdate, Update},
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
+        trace_utils::{
+            exit::ExitGuard,
+            raw_trace::RawTraceLayer,
+            trace_writer::{TraceWriter, TraceWriterGuard},
+            tracing_presets::TRACING_OVERVIEW_TARGETS,
+        },
     },
 };
 use url::Url;
@@ -385,10 +388,36 @@ impl NapiMiddleware {
         })
     }
 }
+
+#[napi(object)]
+struct NapiInstrumentation {
+    pub node_js: External<ExternalEndpoint>,
+    pub edge: External<ExternalEndpoint>,
+}
+
+impl NapiInstrumentation {
+    fn from_instrumentation(
+        value: &Instrumentation,
+        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
+    ) -> Result<Self> {
+        Ok(NapiInstrumentation {
+            node_js: External::new(ExternalEndpoint(VcArc::new(
+                turbo_tasks.clone(),
+                value.node_js,
+            ))),
+            edge: External::new(ExternalEndpoint(VcArc::new(
+                turbo_tasks.clone(),
+                value.edge,
+            ))),
+        })
+    }
+}
+
 #[napi(object)]
 struct NapiEntrypoints {
     pub routes: Vec<NapiRoute>,
     pub middleware: Option<NapiMiddleware>,
+    pub instrumentation: Option<NapiInstrumentation>,
     pub pages_document_endpoint: External<ExternalEndpoint>,
     pub pages_app_endpoint: External<ExternalEndpoint>,
     pub pages_error_endpoint: External<ExternalEndpoint>,
@@ -429,6 +458,11 @@ pub fn project_entrypoints_subscribe(
                         .middleware
                         .as_ref()
                         .map(|m| NapiMiddleware::from_middleware(m, &turbo_tasks))
+                        .transpose()?,
+                    instrumentation: entrypoints
+                        .instrumentation
+                        .as_ref()
+                        .map(|m| NapiInstrumentation::from_instrumentation(m, &turbo_tasks))
                         .transpose()?,
                     pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),

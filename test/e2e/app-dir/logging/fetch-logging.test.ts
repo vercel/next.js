@@ -118,6 +118,24 @@ createNextDescribe(
               }
             }, 'success')
           })
+
+          it('should log requests with correct indentation', async () => {
+            const outputIndex = next.cliOutput.length
+            await next.fetch('/default-cache')
+
+            await check(() => {
+              const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+              const hasLogs =
+                logs.includes(' GET /default-cache') &&
+                logs.includes('  │ GET ') &&
+                logs.includes('  │  │ GET ') &&
+                logs.includes('  │  │  Cache missed reason')
+
+              if (hasLogs) {
+                return 'success'
+              }
+            }, 'success')
+          })
         }
       } else {
         it('should not log fetch requests at all', async () => {

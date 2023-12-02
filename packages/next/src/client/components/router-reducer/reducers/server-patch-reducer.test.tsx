@@ -26,11 +26,10 @@ jest.mock('../fetch-server-response', () => {
           children: ['', {}],
         },
       ],
-      <h1>About Page!</h1>,
+      ['about', null, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
-      null,
     ],
   ]
   return {
@@ -58,11 +57,10 @@ const flightDataForPatch: FlightData = [
         children: ['', {}],
       },
     ],
-    <h1>Somewhere Page!</h1>,
+    ['somewhere-else', null, <h1>Somewhere Page!</h1>],
     <>
       <title>Somewhere page!</title>
     </>,
-    null,
   ],
 ]
 
@@ -150,7 +148,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking/about', 'https://localhost') as any,
@@ -173,12 +171,6 @@ describe('serverPatchReducer', () => {
         true,
       ],
       overrideCanonicalUrl: undefined,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
@@ -330,7 +322,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking/about', 'https://localhost') as any,
@@ -341,7 +333,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking/about', 'https://localhost') as any,
@@ -365,12 +357,6 @@ describe('serverPatchReducer', () => {
         true,
       ],
       overrideCanonicalUrl: undefined,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
@@ -504,12 +490,6 @@ describe('serverPatchReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
@@ -518,7 +498,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL(initialCanonicalUrl, 'https://localhost') as any,
@@ -546,12 +526,6 @@ describe('serverPatchReducer', () => {
         true,
       ],
       overrideCanonicalUrl: undefined,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 

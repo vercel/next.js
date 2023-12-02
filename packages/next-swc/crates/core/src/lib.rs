@@ -43,8 +43,10 @@ use serde::Deserialize;
 use turbopack_binding::swc::{
     core::{
         common::{
-            chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
-            SyntaxContext,
+            chain,
+            comments::{Comments, NoopComments},
+            pass::Optional,
+            FileName, Mark, SourceFile, SourceMap, SyntaxContext,
         },
         ecma::{
             ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
@@ -214,6 +216,7 @@ where
                     file.name.clone(),
                     file.src_hash,
                     config.clone(),
+                    NoopComments
                 )
             ),
             None => Either::Right(noop()),

@@ -9,13 +9,14 @@ import type {
 import { handleExternalUrl } from './navigate-reducer'
 import { applyFlightData } from '../apply-flight-data'
 import { handleMutable } from '../handle-mutable'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import { createEmptyCacheNode } from '../../app-router'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
-  const { flightData, previousTree, overrideCanonicalUrl, cache, mutable } =
-    action
+  const { flightData, previousTree, overrideCanonicalUrl, mutable } = action
 
   const isForCurrentTree =
     JSON.stringify(previousTree) === JSON.stringify(state.tree)
@@ -49,10 +50,10 @@ export function serverPatchReducer(
   let currentCache = state.cache
 
   for (const flightDataPath of flightData) {
-    // Slices off the last segment (which is at -5) as it doesn't exist in the tree yet
-    const flightSegmentPath = flightDataPath.slice(0, -5)
+    // Slices off the last segment (which is at -4) as it doesn't exist in the tree yet
+    const flightSegmentPath = flightDataPath.slice(0, -4)
 
-    const [treePatch] = flightDataPath.slice(-4, -3)
+    const [treePatch] = flightDataPath.slice(-3, -2)
     const newTree = applyRouterStatePatchToTree(
       // TODO-APP: remove ''
       ['', ...flightSegmentPath],
@@ -81,6 +82,7 @@ export function serverPatchReducer(
       mutable.canonicalUrl = canonicalUrlOverrideHref
     }
 
+    const cache: CacheNode = createEmptyCacheNode()
     applyFlightData(currentCache, cache, flightDataPath)
 
     mutable.previousTree = currentTree

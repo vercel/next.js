@@ -166,7 +166,6 @@ function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
           mutable: {},
-          cache: createEmptyCacheNode(),
         })
       })
     },
@@ -193,7 +192,6 @@ function useChangeByServerResponse(
           flightData,
           previousTree,
           overrideCanonicalUrl,
-          cache: createEmptyCacheNode(),
           mutable: {},
         })
       })
@@ -214,7 +212,6 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         locationSearch: location.search,
         shouldScroll: shouldScroll ?? true,
         navigateType,
-        cache: createEmptyCacheNode(),
         mutable: {},
       })
     },
@@ -255,14 +252,14 @@ function Router({
   initialHead,
   initialTree,
   initialCanonicalUrl,
-  children,
+  initialSeedData,
   assetPrefix,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>
       createInitialRouterState({
         buildId,
-        children,
+        initialSeedData,
         initialCanonicalUrl,
         initialTree,
         initialParallelRoutes,
@@ -270,7 +267,7 @@ function Router({
         location: !isServer ? window.location : null,
         initialHead,
       }),
-    [buildId, children, initialCanonicalUrl, initialTree, initialHead]
+    [buildId, initialSeedData, initialCanonicalUrl, initialTree, initialHead]
   )
   const [reducerState, dispatch, sync] =
     useReducerWithReduxDevtools(initialState)
@@ -344,7 +341,6 @@ function Router({
         startTransition(() => {
           dispatch({
             type: ACTION_REFRESH,
-            cache: createEmptyCacheNode(),
             mutable: {},
             origin: window.location.origin,
           })
@@ -360,7 +356,6 @@ function Router({
           startTransition(() => {
             dispatch({
               type: ACTION_FAST_REFRESH,
-              cache: createEmptyCacheNode(),
               mutable: {},
               origin: window.location.origin,
             })
