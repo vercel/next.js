@@ -469,7 +469,7 @@ function Router({
       ): void {
         // Avoid a loop when Next.js internals trigger pushState/replaceState
         if (typeof data === 'object' && (data.__NA || data._N)) {
-          return
+          return originalPushState(data, _unused, url)
         }
         data = copyNextJsInternalHistoryState(data)
 
@@ -490,7 +490,7 @@ function Router({
       ): void {
         // Avoid a loop when Next.js internals trigger pushState/replaceState
         if (typeof data === 'object' && (data.__NA || data._N)) {
-          return
+          return originalReplaceState(data, _unused, url)
         }
         data = copyNextJsInternalHistoryState(data)
 
