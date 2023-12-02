@@ -24,6 +24,10 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import setupCompression from 'next/dist/compiled/compression'
 import { NoFallbackError } from '../base-server'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
+import {
+  handleClientError,
+  markSocketUpgraded,
+} from '../web/spec-extension/request-upgrade'
 import { isPostpone } from './router-utils/is-postpone'
 
 import {
@@ -178,6 +182,7 @@ export async function initialize(opts: {
     developmentBundler?.ensureMiddleware
   )
 
+  opts.server?.on('clientError', handleClientError)
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     const isUpgradeReq =
       req?.method === 'GET' &&
@@ -189,6 +194,8 @@ export async function initialize(opts: {
       developmentBundler &&
       req.url?.includes(`/_next/webpack-hmr`)
     ) {
+      markSocketUpgraded(req.socket)
+
       return developmentBundler.hotReloader.onHMR(
         req,
         req.socket,

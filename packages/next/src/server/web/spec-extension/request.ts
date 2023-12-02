@@ -6,6 +6,7 @@ import { NextURL } from '../next-url'
 import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
 import { RemovedUAError, RemovedPageError } from '../error'
 import { RequestCookies } from './cookies'
+import { markSocketUpgraded } from './request-upgrade'
 import { scheduleOnNextTick } from '../../../lib/scheduler'
 
 export const RequestUpgradedName = 'RequestUpgraded'
@@ -125,6 +126,7 @@ export class NextRequest extends Request {
       )
     }
 
+    markSocketUpgraded(rawRequest.socket)
     scheduleOnNextTick(() => handler(rawRequest, rawRequest.socket))
 
     throw new RequestUpgraded('upgrade')
