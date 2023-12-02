@@ -468,12 +468,14 @@ function Router({
         url?: string | URL | null
       ): void {
         // Avoid a loop when Next.js internals trigger pushState/replaceState
-        if (typeof data === 'object' && (data.__NA || data._N)) {
+        if (data?.__NA || data?._N) {
           return originalPushState(data, _unused, url)
         }
         data = copyNextJsInternalHistoryState(data)
 
-        applyUrlFromHistoryPushReplace(url)
+        if (url) {
+          applyUrlFromHistoryPushReplace(url)
+        }
 
         return originalPushState(data, _unused, url)
       }
@@ -489,7 +491,7 @@ function Router({
         url?: string | URL | null
       ): void {
         // Avoid a loop when Next.js internals trigger pushState/replaceState
-        if (typeof data === 'object' && (data.__NA || data._N)) {
+        if (data?.__NA || data?._N) {
           return originalReplaceState(data, _unused, url)
         }
         data = copyNextJsInternalHistoryState(data)
