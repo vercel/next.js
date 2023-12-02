@@ -929,6 +929,46 @@ createNextDescribe(
       )
     })
 
+    it('should work with interception routes', async () => {
+      const browser = await next.browser('/interception-routes')
+
+      await check(
+        () => browser.elementById('children-data').text(),
+        /Open modal/
+      )
+
+      await browser.elementByCss("[href='/interception-routes/test']").click()
+
+      // verify the URL is correct
+      await check(() => browser.url(), /interception-routes\/test/)
+
+      // the intercepted text should appear
+      await check(() => browser.elementById('modal-data').text(), /in "modal"/)
+
+      // Submit the action
+      await browser.elementById('submit-intercept-action').click()
+
+      // Action log should be in server console
+      await check(() => next.cliOutput, /Action Submitted \(Intercepted\)/)
+
+      await browser.refresh()
+
+      // the modal text should be gone
+      expect(await browser.hasElementByCssSelector('#modal-data')).toBeFalsy()
+
+      // The page text should show
+      await check(
+        () => browser.elementById('children-data').text(),
+        /in "page"/
+      )
+
+      // Submit the action
+      await browser.elementById('submit-page-action').click()
+
+      // Action log should be in server console
+      await check(() => next.cliOutput, /Action Submitted \(Page\)/)
+    })
+
     describe('encryption', () => {
       it('should send encrypted values from the closed over closure', async () => {
         const res = await next.fetch('/encryption')
