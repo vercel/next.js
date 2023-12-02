@@ -1,15 +1,15 @@
-import { useRouter } from 'next/router'
+import { useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
-import Form from '../../components/Form'
+import { Form } from '@/components/Form'
 
 const fetcher = (url: string) =>
   fetch(url)
     .then((res) => res.json())
     .then((json) => json.data)
 
-const EditPet = () => {
-  const router = useRouter()
-  const { id } = router.query
+export default function EditPet() {
+  const searchParams = useSearchParams()
+  const id = searchParams.get('id')
   const {
     data: pet,
     error,
@@ -34,5 +34,3 @@ const EditPet = () => {
 
   return <Form formId="edit-pet-form" petForm={petForm} forNewPet={false} />
 }
-
-export default EditPet

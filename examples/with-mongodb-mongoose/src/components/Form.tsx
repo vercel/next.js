@@ -1,5 +1,6 @@
+'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/router'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { mutate } from 'swr'
 
 interface FormData {
@@ -27,8 +28,9 @@ type Props = {
   forNewPet?: boolean
 }
 
-const Form = ({ formId, petForm, forNewPet = true }: Props) => {
+export const Form = ({ formId, petForm, forNewPet = true }: Props) => {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const contentType = 'application/json'
   const [errors, setErrors] = useState({})
   const [message, setMessage] = useState('')
@@ -47,7 +49,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
 
   /* The PUT method edits an existing entry in the mongodb database. */
   const putData = async (form: FormData) => {
-    const { id } = router.query
+    const id = searchParams.get('id')
 
     try {
       const res = await fetch(`/api/pets/${id}`, {
@@ -228,5 +230,3 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
     </>
   )
 }
-
-export default Form

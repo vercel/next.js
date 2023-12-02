@@ -1,16 +1,31 @@
+'use client'
 import Link from 'next/link'
-import dbConnect from '../lib/dbConnect'
-import Pet, { Pets } from '../models/Pet'
-import { GetServerSideProps } from 'next'
+import { useEffect, useState } from 'react'
+import { Pets } from '@/models/Pet'
 
-type Props = {
+type PetsProps = {
   pets: Pets[]
 }
 
-const Index = ({ pets }: Props) => {
+export default function Page() {
+  const [pets, setPets] = useState<PetsProps>()
+  useEffect(() => {
+    const fetchPets = async () => {
+      try {
+        const res = await fetch('/api')
+        if (res.ok) {
+          const pets = await res.json()
+          setPets(pets.data)
+        }
+      } catch (e) {
+        console.log(e)
+      }
+    }
+    fetchPets()
+  }, [])
   return (
     <>
-      {pets.map((pet) => (
+      {pets?.pets?.map((pet: Pets) => (
         <div key={pet._id}>
           <div className="card">
             <img src={pet.image_url} />
@@ -52,21 +67,3 @@ const Index = ({ pets }: Props) => {
     </>
   )
 }
-
-/* Retrieves pet(s) data from mongodb database */
-export const getServerSideProps: GetServerSideProps<Props> = async () => {
-  await dbConnect()
-
-  /* find all the data in our database */
-  const result = await Pet.find({})
-
-  /* Ensures all objectIds and nested objectIds are serialized as JSON data */
-  const pets = result.map((doc) => {
-    const pet = JSON.parse(JSON.stringify(doc))
-    return pet
-  })
-
-  return { props: { pets: pets } }
-}
-
-export default Index
