@@ -98,6 +98,7 @@ export function getDefineEnv({
     'process.env.__NEXT_WINDOW_HISTORY_SUPPORT': JSON.stringify(
       config.experimental.windowHistorySupport
     ),
+    'process.env.__NEXT_PPR': JSON.stringify(config.experimental.ppr === true),
     'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID': JSON.stringify(
       config.experimental.useDeploymentIdServerActions
     ),
