@@ -1,4 +1,3 @@
-import type { BaseNextRequest } from '../../base-http'
 import type { SpanTypes } from './constants'
 import { NextVanillaSpanAllowlist } from './constants'
 
@@ -8,6 +7,7 @@ import type {
   SpanOptions,
   Tracer,
   AttributeValue,
+  TextMapGetter,
 } from 'next/dist/compiled/@opentelemetry/api'
 
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
@@ -173,11 +173,17 @@ class NextTracerImpl implements NextTracer {
     return trace.getSpan(context?.active())
   }
 
-  public withPropagatedContext<T>(req: BaseNextRequest, fn: () => T): T {
-    if (context.active() !== ROOT_CONTEXT) {
+  public withPropagatedContext<T, C>(
+    carrier: C,
+    fn: () => T,
+    getter?: TextMapGetter<C>
+  ): T {
+    const activeContext = context.active()
+    if (trace.getSpanContext(activeContext)) {
+      // Active span is already set, too late to propagate.
       return fn()
     }
-    const remoteContext = propagation.extract(ROOT_CONTEXT, req.headers)
+    const remoteContext = propagation.extract(activeContext, carrier, getter)
     return context.with(remoteContext, fn)
   }
 

@@ -9,14 +9,18 @@ import type {
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
+import {
+  CacheStates,
+  type CacheNode,
+} from '../../../../shared/lib/app-router-context.shared-runtime'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
+import { createEmptyCacheNode } from '../../app-router'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
   action: RefreshAction
 ): ReducerState {
-  const { cache, mutable, origin } = action
+  const { mutable, origin } = action
   const href = state.canonicalUrl
 
   let currentTree = state.tree
@@ -30,16 +34,15 @@ export function refreshReducer(
 
   mutable.preserveCustomHistoryState = false
 
-  if (!cache.data) {
-    // TODO-APP: verify that `href` is not an external url.
-    // Fetch data from the root of the tree.
-    cache.data = fetchServerResponse(
-      new URL(href, origin),
-      [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
-      state.nextUrl,
-      state.buildId
-    )
-  }
+  const cache: CacheNode = createEmptyCacheNode()
+  // TODO-APP: verify that `href` is not an external url.
+  // Fetch data from the root of the tree.
+  cache.data = fetchServerResponse(
+    new URL(href, origin),
+    [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
+    state.nextUrl,
+    state.buildId
+  )
 
   return cache.data.then(
     ([flightData, canonicalUrlOverride]) => {
@@ -57,8 +60,8 @@ export function refreshReducer(
       cache.data = null
 
       for (const flightDataPath of flightData) {
-        // FlightDataPath with more than four items means unexpected Flight data was returned
-        if (flightDataPath.length !== 4) {
+        // FlightDataPath with more than two items means unexpected Flight data was returned
+        if (flightDataPath.length !== 3) {
           // TODO-APP: handle this case better
           console.log('REFRESH FAILED')
           return state
@@ -95,10 +98,11 @@ export function refreshReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [subTreeData, head] = flightDataPath.slice(-3)
+        const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
-        if (subTreeData !== null) {
+        if (cacheNodeSeedData !== null) {
+          const subTreeData = cacheNodeSeedData[2]
           cache.status = CacheStates.READY
           cache.subTreeData = subTreeData
           fillLazyItemsTillLeafWithHead(
@@ -106,6 +110,7 @@ export function refreshReducer(
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
             undefined,
             treePatch,
+            cacheNodeSeedData,
             head
           )
           mutable.cache = cache

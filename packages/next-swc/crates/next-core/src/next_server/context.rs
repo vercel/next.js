@@ -90,6 +90,7 @@ pub enum ServerContextType {
         app_dir: Vc<FileSystemPath>,
     },
     Middleware,
+    Instrumentation,
 }
 
 #[turbo_tasks::function]
@@ -126,6 +127,8 @@ pub async fn get_server_resolve_options_context(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
+        // TODO(sokra) esmExternals support
+        false,
     );
     let ty = ty.into_value();
 
@@ -138,12 +141,15 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppSSR { .. }
-        | ServerContextType::Middleware { .. } => {}
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. } => {}
     };
     let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
         ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
+        // TODO(sokra) esmExternals support
+        false,
     );
 
     let next_external_plugin = NextExternalResolvePlugin::new(project_path);
@@ -164,11 +170,25 @@ pub async fn get_server_resolve_options_context(
         }
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware { .. } => {
+        | ServerContextType::AppRoute { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(server_component_externals_plugin),
+                Vc::upcast(unsupported_modules_resolve_plugin),
+                Vc::upcast(next_external_plugin),
+                Vc::upcast(next_node_shared_runtime_plugin),
+            ]
+        }
+        ServerContextType::Middleware { .. } => {
+            vec![
+                Vc::upcast(module_feature_report_resolve_plugin),
+                Vc::upcast(unsupported_modules_resolve_plugin),
+                Vc::upcast(next_node_shared_runtime_plugin),
+            ]
+        }
+        ServerContextType::Instrumentation { .. } => {
+            vec![
+                Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
@@ -189,6 +209,7 @@ pub async fn get_server_resolve_options_context(
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
+        enable_mjs_extension: true,
         rules: vec![(
             foreign_code_context_condition,
             resolve_options_context.clone().cell(),
@@ -250,7 +271,9 @@ pub async fn get_server_module_options_context(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value(), mode).await?;
-    let internal_custom_rules = get_next_server_internal_transforms_rules(ty.into_value()).await?;
+    let internal_custom_rules =
+        get_next_server_internal_transforms_rules(ty.into_value(), *next_config.mdx_rs().await?)
+            .await?;
 
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
@@ -587,7 +610,7 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             }
         }
-        ServerContextType::Middleware => {
+        ServerContextType::Middleware | ServerContextType::Instrumentation => {
             let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
                 styled_components_transform_plugin,
                 styled_jsx_transform_plugin,

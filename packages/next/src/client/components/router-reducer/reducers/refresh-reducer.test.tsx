@@ -27,16 +27,19 @@ jest.mock('../fetch-server-response', () => {
         null,
         true,
       ],
-      <html>
-        <head></head>
-        <body>
-          <h1>Linking Page!</h1>
-        </body>
-      </html>,
+      [
+        '',
+        null,
+        <html>
+          <head></head>
+          <body>
+            <h1>Linking Page!</h1>
+          </body>
+        </html>,
+      ],
       <>
         <title>Linking page!</title>
       </>,
-      null,
     ],
   ]
   return {
@@ -125,19 +128,13 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
@@ -275,7 +272,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -286,7 +283,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -294,12 +291,6 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
@@ -463,7 +454,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -474,7 +465,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -482,12 +473,6 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
@@ -697,7 +682,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -710,7 +695,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -719,12 +704,6 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
