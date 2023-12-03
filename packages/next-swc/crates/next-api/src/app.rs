@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, Context, Result};
+use indexmap::IndexSet;
 use next_core::{
     app_structure::{
         get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
@@ -626,9 +627,9 @@ impl AppEndpoint {
             );
             let client_references_chunks_ref = client_references_chunks.await?;
 
-            let mut entry_client_chunks = vec![];
+            let mut entry_client_chunks = IndexSet::new();
             // TODO(alexkirsz) In which manifest does this go?
-            let mut entry_ssr_chunks = vec![];
+            let mut entry_ssr_chunks = IndexSet::new();
             for client_reference in app_entry_client_references.iter() {
                 let client_reference_chunks = client_references_chunks_ref
                     .get(client_reference.ty())

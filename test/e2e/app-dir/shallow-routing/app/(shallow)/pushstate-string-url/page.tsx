@@ -32,7 +32,7 @@ export default function Page() {
             previousQuery ? previousQuery + '-added' : 'foo'
           }`
 
-          window.history.replaceState(null, '', url)
+          window.history.pushState(null, '', url)
         }}
         id="push-string-url-null"
       >
