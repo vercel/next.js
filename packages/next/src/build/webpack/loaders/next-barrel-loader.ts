@@ -104,7 +104,6 @@ const barrelTransformMappingCache = new Map<
 >()
 
 async function getBarrelMapping(
-  layer: string | null | undefined,
   resourcePath: string,
   swcCacheDir: string,
   resolve: (context: string, request: string) => Promise<string>,
@@ -134,9 +133,6 @@ async function getBarrelMapping(
         sourceFileName: filename,
         optimizeBarrelExports: {
           wildcard: isWildcard,
-        },
-        serverComponents: {
-          isReactServerLayer: layer === WEBPACK_LAYERS.reactServerComponents,
         },
         jsc: {
           parser: {
@@ -249,7 +245,6 @@ const NextBarrelLoader = async function (
   })
 
   const mapping = await getBarrelMapping(
-    this._module?.layer,
     this.resourcePath,
     swcCacheDir,
     resolve,
