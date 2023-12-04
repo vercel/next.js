@@ -6,16 +6,11 @@ import { transform as transformCss } from 'lightningcss'
 import {
   ECacheKey,
   type IMinifyPluginOpts,
-  type IPackageJson,
   type TransformType,
 } from './interface'
 import type { Compilation, Compiler } from 'webpack'
-import { join } from 'path'
 import { getTargets } from './utils'
 import { Buffer } from 'buffer'
-
-const pkgPath = join(__dirname, '../package.json')
-const pkg = require(pkgPath) as IPackageJson
 
 const PLUGIN_NAME = 'lightning-css-minify'
 const CSS_FILE_REG = /\.css(?:\?.*)?$/i
@@ -38,8 +33,8 @@ export class LightningCssMinifyPlugin {
 
   apply(compiler: Compiler) {
     const meta = JSON.stringify({
-      name: pkg.name,
-      version: pkg.version,
+      name: '@next/lightningcss-loader',
+      version: '0.0.0',
       options: this.options,
     })
 
