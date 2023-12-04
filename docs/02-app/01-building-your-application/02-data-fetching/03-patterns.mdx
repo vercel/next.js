@@ -312,7 +312,7 @@ The `utils/get-item` exports can be used by Layouts, Pages, or other components 
 >
 > - We recommend using the [`server-only` package](/docs/app/building-your-application/rendering/composition-patterns#keeping-server-only-code-out-of-the-client-environment) to make sure server data fetching functions are never used on the client.
 
-## Tainting
+## Preventing sensitive data from being exposed to the client
 
 We recommend using React's taint APIs, [`taintObjectReference`](https://react.dev/reference/react/experimental_taintObjectReference) and [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue), to prevent whole object instances or sensitive values from being passed to the client.
 
@@ -397,3 +397,5 @@ export async function Page() {
   )
 }
 ```
+
+Learn more about [Security and Server Actions](https://nextjs.org/blog/security-nextjs-server-components-actions).
