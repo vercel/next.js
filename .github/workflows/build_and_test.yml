@@ -91,7 +91,7 @@ jobs:
           node-version: 18
       - run: corepack enable
       - name: 'Run link checker'
-        run: node ./.github/actions/validate-docs-links/lib
+        run: node ./.github/actions/validate-docs-links/dist/index.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
