@@ -22,13 +22,13 @@ jobs:
       # Read next.js version from test results, set necessary environment variables.
       - name: Print test results
         run: |
-          ::group::Passed test paths
+          echo "::group::Passed test paths"
           cat ./test-results/passed-test-path-list.json
-          ::endgroup::
+          echo "::endgroup::"
 
-          ::group::Failed test paths
+          echo "::group::Failed test paths"
           cat ./test-results/failed-test-path-list.json
-          ::endgroup::
+          echo "::endgroup::"
 
       - name: 'Upload results to "Are We Turbo Yet" KV'
         env:
