@@ -1,5 +1,6 @@
 # build output
 dist
+!.github/actions/*/dist
 .next
 target
 packages/next/wasm/@next

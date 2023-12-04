@@ -741,7 +741,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.0.4-canary.25
+        specifier: 14.0.4-canary.39
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -806,7 +806,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.0.4-canary.25
+        specifier: 14.0.4-canary.39
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.2
@@ -933,19 +933,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 14.0.4-canary.25
+        specifier: 14.0.4-canary.39
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.0.4-canary.25
+        specifier: 14.0.4-canary.39
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 14.0.4-canary.25
+        specifier: 14.0.4-canary.39
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 14.0.4-canary.25
+        specifier: 14.0.4-canary.39
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.0.4-canary.25
+        specifier: 14.0.4-canary.39
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1074,11 +1074,11 @@ importers:
         specifier: 0.34.0
         version: 0.34.0
       '@vercel/nft':
-        specifier: 0.22.6
-        version: 0.22.6
+        specifier: 0.24.4
+        version: 0.24.4
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231128.2
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231128.2(react-refresh@0.12.0)(webpack@5.86.0)'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231204.2
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231204.2(react-refresh@0.12.0)(webpack@5.86.0)'
       acorn:
         specifier: 8.5.0
         version: 8.5.0
@@ -1599,7 +1599,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.0.4-canary.25
+        specifier: 14.0.4-canary.39
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -7146,21 +7146,21 @@ packages:
     hasBin: true
     dev: true
 
-  /@vercel/nft@0.22.6:
-    resolution: {integrity: sha512-gTsFnnT4mGxodr4AUlW3/urY+8JKKB452LwF3m477RFUJTAaDmcz2JqFuInzvdybYIeyIv1sSONEJxsxnbQ5JQ==}
-    engines: {node: '>=14'}
+  /@vercel/nft@0.24.4:
+    resolution: {integrity: sha512-KjYAZty7boH5fi5udp6p+lNu6nawgs++pHW+3koErMgbRkkHuToGX/FwjN5clV1FcaM3udfd4zW/sUapkMgpZw==}
+    engines: {node: '>=16'}
     hasBin: true
     dependencies:
       '@mapbox/node-pre-gyp': 1.0.5
       '@rollup/pluginutils': 4.2.1
-      acorn: 8.8.0
+      acorn: 8.10.0
       async-sema: 3.1.1
       bindings: 1.5.0
       estree-walker: 2.0.2
-      glob: 7.2.0
+      glob: 7.1.7
       graceful-fs: 4.2.11
       micromatch: 4.0.4
-      node-gyp-build: 4.2.3
+      node-gyp-build: 4.6.0
       resolve-from: 5.0.0
     transitivePeerDependencies:
       - encoding
@@ -7419,6 +7419,7 @@ packages:
     resolution: {integrity: sha512-QOxyigPVrpZ2GXT+PFyZTl6TtOFc5egxHIP9IlQ+RbupQuX4RkT/Bee4/kQuC02Xkzg84JcT7oLYtDIQxp+v7w==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+    dev: false
 
   /acorn@8.8.2:
     resolution: {integrity: sha512-xjIYgE8HBrkpd/sJqOGNspf8uHG+NOHGOw6a/Urj8taM2EXfdNAH2oFcPeIFfsv3+kz/mJrS5VuMqbNLjCa2vw==}
@@ -17378,11 +17379,6 @@ packages:
     hasBin: true
     dev: true
 
-  /node-gyp-build@4.2.3:
-    resolution: {integrity: sha512-MN6ZpzmfNCRM+3t57PTJHgHyw/h4OWnZ6mR8P5j/uZtqQr46RRuDE/P+g3n0YR/AiYXeWixZZzaip77gdICfRg==}
-    hasBin: true
-    dev: true
-
   /node-gyp-build@4.6.0:
     resolution: {integrity: sha512-NTZVKn9IylLwUzaKjkas1e4u2DLNcV4rdYagA4PWdPwW87Bi7z+BznyKSRwS/761tV/lzCGXplWsiaMjLqP2zQ==}
     hasBin: true
@@ -24651,9 +24647,9 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231128.2(react-refresh@0.12.0)(webpack@5.86.0)':
-    resolution: {registry: https://registry.npmjs.org/, tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231128.2}
-    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231128.2'
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231204.2(react-refresh@0.12.0)(webpack@5.86.0)':
+    resolution: {registry: https://registry.npmjs.org/, tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231204.2}
+    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231204.2'
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:

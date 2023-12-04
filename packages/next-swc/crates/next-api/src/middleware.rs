@@ -143,11 +143,10 @@ impl MiddlewareEndpoint {
             ..Default::default()
         };
         let middleware_manifest_v2 = MiddlewaresManifestV2 {
-            sorted_middleware: Default::default(),
             middleware: [("/".to_string(), edge_function_definition)]
                 .into_iter()
                 .collect(),
-            functions: Default::default(),
+            ..Default::default()
         };
         let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
             node_root.join("server/middleware/middleware-manifest.json".to_string()),
@@ -169,7 +168,6 @@ impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
         let this = self.await?;
-        let files = self.edge_files();
         let output_assets = self.output_assets();
         this.project
             .emit_all_output_assets(Vc::cell(output_assets))
@@ -180,26 +178,7 @@ impl Endpoint for MiddlewareEndpoint {
             .await?
             .clone_value();
 
-        let node_root = &node_root.await?;
-
-        let files = files
-            .await?
-            .iter()
-            .map(|&file| async move {
-                Ok(node_root
-                    .get_path_to(&*file.ident().path().await?)
-                    .context("middleware file path must be inside the node root")?
-                    .to_string())
-            })
-            .try_join()
-            .await?;
-
-        Ok(WrittenEndpoint::Edge {
-            files,
-            global_var_name: "TODO".to_string(),
-            server_paths,
-        }
-        .cell())
+        Ok(WrittenEndpoint::Edge { server_paths }.cell())
     }
 
     #[turbo_tasks::function]

@@ -2037,7 +2037,6 @@ startServer({
   port: currentPort,
   allowRetry: false,
   keepAliveTimeout,
-  useWorkers: true,
 }).catch((err) => {
   console.error(err);
   process.exit(1);

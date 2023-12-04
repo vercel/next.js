@@ -11,7 +11,7 @@ Import trace for requested module:
 `;
 
 exports[`ReactRefreshLogBox app default Import trace when module not found in layout 1`] = `
-"./app/module.js (1:0)
+"./app/module.js:1:0
 Module not found: Can't resolve 'non-existing-module'
 > 1 | import "non-existing-module"
 
@@ -52,7 +52,7 @@ exports[`ReactRefreshLogBox app default conversion to class component (1) 1`] = 
 `;
 
 exports[`ReactRefreshLogBox app default css syntax errors 1`] = `
-"./index.module.css (1:1)
+"./index.module.css:1:1
 Syntax error: Selector "button" is not pure (pure selectors must contain at least one local class or id)
 
 > 1 | button {}

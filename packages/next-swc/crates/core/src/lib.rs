@@ -98,6 +98,9 @@ pub struct TransformOptions {
     pub is_server_compiler: bool,
 
     #[serde(default)]
+    pub prefer_esm: bool,
+
+    #[serde(default)]
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
@@ -238,6 +241,7 @@ where
                 },
                 _ => false,
             },
+            opts.prefer_esm,
             NextDynamicMode::Webpack,
             file.name.clone(),
             opts.pages_dir.clone()

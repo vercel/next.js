@@ -806,6 +806,7 @@ export const defaultConfig: NextConfig = {
       process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
         ? true
         : false,
+    webpackBuildWorker: false,
   },
 }
 

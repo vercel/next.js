@@ -29,6 +29,7 @@ pub struct BuildManifest {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase", tag = "version")]
+#[allow(clippy::large_enum_variant)]
 pub enum MiddlewaresManifest {
     #[serde(rename = "2")]
     MiddlewaresManifestV2(MiddlewaresManifestV2),
@@ -100,6 +101,18 @@ pub struct EdgeFunctionDefinition {
     pub regions: Option<Regions>,
 }
 
+#[derive(Serialize, Default, Debug)]
+pub struct InstrumentationDefinition {
+    pub files: Vec<String>,
+    pub name: String,
+    // TODO: AssetBinding[]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wasm: Option<Vec<()>>,
+    // TODO: AssetBinding[]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assets: Option<Vec<()>>,
+}
+
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
 pub enum Regions {
@@ -111,6 +124,7 @@ pub enum Regions {
 pub struct MiddlewaresManifestV2 {
     pub sorted_middleware: Vec<String>,
     pub middleware: HashMap<String, EdgeFunctionDefinition>,
+    pub instrumentation: Option<InstrumentationDefinition>,
     pub functions: HashMap<String, EdgeFunctionDefinition>,
 }
 
