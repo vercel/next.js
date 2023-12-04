@@ -9,7 +9,7 @@ const Page = () => {
   }
 
   return (
-    <div class="container">
+    <div className="container">
       <GoogleTagManager gtmId="GTM-XYZ" />
       <h1>GTM</h1>
       <button id="gtm-send" onClick={onClick}>
