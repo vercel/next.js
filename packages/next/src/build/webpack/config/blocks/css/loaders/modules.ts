@@ -26,6 +26,10 @@ export function getCssModuleLoader(
 
   // Resolve CSS `@import`s and `url()`s
   if (ctx.experimental.useLightningcss) {
+    console.log(
+      'Using lightningcss-loader',
+      require.resolve('../../../../loaders/lightningcss-loader/src')
+    )
     loaders.push({
       loader: require.resolve('../../../../loaders/lightningcss-loader/src'),
     })
