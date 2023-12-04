@@ -357,8 +357,22 @@ impl ImportMap {
         request: Vc<Request>,
     ) -> Result<ImportMapResult> {
         // TODO lookup pattern
+        // relative requests must not match global wildcard aliases.
         if let Some(request_string) = request.await?.request() {
-            if let Some(result) = self.map.lookup(&request_string).next() {
+            let mut lookup = if request_string.starts_with("./") {
+                self.map
+                    .lookup_with_prefix_predicate(&request_string, |prefix| {
+                        prefix.starts_with("./")
+                    })
+            } else if request_string.starts_with("../") {
+                self.map
+                    .lookup_with_prefix_predicate(&request_string, |prefix| {
+                        prefix.starts_with("../")
+                    })
+            } else {
+                self.map.lookup(&request_string)
+            };
+            if let Some(result) = lookup.next() {
                 return import_mapping_to_result(
                     result.try_join_into_self().await?.into_owned(),
                     lookup_path,

@@ -8,7 +8,7 @@ use std::{
 
 use anyhow::{anyhow, bail, Result};
 use serde_json::Value as JsonValue;
-use tracing::Level;
+use tracing::{Instrument, Level};
 use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
     util::{normalize_path, normalize_request},
@@ -1094,7 +1094,14 @@ async fn resolve_internal(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
-    resolve_internal_inline(lookup_path, request, options).await
+    let span = {
+        let lookup_path = lookup_path.to_string().await?;
+        let request = request.to_string().await?;
+        tracing::info_span!("resolving", lookup_path = *lookup_path, request = *request)
+    };
+    resolve_internal_inline(lookup_path, request, options)
+        .instrument(span)
+        .await
 }
 
 fn resolve_internal_boxed(
