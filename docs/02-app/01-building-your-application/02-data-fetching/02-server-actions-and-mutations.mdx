@@ -17,7 +17,7 @@ You can use Server Actions in Server and Client Components. Since Server Actions
   - In Client Components, forms invoking Server Actions will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
   - The browser does not refresh on form submission.
 - Server Actions are not limited to `<form>` elements and can be invoked from event handlers, `useEffect`, third-party libraries, and other form elements like `<button>`.
-- Server Actions integrate with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server round trip.
+- Server Actions integrate with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server roundtrip.
 - Behind the scenes, actions use the `POST` method, and only this HTTP method is allowed to invoke them.
 - The return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
 - Server Actions allow multiple reusable actions per route.
@@ -125,7 +125,7 @@ export default function ClientComponent({ updateItem }) {
 
 React extends the HTML [`<form>`](https://developer.mozilla.org/docs/Web/HTML/Element/form) element to allow Server Actions to be invoked with the `action` prop.
 
-When invoked in a form, the action automatically receives the [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData/FormData) object. This means you don't have to use React `useState` to manage fields, instead, you can extract the data using the native [`FormData` methods](https://developer.mozilla.org/en-US/docs/Web/API/FormData#instance_methods):
+When invoked in a form, the action automatically receives the [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData/FormData) object. You don't need to use React `useState` to manage fields, instead, you can extract the data using the native [`FormData` methods](https://developer.mozilla.org/en-US/docs/Web/API/FormData#instance_methods):
 
 ```tsx filename="app/invoices/page.tsx" switcher
 export default function Page() {
@@ -203,14 +203,14 @@ export async function updateUser(userId, formData) {
 }
 ```
 
-> **Good to know**: `.bind` of a Server Action works in both Server and Client Components. It also supports Progressive Enhancement.
+> **Good to know**: `.bind` of a Server Action works in both Server and Client Components. It also supports progressive enhancement.
 
 #### Pending states
 
 You can use the React [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a pending state while the form is being submitted.
 
-- `useFormStatus` returns the status for a specific `<form>`, so it must be defined as a child of the `<form>` element.
-- `useFormStatus` is a hook and therefore must be used in a Client Component.
+- `useFormStatus` returns the status for a specific `<form>`, so it **must be defined as a child of the `<form>` element**.
+- `useFormStatus` is a React hook and therefore must be used in a Client Component.
 
 ```tsx filename="app/submit-button.tsx" switcher
 'use client'
@@ -335,7 +335,7 @@ Please refer to the [Zod documentation](https://zod.dev/) for more information.
 To handle form errors on the server, you can return a serializable object in your action and use the React [`useFormState`](https://react.dev/reference/react-dom/hooks/useFormState) hook to show a message to the user.
 
 - By passing the action to `useFormState`, the action's function signature changes to receive a new `prevState` or `initialState` parameter as its first argument.
-- `useFormState` is a hook and therefore must be used in a Client Component.
+- `useFormState` is a React hook and therefore must be used in a Client Component.
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -505,7 +505,7 @@ You can invoke a Server Action from event handlers such as `onClick`:
 ```js filename="app/actions.js" switcher
 'use server'
 
-export default async function incrementLike() {
+export async function incrementLike() {
   // Mutate database
   // Return updated data
 }
@@ -566,7 +566,7 @@ export default function ViewCount({ initialViews }: { initialViews: number }) {
 
 ### Error Handling
 
-When an error is thrown, it'll be caught by the nearest [error.js](/docs/app/building-your-application/routing/error-handling) boundary on the client. We recommend using `try/catch` to return errors to be handled by your UI.
+When an error is thrown, it'll be caught by the nearest [`error.js`](/docs/app/building-your-application/routing/error-handling) boundary on the client. We recommend using `try/catch` to return errors to be handled by your UI.
 
 For example, your Server Action might handle errors from creating a new item by returning a message:
 
@@ -659,6 +659,7 @@ export default async function createPost() {
   } catch (error) {
     // ...
   }
+
   revalidateTag('posts')
 }
 ```
@@ -719,7 +720,7 @@ export async function exampleAction() {
   const value = cookies().get('name')?.value
 
   // Set cookie
-  cookies().set('name', 123)
+  cookies().set('name', 'Delba')
 
   // Delete cookie
   cookies().delete('name')
@@ -736,7 +737,7 @@ export async function exampleAction() {
   const value = cookies().get('name')?.value
 
   // Set cookie
-  cookies().set('name', 123)
+  cookies().set('name', 'Delba')
 
   // Delete cookie
   cookies().delete('name')
@@ -791,11 +792,13 @@ However, for this to happen, the captured variables are sent to the client and b
 
 #### Overwriting Encryption Keys (Advanced)
 
-Encryption works when deploying to Vercel or other platforms. However, when self-hosting your application across multiple servers, each server instance may end up with a different encryption key, leading to potential inconsistencies.
+When self-hosting your Next.js application across multiple servers, each server instance may end up with a different encryption key, leading to potential inconsistencies.
 
 To mitigate this, you can overwrite the encryption key using the `process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` environment variable. Specifying this variable ensures that your encryption keys are persistent across builds, and all server instances use the same key.
 
 This is an advanced use case where consistent encryption behavior across multiple deployments is critical for your application. You should consider standard security practices such key rotation and signing.
+
+> **Good to know:** Next.js applications deployed to Vercel automatically handle this.
 
 #### Allowed Origins (Advanced)
 
@@ -805,7 +808,7 @@ Behind the scenes, Server Actions use the `POST` method, and only this HTTP meth
 
 As an additional protection, Server Actions in Next.js also compares the [Origin header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin) to the [Host header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Host) (or `X-Forwarded-Host`). If these don't match, the request will be aborted. In other words, Server Actions can only be invoked on the same host as the page that hosts it.
 
-For large applications that use reverse proxies or multi-layered backend architectures (where the server API differs from the production domain), it's recommended to use the Next Config [`serverActions.allowedOrigins`](/docs/app/api-reference/next-config-js/serverActions) option to specify a list of safe origins. The option accepts an array of strings.
+For large applications that use reverse proxies or multi-layered backend architectures (where the server API differs from the production domain), it's recommended to use the configuration option [`serverActions.allowedOrigins`](/docs/app/api-reference/next-config-js/serverActions) option to specify a list of safe origins. The option accepts an array of strings.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
