@@ -340,7 +340,7 @@ To handle form errors on the server, you can return a serializable object in you
 ```tsx filename="app/actions.ts" switcher
 'use server'
 
-export default async function createUser(prevState: any, formData: FormData) {
+export async function createUser(prevState: any, formData: FormData) {
   // ...
   return {
     message: 'Please enter a valid email',
@@ -351,7 +351,7 @@ export default async function createUser(prevState: any, formData: FormData) {
 ```jsx filename="app/actions.js" switcher
 'use server'
 
-export default async function createUser(prevState, formData) {
+export async function createUser(prevState, formData) {
   // ...
   return {
     message: 'Please enter a valid email',
@@ -603,7 +603,7 @@ You can revalidate the [Next.js Cache](/docs/app/building-your-application/cachi
 
 import { revalidatePath } from 'next/cache'
 
-export default async function createPost() {
+export async function createPost() {
   try {
     // ...
   } catch (error) {
@@ -619,7 +619,7 @@ export default async function createPost() {
 
 import { revalidatePath } from 'next/cache'
 
-export default async function createPost() {
+export async function createPost() {
   try {
     // ...
   } catch (error) {
@@ -637,7 +637,7 @@ Or invalidate a specific data fetch with a cache tag using [`revalidateTag`](/do
 
 import { revalidateTag } from 'next/cache'
 
-export default async function createPost() {
+export async function createPost() {
   try {
     // ...
   } catch (error) {
@@ -653,7 +653,7 @@ export default async function createPost() {
 
 import { revalidateTag } from 'next/cache'
 
-export default async function createPost() {
+export async function createPost() {
   try {
     // ...
   } catch (error) {
@@ -674,7 +674,7 @@ If you would like to redirect the user to a different route after the completion
 import { redirect } from 'next/navigation'
 import { revalidateTag } from 'next/cache'
 
-export default async function createPost(id: string) {
+export async function createPost(id: string) {
   try {
     // ...
   } catch (error) {
@@ -692,7 +692,7 @@ export default async function createPost(id: string) {
 import { redirect } from 'next/navigation'
 import { revalidateTag } from 'next/cache'
 
-export default async function createPost(id) {
+export async function createPost(id) {
   try {
     // ...
   } catch (error) {
