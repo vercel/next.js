@@ -7,7 +7,9 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
-    startCommand: 'yarn next start --experimental-test-proxy',
+    startCommand: (global as any).isNextDev
+      ? 'yarn next dev --experimental-test-proxy'
+      : 'yarn next start --experimental-test-proxy',
   },
   ({ next, isNextDev }) => {
     let proxyServer: Awaited<ReturnType<typeof createProxyServer>>
