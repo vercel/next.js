@@ -39,6 +39,7 @@ import {
 import { handleMutable } from '../handle-mutable'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
+import { extractPathFromFlightRouterState } from '../compute-changed-path'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -57,6 +58,13 @@ async function fetchServerAction(
 ): Promise<FetchServerActionResult> {
   const body = await encodeReply(actionArgs)
 
+  const newNextUrl = extractPathFromFlightRouterState(state.tree)
+  // only pass along the `nextUrl` param (used for interception routes) if it exists and
+  // if it's different from the current `nextUrl`. This indicates the route has already been intercepted,
+  // and so the action should be as well. Otherwise the server action might be intercepted
+  // with the wrong action id (ie, one that corresponds with the intercepted route)
+  const includeNextUrl = state.nextUrl && state.nextUrl !== newNextUrl
+
   const res = await fetch('', {
     method: 'POST',
     headers: {
@@ -69,7 +77,7 @@ async function fetchServerAction(
             'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
           }
         : {}),
-      ...(state.nextUrl
+      ...(includeNextUrl
         ? {
             [NEXT_URL]: state.nextUrl,
           }

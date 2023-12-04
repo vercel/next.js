@@ -437,17 +437,26 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  // RSC loaders, prefer ESM, set `esm` to true
   const swcServerLayerLoader = getSwcLoader({
     serverComponents: true,
     isReactServerLayer: true,
+    esm: true,
   })
   const swcClientLayerLoader = getSwcLoader({
     serverComponents: true,
     isReactServerLayer: false,
+    esm: true,
+  })
+  // Default swc loaders for pages doesn't prefer ESM.
+  const swcDefaultLoader = getSwcLoader({
+    serverComponents: true,
+    isReactServerLayer: false,
+    esm: false,
   })
 
   const defaultLoaders = {
-    babel: useSWCLoader ? swcClientLayerLoader : babelLoader!,
+    babel: useSWCLoader ? swcDefaultLoader : babelLoader!,
   }
 
   const swcLoaderForServerLayer = hasAppDir
@@ -621,7 +630,7 @@ export default async function getBaseWebpackConfig(
         }
       : undefined),
     // default main fields use pages dir ones, and customize app router ones in loaders.
-    mainFields: getMainField('pages', compilerType),
+    mainFields: getMainField(compilerType, false),
     ...(isEdgeServer && {
       conditionNames: edgeConditionNames,
     }),
@@ -736,8 +745,13 @@ export default async function getBaseWebpackConfig(
   const shouldIncludeExternalDirs =
     config.experimental.externalDir || !!config.transpilePackages
 
-  function createLoaderRuleExclude(skipNodeModules: boolean) {
-    return (excludePath: string) => {
+  const codeCondition = {
+    test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
+    ...(shouldIncludeExternalDirs
+      ? // Allowing importing TS/TSX files from outside of the root dir.
+        {}
+      : { include: [dir, ...babelIncludeRegexes] }),
+    exclude: (excludePath: string) => {
       if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
         return false
       }
@@ -748,17 +762,8 @@ export default async function getBaseWebpackConfig(
       )
       if (shouldBeBundled) return false
 
-      return skipNodeModules && excludePath.includes('node_modules')
-    }
-  }
-
-  const codeCondition = {
-    test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
-    ...(shouldIncludeExternalDirs
-      ? // Allowing importing TS/TSX files from outside of the root dir.
-        {}
-      : { include: [dir, ...babelIncludeRegexes] }),
-    exclude: createLoaderRuleExclude(true),
+      return excludePath.includes('node_modules')
+    },
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -1281,7 +1286,7 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
-                  mainFields: getMainField('app', compilerType),
+                  mainFields: getMainField(compilerType, true),
                   conditionNames: reactServerCondition,
                   // If missing the alias override here, the default alias will be used which aliases
                   // react to the direct file path, not the package name. In that case the condition
@@ -1416,7 +1421,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: [WEBPACK_LAYERS.appPagesBrowser],
                     use: swcLoaderForClientLayer,
                     resolve: {
-                      mainFields: getMainField('app', compilerType),
+                      mainFields: getMainField(compilerType, true),
                     },
                   },
                   {
@@ -1424,7 +1429,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
                     use: swcLoaderForClientLayer,
                     resolve: {
-                      mainFields: getMainField('app', compilerType),
+                      mainFields: getMainField(compilerType, true),
                     },
                   },
                 ]
