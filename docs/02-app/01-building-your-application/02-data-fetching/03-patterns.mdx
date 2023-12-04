@@ -334,7 +334,7 @@ import {
   experimental_taintUniqueValue,
 } from 'react'
 
-export async function getUserData(id: string) {
+export async function getUserData() {
   const data = {}
   experimental_taintObjectReference(
     'Do not pass the whole user object to the client',
@@ -355,7 +355,7 @@ import {
   experimental_taintUniqueValue,
 } from 'react'
 
-export async function getUserData(id) {
+export async function getUserData() {
   const data = {}
   experimental_taintObjectReference(
     'Do not pass the whole user object to the client',
@@ -373,8 +373,8 @@ export async function getUserData(id) {
 ```tsx filename="app/page.tsx" switcher
 import { getUserData } from './data'
 
-export async function Page({ searchParams }: { searchParams: { id: number } }) {
-  const userData = getUserData(searchParams.id)
+export async function Page() {
+  const userData = getUserData()
   return (
     <ClientComponent
       user={userData} // this will cause an error because of taintObjectReference
@@ -387,8 +387,8 @@ export async function Page({ searchParams }: { searchParams: { id: number } }) {
 ```jsx filename="app/page.js" switcher
 import { getUserData } from './data'
 
-export async function Page({ searchParams }) {
-  const userData = getUserData(searchParams.id)
+export async function Page() {
+  const userData = getUserData()
   return (
     <ClientComponent
       user={userData} // this will cause an error because of taintObjectReference
