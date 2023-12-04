@@ -198,9 +198,41 @@ impl<T> AliasMap<T> {
         // Invariant: prefixes should be sorted by increasing length (base lengths),
         // according to PATTERN_KEY_COMPARE. Since we're using a prefix tree, this is
         // the default behavior of the common prefix iterator.
-        let mut prefixes_stack = self
-            .map
-            .common_prefixes(request.as_bytes())
+        let common_prefixes = self.map.common_prefixes(request.as_bytes());
+        let mut prefixes_stack = common_prefixes.collect::<Vec<_>>();
+        AliasMapLookupIterator {
+            request,
+            current_prefix_iterator: prefixes_stack
+                .pop()
+                .map(|(prefix, map)| (prefix, map.iter())),
+            prefixes_stack,
+        }
+    }
+
+    /// Looks up a request in the alias map, but only returns aliases where the
+    /// prefix matches a certain predicate.
+    ///
+    /// Returns an iterator to all the matching aliases.
+    pub fn lookup_with_prefix_predicate<'a>(
+        &'a self,
+        request: &'a str,
+        mut prefix_predicate: impl FnMut(&str) -> bool,
+    ) -> AliasMapLookupIterator<'a, T>
+    where
+        T: Debug,
+    {
+        // Invariant: prefixes should be sorted by increasing length (base lengths),
+        // according to PATTERN_KEY_COMPARE. Since we're using a prefix tree, this is
+        // the default behavior of the common prefix iterator.
+        let common_prefixes = self.map.common_prefixes(request.as_bytes());
+        let mut prefixes_stack = common_prefixes
+            .filter(|(p, _)| {
+                let s = match std::str::from_utf8(p) {
+                    Ok(s) => s,
+                    Err(e) => std::str::from_utf8(&p[..e.valid_up_to()]).unwrap(),
+                };
+                prefix_predicate(s)
+            })
             .collect::<Vec<_>>();
         AliasMapLookupIterator {
             request,
