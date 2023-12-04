@@ -1,9 +1,11 @@
 ---
 title: Testing
-description: Learn how to set up Next.js with three commonly used testing tools — Cypress, Playwright, Vitest, Jest and React Testing Library.
+description: Learn how to set up Next.js with three commonly used testing tools — Cypress, Playwright, Vitest, and Jest with React Testing Library.
 ---
 
 {/* The content of this doc is shared between the App and Pages router. You can use the `<PagesOnly>Content</PagesOnly>` or `<AppOnly>Content</AppOnly>` components to add content that is specific to each router. Any shared content should not be wrapped in a component. */}
+
+<PagesOnly>
 
 <details open>
   <summary>Examples</summary>
@@ -15,7 +17,11 @@ description: Learn how to set up Next.js with three commonly used testing tools 
 
 </details>
 
-Learn how to set up Next.js with commonly used testing tools: [Cypress](#cypress), [Playwright](#playwright), [Jest with React Testing Library](#jest-and-react-testing-library), and [Vitest](#vitest).
+</PagesOnly>
+
+Learn how to set up Next.js with commonly used testing tools: [Cypress](#cypress), [Playwright](#playwright), [Vitest](#vitest), [Jest with React Testing Library](#jest-and-react-testing-library).
+
+<PagesOnly>
 
 ## Cypress
 
@@ -31,10 +37,10 @@ npx create-next-app@latest --example with-cypress with-cypress-app
 
 ### Manual setup
 
-To get started with Cypress, install `cypress` package:
+To get started with Cypress, install `cypress` as a dev dependency:
 
 ```bash filename="Terminal"
-npm install -d cypress
+npm install -D cypress
 ```
 
 Add Cypress to the `package.json` scripts field:
@@ -45,6 +51,7 @@ Add Cypress to the `package.json` scripts field:
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "lint": "next lint",
     "cypress:open": "cypress open"
   }
 }
@@ -175,6 +182,8 @@ You can learn more about Cypress and Continuous Integration from these resources
 - [Official Cypress GitHub Action](https://github.com/cypress-io/github-action)
 - [Cypress Discord](https://discord.com/invite/cypress)
 
+</PagesOnly>
+
 ## Playwright
 
 Playwright is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** and **Integration** tests across all platforms.
@@ -189,12 +198,12 @@ npx create-next-app@latest --example with-playwright with-playwright-app
 
 ### Manual setup
 
-You can also use `npm init playwright` to add Playwright to an existing `NPM` project.
+You can also use `npm init playwright` to add Playwright to an existing `npm` project.
 
 To manually get started with Playwright, install the `@playwright/test` package:
 
 ```bash filename="Terminal"
-npm install --save-dev @playwright/test
+npm install -D @playwright/test
 ```
 
 Add Playwright to the `package.json` scripts field:
@@ -205,6 +214,7 @@ Add Playwright to the `package.json` scripts field:
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "lint": "next lint",
     "test:e2e": "playwright test"
   }
 }
@@ -214,31 +224,71 @@ Add Playwright to the `package.json` scripts field:
 
 Assuming the following two Next.js pages:
 
-```jsx filename="pages/index.js"
+<PagesOnly>
+
+```tsx filename="pages/index.ts"
 import Link from 'next/link'
 
 export default function Home() {
   return (
     <nav>
+      <h1>Home Page</h1>
       <Link href="/about">About</Link>
     </nav>
   )
 }
 ```
 
-```jsx filename="pages/about.js"
+```tsx filename="pages/about.ts"
+import Link from 'next/link'
+
 export default function About() {
   return (
     <div>
       <h1>About Page</h1>
+      <Link href="/">Home</Link>
     </div>
   )
 }
 ```
 
+</PagesOnly>
+
+<AppOnly>
+
+```tsx filename="app/page.tsx"
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <nav>
+      <h1>Home Page</h1>
+      <Link href="/about">About</Link>
+    </nav>
+  )
+}
+```
+
+```tsx filename="app/about/page.tsx"
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <div>
+      <h1>About Page</h1>
+      <Link href="/">Home</Link>
+    </div>
+  )
+}
+```
+
+</AppOnly>
+
 Add a test to verify that your navigation is working correctly:
 
-```ts filename="e2e/example.spec.ts" switcher
+<PagesOnly>
+
+```ts filename="e2e/example.spec.ts"
 import { test, expect } from '@playwright/test'
 
 test('should navigate to the about page', async ({ page }) => {
@@ -253,7 +303,11 @@ test('should navigate to the about page', async ({ page }) => {
 })
 ```
 
-```js filename="e2e/example.spec.js" switcher
+</PagesOnly>
+
+<AppOnly>
+
+```ts filename="app/e2e/example.spec.ts"
 import { test, expect } from '@playwright/test'
 
 test('should navigate to the about page', async ({ page }) => {
@@ -268,7 +322,9 @@ test('should navigate to the about page', async ({ page }) => {
 })
 ```
 
-You can use `page.goto("/")` instead of `page.goto("http://localhost:3000/")`, if you add [`"baseURL": "http://localhost:3000"`](https://playwright.dev/docs/api/class-testoptions#test-options-base-url) to the `playwright.config.ts` configuration file.
+</AppOnly>
+
+You can use `page.goto("/")` instead of `page.goto("http://localhost:3000/")`, if you add [`"baseURL": "http://localhost:3000"`](https://playwright.dev/docs/api/class-testoptions#test-options-base-url) to the `playwright.config.ts` [configuration file](https://playwright.dev/docs/test-configuration).
 
 ### Running your Playwright tests
 
