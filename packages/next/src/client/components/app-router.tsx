@@ -162,7 +162,6 @@ function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
         dispatch({
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
-          mutable: {},
         })
       })
     },
@@ -189,7 +188,6 @@ function useChangeByServerResponse(
           flightData,
           previousTree,
           overrideCanonicalUrl,
-          mutable: {},
         })
       })
     },
@@ -209,7 +207,6 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         locationSearch: location.search,
         shouldScroll: shouldScroll ?? true,
         navigateType,
-        mutable: {},
       })
     },
     [dispatch]
@@ -329,7 +326,6 @@ function Router({
         startTransition(() => {
           dispatch({
             type: ACTION_REFRESH,
-            mutable: {},
             origin: window.location.origin,
           })
         })
@@ -344,7 +340,6 @@ function Router({
           startTransition(() => {
             dispatch({
               type: ACTION_FAST_REFRESH,
-              mutable: {},
               origin: window.location.origin,
             })
           })

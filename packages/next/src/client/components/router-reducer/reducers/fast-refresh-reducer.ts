@@ -6,6 +6,7 @@ import type {
   ReadonlyReducerState,
   ReducerState,
   FastRefreshAction,
+  Mutable,
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
@@ -18,15 +19,9 @@ function fastRefreshReducerImpl(
   state: ReadonlyReducerState,
   action: FastRefreshAction
 ): ReducerState {
-  const { mutable, origin } = action
+  const { origin } = action
+  const mutable: Mutable = {}
   const href = state.canonicalUrl
-
-  const isForCurrentTree =
-    JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
-
-  if (isForCurrentTree) {
-    return handleMutable(state, mutable)
-  }
 
   mutable.preserveCustomHistoryState = false
 
@@ -102,7 +97,6 @@ function fastRefreshReducerImpl(
           currentCache = cache
         }
 
-        mutable.previousTree = currentTree
         mutable.patchedTree = newTree
         mutable.canonicalUrl = href
 

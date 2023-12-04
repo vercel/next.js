@@ -3,6 +3,7 @@ import { createHrefFromUrl } from '../create-href-from-url'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import type {
+  Mutable,
   ReadonlyReducerState,
   ReducerState,
   RefreshAction,
@@ -20,17 +21,11 @@ export function refreshReducer(
   state: ReadonlyReducerState,
   action: RefreshAction
 ): ReducerState {
-  const { mutable, origin } = action
+  const { origin } = action
+  const mutable: Mutable = {}
   const href = state.canonicalUrl
 
   let currentTree = state.tree
-
-  const isForCurrentTree =
-    JSON.stringify(mutable.previousTree) === JSON.stringify(currentTree)
-
-  if (isForCurrentTree) {
-    return handleMutable(state, mutable)
-  }
 
   mutable.preserveCustomHistoryState = false
 
@@ -117,7 +112,6 @@ export function refreshReducer(
           mutable.prefetchCache = new Map()
         }
 
-        mutable.previousTree = currentTree
         mutable.patchedTree = newTree
         mutable.canonicalUrl = href
 
