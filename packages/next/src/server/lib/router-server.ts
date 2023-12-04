@@ -29,8 +29,8 @@ import { isPostpone } from './router-utils/is-postpone'
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
-  RedirectStatusCode,
 } from '../../shared/lib/constants'
+import { RedirectStatusCode } from '../../shared/lib/app-router-client-constants'
 import { DevBundlerService } from './dev-bundler-service'
 import { type Span, trace } from '../../trace'
 

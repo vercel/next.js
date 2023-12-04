@@ -1,7 +1,7 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { I18NConfig } from '../config-shared'
 
-import { RedirectStatusCode } from '../../shared/lib/constants'
+import { RedirectStatusCode } from '../../shared/lib/app-router-client-constants'
 import type { NextApiRequestCookies } from '../api-utils'
 import { getCookieParser } from '../api-utils/get-cookie-parser'
 

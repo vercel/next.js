@@ -50,9 +50,9 @@ import {
   APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
   PAGES_MANIFEST,
-  RedirectStatusCode,
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
+import { RedirectStatusCode } from '../shared/lib/app-router-client-constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config.external'
@@ -107,9 +107,9 @@ import {
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_TAGS_HEADER,
-  NEXT_DID_POSTPONE_HEADER,
   NEXT_QUERY_PARAM_PREFIX,
 } from '../lib/constants'
+import { NEXT_DID_POSTPONE_HEADER } from '../shared/lib/app-router-client-constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import {
   NextRequestAdapter,

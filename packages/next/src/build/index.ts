@@ -28,10 +28,10 @@ import {
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
-  NEXT_DID_POSTPONE_HEADER,
   RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
 } from '../lib/constants'
+import { NEXT_DID_POSTPONE_HEADER } from '../shared/lib/app-router-client-constants'
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {

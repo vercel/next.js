@@ -28,7 +28,7 @@ import { urlToUrlWithoutFlightMarker } from '../app-router'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
-import { NEXT_DID_POSTPONE_HEADER } from '../../../lib/constants'
+import { NEXT_DID_POSTPONE_HEADER } from '../../../shared/lib/app-router-client-constants'
 
 export type FetchServerResponseResult = [
   flightData: FlightData,

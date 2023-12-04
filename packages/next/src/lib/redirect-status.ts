@@ -1,4 +1,4 @@
-import { RedirectStatusCode } from '../shared/lib/constants'
+import { RedirectStatusCode } from '../shared/lib/app-router-client-constants'
 
 export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 

@@ -7,7 +7,7 @@ import {
 } from '../../client/components/redirect'
 import { renderToReadableStream } from 'react-dom/server.edge'
 import { streamToString } from '../stream-utils/node-web-streams-helper'
-import { RedirectStatusCode } from '../../shared/lib/constants'
+import { RedirectStatusCode } from '../../shared/lib/app-router-client-constants'
 
 export function makeGetServerInsertedHTML({
   polyfills,
