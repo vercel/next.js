@@ -88,7 +88,6 @@ import type webpack from 'webpack'
 
 import path from 'path'
 import { transform } from '../../swc'
-import { WEBPACK_LAYERS } from '../../../lib/constants'
 
 // This is a in-memory cache for the mapping of barrel exports. This only applies
 // to the packages that we optimize. It will never change (e.g. upgrading packages)

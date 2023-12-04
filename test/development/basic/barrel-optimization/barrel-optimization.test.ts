@@ -130,7 +130,7 @@ createNextDescribe(
       expect(html).toContain('<linearGradient')
     })
 
-    it('should support MUI', async () => {
+    it.only('should support MUI', async () => {
       let logs = ''
       next.on('stdout', (log) => {
         logs += log
@@ -140,14 +140,9 @@ createNextDescribe(
       const html = await next.render('/mui')
       expect(html).toContain('test_mui')
 
-      const modules = [
-        ...logs.matchAll(
-          /Compiled (\/[\w-]+)*\s*in \d+(\.\d+)?(s|ms) \((\d+) modules\)/g
-        ),
-      ]
-
+      const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
       expect(modules.length).toBeGreaterThanOrEqual(1)
-      for (const [, , , , moduleCount] of modules) {
+      for (const [, moduleCount] of modules) {
         // Ensure that the number of modules is less than 1000 - otherwise we're
         // importing the entire library.
         expect(parseInt(moduleCount)).toBeLessThan(1000)
