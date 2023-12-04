@@ -368,6 +368,7 @@ impl Fold for NextDynamicPatcher {
                     if has_ssr_false
                         && self.is_server_compiler
                         && !self.is_react_server_layer
+                        && !self.pages_dir.is_none()
                         // Only use `require.resolveWebpack` to decouple modules for webpack,
                         // turbopack doesn't need this
                         && self.state == NextDynamicPatcherState::Webpack
