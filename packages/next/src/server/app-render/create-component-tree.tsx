@@ -398,6 +398,24 @@ export async function createComponentTree({
     }
   }
 
+  // If force-dynamic is used and the current render supports postponing, we
+  // replace it with a node that will postpone the render. This ensures that the
+  // postpone is invoked during the react render phase and not during the next
+  // render phase.
+  if (
+    staticGenerationStore.forceDynamic &&
+    supportsForceDynamic(staticGenerationStore)
+  ) {
+    return {
+      seedData: [
+        actualSegment,
+        parallelRouteCacheNodeSeedData,
+        <ForceDynamic staticGenerationStore={staticGenerationStore} />,
+      ],
+      styles: layerAssets,
+    }
+  }
+
   const isClientComponent = isClientReference(layoutOrPageMod)
 
   // If it's a not found route, and we don't have any matched parallel
@@ -443,45 +461,33 @@ export async function createComponentTree({
     })(),
   }
 
-  // Create the node to render in this tree.
-  let node = (
-    <>
-      {isPage ? metadataOutlet : null}
-      {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
-      {isPage && isClientComponent ? (
-        <StaticGenerationSearchParamsBailoutProvider
-          propsForComponent={props}
-          Component={Component}
-          isStaticGeneration={staticGenerationStore.isStaticGeneration}
-        />
-      ) : (
-        <Component {...props} />
-      )}
-      {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
-          surrounding it this would look like a pending tree data state on the client which will cause an error
-          and break the app. Long-term we need to move away from using null as a partial tree identifier since it
-          is a valid return type for the components we wrap. Once we make this change we can safely remove the
-          fragment. The reason the extra null here is required is that fragments which only have 1 child are elided.
-          If the Component above renders null the actual tree data will look like `[null, null]`. If we remove the extra
-          null it will look like `null` (the array is elided) and this is what confuses the client router.
-          TODO-APP update router to use a Symbol for partial tree detection */}
-      {null}
-    </>
-  )
-
-  // If force-dynamic is used and the current render supports postponing, we
-  // replace it with a node that will postpone the render. This ensures that the
-  // postpone is invoked during the react render phase and not during the next
-  // render phase.
-  if (
-    staticGenerationStore.forceDynamic &&
-    supportsForceDynamic(staticGenerationStore)
-  ) {
-    node = <ForceDynamic staticGenerationStore={staticGenerationStore} />
-  }
-
   return {
-    seedData: [actualSegment, parallelRouteCacheNodeSeedData, node],
+    seedData: [
+      actualSegment,
+      parallelRouteCacheNodeSeedData,
+      <>
+        {isPage ? metadataOutlet : null}
+        {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
+        {isPage && isClientComponent ? (
+          <StaticGenerationSearchParamsBailoutProvider
+            propsForComponent={props}
+            Component={Component}
+            isStaticGeneration={staticGenerationStore.isStaticGeneration}
+          />
+        ) : (
+          <Component {...props} />
+        )}
+        {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
+            surrounding it this would look like a pending tree data state on the client which will cause an error
+            and break the app. Long-term we need to move away from using null as a partial tree identifier since it
+            is a valid return type for the components we wrap. Once we make this change we can safely remove the
+            fragment. The reason the extra null here is required is that fragments which only have 1 child are elided.
+            If the Component above renders null the actual tree data will look like `[null, null]`. If we remove the extra
+            null it will look like `null` (the array is elided) and this is what confuses the client router.
+            TODO-APP update router to use a Symbol for partial tree detection */}
+        {null}
+      </>,
+    ],
     styles: layerAssets,
   }
 }
