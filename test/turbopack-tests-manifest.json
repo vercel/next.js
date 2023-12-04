@@ -2270,7 +2270,8 @@
       "app-dir action handling should support notFound (javascript disabled)",
       "app-dir action handling should support setting cookies in route handlers with the correct overrides",
       "app-dir action handling should support uploading files",
-      "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation"
+      "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
+      "app-dir action handling should work with interception routes"
     ],
     "failed": [],
     "pending": [
@@ -2429,6 +2430,8 @@
   },
   "test/e2e/app-dir/app-external/app-external.test.ts": {
     "passed": [
+      "app dir - external dependency mixed syntax external modules should handle mixed module in server and client components",
+      "app dir - external dependency mixed syntax external modules should handle mixed module with next/dynamic",
       "app dir - external dependency react in external esm packages should use the same react in client app",
       "app dir - external dependency react in external esm packages should use the same react in edge server app",
       "app dir - external dependency react in external esm packages should use the same react in pages",
@@ -3318,6 +3321,7 @@
   },
   "test/e2e/app-dir/interception-middleware-rewrite/interception-middleware-rewrite.test.ts": {
     "passed": [
+      "interception-middleware-rewrite should continue to show the intercepted page when revisiting it",
       "interception-middleware-rewrite should continue to work after using browser back button and following another intercepting route",
       "interception-middleware-rewrite should support intercepting routes with a middleware rewrite"
     ],
@@ -5012,6 +5016,7 @@
       "Middleware Runtime with i18n allows to access env variables",
       "Middleware Runtime with i18n hard-navigates when the data request failed",
       "Middleware Runtime with i18n passes search params with rewrites",
+      "Middleware Runtime with i18n refreshes the page when middleware changes ",
       "Middleware Runtime with i18n should accept a URL instance for fetch",
       "Middleware Runtime with i18n should add a rewrite header on data requests for rewrites",
       "Middleware Runtime with i18n should allow to abort a fetch request",
@@ -5049,6 +5054,7 @@
       "Middleware Runtime without i18n allows to access env variables",
       "Middleware Runtime without i18n hard-navigates when the data request failed",
       "Middleware Runtime without i18n passes search params with rewrites",
+      "Middleware Runtime without i18n refreshes the page when middleware changes ",
       "Middleware Runtime without i18n should accept a URL instance for fetch",
       "Middleware Runtime without i18n should add a rewrite header on data requests for rewrites",
       "Middleware Runtime without i18n should allow to abort a fetch request",
@@ -5061,6 +5067,7 @@
       "Middleware Runtime without i18n should have correct route params for chained rewrite from middleware to config rewrite",
       "Middleware Runtime without i18n should have correct route params for rewrite from config dynamic route",
       "Middleware Runtime without i18n should have correct route params for rewrite from config non-dynamic route",
+      "Middleware Runtime without i18n should have init header for NextResponse.redirect",
       "Middleware Runtime without i18n should keep non data requests in their original shape",
       "Middleware Runtime without i18n should normalize data requests into page requests",
       "Middleware Runtime without i18n should only contain middleware route in dev middleware manifest",
@@ -5080,11 +5087,7 @@
       "Middleware Runtime without i18n should warn when using Response.redirect with a relative URL",
       "Middleware Runtime without i18n should work with notFound: true correctly"
     ],
-    "failed": [
-      "Middleware Runtime with i18n refreshes the page when middleware changes ",
-      "Middleware Runtime without i18n refreshes the page when middleware changes ",
-      "Middleware Runtime without i18n should have init header for NextResponse.redirect"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5272,9 +5275,11 @@
   "test/e2e/middleware-trailing-slash/test/index.test.ts": {
     "passed": [
       "Middleware Runtime trailing slash allows shallow linking with middleware",
+      "Middleware Runtime trailing slash refreshes the page when middleware changes ",
       "Middleware Runtime trailing slash should add a rewrite header on data requests for rewrites",
       "Middleware Runtime trailing slash should have correct dynamic route params for middleware rewrite to dynamic route",
       "Middleware Runtime trailing slash should have correct dynamic route params on client-transition to dynamic route",
+      "Middleware Runtime trailing slash should have correct query values for rewrite to ssg page",
       "Middleware Runtime trailing slash should have correct route params for chained rewrite from middleware to config rewrite",
       "Middleware Runtime trailing slash should have correct route params for rewrite from config dynamic route",
       "Middleware Runtime trailing slash should have correct route params for rewrite from config non-dynamic route",
@@ -5294,10 +5299,7 @@
       "Middleware Runtime trailing slash without .html extension should work when navigating",
       "Middleware Runtime trailing slash without .html extension should work when requesting the page directly"
     ],
-    "failed": [
-      "Middleware Runtime trailing slash refreshes the page when middleware changes ",
-      "Middleware Runtime trailing slash should have correct query values for rewrite to ssg page"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5692,6 +5694,13 @@
       "Requests not effected when middleware used should proxy POST request with body"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/react-dnd-compile/react-dnd-compile.test.ts": {
+    "passed": ["react-dnd-compile should work"],
+    "failed": ["react-dnd-compile should work on react-dnd import page"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6786,11 +6795,10 @@
     "runtimeError": false
   },
   "test/integration/clean-distdir/test/index.test.js": {
-    "passed": [
-      "Cleaning distDir disabled write should not clean up .next before build start"
-    ],
+    "passed": [],
     "failed": [],
     "pending": [
+      "Cleaning distDir production mode disabled write should not clean up .next before build start",
       "Cleaning distDir production mode should clean up .next before build start"
     ],
     "flakey": [],
