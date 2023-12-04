@@ -130,7 +130,7 @@ createNextDescribe(
       expect(html).toContain('<linearGradient')
     })
 
-    it.only('should support MUI', async () => {
+    it('should support MUI', async () => {
       let logs = ''
       next.on('stdout', (log) => {
         logs += log
