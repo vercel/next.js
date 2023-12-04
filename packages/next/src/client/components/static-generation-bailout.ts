@@ -1,7 +1,7 @@
 import type { AppConfigDynamic } from '../../build/utils'
 
 import { DynamicServerError } from './hooks-server-context'
-import { maybePostpone } from './maybe-postpone'
+import { maybePostpone } from './postpone/maybe-postpone'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
 class StaticGenBailoutError extends Error {

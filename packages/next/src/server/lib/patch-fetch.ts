@@ -12,7 +12,7 @@ import {
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
 import * as Log from '../../build/output/log'
-import { maybePostpone } from '../../client/components/maybe-postpone'
+import { maybePostpone } from '../../client/components/postpone/maybe-postpone'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 

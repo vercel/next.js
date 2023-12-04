@@ -1,8 +1,9 @@
-import { maybePostpone } from '../../../client/components/maybe-postpone'
 import type {
   StaticGenerationStore,
   StaticGenerationAsyncStorage,
 } from '../../../client/components/static-generation-async-storage.external'
+
+import { maybePostpone } from '../../../client/components/postpone/maybe-postpone'
 import { staticGenerationAsyncStorage as _staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import { addImplicitTags, validateTags } from '../../lib/patch-fetch'

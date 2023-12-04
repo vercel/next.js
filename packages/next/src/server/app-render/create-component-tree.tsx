@@ -9,7 +9,8 @@ import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
-import { MaybePostpone } from './maybe-postpone'
+import { Postpone } from './static/postpone'
+import { supportsPostpone } from '../../client/components/postpone/supports-postpone'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
@@ -469,21 +470,19 @@ export async function createComponentTree({
     </>
   )
 
-  // If we're in static generation and we're forcing dynamic, we need to wrap
-  // the node in a component that will postpone rendering until after the
-  // initial render.
+  // If force-dynamic is used and the current render supports postponing, we
+  // replace it with a node that will postpone the render. This ensures that the
+  // postpone is invoked during the react render phase and not during the next
+  // render phase.
   if (
     staticGenerationStore.forceDynamic &&
-    staticGenerationStore.isStaticGeneration &&
-    staticGenerationStore.experimental.ppr
+    supportsPostpone(staticGenerationStore)
   ) {
     node = (
-      <MaybePostpone
-        reason='dynamic = "force-dynamic" was used'
+      <Postpone
         staticGenerationStore={staticGenerationStore}
-      >
-        {node}
-      </MaybePostpone>
+        reason='dynamic = "force-dynamic" was used'
+      />
     )
   }
 
