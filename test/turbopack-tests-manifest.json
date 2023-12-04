@@ -3355,9 +3355,7 @@
   "test/e2e/app-dir/logging/fetch-logging.test.ts": {
     "passed": [
       "app-dir - logging with default logging should not contain trailing word page for app router routes",
-      "app-dir - logging with default logging should not log fetch requests at all"
-    ],
-    "failed": [
+      "app-dir - logging with default logging should not log fetch requests at all",
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
@@ -3370,6 +3368,7 @@
       "app-dir - logging with verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging should only log requests in dev mode"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
