@@ -56,6 +56,7 @@ fn next_dynamic_errors(input: PathBuf) {
                 true,
                 false,
                 false,
+                false,
                 NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
