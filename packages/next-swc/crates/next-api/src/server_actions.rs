@@ -7,6 +7,7 @@ use next_core::{
     util::{get_asset_prefix_from_pathname, NextRuntime},
 };
 use next_swc::server_actions::parse_server_actions;
+use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
     TryFlatJoinIterExt, Value, ValueToString, Vc,
@@ -174,52 +175,56 @@ async fn get_actions(
     server_reference_modules: Vc<Vec<Vc<Box<dyn Module>>>>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<AllActions>> {
-    let actions = NonDeterministic::new()
-        .skip_duplicates()
-        .visit(
-            once((ActionLayer::Rsc, rsc_entry)).chain(
-                server_reference_modules
-                    .await?
-                    .iter()
-                    .map(|m| (ActionLayer::ActionBrowser, *m)),
-            ),
-            get_referenced_modules,
-        )
-        .await
-        .completed()?
-        .into_inner()
-        .into_iter()
-        .map(parse_actions_filter_map)
-        .try_flat_join()
-        .await?;
+    async move {
+        let actions = NonDeterministic::new()
+            .skip_duplicates()
+            .visit(
+                once((ActionLayer::Rsc, rsc_entry)).chain(
+                    server_reference_modules
+                        .await?
+                        .iter()
+                        .map(|m| (ActionLayer::ActionBrowser, *m)),
+                ),
+                get_referenced_modules,
+            )
+            .await
+            .completed()?
+            .into_inner()
+            .into_iter()
+            .map(parse_actions_filter_map)
+            .try_flat_join()
+            .await?;
 
-    // Actions can be imported by both Client and RSC layers, in which case we need
-    // to use the RSC layer's module. We do that by merging the hashes (which match
-    // in both layers) and preferring the RSC layer's action.
-    let mut all_actions: HashToLayerNameModule = IndexMap::new();
-    for ((layer, module), actions_map) in actions.iter() {
-        let module = if *layer == ActionLayer::Rsc {
-            *module
-        } else {
-            to_rsc_context(*module, asset_context).await?
-        };
+        // Actions can be imported by both Client and RSC layers, in which case we need
+        // to use the RSC layer's module. We do that by merging the hashes (which match
+        // in both layers) and preferring the RSC layer's action.
+        let mut all_actions: HashToLayerNameModule = IndexMap::new();
+        for ((layer, module), actions_map) in actions.iter() {
+            let module = if *layer == ActionLayer::Rsc {
+                *module
+            } else {
+                to_rsc_context(*module, asset_context).await?
+            };
 
-        for (hash_id, name) in &*actions_map.await? {
-            match all_actions.entry(hash_id.to_owned()) {
-                Entry::Occupied(e) => {
-                    if e.get().0 == ActionLayer::ActionBrowser {
-                        *e.into_mut() = (*layer, name.to_string(), module);
+            for (hash_id, name) in &*actions_map.await? {
+                match all_actions.entry(hash_id.to_owned()) {
+                    Entry::Occupied(e) => {
+                        if e.get().0 == ActionLayer::ActionBrowser {
+                            *e.into_mut() = (*layer, name.to_string(), module);
+                        }
                     }
-                }
-                Entry::Vacant(e) => {
-                    e.insert((*layer, name.to_string(), module));
+                    Entry::Vacant(e) => {
+                        e.insert((*layer, name.to_string(), module));
+                    }
                 }
             }
         }
-    }
 
-    all_actions.sort_keys();
-    Ok(Vc::cell(all_actions))
+        all_actions.sort_keys();
+        Ok(Vc::cell(all_actions))
+    }
+    .instrument(tracing::info_span!("find server actions"))
+    .await
 }
 
 /// The ActionBrowser layer's module is in the Client context, and we need to

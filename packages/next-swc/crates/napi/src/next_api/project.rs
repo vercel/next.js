@@ -14,8 +14,10 @@ use next_api::{
     route::{Endpoint, Route},
 };
 use next_core::tracing_presets::{
-    TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
+    TRACING_NEXT_TURBO_TASKS_TARGETS,
 };
+use tracing::Instrument;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
 };
@@ -36,7 +38,6 @@ use turbopack_binding::{
             exit::ExitGuard,
             raw_trace::RawTraceLayer,
             trace_writer::{TraceWriter, TraceWriterGuard},
-            tracing_presets::TRACING_OVERVIEW_TARGETS,
         },
     },
 };
@@ -217,7 +218,7 @@ pub async fn project_new(
         // Trace presets
         match trace.as_str() {
             "overview" => {
-                trace = TRACING_OVERVIEW_TARGETS.join(",");
+                trace = TRACING_NEXT_OVERVIEW_TARGETS.join(",");
             }
             "next" => {
                 trace = TRACING_NEXT_TARGETS.join(",");
@@ -433,14 +434,17 @@ pub fn project_entrypoints_subscribe(
     subscribe(
         turbo_tasks.clone(),
         func,
-        move || async move {
-            let entrypoints_operation = container.entrypoints();
-            let entrypoints = entrypoints_operation.strongly_consistent().await?;
+        move || {
+            async move {
+                let entrypoints_operation = container.entrypoints();
+                let entrypoints = entrypoints_operation.strongly_consistent().await?;
 
-            let issues = get_issues(entrypoints_operation).await?;
-            let diags = get_diagnostics(entrypoints_operation).await?;
+                let issues = get_issues(entrypoints_operation).await?;
+                let diags = get_diagnostics(entrypoints_operation).await?;
 
-            Ok((entrypoints, issues, diags))
+                Ok((entrypoints, issues, diags))
+            }
+            .instrument(tracing::info_span!("entrypoints subscription"))
         },
         move |ctx| {
             let (entrypoints, issues, diags) = ctx.value;
@@ -500,10 +504,10 @@ pub fn project_hmr_events(
         turbo_tasks.clone(),
         func,
         {
-            let identifier = identifier.clone();
+            let outer_identifier = identifier.clone();
             let session = session.clone();
             move || {
-                let identifier = identifier.clone();
+                let identifier = outer_identifier.clone();
                 let session = session.clone();
                 async move {
                     let state = project
@@ -524,6 +528,10 @@ pub fn project_hmr_events(
                     }
                     Ok((update, issues, diags))
                 }
+                .instrument(tracing::info_span!(
+                    "HMR subscription",
+                    identifier = outer_identifier
+                ))
             }
         },
         move |ctx| {
