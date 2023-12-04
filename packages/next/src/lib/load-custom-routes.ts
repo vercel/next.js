@@ -547,9 +547,10 @@ function processRoutes<T>(
         })
       }
 
-      r.source = `/:nextInternalLocale(${config.i18n.locales
-        .map((locale: string) => escapeStringRegexp(locale))
-        .join('|')})${
+      const locales = config.i18n.locales.map(escapeStringRegexp).join('|')
+      // locale is intentionally marked optional here so that custom route headers
+      // are applied to static resources (which don't have a locale prefix)
+      r.source = `/:nextInternalLocale(${locales})?${
         r.source === '/' && !config.trailingSlash ? '' : r.source
       }`
 

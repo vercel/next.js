@@ -1475,6 +1475,33 @@ const runTests = (isDev = false) => {
     expect(res2.headers.get('x-is-host')).toBe(null)
   })
 
+  it('should apply custom headers to all responses', async () => {
+    const staticHeaders = []
+    const otherHeaders = []
+    const browser = await webdriver(appPort, '/nav', {
+      beforePageLoad: (page) => {
+        page.on('response', (response) => {
+          const url = new URL(response.url())
+          if (url.pathname.includes('_next/static/')) {
+            staticHeaders.push(response.headers())
+          } else {
+            otherHeaders.push(response.headers())
+          }
+        })
+      },
+    })
+
+    await check(() => browser.elementById('nav').text(), 'Nav')
+    expect(staticHeaders.length).toBeGreaterThan(0)
+    expect(otherHeaders.length).toBeGreaterThan(0)
+    expect(
+      [...staticHeaders, ...otherHeaders].every(
+        (headers) =>
+          headers['x-global-custom-header'] === 'my custom header value'
+      )
+    ).toBe(true)
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(

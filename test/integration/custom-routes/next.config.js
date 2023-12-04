@@ -755,6 +755,15 @@ module.exports = {
           },
         ],
       },
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-Global-Custom-Header',
+            value: 'my custom header value',
+          },
+        ],
+      },
     ]
   },
 }

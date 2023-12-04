@@ -81,4 +81,17 @@ module.exports = {
       },
     ]
   },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-Custom-Header',
+            value: 'my custom header value',
+          },
+        ],
+      },
+    ]
+  },
 }

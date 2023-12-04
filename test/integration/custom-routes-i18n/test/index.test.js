@@ -145,6 +145,32 @@ const runTests = () => {
       expect(await browser.eval('window.beforeNav')).toBe(1)
     }
   })
+
+  it('should apply custom headers to all responses', async () => {
+    const staticHeaders = []
+    const otherHeaders = []
+    const browser = await webdriver(appPort, '/', {
+      beforePageLoad: (page) => {
+        page.on('response', (response) => {
+          const url = new URL(response.url())
+          if (url.pathname.includes('_next/static/')) {
+            staticHeaders.push(response.headers())
+          } else {
+            otherHeaders.push(response.headers())
+          }
+        })
+      },
+    })
+
+    await check(() => browser.elementById('links').text(), 'Links')
+    expect(staticHeaders.length).toBeGreaterThan(0)
+    expect(otherHeaders.length).toBeGreaterThan(0)
+    expect(
+      [...staticHeaders, ...otherHeaders].every(
+        (headers) => headers['x-custom-header'] === 'my custom header value'
+      )
+    ).toBe(true)
+  })
 }
 
 describe('Custom routes i18n', () => {
