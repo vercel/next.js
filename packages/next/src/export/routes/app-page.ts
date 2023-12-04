@@ -20,6 +20,7 @@ import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/mo
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
   FLIGHT = 'FLIGHT',
+  PREFETCH_FLIGHT = 'PREFETCH_FLIGHT',
   META = 'META',
   POSTPONED = 'POSTPONED',
 }
@@ -53,10 +54,8 @@ export async function exportAppPage(
 
     const html = result.toUnchunkedString()
 
-    const {
-      metadata: { pageData, revalidate = false, postponed, fetchTags },
-    } = result
     const { metadata } = result
+    const { flightData, revalidate = false, postponed, fetchTags } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
     if (postponed && !renderOpts.experimental.ppr) {
@@ -81,6 +80,11 @@ export async function exportAppPage(
 
       return { revalidate: 0 }
     }
+    // If page data isn't available, it means that the page couldn't be rendered
+    // properly.
+    else if (!flightData) {
+      throw new Error(`Invariant: failed to get page data for ${path}`)
+    }
     // If PPR is enabled, we want to emit a prefetch rsc file for the page
     // instead of the standard rsc. This is because the standard rsc will
     // contain the dynamic data.
@@ -88,16 +92,16 @@ export async function exportAppPage(
       // If PPR is enabled, we should emit the flight data as the prefetch
       // payload.
       await fileWriter(
-        ExportedAppPageFiles.FLIGHT,
+        ExportedAppPageFiles.PREFETCH_FLIGHT,
         htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
-        pageData
+        flightData
       )
     } else {
       // Writing the RSC payload to a file if we don't have PPR enabled.
       await fileWriter(
         ExportedAppPageFiles.FLIGHT,
         htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
-        pageData
+        flightData
       )
     }
 

@@ -79,19 +79,6 @@ const getInitialRouterStateTree = (): FlightRouterState => [
   true,
 ]
 
-async function runPromiseThrowChain(fn: any): Promise<any> {
-  try {
-    return await fn()
-  } catch (err) {
-    if (err instanceof Promise) {
-      await err
-      return await runPromiseThrowChain(fn)
-    }
-
-    throw err
-  }
-}
-
 describe('serverPatchReducer', () => {
   beforeAll(() => {
     jest.useFakeTimers()
@@ -171,18 +158,9 @@ describe('serverPatchReducer', () => {
         true,
       ],
       overrideCanonicalUrl: undefined,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: {},
     }
 
-    const newState = await runPromiseThrowChain(() =>
-      serverPatchReducer(state, action)
-    )
+    const newState = await serverPatchReducer(state, action)
 
     expect(newState).toMatchInlineSnapshot(`
       {
@@ -282,178 +260,6 @@ describe('serverPatchReducer', () => {
     `)
   })
 
-  it('should apply server patch (concurrent)', async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
-    const children = (
-      <html>
-        <head></head>
-        <body>Root layout</body>
-      </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
-      [
-        'children',
-        new Map([
-          [
-            'linking',
-            {
-              status: CacheStates.READY,
-              parallelRoutes: new Map([
-                [
-                  'children',
-                  new Map([
-                    [
-                      '',
-                      {
-                        status: CacheStates.READY,
-                        data: null,
-                        subTreeData: <>Linking page</>,
-                        parallelRoutes: new Map(),
-                      },
-                    ],
-                  ]),
-                ],
-              ]),
-              data: null,
-              subTreeData: <>Linking layout level</>,
-            },
-          ],
-        ]),
-      ],
-    ])
-
-    const state = createInitialRouterState({
-      buildId,
-      initialTree,
-      initialHead: null,
-      initialCanonicalUrl,
-      initialSeedData: ['', null, children],
-      initialParallelRoutes,
-      isServer: false,
-      location: new URL('/linking/about', 'https://localhost') as any,
-    })
-
-    const state2 = createInitialRouterState({
-      buildId,
-      initialTree,
-      initialHead: null,
-      initialCanonicalUrl,
-      initialSeedData: ['', null, children],
-      initialParallelRoutes,
-      isServer: false,
-      location: new URL('/linking/about', 'https://localhost') as any,
-    })
-
-    const action: ServerPatchAction = {
-      type: ACTION_SERVER_PATCH,
-      flightData: flightDataForPatch,
-      previousTree: [
-        '',
-        {
-          children: [
-            'linking',
-            {
-              children: ['somewhere-else', { children: ['', {}] }],
-            },
-          ],
-        },
-        undefined,
-        undefined,
-        true,
-      ],
-      overrideCanonicalUrl: undefined,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: {},
-    }
-
-    await runPromiseThrowChain(() => serverPatchReducer(state, action))
-
-    const newState = await runPromiseThrowChain(() =>
-      serverPatchReducer(state2, action)
-    )
-
-    expect(newState).toMatchInlineSnapshot(`
-      {
-        "buildId": "development",
-        "cache": {
-          "data": null,
-          "parallelRoutes": Map {
-            "children" => Map {
-              "linking" => {
-                "data": null,
-                "parallelRoutes": Map {
-                  "children" => Map {
-                    "" => {
-                      "data": null,
-                      "parallelRoutes": Map {},
-                      "status": "READY",
-                      "subTreeData": <React.Fragment>
-                        Linking page
-                      </React.Fragment>,
-                    },
-                  },
-                },
-                "status": "READY",
-                "subTreeData": <React.Fragment>
-                  Linking layout level
-                </React.Fragment>,
-              },
-            },
-          },
-          "status": "READY",
-          "subTreeData": <html>
-            <head />
-            <body>
-              Root layout
-            </body>
-          </html>,
-        },
-        "canonicalUrl": "/linking/about",
-        "focusAndScrollRef": {
-          "apply": false,
-          "hashFragment": null,
-          "onlyHashChange": false,
-          "segmentPaths": [],
-        },
-        "nextUrl": "/linking/about",
-        "prefetchCache": Map {},
-        "pushRef": {
-          "mpaNavigation": false,
-          "pendingPush": false,
-          "preserveCustomHistoryState": true,
-        },
-        "tree": [
-          "",
-          {
-            "children": [
-              "linking",
-              {
-                "children": [
-                  "about",
-                  {
-                    "children": [
-                      "",
-                      {},
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-          undefined,
-          undefined,
-          true,
-        ],
-      }
-    `)
-  })
-
   it('should apply server patch without affecting focusAndScrollRef', async () => {
     const initialTree = getInitialRouterStateTree()
     const initialCanonicalUrl = '/linking'
@@ -502,13 +308,6 @@ describe('serverPatchReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: {},
     }
 
     const state = createInitialRouterState({
@@ -522,9 +321,7 @@ describe('serverPatchReducer', () => {
       location: new URL(initialCanonicalUrl, 'https://localhost') as any,
     })
 
-    const stateAfterNavigate = await runPromiseThrowChain(() =>
-      navigateReducer(state, navigateAction)
-    )
+    const stateAfterNavigate = await navigateReducer(state, navigateAction)
 
     const action: ServerPatchAction = {
       type: ACTION_SERVER_PATCH,
@@ -544,18 +341,9 @@ describe('serverPatchReducer', () => {
         true,
       ],
       overrideCanonicalUrl: undefined,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: {},
     }
 
-    const newState = await runPromiseThrowChain(() =>
-      serverPatchReducer(stateAfterNavigate, action)
-    )
+    const newState = await serverPatchReducer(stateAfterNavigate, action)
 
     expect(newState).toMatchInlineSnapshot(`
       {

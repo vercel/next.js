@@ -10,7 +10,6 @@ import {
 import type { ReduxDevToolsInstance } from '../../../client/components/use-reducer-with-devtools'
 import { reducer } from '../../../client/components/router-reducer/router-reducer'
 import React, { startTransition } from 'react'
-import { createEmptyCacheNode } from '../../../client/components/app-router'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -68,7 +67,6 @@ async function runAction({
   }
 
   actionQueue.pending = action
-  actionQueue.last = action
 
   const payload = action.payload
   const actionResult = actionQueue.action(prevState, payload)
@@ -82,8 +80,6 @@ async function runAction({
         actionQueue.dispatch(
           {
             type: ACTION_REFRESH,
-            cache: createEmptyCacheNode(),
-            mutable: {},
             origin: window.location.origin,
           },
           setState
@@ -144,6 +140,9 @@ function dispatchAction(
   // Check if the queue is empty
   if (actionQueue.pending === null) {
     // The queue is empty, so add the action and start it immediately
+    // Mark this action as the last in the queue
+    actionQueue.last = newAction
+
     runAction({
       actionQueue,
       action: newAction,
@@ -153,6 +152,9 @@ function dispatchAction(
     // Navigations take priority over any pending actions.
     // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
     actionQueue.pending.discarded = true
+
+    // Mark this action as the last in the queue
+    actionQueue.last = newAction
 
     // if the pending action was a server action, mark the queue as needing a refresh once events are processed
     if (actionQueue.pending.payload.type === ACTION_SERVER_ACTION) {
@@ -166,7 +168,7 @@ function dispatchAction(
     })
   } else {
     // The queue is not empty, so add the action to the end of the queue
-    // It will be started by finishRunningAction after the previous action finishes
+    // It will be started by runRemainingActions after the previous action finishes
     if (actionQueue.last !== null) {
       actionQueue.last.next = newAction
     }

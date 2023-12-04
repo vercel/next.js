@@ -228,7 +228,7 @@ jobs:
 
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network

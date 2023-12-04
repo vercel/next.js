@@ -50,8 +50,8 @@ import {
   APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
   PAGES_MANIFEST,
+  RedirectStatusCode,
   STATIC_STATUS_PAGES,
-  TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
@@ -1024,15 +1024,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           matchedPath = denormalizePagePath(matchedPath)
 
           let srcPathname = matchedPath
-          const match = await this.matchers.match(matchedPath, {
-            i18n: localeAnalysisResult,
-          })
+          let pageIsDynamic = isDynamicRoute(srcPathname)
 
-          // Update the source pathname to the matched page's pathname.
-          if (match) srcPathname = match.definition.pathname
+          if (!pageIsDynamic) {
+            const match = await this.matchers.match(srcPathname, {
+              i18n: localeAnalysisResult,
+            })
 
-          // The page is dynamic if the params are defined.
-          const pageIsDynamic = typeof match?.params !== 'undefined'
+            // Update the source pathname to the matched page's pathname.
+            if (match) {
+              srcPathname = match.definition.pathname
+              // The page is dynamic if the params are defined.
+              pageIsDynamic = typeof match.params !== 'undefined'
+            }
+          }
 
           // The rest of this function can't handle i18n properly, so ensure we
           // restore the pathname with the locale information stripped from it
@@ -1213,7 +1218,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         if (redirect) {
           return res
-            .redirect(redirect, TEMPORARY_REDIRECT_STATUS)
+            .redirect(redirect, RedirectStatusCode.TemporaryRedirect)
             .body(redirect)
             .send()
         }
@@ -2406,7 +2411,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // should return.
 
       // Handle `isNotFound`.
-      if (metadata.isNotFound) {
+      if ('isNotFound' in metadata && metadata.isNotFound) {
         return { value: null, revalidate: metadata.revalidate }
       }
 
@@ -2415,7 +2420,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return {
           value: {
             kind: 'REDIRECT',
-            props: metadata.pageData,
+            props: metadata.pageData ?? metadata.flightData,
           },
           revalidate: metadata.revalidate,
         }
@@ -2431,7 +2436,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         value: {
           kind: 'PAGE',
           html: result,
-          pageData: metadata.pageData,
+          pageData: metadata.pageData ?? metadata.flightData,
           postponed: metadata.postponed,
           headers,
           status: isAppPath ? res.statusCode : undefined,
@@ -3224,7 +3229,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (this.renderOpts.dev && ctx.pathname === '/favicon.ico') {
       return {
         type: 'html',
-        body: new RenderResult(''),
+        body: RenderResult.fromStatic(''),
       }
     }
     const { res, query } = ctx

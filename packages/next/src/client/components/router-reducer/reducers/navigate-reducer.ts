@@ -27,6 +27,7 @@ import {
 } from '../get-prefetch-cache-entry-status'
 import { prunePrefetchCache } from './prune-prefetch-cache'
 import { prefetchQueue } from './prefetch-reducer'
+import { createEmptyCacheNode } from '../../app-router'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -34,7 +35,6 @@ export function handleExternalUrl(
   url: string,
   pendingPush: boolean
 ) {
-  mutable.previousTree = state.tree
   mutable.mpaNavigation = true
   mutable.canonicalUrl = url
   mutable.pendingPush = pendingPush
@@ -98,20 +98,13 @@ export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
-  const { url, isExternalUrl, navigateType, cache, mutable, shouldScroll } =
-    action
+  const { url, isExternalUrl, navigateType, shouldScroll } = action
+  const mutable: Mutable = {}
   const { hash } = url
   const href = createHrefFromUrl(url)
   const pendingPush = navigateType === 'push'
   // we want to prune the prefetch cache on every navigation to avoid it growing too large
   prunePrefetchCache(state.prefetchCache)
-
-  const isForCurrentTree =
-    JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
-
-  if (isForCurrentTree) {
-    return handleMutable(state, mutable)
-  }
 
   mutable.preserveCustomHistoryState = false
 
@@ -207,6 +200,7 @@ export function navigateReducer(
             return handleExternalUrl(state, mutable, href, pendingPush)
           }
 
+          const cache: CacheNode = createEmptyCacheNode()
           let applied = applyFlightData(
             currentCache,
             cache,
@@ -276,7 +270,6 @@ export function navigateReducer(
         }
       }
 
-      mutable.previousTree = state.tree
       mutable.patchedTree = currentTree
       mutable.canonicalUrl = canonicalUrlOverride
         ? createHrefFromUrl(canonicalUrlOverride)

@@ -191,6 +191,10 @@ function setNextVersion(code) {
       `"${require('./package.json').version}"`
     )
     .replace(
+      /process\.env\.__NEXT_REQUIRED_NODE_VERSION/g,
+      `"${require('./package.json').engines.node.replace('>=', '')}"`
+    )
+    .replace(
       /process\.env\.REQUIRED_APP_REACT_VERSION/,
       `"${
         require('../../package.json').devDependencies[

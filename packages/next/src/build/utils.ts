@@ -1127,10 +1127,16 @@ export async function buildStaticPaths({
   }
 }
 
+export type AppConfigDynamic =
+  | 'auto'
+  | 'error'
+  | 'force-static'
+  | 'force-dynamic'
+
 export type AppConfig = {
   revalidate?: number | false
   dynamicParams?: true | false
-  dynamic?: 'auto' | 'error' | 'force-static' | 'force-dynamic'
+  dynamic?: AppConfigDynamic
   fetchCache?: 'force-cache' | 'only-cache'
   preferredRegion?: string
 }
@@ -2023,7 +2029,6 @@ startServer({
   port: currentPort,
   allowRetry: false,
   keepAliveTimeout,
-  useWorkers: true,
 }).catch((err) => {
   console.error(err);
   process.exit(1);
