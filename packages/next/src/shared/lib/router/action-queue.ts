@@ -80,7 +80,6 @@ async function runAction({
         actionQueue.dispatch(
           {
             type: ACTION_REFRESH,
-            mutable: {},
             origin: window.location.origin,
           },
           setState
