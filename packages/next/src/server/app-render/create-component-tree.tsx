@@ -9,8 +9,7 @@ import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
-import { Postpone } from './static/postpone'
-import { supportsPostpone } from '../../client/components/postpone/supports-postpone'
+import { ForceDynamic, supportsForceDynamic } from './static/force-dynamic'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
@@ -476,14 +475,9 @@ export async function createComponentTree({
   // render phase.
   if (
     staticGenerationStore.forceDynamic &&
-    supportsPostpone(staticGenerationStore)
+    supportsForceDynamic(staticGenerationStore)
   ) {
-    node = (
-      <Postpone
-        staticGenerationStore={staticGenerationStore}
-        reason='dynamic = "force-dynamic" was used'
-      />
-    )
+    node = <ForceDynamic staticGenerationStore={staticGenerationStore} />
   }
 
   return {
