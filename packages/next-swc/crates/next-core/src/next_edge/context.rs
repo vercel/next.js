@@ -117,7 +117,8 @@ pub async fn get_edge_resolve_options_context(
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppSSR { .. }
-        | ServerContextType::Middleware { .. } => {}
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. } => {}
     };
 
     let resolve_options_context = ResolveOptionsContext {
@@ -137,6 +138,8 @@ pub async fn get_edge_resolve_options_context(
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
+        enable_mjs_extension: true,
+        enable_edge_node_externals: true,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().cell(),

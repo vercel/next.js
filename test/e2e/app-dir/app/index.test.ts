@@ -37,7 +37,8 @@ createNextDescribe(
         )
       })
 
-      it('should use RSC prefetch data from build', async () => {
+      // TODO: Re-enable once static prefetches re-land
+      it.skip('should use RSC prefetch data from build', async () => {
         expect(
           await next.readFile('.next/server/app/linking.prefetch.rsc')
         ).toBeTruthy()

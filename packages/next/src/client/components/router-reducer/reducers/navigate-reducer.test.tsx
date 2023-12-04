@@ -28,11 +28,10 @@ const flightData: FlightData = [
         children: ['__PAGE__', {}],
       },
     ],
-    <h1>About Page!</h1>,
+    ['about', null, <h1>About Page!</h1>],
     <>
       <title>About page!</title>
     </>,
-    null,
   ],
 ]
 
@@ -57,14 +56,17 @@ const demographicsFlightData: FlightData = [
       null,
       true,
     ],
-    <html>
-      <head></head>
-      <body>Root layout from response</body>
-    </html>,
+    [
+      '',
+      null,
+      <html>
+        <head></head>
+        <body>Root layout from response</body>
+      </html>,
+    ],
     <>
       <title>Demographics Head</title>
     </>,
-    null,
   ],
 ]
 
@@ -173,7 +175,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -185,12 +187,6 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
@@ -375,7 +371,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -386,7 +382,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -399,12 +395,6 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
@@ -567,7 +557,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -578,7 +568,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -594,12 +584,6 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
@@ -726,7 +710,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -737,7 +721,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -753,12 +737,6 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'replace',
       shouldScroll: true,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
@@ -885,7 +863,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -896,7 +874,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking#hash', 'https://localhost') as any,
@@ -909,12 +887,6 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: false, // should not scroll
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
@@ -1048,7 +1020,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -1063,7 +1035,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -1079,12 +1051,6 @@ describe('navigateReducer', () => {
       navigateType: 'push',
       locationSearch: '',
       shouldScroll: true,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
@@ -1338,7 +1304,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/parallel-tab-bar', 'https://localhost') as any,
@@ -1349,7 +1315,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/parallel-tab-bar', 'https://localhost') as any,
@@ -1362,12 +1328,6 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 
@@ -1554,7 +1514,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking#hash', 'https://localhost') as any,
@@ -1567,12 +1527,6 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {
         canonicalUrl: '/linking#hash',
         previousTree: initialTree,
@@ -1704,7 +1658,7 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -1716,12 +1670,6 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
       mutable: {},
     }
 

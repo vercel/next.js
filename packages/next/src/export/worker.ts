@@ -34,6 +34,7 @@ import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
 import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isMissingPostponeDataError } from '../server/app-render/is-missing-postpone-error'
+import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -376,17 +377,23 @@ export default async function exportPage(
   }
 }
 
-process.on('unhandledRejection', (err) => {
+process.on('unhandledRejection', (err: unknown) => {
   // if it's a postpone error, it'll be handled later
   // when the postponed promise is actually awaited.
   if (isPostpone(err)) {
     return
   }
+
+  // we don't want to log these errors
+  if (isDynamicUsageError(err)) {
+    return
+  }
+
   console.error(err)
 })
 
 process.on('rejectionHandled', () => {
   // It is ok to await a Promise late in Next.js as it allows for better
-  // prefetching patterns to avoid waterfalls. We ignore loggining these.
+  // prefetching patterns to avoid waterfalls. We ignore logging these.
   // We should've already errored in anyway unhandledRejection.
 })

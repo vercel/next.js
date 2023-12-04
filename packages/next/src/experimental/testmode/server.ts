@@ -84,11 +84,26 @@ function buildResponse(proxyResponse: ProxyFetchResponse): Response {
   })
 }
 
+function extractTestInfoFromRequest(req: Request): TestReqInfo | undefined {
+  const proxyPortHeader = req.headers.get('next-test-proxy-port')
+  if (!proxyPortHeader) {
+    return undefined
+  }
+  const url = req.url
+  const proxyPort = Number(proxyPortHeader)
+  const testData = req.headers.get('next-test-data') ?? ''
+  return {
+    url,
+    proxyPort,
+    testData,
+  }
+}
+
 async function handleFetch(
   originalFetch: Fetch,
   request: Request
 ): Promise<Response> {
-  const testInfo = testStorage.getStore()
+  const testInfo = testStorage.getStore() ?? extractTestInfoFromRequest(request)
   if (!testInfo) {
     throw new Error('No test info')
   }
