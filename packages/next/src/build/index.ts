@@ -360,11 +360,6 @@ export default async function build(
   turboNextBuildRoot = null,
   buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
 ): Promise<void> {
-  if (process.env.TURBOPACK) {
-    console.error('Testing if some test were not disabled yet.')
-    process.exit(1)
-  }
-
   const isCompile = buildMode === 'experimental-compile'
   const isGenerate = buildMode === 'experimental-generate'
 
