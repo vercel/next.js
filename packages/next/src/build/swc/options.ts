@@ -36,6 +36,7 @@ function getBaseSWCOptions({
   development,
   hasReactRefresh,
   globalWindow,
+  esm,
   modularizeImports,
   swcPlugins,
   compilerOptions,
@@ -44,7 +45,6 @@ function getBaseSWCOptions({
   swcCacheDir,
   serverComponents,
   isReactServerLayer,
-  esm,
 }: {
   filename: string
   jest?: boolean
@@ -378,6 +378,7 @@ export function getLoaderSWCOptions({
     swcCacheDir,
     isReactServerLayer,
     serverComponents,
+    esm: !!esm,
   })
   baseOptions.fontLoaders = {
     fontLoaders: [
