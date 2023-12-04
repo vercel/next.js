@@ -44,12 +44,14 @@ function getBaseSWCOptions({
   swcCacheDir,
   serverComponents,
   isReactServerLayer,
+  esm,
 }: {
   filename: string
   jest?: boolean
   development: boolean
   hasReactRefresh: boolean
   globalWindow: boolean
+  esm: boolean
   modularizeImports?: NextConfig['modularizeImports']
   compilerOptions: NextConfig['compiler']
   swcPlugins: ExperimentalConfig['swcPlugins']
@@ -188,6 +190,9 @@ function getBaseSWCOptions({
             isReactServerLayer: !!isReactServerLayer,
           }
         : undefined,
+    // For app router we prefer to bundle ESM,
+    // On server side of pages router we prefer CJS.
+    preferEsm: esm,
   }
 }
 
@@ -289,6 +294,7 @@ export function getJestSWCOptions({
     compilerOptions,
     jsConfig,
     resolvedBaseUrl,
+    esm,
     // Don't apply server layer transformations for Jest
     isReactServerLayer: false,
     // Disable server / client graph assertions for Jest
@@ -423,6 +429,7 @@ export function getLoaderSWCOptions({
       isServerCompiler: isServer,
       pagesDir,
       appDir,
+      preferEsm: !!esm,
       isPageFile,
       env: {
         targets: {
