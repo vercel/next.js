@@ -16,12 +16,7 @@ use turbopack_core::{
     issue::{IssueSeverity, IssueSource},
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ReferenceType},
-    resolve::{
-        handle_resolve_error,
-        origin::{ResolveOrigin, ResolveOriginExt},
-        parse::Request,
-        ModuleResolveResult,
-    },
+    resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
     source::Source,
     source_pos::SourcePos,
 };
@@ -225,19 +220,12 @@ pub async fn css_resolve(
     request: Vc<Request>,
     ty: Value<CssReferenceSubType>,
     issue_source: Option<Vc<IssueSource>>,
-) -> Result<Vc<ModuleResolveResult>> {
-    let ty = Value::new(ReferenceType::Css(ty.into_value()));
-    let options = origin.resolve_options(ty.clone());
-    let result = origin.resolve_asset(request, options, ty.clone());
-
-    handle_resolve_error(
-        result,
-        ty,
-        origin.origin_path(),
+) -> Vc<ModuleResolveResult> {
+    url_resolve(
+        origin,
         request,
-        options,
-        IssueSeverity::Error.cell(),
+        Value::new(ReferenceType::Css(ty.into_value())),
         issue_source,
+        IssueSeverity::Error.cell(),
     )
-    .await
 }

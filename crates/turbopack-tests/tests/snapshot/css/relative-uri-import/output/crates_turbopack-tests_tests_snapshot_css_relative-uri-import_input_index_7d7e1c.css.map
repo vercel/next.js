@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/css/relative-uri-import/input/index.css"],"sourcesContent":["@import \"other.css\";\n\nbody {\n  background-color: blue;\n}\n"],"names":[],"mappings":"AAEA,IAAI,CAAC,CAAC;EACJ,gBAAgB,EAAE,IAAI;AACxB,CAAC"}},
+    {"offset": {"line": 3, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

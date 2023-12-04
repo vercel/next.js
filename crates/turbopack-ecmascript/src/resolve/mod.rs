@@ -3,12 +3,8 @@ pub mod node_native_binding;
 use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
-    context::AssetContext,
     issue::{IssueSeverity, IssueSource},
-    reference_type::{
-        CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType,
-        UrlReferenceSubType,
-    },
+    reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
         handle_resolve_error,
         options::{
@@ -17,7 +13,7 @@ use turbopack_core::{
         },
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        resolve, ModuleResolveResult,
+        ModuleResolveResult,
     },
 };
 /// Retrieves the [ResolutionConditions] of both the "into" package (allowing a
@@ -87,51 +83,6 @@ pub async fn cjs_resolve(
         .resolve()
         .await?;
     specific_resolve(origin, request, options, ty, issue_severity, issue_source).await
-}
-
-#[turbo_tasks::function]
-pub async fn url_resolve(
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    request: Vc<Request>,
-    ty: Value<UrlReferenceSubType>,
-    issue_source: Vc<IssueSource>,
-    issue_severity: Vc<IssueSeverity>,
-) -> Result<Vc<ModuleResolveResult>> {
-    let ty = Value::new(ReferenceType::Url(ty.into_value()));
-    let resolve_options = origin.resolve_options(ty.clone());
-    let rel_request = request.as_relative();
-    let reference_type = Value::new(ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl));
-    let rel_result = resolve(
-        origin.origin_path().parent(),
-        reference_type.clone(),
-        rel_request,
-        resolve_options,
-    );
-    let result = if *rel_result.is_unresolveable().await? && rel_request.resolve().await? != request
-    {
-        resolve(
-            origin.origin_path().parent(),
-            reference_type,
-            request,
-            resolve_options,
-        )
-        .with_affecting_sources(rel_result.await?.get_affecting_sources().clone())
-    } else {
-        rel_result
-    };
-    let result = origin
-        .asset_context()
-        .process_resolve_result(result, ty.clone());
-    handle_resolve_error(
-        result,
-        ty,
-        origin.origin_path(),
-        request,
-        resolve_options,
-        issue_severity,
-        Some(issue_source),
-    )
-    .await
 }
 
 async fn specific_resolve(

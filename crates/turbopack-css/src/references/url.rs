@@ -20,10 +20,9 @@ use turbopack_core::{
     issue::{IssueSeverity, IssueSource},
     output::OutputAsset,
     reference::ModuleReference,
-    reference_type::UrlReferenceSubType,
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    reference_type::{ReferenceType, UrlReferenceSubType},
+    resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
 };
-use turbopack_ecmascript::resolve::url_resolve;
 
 use crate::{embed::CssEmbed, StyleSheetLike};
 
@@ -89,8 +88,8 @@ impl ModuleReference for UrlAssetReference {
         url_resolve(
             self.origin,
             self.request,
-            Value::new(UrlReferenceSubType::CssUrl),
-            self.issue_source,
+            Value::new(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
+            Some(self.issue_source),
             IssueSeverity::Error.cell(),
         )
     }

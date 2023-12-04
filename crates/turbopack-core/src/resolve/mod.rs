@@ -20,11 +20,13 @@ use self::{
         resolve_modules_options, ConditionValue, ImportMapResult, ResolveInPackage,
         ResolveIntoPackage, ResolveModules, ResolveModulesOptions, ResolveOptions,
     },
+    origin::{ResolveOrigin, ResolveOriginExt},
     parse::Request,
     pattern::Pattern,
     remap::{ExportsField, ImportsField},
 };
 use crate::{
+    context::AssetContext,
     file_source::FileSource,
     issue::{resolve::ResolvingIssue, IssueExt, IssueSource},
     module::{Module, Modules, OptionModule},
@@ -1019,6 +1021,49 @@ pub async fn resolve(
     let result =
         handle_resolve_plugins(lookup_path, reference_type, request, options, raw_result).await?;
     Ok(result)
+}
+
+#[turbo_tasks::function]
+pub async fn url_resolve(
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    request: Vc<Request>,
+    reference_type: Value<ReferenceType>,
+    issue_source: Option<Vc<IssueSource>>,
+    issue_severity: Vc<IssueSeverity>,
+) -> Result<Vc<ModuleResolveResult>> {
+    let resolve_options = origin.resolve_options(reference_type.clone());
+    let rel_request = request.as_relative();
+    let rel_result = resolve(
+        origin.origin_path().parent(),
+        reference_type.clone(),
+        rel_request,
+        resolve_options,
+    );
+    let result = if *rel_result.is_unresolveable().await? && rel_request.resolve().await? != request
+    {
+        resolve(
+            origin.origin_path().parent(),
+            reference_type.clone(),
+            request,
+            resolve_options,
+        )
+        .with_affecting_sources(rel_result.await?.get_affecting_sources().clone())
+    } else {
+        rel_result
+    };
+    let result = origin
+        .asset_context()
+        .process_resolve_result(result, reference_type.clone());
+    handle_resolve_error(
+        result,
+        reference_type,
+        origin.origin_path(),
+        request,
+        resolve_options,
+        issue_severity,
+        issue_source,
+    )
+    .await
 }
 
 async fn handle_resolve_plugins(
