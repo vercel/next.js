@@ -302,9 +302,42 @@ export default withMDX(nextConfig)
 Frontmatter is a YAML like key/value pairing that can be used to store data about a page. `@next/mdx` does **not** support frontmatter by default, though there are many solutions for adding frontmatter to your MDX content, such as:
 
 - [remark-frontmatter](https://github.com/remarkjs/remark-frontmatter)
+- [remark-mdx-frontmatter](https://github.com/remcohaszing/remark-mdx-frontmatter)
 - [gray-matter](https://github.com/jonschlinkert/gray-matter).
 
-To access page metadata with `@next/mdx`, you can export a metadata object from within the `.mdx` file:
+To access frontmatter page metadata with `@next/mdx` data as metadata, you can use `remark-frontmatter` and `remark-mdx-frontmatter`.
+
+```js filename="next.config.mjs"
+import remarkFrontmatter from 'remark-frontmatter'
+import remarkMdxFrontmatter from 'remark-mdx-frontmatter'
+import createMDX from '@next/mdx'
+
+const withMDX = createMDX({
+  // Add markdown plugins here, as desired
+  options: {
+    remarkPlugins: [
+      remarkFrontmatter,
+      [remarkMdxFrontmatter, { name: 'metadata' }],
+    ],
+  },
+})
+
+export default withMDX({
+  // Additional config.
+})
+```
+
+To access page metadata with `@next/mdx`, you can now use frontmatter within the `.mdx` file:
+
+```mdx
+---
+author: John Doe
+---
+
+# My MDX page
+```
+
+Alternatively you can write the metadata as a JavaScript export within the `.mdx` file:
 
 ```mdx
 export const metadata = {
