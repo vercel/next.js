@@ -488,11 +488,17 @@ export function Thread({ messages }) {
 }
 ```
 
+#### `<button>` and `<input>` Elements
+
+You can invoke a Server Action from other form elements like `<button>`, `<input type="submit">`, and `<input type="image">`. These elements accept the `formAction` prop. For example, you can create a specific `<button>` element for saving a post draft in addition to publishing it. See the [React `<form>` docs](https://react.dev/docs/forms#handling-multiple-submit-buttons) for examples.
+
 ### Non-form Elements
 
-While it's common to use Server Actions with `<form>` elements, they can also be invoked from other parts of your code such as event handlers and `useEffect`.
+While it's common to use Server Actions within `<form>` elements, they can also be invoked from other parts of your code such as event handlers and `useEffect`.
 
 #### Event Handlers
+
+You can invoke a Server Action from event handlers such as `onClick`:
 
 ```js filename="app/actions.js" switcher
 'use server'
@@ -528,9 +534,11 @@ export default function LikeButton({ initialLikes }: { initialLikes: number }) {
 }
 ```
 
-> **Good to know:** To improve the user experience, we recommend using other React APIs like [`useOptimistic`](https://react.dev/reference/react/useOptimistic) and [`useTransition`](https://react.dev/reference/react/useTransition) to update the UI before the Server Action finishes or show a pending state.
+To improve the user experience, we recommend using other React APIs like [`useOptimistic`](https://react.dev/reference/react/useOptimistic) and [`useTransition`](https://react.dev/reference/react/useTransition) to update the UI before the Server Action finishes or show a pending state.
 
 #### `useEffect`
+
+You can use the React [`useEffect`](https://react.dev/reference/react/useEffect) hook to invoke a Server Action when the component mounts or a dependency changes. Remember to consider the [behavior and caveats](https://react.dev/reference/react/useEffect#caveats) of `useEffect`.
 
 ```tsx filename="app/view-count.tsx" switcher
 'use client'
