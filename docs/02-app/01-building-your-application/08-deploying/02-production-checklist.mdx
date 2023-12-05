@@ -26,36 +26,24 @@ Before taking your Next.js application to production, here are some recommendati
 
 ## Caching
 
-<details open>
-  <summary>Examples</summary>
+Caching is essential for improving response times and reducing requests to external services. The App Router in Next.js offers robust caching capabilities, catering to both static and dynamic content as well as server actions.
 
-- [ssr-caching](https://github.com/vercel/next.js/tree/canary/examples/ssr-caching)
+- **Static Asset Caching:**
+  Next.js automatically adds caching headers to immutable assets in **`/public`** or other static directories. Assets like CSS, static images, and other media are ideal candidates for long-term caching as they rarely change. The default caching headers applied are:
+  `jsx
+Cache-Control: public, max-age=31536000, immutable
+`
 
-</details>
-Caching in an App Router environment is crucial for improving response times and reducing server load. The App Router introduces enhanced capabilities for caching dynamic content and server actions.
+      This setup ensures that these assets are cached efficiently, reducing load times for returning users.
 
-- **Static Asset Caching:** Next.js automatically adds caching headers to immutable assets served from **`/public`** or other static directories. For example:
-  ```jsx
-  Cache-Control: public, max-age=31536000, immutable
-  ```
-  This header ensures long-term caching of static assets like images and stylesheets.
-- **Dynamic Content Caching:** For dynamic routes, the App Router allows you to set custom **`Cache-Control`** headers in your route handlers or server actions. Use **`stale-while-revalidate`** for content that updates frequently but can be stale for short periods:
-  ```jsx
-  // Example in a server action
-  export const action = async ({ req, res }) => {
-    res.setHeader(
-      'Cache-Control',
-      'public, s-maxage=10, stale-while-revalidate=59'
-    )
-    // ... your logic here
-  }
-  ```
-  This configuration means the content is considered fresh for 10 seconds, and if requested again within 59 seconds, the stale content is served while revalidation happens in the background.
-- **Custom Cache Behaviors:** In your route handlers, you can customize the caching strategy based on the nature of the content. For instance, different cache settings can be applied for user-specific data versus general information.
-- **Edge Caching:** If using a platform like Vercel, leverage edge caching for dynamic routes. This approach caches content at the network edge, closer to the user, for faster delivery.
-- **Local Development Caching:** During local development with **`next dev`**, caching headers are overwritten to prevent local caching, ensuring you always see the latest changes.
-
-Remember, the effectiveness of caching strategies can vary based on your deployment environment and the nature of your application's content. Tailor your caching strategy to align with your application's needs and infrastructure.
+- **Data Cache for Dynamic Content:**
+  Next.js's built-in Data Cache persists results of data fetches across server requests and deployments. By default, fetch requests are cached, allowing data to be reused in subsequent requests. This feature is particularly useful for dynamic content that doesn't change frequently.
+- **Server-Side Caching and Revalidation:**
+  Caching behavior for dynamic data fetched on the server can be controlled through various strategies. Next.js supports time-based revalidation (automatically refreshing the cache after a set period) and on-demand revalidation (refreshing the cache based on specific events). This ensures that users always receive the most up-to-date content without unnecessary delays.
+- **Caching in Server Actions and Route Handlers:**
+  Custom caching strategies can be implemented in Server Actions and Route Handlers. Developers can configure fetch requests to adhere to specific caching requirements, including opting for default settings like `force-cache`.
+- **Opting Out of Caching:**
+  There are scenarios where caching might not be desirable. Next.js allows opting out of the Data Cache for specific fetch requests. This can be achieved with settings such as `cache: 'no-store'` or `revalidate: 0`.
 
 ## Reducing JavaScript Size
 
