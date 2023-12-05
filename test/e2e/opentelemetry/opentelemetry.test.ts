@@ -2,6 +2,7 @@ import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 import { SavedSpan, traceFile } from './constants'
+import webdriver from 'next-webdriver'
 
 const EXTERNAL = {
   traceId: 'ee75cd9e534ff5e9ed78b4a0c706f0f2',
@@ -253,6 +254,146 @@ createNextDescribe(
                   },
                 ]
               `)
+              return 'success'
+            }, 'success')
+          })
+
+          it('should handle client-side navigation', async () => {
+            const browser = await webdriver(
+              next.url,
+              `/app/foo/loading/page1`,
+              { waitHydration: true }
+            )
+
+            await browser.waitForElementByCss('#page1')
+            await browser
+              .elementByCss('a')
+              .click()
+              .waitForElementByCss('#page2')
+
+            await check(async () => {
+              const traces = await getSanitizedTraces(4)
+              if (traces.length < 7) {
+                return `not enough traces, expected 7, but got ${traces.length}`
+              }
+              expect(traces).toMatchInlineSnapshot(`
+                [
+                  {
+                    "attributes": {
+                      "next.route": "/app/[param]/loading/page1",
+                      "next.span_name": "render route (app) /app/[param]/loading/page1",
+                      "next.span_type": "AppRender.getBodyResult",
+                    },
+                    "kind": 0,
+                    "name": "render route (app) /app/[param]/loading/page1",
+                    "parentId": "[parent-id]",
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "[trace-id]",
+                  },
+                  {
+                    "attributes": {
+                      "http.method": "GET",
+                      "http.route": "/app/[param]/loading/page1",
+                      "http.status_code": 200,
+                      "http.target": "/app/foo/loading/page1",
+                      "next.route": "/app/[param]/loading/page1",
+                      "next.span_name": "GET /app/[param]/loading/page1",
+                      "next.span_type": "BaseServer.handleRequest",
+                    },
+                    "kind": 1,
+                    "name": "GET /app/[param]/loading/page1",
+                    "parentId": undefined,
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "[trace-id]",
+                  },
+                  {
+                    "attributes": {
+                      "http.method": "GET",
+                      "http.route": "/app/[param]/loading/page1",
+                      "http.status_code": 200,
+                      "http.target": "/app/foo/loading/page1?_rsc=4t3jn",
+                      "next.route": "/app/[param]/loading/page1",
+                      "next.span_name": "GET /app/[param]/loading/page1",
+                      "next.span_type": "BaseServer.handleRequest",
+                    },
+                    "kind": 1,
+                    "name": "GET /app/[param]/loading/page1",
+                    "parentId": undefined,
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "[trace-id]",
+                  },
+                  {
+                    "attributes": {
+                      "http.method": "GET",
+                      "http.route": "/app/[param]/loading/page2",
+                      "http.status_code": 200,
+                      "http.target": "/app/foo/loading/page2?_rsc=1lrnj",
+                      "next.route": "/app/[param]/loading/page2",
+                      "next.span_name": "GET /app/[param]/loading/page2",
+                      "next.span_type": "BaseServer.handleRequest",
+                    },
+                    "kind": 1,
+                    "name": "GET /app/[param]/loading/page2",
+                    "parentId": undefined,
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "[trace-id]",
+                  },
+                  {
+                    "attributes": {
+                      "http.method": "GET",
+                      "http.route": "/app/[param]/loading/page2",
+                      "http.status_code": 200,
+                      "http.target": "/app/foo/loading/page2?_rsc=1yei0",
+                      "next.route": "/app/[param]/loading/page2",
+                      "next.span_name": "GET /app/[param]/loading/page2",
+                      "next.span_type": "BaseServer.handleRequest",
+                    },
+                    "kind": 1,
+                    "name": "GET /app/[param]/loading/page2",
+                    "parentId": undefined,
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "[trace-id]",
+                  },
+                  {
+                    "attributes": {
+                      "next.page": "/app/[param]/layout",
+                      "next.span_name": "generateMetadata /app/[param]/layout",
+                      "next.span_type": "ResolveMetadata.generateMetadata",
+                    },
+                    "kind": 0,
+                    "name": "generateMetadata /app/[param]/layout",
+                    "parentId": "[parent-id]",
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "[trace-id]",
+                  },
+                  {
+                    "attributes": {
+                      "next.page": "/app/[param]/layout",
+                      "next.span_name": "generateMetadata /app/[param]/layout",
+                      "next.span_type": "ResolveMetadata.generateMetadata",
+                    },
+                    "kind": 0,
+                    "name": "generateMetadata /app/[param]/layout",
+                    "parentId": "[parent-id]",
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "[trace-id]",
+                  },
+                ]
+                `)
               return 'success'
             }, 'success')
           })
