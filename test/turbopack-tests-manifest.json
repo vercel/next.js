@@ -3356,19 +3356,20 @@
     "passed": [
       "app-dir - logging with default logging should not contain trailing word page for app router routes",
       "app-dir - logging with default logging should not log fetch requests at all",
-      "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging for edge runtime should not log fetch requests at all",
       "app-dir - logging with verbose logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
       "app-dir - logging with verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
       "app-dir - logging with verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
       "app-dir - logging with verbose logging should log requests with correct indentation",
-      "app-dir - logging with verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging should only log requests in dev mode"
     ],
-    "failed": [],
+    "failed": [
+      "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with verbose logging should not contain metadata internal segments for dynamic metadata routes"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
