@@ -16,12 +16,6 @@ on:
       diff_base:
         type: string
         default: 'main'
-      force_post_to_slack:
-        type: boolean
-      # Skip posting to slack regardless of the conditions.
-      skip_post_to_slack:
-        type: boolean
-        default: false
 
 # Workflow-common env variables
 env:
@@ -169,9 +163,6 @@ jobs:
         uses: ./.github/actions/next-integration-stat
         with:
           diff_base: ${{ inputs.diff_base }}
-        env:
-          NEXT_TURBO_FORCE_SLACK_UPDATE: '${{ inputs.force_post_to_slack }}'
-          NEXT_TURBO_FORCE_SKIP_SLACK_UPDATE: '${{ inputs.skip_post_to_slack }}'
 
       - name: Store artifacts
         uses: actions/upload-artifact@v3
@@ -181,7 +172,6 @@ jobs:
             nextjs-test-results.json
             failed-test-path-list.json
             passed-test-path-list.json
-            slack-payload.json
 
   upload_test_report:
     needs: [test-dev, test-integration]
@@ -204,4 +194,4 @@ jobs:
       - name: Upload to datadog
         run: |
           # We'll tag this to the "Turbopack" datadog service, not "nextjs"
-          DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack.daily --service Turbopack ./test/report
+          DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack.daily --service Turbopack ./test/reports

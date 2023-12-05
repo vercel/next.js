@@ -5696,6 +5696,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/react-dnd-compile/react-dnd-compile.test.ts": {
+    "passed": [
+      "react-dnd-compile should work",
+      "react-dnd-compile should work on react-dnd import page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/reload-scroll-backforward-restoration/index.test.ts": {
     "passed": [
       "reload-scroll-back-restoration should restore the scroll position on navigating back",
@@ -6365,10 +6375,11 @@
     "runtimeError": false
   },
   "test/integration/app-dir-export/test/dynamic-missing-gsp-dev.test.ts": {
-    "passed": [],
-    "failed": [
-      "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams",
+    "passed": [
       "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams"
+    ],
+    "failed": [
+      "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams"
     ],
     "pending": [],
     "flakey": [],
@@ -12128,11 +12139,11 @@
     "runtimeError": false
   },
   "test/integration/jsconfig-paths-wildcard/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "jsconfig paths wildcard default behavior should resolve a wildcard alias",
       "jsconfig paths without baseurl wildcard default behavior should resolve a wildcard alias"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
