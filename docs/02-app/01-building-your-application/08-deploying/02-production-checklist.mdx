@@ -1,0 +1,159 @@
+---
+title: Going to Production
+description: Before taking your Next.js application to production, here are some recommendations to ensure the best user experience.
+---
+
+Before taking your Next.js application to production, here are some recommendations to ensure the best user experience.
+
+## In General
+
+- Use [caching](#caching) wherever possible.
+- Ensure your database and backend are deployed in the same region.
+- Aim to ship the least amount of JavaScript possible.
+- Defer loading heavy JavaScript bundles until needed.
+- Ensure [logging](#logging) is set up.
+- Ensure [error handling](#error-handling) is set up.
+- Configure the [404](/docs/pages/building-your-application/routing/custom-error#404-page) (Not Found) and [500](/docs/pages/building-your-application/routing/custom-error#500-page) (Error) pages.
+- Ensure you are [measuring performance](/docs/pages/building-your-application/optimizing/analytics).
+- Run [Lighthouse](https://developers.google.com/web/tools/lighthouse) to check for performance, best practices, accessibility, and SEO. For best results, use a production build of Next.js and use incognito in your browser so results aren't affected by extensions.
+- Review [Supported Browsers and Features](/docs/architecture/supported-browsers).
+- Improve performance using:
+  - [`next/image` and Automatic Image Optimization](/docs/pages/building-your-application/optimizing/images)
+  - [Automatic Font Optimization](/docs/pages/building-your-application/optimizing/fonts)
+  - [Script Optimization](/docs/pages/building-your-application/optimizing/scripts)
+- Improve [loading performance](#loading-performance)
+- Consider adding a [Content Security Policy](/docs/pages/building-your-application/configuring/content-security-policy)
+
+## Caching
+
+<details open>
+  <summary>Examples</summary>
+
+- [ssr-caching](https://github.com/vercel/next.js/tree/canary/examples/ssr-caching)
+
+</details>
+Caching in an App Router environment is crucial for improving response times and reducing server load. The App Router introduces enhanced capabilities for caching dynamic content and server actions.
+
+- **Static Asset Caching:** Next.js automatically adds caching headers to immutable assets served from **`/public`** or other static directories. For example:
+  ```jsx
+  Cache-Control: public, max-age=31536000, immutable
+  ```
+  This header ensures long-term caching of static assets like images and stylesheets.
+- **Dynamic Content Caching:** For dynamic routes, the App Router allows you to set custom **`Cache-Control`** headers in your route handlers or server actions. Use **`stale-while-revalidate`** for content that updates frequently but can be stale for short periods:
+  ```jsx
+  // Example in a server action
+  export const action = async ({ req, res }) => {
+    res.setHeader(
+      'Cache-Control',
+      'public, s-maxage=10, stale-while-revalidate=59'
+    )
+    // ... your logic here
+  }
+  ```
+  This configuration means the content is considered fresh for 10 seconds, and if requested again within 59 seconds, the stale content is served while revalidation happens in the background.
+- **Custom Cache Behaviors:** In your route handlers, you can customize the caching strategy based on the nature of the content. For instance, different cache settings can be applied for user-specific data versus general information.
+- **Edge Caching:** If using a platform like Vercel, leverage edge caching for dynamic routes. This approach caches content at the network edge, closer to the user, for faster delivery.
+- **Local Development Caching:** During local development with **`next dev`**, caching headers are overwritten to prevent local caching, ensuring you always see the latest changes.
+
+Remember, the effectiveness of caching strategies can vary based on your deployment environment and the nature of your application's content. Tailor your caching strategy to align with your application's needs and infrastructure.
+
+## Reducing JavaScript Size
+
+<details open>
+  <summary>Examples</summary>
+
+- [with-dynamic-import](https://github.com/vercel/next.js/tree/canary/examples/with-dynamic-import)
+
+</details>
+Optimizing the amount of JavaScript sent to the browser is key for performance. This is particularly important when using the dynamic routing of the App Router. To streamline your JavaScript bundles, consider these tools and strategies:
+
+**Analysis Tools**
+
+- **Import Cost**: A VSCode extension that shows the size of each import, helping you gauge the impact on your bundle.
+- **Package Phobia**: Assess the size cost of new development dependencies.
+- **Bundle Phobia**: Evaluate how dependencies may increase your bundle sizes.
+- **Webpack Bundle Analyzer**: An interactive treemap visualization of webpack output files, offering insights into your bundle composition.
+- **bundlejs**: An online bundling and minifying tool, providing data on compressed bundle sizes.
+
+**Optimization Strategies**
+
+- **Server-Side Efficiency**: Optimize server actions for light processing, enhancing performance.
+- **Minimizing Client-Side JavaScript**: The App Router's flexibility means complex interactions; reducing client-side JavaScript is crucial for faster page loads and a better user experience.
+
+**Deep Dive with `@next/bundle-analyzer`**
+
+**`@next/bundle-analyzer`** is a powerful tool for visualizing webpack output sizes. It's instrumental in pinpointing which code segments most significantly impact your JavaScript bundle size. This insight is essential for targeted optimizations, such as eliminating or substituting large dependencies, implementing code splitting, or lazy-loading modules. Reducing JavaScript bundle size is vital for faster load times and improved performance, especially for production environments.
+
+**Incorporating `@next/bundle-analyzer`:**
+
+1. **Install**: Run **`npm install @next/bundle-analyzer webpack-bundle-analyzer`**.
+2. **Configure**: Update **`next.config.js`** with the bundle analyzer's configuration.
+3. **Run Analysis**: Execute **`ANALYZE=true npm run build`** to start the analysis.
+4. **Review Findings**: Examine the report to understand and act on bundle size data.
+
+Regular application of this analysis during development and pre-deployment is crucial for delivering efficient code.
+
+## Logging
+
+<details open>
+  <summary>Examples</summary>
+
+- [Pino and Logflare Example](https://github.com/Logflare/next-pino-logflare-logging-example)
+
+</details>
+
+Since Next.js runs on both the client and server, there are multiple forms of logging supported:
+
+- `console.log` in the browser
+- `stdout` on the server
+
+If you want a structured logging package, we recommend [Pino](https://www.npmjs.com/package/pino). If you're using Vercel, there are [pre-built logging integrations](https://vercel.com/integrations?utm_source=next-site&utm_medium=docs&utm_campaign=next-website#logging) compatible with Next.js.
+
+## Error Handling
+
+<details open>
+  <summary>Examples</summary>
+
+- [with-sentry](https://github.com/vercel/next.js/tree/canary/examples/with-sentry)
+
+</details>
+Effective error handling is vital for maintaining application stability and providing a seamless user experience, especially with the App Router's dynamic routes and server actions.
+
+1. **Server Actions Error Handling**: Wrap server actions in try-catch blocks to handle exceptions gracefully. Log errors for further analysis and return appropriate responses to the client.
+
+   ```jsx
+   export async function serverAction() {
+     try {
+       // Your logic here
+     } catch (error) {
+       console.error('Server Action Error:', error)
+       // Handle the error appropriately
+     }
+   }
+   ```
+
+2. **Client-Side Error Handling**: Utilize error boundaries in React to catch and handle errors in the UI. This prevents the entire application from crashing due to errors in specific components.
+3. **Custom Error Pages**: Implement custom 404 and 500 error pages for handling route not found and server errors, respectively. This improves user experience during unforeseen errors.
+4. **Error Logging**: Integrate error logging tools like Sentry to capture, log, and analyze errors. This is crucial for identifying and fixing issues quickly.
+5. **Error Monitoring**: Regularly monitor error logs and address issues proactively. This helps in maintaining application health and performance.
+
+By implementing robust error handling strategies, you can ensure that your Next.js App Router application remains reliable and user-friendly under all circumstances.
+
+## Loading Performance
+
+To improve loading performance, you first need to determine what to measure and how to measure it. [Core Web Vitals](https://vercel.com/blog/core-web-vitals?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) is a good industry standard that is measured using your own web browser. If you are not familiar with the metrics of Core Web Vitals, review this [blog post](https://vercel.com/blog/core-web-vitals?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) and determine which specific metric/s will be your drivers for loading performance. Ideally, you would want to measure the loading performance in the following environments:
+
+- In the lab, using your own computer or a simulator.
+- In the field, using real-world data from actual visitors.
+- Local, using a test that runs on your device.
+- Remote, using a test that runs in the cloud.
+
+Once you are able to measure the loading performance, use the following strategies to improve it iteratively so that you apply one strategy, measure the new performance and continue tweaking until you do not see much improvement. Then, you can move on to the next strategy.
+
+- **Optimize Caching**: Use caching strategies suited for dynamic content, as detailed in the caching section.
+- **Server Actions Efficiency**: Optimize server actions for quick data retrieval and minimal processing.
+- **Minimize JavaScript Load**: Remove unused JavaScript and implement code splitting. Dynamically load components as needed.
+  - Setting up your Code Editor to view import costs and sizes
+  - Finding alternative smaller packages
+  - Dynamically loading components and dependencies
+- **Parallel Route Rendering**: Leverage the App Router’s ability to render multiple components in parallel for enhanced performance.
