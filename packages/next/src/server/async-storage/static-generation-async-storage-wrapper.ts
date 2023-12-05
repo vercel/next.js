@@ -77,7 +77,6 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
       isDraftMode: renderOpts.isDraftMode,
-      experimental: renderOpts.experimental,
 
       postpone:
         // If we aren't performing a static generation or we aren't using PPR then

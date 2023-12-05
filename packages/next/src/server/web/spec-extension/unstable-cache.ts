@@ -77,9 +77,9 @@ export function unstable_cache<T extends Callback>(
         urlPathname: store?.urlPathname || '/',
         isUnstableCacheCallback: true,
         isStaticGeneration: store?.isStaticGeneration === true,
-        experimental: {
-          ppr: store?.experimental?.ppr === true,
-        },
+        // If we're inside a cache callback, we don't want to postpone the
+        // render. We want to cache the result of the callback.
+        postpone: undefined,
       },
       async () => {
         const tags = validateTags(

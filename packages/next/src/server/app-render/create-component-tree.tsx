@@ -170,7 +170,9 @@ export async function createComponentTree({
       staticGenerationStore.forceDynamic = true
 
       // TODO: (PPR) remove this bailout once PPR is the default
-      if (!staticGenerationStore.experimental.ppr) {
+      if (!staticGenerationStore.postpone) {
+        // If the postpone API isn't available, we can't postpone the render and
+        // therefore we can't use the dynamic API.
         staticGenerationBailout(`force-dynamic`, { dynamic })
       }
     } else {
@@ -201,7 +203,9 @@ export async function createComponentTree({
     if (
       staticGenerationStore.isStaticGeneration &&
       ctx.defaultRevalidate === 0 &&
-      !staticGenerationStore.experimental.ppr
+      // If the postpone API isn't available, we can't postpone the render and
+      // therefore we can't use the dynamic API.
+      !staticGenerationStore.postpone
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
       staticGenerationStore.dynamicUsageDescription = dynamicUsageDescription
@@ -210,10 +214,8 @@ export async function createComponentTree({
     }
   }
 
-  if (
-    staticGenerationStore?.dynamicUsageErr &&
-    !staticGenerationStore.experimental.ppr
-  ) {
+  // If there's a dynamic usage error attached to the store, throw it.
+  if (staticGenerationStore.dynamicUsageErr) {
     throw staticGenerationStore.dynamicUsageErr
   }
 
