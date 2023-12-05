@@ -1459,7 +1459,8 @@
       "optimizePackageImports app - should render the icons correctly without creating all the modules",
       "optimizePackageImports pages - should optimize recursive wildcard export mapping",
       "optimizePackageImports pages - should render the icons correctly without creating all the modules",
-      "optimizePackageImports should support visx"
+      "optimizePackageImports should support visx",
+      "optimizePackageImports should support MUI"
     ],
     "pending": [],
     "flakey": [],
