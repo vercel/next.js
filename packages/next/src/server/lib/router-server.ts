@@ -565,7 +565,7 @@ export async function initialize(opts: {
     const {
       wrapRequestHandlerWorker,
       interceptTestApis,
-    } = require('../../experimental/testmode/server')
+    } = require('next/dist/experimental/testmode/server')
     requestHandler = wrapRequestHandlerWorker(requestHandler)
     interceptTestApis()
   }

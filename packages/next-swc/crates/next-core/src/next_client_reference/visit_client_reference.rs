@@ -3,6 +3,7 @@ use std::future::Future;
 use anyhow::Result;
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
@@ -61,26 +62,30 @@ pub struct ClientReferenceGraph {
 impl ClientReferenceGraph {
     #[turbo_tasks::function]
     pub async fn new(entries: Vc<Modules>) -> Result<Vc<Self>> {
-        let entries = entries.await?;
+        async move {
+            let entries = entries.await?;
 
-        let graph = AdjacencyMap::new()
-            .skip_duplicates()
-            .visit(
-                entries
-                    .iter()
-                    .copied()
-                    .map(|module| VisitClientReferenceNode {
-                        server_component: None,
-                        ty: VisitClientReferenceNodeType::Internal(module),
-                    })
-                    .collect::<Vec<_>>(),
-                VisitClientReference,
-            )
-            .await
-            .completed()?
-            .into_inner();
+            let graph = AdjacencyMap::new()
+                .skip_duplicates()
+                .visit(
+                    entries
+                        .iter()
+                        .copied()
+                        .map(|module| VisitClientReferenceNode {
+                            server_component: None,
+                            ty: VisitClientReferenceNodeType::Internal(module),
+                        })
+                        .collect::<Vec<_>>(),
+                    VisitClientReference,
+                )
+                .await
+                .completed()?
+                .into_inner();
 
-        Ok(ClientReferenceGraph { graph }.cell())
+            Ok(ClientReferenceGraph { graph }.cell())
+        }
+        .instrument(tracing::info_span!("find client references"))
+        .await
     }
 
     #[turbo_tasks::function]

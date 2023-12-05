@@ -1,6 +1,7 @@
 use std::future::Future;
 
 use anyhow::Result;
+use tracing::Instrument;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     TryJoinIterExt, Vc,
@@ -19,38 +20,42 @@ pub struct NextDynamicEntries(Vec<Vc<NextDynamicEntryModule>>);
 impl NextDynamicEntries {
     #[turbo_tasks::function]
     pub async fn from_entries(entries: Vc<Modules>) -> Result<Vc<NextDynamicEntries>> {
-        let nodes: Vec<_> = AdjacencyMap::new()
-            .skip_duplicates()
-            .visit(
-                entries
-                    .await?
-                    .iter()
-                    .copied()
-                    .map(VisitDynamicNode::Internal)
-                    .collect::<Vec<_>>(),
-                VisitDynamic,
-            )
-            .await
-            .completed()?
-            .into_inner()
-            .into_reverse_topological()
-            .collect();
+        async move {
+            let nodes: Vec<_> = AdjacencyMap::new()
+                .skip_duplicates()
+                .visit(
+                    entries
+                        .await?
+                        .iter()
+                        .copied()
+                        .map(VisitDynamicNode::Internal)
+                        .collect::<Vec<_>>(),
+                    VisitDynamic,
+                )
+                .await
+                .completed()?
+                .into_inner()
+                .into_reverse_topological()
+                .collect();
 
-        let mut next_dynamics = vec![];
+            let mut next_dynamics = vec![];
 
-        for node in nodes {
-            match node {
-                VisitDynamicNode::Internal(_asset) => {
-                    // No-op. These nodes are only useful during graph
-                    // traversal.
-                }
-                VisitDynamicNode::Dynamic(dynamic_asset) => {
-                    next_dynamics.push(dynamic_asset);
+            for node in nodes {
+                match node {
+                    VisitDynamicNode::Internal(_asset) => {
+                        // No-op. These nodes are only useful during graph
+                        // traversal.
+                    }
+                    VisitDynamicNode::Dynamic(dynamic_asset) => {
+                        next_dynamics.push(dynamic_asset);
+                    }
                 }
             }
-        }
 
-        Ok(Vc::cell(next_dynamics))
+            Ok(Vc::cell(next_dynamics))
+        }
+        .instrument(tracing::info_span!("find next/dynamic references"))
+        .await
     }
 }
 

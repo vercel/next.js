@@ -23,9 +23,7 @@ env:
   RUST_BACKTRACE: 0
   NEXT_TELEMETRY_DISABLED: 1
   TEST_CONCURRENCY: 6
-  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
   NEXT_JUNIT_TEST_REPORT: 'true'
-  DD_ENV: 'ci'
   # Turbopack specific customization for the test runner
   TURBOPACK: 1
   __INTERNAL_CUSTOM_TURBOPACK_BINDINGS: ${{ github.workspace }}/packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -78,17 +76,15 @@ jobs:
           corepack enable
           corepack prepare --activate yarn@1.22.19
 
+      - name: Setup playwright
+        run: |
+          pnpm playwright install
+
       - name: Run test/development
         run: |
-          ls $NEXT_TEST_SKIP_RETRY_MANIFEST
-          sudo npx playwright install-deps && pnpm playwright install
-          NEXT_TEST_MODE=dev TURBOPACK=1 node run-tests.js -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type development
-          ls test/turbopack-test-junit-report
+          NEXT_TEST_MODE=dev TURBOPACK=1 node run-tests.js -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --type development
         # It is currently expected to fail some of next.js integration test, do not fail CI check.
         continue-on-error: true
-        env:
-          # marker to parse log output, do not delete / change.
-          NEXT_INTEGRATION_TEST: true
 
       - name: Upload test report artifacts
         uses: actions/upload-artifact@v3
@@ -125,14 +121,14 @@ jobs:
           corepack enable
           corepack prepare --activate yarn@1.22.19
 
+      - name: Setup playwright
+        run: |
+          pnpm playwright install
+
       - name: Run test/integration
         run: |
-          sudo npx playwright install-deps && pnpm playwright install
           TURBOPACK=1 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
-          ls test/turbopack-test-junit-report
         continue-on-error: true
-        env:
-          NEXT_INTEGRATION_TEST: true
 
       - name: Upload test report artifacts
         uses: actions/upload-artifact@v3
@@ -192,6 +188,9 @@ jobs:
           path: test/reports
 
       - name: Upload to datadog
+        env:
+          DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+          DD_ENV: 'ci'
         run: |
           # We'll tag this to the "Turbopack" datadog service, not "nextjs"
-          DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack.daily --service Turbopack ./test/reports
+          npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack.daily --service Turbopack ./test/reports
