@@ -81,6 +81,7 @@ fn test(input: &Path, minify: bool) {
                 auto_modularize_imports: None,
                 optimize_barrel_exports: None,
                 optimize_server_react: None,
+                prefer_esm: false,
             };
 
             let unresolved_mark = Mark::new();

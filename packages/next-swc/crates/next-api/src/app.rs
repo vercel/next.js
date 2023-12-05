@@ -35,6 +35,7 @@ use next_core::{
     util::{get_asset_prefix_from_pathname, NextRuntime},
 };
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use turbo_tasks::{trace::TraceRawVcs, Completion, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
     turbo::{
@@ -1084,37 +1085,61 @@ async fn concatenate_output_assets(
 impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
     async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
-        let output = self.output();
-        // Must use self.output_assets() instead of output.output_assets() to make it a
-        // single operation
-        let output_assets = self.output_assets();
-
         let this = self.await?;
-        let node_root = this.app_project.project().node_root();
-
-        let node_root_ref = &node_root.await?;
-
-        let node_root = this.app_project.project().node_root();
-        this.app_project
-            .project()
-            .emit_all_output_assets(Vc::cell(output_assets))
-            .await?;
-
-        let server_paths = all_server_paths(output_assets, node_root)
-            .await?
-            .clone_value();
-
-        let written_endpoint = match *output.await? {
-            AppEndpointOutput::NodeJs { rsc_chunk, .. } => WrittenEndpoint::NodeJs {
-                server_entry_path: node_root_ref
-                    .get_path_to(&*rsc_chunk.ident().path().await?)
-                    .context("Node.js chunk entry path must be inside the node root")?
-                    .to_string(),
-                server_paths,
-            },
-            AppEndpointOutput::Edge { .. } => WrittenEndpoint::Edge { server_paths },
+        let span = match this.ty {
+            AppEndpointType::Page {
+                ty: AppPageEndpointType::Html,
+                ..
+            } => {
+                tracing::info_span!("app endpoint HTML", name = display(&this.page))
+            }
+            AppEndpointType::Page {
+                ty: AppPageEndpointType::Rsc,
+                ..
+            } => {
+                tracing::info_span!("app endpoint RSC", name = display(&this.page))
+            }
+            AppEndpointType::Route { .. } => {
+                tracing::info_span!("app endpoint route", name = display(&this.page))
+            }
+            AppEndpointType::Metadata { .. } => {
+                tracing::info_span!("app endpoint metadata", name = display(&this.page))
+            }
         };
-        Ok(written_endpoint.cell())
+        async move {
+            let output = self.output();
+            // Must use self.output_assets() instead of output.output_assets() to make it a
+            // single operation
+            let output_assets = self.output_assets();
+
+            let node_root = this.app_project.project().node_root();
+
+            let node_root_ref = &node_root.await?;
+
+            let node_root = this.app_project.project().node_root();
+            this.app_project
+                .project()
+                .emit_all_output_assets(Vc::cell(output_assets))
+                .await?;
+
+            let server_paths = all_server_paths(output_assets, node_root)
+                .await?
+                .clone_value();
+
+            let written_endpoint = match *output.await? {
+                AppEndpointOutput::NodeJs { rsc_chunk, .. } => WrittenEndpoint::NodeJs {
+                    server_entry_path: node_root_ref
+                        .get_path_to(&*rsc_chunk.ident().path().await?)
+                        .context("Node.js chunk entry path must be inside the node root")?
+                        .to_string(),
+                    server_paths,
+                },
+                AppEndpointOutput::Edge { .. } => WrittenEndpoint::Edge { server_paths },
+            };
+            Ok(written_endpoint.cell())
+        }
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]

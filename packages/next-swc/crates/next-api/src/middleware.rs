@@ -7,6 +7,7 @@ use next_core::{
     next_server::{get_server_runtime_entries, ServerContextType},
     util::parse_config_from_source,
 };
+use tracing::Instrument;
 use turbo_tasks::{Completion, TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileContent},
@@ -167,18 +168,23 @@ impl MiddlewareEndpoint {
 impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
-        let this = self.await?;
-        let output_assets = self.output_assets();
-        this.project
-            .emit_all_output_assets(Vc::cell(output_assets))
-            .await?;
+        let span = tracing::info_span!("middleware endpoint");
+        async move {
+            let this = self.await?;
+            let output_assets = self.output_assets();
+            this.project
+                .emit_all_output_assets(Vc::cell(output_assets))
+                .await?;
 
-        let node_root = this.project.node_root();
-        let server_paths = all_server_paths(output_assets, node_root)
-            .await?
-            .clone_value();
+            let node_root = this.project.node_root();
+            let server_paths = all_server_paths(output_assets, node_root)
+                .await?
+                .clone_value();
 
-        Ok(WrittenEndpoint::Edge { server_paths }.cell())
+            Ok(WrittenEndpoint::Edge { server_paths }.cell())
+        }
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]
