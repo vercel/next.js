@@ -34,7 +34,7 @@ Caching is essential for improving response times and reducing requests to exter
 Cache-Control: public, max-age=31536000, immutable
 `
 
-      This setup ensures that these assets are cached efficiently, reducing load times for returning users.
+                  This setup ensures that these assets are cached efficiently, reducing load times for returning users.
 
 - **Data Cache for Dynamic Content:**
   Next.js's built-in Data Cache persists results of data fetches across server requests and deployments. By default, fetch requests are cached, allowing data to be reused in subsequent requests. This feature is particularly useful for dynamic content that doesn't change frequently.
@@ -47,39 +47,33 @@ Cache-Control: public, max-age=31536000, immutable
 
 ## Reducing JavaScript Size
 
-<details open>
-  <summary>Examples</summary>
+Making sure your website sends less JavaScript to the browser is very important for speed. To help you understand and manage what goes into your JavaScript files, you can use these tools:
 
-- [with-dynamic-import](https://github.com/vercel/next.js/tree/canary/examples/with-dynamic-import)
+### **Analysis Tools**
 
-</details>
-Optimizing the amount of JavaScript sent to the browser is key for performance. This is particularly important when using the dynamic routing of the App Router. To streamline your JavaScript bundles, consider these tools and strategies:
+- [Import Cost](https://marketplace.visualstudio.com/items?itemName=wix.vscode-import-cost) – Shows the size of each package you import right in VSCode.
+- [Package Phobia](https://packagephobia.com/) – Helps you see the size impact of adding new dev dependencies to your project.
+- [Bundle Phobia](https://bundlephobia.com/) - Tells you how much a new dependency could increase your JavaScript size.
+- [Webpack Bundle Analyzer](https://github.com/vercel/next.js/tree/canary/packages/next-bundle-analyzer) – Creates a visual, interactive map of your webpack output files to show where space is used.
+- [bundlejs](https://bundlejs.com/) - A browser tool for bundling and minifying projects, showing compressed sizes.
 
-**Analysis Tools**
+### **Optimization Strategies**
 
-- **Import Cost**: A VSCode extension that shows the size of each import, helping you gauge the impact on your bundle.
-- **Package Phobia**: Assess the size cost of new development dependencies.
-- **Bundle Phobia**: Evaluate how dependencies may increase your bundle sizes.
-- **Webpack Bundle Analyzer**: An interactive treemap visualization of webpack output files, offering insights into your bundle composition.
-- **bundlejs**: An online bundling and minifying tool, providing data on compressed bundle sizes.
+- Optimize Server Actions - Focus on simplifying and speeding up your server actions. This can be achieved by optimizing database queries, reducing external API calls, and ensuring server-side computations are efficient. Efficient server-side processing helps reduce the time it takes for your pages to load and improves the overall performance of your website.
+- Minimize Client-Side JavaScript - It's important to keep JavaScript on the client-side as small as possible for quicker website loading and a better user experience.
 
-**Optimization Strategies**
+### Optimizing with **`[@next/bundle-analyzer](https://www.npmjs.com/package/@next/bundle-analyzer)`**
 
-- **Server-Side Efficiency**: Optimize server actions for light processing, enhancing performance.
-- **Minimizing Client-Side JavaScript**: The App Router's flexibility means complex interactions; reducing client-side JavaScript is crucial for faster page loads and a better user experience.
+`@next/bundle-analyzer` is a plugin for Next.js that helps manage the size of your JavaScript files. It shows you how big each part of your webpack output is. This is helpful because you can find and fix parts of your code that are too large. For example, you might remove large dependencies, split your code, or only load some parts when needed.
 
-**Deep Dive with `@next/bundle-analyzer`**
+How to use `@next/bundle-analyzer`:
 
-**`@next/bundle-analyzer`** is a powerful tool for visualizing webpack output sizes. It's instrumental in pinpointing which code segments most significantly impact your JavaScript bundle size. This insight is essential for targeted optimizations, such as eliminating or substituting large dependencies, implementing code splitting, or lazy-loading modules. Reducing JavaScript bundle size is vital for faster load times and improved performance, especially for production environments.
+1. **Install**: Run `npm install @next/bundle-analyzer webpack-bundle-analyzer`.
+2. **Configure**: Add the bundle analyzer's settings to your `next.config.js`.
+3. **Run Analysis**: Use `ANALYZE=true npm run build` to start looking at your file sizes.
+4. **Review Findings**: Check the report to see where you can make improvements.
 
-**Incorporating `@next/bundle-analyzer`:**
-
-1. **Install**: Run **`npm install @next/bundle-analyzer webpack-bundle-analyzer`**.
-2. **Configure**: Update **`next.config.js`** with the bundle analyzer's configuration.
-3. **Run Analysis**: Execute **`ANALYZE=true npm run build`** to start the analysis.
-4. **Review Findings**: Examine the report to understand and act on bundle size data.
-
-Regular application of this analysis during development and pre-deployment is crucial for delivering efficient code.
+Doing this regularly while you develop and before you launch your site is important to keep your code efficient.
 
 ## Logging
 
