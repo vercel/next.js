@@ -832,9 +832,10 @@ function assignDefaults(
     },
     ahooks: {
       transform: {
-        createUpdateEffect:
-          'modularize-import-loader?name=createUpdateEffect&from=named&as=default!ahooks/es/createUpdateEffect',
-        '*': 'ahooks/es/{{member}}',
+        createUpdateEffect: "modularize-import-loader?name=createUpdateEffect&from=named&as=default!ahooks/lib/createUpdateEffect",
+        configResponsive: "modularize-import-loader?name=configResponsive&as=default!ahooks/lib/useResponsive",
+        useResponsive: "modularize-import-loader?name=useResponsive&as=default!ahooks/lib/useResponsive",
+        "*": "ahooks/lib/{{member}}"
       },
     },
     '@ant-design/icons': {
