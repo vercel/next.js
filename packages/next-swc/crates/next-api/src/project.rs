@@ -42,7 +42,6 @@ use turbopack_binding::{
             environment::ServerAddr,
             file_source::FileSource,
             output::{OutputAsset, OutputAssets},
-            reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
             source::Source,
             version::{Update, Version, VersionState, VersionedContent},
@@ -735,14 +734,7 @@ impl Project {
     ) -> Result<Vc<MiddlewareEndpoint>> {
         let context = self.middleware_context();
 
-        let module = context
-            .process(
-                source,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
-            )
-            .module();
-
-        Ok(MiddlewareEndpoint::new(self, context, module))
+        Ok(MiddlewareEndpoint::new(self, context, source))
     }
 
     #[turbo_tasks::function]
@@ -780,14 +772,7 @@ impl Project {
             self.node_instrumentation_context()
         };
 
-        let module = context
-            .process(
-                source,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-            )
-            .module();
-
-        InstrumentationEndpoint::new(self, context, module, is_edge)
+        InstrumentationEndpoint::new(self, context, source, is_edge)
     }
 
     #[turbo_tasks::function]
