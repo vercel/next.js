@@ -19,7 +19,7 @@ description: Learn how to set up Next.js with three commonly used testing tools 
 
 </PagesOnly>
 
-Learn how to set up Next.js with commonly used testing tools: [Cypress](#cypress), [Playwright](#playwright), [Vitest](#vitest), [Jest with React Testing Library](#jest-and-react-testing-library).
+Learn how to set up Next.js with commonly used testing tools: <PagesOnly>[Cypress](#cypress),</PagesOnly> [Playwright](#playwright), [Vitest](#vitest), [Jest with React Testing Library](#jest-and-react-testing-library).
 
 <PagesOnly>
 
@@ -347,13 +347,21 @@ You can learn more about Playwright and Continuous Integration from these resour
 
 ## Jest and React Testing Library
 
-Jest and React Testing Library are frequently used together for **Unit Testing**. There are three ways you can start using Jest within your Next.js application:
+Jest and React Testing Library are frequently used together for **Unit Testing**.
+
+<PagesOnly>
+
+There are three ways you can start using Jest within your Next.js application:
 
 1. Using one of our [quickstart examples](#quickstart-2)
 2. With the [Next.js Rust Compiler](#setting-up-jest-with-the-rust-compiler)
 3. With [Babel](#setting-up-jest-with-babel)
 
 The following sections will go through how you can set up Jest with each of these options:
+
+</PagesOnly>
+
+<PagesOnly>
 
 ### Quickstart
 
@@ -363,14 +371,16 @@ You can use `create-next-app` with the [with-jest](https://github.com/vercel/nex
 npx create-next-app@latest --example with-jest with-jest-app
 ```
 
-### Setting up Jest (with the Rust Compiler)
+</PagesOnly>
+
+### Setting up Jest (with the Next.js Compiler)
 
 Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built-in configuration for Jest.
 
 To set up Jest, install `jest`, `jest-environment-jsdom`, `@testing-library/react`, `@testing-library/jest-dom`:
 
 ```bash filename="Terminal"
-npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
+npm install -D jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
 ```
 
 Create a `jest.config.mjs` file in your project's root directory and add the following:
@@ -406,6 +416,8 @@ Under the hood, `next/jest` is automatically configuring Jest for you, including
 - Loading `next.config.js` for flags that enable SWC transforms
 
 > **Good to know**: To test environment variables directly, load them manually in a separate setup script or in your `jest.config.js` file. For more information, please see [Test Environment Variables](/docs/pages/building-your-application/configuring/environment-variables#test-environment-variables).
+
+<PagesOnly>
 
 ### Setting up Jest (with Babel)
 
@@ -520,6 +532,8 @@ moduleNameMapper: {
 }
 ```
 
+</PagesOnly>
+
 ### Creating your tests:
 
 **Add a test script to package.json**
@@ -543,25 +557,35 @@ Add the Jest executable in watch mode to the `package.json` scripts:
 
 Your project is now ready to run tests. Follow Jest's convention by adding tests to the `__tests__` folder in your project's root directory.
 
+<PagesOnly>
+
 For example, we can add a test to check if the `<Home />` component successfully renders a heading:
 
+```jsx filename="pages/index.js
+export default function Home() {
+  return <h1>Homepage</h1>
+}
+```
+
 ```jsx filename="__tests__/index.test.js"
+import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 import Home from '../pages/index'
-import '@testing-library/jest-dom'
 
 describe('Home', () => {
   it('renders a heading', () => {
     render(<Home />)
 
-    const heading = screen.getByRole('heading', {
-      name: /welcome to next\.js!/i,
-    })
+    const heading = screen.getByRole('heading', { level: 1 })
 
     expect(heading).toBeInTheDocument()
   })
 })
 ```
+
+</PagesOnly>
+
+<PagesOnly>
 
 Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to keep track of any unexpected changes to your `<Home />` component:
 
@@ -576,6 +600,8 @@ it('renders homepage unchanged', () => {
 ```
 
 > **Good to know**: Test files should not be included inside the Pages Router because any files inside the Pages Router are considered routes.
+
+</PagesOnly>
 
 **Running your test suite**
 
