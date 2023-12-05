@@ -15,4 +15,5 @@ export { b }
 export { foo as default, z }
 
 // This should be removed as it's not on top
+// prettier-ignore
 'use strict'
