@@ -96,9 +96,9 @@ import { transform } from '../../swc'
 const barrelTransformMappingCache = new Map<
   string,
   {
-    prefix: string
     exportList: [string, string, string][]
     wildcardExports: string[]
+    isClientEntry: boolean
   } | null
 >()
 
@@ -150,7 +150,11 @@ async function getBarrelMapping(
 
   // Avoid circular `export *` dependencies
   const visited = new Set<string>()
-  async function getMatches(file: string, isWildcard: boolean) {
+  async function getMatches(
+    file: string,
+    isWildcard: boolean,
+    isClientEntry: boolean
+  ) {
     if (visited.has(file)) {
       return null
     }
@@ -175,7 +179,15 @@ async function getBarrelMapping(
       return null
     }
 
-    const prefix = matches[1]
+    const matchedDirectives = output.match(
+      /^([^]*)export (const|var) __next_private_directive_list__ = '([^']+)'/
+    )
+    const directiveList = matchedDirectives
+      ? JSON.parse(matchedDirectives[3])
+      : []
+    // "use client" in barrel files has to be transferred to the target file.
+    isClientEntry = directiveList.includes('use client')
+
     let exportList = JSON.parse(matches[3].slice(1, -1)) as [
       string,
       string,
@@ -204,7 +216,11 @@ async function getBarrelMapping(
             req.replace('__barrel_optimize__?names=__PLACEHOLDER__!=!', '')
           )
 
-          const targetMatches = await getMatches(targetPath, true)
+          const targetMatches = await getMatches(
+            targetPath,
+            true,
+            isClientEntry
+          )
           if (targetMatches) {
             // Merge the export list
             exportList = exportList.concat(targetMatches.exportList)
@@ -214,13 +230,13 @@ async function getBarrelMapping(
     }
 
     return {
-      prefix,
       exportList,
       wildcardExports,
+      isClientEntry,
     }
   }
 
-  const res = await getMatches(resourcePath, false)
+  const res = await getMatches(resourcePath, false, false)
   barrelTransformMappingCache.set(resourcePath, res)
 
   return res
@@ -265,15 +281,14 @@ const NextBarrelLoader = async function (
     return
   }
 
-  // It needs to keep the prefix for comments and directives like "use client".
-  const prefix = mapping.prefix
   const exportList = mapping.exportList
+  const isClientEntry = mapping.isClientEntry
   const exportMap = new Map<string, [string, string]>()
   for (const [name, filePath, orig] of exportList) {
     exportMap.set(name, [filePath, orig])
   }
 
-  let output = prefix
+  let output = ''
   let missedNames: string[] = []
   for (const name of names) {
     // If the name matches
@@ -305,6 +320,12 @@ const NextBarrelLoader = async function (
         req.replace('__PLACEHOLDER__', missedNames.join(',') + '&wildcard')
       )}`
     }
+  }
+
+  // When it has `"use client"` inherited from its barrel files, we need to
+  // prefix it to this target file as well.
+  if (isClientEntry) {
+    output = `"use client";\n${output}`
   }
 
   this.callback(null, output)

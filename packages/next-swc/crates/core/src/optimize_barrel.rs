@@ -73,11 +73,16 @@ impl Fold for OptimizeBarrel {
 
         // We only apply this optimization to barrel files. Here we consider
         // a barrel file to be a file that only exports from other modules.
+
         // Besides that, lit expressions are allowed as well ("use client", etc.).
+        let mut allowed_directives = true;
+        let mut directives = vec![];
+
         let mut is_barrel = true;
         for item in &items {
             match item {
                 ModuleItem::ModuleDecl(decl) => {
+                    allowed_directives = false;
                     match decl {
                         ModuleDecl::Import(_) => {}
                         // export { foo } from './foo';
@@ -198,10 +203,19 @@ impl Fold for OptimizeBarrel {
                 }
                 ModuleItem::Stmt(stmt) => match stmt {
                     Stmt::Expr(expr) => match &*expr.expr {
-                        Expr::Lit(_) => {
-                            new_items.push(item.clone());
+                        Expr::Lit(l) => {
+                            if let Lit::Str(s) = l {
+                                if allowed_directives {
+                                    if s.value.starts_with("use ") {
+                                        directives.push(s.value.to_string());
+                                    }
+                                }
+                            } else {
+                                allowed_directives = false;
+                            }
                         }
                         _ => {
+                            allowed_directives = false;
                             if !self.wildcard {
                                 is_barrel = false;
                                 break;
@@ -209,6 +223,7 @@ impl Fold for OptimizeBarrel {
                         }
                     },
                     _ => {
+                        allowed_directives = false;
                         if !self.wildcard {
                             is_barrel = false;
                             break;
@@ -257,6 +272,31 @@ impl Fold for OptimizeBarrel {
                     }),
                     with: None,
                     type_only: false,
+                })));
+            }
+
+            // Push directives.
+            if !directives.is_empty() {
+                new_items.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                    span: DUMMY_SP,
+                    decl: Decl::Var(Box::new(VarDecl {
+                        span: DUMMY_SP,
+                        kind: VarDeclKind::Const,
+                        declare: false,
+                        decls: vec![VarDeclarator {
+                            span: DUMMY_SP,
+                            name: Pat::Ident(BindingIdent {
+                                id: private_ident!("__next_private_directive_list__"),
+                                type_ann: None,
+                            }),
+                            init: Some(Box::new(Expr::Lit(Lit::Str(Str {
+                                span: DUMMY_SP,
+                                value: serde_json::to_string(&directives).unwrap().into(),
+                                raw: None,
+                            })))),
+                            definite: false,
+                        }],
+                    })),
                 })));
             }
         }
