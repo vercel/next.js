@@ -284,7 +284,7 @@ async fn get_directory_tree(
 ) -> Result<Vc<DirectoryTree>> {
     let span = {
         let dir = dir.to_string().await?;
-        tracing::info_span!("read app directory tree", name = ?dir)
+        tracing::info_span!("read app directory tree", name = *dir)
     };
     async move {
         let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
