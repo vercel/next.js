@@ -13,11 +13,11 @@ Server Actions are **asynchronous functions** that are executed on the server. T
 - Server actions can be invoked using the `action` attribute in a [`<form>` element](#forms):
   - Server Components support progressive enhancement by default, meaning the form will be submitted even if JavaScript hasn't loaded yet or is disabled.
   - In Client Components, forms invoking Server Actions will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
-  - The browser does not refresh on form submission.
+  - After hydration, the browser does not refresh on form submission.
 - Server Actions are not limited to `<form>` elements and can be invoked from event handlers, `useEffect`, third-party libraries, and other form elements like `<button>`.
 - Server Actions integrate with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server roundtrip.
 - Behind the scenes, actions use the `POST` method, and only this HTTP method is allowed to invoke them.
-- The return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
+- The arguments and return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
 - Server Actions allow multiple reusable actions per route.
 - Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
 
@@ -277,6 +277,8 @@ We recommend using HTML validation like `required` and `type="email"` for basic 
 For more advanced server-side validation, you can use a library like [zod](https://zod.dev/) to validate the form fields before mutating the data:
 
 ```tsx filename="app/actions.ts" switcher
+'use server'
+
 import { z } from 'zod'
 
 const schema = z.object({
@@ -302,6 +304,8 @@ export default async function submit(formData: FormData) {
 ```
 
 ```jsx filename="app/actions.js" switcher
+'use server'
+
 import { z } from 'zod'
 
 const schema = z.object({
@@ -564,7 +568,7 @@ export default function ViewCount({ initialViews }: { initialViews: number }) {
 
 ### Error Handling
 
-When an error is thrown, it'll be caught by the nearest [`error.js`](/docs/app/building-your-application/routing/error-handling) boundary on the client. We recommend using `try/catch` to return errors to be handled by your UI.
+When an error is thrown, it'll be caught by the nearest [`error.js`](/docs/app/building-your-application/routing/error-handling) or `<Suspense>` boundary on the client. We recommend using `try/catch` to return errors to be handled by your UI.
 
 For example, your Server Action might handle errors from creating a new item by returning a message:
 

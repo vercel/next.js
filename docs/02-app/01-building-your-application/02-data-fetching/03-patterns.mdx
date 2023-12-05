@@ -335,7 +335,7 @@ import {
 } from 'react'
 
 export async function getUserData() {
-  const data = {}
+  const data = await queryDataFromDB()
   experimental_taintObjectReference(
     'Do not pass the whole user object to the client',
     data
