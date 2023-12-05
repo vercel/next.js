@@ -34,7 +34,7 @@ Caching is essential for improving response times and reducing requests to exter
 Cache-Control: public, max-age=31536000, immutable
 `
 
-                  This setup ensures that these assets are cached efficiently, reducing load times for returning users.
+                      This setup ensures that these assets are cached efficiently, reducing load times for returning users.
 
 - **Data Cache for Dynamic Content:**
   Next.js's built-in Data Cache persists results of data fetches across server requests and deployments. By default, fetch requests are cached, allowing data to be reused in subsequent requests. This feature is particularly useful for dynamic content that doesn't change frequently.
@@ -91,35 +91,19 @@ Since Next.js runs on both the client and server, there are multiple forms of lo
 
 If you want a structured logging package, we recommend [Pino](https://www.npmjs.com/package/pino). If you're using Vercel, there are [pre-built logging integrations](https://vercel.com/integrations?utm_source=next-site&utm_medium=docs&utm_campaign=next-website#logging) compatible with Next.js.
 
-## Error Handling
+## **Error Handling**
 
-<details open>
-  <summary>Examples</summary>
+Proper error handling is key to keeping your application stable and providing a good user experience. This is especially important with the dynamic routes and server actions in the App Router.
 
-- [with-sentry](https://github.com/vercel/next.js/tree/canary/examples/with-sentry)
+**Use of `error.js` for Error Handling**:
 
-</details>
-Effective error handling is vital for maintaining application stability and providing a seamless user experience, especially with the App Router's dynamic routes and server actions.
+The `error.js` file convention is used for gracefully handling runtime errors in nested routes. It automatically wraps a route segment and its nested children in a React Error Boundary, allowing you to create a tailored error UI and isolate errors to specific segments while keeping the rest of the application functional.
 
-1. **Server Actions Error Handling**: Wrap server actions in try-catch blocks to handle exceptions gracefully. Log errors for further analysis and return appropriate responses to the client.
+**Handling Server Errors**:
 
-   ```jsx
-   export async function serverAction() {
-     try {
-       // Your logic here
-     } catch (error) {
-       console.error('Server Action Error:', error)
-       // Handle the error appropriately
-     }
-   }
-   ```
+If an error is thrown inside a Server Component, Next.js forwards an `Error` object to the nearest `error.js` file. This object includes a generic message and a digest property in production as a security measure to prevent leaking sensitive details.
 
-2. **Client-Side Error Handling**: Utilize error boundaries in React to catch and handle errors in the UI. This prevents the entire application from crashing due to errors in specific components.
-3. **Custom Error Pages**: Implement custom 404 and 500 error pages for handling route not found and server errors, respectively. This improves user experience during unforeseen errors.
-4. **Error Logging**: Integrate error logging tools like Sentry to capture, log, and analyze errors. This is crucial for identifying and fixing issues quickly.
-5. **Error Monitoring**: Regularly monitor error logs and address issues proactively. This helps in maintaining application health and performance.
-
-By implementing robust error handling strategies, you can ensure that your Next.js App Router application remains reliable and user-friendly under all circumstances.
+You can also log and track exceptions with a tool like Sentry. [](https://github.com/vercel/next.js/tree/canary/examples/with-sentry)With Sentry, you can catch & report errors on both the client and server-side, using the Sentry SDK for Next.js. There's also a [Sentry integration for Vercel](https://vercel.com/integrations/sentry?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
 
 ## Loading Performance
 
