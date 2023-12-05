@@ -87,7 +87,7 @@ impl<'a> FontImportsGenerator<'a> {
     }
 
     fn check_var_decl(&mut self, var_decl: &VarDecl) -> Option<Ident> {
-        if let Some(decl) = var_decl.decls.get(0) {
+        if let Some(decl) = var_decl.decls.first() {
             let ident = match &decl.name {
                 Pat::Ident(ident) => Ok(ident.id.clone()),
                 pattern => Err(pattern),

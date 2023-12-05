@@ -20,11 +20,14 @@ pub enum ActionsTransform {
 }
 
 /// Returns a rule which applies the Next.js Server Actions transform.
-pub fn get_server_actions_transform_rule(transform: ActionsTransform) -> ModuleRule {
+pub fn get_server_actions_transform_rule(
+    transform: ActionsTransform,
+    enable_mdx_rs: bool,
+) -> ModuleRule {
     let transformer =
         EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextServerActions { transform }) as _));
     ModuleRule::new(
-        module_rule_match_js_no_url(),
+        module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
             transformer,
         ]))],
@@ -40,9 +43,7 @@ struct NextServerActions {
 impl CustomTransformer for NextServerActions {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let mut actions = server_actions(
-            // The same action can be imported by both server and client, and we need to give both
-            // types a distinct Action hash ID.
-            &FileName::Real(format!("{}_{:?}", ctx.file_path_str, self.transform).into()),
+            &FileName::Real(ctx.file_path_str.into()),
             Config {
                 is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
                 enabled: true,

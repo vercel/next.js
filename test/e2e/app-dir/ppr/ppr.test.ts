@@ -1,30 +1,28 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   'ppr',
   {
     files: __dirname,
-    skipDeployment: true,
   },
   ({ next, isNextDev, isNextStart }) => {
+    it('should indicate the feature is experimental', async () => {
+      await check(() => {
+        return next.cliOutput.includes('Experiments (use at your own risk)') &&
+          next.cliOutput.includes('ppr')
+          ? 'success'
+          : 'fail'
+      }, 'success')
+    })
     if (isNextStart) {
-      it("should log a warning when `unstable_postpone` is called but there's no postpone state", async () => {
-        // Three different pages wrap APIs that use `unstable_postpone` in a try catch to trigger these errors
-        expect(next.cliOutput).toContain(
-          '/suspense/node/cookies-error-no-throw opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.'
-        )
-        expect(next.cliOutput).toContain(
-          '/suspense/node/fetch-error opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.'
-        )
-        expect(next.cliOutput).toContain(
-          '/suspense/node/cookies-error opted out of partial prerendering because the postpone signal was intercepted by a try/catch in your application code.'
-        )
-
-        // fetch-error re-throws the error after catching it, so we want to make sure that's retained in the logs
-        expect(next.cliOutput).toContain(
-          'The following errors were re-thrown, and might help find the location of the try/catch that triggered this.'
-        )
-        expect(next.cliOutput).toContain('Error: You are not signed in')
+      describe('build output', () => {
+        it('correctly marks pages as being partially prerendered in the build output', () => {
+          expect(next.cliOutput).toContain('◐ /loading/nested/[slug]')
+          expect(next.cliOutput).toContain('◐ /suspense/node')
+          expect(next.cliOutput).toContain('◐ /suspense/node/gsp/[slug]')
+          expect(next.cliOutput).toContain('◐ /suspense/node/nested/[slug]')
+        })
       })
     }
     describe.each([
@@ -163,5 +161,25 @@ createNextDescribe(
         })
       }
     )
+
+    describe('/no-suspense/node/gsp/[slug]', () => {
+      it('should serve the static & dynamic parts', async () => {
+        const $ = await next.render$('/no-suspense/node/gsp/foo')
+        expect($('#page').length).toBe(1)
+        expect($('#container > #dynamic > #state').length).toBe(1)
+      })
+    })
+
+    describe('/suspense/node/gsp/[slug]', () => {
+      it('should serve the static part first', async () => {
+        const $ = await next.render$('/suspense/node/gsp/foo')
+        expect($('#page').length).toBe(1)
+      })
+
+      it('should not have the dynamic part', async () => {
+        const $ = await next.render$('/suspense/node/gsp/foo')
+        expect($('#container > #dynamic > #state').length).toBe(0)
+      })
+    })
   }
 )

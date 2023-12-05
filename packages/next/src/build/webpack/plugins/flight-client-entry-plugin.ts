@@ -32,15 +32,12 @@ import {
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
-import type { SizeLimit } from '../../../../types'
-import semver from 'next/dist/compiled/semver'
 import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
 
 interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
-  serverActionsBodySizeLimit?: SizeLimit
 }
 
 const PLUGIN_NAME = 'FlightClientEntryPlugin'
@@ -160,14 +157,12 @@ export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
-  serverActionsBodySizeLimit?: SizeLimit
   assetPrefix: string
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
-    this.serverActionsBodySizeLimit = options.serverActionsBodySizeLimit
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
   }
 
@@ -197,7 +192,7 @@ export class FlightClientEntryPlugin {
         const modPath = mod.matchResource || mod.resourceResolveData?.path
         const modQuery = mod.resourceResolveData?.query || ''
         // query is already part of mod.resource
-        // so it's only neccessary to add it for matchResource or mod.resourceResolveData
+        // so it's only necessary to add it for matchResource or mod.resourceResolveData
         const modResource = modPath ? modPath + modQuery : mod.resource
 
         if (mod.layer !== WEBPACK_LAYERS.serverSideRendering) {
@@ -398,14 +393,14 @@ export class FlightClientEntryPlugin {
       // We need to create extra action entries that are created from the
       // client layer.
       // Start from each entry's created SSR dependency from our previous step.
-      for (const [name, ssrEntryDepdendencies] of Object.entries(
+      for (const [name, ssrEntryDependencies] of Object.entries(
         createdSSRDependenciesForEntry
       )) {
         // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
-        // add agregate them.
+        // add aggregate them.
         const actionEntryImports = this.collectClientActionsFromDependencies({
           compilation,
-          dependencies: ssrEntryDepdendencies,
+          dependencies: ssrEntryDependencies,
         })
 
         if (actionEntryImports.size > 0) {
@@ -791,17 +786,6 @@ export class FlightClientEntryPlugin {
     fromClient?: boolean
   }) {
     const actionsArray = Array.from(actions.entries())
-
-    // Node < 18.11 does not have sufficient support for FormData
-    if (actionsArray.length > 0 && semver.lt(process.version, '18.11.0')) {
-      compilation.errors.push(
-        new compilation.compiler.webpack.WebpackError(
-          'Your version of Node does not support server actions. Please upgrade to Node 18.11 or higher.'
-        )
-      )
-
-      return Promise.resolve()
-    }
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),

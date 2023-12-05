@@ -29,10 +29,10 @@ import { isPostpone } from './router-utils/is-postpone'
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
-  PERMANENT_REDIRECT_STATUS,
+  RedirectStatusCode,
 } from '../../shared/lib/constants'
 import { DevBundlerService } from './dev-bundler-service'
-import type { TLSSocket } from 'tls'
+import { type Span, trace } from '../../trace'
 
 const debug = setupDebug('next:router-server:main')
 
@@ -63,6 +63,7 @@ export async function initialize(opts: {
   customServer?: boolean
   experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
+  startServerSpan?: Span
 }): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
@@ -103,19 +104,24 @@ export async function initialize(opts: {
     const { setupDevBundler } =
       require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
 
-    developmentBundler = await setupDevBundler({
-      // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
-      renderServer,
-      appDir,
-      pagesDir,
-      telemetry,
-      fsChecker,
-      dir: opts.dir,
-      nextConfig: config,
-      isCustomServer: opts.customServer,
-      turbo: !!process.env.TURBOPACK,
-      port: opts.port,
-    })
+    const setupDevBundlerSpan = opts.startServerSpan
+      ? opts.startServerSpan.traceChild('setup-dev-bundler')
+      : trace('setup-dev-bundler')
+    developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
+      setupDevBundler({
+        // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
+        renderServer,
+        appDir,
+        pagesDir,
+        telemetry,
+        fsChecker,
+        dir: opts.dir,
+        nextConfig: config,
+        isCustomServer: opts.customServer,
+        turbo: !!process.env.TURBOPACK,
+        port: opts.port,
+      })
+    )
 
     devBundlerService = new DevBundlerService(
       developmentBundler,
@@ -142,6 +148,7 @@ export async function initialize(opts: {
     experimentalTestProxy: !!opts.experimentalTestProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
     bundlerService: devBundlerService,
+    startServerSpan: opts.startServerSpan,
   }
 
   // pre-initialize workers
@@ -225,17 +232,6 @@ export async function initialize(opts: {
         'x-middleware-invoke': '',
         'x-invoke-path': invokePath,
         'x-invoke-query': encodeURIComponent(JSON.stringify(parsedUrl.query)),
-        'x-forwarded-host':
-          req.headers['x-forwarded-host'] ?? req.headers.host ?? opts.hostname,
-        'x-forwarded-port':
-          req.headers['x-forwarded-port'] ?? opts.port.toString(),
-        'x-forwarded-proto':
-          req.headers['x-forwarded-proto'] ??
-          (req.socket as TLSSocket).encrypted
-            ? 'https'
-            : 'http',
-        'x-forwarded-for':
-          req.headers['x-forwarded-for'] ?? req.socket.remoteAddress,
         ...(additionalInvokeHeaders || {}),
       }
       Object.assign(req.headers, invokeHeaders)
@@ -357,7 +353,7 @@ export async function initialize(opts: {
         res.statusCode = statusCode
         res.setHeader('location', destination)
 
-        if (statusCode === PERMANENT_REDIRECT_STATUS) {
+        if (statusCode === RedirectStatusCode.PermanentRedirect) {
           res.setHeader('Refresh', `0;url=${destination}`)
         }
         return res.end(destination)
@@ -569,7 +565,7 @@ export async function initialize(opts: {
     const {
       wrapRequestHandlerWorker,
       interceptTestApis,
-    } = require('../../experimental/testmode/server')
+    } = require('next/dist/experimental/testmode/server')
     requestHandler = wrapRequestHandlerWorker(requestHandler)
     interceptTestApis()
   }

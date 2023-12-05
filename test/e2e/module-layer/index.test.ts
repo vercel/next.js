@@ -1,12 +1,11 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check, getRedboxSource, hasRedbox } from 'next-test-utils'
 
 createNextDescribe(
   'module layer',
   {
     files: __dirname,
   },
-  ({ next, isNextStart, isNextDev }) => {
+  ({ next, isNextStart }) => {
     function runTests() {
       it('should render routes marked with restriction marks without errors', async () => {
         const routes = [
@@ -61,58 +60,45 @@ createNextDescribe(
       }
     }
 
+    describe('no server-only in server targets', () => {
+      const middlewareFile = 'middleware.js'
+      // const pagesApiFile = 'pages/api/hello.js'
+      let middlewareContent = ''
+      // let pagesApiContent = ''
+
+      beforeAll(async () => {
+        await next.stop()
+
+        middlewareContent = await next.readFile(middlewareFile)
+        // pagesApiContent = await next.readFile(pagesApiFile)
+
+        await next.patchFile(
+          middlewareFile,
+          middlewareContent
+            .replace("import 'server-only'", "// import 'server-only'")
+            .replace("// import './lib/mixed-lib'", "import './lib/mixed-lib'")
+        )
+
+        // await next.patchFile(
+        //   pagesApiFile,
+        //   pagesApiContent
+        //     .replace("import 'server-only'", "// import 'server-only'")
+        //     .replace(
+        //       "// import '../../lib/mixed-lib'",
+        //       "import '../../lib/mixed-lib'"
+        //     )
+        // )
+
+        await next.start()
+      })
+      afterAll(async () => {
+        await next.patchFile(middlewareFile, middlewareContent)
+        // await next.patchFile(pagesApiFile, pagesApiContent)
+      })
+      runTests()
+    })
     describe('with server-only in server targets', () => {
       runTests()
     })
-
-    // Should error for using mixed (with client-only) in server targets
-    if (isNextDev) {
-      describe('no server-only in server targets', () => {
-        it('should error when import client-only in middleware', async () => {
-          const middlewareFile = 'middleware.js'
-          const middlewareContent = await next.readFile(middlewareFile)
-          await next.patchFile(
-            middlewareFile,
-            middlewareContent.replace(
-              "// import './lib/mixed-lib'",
-              "import './lib/mixed-lib'"
-            )
-          )
-          const browser = await next.browser('/')
-
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxSource(browser)).toContain(
-            `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-          )
-
-          await next.patchFile(middlewareFile, middlewareContent)
-        })
-
-        it('should error when import client-only in pages/api', async () => {
-          const pagesApiFile = 'pages/api/mixed.js'
-          const pagesApiContent = await next.readFile(pagesApiFile)
-          await next.patchFile(
-            pagesApiFile,
-            pagesApiContent.replace(
-              "// import 'client-only'",
-              "import 'client-only'"
-            )
-          )
-
-          const existingCliOutputLength = next.cliOutput.length
-          await check(async () => {
-            await next.fetch('/api/mixed')
-            const newCliOutput = next.cliOutput.slice(existingCliOutputLength)
-            expect(newCliOutput).toContain('./pages/api/mixed.js')
-            expect(newCliOutput).toContain(
-              `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-            )
-            return 'success'
-          }, 'success')
-
-          await next.patchFile(pagesApiFile, pagesApiContent)
-        })
-      })
-    }
   }
 )

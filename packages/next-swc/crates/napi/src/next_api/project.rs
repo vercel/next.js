@@ -7,12 +7,17 @@ use napi::{
     JsFunction, Status,
 };
 use next_api::{
-    project::{DefineEnv, Middleware, PartialProjectOptions, ProjectContainer, ProjectOptions},
+    project::{
+        DefineEnv, Instrumentation, Middleware, PartialProjectOptions, ProjectContainer,
+        ProjectOptions,
+    },
     route::{Endpoint, Route},
 };
 use next_core::tracing_presets::{
-    TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
+    TRACING_NEXT_TURBO_TASKS_TARGETS,
 };
+use tracing::Instrument;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
 };
@@ -23,18 +28,17 @@ use turbopack_binding::{
         tasks_memory::MemoryBackend,
     },
     turbopack::{
-        cli_utils::{
-            exit::ExitGuard,
-            raw_trace::RawTraceLayer,
-            trace_writer::{TraceWriter, TraceWriterGuard},
-            tracing_presets::TRACING_OVERVIEW_TARGETS,
-        },
         core::{
             error::PrettyPrintError,
             source_map::{GenerateSourceMap, Token},
             version::{PartialUpdate, TotalUpdate, Update},
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
+        trace_utils::{
+            exit::ExitGuard,
+            raw_trace::RawTraceLayer,
+            trace_writer::{TraceWriter, TraceWriterGuard},
+        },
     },
 };
 use url::Url;
@@ -213,8 +217,8 @@ pub async fn project_new(
     let guard = if let Some(mut trace) = trace {
         // Trace presets
         match trace.as_str() {
-            "overview" => {
-                trace = TRACING_OVERVIEW_TARGETS.join(",");
+            "overview" | "1" => {
+                trace = TRACING_NEXT_OVERVIEW_TARGETS.join(",");
             }
             "next" => {
                 trace = TRACING_NEXT_TARGETS.join(",");
@@ -385,10 +389,36 @@ impl NapiMiddleware {
         })
     }
 }
+
+#[napi(object)]
+struct NapiInstrumentation {
+    pub node_js: External<ExternalEndpoint>,
+    pub edge: External<ExternalEndpoint>,
+}
+
+impl NapiInstrumentation {
+    fn from_instrumentation(
+        value: &Instrumentation,
+        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
+    ) -> Result<Self> {
+        Ok(NapiInstrumentation {
+            node_js: External::new(ExternalEndpoint(VcArc::new(
+                turbo_tasks.clone(),
+                value.node_js,
+            ))),
+            edge: External::new(ExternalEndpoint(VcArc::new(
+                turbo_tasks.clone(),
+                value.edge,
+            ))),
+        })
+    }
+}
+
 #[napi(object)]
 struct NapiEntrypoints {
     pub routes: Vec<NapiRoute>,
     pub middleware: Option<NapiMiddleware>,
+    pub instrumentation: Option<NapiInstrumentation>,
     pub pages_document_endpoint: External<ExternalEndpoint>,
     pub pages_app_endpoint: External<ExternalEndpoint>,
     pub pages_error_endpoint: External<ExternalEndpoint>,
@@ -404,14 +434,17 @@ pub fn project_entrypoints_subscribe(
     subscribe(
         turbo_tasks.clone(),
         func,
-        move || async move {
-            let entrypoints_operation = container.entrypoints();
-            let entrypoints = entrypoints_operation.strongly_consistent().await?;
+        move || {
+            async move {
+                let entrypoints_operation = container.entrypoints();
+                let entrypoints = entrypoints_operation.strongly_consistent().await?;
 
-            let issues = get_issues(entrypoints_operation).await?;
-            let diags = get_diagnostics(entrypoints_operation).await?;
+                let issues = get_issues(entrypoints_operation).await?;
+                let diags = get_diagnostics(entrypoints_operation).await?;
 
-            Ok((entrypoints, issues, diags))
+                Ok((entrypoints, issues, diags))
+            }
+            .instrument(tracing::info_span!("entrypoints subscription"))
         },
         move |ctx| {
             let (entrypoints, issues, diags) = ctx.value;
@@ -429,6 +462,11 @@ pub fn project_entrypoints_subscribe(
                         .middleware
                         .as_ref()
                         .map(|m| NapiMiddleware::from_middleware(m, &turbo_tasks))
+                        .transpose()?,
+                    instrumentation: entrypoints
+                        .instrumentation
+                        .as_ref()
+                        .map(|m| NapiInstrumentation::from_instrumentation(m, &turbo_tasks))
                         .transpose()?,
                     pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
@@ -466,10 +504,10 @@ pub fn project_hmr_events(
         turbo_tasks.clone(),
         func,
         {
-            let identifier = identifier.clone();
+            let outer_identifier = identifier.clone();
             let session = session.clone();
             move || {
-                let identifier = identifier.clone();
+                let identifier = outer_identifier.clone();
                 let session = session.clone();
                 async move {
                     let state = project
@@ -490,6 +528,10 @@ pub fn project_hmr_events(
                     }
                     Ok((update, issues, diags))
                 }
+                .instrument(tracing::info_span!(
+                    "HMR subscription",
+                    identifier = outer_identifier
+                ))
             }
         },
         move |ctx| {

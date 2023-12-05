@@ -216,7 +216,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     module: {
       rules: [
         {
-          include: /[\\/]react-server.node/,
+          include: /[\\/]react-server\.node/,
           layer: 'react-server',
         },
         {

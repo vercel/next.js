@@ -3,19 +3,16 @@ import type { FetchServerResponseResult } from './fetch-server-response'
 import { fillCacheWithDataProperty } from './fill-cache-with-data-property'
 import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import { createRecordFromThenable } from './create-record-from-thenable'
-import type { ThenableRecord } from './router-reducer-types'
+
 describe('fillCacheWithDataProperty', () => {
   it('should add data property', () => {
     const fetchServerResponseMock: jest.Mock<
-      ThenableRecord<FetchServerResponseResult>
+      Promise<FetchServerResponseResult>
     > = jest.fn(() =>
-      createRecordFromThenable(
-        Promise.resolve([
-          /* TODO-APP: replace with actual FlightData */ '',
-          undefined,
-        ])
-      )
+      Promise.resolve([
+        /* TODO-APP: replace with actual FlightData */ '',
+        undefined,
+      ])
     )
     const pathname = '/dashboard/settings'
     const segments = pathname.split('/')
@@ -97,9 +94,7 @@ describe('fillCacheWithDataProperty', () => {
               </React.Fragment>,
             },
             "dashboard" => {
-              "data": Promise {
-                "status": "pending",
-              },
+              "data": Promise {},
               "parallelRoutes": Map {},
               "status": "DATAFETCH",
               "subTreeData": null,

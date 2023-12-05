@@ -64,13 +64,12 @@ import { getRuntimeContext } from '../server/web/sandbox'
 import { isClientReference } from '../lib/client-reference'
 import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/static-generation-async-storage-wrapper'
 import { IncrementalCache } from '../server/lib/incremental-cache'
-import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
-import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module.compiled'
 import { RouteKind } from '../server/future/route-kind'
+import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -460,8 +459,13 @@ export async function printTreeView(
       } else if (isEdgeRuntime(pageInfo?.runtime)) {
         symbol = 'ℇ'
       } else if (pageInfo?.isPPR) {
-        // If the page has an empty prelude, then it's equivalent to a static page.
-        if (pageInfo?.hasEmptyPrelude || pageInfo.isDynamicAppRoute) {
+        if (
+          // If the page has an empty prelude, then it's equivalent to a dynamic page
+          pageInfo?.hasEmptyPrelude ||
+          // ensure we don't mark dynamic paths that postponed as being dynamic
+          // since in this case we're able to partially prerender it
+          (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
+        ) {
           symbol = 'λ'
         } else if (!pageInfo?.hasPostponed) {
           symbol = '○'
@@ -680,7 +684,11 @@ export async function printTreeView(
   print(
     textTable(
       [
-        usedSymbols.has('○') && ['○', '(Static)', 'prerendered as static HTML'],
+        usedSymbols.has('○') && [
+          '○',
+          '(Static)',
+          'prerendered as static content',
+        ],
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
@@ -1119,10 +1127,16 @@ export async function buildStaticPaths({
   }
 }
 
+export type AppConfigDynamic =
+  | 'auto'
+  | 'error'
+  | 'force-static'
+  | 'force-dynamic'
+
 export type AppConfig = {
   revalidate?: number | false
   dynamicParams?: true | false
-  dynamic?: 'auto' | 'error' | 'force-static' | 'force-dynamic'
+  dynamic?: AppConfigDynamic
   fetchCache?: 'force-cache' | 'only-cache'
   preferredRegion?: string
 }
@@ -1216,6 +1230,7 @@ export const collectGenerateParams = async (
 }
 
 export async function buildAppStaticPaths({
+  dir,
   page,
   distDir,
   configFileName,
@@ -1225,10 +1240,10 @@ export async function buildAppStaticPaths({
   requestHeaders,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
-  staticGenerationAsyncStorage,
-  serverHooks,
   ppr,
+  ComponentMod,
 }: {
+  dir: string
   page: string
   configFileName: string
   generateParams: GenerateParams
@@ -1238,27 +1253,25 @@ export async function buildAppStaticPaths({
   fetchCacheKeyPrefix?: string
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
-  staticGenerationAsyncStorage: Parameters<
-    typeof patchFetch
-  >[0]['staticGenerationAsyncStorage']
-  serverHooks: Parameters<typeof patchFetch>[0]['serverHooks']
   ppr: boolean
+  ComponentMod: AppPageModule
 }) {
-  patchFetch({
-    staticGenerationAsyncStorage,
-    serverHooks,
-  })
+  ComponentMod.patchFetch()
 
   let CacheHandler: any
 
   if (incrementalCacheHandlerPath) {
-    CacheHandler = require(incrementalCacheHandlerPath)
+    CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
+      ? incrementalCacheHandlerPath
+      : path.join(dir, incrementalCacheHandlerPath))
     CacheHandler = CacheHandler.default || CacheHandler
   }
 
   const incrementalCache = new IncrementalCache({
     fs: nodeFs,
     dev: true,
+    // Enabled both for build as we're only writing this cache, not reading it.
+    pagesDir: true,
     appDir: true,
     flushToDisk: isrFlushToDisk,
     serverDistDir: path.join(distDir, 'server'),
@@ -1274,10 +1287,11 @@ export async function buildAppStaticPaths({
     CurCacheHandler: CacheHandler,
     requestHeaders,
     minimalMode: ciEnvironment.hasNextSupport,
+    experimental: { ppr },
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(
-    staticGenerationAsyncStorage,
+    ComponentMod.staticGenerationAsyncStorage,
     {
       urlPathname: page,
       renderOpts: {
@@ -1286,7 +1300,8 @@ export async function buildAppStaticPaths({
         supportsDynamicHTML: true,
         isRevalidate: false,
         isBot: false,
-        ppr,
+        // building static paths should never postpone
+        experimental: { ppr: false },
       },
     },
     async () => {
@@ -1379,6 +1394,7 @@ export async function buildAppStaticPaths({
 }
 
 export async function isPageStatic({
+  dir,
   page,
   distDir,
   configFileName,
@@ -1396,6 +1412,7 @@ export async function isPageStatic({
   incrementalCacheHandlerPath,
   ppr,
 }: {
+  dir: string
   page: string
   distDir: string
   configFileName: string
@@ -1493,10 +1510,10 @@ export async function isPageStatic({
 
         isClientComponent = isClientReference(componentsResult.ComponentMod)
 
-        const { tree, staticGenerationAsyncStorage, serverHooks } = ComponentMod
+        const { tree } = ComponentMod
 
         const generateParams: GenerateParams =
-          routeModule && AppRouteRouteModule.is(routeModule)
+          routeModule && isAppRouteRouteModule(routeModule)
             ? [
                 {
                   config: {
@@ -1565,9 +1582,8 @@ export async function isPageStatic({
             fallback: prerenderFallback,
             encodedPaths: encodedPrerenderRoutes,
           } = await buildAppStaticPaths({
+            dir,
             page,
-            serverHooks,
-            staticGenerationAsyncStorage,
             configFileName,
             generateParams,
             distDir,
@@ -1576,6 +1592,7 @@ export async function isPageStatic({
             maxMemoryCacheSize,
             incrementalCacheHandlerPath,
             ppr,
+            ComponentMod,
           }))
         }
       } else {
@@ -2012,7 +2029,6 @@ startServer({
   port: currentPort,
   allowRetry: false,
   keepAliveTimeout,
-  useWorkers: true,
 }).catch((err) => {
   console.error(err);
   process.exit(1);

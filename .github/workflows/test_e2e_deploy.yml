@@ -47,26 +47,25 @@ jobs:
 
       - run: npm i -g vercel@latest
 
-      - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
+      - run: node scripts/run-e2e-test-project-reset.mjs
         name: Reset test project
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.35.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && corepack enable > /dev/null && DATADOG_TRACE_NEXTJS_TEST=TRUE DATADOG_API_KEY=${DATADOG_API_KEY} DD_ENV=ci VERCEL_TEST_TOKEN=${{ secrets.VERCEL_TEST_TOKEN }} VERCEL_TEST_TEAM=vtest314-next-e2e-tests NEXT_TEST_JOB=1 NEXT_TEST_MODE=deploy TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} NEXT_TEST_CONTINUE_ON_ERROR=1 xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2 -c 1 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.35.1-jammy /bin/bash -c "cd /work && NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && corepack enable > /dev/null && NEXT_JUNIT_TEST_REPORT=true DATADOG_API_KEY=${DATADOG_API_KEY} DD_ENV=ci VERCEL_TEST_TOKEN=${{ secrets.VERCEL_TEST_TOKEN }} VERCEL_TEST_TEAM=vtest314-next-e2e-tests NEXT_TEST_JOB=1 NEXT_TEST_MODE=deploy TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} NEXT_TEST_CONTINUE_ON_ERROR=1 xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2 -c 1 >> /proc/1/fd/1"
         name: Run test/e2e (deploy)
 
-      - name: Upload test trace
+      - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: test-trace
+          name: test-reports
           if-no-files-found: ignore
           retention-days: 2
           path: |
-            test/traces
+            test/test-junit-report
 
-      - name: Upload test trace to datadog
+      - name: Upload test report to datadog
         continue-on-error: true
         run: |
-          ls -al ./test
-          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0 @aws-sdk/property-provider@3
-          jrm ./nextjs-test-result-junit.xml "test/test-junit-report/**/*.xml"
-          DD_ENV=ci datadog-ci junit upload --tags test.type:nextjs_deploy_e2e --service nextjs ./nextjs-test-result-junit.xml
+          ls -al ./test/*junit
+
+          DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs_deploy_e2e --service nextjs ./test/test-junit-report

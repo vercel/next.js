@@ -7,13 +7,14 @@ use indexmap::{
     IndexMap,
 };
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Completions, TaskInput, ValueToString,
     Vc,
 };
 use turbopack_binding::{
     turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath},
-    turbopack::core::issue::{Issue, IssueExt, IssueSeverity},
+    turbopack::core::issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
 };
 
 use crate::{
@@ -281,6 +282,19 @@ async fn get_directory_tree(
     dir: Vc<FileSystemPath>,
     page_extensions: Vc<Vec<String>>,
 ) -> Result<Vc<DirectoryTree>> {
+    let span = {
+        let dir = dir.to_string().await?;
+        tracing::info_span!("read app directory tree", name = *dir)
+    };
+    get_directory_tree_internal(dir, page_extensions)
+        .instrument(span)
+        .await
+}
+
+async fn get_directory_tree_internal(
+    dir: Vc<FileSystemPath>,
+    page_extensions: Vc<Vec<String>>,
+) -> Result<Vc<DirectoryTree>> {
     let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
         bail!("{} must be a directory", dir.to_string().await?);
     };
@@ -297,6 +311,7 @@ async fn get_directory_tree(
     for (basename, entry) in entries {
         match *entry {
             DirectoryEntry::File(file) => {
+                let file = file.resolve().await?;
                 if let Some((stem, ext)) = basename.split_once('.') {
                     if page_extensions_value.iter().any(|e| e == ext) {
                         match stem {
@@ -362,6 +377,7 @@ async fn get_directory_tree(
                 ));
             }
             DirectoryEntry::Directory(dir) => {
+                let dir = dir.resolve().await?;
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') {
                     let result = get_directory_tree(dir, page_extensions);
@@ -400,6 +416,25 @@ pub struct LoaderTree {
     pub global_metadata: Vc<GlobalMetadata>,
 }
 
+#[turbo_tasks::value_impl]
+impl LoaderTree {
+    /// Returns true if there's a page match in this loader tree.
+    #[turbo_tasks::function]
+    pub async fn has_page(&self) -> Result<Vc<bool>> {
+        if self.segment == "__PAGE__" {
+            return Ok(Vc::cell(true));
+        }
+
+        for (_, tree) in &self.parallel_routes {
+            if *tree.has_page().await? {
+                return Ok(Vc::cell(true));
+            }
+        }
+
+        Ok(Vc::cell(false))
+    }
+}
+
 #[derive(
     Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, Debug, TaskInput,
 )]
@@ -425,6 +460,10 @@ fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
 }
 
+fn is_group_route(name: &str) -> bool {
+    name.starts_with('(') && name.ends_with(')')
+}
+
 fn match_parallel_route(name: &str) -> Option<&str> {
     name.strip_prefix('@')
 }
@@ -445,11 +484,12 @@ fn conflict_issue(
 
     DirectoryTreeIssue {
         app_dir,
-        message: Vc::cell(format!(
+        message: StyledString::Text(format!(
             "Conflicting {} at {}: {a} at {value_a} and {b} at {value_b}",
             item_names,
             e.key(),
-        )),
+        ))
+        .cell(),
         severity: IssueSeverity::Error.cell(),
     }
     .cell()
@@ -742,8 +782,33 @@ async fn directory_tree_to_loader_tree(
         }
 
         if let Some(subtree) = subtree {
-            let key = parallel_route_key.unwrap_or("children").to_string();
-            tree.parallel_routes.insert(key, subtree);
+            if let Some(key) = parallel_route_key {
+                tree.parallel_routes.insert(key.to_string(), subtree);
+                continue;
+            }
+
+            // skip groups which don't have a page match.
+            if is_group_route(subdir_name) && !*subtree.has_page().await? {
+                continue;
+            }
+
+            if !tree.parallel_routes.contains_key("children") {
+                tree.parallel_routes.insert("children".to_string(), subtree);
+            } else {
+                // TODO: improve error message to have the full paths
+                DirectoryTreeIssue {
+                    app_dir,
+                    message: StyledString::Text(format!(
+                        "You cannot have two parallel pages that resolve to the same path. Route \
+                         {} has multiple matches in {}",
+                        for_app_path, app_page
+                    ))
+                    .cell(),
+                    severity: IssueSeverity::Error.cell(),
+                }
+                .cell()
+                .emit();
+            }
         } else if let Some(key) = parallel_route_key {
             bail!(
                 "missing page or default for parallel route `{}` (page: {})",
@@ -761,7 +826,7 @@ async fn directory_tree_to_loader_tree(
                 ..Default::default()
             }
             .cell();
-        } else if components.layout.is_some() || current_level_is_parallel_route {
+        } else if current_level_is_parallel_route {
             // default fallback component
             tree.components = Components {
                 default: Some(
@@ -810,6 +875,25 @@ async fn directory_tree_to_loader_tree(
 
 #[turbo_tasks::function]
 async fn directory_tree_to_entrypoints_internal(
+    app_dir: Vc<FileSystemPath>,
+    global_metadata: Vc<GlobalMetadata>,
+    directory_name: String,
+    directory_tree: Vc<DirectoryTree>,
+    app_page: AppPage,
+) -> Result<Vc<Entrypoints>> {
+    let span = tracing::info_span!("build layout trees", name = display(&app_page));
+    directory_tree_to_entrypoints_internal_untraced(
+        app_dir,
+        global_metadata,
+        directory_name,
+        directory_tree,
+        app_page,
+    )
+    .instrument(span)
+    .await
+}
+
+async fn directory_tree_to_entrypoints_internal_untraced(
     app_dir: Vc<FileSystemPath>,
     global_metadata: Vc<GlobalMetadata>,
     directory_name: String,
@@ -905,26 +989,26 @@ async fn directory_tree_to_entrypoints_internal(
         // is considered as its own entry point.
         if let Some(_not_found) = components.not_found {
             let dev_not_found_tree = LoaderTree {
-                page: app_page.clone(),
-                segment: directory_name.clone(),
-                parallel_routes: indexmap! {
-                    "children".to_string() => LoaderTree {
-                        page: app_page.clone(),
-                        segment: "__DEFAULT__".to_string(),
-                        parallel_routes: IndexMap::new(),
-                        components: Components {
-                            default: Some(get_next_package(app_dir).join("dist/client/components/parallel-route-default.js".to_string())),
-                            ..Default::default()
+                    page: app_page.clone(),
+                    segment: directory_name.clone(),
+                    parallel_routes: indexmap! {
+                        "children".to_string() => LoaderTree {
+                            page: app_page.clone(),
+                            segment: "__DEFAULT__".to_string(),
+                            parallel_routes: IndexMap::new(),
+                            components: Components {
+                                default: Some(get_next_package(app_dir).join("dist/client/components/parallel-route-default.js".to_string())),
+                                ..Default::default()
+                            }
+                            .cell(),
+                    global_metadata,
                         }
                         .cell(),
-                global_metadata,
-                    }
-                    .cell(),
-                },
-                components: components.without_leafs().cell(),
-                global_metadata,
-            }
-            .cell();
+                    },
+                    components: components.without_leafs().cell(),
+                    global_metadata,
+                }
+                .cell();
 
             {
                 let app_page = app_page.clone_push_str("not-found")?;
@@ -938,26 +1022,26 @@ async fn directory_tree_to_entrypoints_internal(
             // Create default not-found page for production if there's no customized
             // not-found
             let prod_not_found_tree = LoaderTree {
-                page: app_page.clone(),
-                segment: directory_name.to_string(),
-                parallel_routes: indexmap! {
-                    "children".to_string() => LoaderTree {
-                        page: app_page.clone(),
-                        segment: "__PAGE__".to_string(),
-                        parallel_routes: IndexMap::new(),
-                        components: Components {
-                            page: Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string())),
-                            ..Default::default()
+                    page: app_page.clone(),
+                    segment: directory_name.to_string(),
+                    parallel_routes: indexmap! {
+                        "children".to_string() => LoaderTree {
+                            page: app_page.clone(),
+                            segment: "__PAGE__".to_string(),
+                            parallel_routes: IndexMap::new(),
+                            components: Components {
+                                page: Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string())),
+                                ..Default::default()
+                            }
+                            .cell(),
+                    global_metadata,
                         }
                         .cell(),
-                global_metadata,
-                    }
-                    .cell(),
-                },
-                components: components.without_leafs().cell(),
-                global_metadata,
-            }
-            .cell();
+                    },
+                    components: components.without_leafs().cell(),
+                    global_metadata,
+                }
+                .cell();
 
             let app_page = app_page.clone_push_str("_not-found")?;
             add_app_page(app_dir, &mut result, app_page, prod_not_found_tree).await?;
@@ -1080,7 +1164,7 @@ pub async fn get_global_metadata(
 struct DirectoryTreeIssue {
     pub severity: Vc<IssueSeverity>,
     pub app_dir: Vc<FileSystemPath>,
-    pub message: Vc<String>,
+    pub message: Vc<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
@@ -1091,10 +1175,11 @@ impl Issue for DirectoryTreeIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(
-            "An issue occurred while preparing your Next.js app".to_string(),
-        ))
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(
+            StyledString::Text("An issue occurred while preparing your Next.js app".to_string())
+                .cell(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -1108,7 +1193,7 @@ impl Issue for DirectoryTreeIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        self.message
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.message))
     }
 }

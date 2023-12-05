@@ -17,11 +17,11 @@ import type {
   NextFlightResponse,
 } from '../../../server/app-render/types'
 import {
-  NEXT_ROUTER_PREFETCH,
+  NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
-  RSC,
+  RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
 } from '../app-router-headers'
 import { urlToUrlWithoutFlightMarker } from '../app-router'
@@ -51,13 +51,13 @@ export async function fetchServerResponse(
   prefetchKind?: PrefetchKind
 ): Promise<FetchServerResponseResult> {
   const headers: {
-    [RSC]: '1'
+    [RSC_HEADER]: '1'
     [NEXT_ROUTER_STATE_TREE]: string
     [NEXT_URL]?: string
-    [NEXT_ROUTER_PREFETCH]?: '1'
+    [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
   } = {
     // Enable flight response
-    [RSC]: '1',
+    [RSC_HEADER]: '1',
     // Provide the current router state
     [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(
       JSON.stringify(flightRouterState)
@@ -71,7 +71,7 @@ export async function fetchServerResponse(
    * - `prefetchKind` is `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully
    */
   if (prefetchKind === PrefetchKind.AUTO) {
-    headers[NEXT_ROUTER_PREFETCH] = '1'
+    headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
   }
 
   if (nextUrl) {
@@ -80,7 +80,7 @@ export async function fetchServerResponse(
 
   const uniqueCacheQuery = hexHash(
     [
-      headers[NEXT_ROUTER_PREFETCH] || '0',
+      headers[NEXT_ROUTER_PREFETCH_HEADER] || '0',
       headers[NEXT_ROUTER_STATE_TREE],
       headers[NEXT_URL],
     ].join(',')

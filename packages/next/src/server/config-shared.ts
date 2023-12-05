@@ -159,6 +159,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  windowHistorySupport?: boolean
   caseSensitiveRoutes?: boolean
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
@@ -302,10 +303,20 @@ export interface ExperimentalConfig {
    */
   taint?: boolean
 
-  /**
-   * Allows adjusting body parser size limit for server actions.
-   */
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    /**
+     * Allows adjusting body parser size limit for server actions.
+     */
+    bodySizeLimit?: SizeLimit
+
+    /**
+     * Allowed origins that can bypass Server Action's CSRF check. This is helpful
+     * when you have reverse proxy in front of your app.
+     * @example
+     * ["my-app.com"]
+     */
+    allowedOrigins?: string[]
+  }
 
   /**
    * enables the minification of server code.
@@ -325,6 +336,17 @@ export interface ExperimentalConfig {
    * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
    */
   bundlePagesExternals?: boolean
+  /**
+   * Uses an IPC server to dedupe build-time requests to the cache handler
+   */
+  staticWorkerRequestDeduping?: boolean
+
+  useWasmBinary?: boolean
+
+  /**
+   * Use lightningcss instead of swc_css
+   */
+  useLightningcss?: boolean
 }
 
 export type ExportPathMap = {
@@ -576,6 +598,8 @@ export interface NextConfig extends Record<string, any> {
    * that are needed for deploying a production version of your application.
    *
    * @see [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
+   * @deprecated will be enabled by default and removed in Next.js 15
+   *
    */
   outputFileTracing?: boolean
 
@@ -596,6 +620,7 @@ export interface NextConfig extends Record<string, any> {
 
   /**
    * Use [SWC compiler](https://swc.rs) to minify the generated JavaScript
+   * @deprecated will be enabled by default and removed in Next.js 15
    *
    * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
    */
@@ -722,6 +747,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    windowHistorySupport: false,
     serverMinification: true,
     serverSourceMaps: false,
     caseSensitiveRoutes: false,
@@ -771,6 +797,16 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
+    ppr:
+      // TODO: remove once we've made PPR default
+      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
+      // has been set to `true`, enable the experimental PPR feature so long as it
+      // wasn't explicitly disabled in the config.
+      process.env.__NEXT_TEST_MODE &&
+      process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? true
+        : false,
+    webpackBuildWorker: false,
   },
 }
 

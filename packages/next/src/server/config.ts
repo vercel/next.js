@@ -20,6 +20,7 @@ import { flushAndExit } from '../telemetry/flush-and-exit'
 import { findRootDir } from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
+import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
 
 import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
@@ -250,7 +251,26 @@ function assignDefaults(
     {}
   )
 
+  // TODO: remove once we've made PPR default
+  // If this was defaulted to true, it implies that the configuration was
+  // overridden for testing to be defaulted on.
+  if (defaultConfig.experimental?.ppr) {
+    Log.warn(
+      `\`experimental.ppr\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
+    )
+  }
+
   const result = { ...defaultConfig, ...config }
+
+  if (
+    result.experimental?.ppr &&
+    !process.env.__NEXT_VERSION!.includes('canary') &&
+    !process.env.__NEXT_TEST_MODE
+  ) {
+    throw new Error(
+      `The experimental.ppr preview feature can only be enabled when using the latest canary version of Next.js. See more info here: https://nextjs.org/docs/messages/ppr-preview`
+    )
+  }
 
   if (result.output === 'export') {
     if (result.i18n) {
@@ -348,10 +368,10 @@ function assignDefaults(
       )
     }
 
-    if (images.domains) {
-      if (!Array.isArray(images.domains)) {
+    if (images.remotePatterns) {
+      if (!Array.isArray(images.remotePatterns)) {
         throw new Error(
-          `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+          `Specified images.remotePatterns should be an Array received ${typeof images.remotePatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
         )
       }
 
@@ -359,7 +379,33 @@ function assignDefaults(
       // so we need to ensure _next/image allows downloading from
       // this resource
       if (config.assetPrefix?.startsWith('http')) {
-        images.domains.push(new URL(config.assetPrefix).hostname)
+        try {
+          const url = new URL(config.assetPrefix)
+          const hasMatchForAssetPrefix = images.remotePatterns.some((pattern) =>
+            matchRemotePattern(pattern, url)
+          )
+
+          // avoid double-pushing the same remote if it already can be matched
+          if (!hasMatchForAssetPrefix) {
+            images.remotePatterns?.push({
+              hostname: url.hostname,
+              protocol: url.protocol.replace(/:$/, '') as 'http' | 'https',
+              port: url.port,
+            })
+          }
+        } catch (error) {
+          throw new Error(
+            `Invalid assetPrefix provided. Original error: ${error}`
+          )
+        }
+      }
+    }
+
+    if (images.domains) {
+      if (!Array.isArray(images.domains)) {
+        throw new Error(
+          `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
       }
     }
 
@@ -410,13 +456,15 @@ function assignDefaults(
     }
   }
 
-  // TODO: Remove this warning in Next.js 15
-  warnOptionHasBeenDeprecated(
-    result,
-    'experimental.serverActions',
-    'Server Actions are available by default now, `experimental.serverActions` option can be safely removed.',
-    silent
-  )
+  if (typeof result.experimental?.serverActions === 'boolean') {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.serverActions',
+      'Server Actions are available by default now, `experimental.serverActions` option can be safely removed.',
+      silent
+    )
+  }
 
   if (result.swcMinify === false) {
     // TODO: Remove this warning in Next.js 15
@@ -424,6 +472,16 @@ function assignDefaults(
       result,
       'swcMinify',
       'Disabling SWC Minifer will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
+      silent
+    )
+  }
+
+  if (result.outputFileTracing === false) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'outputFileTracing',
+      'Disabling outputFileTracing will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
       silent
     )
   }
@@ -473,13 +531,15 @@ function assignDefaults(
     result.output = 'standalone'
   }
 
-  if (typeof result.experimental?.serverActionsBodySizeLimit !== 'undefined') {
+  if (
+    typeof result.experimental?.serverActions?.bodySizeLimit !== 'undefined'
+  ) {
     const value = parseInt(
-      result.experimental.serverActionsBodySizeLimit.toString()
+      result.experimental.serverActions?.bodySizeLimit.toString()
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation'
+        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation'
       )
     }
   }
@@ -768,7 +828,7 @@ function assignDefaults(
       },
     },
     antd: {
-      transform: 'antd/lib/{{kebabCase member}}',
+      transform: 'antd/es/{{kebabCase member}}',
     },
     ahooks: {
       transform: {

@@ -1,11 +1,8 @@
-import { DYNAMIC_ERROR_CODE } from '../../client/components/hooks-server-context'
 import stringHash from 'next/dist/compiled/string-hash'
 import { formatServerError } from '../../lib/format-server-error'
-import { isNotFoundError } from '../../client/components/not-found'
-import { isRedirectError } from '../../client/components/redirect'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
 import { isAbortError } from '../pipe-readable'
+import { isDynamicUsageError } from '../../export/helpers/is-dynamic-usage-error'
 
 export type ErrorHandler = (err: any) => string | undefined
 
@@ -24,8 +21,7 @@ export function createErrorHandler({
   errorLogger,
   capturedErrors,
   allCapturedErrors,
-  postponeErrors,
-  skipLogging,
+  silenceLogger,
 }: {
   _source: string
   dev?: boolean
@@ -33,19 +29,12 @@ export function createErrorHandler({
   errorLogger?: (err: any) => Promise<void>
   capturedErrors: Error[]
   allCapturedErrors?: Error[]
-  postponeErrors?: Error[]
-  skipLogging?: boolean
+  silenceLogger?: boolean
 }): ErrorHandler {
   return (err) => {
     if (allCapturedErrors) allCapturedErrors.push(err)
 
-    if (
-      err &&
-      (err.digest === DYNAMIC_ERROR_CODE ||
-        isNotFoundError(err) ||
-        err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-        isRedirectError(err))
-    ) {
+    if (isDynamicUsageError(err)) {
       return err.digest
     }
 
@@ -77,11 +66,7 @@ export function createErrorHandler({
         })
       }
 
-      if (postponeErrors) {
-        postponeErrors.push(err)
-      }
-
-      if (!skipLogging) {
+      if (!silenceLogger) {
         if (errorLogger) {
           errorLogger(err).catch(() => {})
         } else {

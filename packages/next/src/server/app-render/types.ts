@@ -62,6 +62,21 @@ export type FlightSegmentPath =
       parallelRouterKey: string
     ]
 
+/**
+ * Represents a tree of segments and the Flight data (i.e. React nodes) that
+ * correspond to each one. The tree is isomorphic to the FlightRouterState;
+ * however in the future we want to be able to fetch arbitrary partial segments
+ * without having to fetch all its children. So this response format will
+ * likely change.
+ */
+export type CacheNodeSeedData = [
+  segment: Segment,
+  parallelRoutes: {
+    [parallelRouterKey: string]: CacheNodeSeedData | null
+  } | null,
+  node: React.ReactNode | null
+]
+
 export type FlightDataPath =
   // Uses `any` as repeating pattern can't be typed.
   | any[]
@@ -71,7 +86,7 @@ export type FlightDataPath =
       ...FlightSegmentPath[],
       /* segment of the rendered slice: */ Segment,
       /* treePatch */ FlightRouterState,
-      /* subTreeData: */ React.ReactNode | null, // Can be null during prefetch if there's no loading component
+      /* cacheNodeSeedData */ CacheNodeSeedData, // Can be null during prefetch if there's no loading component
       /* head */ React.ReactNode | null
     ]
 
@@ -90,17 +105,6 @@ export type ActionFlightResponse =
   | [ActionResult, [buildId: string, flightData: FlightData | null]]
   // This case happens when `redirect()` is called in a server action.
   | NextFlightResponse
-
-/**
- * Property holding the current subTreeData.
- */
-export type ChildProp = {
-  /**
-   * Null indicates that the tree is partial
-   */
-  current: React.ReactNode | null
-  segment: Segment
-}
 
 export interface RenderOptsPartial {
   err?: Error | null
@@ -132,12 +136,14 @@ export interface RenderOptsPartial {
     rawConfig?: boolean,
     silent?: boolean
   ) => Promise<NextConfigComplete>
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedOrigins?: string[]
+  }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
-  ppr: boolean
+  experimental: { ppr: boolean }
   postponed?: string
-  hasPostponeErrors?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

@@ -92,7 +92,9 @@ export function addImplicitTags(staticGenerationStore: StaticGenerationStore) {
   }
 
   if (urlPathname) {
-    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${urlPathname}`
+    const parsedPathname = new URL(urlPathname, 'http://n').pathname
+
+    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${parsedPathname}`
     if (!staticGenerationStore.tags?.includes(tag)) {
       staticGenerationStore.tags.push(tag)
     }
@@ -264,9 +266,13 @@ export function patchFetch({
           typeof _cache === 'string' &&
           typeof curRevalidate !== 'undefined'
         ) {
-          Log.warn(
-            `fetch for ${fetchUrl} on ${staticGenerationStore.urlPathname} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
-          )
+          // when providing fetch with a Request input, it'll automatically set a cache value of 'default'
+          // we only want to warn if the user is explicitly setting a cache value
+          if (!(isRequestInput && _cache === 'default')) {
+            Log.warn(
+              `fetch for ${fetchUrl} on ${staticGenerationStore.urlPathname} specified "cache: ${_cache}" and "revalidate: ${curRevalidate}", only one should be specified.`
+            )
+          }
           _cache = undefined
         }
 
@@ -520,7 +526,7 @@ export function patchFetch({
           const entry = staticGenerationStore.isOnDemandRevalidate
             ? null
             : await staticGenerationStore.incrementalCache.get(cacheKey, {
-                fetchCache: true,
+                kindHint: 'fetch',
                 revalidate,
                 fetchUrl,
                 fetchIdx,
@@ -540,12 +546,11 @@ export function patchFetch({
             // so the revalidated entry has the updated data
             if (!(staticGenerationStore.isRevalidate && entry.isStale)) {
               if (entry.isStale) {
-                if (!staticGenerationStore.pendingRevalidates) {
-                  staticGenerationStore.pendingRevalidates = []
+                staticGenerationStore.pendingRevalidates ??= {}
+                if (!staticGenerationStore.pendingRevalidates[cacheKey]) {
+                  staticGenerationStore.pendingRevalidates[cacheKey] =
+                    doOriginalFetch(true).catch(console.error)
                 }
-                staticGenerationStore.pendingRevalidates.push(
-                  doOriginalFetch(true).catch(console.error)
-                )
               }
               const resData = entry.value.data
 

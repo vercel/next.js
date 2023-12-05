@@ -13,6 +13,7 @@ import type { OpenGraph } from './types/opengraph-types'
 import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
+import type { AbsoluteTemplateString } from './types/metadata-types'
 import {
   createDefaultMetadata,
   createDefaultViewport,
@@ -60,6 +61,10 @@ type TitleTemplates = {
   title: string | null
   twitter: string | null
   openGraph: string | null
+}
+
+type BuildState = {
+  warnings: Set<string>
 }
 
 function hasIconsProperty(
@@ -134,12 +139,14 @@ function mergeMetadata({
   staticFilesMetadata,
   titleTemplates,
   metadataContext,
+  buildState,
 }: {
   source: Metadata | null
   target: ResolvedMetadata
   staticFilesMetadata: StaticMetadata
   titleTemplates: TitleTemplates
   metadataContext: MetadataContext
+  buildState: BuildState
 }): void {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
@@ -243,8 +250,8 @@ function mergeMetadata({
           key === 'themeColor' ||
           key === 'colorScheme'
         ) {
-          Log.warn(
-            `Unsupported metadata ${key} is configured in metadata export. Please move it to viewport export instead.`
+          buildState.warnings.add(
+            `Unsupported metadata ${key} is configured in metadata export in ${metadataContext.pathname}. Please move it to viewport export instead.\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport`
           )
         }
         break
@@ -517,19 +524,46 @@ export async function resolveMetadataItems({
   return metadataItems
 }
 
+type WithTitle = { title?: AbsoluteTemplateString | null }
+type WithDescription = { description?: string | null }
+
+const hasTitle = (metadata: WithTitle | null) => !!metadata?.title?.absolute
+
+function inheritFromMetadata(
+  metadata: ResolvedMetadata,
+  target: (WithTitle & WithDescription) | null
+) {
+  if (target) {
+    if (!hasTitle(target) && hasTitle(metadata)) {
+      target.title = metadata.title
+    }
+    if (!target.description && metadata.description) {
+      target.description = metadata.description
+    }
+  }
+}
+
 const commonOgKeys = ['title', 'description', 'images'] as const
 function postProcessMetadata(
   metadata: ResolvedMetadata,
   titleTemplates: TitleTemplates
 ): ResolvedMetadata {
   const { openGraph, twitter } = metadata
+
+  // If there's no title and description configured in openGraph or twitter,
+  // use the title and description from metadata.
+  inheritFromMetadata(metadata, openGraph)
+  inheritFromMetadata(metadata, twitter)
+
   if (openGraph) {
+    // If there's openGraph information but not configured in twitter,
+    // inherit them from openGraph metadata.
     let autoFillProps: Partial<{
       [Key in (typeof commonOgKeys)[number]]: NonNullable<
         ResolvedMetadata['openGraph']
       >[Key]
     }> = {}
-    const hasTwTitle = twitter?.title.absolute
+    const hasTwTitle = hasTitle(twitter)
     const hasTwDescription = twitter?.description
     const hasTwImages = Boolean(
       twitter?.hasOwnProperty('images') && twitter.images
@@ -657,6 +691,9 @@ export async function accumulateMetadata(
     resolvers: [],
     resolvingIndex: 0,
   }
+  const buildState = {
+    warnings: new Set<string>(),
+  }
   for (let i = 0; i < metadataItems.length; i++) {
     const staticFilesMetadata = metadataItems[i][1]
 
@@ -675,6 +712,7 @@ export async function accumulateMetadata(
       metadataContext,
       staticFilesMetadata,
       titleTemplates,
+      buildState,
     })
 
     // If the layout is the same layer with page, skip the leaf layout and leaf page
@@ -685,6 +723,13 @@ export async function accumulateMetadata(
         openGraph: resolvedMetadata.openGraph?.title.template || null,
         twitter: resolvedMetadata.twitter?.title.template || null,
       }
+    }
+  }
+
+  // Only log warnings if there are any, and only once after the metadata resolving process is finished
+  if (buildState.warnings.size > 0) {
+    for (const warning of buildState.warnings) {
+      Log.warn(warning)
     }
   }
 

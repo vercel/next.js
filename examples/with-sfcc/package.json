@@ -14,7 +14,7 @@
   "devDependencies": {
     "@tailwindcss/aspect-ratio": "^0.4.0",
     "@types/node": "18.11.9",
-    "@types/react": "18.0.25",
+    "@types/react": "18.2.8",
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.5",
     "tailwindcss": "^3.0.7",

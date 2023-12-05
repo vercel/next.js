@@ -23,6 +23,7 @@ use super::module_rule_match_js_no_url;
 pub async fn get_next_pages_transforms_rule(
     pages_dir: Vc<FileSystemPath>,
     export_filter: ExportFilter,
+    enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
     let strip_transform = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
@@ -51,7 +52,7 @@ pub async fn get_next_pages_transforms_rule(
                     ),
                 ])),
             ]),
-            module_rule_match_js_no_url(),
+            module_rule_match_js_no_url(enable_mdx_rs),
         ]),
         vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
             strip_transform,

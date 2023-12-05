@@ -60,6 +60,7 @@ import {
 import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/future/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
+import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 
 export function sortByPageExts(pageExtensions: string[]) {
   return (a: string, b: string) => {
@@ -417,8 +418,7 @@ export function getEdgeServerEntry(opts: {
     middlewareConfig: Buffer.from(
       JSON.stringify(opts.middlewareConfig || {})
     ).toString('base64'),
-    serverActionsBodySizeLimit:
-      opts.config.experimental.serverActionsBodySizeLimit,
+    serverActions: opts.config.experimental.serverActions,
   }
 
   return {
@@ -545,6 +545,9 @@ export async function createEntrypoints(
         getPageFromPath(actualPath, pageExtensions).replace(APP_DIR_ALIAS, '')
       )
     }
+
+    // TODO: find a better place to do this
+    normalizeCatchAllRoutes(appPathsPerRoute)
 
     // Make sure to sort parallel routes to make the result deterministic.
     appPathsPerRoute = Object.fromEntries(
