@@ -1,11 +1,9 @@
-import type { ChildProp, FlightSegmentPath } from './types'
+import type { FlightSegmentPath, CacheNodeSeedData } from './types'
 import React from 'react'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { interopDefault } from './interop-default'
-import { preloadComponent } from './preload-component'
-import { addSearchParamsIfPageSegment } from './create-flight-router-state-from-loader-tree'
 import { parseLoaderTree } from './parse-loader-tree'
 import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
@@ -41,7 +39,7 @@ export async function createComponentTree({
   metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
 }): Promise<{
-  Component: React.ComponentType
+  seedData: CacheNodeSeedData
   styles: React.ReactNode
 }> {
   const {
@@ -57,7 +55,6 @@ export async function createComponentTree({
     },
     pagePath,
     getDynamicParamFromSegment,
-    query,
     isPrefetch,
     searchParamsProps,
   } = ctx
@@ -285,10 +282,14 @@ export async function createComponentTree({
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
-  // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
+  //
+  // TODO: Combine this `map` traversal with the loop below that turns the array
+  // into an object.
   const parallelRouteMap = await Promise.all(
     Object.keys(parallelRoutes).map(
-      async (parallelRouteKey): Promise<[string, React.ReactNode]> => {
+      async (
+        parallelRouteKey
+      ): Promise<[string, React.ReactNode, CacheNodeSeedData | null]> => {
         const isChildrenRouteKey = parallelRouteKey === 'children'
         const currentSegmentPath: FlightSegmentPath = firstItem
           ? [parallelRouteKey]
@@ -296,53 +297,14 @@ export async function createComponentTree({
 
         const parallelRoute = parallelRoutes[parallelRouteKey]
 
-        const childSegment = parallelRoute[0]
-        const childSegmentParam = getDynamicParamFromSegment(childSegment)
         const notFoundComponent =
           NotFound && isChildrenRouteKey ? <NotFound /> : undefined
-
-        function getParallelRoutePair(
-          currentChildProp: ChildProp,
-          currentStyles: React.ReactNode
-        ): [string, React.ReactNode] {
-          // This is turned back into an object below.
-          return [
-            parallelRouteKey,
-            <LayoutRouter
-              parallelRouterKey={parallelRouteKey}
-              segmentPath={createSegmentPath(currentSegmentPath)}
-              loading={Loading ? <Loading /> : undefined}
-              loadingStyles={loadingStyles}
-              loadingScripts={loadingScripts}
-              // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
-              hasLoading={Boolean(Loading)}
-              error={ErrorComponent}
-              errorStyles={errorStyles}
-              errorScripts={errorScripts}
-              template={
-                <Template>
-                  <RenderFromTemplateContext />
-                </Template>
-              }
-              templateStyles={templateStyles}
-              templateScripts={templateScripts}
-              notFound={notFoundComponent}
-              notFoundStyles={notFoundStyles}
-              childProp={currentChildProp}
-              styles={currentStyles}
-            />,
-          ]
-        }
 
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
         // We also want to bail out if there's no Loading component in the tree.
         let currentStyles = undefined
-        let childElement = null
-        const childPropSegment = addSearchParamsIfPageSegment(
-          childSegmentParam ? childSegmentParam.treeSegment : childSegment,
-          query
-        )
+        let childCacheNodeSeedData: CacheNodeSeedData | null = null
         if (
           !(
             isPrefetch &&
@@ -350,7 +312,7 @@ export async function createComponentTree({
           )
         ) {
           // Create the child component
-          const { Component: ChildComponent, styles: childComponentStyles } =
+          const { seedData, styles: childComponentStyles } =
             await createComponentTree({
               createSegmentPath: (child) => {
                 return createSegmentPath([...currentSegmentPath, ...child])
@@ -367,32 +329,64 @@ export async function createComponentTree({
             })
 
           currentStyles = childComponentStyles
-          childElement = <ChildComponent />
+          childCacheNodeSeedData = seedData
         }
 
-        const childProp: ChildProp = {
-          current: childElement,
-          segment: childPropSegment,
-        }
-
-        return getParallelRoutePair(childProp, currentStyles)
+        // This is turned back into an object below.
+        return [
+          parallelRouteKey,
+          <LayoutRouter
+            parallelRouterKey={parallelRouteKey}
+            segmentPath={createSegmentPath(currentSegmentPath)}
+            loading={Loading ? <Loading /> : undefined}
+            loadingStyles={loadingStyles}
+            loadingScripts={loadingScripts}
+            // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
+            hasLoading={Boolean(Loading)}
+            error={ErrorComponent}
+            errorStyles={errorStyles}
+            errorScripts={errorScripts}
+            template={
+              <Template>
+                <RenderFromTemplateContext />
+              </Template>
+            }
+            templateStyles={templateStyles}
+            templateScripts={templateScripts}
+            notFound={notFoundComponent}
+            notFoundStyles={notFoundStyles}
+            styles={currentStyles}
+          />,
+          childCacheNodeSeedData,
+        ]
       }
     )
   )
 
   // Convert the parallel route map into an object after all promises have been resolved.
-  const parallelRouteComponents = parallelRouteMap.reduce(
-    (list, [parallelRouteKey, Comp]) => {
-      list[parallelRouteKey] = Comp
-      return list
-    },
-    {} as { [key: string]: React.ReactNode }
-  )
+  let parallelRouteProps: { [key: string]: React.ReactNode } = {}
+  let parallelRouteCacheNodeSeedData: {
+    [key: string]: CacheNodeSeedData | null
+  } = {}
+  for (const parallelRoute of parallelRouteMap) {
+    const [parallelRouteKey, parallelRouteProp, flightData] = parallelRoute
+    parallelRouteProps[parallelRouteKey] = parallelRouteProp
+    parallelRouteCacheNodeSeedData[parallelRouteKey] = flightData
+  }
 
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!Component) {
     return {
-      Component: () => <>{parallelRouteComponents.children}</>,
+      seedData: [
+        actualSegment,
+        parallelRouteCacheNodeSeedData,
+        // TODO: I don't think the extra fragment is necessary. React treats top
+        // level fragments as transparent, i.e. the runtime behavior should be
+        // identical even without it. But maybe there's some findDOMNode-related
+        // reason that I'm not aware of, so I'm leaving it as-is out of extreme
+        // caution, for now.
+        <>{parallelRouteProps.children}</>,
+      ],
       styles: layerAssets,
     }
   }
@@ -424,7 +418,7 @@ export async function createComponentTree({
   }
 
   const props = {
-    ...parallelRouteComponents,
+    ...parallelRouteProps,
     ...notFoundComponent,
     // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
     // Params are always the current params that apply to the layout
@@ -442,29 +436,23 @@ export async function createComponentTree({
     })(),
   }
 
-  // Eagerly execute layout/page component to trigger fetches early.
-  if (!isClientComponent) {
-    Component = await Promise.resolve().then(() =>
-      preloadComponent(Component, props)
-    )
-  }
-
   return {
-    Component: () => {
-      return (
-        <>
-          {isPage ? metadataOutlet : null}
-          {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
-          {isPage && isClientComponent ? (
-            <StaticGenerationSearchParamsBailoutProvider
-              propsForComponent={props}
-              Component={Component}
-              isStaticGeneration={staticGenerationStore.isStaticGeneration}
-            />
-          ) : (
-            <Component {...props} />
-          )}
-          {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
+    seedData: [
+      actualSegment,
+      parallelRouteCacheNodeSeedData,
+      <>
+        {isPage ? metadataOutlet : null}
+        {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
+        {isPage && isClientComponent ? (
+          <StaticGenerationSearchParamsBailoutProvider
+            propsForComponent={props}
+            Component={Component}
+            isStaticGeneration={staticGenerationStore.isStaticGeneration}
+          />
+        ) : (
+          <Component {...props} />
+        )}
+        {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
                       surrounding it this would look like a pending tree data state on the client which will cause an errror
                       and break the app. Long-term we need to move away from using null as a partial tree identifier since it
                       is a valid return type for the components we wrap. Once we make this change we can safely remove the
@@ -472,10 +460,9 @@ export async function createComponentTree({
                       If the Component above renders null the actual treedata will look like `[null, null]`. If we remove the extra
                       null it will look like `null` (the array is elided) and this is what confuses the client router.
                       TODO-APP update router to use a Symbol for partial tree detection */}
-          {null}
-        </>
-      )
-    },
+        {null}
+      </>,
+    ],
     styles: layerAssets,
   }
 }

@@ -10,6 +10,9 @@ export const NEXT_DID_POSTPONE_HEADER = 'x-nextjs-postponed'
 
 export const RSC_PREFETCH_SUFFIX = '.prefetch.rsc'
 export const RSC_SUFFIX = '.rsc'
+export const NEXT_DATA_SUFFIX = '.json'
+export const NEXT_META_SUFFIX = '.meta'
+export const NEXT_BODY_SUFFIX = '.body'
 
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
 export const NEXT_CACHE_SOFT_TAGS_HEADER = 'x-next-cache-soft-tags'

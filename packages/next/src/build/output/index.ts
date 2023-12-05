@@ -40,6 +40,7 @@ type BuildStatusStore = {
   server: WebpackStatus
   edgeServer: WebpackStatus
   trigger: string | undefined
+  url: string | undefined
   amp: AmpPageStatus
 }
 
@@ -111,7 +112,7 @@ let serverWasLoading = true
 let edgeServerWasLoading = false
 
 buildStore.subscribe((state) => {
-  const { amp, client, server, edgeServer, trigger } = state
+  const { amp, client, server, edgeServer, trigger, url } = state
 
   const { appUrl } = consoleStore.getState()
 
@@ -123,6 +124,7 @@ buildStore.subscribe((state) => {
         // If it takes more than 3 seconds to compile, mark it as loading status
         loading: true,
         trigger,
+        url,
       } as OutputState,
       true
     )
@@ -230,6 +232,7 @@ export function watchCompilers(
     server: { loading: true },
     edgeServer: { loading: true },
     trigger: 'initial',
+    url: undefined,
   })
 
   function tapCompiler(
@@ -273,6 +276,7 @@ export function watchCompilers(
       buildStore.setState({
         client: status,
         trigger: undefined,
+        url: undefined,
       })
     } else {
       buildStore.setState({
@@ -290,6 +294,7 @@ export function watchCompilers(
       buildStore.setState({
         server: status,
         trigger: undefined,
+        url: undefined,
       })
     } else {
       buildStore.setState({
@@ -307,6 +312,7 @@ export function watchCompilers(
       buildStore.setState({
         edgeServer: status,
         trigger: undefined,
+        url: undefined,
       })
     } else {
       buildStore.setState({
@@ -317,7 +323,7 @@ export function watchCompilers(
 }
 
 const internalSegments = ['[[...__metadata_id__]]', '[__metadata_id__]']
-export function reportTrigger(trigger: string) {
+export function reportTrigger(trigger: string, url?: string) {
   for (const segment of internalSegments) {
     if (trigger.includes(segment)) {
       trigger = trigger.replace(segment, '')
@@ -330,5 +336,6 @@ export function reportTrigger(trigger: string) {
 
   buildStore.setState({
     trigger,
+    url,
   })
 }

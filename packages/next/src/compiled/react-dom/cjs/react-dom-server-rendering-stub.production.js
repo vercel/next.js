@@ -7,11 +7,12 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
+
 'use strict';
 
 var React = require("next/dist/compiled/react");
 
-var ReactVersion = '18.3.0-canary-746890329-20231108';
+var ReactVersion = '18.3.0-canary-2c338b16f-20231116';
 
 const Internals = {
   usingClientEntryPoint: false,

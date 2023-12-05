@@ -37,7 +37,8 @@ createNextDescribe(
         )
       })
 
-      it('should use RSC prefetch data from build', async () => {
+      // TODO: Re-enable once static prefetches re-land
+      it.skip('should use RSC prefetch data from build', async () => {
         expect(
           await next.readFile('.next/server/app/linking.prefetch.rsc')
         ).toBeTruthy()
@@ -130,6 +131,15 @@ createNextDescribe(
 
       expect(JSON.parse($('#params').text())).toEqual({
         slug: ['hello123'],
+      })
+    })
+
+    it('should return normalized dynamic route params for catch-all edge page', async () => {
+      const html = await next.render('/catch-all-edge/a/b/c')
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#params').text())).toEqual({
+        slug: ['a', 'b', 'c'],
       })
     })
 

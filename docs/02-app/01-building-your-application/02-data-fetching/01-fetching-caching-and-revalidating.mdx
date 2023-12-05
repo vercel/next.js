@@ -210,13 +210,11 @@ You can also use the experimental [`unstable_cache` API](/docs/app/api-reference
 
 In the example below:
 
-- The `revalidate` option is set to `3600`, meaning the data will be cached and revalidated at most every hour.
 - The React `cache` function is used to [memoize](/docs/app/building-your-application/caching#request-memoization) data requests.
+- The `revalidate` option is set to `3600` in the `layout.ts` and `page.ts` segments, meaning the data will be cached and revalidated at most every hour.
 
-```ts filename="utils/get-item.ts" switcher
+```ts filename="app/utils.ts" switcher
 import { cache } from 'react'
-
-export const revalidate = 3600 // revalidate the data at most every hour
 
 export const getItem = cache(async (id: string) => {
   const item = await db.item.findUnique({ id })
@@ -224,10 +222,8 @@ export const getItem = cache(async (id: string) => {
 })
 ```
 
-```js filename="utils/get-item.js" switcher
+```js filename="app/utils.js" switcher
 import { cache } from 'react'
-
-export const revalidate = 3600 // revalidate the data at most every hour
 
 export const getItem = cache(async (id) => {
   const item = await db.item.findUnique({ id })
@@ -239,6 +235,8 @@ Although the `getItem` function is called twice, only one query will be made to 
 
 ```tsx filename="app/item/[id]/layout.tsx" switcher
 import { getItem } from '@/utils/get-item'
+
+export const revalidate = 3600 // revalidate the data at most every hour
 
 export default async function Layout({
   params: { id },
@@ -253,6 +251,8 @@ export default async function Layout({
 ```jsx filename="app/item/[id]/layout.js" switcher
 import { getItem } from '@/utils/get-item'
 
+export const revalidate = 3600 // revalidate the data at most every hour
+
 export default async function Layout({ params: { id } }) {
   const item = await getItem(id)
   // ...
@@ -261,6 +261,8 @@ export default async function Layout({ params: { id } }) {
 
 ```tsx filename="app/item/[id]/page.tsx" switcher
 import { getItem } from '@/utils/get-item'
+
+export const revalidate = 3600 // revalidate the data at most every hour
 
 export default async function Page({
   params: { id },
@@ -274,6 +276,8 @@ export default async function Page({
 
 ```jsx filename="app/item/[id]/page.js" switcher
 import { getItem } from '@/utils/get-item'
+
+export const revalidate = 3600 // revalidate the data at most every hour
 
 export default async function Page({ params: { id } }) {
   const item = await getItem(id)

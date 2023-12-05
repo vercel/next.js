@@ -1,16 +1,14 @@
 import { throwWithNoSSR } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
-export function bailoutToClientRendering(): boolean | never {
+export function bailoutToClientRendering(): void | never {
   const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
   if (staticGenerationStore?.forceStatic) {
-    return true
+    return
   }
 
   if (staticGenerationStore?.isStaticGeneration) {
     throwWithNoSSR()
   }
-
-  return false
 }

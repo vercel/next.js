@@ -10,10 +10,9 @@ import './globals'
 import { adapter, type AdapterOptions } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
-import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
-import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
+import { getUtils } from '../server-utils'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -68,24 +67,19 @@ export class EdgeRouteModuleWrapper {
     request: NextRequest,
     evt: NextFetchEvent
   ): Promise<Response> {
-    // Get the pathname for the matcher. Pathnames should not have trailing
-    // slashes for matching.
-    let pathname = removeTrailingSlash(new URL(request.url).pathname)
+    const utils = getUtils({
+      pageIsDynamic: this.matcher.isDynamic,
+      page: this.matcher.definition.pathname,
+      basePath: request.nextUrl.basePath,
+      // We don't need the `handleRewrite` util, so can just pass an empty object
+      rewrites: {},
+      // only used for rewrites, so setting an arbitrary default value here
+      caseSensitive: false,
+    })
 
-    // Get the base path and strip it from the pathname if it exists.
-    const { basePath } = request.nextUrl
-    if (basePath) {
-      // If the path prefix doesn't exist, then this will do nothing.
-      pathname = removePathPrefix(pathname, basePath)
-    }
-
-    // Get the match for this request.
-    const match = this.matcher.match(pathname)
-    if (!match) {
-      throw new Error(
-        `Invariant: no match found for request. Pathname '${pathname}' should have matched '${this.matcher.definition.pathname}'`
-      )
-    }
+    const { params } = utils.normalizeDynamicRouteParams(
+      Object.fromEntries(request.nextUrl.searchParams)
+    )
 
     const prerenderManifest: PrerenderManifest | undefined =
       typeof self.__PRERENDER_MANIFEST === 'string'
@@ -95,7 +89,7 @@ export class EdgeRouteModuleWrapper {
     // Create the context for the handler. This contains the params from the
     // match (if any).
     const context: AppRouteRouteHandlerContext = {
-      params: match.params,
+      params,
       prerenderManifest: {
         version: 4,
         routes: {},

@@ -66,6 +66,9 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.useDeploymentId',
   'experimental.useDeploymentIdServerActions',
   'experimental.deploymentId',
+  'experimental.useLightningcss',
+  'experimental.windowHistorySupport',
+  'experimental.instrumentationHook',
 
   // Experimental options that don't affect compilation
   'experimental.ppr',
@@ -76,6 +79,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.isrFlushToDisk',
   'experimental.logging.level',
   'experimental.logging.fullUrl',
+  'logging.fetches.fullUrl',
   'experimental.scrollRestoration',
   'experimental.forceSwcTransforms',
   'experimental.serverActions.bodySizeLimit',
@@ -104,7 +108,6 @@ const supportedTurbopackNextConfigOptions = [
   // 'compiler.removeConsole',
   // 'compiler.styledComponents',
   // 'experimental.fetchCacheKeyPrefix',
-  // 'experimental.instrumentationHook',
 
   // Left to be implemented
   'excludeDefaultMomentLocales',
@@ -253,7 +256,17 @@ export async function validateTurboNextConfig({
       }
 
       let isSupported =
-        supportedKeys.some((supportedKey) => key.startsWith(supportedKey)) ||
+        supportedKeys.some(
+          (supportedKey) =>
+            // Either the key matches (or is a more specific subkey) of
+            // supportedKey, or the key is the path to a specific subkey.
+            // | key     | supportedKey |
+            // |---------|--------------|
+            // | foo     | foo          |
+            // | foo.bar | foo          |
+            // | foo     | foo.bar      |
+            key.startsWith(supportedKey) || supportedKey.startsWith(`${key}.`)
+        ) ||
         getDeepValue(rawNextConfig, key) === getDeepValue(defaultConfig, key)
       if (!isSupported) {
         unsupportedConfig.push(key)

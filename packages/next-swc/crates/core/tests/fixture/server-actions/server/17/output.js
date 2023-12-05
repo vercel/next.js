@@ -8,5 +8,5 @@ ensureServerEntryExports([
     foo,
     bar
 ]);
-createActionProxy("ab21efdafbe611287bc25c0462b1e0510d13e48b", null, foo);
-createActionProxy("ac840dcaf5e8197cb02b7f3a43c119b7a770b272", null, bar);
+createActionProxy("ab21efdafbe611287bc25c0462b1e0510d13e48b", foo);
+createActionProxy("ac840dcaf5e8197cb02b7f3a43c119b7a770b272", bar);
