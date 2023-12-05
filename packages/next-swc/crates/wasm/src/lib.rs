@@ -3,6 +3,9 @@ use std::sync::Arc;
 use anyhow::{Context, Error};
 use js_sys::JsString;
 use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
+use next_page_static_info::collect_exports;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use swc_core::common::Mark;
 use turbopack_binding::swc::core::{
     base::{
@@ -20,6 +23,11 @@ use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::future_to_promise;
 
 pub mod mdx;
+
+/// A regex pattern to determine if is_dynamic_metadata_route should continue to
+/// parse the page or short circuit and return false.
+static DYNAMIC_METADATA_ROUTE_SHORT_CURCUIT: Lazy<Regex> =
+    Lazy::new(|| Regex::new("generateImageMetadata|generateSitemaps").unwrap());
 
 fn convert_err(err: Error) -> JsValue {
     format!("{:?}", err).into()
@@ -188,6 +196,29 @@ pub fn parse(s: JsString, opts: JsValue) -> js_sys::Promise {
     // TODO: This'll be properly scheduled once wasm have standard backed thread
     // support.
     future_to_promise(async { parse_sync(s, opts) })
+}
+
+/// Detect if metadata routes is a dynamic route, which containing
+/// generateImageMetadata or generateSitemaps as export
+/// Unlike native bindings, caller should provide the contents of the pages
+/// sine our wasm bindings does not have access to the file system
+#[wasm_bindgen(js_name = "isDynamicMetadataRoute")]
+pub fn is_dynamic_metadata_route(page_file_path: String, page_contents: String) -> js_sys::Promise {
+    // Returning promise to conform existing interfaces
+    future_to_promise(async move {
+        if !DYNAMIC_METADATA_ROUTE_SHORT_CURCUIT.is_match(&page_contents) {
+            return Ok(JsValue::from(false));
+        }
+
+        collect_exports(&page_contents, &page_file_path)
+            .map(|exports_info| {
+                JsValue::from(
+                    !exports_info.generate_image_metadata.unwrap_or_default()
+                        || !exports_info.generate_sitemaps.unwrap_or_default(),
+                )
+            })
+            .map_err(|e| JsValue::from_str(format!("{:?}", e).as_str()))
+    })
 }
 
 /// Get global sourcemap
