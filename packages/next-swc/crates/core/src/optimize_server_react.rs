@@ -99,6 +99,7 @@ impl Fold for OptimizeServerReact {
     }
 
     fn fold_expr(&mut self, expr: Expr) -> Expr {
+        let expr = expr.fold_children_with(self);
         if let Expr::Call(call) = &expr {
             if let Callee::Expr(box Expr::Ident(f)) = &call.callee {
                 // Remove `useEffect` call
