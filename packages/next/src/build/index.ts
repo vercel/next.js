@@ -361,8 +361,8 @@ export default async function build(
   turboNextBuildRoot = null,
   buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
 ): Promise<void> {
-  const isCompile = buildMode === 'experimental-compile'
-  const isGenerate = buildMode === 'experimental-generate'
+  const isCompileMode = buildMode === 'experimental-compile'
+  const isGenerateMode = buildMode === 'experimental-generate'
 
   try {
     const nextBuildSpan = trace('next-build', undefined, {
@@ -412,7 +412,7 @@ export default async function build(
 
       let buildId: string = ''
 
-      if (isGenerate) {
+      if (isGenerateMode) {
         buildId = await fs.readFile(path.join(distDir, 'BUILD_ID'), 'utf8')
       } else {
         buildId = await nextBuildSpan
@@ -502,7 +502,8 @@ export default async function build(
       // For app directory, we run type checking after build. That's because
       // we dynamically generate types for each layout and page in the app
       // directory.
-      if (!appDir && !isCompile) await startTypeChecking(typeCheckingOptions)
+      if (!appDir && !isCompileMode)
+        await startTypeChecking(typeCheckingOptions)
 
       if (appDir && 'exportPathMap' in config) {
         Log.error(
@@ -534,7 +535,7 @@ export default async function build(
         expFeatureInfo,
       })
 
-      if (!isGenerate) {
+      if (!isGenerateMode) {
         buildSpinner = createSpinner('Creating an optimized production build')
       }
 
@@ -914,7 +915,7 @@ export default async function build(
         )
       }
 
-      if (config.cleanDistDir && !isGenerate) {
+      if (config.cleanDistDir && !isGenerateMode) {
         await recursiveDelete(distDir, /^cache/)
       }
 
@@ -975,7 +976,7 @@ export default async function build(
                 ? path.relative(distDir, incrementalCacheHandlerPath)
                 : undefined,
 
-              isExperimentalCompile: isCompile,
+              isExperimentalCompile: isCompileMode,
             },
           },
           appDir: dir,
@@ -1090,8 +1091,8 @@ export default async function build(
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
-      if (!isGenerate) {
-        if (isCompile && config.experimental.webpackBuildWorker) {
+      if (!isGenerateMode) {
+        if (isCompileMode && config.experimental.webpackBuildWorker) {
           let durationInSeconds = 0
 
           await webpackBuild(['server']).then((res) => {
@@ -1111,7 +1112,6 @@ export default async function build(
                 config,
                 distDir,
                 // Serialize Map as this is sent to the worker.
-                // TODO: Is this wrong?
                 pageInfos: serializePageInfos(new Map()),
                 staticPages: [],
                 hasSsrAmpPages: false,
@@ -1158,7 +1158,7 @@ export default async function build(
       }
 
       // For app directory, we run type checking after build.
-      if (appDir && !(isCompile || isGenerate)) {
+      if (appDir && !(isCompileMode || isGenerateMode)) {
         await startTypeChecking(typeCheckingOptions)
       }
 
@@ -1369,7 +1369,7 @@ export default async function build(
         hasSsrAmpPages,
         hasNonStaticErrorPage,
       } = await staticCheckSpan.traceAsyncFn(async () => {
-        if (isCompile) {
+        if (isCompileMode) {
           return {
             customAppGetInitialProps: false,
             namedExports: [],
@@ -1571,7 +1571,7 @@ export default async function build(
                   ? 'edge'
                   : staticInfo?.runtime
 
-                if (!isCompile) {
+                if (!isCompileMode) {
                   isServerComponent =
                     pageType === 'app' &&
                     staticInfo?.rsc !== RSC_MODULE_TYPES.client
@@ -1921,7 +1921,7 @@ export default async function build(
         )
       }
 
-      if (!isGenerate && config.outputFileTracing && !buildTracesPromise) {
+      if (!isGenerateMode && config.outputFileTracing && !buildTracesPromise) {
         buildTracesPromise = collectBuildTraces({
           dir,
           config,
@@ -2067,7 +2067,7 @@ export default async function build(
       // - getStaticProps paths
       // - experimental app is enabled
       if (
-        !isCompile &&
+        !isCompileMode &&
         (combinedPages.length > 0 ||
           useStaticPages404 ||
           useDefaultStatic500 ||
