@@ -115,6 +115,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   isAppBuiltinNotFoundPage,
+  serializePageInfos,
 } from './utils'
 import type { PageInfo, PageInfos, AppConfig } from './utils'
 import { writeBuildId } from './write-build-id'
@@ -1108,8 +1109,9 @@ export default async function build(
                 config,
                 distDir,
                 pageKeys,
+                // Serialize Map as this is sent to the worker.
                 // TODO: Is this wrong?
-                pageInfos: new Map(),
+                pageInfos: serializePageInfos(new Map()),
                 staticPages: [],
                 hasSsrAmpPages: false,
                 buildTraceContext,

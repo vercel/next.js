@@ -14,7 +14,11 @@ import {
 
 import path from 'path'
 import fs from 'fs/promises'
-import type { PageInfos } from './utils'
+import {
+  deserializePageInfos,
+  type PageInfos,
+  type SerializedPageInfos,
+} from './utils'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -84,7 +88,8 @@ export async function collectBuildTraces({
   staticPages: string[]
   hasSsrAmpPages: boolean
   outputFileTracingRoot: string
-  pageInfos: PageInfos
+  // pageInfos is serialized when this function runs in a worker.
+  pageInfos: PageInfos | SerializedPageInfos
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
@@ -625,8 +630,10 @@ export async function collectBuildTraces({
       })
     }
 
+    const infos =
+      pageInfos instanceof Map ? pageInfos : deserializePageInfos(pageInfos)
     for (let page of pageKeys.pages) {
-      const pageInfo = pageInfos.get(page)
+      const pageInfo = infos.get(page)
       // edge routes have no trace files
       if (pageInfo?.runtime === 'edge') {
         continue
