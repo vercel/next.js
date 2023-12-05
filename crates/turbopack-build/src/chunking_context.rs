@@ -2,7 +2,8 @@ use std::iter::once;
 
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, TaskInput, Value, Vc};
+use tracing::Instrument;
+use turbo_tasks::{trace::TraceRawVcs, TaskInput, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 use turbopack_core::{
@@ -312,24 +313,29 @@ impl ChunkingContext for BuildChunkingContext {
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<OutputAssets>> {
-        let MakeChunkGroupResult { chunks } = make_chunk_group(
-            Vc::upcast(self),
-            [Vc::upcast(module)],
-            availability_info.into_value(),
-        )
-        .await?;
+        let span = tracing::info_span!("chunking", module = *module.ident().to_string().await?);
+        async move {
+            let MakeChunkGroupResult { chunks } = make_chunk_group(
+                Vc::upcast(self),
+                [Vc::upcast(module)],
+                availability_info.into_value(),
+            )
+            .await?;
 
-        let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
-            .iter()
-            .map(|chunk| self.generate_chunk(*chunk))
-            .collect();
+            let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
+                .iter()
+                .map(|chunk| self.generate_chunk(*chunk))
+                .collect();
 
-        // Resolve assets
-        for asset in assets.iter_mut() {
-            *asset = asset.resolve().await?;
+            // Resolve assets
+            for asset in assets.iter_mut() {
+                *asset = asset.resolve().await?;
+            }
+
+            Ok(Vc::cell(assets))
         }
-
-        Ok(Vc::cell(assets))
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]

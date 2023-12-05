@@ -20,7 +20,7 @@ use futures::FutureExt;
 use nohash_hasher::BuildNoHashHasher;
 use serde::{de::Visitor, Deserialize, Serialize};
 use tokio::{runtime::Handle, select, task_local};
-use tracing::{instrument, trace_span, Instrument, Level};
+use tracing::{info_span, instrument, trace_span, Instrument, Level};
 
 use crate::{
     backend::{Backend, CellContent, PersistentTaskType, TransientTaskType},
@@ -1427,7 +1427,7 @@ pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send +
 
 pub fn spawn_thread(func: impl FnOnce() + Send + 'static) {
     let handle = Handle::current();
-    let span = trace_span!("thread").or_current();
+    let span = info_span!("thread").or_current();
     thread::spawn(move || {
         let span = span.entered();
         let guard = handle.enter();

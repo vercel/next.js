@@ -12,7 +12,7 @@ use turbopack_core::{
 use super::{chunk_item::EcmascriptModulePartChunkItem, get_part_id, split_module, SplitResult};
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext, EcmascriptExports},
-    references::analyze_ecmascript_module,
+    references::analyse_ecmascript_module,
     AnalyzeEcmascriptModuleResult, EcmascriptModuleAsset,
 };
 
@@ -157,5 +157,5 @@ async fn analyze(
     module: Vc<EcmascriptModuleAsset>,
     part: Vc<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-    Ok(analyze_ecmascript_module(module, Some(part)))
+    Ok(analyse_ecmascript_module(module, Some(part)))
 }

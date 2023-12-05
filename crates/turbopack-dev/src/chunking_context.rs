@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
-use turbo_tasks::{Value, Vc};
+use tracing::Instrument;
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -316,31 +317,36 @@ impl ChunkingContext for DevChunkingContext {
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<OutputAssets>> {
-        let MakeChunkGroupResult { chunks } = make_chunk_group(
-            Vc::upcast(self),
-            [Vc::upcast(module)],
-            availability_info.into_value(),
-        )
-        .await?;
+        let span = tracing::info_span!("chunking", module = *module.ident().to_string().await?);
+        async move {
+            let MakeChunkGroupResult { chunks } = make_chunk_group(
+                Vc::upcast(self),
+                [Vc::upcast(module)],
+                availability_info.into_value(),
+            )
+            .await?;
 
-        let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
-            .iter()
-            .map(|chunk| self.generate_chunk(*chunk))
-            .collect();
+            let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
+                .iter()
+                .map(|chunk| self.generate_chunk(*chunk))
+                .collect();
 
-        assets.push(self.generate_chunk_list_register_chunk(
-            module.ident(),
-            EvaluatableAssets::empty(),
-            Vc::cell(assets.clone()),
-            Value::new(EcmascriptDevChunkListSource::Dynamic),
-        ));
+            assets.push(self.generate_chunk_list_register_chunk(
+                module.ident(),
+                EvaluatableAssets::empty(),
+                Vc::cell(assets.clone()),
+                Value::new(EcmascriptDevChunkListSource::Dynamic),
+            ));
 
-        // Resolve assets
-        for asset in assets.iter_mut() {
-            *asset = asset.resolve().await?;
+            // Resolve assets
+            for asset in assets.iter_mut() {
+                *asset = asset.resolve().await?;
+            }
+
+            Ok(Vc::cell(assets))
         }
-
-        Ok(Vc::cell(assets))
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]
@@ -349,42 +355,50 @@ impl ChunkingContext for DevChunkingContext {
         ident: Vc<AssetIdent>,
         evaluatable_assets: Vc<EvaluatableAssets>,
     ) -> Result<Vc<OutputAssets>> {
-        let availability_info = AvailabilityInfo::Root;
+        let span = {
+            let ident = ident.to_string().await?;
+            tracing::info_span!("chunking", chunking_type = "evaluated", ident = *ident)
+        };
+        async move {
+            let availability_info = AvailabilityInfo::Root;
 
-        let evaluatable_assets_ref = evaluatable_assets.await?;
+            let evaluatable_assets_ref = evaluatable_assets.await?;
 
-        // TODO this collect is unnecessary, but it hits a compiler bug when it's not
-        // used
-        let entries = evaluatable_assets_ref
-            .iter()
-            .map(|&evaluatable| Vc::upcast(evaluatable))
-            .collect::<Vec<_>>();
+            // TODO this collect is unnecessary, but it hits a compiler bug when it's not
+            // used
+            let entries = evaluatable_assets_ref
+                .iter()
+                .map(|&evaluatable| Vc::upcast(evaluatable))
+                .collect::<Vec<_>>();
 
-        let MakeChunkGroupResult { chunks } =
-            make_chunk_group(Vc::upcast(self), entries, availability_info).await?;
+            let MakeChunkGroupResult { chunks } =
+                make_chunk_group(Vc::upcast(self), entries, availability_info).await?;
 
-        let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
-            .iter()
-            .map(|chunk| self.generate_chunk(*chunk))
-            .collect();
+            let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
+                .iter()
+                .map(|chunk| self.generate_chunk(*chunk))
+                .collect();
 
-        let other_assets = Vc::cell(assets.clone());
+            let other_assets = Vc::cell(assets.clone());
 
-        assets.push(self.generate_chunk_list_register_chunk(
-            ident,
-            evaluatable_assets,
-            other_assets,
-            Value::new(EcmascriptDevChunkListSource::Entry),
-        ));
+            assets.push(self.generate_chunk_list_register_chunk(
+                ident,
+                evaluatable_assets,
+                other_assets,
+                Value::new(EcmascriptDevChunkListSource::Entry),
+            ));
 
-        assets.push(self.generate_evaluate_chunk(ident, other_assets, evaluatable_assets));
+            assets.push(self.generate_evaluate_chunk(ident, other_assets, evaluatable_assets));
 
-        // Resolve assets
-        for asset in assets.iter_mut() {
-            *asset = asset.resolve().await?;
+            // Resolve assets
+            for asset in assets.iter_mut() {
+                *asset = asset.resolve().await?;
+            }
+
+            Ok(Vc::cell(assets))
         }
-
-        Ok(Vc::cell(assets))
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]
