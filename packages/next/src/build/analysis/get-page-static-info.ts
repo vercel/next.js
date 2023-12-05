@@ -452,20 +452,6 @@ function warnAboutUnsupportedValue(
   warnedUnsupportedValueMap.set(pageFilePath, true)
 }
 
-// Detect if metadata routes is a dynamic route, which containing
-// generateImageMetadata or generateSitemaps as export
-export async function isDynamicMetadataRoute(
-  pageFilePath: string
-): Promise<boolean> {
-  const fileContent = (await tryToReadFile(pageFilePath, true)) || ''
-  if (!/generateImageMetadata|generateSitemaps/.test(fileContent)) return false
-
-  const swcAST = await parseModule(pageFilePath, fileContent)
-  const exportsInfo = checkExports(swcAST, pageFilePath)
-
-  return !exportsInfo.generateImageMetadata || !exportsInfo.generateSitemaps
-}
-
 /**
  * For a given pageFilePath and nextConfig, if the config supports it, this
  * function will read the file and return the runtime that should be used.

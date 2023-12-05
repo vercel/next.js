@@ -36,7 +36,8 @@ turbopack-binding = { workspace = true, features = [
   "__feature_mdx_rs",
 ] }
 swc_core = { workspace = true, features = ["ecma_ast_serde", "common"] }
-
+next-page-static-info = { workspace = true }
+regex = "1.5"
 
 # Workaround a bug
 [package.metadata.wasm-pack.profile.release]

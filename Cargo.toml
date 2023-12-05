@@ -12,6 +12,7 @@ members = [
   "packages/next-swc/crates/next-transform-font",
   "packages/next-swc/crates/next-transform-dynamic",
   "packages/next-swc/crates/next-transform-strip-page-exports",
+  "packages/next-swc/crates/next-page-static-info",
 ]
 
 [workspace.lints.clippy]
@@ -34,6 +35,7 @@ next-swc = { path = "packages/next-swc/crates/core" }
 next-transform-font = { path = "packages/next-swc/crates/next-transform-font" }
 next-transform-dynamic = { path = "packages/next-swc/crates/next-transform-dynamic" }
 next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-transform-strip-page-exports" }
+next-page-static-info = { path = "packages/next-swc/crates/next-page-static-info" }
 
 # SWC crates
 swc_core = { version = "0.86.98", features = [

@@ -2,6 +2,7 @@
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { platform, arch } from 'os'
+import { promises as fs } from 'fs'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
 import { getParserOptions } from './options'
@@ -107,6 +108,19 @@ function checkVersionMismatch(pkgData: any) {
   }
 }
 
+async function tryToReadFile(filePath: string, shouldThrow: boolean) {
+  try {
+    return await fs.readFile(filePath, {
+      encoding: 'utf8',
+    })
+  } catch (error: any) {
+    if (shouldThrow) {
+      error.message = `Next.js ERROR: Failed to read file ${filePath}:\n${error.message}`
+      throw error
+    }
+  }
+}
+
 // These are the platforms we'll try to load wasm bindings first,
 // only try to load native bindings if loading wasm binding somehow fails.
 // Fallback to native binding is for migration period only,
@@ -159,6 +173,9 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions?: TurboEngineOptions
     ) => Promise<Project>
+  }
+  analysis: {
+    isDynamicMetadataRoute(pageFilePath: string): Promise<boolean>
   }
   minify: any
   minifySync: any
@@ -1085,6 +1102,29 @@ function bindingToApi(binding: any, _wasm: boolean) {
   return createProject
 }
 
+const warnedInvalidValueMap = {
+  runtime: new Map<string, boolean>(),
+  preferredRegion: new Map<string, boolean>(),
+} as const
+function warnInvalidValue(
+  pageFilePath: string,
+  key: keyof typeof warnedInvalidValueMap,
+  message: string
+): void {
+  throw new Error(
+    `key ${key} message: ${message} pageFilePath: ${pageFilePath}`
+  )
+  if (warnedInvalidValueMap[key].has(pageFilePath)) return
+
+  Log.warn(
+    `Next.js can't recognize the exported \`${key}\` field in "${pageFilePath}" as ${message}.` +
+      '\n' +
+      'The default runtime will be used instead.'
+  )
+
+  warnedInvalidValueMap[key].set(pageFilePath, true)
+}
+
 async function loadWasm(importPath = '') {
   if (wasmBindings) {
     return wasmBindings
@@ -1134,6 +1174,24 @@ async function loadWasm(importPath = '') {
         parseSync(src: string, options: any) {
           const astStr = bindings.parseSync(src.toString(), options)
           return astStr
+        },
+        analysis: {
+          isDynamicMetadataRoute: async (pageFilePath: string) => {
+            const fileContent = (await tryToReadFile(pageFilePath, true)) || ''
+            const { isDynamicMetadataRoute, warnings } =
+              await bindings.isDynamicMetadataRoute(pageFilePath, fileContent)
+
+            warnings?.forEach(
+              ({
+                key,
+                message,
+              }: {
+                key: keyof typeof warnedInvalidValueMap
+                message: string
+              }) => warnInvalidValue(pageFilePath, key, message)
+            )
+            return isDynamicMetadataRoute
+          },
         },
         getTargetTriple() {
           return undefined
@@ -1312,6 +1370,26 @@ function loadNative(importPath?: string) {
 
       parse(src: string, options: any) {
         return bindings.parse(src, toBuffer(options ?? {}))
+      },
+
+      analysis: {
+        isDynamicMetadataRoute: async (pageFilePath: string) => {
+          const { isDynamicMetadataRoute, warnings } =
+            await bindings.isDynamicMetadataRoute(pageFilePath)
+
+          // Instead of passing js callback into napi's context, bindings bubble up the warning messages
+          // and let next.js logger handles it.
+          warnings?.forEach(
+            ({
+              key,
+              message,
+            }: {
+              key: keyof typeof warnedInvalidValueMap
+              message: string
+            }) => warnInvalidValue(pageFilePath, key, message)
+          )
+          return isDynamicMetadataRoute
+        },
       },
 
       getTargetTriple: bindings.getTargetTriple,
