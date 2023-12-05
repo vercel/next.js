@@ -35,18 +35,51 @@ function augmentContext(context: TurbopackDevBaseContext): TurbopackDevContext {
 }
 
 async function loadWebAssembly(
-  _source: SourceInfo,
-  _id: ModuleId,
-  _importsObj: any
+  source: SourceInfo,
+  chunkPath: ChunkPath,
+  imports: WebAssembly.Imports
 ): Promise<Exports> {
-  throw new Error("loading WebAssembly is not supported");
+  const module = await loadWebAssemblyModule(source, chunkPath);
+
+  return await WebAssembly.instantiate(module, imports);
 }
+
+function getFileStem(path: string): string {
+  const fileName = path.split("/").pop()!;
+
+  const stem = fileName.split(".").shift()!;
+
+  if (stem == "") {
+    return fileName;
+  }
+
+  return stem;
+}
+
+type GlobalWithInjectedWebAssembly = typeof globalThis & {
+  [key: `wasm_${string}`]: WebAssembly.Module;
+};
 
 async function loadWebAssemblyModule(
   _source: SourceInfo,
-  _id: ModuleId
-): Promise<any> {
-  throw new Error("loading WebAssembly is not supported");
+  chunkPath: ChunkPath
+): Promise<WebAssembly.Module> {
+  const stem = getFileStem(chunkPath);
+
+  // very simple escaping just replacing unsupported characters with `_`
+  const escaped = stem.replace(/[^a-zA-Z0-9$_]/gi, "_");
+
+  const identifier: `wasm_${string}` = `wasm_${escaped}`;
+
+  const module = (globalThis as GlobalWithInjectedWebAssembly)[identifier];
+
+  if (!module) {
+    throw new Error(
+      `dynamically loading WebAssembly is not supported in this runtime and global \`${identifier}\` was not injected`
+    );
+  }
+
+  return module;
 }
 
 (() => {
