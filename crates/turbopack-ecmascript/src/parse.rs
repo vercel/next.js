@@ -19,6 +19,7 @@ use swc_core::{
         visit::VisitMutWith,
     },
 };
+use tracing::Instrument;
 use turbo_tasks::{util::WrapFuture, Value, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
@@ -141,7 +142,12 @@ pub async fn parse(
     ty: Value<EcmascriptModuleAssetType>,
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
-    match parse_internal(source, ty, transforms).await {
+    let name = source.ident().to_string().await?;
+    let span = tracing::info_span!("parse ecmascript", name = *name, ty = display(&*ty));
+    match parse_internal(source, ty, transforms)
+        .instrument(span)
+        .await
+    {
         Ok(result) => Ok(result),
         Err(error) => Err(error.context(format!(
             "failed to parse {}",

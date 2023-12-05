@@ -46,7 +46,8 @@ use swc_core::{
         },
     },
 };
-use turbo_tasks::{TryJoinIterExt, Upcast, Value, Vc};
+use tracing::Instrument;
+use turbo_tasks::{TryJoinIterExt, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath};
 use turbopack_core::{
     compile_time_info::{CompileTimeInfo, FreeVarReference},
@@ -291,7 +292,20 @@ where
 }
 
 #[turbo_tasks::function]
-pub(crate) async fn analyze_ecmascript_module(
+pub(crate) async fn analyse_ecmascript_module(
+    module: Vc<EcmascriptModuleAsset>,
+    part: Option<Vc<ModulePart>>,
+) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
+    let span = {
+        let module = module.ident().to_string().await?;
+        tracing::info_span!("analyse ecmascript module", module = *module)
+    };
+    analyse_ecmascript_module_internal(module, part)
+        .instrument(span)
+        .await
+}
+
+pub(crate) async fn analyse_ecmascript_module_internal(
     module: Vc<EcmascriptModuleAsset>,
     part: Option<Vc<ModulePart>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {

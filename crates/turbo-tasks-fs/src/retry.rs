@@ -23,18 +23,25 @@ where
     }
 }
 
-pub(crate) async fn retry_blocking<R, F>(path: impl AsRef<Path>, func: F) -> io::Result<R>
+pub(crate) async fn retry_blocking<R, F>(
+    path: impl AsRef<Path>,
+    span: tracing::Span,
+    func: F,
+) -> io::Result<R>
 where
     F: Fn(&Path) -> io::Result<R> + Send + 'static,
     R: Send + 'static,
 {
     let path = path.as_ref().to_owned();
 
+    let current_span = tracing::Span::current();
     asyncify(move || {
+        let _entered = current_span.entered();
+        let _entered = span.entered();
         let mut attempt = 1;
 
         loop {
-            return match func(&path) {
+            return match { func(&path) } {
                 Ok(r) => Ok(r),
                 Err(err) => {
                     if attempt < MAX_RETRY_ATTEMPTS && can_retry(&err) {

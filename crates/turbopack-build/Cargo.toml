@@ -31,6 +31,7 @@ swc_core = { workspace = true, features = [
   "ecma_minifier",
   "ecma_minifier_concurrent",
 ] }
+tracing = { workspace = true }
 
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }

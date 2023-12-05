@@ -27,6 +27,8 @@ pub mod typescript;
 pub mod utils;
 pub mod webpack;
 
+use std::fmt::{Display, Formatter};
+
 use anyhow::{Context, Result};
 use chunk::{EcmascriptChunkItem, EcmascriptChunkingContext};
 use code_gen::CodeGenerateable;
@@ -71,7 +73,7 @@ use self::{
 };
 use crate::{
     chunk::EcmascriptChunkPlaceable,
-    references::{analyze_ecmascript_module, async_module::OptionAsyncModule},
+    references::{analyse_ecmascript_module, async_module::OptionAsyncModule},
     transform::remove_shebang,
 };
 
@@ -114,6 +116,17 @@ pub enum EcmascriptModuleAssetType {
     TypescriptWithTypes,
     /// Module with TypeScript declaration code
     TypescriptDeclaration,
+}
+
+impl Display for EcmascriptModuleAssetType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EcmascriptModuleAssetType::Ecmascript => write!(f, "ecmascript"),
+            EcmascriptModuleAssetType::Typescript => write!(f, "typescript"),
+            EcmascriptModuleAssetType::TypescriptWithTypes => write!(f, "typescript with types"),
+            EcmascriptModuleAssetType::TypescriptDeclaration => write!(f, "typescript declaration"),
+        }
+    }
 }
 
 #[turbo_tasks::function]
@@ -284,7 +297,7 @@ impl EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyze_ecmascript_module(self, None)
+        analyse_ecmascript_module(self, None)
     }
 
     #[turbo_tasks::function]
@@ -528,6 +541,11 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
+        let _span = tracing::info_span!(
+            "code generation",
+            module = *self.asset_ident().to_string().await?
+        )
+        .entered();
         let async_module_options = this
             .module
             .get_async_module()

@@ -31,7 +31,8 @@ use ecmascript::{
 use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 pub use resolve::resolve_options;
-use turbo_tasks::{Completion, Value, Vc};
+use tracing::Instrument;
+use turbo_tasks::{Completion, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
@@ -296,6 +297,27 @@ impl ModuleAssetContext {
 
 #[turbo_tasks::function]
 async fn process_default(
+    module_asset_context: Vc<ModuleAssetContext>,
+    source: Vc<Box<dyn Source>>,
+    reference_type: Value<ReferenceType>,
+    processed_rules: Vec<usize>,
+) -> Result<Vc<Box<dyn Module>>> {
+    let span = tracing::info_span!(
+        "process module",
+        name = *source.ident().to_string().await?,
+        reference_type = display(&*reference_type)
+    );
+    process_default_internal(
+        module_asset_context,
+        source,
+        reference_type,
+        processed_rules,
+    )
+    .instrument(span)
+    .await
+}
+
+async fn process_default_internal(
     module_asset_context: Vc<ModuleAssetContext>,
     source: Vc<Box<dyn Source>>,
     reference_type: Value<ReferenceType>,

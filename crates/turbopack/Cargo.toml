@@ -26,6 +26,7 @@ regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }
 
 turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }

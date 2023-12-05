@@ -550,7 +550,7 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
 
     fn span(&mut self, node: &ChunkContentGraphNode) -> Span {
         if let ChunkContentGraphNode::ChunkItem { ident, .. } = node {
-            info_span!("module", name = display(ident))
+            info_span!("chunking module", name = display(ident))
         } else {
             Span::current()
         }

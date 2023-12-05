@@ -1014,13 +1014,28 @@ pub async fn resolve(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
-    let raw_result = resolve_internal_inline(lookup_path, request, options)
-        .await?
-        .resolve()
-        .await?;
-    let result =
-        handle_resolve_plugins(lookup_path, reference_type, request, options, raw_result).await?;
-    Ok(result)
+    let span = {
+        let lookup_path = lookup_path.to_string().await?;
+        let request = request.to_string().await?;
+        tracing::info_span!(
+            "resolving",
+            lookup_path = *lookup_path,
+            request = *request,
+            reference_type = display(&*reference_type)
+        )
+    };
+    async {
+        let raw_result = resolve_internal_inline(lookup_path, request, options)
+            .await?
+            .resolve()
+            .await?;
+        let result =
+            handle_resolve_plugins(lookup_path, reference_type, request, options, raw_result)
+                .await?;
+        Ok(result)
+    }
+    .instrument(span)
+    .await
 }
 
 #[turbo_tasks::function]
