@@ -28,6 +28,7 @@ pub fn next_dynamic(
     is_development: bool,
     is_server_compiler: bool,
     is_react_server_layer: bool,
+    prefer_esm: bool,
     mode: NextDynamicMode,
     filename: FileName,
     pages_dir: Option<PathBuf>,
@@ -36,6 +37,7 @@ pub fn next_dynamic(
         is_development,
         is_server_compiler,
         is_react_server_layer,
+        prefer_esm,
         pages_dir,
         filename,
         dynamic_bindings: vec![],
@@ -81,6 +83,7 @@ struct NextDynamicPatcher {
     is_development: bool,
     is_server_compiler: bool,
     is_react_server_layer: bool,
+    prefer_esm: bool,
     pages_dir: Option<PathBuf>,
     filename: FileName,
     dynamic_bindings: Vec<Id>,
@@ -368,6 +371,10 @@ impl Fold for NextDynamicPatcher {
                     if has_ssr_false
                         && self.is_server_compiler
                         && !self.is_react_server_layer
+                        // When it's not prefer to picking up ESM, as it's in the pages router, we don't need to do it as it doesn't need to enter the non-ssr module.
+                        // Also transforming it to `require.resolveWeak` and with ESM import, like require.resolveWeak(esm asset) is not available as it's commonjs importing ESM.
+                        && self.prefer_esm
+
                         // Only use `require.resolveWebpack` to decouple modules for webpack,
                         // turbopack doesn't need this
                         && self.state == NextDynamicPatcherState::Webpack

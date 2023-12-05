@@ -90,6 +90,7 @@ pub enum ServerContextType {
         app_dir: Vc<FileSystemPath>,
     },
     Middleware,
+    Instrumentation,
 }
 
 #[turbo_tasks::function]
@@ -140,7 +141,8 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppSSR { .. }
-        | ServerContextType::Middleware { .. } => {}
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. } => {}
     };
     let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
@@ -168,11 +170,25 @@ pub async fn get_server_resolve_options_context(
         }
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware { .. } => {
+        | ServerContextType::AppRoute { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(server_component_externals_plugin),
+                Vc::upcast(unsupported_modules_resolve_plugin),
+                Vc::upcast(next_external_plugin),
+                Vc::upcast(next_node_shared_runtime_plugin),
+            ]
+        }
+        ServerContextType::Middleware { .. } => {
+            vec![
+                Vc::upcast(module_feature_report_resolve_plugin),
+                Vc::upcast(unsupported_modules_resolve_plugin),
+                Vc::upcast(next_node_shared_runtime_plugin),
+            ]
+        }
+        ServerContextType::Instrumentation { .. } => {
+            vec![
+                Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
@@ -594,7 +610,7 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             }
         }
-        ServerContextType::Middleware => {
+        ServerContextType::Middleware | ServerContextType::Instrumentation => {
             let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
                 styled_components_transform_plugin,
                 styled_jsx_transform_plugin,

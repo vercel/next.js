@@ -437,17 +437,26 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  // RSC loaders, prefer ESM, set `esm` to true
   const swcServerLayerLoader = getSwcLoader({
     serverComponents: true,
     isReactServerLayer: true,
+    esm: true,
   })
   const swcClientLayerLoader = getSwcLoader({
     serverComponents: true,
     isReactServerLayer: false,
+    esm: true,
+  })
+  // Default swc loaders for pages doesn't prefer ESM.
+  const swcDefaultLoader = getSwcLoader({
+    serverComponents: true,
+    isReactServerLayer: false,
+    esm: false,
   })
 
   const defaultLoaders = {
-    babel: useSWCLoader ? swcClientLayerLoader : babelLoader!,
+    babel: useSWCLoader ? swcDefaultLoader : babelLoader!,
   }
 
   const swcLoaderForServerLayer = hasAppDir
@@ -621,7 +630,7 @@ export default async function getBaseWebpackConfig(
         }
       : undefined),
     // default main fields use pages dir ones, and customize app router ones in loaders.
-    mainFields: getMainField('pages', compilerType),
+    mainFields: getMainField(compilerType, false),
     ...(isEdgeServer && {
       conditionNames: edgeConditionNames,
     }),
@@ -736,8 +745,13 @@ export default async function getBaseWebpackConfig(
   const shouldIncludeExternalDirs =
     config.experimental.externalDir || !!config.transpilePackages
 
-  function createLoaderRuleExclude(skipNodeModules: boolean) {
-    return (excludePath: string) => {
+  const codeCondition = {
+    test: { or: [/\.(tsx|ts|js|cjs|mjs|jsx)$/, /__barrel_optimize__/] },
+    ...(shouldIncludeExternalDirs
+      ? // Allowing importing TS/TSX files from outside of the root dir.
+        {}
+      : { include: [dir, ...babelIncludeRegexes] }),
+    exclude: (excludePath: string) => {
       if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
         return false
       }
@@ -748,17 +762,8 @@ export default async function getBaseWebpackConfig(
       )
       if (shouldBeBundled) return false
 
-      return skipNodeModules && excludePath.includes('node_modules')
-    }
-  }
-
-  const codeCondition = {
-    test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
-    ...(shouldIncludeExternalDirs
-      ? // Allowing importing TS/TSX files from outside of the root dir.
-        {}
-      : { include: [dir, ...babelIncludeRegexes] }),
-    exclude: createLoaderRuleExclude(true),
+      return excludePath.includes('node_modules')
+    },
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -1119,37 +1124,6 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
-        {
-          // This loader rule works like a bridge between user's import and
-          // the target module behind a package's barrel file. It reads SWC's
-          // analysis result from the previous loader, and directly returns the
-          // code that only exports values that are asked by the user.
-          test: /__barrel_optimize__/,
-          use: ({ resourceQuery }: { resourceQuery: string }) => {
-            const names = (
-              resourceQuery.match(/\?names=([^&]+)/)?.[1] || ''
-            ).split(',')
-
-            return [
-              {
-                loader: 'next-barrel-loader',
-                options: {
-                  names,
-                  swcCacheDir: path.join(
-                    dir,
-                    config?.distDir ?? '.next',
-                    'cache',
-                    'swc'
-                  ),
-                },
-                // This is part of the request value to serve as the module key.
-                // The barrel loader are no-op re-exported modules keyed by
-                // export names.
-                ident: 'next-barrel-loader:' + resourceQuery,
-              },
-            ]
-          },
-        },
         // Alias server-only and client-only to proper exports based on bundling layers
         {
           issuerLayer: {
@@ -1281,7 +1255,7 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
-                  mainFields: getMainField('app', compilerType),
+                  mainFields: getMainField(compilerType, true),
                   conditionNames: reactServerCondition,
                   // If missing the alias override here, the default alias will be used which aliases
                   // react to the direct file path, not the package name. In that case the condition
@@ -1416,7 +1390,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: [WEBPACK_LAYERS.appPagesBrowser],
                     use: swcLoaderForClientLayer,
                     resolve: {
-                      mainFields: getMainField('app', compilerType),
+                      mainFields: getMainField(compilerType, true),
                     },
                   },
                   {
@@ -1424,7 +1398,7 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
                     use: swcLoaderForClientLayer,
                     resolve: {
-                      mainFields: getMainField('app', compilerType),
+                      mainFields: getMainField(compilerType, true),
                     },
                   },
                 ]
@@ -1574,6 +1548,40 @@ export default async function getBaseWebpackConfig(
           // tree-shake it if not used.
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]og[\\/]image-response\.js/,
           sideEffects: false,
+        },
+        {
+          // This loader rule should be before other rules, as it can output code
+          // that still contains `"use client"` or `"use server"` statements that
+          // needs to be re-transformed by the RSC compilers.
+          // This loader rule works like a bridge between user's import and
+          // the target module behind a package's barrel file. It reads SWC's
+          // analysis result from the previous loader, and directly returns the
+          // code that only exports values that are asked by the user.
+          test: /__barrel_optimize__/,
+          use: ({ resourceQuery }: { resourceQuery: string }) => {
+            const names = (
+              resourceQuery.match(/\?names=([^&]+)/)?.[1] || ''
+            ).split(',')
+
+            return [
+              {
+                loader: 'next-barrel-loader',
+                options: {
+                  names,
+                  swcCacheDir: path.join(
+                    dir,
+                    config?.distDir ?? '.next',
+                    'cache',
+                    'swc'
+                  ),
+                },
+                // This is part of the request value to serve as the module key.
+                // The barrel loader are no-op re-exported modules keyed by
+                // export names.
+                ident: 'next-barrel-loader:' + resourceQuery,
+              },
+            ]
+          },
         },
       ],
     },

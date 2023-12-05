@@ -68,7 +68,9 @@ pub async fn get_next_server_transforms_rules(
             (true, None)
         }
         ServerContextType::AppRoute { .. } => (false, None),
-        ServerContextType::Middleware { .. } => (false, None),
+        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
+            (false, None)
+        }
     };
 
     rules.push(
@@ -112,6 +114,7 @@ pub async fn get_next_server_internal_transforms_rules(
         }
         ServerContextType::AppRoute { .. } => {}
         ServerContextType::Middleware { .. } => {}
+        ServerContextType::Instrumentation { .. } => {}
     };
 
     Ok(rules)
