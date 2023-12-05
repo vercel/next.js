@@ -217,7 +217,7 @@ pub async fn project_new(
     let guard = if let Some(mut trace) = trace {
         // Trace presets
         match trace.as_str() {
-            "overview" => {
+            "overview" | "1" => {
                 trace = TRACING_NEXT_OVERVIEW_TARGETS.join(",");
             }
             "next" => {
