@@ -7,22 +7,22 @@ Before taking your Next.js application to production, here are some recommendati
 
 ## In General
 
-- Use [caching](#caching) wherever possible.
+- Use [caching](/docs/app/building-your-application/caching) wherever possible.
 - Ensure your database and backend are deployed in the same region.
 - Aim to ship the least amount of JavaScript possible.
 - Defer loading heavy JavaScript bundles until needed.
-- Ensure [logging](#logging) is set up.
-- Ensure [error handling](#error-handling) is set up.
-- Configure the [404](/docs/pages/building-your-application/routing/custom-error#404-page) (Not Found) and [500](/docs/pages/building-your-application/routing/custom-error#500-page) (Error) pages.
-- Ensure you are [measuring performance](/docs/pages/building-your-application/optimizing/analytics).
+- Ensure [logging](/docs/app/api-reference/next-config-js/logging) is set up.
+- Ensure [error handling](/docs/app/building-your-application/routing/error-handling) is set up.
+- Customize your 404 (Not Found) responses using the [`notfound()`](/docs/app/api-reference/functions/not-found) function, and set up your custom error page to handle 500 (Server Error) scenarios effectively.
+- Ensure you are [measuring performance](/docs/app/building-your-application/optimizing/analytics).
 - Run [Lighthouse](https://developers.google.com/web/tools/lighthouse) to check for performance, best practices, accessibility, and SEO. For best results, use a production build of Next.js and use incognito in your browser so results aren't affected by extensions.
 - Review [Supported Browsers and Features](/docs/architecture/supported-browsers).
 - Improve performance using:
-  - [`next/image` and Automatic Image Optimization](/docs/pages/building-your-application/optimizing/images)
-  - [Automatic Font Optimization](/docs/pages/building-your-application/optimizing/fonts)
-  - [Script Optimization](/docs/pages/building-your-application/optimizing/scripts)
+  - [`next/image` and Automatic Image Optimization](/docs/app/building-your-application/optimizing/images)
+  - [Automatic Font Optimization](/docs/app/building-your-application/optimizing/fonts)
+  - [Script Optimization](/docs/app/building-your-application/optimizing/scripts)
 - Improve [loading performance](#loading-performance)
-- Consider adding a [Content Security Policy](/docs/pages/building-your-application/configuring/content-security-policy)
+- Consider adding a [Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy)
 
 ## Caching
 
@@ -34,7 +34,7 @@ Caching is essential for improving response times and reducing requests to exter
 Cache-Control: public, max-age=31536000, immutable
 `
 
-                              This setup ensures that these assets are cached efficiently, reducing load times for returning users.
+                                                This setup ensures that these assets are cached efficiently, reducing load times for returning users.
 
 - **Data Cache for Dynamic Content:**
   Next.js's built-in Data Cache persists results of data fetches across server requests and deployments. By default, fetch requests are cached, allowing data to be reused in subsequent requests. This feature is particularly useful for dynamic content that doesn't change frequently.
