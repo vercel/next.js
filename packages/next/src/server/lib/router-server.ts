@@ -582,8 +582,14 @@ export async function initialize(opts: {
         // console.error(_err);
       })
 
-      if (opts.dev && developmentBundler) {
-        if (req.url?.includes(`/_next/webpack-hmr`)) {
+      if (opts.dev && developmentBundler && req.url) {
+        const isHMRRequest = req.url.includes('/_next/webpack-hmr')
+        // only handle HMR requests if the basePath in the request
+        // matches the basePath for the handler responding to the request
+        const isRequestForCurrentBasepath =
+          !config.basePath || pathHasPrefix(req.url, config.basePath)
+
+        if (isHMRRequest && isRequestForCurrentBasepath) {
           return developmentBundler.hotReloader.onHMR(req, socket, head)
         }
       }
