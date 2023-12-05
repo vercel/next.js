@@ -97,11 +97,13 @@ function buildGetSafeRouteKey() {
 }
 
 function getSafeKeyFromSegment({
+  interceptionMarker,
   getSafeRouteKey,
   segment,
   routeKeys,
   keyPrefix,
 }: {
+  interceptionMarker?: string
   getSafeRouteKey: () => string
   segment: string
   routeKeys: Record<string, string>
@@ -137,11 +139,18 @@ function getSafeKeyFromSegment({
     routeKeys[cleanedKey] = key
   }
 
+  // if the segment has an interception marker, make sure that's part of the regex pattern
+  // this is to ensure that the route with the interception marker doesn't incorrectly match
+  // the non-intercepted route (ie /app/(.)[username] should not match /app/[username])
+  const interceptionPrefix = interceptionMarker
+    ? escapeStringRegexp(interceptionMarker)
+    : ''
+
   return repeat
     ? optional
-      ? `(?:/(?<${cleanedKey}>.+?))?`
-      : `/(?<${cleanedKey}>.+?)`
-    : `/(?<${cleanedKey}>[^/]+?)`
+      ? `(?:/${interceptionPrefix}(?<${cleanedKey}>.+?))?`
+      : `/${interceptionPrefix}(?<${cleanedKey}>.+?)`
+    : `/${interceptionPrefix}(?<${cleanedKey}>[^/]+?)`
 }
 
 function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
@@ -157,8 +166,11 @@ function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
         const paramMatches = segment.match(/\[((?:\[.*\])|.+)\]/) // Check for parameters
 
         if (hasInterceptionMarker && paramMatches) {
+          const [usedMarker] = segment.split(paramMatches[0])
+
           return getSafeKeyFromSegment({
             getSafeRouteKey,
+            interceptionMarker: usedMarker,
             segment: paramMatches[1],
             routeKeys,
             keyPrefix: prefixRouteKeys
