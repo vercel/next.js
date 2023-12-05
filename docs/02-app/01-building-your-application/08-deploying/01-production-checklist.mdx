@@ -30,11 +30,12 @@ Caching is essential for improving response times and reducing requests to exter
 
 - **Static Asset Caching:**
   Next.js automatically adds caching headers to immutable assets in **`/public`** or other static directories. Assets like CSS, static images, and other media are ideal candidates for long-term caching as they rarely change. The default caching headers applied are:
-  `jsx
-Cache-Control: public, max-age=31536000, immutable
-`
 
-                                                This setup ensures that these assets are cached efficiently, reducing load times for returning users.
+  ```jsx
+  Cache-Control: public, max-age=31536000, immutable
+  ```
+
+  This setup ensures that these assets are cached efficiently, reducing load times for returning users.
 
 - **Data Cache for Dynamic Content:**
   Next.js's built-in Data Cache persists results of data fetches across server requests and deployments. By default, fetch requests are cached, allowing data to be reused in subsequent requests. This feature is particularly useful for dynamic content that doesn't change frequently.
@@ -49,20 +50,18 @@ Cache-Control: public, max-age=31536000, immutable
 
 Making sure your website sends less JavaScript to the browser is very important for speed. To help you understand and manage what goes into your JavaScript files, you can use these tools:
 
-### **Analysis Tools**
-
 - [Import Cost](https://marketplace.visualstudio.com/items?itemName=wix.vscode-import-cost) – Shows the size of each package you import right in VSCode.
 - [Package Phobia](https://packagephobia.com/) – Helps you see the size impact of adding new dev dependencies to your project.
 - [Bundle Phobia](https://bundlephobia.com/) - Tells you how much a new dependency could increase your JavaScript size.
 - [Webpack Bundle Analyzer](https://github.com/vercel/next.js/tree/canary/packages/next-bundle-analyzer) – Creates a visual, interactive map of your webpack output files to show where space is used.
 - [bundlejs](https://bundlejs.com/) - A browser tool for bundling and minifying projects, showing compressed sizes.
 
-### **Optimization Strategies**
+Additionally, make sure to implement the recommended optimization strategies.
 
 - Optimize Server Actions - Focus on simplifying and speeding up your server actions. This can be achieved by optimizing database queries, reducing external API calls, and ensuring server-side computations are efficient. Efficient server-side processing helps reduce the time it takes for your pages to load and improves the overall performance of your website.
 - Minimize Client-Side JavaScript - It's important to keep JavaScript on the client-side as small as possible for quicker website loading and a better user experience.
 
-### Optimizing with **`[@next/bundle-analyzer](https://www.npmjs.com/package/@next/bundle-analyzer)`**
+### Optimizing with **[`@next/bundle-analyzer`](https://www.npmjs.com/package/@next/bundle-analyzer)**
 
 `@next/bundle-analyzer` is a plugin for Next.js that helps manage the size of your JavaScript files. It shows you how big each part of your webpack output is. This is helpful because you can find and fix parts of your code that are too large. For example, you might remove large dependencies, split your code, or only load some parts when needed.
 
@@ -70,19 +69,20 @@ How to use `@next/bundle-analyzer`:
 
 1. **Install**: Run `npm install @next/bundle-analyzer webpack-bundle-analyzer`.
 2. **Configure**: Add the bundle analyzer's settings to your `next.config.js`.
+
+```js
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+})
+module.exports = withBundleAnalyzer({})
+```
+
 3. **Run Analysis**: Use `ANALYZE=true npm run build` to start looking at your file sizes.
 4. **Review Findings**: Check the report to see where you can make improvements.
 
 Doing this regularly while you develop and before you launch your site is important to keep your code efficient.
 
 ## Logging
-
-<details open>
-  <summary>Examples</summary>
-
-- [Pino and Logflare Example](https://github.com/Logflare/next-pino-logflare-logging-example)
-
-</details>
 
 Since Next.js runs on both the client and server, there are multiple forms of logging supported:
 
@@ -121,3 +121,7 @@ Once you are able to measure the loading performance, use the following strategi
   - Finding alternative smaller packages
   - Dynamically loading components and dependencies
 - **Parallel Route Rendering**: Leverage the App Router’s ability to render multiple components in parallel for enhanced performance.
+
+```
+
+```
