@@ -19,6 +19,7 @@ use next_core::{
     next_telemetry::NextFeatureTelemetry,
 };
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
@@ -787,19 +788,24 @@ impl Project {
         self: Vc<Self>,
         output_assets: Vc<OutputAssetsOperation>,
     ) -> Result<Vc<Completion>> {
-        let all_output_assets = all_assets_from_entries_operation(output_assets);
+        let span = tracing::info_span!("emitting");
+        async move {
+            let all_output_assets = all_assets_from_entries_operation(output_assets);
 
-        self.await?
-            .versioned_content_map
-            .insert_output_assets(all_output_assets)
-            .await?;
+            self.await?
+                .versioned_content_map
+                .insert_output_assets(all_output_assets)
+                .await?;
 
-        Ok(emit_assets(
-            *all_output_assets.await?,
-            self.node_root(),
-            self.client_relative_path(),
-            self.node_root(),
-        ))
+            Ok(emit_assets(
+                *all_output_assets.await?,
+                self.node_root(),
+                self.client_relative_path(),
+                self.node_root(),
+            ))
+        }
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]

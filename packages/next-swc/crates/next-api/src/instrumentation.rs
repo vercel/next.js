@@ -1,11 +1,13 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use next_core::{
+    all_assets_from_entries,
     mode::NextMode,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
     next_server::{get_server_chunking_context, get_server_runtime_entries, ServerContextType},
 };
-use turbo_tasks::{Completion, TryJoinIterExt, Value, Vc};
+use tracing::Instrument;
+use turbo_tasks::{Completion, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileContent},
     turbopack::{
@@ -22,6 +24,7 @@ use turbopack_binding::{
 };
 
 use crate::{
+    middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
     project::Project,
     route::{Endpoint, WrittenEndpoint},
     server_paths::all_server_paths,
@@ -122,26 +125,23 @@ impl InstrumentationEndpoint {
         let this = self.await?;
 
         if this.is_edge {
-            let mut output_assets = self.edge_files().await?.clone_value();
+            let edge_files = self.edge_files();
+            let mut output_assets = edge_files.await?.clone_value();
 
             let node_root = this.project.node_root();
+            let node_root_value = node_root.await?;
 
-            let files_paths_from_root = {
-                let node_root = &node_root.await?;
-                output_assets
-                    .iter()
-                    .map(|&file| async move {
-                        Ok(node_root
-                            .get_path_to(&*file.ident().path().await?)
-                            .context("middleware file path must be inside the node root")?
-                            .to_string())
-                    })
-                    .try_join()
-                    .await?
-            };
+            let file_paths_from_root =
+                get_js_paths_from_root(&node_root_value, &output_assets).await?;
+
+            let all_output_assets = all_assets_from_entries(edge_files).await?;
+
+            let wasm_paths_from_root =
+                get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?;
 
             let instrumentation_definition = InstrumentationDefinition {
-                files: files_paths_from_root,
+                files: file_paths_from_root,
+                wasm: wasm_paths_to_bindings(wasm_paths_from_root),
                 name: "instrumentation".to_string(),
                 ..Default::default()
             };
@@ -171,18 +171,23 @@ impl InstrumentationEndpoint {
 impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
     async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
-        let this = self.await?;
-        let output_assets = self.output_assets();
-        this.project
-            .emit_all_output_assets(Vc::cell(output_assets))
-            .await?;
+        let span = tracing::info_span!("instrumentation endpoint");
+        async move {
+            let this = self.await?;
+            let output_assets = self.output_assets();
+            this.project
+                .emit_all_output_assets(Vc::cell(output_assets))
+                .await?;
 
-        let node_root = this.project.node_root();
-        let server_paths = all_server_paths(output_assets, node_root)
-            .await?
-            .clone_value();
+            let node_root = this.project.node_root();
+            let server_paths = all_server_paths(output_assets, node_root)
+                .await?
+                .clone_value();
 
-        Ok(WrittenEndpoint::Edge { server_paths }.cell())
+            Ok(WrittenEndpoint::Edge { server_paths }.cell())
+        }
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]

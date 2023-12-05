@@ -1,6 +1,7 @@
 use anyhow::Result;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
@@ -35,42 +36,49 @@ pub async fn get_app_client_references_chunks(
     client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
 ) -> Result<Vc<ClientReferencesChunks>> {
-    let app_client_references_chunks: IndexMap<_, _> = app_client_reference_types
-        .await?
-        .iter()
-        .map(|client_reference_ty| async move {
-            Ok((
-                *client_reference_ty,
-                match client_reference_ty {
-                    ClientReferenceType::EcmascriptClientReference(ecmascript_client_reference) => {
-                        let ecmascript_client_reference_ref = ecmascript_client_reference.await?;
-                        ClientReferenceChunks {
-                            client_chunks: client_chunking_context.root_chunk_group(Vc::upcast(
-                                ecmascript_client_reference_ref.client_module,
-                            )),
-                            ssr_chunks: ssr_chunking_context.root_chunk_group(Vc::upcast(
-                                ecmascript_client_reference_ref.ssr_module,
-                            )),
+    async move {
+        let app_client_references_chunks: IndexMap<_, _> = app_client_reference_types
+            .await?
+            .iter()
+            .map(|client_reference_ty| async move {
+                Ok((
+                    *client_reference_ty,
+                    match client_reference_ty {
+                        ClientReferenceType::EcmascriptClientReference(
+                            ecmascript_client_reference,
+                        ) => {
+                            let ecmascript_client_reference_ref =
+                                ecmascript_client_reference.await?;
+                            ClientReferenceChunks {
+                                client_chunks: client_chunking_context.root_chunk_group(
+                                    Vc::upcast(ecmascript_client_reference_ref.client_module),
+                                ),
+                                ssr_chunks: ssr_chunking_context.root_chunk_group(Vc::upcast(
+                                    ecmascript_client_reference_ref.ssr_module,
+                                )),
+                            }
                         }
-                    }
-                    ClientReferenceType::CssClientReference(css_client_reference) => {
-                        let css_client_reference_ref = css_client_reference.await?;
-                        ClientReferenceChunks {
-                            client_chunks: client_chunking_context.root_chunk_group(Vc::upcast(
-                                css_client_reference_ref.client_module,
-                            )),
-                            ssr_chunks: OutputAssets::empty(),
+                        ClientReferenceType::CssClientReference(css_client_reference) => {
+                            let css_client_reference_ref = css_client_reference.await?;
+                            ClientReferenceChunks {
+                                client_chunks: client_chunking_context.root_chunk_group(
+                                    Vc::upcast(css_client_reference_ref.client_module),
+                                ),
+                                ssr_chunks: OutputAssets::empty(),
+                            }
                         }
-                    }
-                },
-            ))
-        })
-        .try_join()
-        .await?
-        .into_iter()
-        .collect();
+                    },
+                ))
+            })
+            .try_join()
+            .await?
+            .into_iter()
+            .collect();
 
-    Ok(Vc::cell(app_client_references_chunks))
+        Ok(Vc::cell(app_client_references_chunks))
+    }
+    .instrument(tracing::info_span!("process client references"))
+    .await
 }
 
 /// Crawls all modules emitted in the client transition, returning a list of all
