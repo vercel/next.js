@@ -79,8 +79,9 @@ async function exportPageImpl(
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
 
-    // Check if this is an `app/` prefix request.
-    _isAppPrefetch: isAppPrefetch = false,
+    // TODO: use this when we've re-enabled app prefetching https://github.com/vercel/next.js/pull/58609
+    // // Check if this is an `app/` prefix request.
+    // _isAppPrefetch: isAppPrefetch = false,
 
     // Check if this should error when dynamic usage is detected.
     _isDynamicError: isDynamicError = false,
@@ -289,7 +290,6 @@ async function exportPageImpl(
         htmlFilepath,
         debugOutput,
         isDynamicError,
-        isAppPrefetch,
         fileWriter
       )
     }

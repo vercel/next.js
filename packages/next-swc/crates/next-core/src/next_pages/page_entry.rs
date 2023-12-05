@@ -182,7 +182,7 @@ async fn wrap_edge_page(
         project_root,
         indexmap! {
             "VAR_USERLAND" => INNER.to_string(),
-            "VAR_PAGE" => page.clone(),
+            "VAR_PAGE" => pathname.clone(),
             "VAR_BUILD_ID" => build_id.to_string(),
             "VAR_MODULE_DOCUMENT" => "@vercel/turbopack-next/pages/_document".to_string(),
             "VAR_MODULE_APP" => "@vercel/turbopack-next/pages/_app".to_string(),

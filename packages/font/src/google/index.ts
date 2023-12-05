@@ -18105,7 +18105,7 @@ export declare function Playpen_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols' | 'vietnamese'>
+  subsets?: Array<'emoji' | 'latin' | 'latin-ext' | 'math' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Plus_Jakarta_Sans<
   T extends CssVariable | undefined = undefined

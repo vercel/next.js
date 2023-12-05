@@ -231,7 +231,10 @@ export default class NextNodeServer extends BaseServer {
 
     // Intercept fetch and other testmode apis.
     if (this.serverOptions.experimentalTestProxy) {
-      const { interceptTestApis } = require('../experimental/testmode/server')
+      process.env.NEXT_PRIVATE_TEST_PROXY = 'true'
+      const {
+        interceptTestApis,
+      } = require('next/dist/experimental/testmode/server')
       interceptTestApis()
     }
 
@@ -1036,7 +1039,7 @@ export default class NextNodeServer extends BaseServer {
     if (this.serverOptions.experimentalTestProxy) {
       const {
         wrapRequestHandlerNode,
-      } = require('../experimental/testmode/server')
+      } = require('next/dist/experimental/testmode/server')
       return wrapRequestHandlerNode(handler)
     }
     return handler

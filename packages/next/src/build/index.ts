@@ -134,7 +134,7 @@ import {
   createDefineEnv,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { flatReaddir } from '../lib/flat-readdir'
+import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import {
@@ -568,16 +568,18 @@ export default async function build(
       const instrumentationHookEnabled = Boolean(
         config.experimental.instrumentationHook
       )
-      const rootPaths = (
-        await flatReaddir(rootDir, [
-          middlewareDetectionRegExp,
-          ...(instrumentationHookEnabled
-            ? [instrumentationHookDetectionRegExp]
-            : []),
-        ])
-      )
+
+      const includes = [
+        middlewareDetectionRegExp,
+        ...(instrumentationHookEnabled
+          ? [instrumentationHookDetectionRegExp]
+          : []),
+      ]
+
+      const rootPaths = (await getFilesInDir(rootDir))
+        .filter((file) => includes.some((include) => include.test(file)))
         .sort(sortByPageExts(config.pageExtensions))
-        .map((absoluteFile) => absoluteFile.replace(dir, ''))
+        .map((file) => path.join(rootDir, file).replace(dir, ''))
 
       const hasInstrumentationHook = rootPaths.some((p) =>
         p.includes(INSTRUMENTATION_HOOK_FILENAME)
@@ -1108,7 +1110,6 @@ export default async function build(
                 dir,
                 config,
                 distDir,
-                pageKeys,
                 // Serialize Map as this is sent to the worker.
                 // TODO: Is this wrong?
                 pageInfos: serializePageInfos(new Map()),
@@ -1925,7 +1926,6 @@ export default async function build(
           dir,
           config,
           distDir,
-          pageKeys,
           pageInfos,
           staticPages: [...staticPages],
           nextBuildSpan,
