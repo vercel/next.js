@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use anyhow::{bail, Context, Result};
 use indexmap::IndexSet;
 use next_core::{
+    all_assets_from_entries,
     app_structure::{
         get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
         MetadataItem,
@@ -63,6 +64,7 @@ use crate::{
         collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
         DynamicImportedChunks,
     },
+    middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
     server_actions::create_server_actions_manifest,
@@ -844,7 +846,9 @@ impl AppEndpoint {
                     app_entry.rsc_entry.ident(),
                     Vc::cell(evaluatable_assets.clone()),
                 );
-                server_assets.extend(files.await?.iter().copied());
+                let files_value = files.await?;
+
+                server_assets.extend(files_value.iter().copied());
 
                 // the next-edge-ssr-loader templates expect the manifests to be stored in
                 // global variables defined in these files
@@ -856,44 +860,21 @@ impl AppEndpoint {
                     "server/middleware-react-loadable-manifest.js".to_string(),
                     "server/next-font-manifest.js".to_string(),
                 ];
+                let mut wasm_paths_from_root = vec![];
 
                 let node_root_value = node_root.await?;
 
-                let middleware_paths_from_root = middleware_assets
-                    .iter()
-                    .map({
-                        let node_root_value = node_root_value.clone();
-                        move |&file| {
-                            let node_root_value = node_root_value.clone();
-                            async move {
-                                Ok(node_root_value
-                                    .get_path_to(&*file.ident().path().await?)
-                                    .filter(|path| path.ends_with(".js"))
-                                    .map(|path| path.to_string()))
-                            }
-                        }
-                    })
-                    .try_flat_join()
-                    .await?;
+                file_paths_from_root
+                    .extend(get_js_paths_from_root(&node_root_value, &middleware_assets).await?);
+                file_paths_from_root
+                    .extend(get_js_paths_from_root(&node_root_value, &files_value).await?);
 
-                file_paths_from_root.extend(middleware_paths_from_root);
+                let all_output_assets = all_assets_from_entries(files).await?;
 
-                let rsc_paths_from_root = files
-                    .await?
-                    .iter()
-                    .map(move |&file| {
-                        let node_root_value = node_root_value.clone();
-                        async move {
-                            Ok(node_root_value
-                                .get_path_to(&*file.ident().path().await?)
-                                .filter(|path| path.ends_with(".js"))
-                                .map(|path| path.to_string()))
-                        }
-                    })
-                    .try_flat_join()
-                    .await?;
-
-                file_paths_from_root.extend(rsc_paths_from_root);
+                wasm_paths_from_root
+                    .extend(get_wasm_paths_from_root(&node_root_value, &middleware_assets).await?);
+                wasm_paths_from_root
+                    .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
 
                 let entry_file = "app-edge-has-no-entrypoint".to_string();
 
@@ -907,6 +888,7 @@ impl AppEndpoint {
                 };
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: file_paths_from_root,
+                    wasm: wasm_paths_to_bindings(wasm_paths_from_root),
                     name: app_entry.pathname.to_string(),
                     page: app_entry.original_name.clone(),
                     regions: app_entry
