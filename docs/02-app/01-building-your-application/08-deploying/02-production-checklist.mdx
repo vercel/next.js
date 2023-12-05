@@ -34,7 +34,7 @@ Caching is essential for improving response times and reducing requests to exter
 Cache-Control: public, max-age=31536000, immutable
 `
 
-                      This setup ensures that these assets are cached efficiently, reducing load times for returning users.
+                          This setup ensures that these assets are cached efficiently, reducing load times for returning users.
 
 - **Data Cache for Dynamic Content:**
   Next.js's built-in Data Cache persists results of data fetches across server requests and deployments. By default, fetch requests are cached, allowing data to be reused in subsequent requests. This feature is particularly useful for dynamic content that doesn't change frequently.
@@ -102,8 +102,6 @@ The `error.js` file convention is used for gracefully handling runtime errors in
 **Handling Server Errors**:
 
 If an error is thrown inside a Server Component, Next.js forwards an `Error` object to the nearest `error.js` file. This object includes a generic message and a digest property in production as a security measure to prevent leaking sensitive details.
-
-You can also log and track exceptions with a tool like Sentry. [](https://github.com/vercel/next.js/tree/canary/examples/with-sentry)With Sentry, you can catch & report errors on both the client and server-side, using the Sentry SDK for Next.js. There's also a [Sentry integration for Vercel](https://vercel.com/integrations/sentry?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
 
 ## Loading Performance
 
