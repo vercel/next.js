@@ -1,7 +1,6 @@
 import type { AppConfigDynamic } from '../../build/utils'
 
 import { DynamicServerError } from './hooks-server-context'
-import { maybePostpone } from './postpone/maybe-postpone'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
 class StaticGenBailoutError extends Error {
@@ -47,7 +46,8 @@ export const staticGenerationBailout: StaticGenerationBailout = (
     link: 'https://nextjs.org/docs/messages/dynamic-server-error',
   })
 
-  maybePostpone(staticGenerationStore, reason)
+  // If postpone is available, we should postpone the render.
+  staticGenerationStore.postpone?.(reason)
 
   // As this is a bailout, we don't want to revalidate, so set the revalidate
   // to 0.

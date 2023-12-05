@@ -9,11 +9,22 @@ import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
-import { ForceDynamic, supportsForceDynamic } from './static/force-dynamic'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
   styles: ReactNode
+}
+
+/**
+ * This component will call `React.postpone` that throws the postponed error.
+ */
+export const Postpone = ({
+  postpone,
+}: {
+  postpone: (reason: string) => never
+}): never => {
+  // Call the postpone API now with the reason set to "force-dynamic".
+  return postpone('dynamic = "force-dynamic" was used')
 }
 
 /**
@@ -402,15 +413,12 @@ export async function createComponentTree({
   // replace it with a node that will postpone the render. This ensures that the
   // postpone is invoked during the react render phase and not during the next
   // render phase.
-  if (
-    staticGenerationStore.forceDynamic &&
-    supportsForceDynamic(staticGenerationStore)
-  ) {
+  if (staticGenerationStore.forceDynamic && staticGenerationStore.postpone) {
     return {
       seedData: [
         actualSegment,
         parallelRouteCacheNodeSeedData,
-        <ForceDynamic staticGenerationStore={staticGenerationStore} />,
+        <Postpone postpone={staticGenerationStore.postpone} />,
       ],
       styles: layerAssets,
     }

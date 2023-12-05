@@ -12,7 +12,6 @@ import {
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
 import * as Log from '../../build/output/log'
-import { maybePostpone } from '../../client/components/postpone/maybe-postpone'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -380,7 +379,7 @@ export function patchFetch({
         ) {
           // If enabled, we should bail out of static generation.
           if (revalidate === 0) {
-            maybePostpone(staticGenerationStore, 'revalidate: 0')
+            staticGenerationStore.postpone?.('revalidate: 0')
           }
 
           staticGenerationStore.revalidate = revalidate
@@ -600,7 +599,7 @@ export function patchFetch({
             staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
 
             // If enabled, we should bail out of static generation.
-            maybePostpone(staticGenerationStore, dynamicUsageReason)
+            staticGenerationStore.postpone?.(dynamicUsageReason)
 
             // PPR is not enabled, or React postpone is not available, we
             // should set the revalidate to 0.
@@ -629,7 +628,7 @@ export function patchFetch({
               staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
 
               // If enabled, we should bail out of static generation.
-              maybePostpone(staticGenerationStore, dynamicUsageReason)
+              staticGenerationStore.postpone?.(dynamicUsageReason)
             }
 
             if (!forceDynamic || next.revalidate !== 0) {
