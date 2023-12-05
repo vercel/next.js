@@ -231,7 +231,10 @@ export default class NextNodeServer extends BaseServer {
 
     // Intercept fetch and other testmode apis.
     if (this.serverOptions.experimentalTestProxy) {
-      const { interceptTestApis } = require('../experimental/testmode/server')
+      process.env.NEXT_PRIVATE_TEST_PROXY = 'true'
+      const {
+        interceptTestApis,
+      } = require('next/dist/experimental/testmode/server')
       interceptTestApis()
     }
 
@@ -1036,7 +1039,7 @@ export default class NextNodeServer extends BaseServer {
     if (this.serverOptions.experimentalTestProxy) {
       const {
         wrapRequestHandlerNode,
-      } = require('../experimental/testmode/server')
+      } = require('next/dist/experimental/testmode/server')
       return wrapRequestHandlerNode(handler)
     }
     return handler
@@ -1124,8 +1127,7 @@ export default class NextNodeServer extends BaseServer {
                   nestedLevel += 1
                 }
               }
-
-              return nestedLevel === 0 ? ' ' : `${'  │ '.repeat(nestedLevel)}`
+              return nestedLevel === 0 ? ' ' : '  │ '.repeat(nestedLevel)
             }
 
             for (let i = 0; i < fetchMetrics.length; i++) {
@@ -1138,10 +1140,10 @@ export default class NextNodeServer extends BaseServer {
               if (cacheStatus === 'hit') {
                 cacheStatus = green('HIT')
               } else if (cacheStatus === 'skip') {
-                cacheStatus = `${yellow('SKIP')}`
-                cacheReasonStr = `${gray(
+                cacheStatus = yellow('SKIP')
+                cacheReasonStr = gray(
                   `Cache missed reason: (${white(cacheReason)})`
-                )}`
+                )
               } else {
                 cacheStatus = yellow('MISS')
               }

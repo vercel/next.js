@@ -1,9 +1,10 @@
 import type { IncomingMessage } from 'http'
 import type { BaseNextRequest } from '../base-http'
+import type { NextRequest } from '../web/exports'
 import { ACTION } from '../../client/components/app-router-headers'
 
 export function getServerActionRequestMetadata(
-  req: IncomingMessage | BaseNextRequest
+  req: IncomingMessage | BaseNextRequest | NextRequest
 ): {
   actionId: string | null
   isURLEncodedAction: boolean
@@ -13,8 +14,13 @@ export function getServerActionRequestMetadata(
   let actionId: string | null
   let contentType: string | null
 
-  actionId = (req.headers[ACTION.toLowerCase()] as string) ?? null
-  contentType = req.headers['content-type'] ?? null
+  if (req.headers instanceof Headers) {
+    actionId = req.headers.get(ACTION.toLowerCase()) ?? null
+    contentType = req.headers.get('content-type')
+  } else {
+    actionId = (req.headers[ACTION.toLowerCase()] as string) ?? null
+    contentType = req.headers['content-type'] ?? null
+  }
 
   const isURLEncodedAction = Boolean(
     req.method === 'POST' && contentType === 'application/x-www-form-urlencoded'
@@ -32,7 +38,7 @@ export function getServerActionRequestMetadata(
 }
 
 export function getIsServerAction(
-  req: IncomingMessage | BaseNextRequest
+  req: IncomingMessage | BaseNextRequest | NextRequest
 ): boolean {
   const { isFetchAction, isURLEncodedAction, isMultipartAction } =
     getServerActionRequestMetadata(req)

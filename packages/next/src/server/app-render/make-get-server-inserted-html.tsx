@@ -7,6 +7,7 @@ import {
 } from '../../client/components/redirect'
 import { renderToReadableStream } from 'react-dom/server.edge'
 import { streamToString } from '../stream-utils/node-web-streams-helper'
+import { RedirectStatusCode } from '../../shared/lib/constants'
 
 export function makeGetServerInsertedHTML({
   polyfills,
@@ -38,8 +39,9 @@ export function makeGetServerInsertedHTML({
         )
       } else if (isRedirectError(error)) {
         const redirectUrl = getURLFromRedirectError(error)
+        const statusCode = getRedirectStatusCodeFromError(error)
         const isPermanent =
-          getRedirectStatusCodeFromError(error) === 308 ? true : false
+          statusCode === RedirectStatusCode.PermanentRedirect ? true : false
         if (redirectUrl) {
           errorMetaTags.push(
             <meta

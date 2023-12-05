@@ -134,7 +134,7 @@ function getSafeKeyFromSegment({
   if (keyPrefix) {
     routeKeys[cleanedKey] = `${keyPrefix}${key}`
   } else {
-    routeKeys[cleanedKey] = `${key}`
+    routeKeys[cleanedKey] = key
   }
 
   return repeat

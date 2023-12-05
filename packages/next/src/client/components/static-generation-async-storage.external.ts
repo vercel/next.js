@@ -2,6 +2,8 @@ import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import type { DynamicServerError } from './hooks-server-context'
 import type { FetchMetrics } from '../../server/base-http'
+import type { Revalidate } from '../../server/lib/revalidate'
+
 import { createAsyncLocalStorage } from './async-local-storage'
 
 export interface StaticGenerationStore {
@@ -23,10 +25,10 @@ export interface StaticGenerationStore {
     | 'default-no-store'
     | 'only-no-store'
 
-  revalidate?: false | number
+  revalidate?: Revalidate
   forceStatic?: boolean
   dynamicShouldError?: boolean
-  pendingRevalidates?: Promise<any>[]
+  pendingRevalidates?: Record<string, Promise<any>>
   postponeWasTriggered?: boolean
   postpone?: (reason: string) => never
 

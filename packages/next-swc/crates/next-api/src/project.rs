@@ -7,13 +7,14 @@ use next_core::{
     app_structure::find_app_dir,
     emit_assets, get_edge_chunking_context, get_edge_compile_time_info,
     get_edge_resolve_options_context,
+    instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
     next_config::{JsConfig, NextConfig},
     next_server::{
         get_server_chunking_context, get_server_compile_time_info,
-        get_server_module_options_context, ServerContextType,
+        get_server_module_options_context, get_server_resolve_options_context, ServerContextType,
     },
     next_telemetry::NextFeatureTelemetry,
 };
@@ -57,6 +58,7 @@ use crate::{
     app::{AppProject, OptionAppProject},
     build,
     entrypoints::Entrypoints,
+    instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
     route::{Endpoint, Route},
@@ -134,6 +136,12 @@ pub struct DefineEnv {
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
 pub struct Middleware {
     pub endpoint: Vc<Box<dyn Endpoint>>,
+}
+
+#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
+pub struct Instrumentation {
+    pub node_js: Vc<Box<dyn Endpoint>>,
+    pub edge: Vc<Box<dyn Endpoint>>,
 }
 
 #[turbo_tasks::value]
@@ -661,9 +669,34 @@ impl Project {
             None
         };
 
+        let instrumentation = find_context_file(
+            self.project_path(),
+            instrumentation_files(self.next_config().page_extensions()),
+        );
+        let instrumentation = if let FindContextFileResult::Found(fs_path, _) =
+            *instrumentation.await?
+        {
+            let source = Vc::upcast(FileSource::new(fs_path));
+            Some(Instrumentation {
+                node_js: TraitRef::cell(
+                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, false))
+                        .into_trait_ref()
+                        .await?,
+                ),
+                edge: TraitRef::cell(
+                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, true))
+                        .into_trait_ref()
+                        .await?,
+                ),
+            })
+        } else {
+            None
+        };
+
         Ok(Entrypoints {
             routes,
             middleware,
+            instrumentation,
             pages_document_endpoint,
             pages_app_endpoint,
             pages_error_endpoint,
@@ -704,6 +737,49 @@ impl Project {
         );
 
         MiddlewareEndpoint::new(self, context, module)
+    }
+
+    #[turbo_tasks::function]
+    fn node_instrumentation_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>> {
+        Vc::upcast(ModuleAssetContext::new(
+            Default::default(),
+            self.server_compile_time_info(),
+            get_server_module_options_context(
+                self.project_path(),
+                self.execution_context(),
+                Value::new(ServerContextType::Instrumentation),
+                NextMode::Development,
+                self.next_config(),
+            ),
+            get_server_resolve_options_context(
+                self.project_path(),
+                Value::new(ServerContextType::Instrumentation),
+                NextMode::Development,
+                self.next_config(),
+                self.execution_context(),
+            ),
+            Vc::cell("instrumentation".to_string()),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn instrumentation_endpoint(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+        is_edge: bool,
+    ) -> Vc<InstrumentationEndpoint> {
+        let context = if is_edge {
+            self.middleware_context()
+        } else {
+            self.node_instrumentation_context()
+        };
+
+        let module = context.process(
+            source,
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+        );
+
+        InstrumentationEndpoint::new(self, context, module, is_edge)
     }
 
     #[turbo_tasks::function]

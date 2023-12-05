@@ -43,7 +43,7 @@ interface FinishBuildingAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING
 }
 
-interface SyncAction {
+export interface SyncAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC
   hash: string
   errors: ReadonlyArray<unknown>

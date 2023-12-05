@@ -9,18 +9,24 @@ createNextDescribe(
     files: path.join(__dirname, 'fixture'),
   },
   ({ next }) => {
-    function fetchWithPolicy(policy: string | null) {
+    function fetchWithPolicy(policy: string | null, reportOnly?: boolean) {
+      const cspKey = reportOnly
+        ? 'Content-Security-Policy-Report-Only'
+        : 'Content-Security-Policy'
       return next.fetch('/dashboard', {
         headers: policy
           ? {
-              'Content-Security-Policy': policy,
+              [cspKey]: policy,
             }
           : {},
       })
     }
 
-    async function renderWithPolicy(policy: string | null) {
-      const res = await fetchWithPolicy(policy)
+    async function renderWithPolicy(
+      policy: string | null,
+      reportOnly?: boolean
+    ) {
+      const res = await fetchWithPolicy(policy, reportOnly)
 
       expect(res.ok).toBe(true)
 
@@ -64,6 +70,36 @@ createNextDescribe(
 
       for (const policy of policies) {
         const $ = await renderWithPolicy(policy)
+
+        // Find all the script tags without src attributes.
+        const elements = $('script:not([src])')
+
+        // Expect there to be at least 1 script tag without a src attribute.
+        expect(elements.length).toBeGreaterThan(0)
+
+        // Expect all inline scripts to have the nonce value.
+        elements.each((i, el) => {
+          expect(el.attribs['nonce']).toBe(nonce)
+        })
+      }
+    })
+
+    it('includes a nonce value with inline scripts when Content-Security-Policy-Report-Only header is defined', async () => {
+      // A random nonce value, base64 encoded.
+      const nonce = 'cmFuZG9tCg=='
+
+      // Validate all the cases where we could parse the nonce.
+      const policies = [
+        `script-src 'nonce-${nonce}'`, // base case
+        `   script-src   'nonce-${nonce}' `, // extra space added around sources and directive
+        `style-src 'self'; script-src 'nonce-${nonce}'`, // extra directives
+        `script-src 'self' 'nonce-${nonce}' 'nonce-othernonce'`, // extra nonces
+        `default-src 'nonce-othernonce'; script-src 'nonce-${nonce}';`, // script and then fallback case
+        `default-src 'nonce-${nonce}'`, // fallback case
+      ]
+
+      for (const policy of policies) {
+        const $ = await renderWithPolicy(policy, true)
 
         // Find all the script tags without src attributes.
         const elements = $('script:not([src])')
