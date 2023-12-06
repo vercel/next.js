@@ -237,7 +237,11 @@ function makeGetDynamicParamFromSegment(
   }
 }
 
-// Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
+/**
+ * Handles rendering the RSC payload for a request. This is only used when
+ * client-side navigating. Like when you `router.push('/dashboard')` or
+ * `router.reload()`.
+ */
 async function generateFlight(
   ctx: AppRenderContext,
   options?: {
@@ -583,10 +587,15 @@ async function renderToHTMLOrFlightImpl(
     req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
 
   /**
-   * Router state provided from the client-side router. Used to handle rendering from the common layout down.
+   * Router state provided from the client-side router. Used to handle rendering
+   * from the common layout down.
    */
   let providedFlightRouterState =
-    isRSCRequest && (!isPrefetchRSCRequest || !renderOpts.experimental.ppr)
+    // We'll only have a flight router state if this is a flight request.
+    isRSCRequest &&
+    // When PPR is enabled, we won't have the flight router state during a
+    // prefetch request.
+    (!isPrefetchRSCRequest || !renderOpts.experimental.ppr)
       ? parseAndValidateFlightRouterState(
           req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
         )
@@ -625,7 +634,12 @@ async function renderToHTMLOrFlightImpl(
     ...baseCtx,
     getDynamicParamFromSegment,
     query,
-    isPrefetch: isPrefetchRSCRequest,
+    // We should treat this as a prefetch request if the prefetch header is
+    // present (meaning this is a prefetch request) or we're generating static
+    // HTML (meaning this is a revalidation request) while PPR is enabled.
+    isPrefetch:
+      isPrefetchRSCRequest ||
+      (renderOpts.experimental.ppr && isStaticGeneration),
     providedSearchParams,
     requestTimestamp,
     searchParamsProps,
@@ -642,6 +656,9 @@ async function renderToHTMLOrFlightImpl(
     res,
   }
 
+  // If this is an RSC request, and this isn't during static generation, then
+  // we don't need to render the HTML, we just need to generate the flight
+  // payload.
   if (isRSCRequest && !isStaticGeneration) {
     return generateFlight(ctx)
   }
