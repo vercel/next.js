@@ -40,6 +40,7 @@ pub enum ServerToClientMessage {
         id: SpanId,
         is_graph: bool,
         start: u64,
+        end: u64,
         args: Vec<(String, String)>,
         path: Vec<String>,
     },
@@ -88,6 +89,7 @@ pub struct ViewRect {
     pub height: u64,
     pub horizontal_pixels: u64,
     pub query: String,
+    pub view_mode: String,
 }
 
 struct ConnectionState {
@@ -130,6 +132,7 @@ pub fn serve(store: Arc<StoreContainer>) -> Result<()> {
                         height: 1,
                         horizontal_pixels: 1,
                         query: String::new(),
+                        view_mode: "aggregated".to_string(),
                     },
                     last_update_generation: 0,
                 }));
@@ -236,6 +239,7 @@ pub fn serve(store: Arc<StoreContainer>) -> Result<()> {
                                         state.store.read().span(id)
                                     {
                                         let span_start = span.start();
+                                        let span_end = span.end();
                                         let args = span
                                             .args()
                                             .map(|(k, v)| (k.to_string(), v.to_string()))
@@ -251,6 +255,7 @@ pub fn serve(store: Arc<StoreContainer>) -> Result<()> {
                                             id,
                                             is_graph,
                                             start: span_start,
+                                            end: span_end,
                                             args,
                                             path,
                                         }
@@ -259,6 +264,7 @@ pub fn serve(store: Arc<StoreContainer>) -> Result<()> {
                                             id,
                                             is_graph: false,
                                             start: 0,
+                                            end: 0,
                                             args: Vec::new(),
                                             path: Vec::new(),
                                         }

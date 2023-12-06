@@ -27,6 +27,15 @@ pub enum ViewMode {
     Aggregated { sorted: bool },
 }
 
+impl ViewMode {
+    fn as_spans(self) -> Self {
+        match self {
+            ViewMode::RawSpans { sorted } => ViewMode::RawSpans { sorted },
+            ViewMode::Aggregated { sorted } => ViewMode::RawSpans { sorted },
+        }
+    }
+}
+
 #[derive(Default)]
 struct SpanOptions {
     view_mode: Option<(ViewMode, bool)>,
@@ -109,6 +118,14 @@ impl Viewer {
         let mut highlighted_spans: HashSet<SpanId> = HashSet::new();
         let search_mode = !view_rect.query.is_empty();
 
+        let default_view_mode = match view_rect.view_mode.as_str() {
+            "aggregated" => ViewMode::Aggregated { sorted: false },
+            "aggregated-sorted" => ViewMode::Aggregated { sorted: true },
+            "raw-spans" => ViewMode::RawSpans { sorted: false },
+            "raw-spans-sorted" => ViewMode::RawSpans { sorted: true },
+            _ => ViewMode::Aggregated { sorted: false },
+        };
+
         let mut queue = Vec::new();
 
         let mut root_spans = store.root_spans().collect::<Vec<_>>();
@@ -123,10 +140,10 @@ impl Viewer {
                 &mut current,
                 view_rect,
                 0,
-                if span.is_complete() && view_rect.query.is_empty() {
-                    ViewMode::Aggregated { sorted: false }
+                if view_rect.query.is_empty() {
+                    default_view_mode
                 } else {
-                    ViewMode::RawSpans { sorted: false }
+                    default_view_mode.as_spans()
                 },
                 QueueItem::Span(span),
                 false,
@@ -169,11 +186,14 @@ impl Viewer {
             let mut current = start;
             match &span {
                 QueueItem::Span(span) => {
-                    let (selected_view_mode, inherit) = self
-                        .span_options
-                        .get(&span.id())
-                        .and_then(|o| o.view_mode)
-                        .unwrap_or((view_mode, false));
+                    let (selected_view_mode, inherit) = if span.is_complete() {
+                        self.span_options
+                            .get(&span.id())
+                            .and_then(|o| o.view_mode)
+                            .unwrap_or((view_mode, false))
+                    } else {
+                        (ViewMode::RawSpans { sorted: false }, false)
+                    };
 
                     let (show_children, sorted) = match selected_view_mode {
                         ViewMode::RawSpans { sorted } => (true, sorted),
