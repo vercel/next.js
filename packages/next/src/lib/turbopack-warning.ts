@@ -79,6 +79,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.isrFlushToDisk',
   'experimental.logging.level',
   'experimental.logging.fullUrl',
+  'logging.fetches.fullUrl',
   'experimental.scrollRestoration',
   'experimental.forceSwcTransforms',
   'experimental.serverActions.bodySizeLimit',

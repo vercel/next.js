@@ -29,8 +29,8 @@ import { isPostpone } from './router-utils/is-postpone'
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
-  RedirectStatusCode,
 } from '../../shared/lib/constants'
+import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { DevBundlerService } from './dev-bundler-service'
 import { type Span, trace } from '../../trace'
 
@@ -565,7 +565,7 @@ export async function initialize(opts: {
     const {
       wrapRequestHandlerWorker,
       interceptTestApis,
-    } = require('../../experimental/testmode/server')
+    } = require('next/dist/experimental/testmode/server')
     requestHandler = wrapRequestHandlerWorker(requestHandler)
     interceptTestApis()
   }

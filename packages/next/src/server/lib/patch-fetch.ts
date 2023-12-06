@@ -12,7 +12,6 @@ import {
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
 import * as Log from '../../build/output/log'
-import { maybePostpone } from '../../client/components/maybe-postpone'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -372,15 +371,19 @@ export function patchFetch({
           // we don't consider autoNoCache to switch to dynamic during
           // revalidate although if it occurs during build we do
           !autoNoCache &&
+          // If the revalidate value isn't currently set or the value is less
+          // than the current revalidate value, we should update the revalidate
+          // value.
           (typeof staticGenerationStore.revalidate === 'undefined' ||
             (typeof revalidate === 'number' &&
               (staticGenerationStore.revalidate === false ||
                 (typeof staticGenerationStore.revalidate === 'number' &&
                   revalidate < staticGenerationStore.revalidate))))
         ) {
-          // If enabled, we should bail out of static generation.
+          // If we were setting the revalidate value to 0, we should try to
+          // postpone instead first.
           if (revalidate === 0) {
-            maybePostpone(staticGenerationStore, 'revalidate: 0')
+            staticGenerationStore.postpone?.('revalidate: 0')
           }
 
           staticGenerationStore.revalidate = revalidate
@@ -594,17 +597,17 @@ export function patchFetch({
                 ? ` ${staticGenerationStore.urlPathname}`
                 : ''
             }`
-            const err = new DynamicServerError(dynamicUsageReason)
-            staticGenerationStore.dynamicUsageErr = err
-            staticGenerationStore.dynamicUsageStack = err.stack
-            staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
 
             // If enabled, we should bail out of static generation.
-            maybePostpone(staticGenerationStore, dynamicUsageReason)
+            staticGenerationStore.postpone?.(dynamicUsageReason)
 
             // PPR is not enabled, or React postpone is not available, we
             // should set the revalidate to 0.
             staticGenerationStore.revalidate = 0
+
+            const err = new DynamicServerError(dynamicUsageReason)
+            staticGenerationStore.dynamicUsageErr = err
+            staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
           }
 
           const hasNextConfig = 'next' in init
@@ -623,13 +626,13 @@ export function patchFetch({
                   ? ` ${staticGenerationStore.urlPathname}`
                   : ''
               }`
-              const err = new DynamicServerError(dynamicUsageReason)
-              staticGenerationStore.dynamicUsageErr = err
-              staticGenerationStore.dynamicUsageStack = err.stack
-              staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
 
               // If enabled, we should bail out of static generation.
-              maybePostpone(staticGenerationStore, dynamicUsageReason)
+              staticGenerationStore.postpone?.(dynamicUsageReason)
+
+              const err = new DynamicServerError(dynamicUsageReason)
+              staticGenerationStore.dynamicUsageErr = err
+              staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
             }
 
             if (!forceDynamic || next.revalidate !== 0) {
