@@ -6,10 +6,10 @@ declare function NextBundleAnalyzer(options?: {
   analyzerMode?: 'json' | 'static'
 
   /**
-   * Log level. Can be "info", "warn", "error" or "silent".
+   * Log level. Can be 'info', 'warn', 'error' or 'silent'.
    * @default 'info'
    */
-  logLevel?: "info" | "warn" | "error" | "silent" | undefined
+  logLevel?: 'info' | 'warn' | 'error' | 'silent' | undefined
 }): (config?: NextConfig) => NextConfig
 
 export = NextBundleAnalyzer
