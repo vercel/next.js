@@ -26,29 +26,36 @@ Before taking your Next.js application to production, here are some recommendati
 
 ## Caching
 
-Caching is essential for improving response times and reducing requests to external services. The App Router in Next.js offers robust caching capabilities, catering to both static and dynamic content as well as server actions.
+Caching is essential for improving response times and reducing requests to backend services. The App Router in Next.js offers a robust [caching mechanism](https://nextjs.org/docs/app/building-your-application/caching) that supports static and dynamic rendering, as well as [revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data).
 
-- **Static Asset Caching:**
-  Next.js automatically adds caching headers to immutable assets in **`/public`** or other static directories. Assets Static images, and other media are ideal candidates for long-term caching as they rarely change. The default caching headers applied are:
+### Static assets
 
-  ```jsx
-  Cache-Control: public, max-age=31536000, immutable
-  ```
+Next.js automatically adds caching headers to immutable assets in **`/public`** or other static directories. Assets like CSS, static images, and other media are ideal candidates for long-term caching as they rarely change. The default caching headers applied are:
 
-  This setup ensures that these assets are cached efficiently, reducing load times for returning users.
+```jsx
+Cache-Control: public, max-age=31536000, immutable
+```
 
-- **Data Cache for Dynamic Content:**
-  Next.js's built-in Data Cache persists results of data fetches across server requests and deployments. By default, fetch requests are cached, allowing data to be reused in subsequent requests. This feature is particularly useful for dynamic content that doesn't change frequently.
-- **Server-Side Caching and Revalidation:**
-  Caching behavior for dynamic data fetched on the server can be controlled through various strategies. Next.js supports time-based revalidation (automatically refreshing the cache after a set period) and on-demand revalidation (refreshing the cache based on specific events). This ensures that users always receive the most up-to-date content without unnecessary delays.
+This setup ensures that these assets are cached efficiently, reducing load times for returning users.
+
+### Data caching
+
+Next.js's built-in [Data Cache](/docs/app/building-your-application/caching#data-cache) persists results of data fetches across server requests and deployments. By default, fetch requests are cached, allowing data to be reused in subsequent requests. This feature is particularly useful for content that doesn't change frequently.
+
+### Revalidation
+
+The caching behavior of data requests can be controlled through various strategies. Next.js supports [time-based revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#time-based-revalidation) (automatically refreshing the cache after a set period) and [on-demand revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#on-demand-revalidation) (refreshing the cache based on specific events).
+
 - **Caching in Server Actions and Route Handlers:**
   Custom caching strategies can be implemented in Server Actions and Route Handlers. Developers can configure fetch requests to adhere to specific caching requirements, including opting for default settings like `force-cache`.
-- **Opting Out of Caching:**
-  There are scenarios where caching might not be desirable. Next.js allows opting out of the Data Cache for specific fetch requests. This can be achieved with settings such as `cache: 'no-store'` or `revalidate: 0`.
 
-## Reducing JavaScript Size
+### Opting Out of Caching
 
-Making sure your website sends less JavaScript to the browser is very important for speed. To help you understand and manage what goes into your JavaScript files, you can use these tools:
+There are scenarios where caching might not be desirable as users need the most up-to-date content. Next.js allows [opting out of the Data Cache](/docs/app/building-your-application/caching#opting-out-1) for specific fetch requests. This can be achieved with settings such as `cache: 'no-store'` or `revalidate: 0`.
+
+## Reducing JavaScript bundle sizes
+
+Making sure your website sends less JavaScript to the browser is important for speed. To help you understand and manage your JavaScript bundles, you can use these tools to visualize your bundles and/or identify large dependencies.
 
 - [Import Cost](https://marketplace.visualstudio.com/items?itemName=wix.vscode-import-cost) – Shows the size of each package you import right in VSCode.
 - [Package Phobia](https://packagephobia.com/) – Helps you see the size impact of adding new dev dependencies to your project.
@@ -61,9 +68,9 @@ Additionally, make sure to implement the recommended optimization strategies.
 - Optimize Server Actions - Focus on simplifying and speeding up your server actions. This can be achieved by optimizing database queries, reducing external API calls, and ensuring server-side computations are efficient. Efficient server-side processing helps reduce the time it takes for your pages to load and improves the overall performance of your website.
 - Minimize Client-Side JavaScript - It's important to keep JavaScript on the client-side as small as possible for quicker website loading and a better user experience.
 
-### Optimizing with **[`@next/bundle-analyzer`](https://www.npmjs.com/package/@next/bundle-analyzer)**
+### Optimizing with `@next/bundle-analyzer`
 
-`@next/bundle-analyzer` is a plugin for Next.js that helps manage the size of your JavaScript files. It shows you how big each part of your webpack output is. This is helpful because you can find and fix parts of your code that are too large. For example, you might remove large dependencies, split your code, or only load some parts when needed.
+[`@next/bundle-analyzer`](https://www.npmjs.com/package/@next/bundle-analyzer) is a plugin for Next.js that helps manage the size of your JavaScript files. It shows you how big each part of your webpack output is. This is helpful because you can find and fix parts of your code that are too large. For example, you might remove large dependencies, split your code, or only load some parts when needed.
 
 How to use `@next/bundle-analyzer`:
 
@@ -80,32 +87,32 @@ module.exports = withBundleAnalyzer({})
 3. **Run Analysis**: Use `ANALYZE=true npm run build` to start looking at your file sizes.
 4. **Review Findings**: Check the report to see where you can make improvements.
 
-Doing this regularly while you develop and before you launch your site is important to keep your code efficient.
+Doing this regularly while you develop and before deploying your site can help you identify performance issues earlier.
 
 ## Logging
 
 Since Next.js runs on both the client and server, there are multiple forms of logging supported:
 
 - `console.log` in the browser
-- `stdout` on the server
+- `process.stdout.write` on the server
 
 If you want a structured logging package, we recommend [Pino](https://www.npmjs.com/package/pino). If you're using Vercel, there are [pre-built logging integrations](https://vercel.com/integrations?utm_source=next-site&utm_medium=docs&utm_campaign=next-website#logging) compatible with Next.js.
 
-## **Error Handling**
+## Error Handling
 
-Proper error handling is key to keeping your application stable and providing a good user experience. This is especially important with the dynamic routes and server actions in the App Router.
+Proper error handling is key to keeping your application stable and providing a good user experience. This is especially important with the Dynamic Route Segments and Server Actions in the App Router.
 
 **Use of `error.js` for Error Handling**:
 
-The `error.js` file convention is used for gracefully handling runtime errors in nested routes. It automatically wraps a route segment and its nested children in a React Error Boundary, allowing you to create a tailored error UI and isolate errors to specific segments while keeping the rest of the application functional.
-
-**Handling Server Errors**:
+The [`error.js` file](/docs/app/building-your-application/routing/error-handling) convention is used for gracefully handling runtime errors in nested routes. It automatically wraps a route segment and its nested children in a React Error Boundary, allowing you to create a tailored error UI and isolate errors to specific segments while keeping the rest of the application functional.
 
 If an error is thrown inside a Server Component, Next.js forwards an `Error` object to the nearest `error.js` file. This object includes a generic message and a digest property in production as a security measure to prevent leaking sensitive details.
 
 ## Loading Performance
 
-To improve loading performance, you first need to determine what to measure and how to measure it. [Core Web Vitals](https://vercel.com/blog/core-web-vitals?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) is a good industry standard that is measured using your own web browser. If you are not familiar with the metrics of Core Web Vitals, review this [blog post](https://vercel.com/blog/core-web-vitals?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) and determine which specific metric/s will be your drivers for loading performance. Ideally, you would want to measure the loading performance in the following environments:
+To improve loading performance, you first need to determine what to measure and how to measure it.
+
+[Core Web Vitals](https://vercel.com/blog/core-web-vitals?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) are metrics created by Google to measure the end-user experience of web pages. These metrics are important as they influence Google's ranking.
 
 - In the lab, using your own computer or a simulator.
 - In the field, using real-world data from actual visitors.
