@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use indexmap::IndexSet;
 use next_core::{
     all_assets_from_entries,
@@ -822,9 +822,9 @@ impl AppEndpoint {
                     .edge_rsc_runtime_entries()
                     .await?
                     .clone_value();
-                let Some(evaluatable) = Vc::try_resolve_sidecast(app_entry.rsc_entry).await? else {
-                    bail!("Entry module must be evaluatable");
-                };
+                let evaluatable = Vc::try_resolve_sidecast(app_entry.rsc_entry)
+                    .await?
+                    .context("Entry module must be evaluatable")?;
                 evaluatable_assets.push(evaluatable);
 
                 let (loader, manifest) = create_server_actions_manifest(
