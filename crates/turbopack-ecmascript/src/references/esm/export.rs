@@ -21,7 +21,7 @@ use turbopack_core::{
     reference::ModuleReference,
 };
 
-use super::{base::ReferencedAsset, EsmAssetReference};
+use super::base::ReferencedAsset;
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext, EcmascriptExports},
     code_gen::{CodeGenerateable, CodeGeneration},
@@ -36,7 +36,7 @@ pub enum EsmExport {
     /// An imported binding that is exported (export { a as b } from "...")
     ImportedBinding(Vc<Box<dyn ModuleReference>>, String),
     /// An imported namespace that is exported (export * from "...")
-    ImportedNamespace(Vc<EsmAssetReference>),
+    ImportedNamespace(Vc<Box<dyn ModuleReference>>),
     /// An error occurred while resolving the export
     Error,
 }
@@ -145,7 +145,9 @@ async fn handle_declared_export(
             }
         }
         EsmExport::ImportedNamespace(reference) => {
-            if let ReferencedAsset::Some(m) = *reference.get_referenced_asset().await? {
+            if let ReferencedAsset::Some(m) =
+                *ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
+            {
                 return Ok(ControlFlow::Break(FollowExportsResult {
                     module: m,
                     export_name: None,
@@ -415,7 +417,8 @@ impl CodeGenerateable for EsmExports {
                     })
                 }
                 EsmExport::ImportedNamespace(esm_ref) => {
-                    let referenced_asset = esm_ref.get_referenced_asset().await?;
+                    let referenced_asset =
+                        ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset.get_ident().await?.map(|ident| {
                         quote!(
                             "(() => $imported)" as Expr,

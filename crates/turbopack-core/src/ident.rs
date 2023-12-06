@@ -84,26 +84,7 @@ impl ValueToString for AssetIdent {
         }
 
         if let Some(part) = self.part {
-            match &*part.await? {
-                ModulePart::ModuleEvaluation => {
-                    write!(s, " {{module-evaluation}}")?;
-                }
-                ModulePart::Export(export) => {
-                    write!(s, " {{export {}}}", &export.await?)?;
-                }
-                ModulePart::Internal(id) => {
-                    write!(s, " {{internal {}}}", &id)?;
-                }
-                ModulePart::Locals => {
-                    write!(s, " {{locals}}")?;
-                }
-                ModulePart::Reexports => {
-                    write!(s, " {{reexports}}")?;
-                }
-                ModulePart::Facade => {
-                    write!(s, " {{facade}}")?;
-                }
-            }
+            write!(s, " {{{}}}", part.to_string().await?)?;
         }
 
         Ok(Vc::cell(s))
@@ -257,25 +238,37 @@ impl AssetIdent {
         if let Some(part) = part {
             4_u8.deterministic_hash(&mut hasher);
             match &*part.await? {
-                ModulePart::ModuleEvaluation => {
+                ModulePart::Evaluation => {
                     1_u8.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Export(export) => {
                     2_u8.deterministic_hash(&mut hasher);
                     export.await?.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Internal(id) => {
+                ModulePart::RenamedExport {
+                    original_export,
+                    export,
+                } => {
                     3_u8.deterministic_hash(&mut hasher);
+                    original_export.await?.deterministic_hash(&mut hasher);
+                    export.await?.deterministic_hash(&mut hasher);
+                }
+                ModulePart::RenamedNamespace { export } => {
+                    4_u8.deterministic_hash(&mut hasher);
+                    export.await?.deterministic_hash(&mut hasher);
+                }
+                ModulePart::Internal(id) => {
+                    5_u8.deterministic_hash(&mut hasher);
                     id.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Locals => {
-                    4_u8.deterministic_hash(&mut hasher);
+                    6_u8.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Reexports => {
-                    5_u8.deterministic_hash(&mut hasher);
+                ModulePart::Exports => {
+                    7_u8.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Facade => {
-                    6_u8.deterministic_hash(&mut hasher);
+                    8_u8.deterministic_hash(&mut hasher);
                 }
             }
 
