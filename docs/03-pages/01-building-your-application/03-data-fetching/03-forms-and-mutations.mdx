@@ -14,7 +14,7 @@ Forms enable you to create and update data in web applications. Next.js provides
 
 ## Examples
 
-### Server-only Form
+### Server-only form
 
 With the Pages Router, you need to manually create API endpoints to handle securely mutating data on the server.
 
@@ -93,7 +93,7 @@ export default function Page() {
 }
 ```
 
-## Form Validation
+## Form validation
 
 We recommend using HTML validation like `required` and `type="email"` for basic client-side form validation.
 
@@ -129,7 +129,7 @@ export default async function handler(req, res) {
 }
 ```
 
-### Error Handling
+### Error handling
 
 You can use React state to show an error message when a form submission fails:
 
@@ -231,7 +231,7 @@ export default function Page() {
 }
 ```
 
-## Displaying Loading State
+## Displaying loading state
 
 You can use React state to show a loading state when a form is submitting on the server:
 
@@ -336,7 +336,7 @@ export default async function handler(req, res) {
 }
 ```
 
-### Setting Cookies
+### Setting cookies
 
 You can set cookies inside an API Route using the `setHeader` method on the response:
 
@@ -359,7 +359,7 @@ export default async function handler(req, res) {
 }
 ```
 
-### Reading Cookies
+### Reading cookies
 
 You can read cookies inside an API Route using the [`cookies`](/docs/pages/building-your-application/routing/api-routes#request-helpers) request helper:
 
@@ -382,7 +382,7 @@ export default async function handler(req, res) {
 }
 ```
 
-### Deleting Cookies
+### Deleting cookies
 
 You can delete cookies inside an API Route using the `setHeader` method on the response:
 
