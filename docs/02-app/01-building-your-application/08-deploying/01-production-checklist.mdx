@@ -68,6 +68,8 @@ Additionally, make sure to implement the recommended optimization strategies.
 
 - Optimize Server Actions - Focus on simplifying and speeding up your server actions. This can be achieved by optimizing database queries, reducing external API calls, and ensuring server-side computations are efficient. Efficient server-side processing helps reduce the time it takes for your pages to load and improves the overall performance of your website.
 - Minimize Client-Side JavaScript - It's important to keep JavaScript on the client-side as small as possible for quicker website loading and a better user experience.
+- Moving client components down the tree or carefully considering where to place the "use client" boundaries. In other words, moving more rendering / logic to the server using Server Components.
+- Fetching data on the server: https://nextjs.org/docs/app/building-your-application/data-fetching/patterns#fetching-data-on-the-server
 
 ### Optimizing with `@next/bundle-analyzer`
 
