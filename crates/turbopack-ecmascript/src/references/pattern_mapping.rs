@@ -133,9 +133,6 @@ impl PatternMapping {
                 .cell())
             }
             Some(ModuleResolveResultItem::Module(module)) => *module,
-            Some(ModuleResolveResultItem::OriginalReferenceExternal) => {
-                return Ok(PatternMapping::OriginalReferenceExternal.cell())
-            }
             Some(ModuleResolveResultItem::OriginalReferenceTypeExternal(s)) => {
                 return Ok(PatternMapping::OriginalReferenceTypeExternal(s.clone()).cell())
             }

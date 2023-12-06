@@ -137,7 +137,9 @@ function dynamicExport(
 ) {
   ensureDynamicExports(module, exports);
 
-  module[REEXPORTED_OBJECTS]!.push(object);
+  if (typeof object === "object" && object !== null) {
+    module[REEXPORTED_OBJECTS]!.push(object);
+  }
 }
 
 function exportValue(module: Module, value: any) {

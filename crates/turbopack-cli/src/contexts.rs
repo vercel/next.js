@@ -5,6 +5,7 @@ use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     condition::ContextCondition,
+    ecmascript::TreeShakingMode,
     module_options::{CustomEcmascriptTransformPlugins, JsxTransformOptions, ModuleOptionsContext},
     resolve_options_context::ResolveOptionsContext,
     ModuleAssetContext,
@@ -99,6 +100,7 @@ async fn get_client_module_options_context(
     let module_options_context = ModuleOptionsContext {
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
+        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         ..Default::default()
     };
 

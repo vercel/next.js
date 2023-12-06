@@ -48,11 +48,14 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         let split_data = split_module(module.full_module);
         let parsed = part_of_module(split_data, module.part);
 
+        let analyze = this.module.analyze().await?;
         let content = EcmascriptModuleContent::new(
             parsed,
             module.full_module.ident(),
             this.chunking_context,
-            this.module.analyze(),
+            analyze.references,
+            analyze.code_generation,
+            analyze.exports,
             async_module_info,
         );
 

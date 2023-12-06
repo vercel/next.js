@@ -9,6 +9,7 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     resolve::options::{ImportMap, ImportMapping},
 };
+use turbopack_ecmascript::TreeShakingMode;
 use turbopack_node::execution_context::ExecutionContext;
 
 use crate::{
@@ -87,6 +88,7 @@ pub async fn node_evaluate_asset_context(
             .cell(),
         ModuleOptionsContext {
             enable_typescript_transform: Some(Default::default()),
+            tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
             ..Default::default()
         }
         .cell(),

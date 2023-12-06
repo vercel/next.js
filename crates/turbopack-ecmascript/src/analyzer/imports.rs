@@ -401,11 +401,8 @@ fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol 
 
 fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol {
     match specifier {
-        ExportSpecifier::Named(ExportNamedSpecifier { orig, exported, .. }) => {
-            ImportedSymbol::Symbol(match exported {
-                Some(exported) => orig_name(exported),
-                _ => orig_name(orig),
-            })
+        ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
+            ImportedSymbol::Symbol(orig_name(orig))
         }
         ExportSpecifier::Default(..) => ImportedSymbol::Symbol(js_word!("default")),
         ExportSpecifier::Namespace(..) => ImportedSymbol::Namespace,

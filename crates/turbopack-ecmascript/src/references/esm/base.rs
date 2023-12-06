@@ -63,19 +63,9 @@ impl ReferencedAsset {
 #[turbo_tasks::value_impl]
 impl ReferencedAsset {
     #[turbo_tasks::function]
-    pub async fn from_resolve_result(
-        resolve_result: Vc<ModuleResolveResult>,
-        request: Vc<Request>,
-    ) -> Result<Vc<Self>> {
+    pub async fn from_resolve_result(resolve_result: Vc<ModuleResolveResult>) -> Result<Vc<Self>> {
         for result in resolve_result.await?.primary.iter() {
             match result {
-                ModuleResolveResultItem::OriginalReferenceExternal => {
-                    if let Some(request) = request.await?.request() {
-                        return Ok(ReferencedAsset::OriginalReferenceTypeExternal(request).cell());
-                    } else {
-                        return Ok(ReferencedAsset::cell(ReferencedAsset::None));
-                    }
-                }
                 ModuleResolveResultItem::OriginalReferenceTypeExternal(request) => {
                     return Ok(
                         ReferencedAsset::OriginalReferenceTypeExternal(request.clone()).cell(),
@@ -144,13 +134,8 @@ impl EsmAssetReference {
     }
 
     #[turbo_tasks::function]
-    pub(crate) async fn get_referenced_asset(self: Vc<Self>) -> Result<Vc<ReferencedAsset>> {
-        let this = self.await?;
-
-        Ok(ReferencedAsset::from_resolve_result(
-            self.resolve_reference(),
-            this.request,
-        ))
+    pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Vc<ReferencedAsset> {
+        ReferencedAsset::from_resolve_result(self.resolve_reference())
     }
 }
 
@@ -160,7 +145,7 @@ impl ModuleReference for EsmAssetReference {
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let ty = Value::new(match &self.export_name {
             Some(part) => EcmaScriptModulesReferenceSubType::ImportPart(*part),
-            None => EcmaScriptModulesReferenceSubType::Undefined,
+            None => EcmaScriptModulesReferenceSubType::Import,
         });
 
         Ok(esm_resolve(
@@ -316,16 +301,27 @@ pub(crate) fn insert_hoisted_stmt(program: &mut Program, stmt: Stmt) {
                 }
             });
             if let Some(pos) = pos {
-                body.insert(pos, ModuleItem::Stmt(stmt));
+                let has_stmt = body[0..pos].iter().any(|item| {
+                    if let ModuleItem::Stmt(item_stmt) = item {
+                        stmt == *item_stmt
+                    } else {
+                        false
+                    }
+                });
+                if !has_stmt {
+                    body.insert(pos, ModuleItem::Stmt(stmt));
+                }
             } else {
-                body.insert(
-                    0,
-                    ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                        expr: Box::new(Expr::Lit(Lit::Str((*ESM_HOISTING_LOCATION).into()))),
-                        span: DUMMY_SP,
-                    })),
+                body.splice(
+                    0..0,
+                    [
+                        ModuleItem::Stmt(stmt),
+                        ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                            expr: Box::new(Expr::Lit(Lit::Str((*ESM_HOISTING_LOCATION).into()))),
+                            span: DUMMY_SP,
+                        })),
+                    ],
                 );
-                body.insert(0, ModuleItem::Stmt(stmt));
             }
         }
         Program::Script(Script { body, .. }) => {

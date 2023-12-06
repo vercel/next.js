@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, ValueDefault, Vc};
 use turbopack_core::{environment::Environment, resolve::options::ImportMapping};
-use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TransformPlugin};
+use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TransformPlugin, TreeShakingMode};
 use turbopack_node::{
     execution_context::ExecutionContext, transforms::webpack::WebpackLoaderItems,
 };
@@ -163,7 +163,7 @@ pub struct ModuleOptionsContext {
     /// context paths. The first matching is used.
     pub rules: Vec<(ContextCondition, Vc<ModuleOptionsContext>)>,
     pub placeholder_for_future_extensions: (),
-    pub enable_tree_shaking: bool,
+    pub tree_shaking_mode: Option<TreeShakingMode>,
     pub esm_url_rewrite_behavior: Option<UrlRewriteBehavior>,
     /// References to externals from ESM imports should use `import()` and make
     /// async modules.

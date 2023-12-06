@@ -250,10 +250,14 @@ pub(crate) enum Key {
 async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> {
     let part = part.await?;
 
+    // TODO implement ModulePart::Facade
     let key = match &*part {
         ModulePart::ModuleEvaluation => Key::ModuleEvaluation,
         ModulePart::Export(export) => Key::Export(export.await?.to_string()),
         ModulePart::Internal(part_id) => return Ok(*part_id),
+        ModulePart::Locals | ModulePart::Reexports | ModulePart::Facade => {
+            bail!("invalid module part")
+        }
     };
 
     let entrypoints = match &result {
