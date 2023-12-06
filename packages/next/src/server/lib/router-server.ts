@@ -30,7 +30,7 @@ import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
-import { RedirectStatusCode } from '../../shared/lib/app-router-client-constants'
+import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { DevBundlerService } from './dev-bundler-service'
 import { type Span, trace } from '../../trace'
 

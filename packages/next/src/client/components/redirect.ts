@@ -1,7 +1,7 @@
 import { requestAsyncStorage } from './request-async-storage.external'
 import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
 import { actionAsyncStorage } from './action-async-storage.external'
-import { RedirectStatusCode } from '../../shared/lib/app-router-client-constants'
+import { RedirectStatusCode } from './redirect-status-code'
 
 const REDIRECT_ERROR_CODE = 'NEXT_REDIRECT'
 
