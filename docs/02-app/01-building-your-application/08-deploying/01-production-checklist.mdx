@@ -9,14 +9,14 @@ Before taking your Next.js application to production, here are some recommendati
 
 - Use [caching](/docs/app/building-your-application/caching) wherever possible.
 - Ensure your database and backend are deployed in the same region.
-- Aim to reduce client-side JavaScript bundle sizes by [moving the "use client" boundaries down the React component tree](https://nextjs.org/docs/app/building-your-application/rendering/composition-patterns#moving-client-components-down-the-tree). 
+- Aim to reduce client-side JavaScript bundle sizes by [moving the "use client" boundaries down the React component tree](https://nextjs.org/docs/app/building-your-application/rendering/composition-patterns#moving-client-components-down-the-tree).
 - Prevent sensitive data from being exposed to the client with [tainting](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client)
 - Ensure errors in nested route segments are handled gracefully with the [error.js file](https://nextjs.org/docs/app/building-your-application/routing/error-handling)
 - Customize your 404 (Not Found) responses using the [`notfound()`](/docs/app/api-reference/functions/not-found) function and [`not-found.js` file](https://nextjs.org/docs/app/api-reference/file-conventions/not-found)
 - Ensure you are [measuring performance](/docs/app/building-your-application/optimizing/analytics).
 - Run [Lighthouse](https://developers.google.com/web/tools/lighthouse) to check for performance, best practices, accessibility, and SEO. For best results, use a production build of Next.js and use incognito in your browser so results aren't affected by extensions.
 - Review [Supported Browsers and Features](/docs/architecture/supported-browsers).
-- Optimize the user experience with built-in components: 
+- Optimize the user experience with built-in components:
   - [Images](/docs/app/building-your-application/optimizing/images)
   - [Fonts](/docs/app/building-your-application/optimizing/fonts)
   - [Scripts](/docs/app/building-your-application/optimizing/scripts)
@@ -29,7 +29,7 @@ Before taking your Next.js application to production, here are some recommendati
 Caching is essential for improving response times and reducing requests to external services. The App Router in Next.js offers robust caching capabilities, catering to both static and dynamic content as well as server actions.
 
 - **Static Asset Caching:**
-  Next.js automatically adds caching headers to immutable assets in **`/public`** or other static directories. Assets like CSS, static images, and other media are ideal candidates for long-term caching as they rarely change. The default caching headers applied are:
+  Next.js automatically adds caching headers to immutable assets in **`/public`** or other static directories. Assets Static images, and other media are ideal candidates for long-term caching as they rarely change. The default caching headers applied are:
 
   ```jsx
   Cache-Control: public, max-age=31536000, immutable
