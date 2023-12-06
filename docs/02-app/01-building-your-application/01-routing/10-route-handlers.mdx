@@ -99,7 +99,7 @@ export async function GET(request: Request) {
   const res = await fetch(`https://data.mongodb-api.com/product/${id}`, {
     headers: {
       'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY ?? 'not-found',
+      'API-Key': process.env.DATA_API_KEY!,
     },
   })
   const product = await res.json()
@@ -132,7 +132,7 @@ export async function POST() {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY ?? 'not-found',
+      'API-Key': process.env.DATA_API_KEY!,
     },
     body: JSON.stringify({ time: new Date().toISOString() }),
   })
