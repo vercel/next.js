@@ -21,6 +21,8 @@ use turbopack_binding::{
             context::AssetContext,
             module::Module,
             output::{OutputAsset, OutputAssets},
+            reference_type::{EntryReferenceSubType, ReferenceType},
+            source::Source,
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::chunk::EcmascriptChunkPlaceable,
@@ -37,7 +39,7 @@ use crate::{
 pub struct MiddlewareEndpoint {
     project: Vc<Project>,
     context: Vc<Box<dyn AssetContext>>,
-    userland_module: Vc<Box<dyn Module>>,
+    source: Vc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -46,23 +48,28 @@ impl MiddlewareEndpoint {
     pub fn new(
         project: Vc<Project>,
         context: Vc<Box<dyn AssetContext>>,
-        userland_module: Vc<Box<dyn Module>>,
+        source: Vc<Box<dyn Source>>,
     ) -> Vc<Self> {
         Self {
             project,
             context,
-            userland_module,
+            source,
         }
         .cell()
     }
 
     #[turbo_tasks::function]
     async fn edge_files(&self) -> Result<Vc<OutputAssets>> {
-        let module = get_middleware_module(
-            self.context,
-            self.project.project_path(),
-            self.userland_module,
-        );
+        let userland_module = self
+            .context
+            .process(
+                self.source,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
+            )
+            .module();
+
+        let module =
+            get_middleware_module(self.context, self.project.project_path(), userland_module);
 
         let module = wrap_edge_entry(
             self.context,
@@ -85,9 +92,9 @@ impl MiddlewareEndpoint {
             bail!("Entry module must be evaluatable");
         };
 
-        let Some(evaluatable) = Vc::try_resolve_sidecast(module).await? else {
-            bail!("Entry module must be evaluatable");
-        };
+        let evaluatable = Vc::try_resolve_sidecast(module)
+            .await?
+            .context("Entry module must be evaluatable")?;
         evaluatable_assets.push(evaluatable);
 
         let edge_chunking_context = self.project.edge_chunking_context();
@@ -102,7 +109,15 @@ impl MiddlewareEndpoint {
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
 
-        let config = parse_config_from_source(this.userland_module);
+        let userland_module = this
+            .context
+            .process(
+                this.source,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
+            )
+            .module();
+
+        let config = parse_config_from_source(userland_module);
 
         let edge_files = self.edge_files();
         let mut output_assets = edge_files.await?.clone_value();

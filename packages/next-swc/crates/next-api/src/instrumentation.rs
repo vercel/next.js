@@ -17,6 +17,8 @@ use turbopack_binding::{
             context::AssetContext,
             module::Module,
             output::{OutputAsset, OutputAssets},
+            reference_type::{EntryReferenceSubType, ReferenceType},
+            source::Source,
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::chunk::EcmascriptChunkPlaceable,
@@ -34,7 +36,7 @@ use crate::{
 pub struct InstrumentationEndpoint {
     project: Vc<Project>,
     context: Vc<Box<dyn AssetContext>>,
-    userland_module: Vc<Box<dyn Module>>,
+    source: Vc<Box<dyn Source>>,
     is_edge: bool,
 }
 
@@ -44,13 +46,13 @@ impl InstrumentationEndpoint {
     pub fn new(
         project: Vc<Project>,
         context: Vc<Box<dyn AssetContext>>,
-        userland_module: Vc<Box<dyn Module>>,
+        source: Vc<Box<dyn Source>>,
         is_edge: bool,
     ) -> Vc<Self> {
         Self {
             project,
             context,
-            userland_module,
+            source,
             is_edge,
         }
         .cell()
@@ -58,10 +60,18 @@ impl InstrumentationEndpoint {
 
     #[turbo_tasks::function]
     async fn edge_files(&self) -> Result<Vc<OutputAssets>> {
+        let userland_module = self
+            .context
+            .process(
+                self.source,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
+            )
+            .module();
+
         let module = wrap_edge_entry(
             self.context,
             self.project.project_path(),
-            self.userland_module,
+            userland_module,
             "instrumentation".to_string(),
         );
 
@@ -102,7 +112,15 @@ impl InstrumentationEndpoint {
             self.project.server_compile_time_info().environment(),
         );
 
-        let Some(module) = Vc::try_resolve_downcast(self.userland_module).await? else {
+        let userland_module = self
+            .context
+            .process(
+                self.source,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
+            )
+            .module();
+
+        let Some(module) = Vc::try_resolve_downcast(userland_module).await? else {
             bail!("Entry module must be evaluatable");
         };
 

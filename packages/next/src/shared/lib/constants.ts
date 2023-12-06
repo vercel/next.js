@@ -154,9 +154,3 @@ export const SYSTEM_ENTRYPOINTS = new Set<string>([
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
 ])
-
-export enum RedirectStatusCode {
-  SeeOther = 303,
-  TemporaryRedirect = 307,
-  PermanentRedirect = 308,
-}

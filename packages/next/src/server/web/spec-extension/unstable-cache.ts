@@ -1,8 +1,8 @@
-import { maybePostpone } from '../../../client/components/maybe-postpone'
 import type {
   StaticGenerationStore,
   StaticGenerationAsyncStorage,
 } from '../../../client/components/static-generation-async-storage.external'
+
 import { staticGenerationAsyncStorage as _staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import { addImplicitTags, validateTags } from '../../lib/patch-fetch'
@@ -33,7 +33,9 @@ export function unstable_cache<T extends Callback>(
     if (store && typeof options.revalidate === 'number') {
       // Revalidate 0 is a special case, it means opt-out of static generation.
       if (options.revalidate === 0) {
-        maybePostpone(store, 'revalidate: 0')
+        // If postpone is supported we should postpone the render.
+        store.postpone?.('revalidate: 0')
+
         // Set during dynamic rendering
         store.revalidate = 0
         // If revalidate was already set in the store before we should check if the new value is lower, set it to the lowest of the two.
@@ -75,9 +77,7 @@ export function unstable_cache<T extends Callback>(
         urlPathname: store?.urlPathname || '/',
         isUnstableCacheCallback: true,
         isStaticGeneration: store?.isStaticGeneration === true,
-        experimental: {
-          ppr: store?.experimental?.ppr === true,
-        },
+        postpone: store?.postpone,
       },
       async () => {
         const tags = validateTags(

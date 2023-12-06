@@ -187,17 +187,19 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // unsupported file type, bundle it
                 Ok(ResolveResultOption::none())
             }
-            (FileType::CommonJs, _) => {
-                // mark as external
-                Ok(ResolveResultOption::some(
-                    ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
-                ))
-            }
-            (FileType::EcmaScriptModule, true) => {
-                // mark as external
-                Ok(ResolveResultOption::some(
-                    ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
-                ))
+            (FileType::CommonJs, _) | (FileType::EcmaScriptModule, true) => {
+                if let Some(request) = request.await?.request() {
+                    // mark as external
+                    Ok(ResolveResultOption::some(
+                        ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
+                            request,
+                        ))
+                        .cell(),
+                    ))
+                } else {
+                    // unsupported request, bundle it
+                    Ok(ResolveResultOption::none())
+                }
             }
             (FileType::EcmaScriptModule, false) => {
                 // even with require() this resolves to a ESM,
