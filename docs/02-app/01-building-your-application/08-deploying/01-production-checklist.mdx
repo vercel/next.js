@@ -9,7 +9,8 @@ Before taking your Next.js application to production, here are some recommendati
 
 - Use [caching](/docs/app/building-your-application/caching) wherever possible.
 - Ensure your database and backend are deployed in the same region.
-- Aim to ship the least amount of JavaScript possible.
+- Aim to reduce client-side JavaScript bundle sizes by [moving the "use client" boundaries down the React component tree](https://nextjs.org/docs/app/building-your-application/rendering/composition-patterns#moving-client-components-down-the-tree). 
+- Prevent sensitive data from being exposed to the client with [tainting](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client)
 - Defer loading heavy JavaScript bundles until needed.
 - Ensure [logging](/docs/app/api-reference/next-config-js/logging) is set up.
 - Ensure [error handling](/docs/app/building-your-application/routing/error-handling) is set up.
