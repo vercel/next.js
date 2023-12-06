@@ -36,6 +36,8 @@ pub enum CommonJsReferenceSubType {
 #[derive(Debug, Default, Clone, PartialOrd, Ord, Hash)]
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(Vc<ModulePart>),
+    Import,
+    DynamicImport,
     Custom(u8),
     #[default]
     Undefined,
@@ -84,6 +86,7 @@ pub enum EntryReferenceSubType {
     AppRoute,
     AppClientComponent,
     Middleware,
+    Instrumentation,
     Runtime,
     Custom(u8),
     Undefined,
@@ -98,6 +101,7 @@ pub enum ReferenceType {
     Url(UrlReferenceSubType),
     TypeScript(TypeScriptReferenceSubType),
     Entry(EntryReferenceSubType),
+    Runtime,
     Internal(Vc<InnerAssets>),
     Custom(u8),
     Undefined,
@@ -116,6 +120,7 @@ impl Display for ReferenceType {
             ReferenceType::Url(_) => "url",
             ReferenceType::TypeScript(_) => "typescript",
             ReferenceType::Entry(_) => "entry",
+            ReferenceType::Runtime => "runtime",
             ReferenceType::Internal(_) => "internal",
             ReferenceType::Custom(_) => todo!(),
             ReferenceType::Undefined => "undefined",
@@ -154,6 +159,7 @@ impl ReferenceType {
                 matches!(other, ReferenceType::Entry(_))
                     && matches!(sub_type, EntryReferenceSubType::Undefined)
             }
+            ReferenceType::Runtime => matches!(other, ReferenceType::Runtime),
             ReferenceType::Internal(_) => matches!(other, ReferenceType::Internal(_)),
             ReferenceType::Custom(_) => {
                 todo!()
@@ -168,7 +174,9 @@ impl ReferenceType {
     pub fn is_internal(&self) -> bool {
         matches!(
             self,
-            ReferenceType::Internal(_) | ReferenceType::Css(CssReferenceSubType::Internal)
+            ReferenceType::Internal(_)
+                | ReferenceType::Css(CssReferenceSubType::Internal)
+                | ReferenceType::Runtime
         )
     }
 }

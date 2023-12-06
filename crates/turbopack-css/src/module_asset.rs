@@ -1,4 +1,4 @@
-use std::{fmt::Write, iter::once, sync::Arc};
+use std::{fmt::Write, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
@@ -10,7 +10,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
-    context::AssetContext,
+    context::{AssetContext, ProcessResult},
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
     module::Module,
@@ -76,9 +76,13 @@ impl Module for ModuleCssAsset {
         // This affects the order in which the resulting CSS chunks will be loaded:
         // later references are processed first in the post-order traversal of the
         // reference tree, and as such they will be loaded first in the resulting HTML.
-        let references = once(Vc::upcast(InternalCssAssetReference::new(self.inner())))
-            .chain(self.module_references().await?.iter().copied())
-            .collect();
+        let references = match *self.inner().await? {
+            ProcessResult::Module(inner) => Some(Vc::upcast(InternalCssAssetReference::new(inner))),
+            ProcessResult::Ignore => None,
+        }
+        .into_iter()
+        .chain(self.module_references().await?.iter().copied())
+        .collect();
 
         Ok(Vc::cell(references))
     }
@@ -139,7 +143,7 @@ struct ModuleCssClasses(IndexMap<String, Vec<ModuleCssClass>>);
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    async fn inner(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+    async fn inner(self: Vc<Self>) -> Result<Vc<ProcessResult>> {
         let this = self.await?;
         Ok(this.asset_context.process(
             this.source,
@@ -149,11 +153,11 @@ impl ModuleCssAsset {
 
     #[turbo_tasks::function]
     async fn classes(self: Vc<Self>) -> Result<Vc<ModuleCssClasses>> {
-        let inner = self.inner();
+        let inner = self.inner().module();
 
-        let Some(inner) = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(inner).await? else {
-            bail!("inner asset should be CSS processable");
-        };
+        let inner = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(inner)
+            .await?
+            .context("inner asset should be CSS processable")?;
 
         let result = inner.get_css_with_placeholder().await?;
         let mut classes = IndexMap::default();

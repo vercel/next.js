@@ -89,12 +89,9 @@ impl Module for EcmascriptModulePartAsset {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let external = analyze(self.full_module, self.part)
-            .await?
-            .references
-            .await?;
+        let analyze = analyze(self.full_module, self.part).await?;
 
-        assets.extend(external.iter().cloned());
+        assets.extend(analyze.references.await?.iter().cloned());
 
         Ok(Vc::cell(assets))
     }

@@ -99,7 +99,8 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                     Vc::cell("node_file_trace".to_string()),
                 );
                 let module = module_asset_context
-                    .process(Vc::upcast(source), Value::new(ReferenceType::Undefined));
+                    .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
+                    .module();
                 let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, output_dir);
 
                 emit_with_completion(Vc::upcast(rebased), output_dir).await?;

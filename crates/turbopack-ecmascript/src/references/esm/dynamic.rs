@@ -102,7 +102,7 @@ impl CodeGenerateable for EsmAsyncAssetReference {
             esm_resolve(
                 self.origin,
                 self.request,
-                Value::new(EcmaScriptModulesReferenceSubType::Undefined),
+                Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
                 try_to_severity(self.in_try),
                 Some(self.issue_source),
             ),

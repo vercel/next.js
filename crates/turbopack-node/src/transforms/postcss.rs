@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{Completion, Completions, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{Completion, Completions, TryFlatJoinIterExt, Value, Vc};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, File, FileContent, FileSystemEntryType, FileSystemPath,
@@ -9,13 +9,12 @@ use turbo_tasks_fs::{
 use turbopack_core::{
     asset::{Asset, AssetContent},
     changed::any_content_changed_of_module,
-    context::AssetContext,
+    context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
     issue::{
         Issue, IssueDescriptionExt, IssueExt, IssueSeverity, OptionStyledString, StyledString,
     },
-    module::Module,
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{find_context_file, FindContextFileResult},
     source::Source,
@@ -150,34 +149,43 @@ async fn extra_configs(
         .into_iter()
         .map(|path| async move {
             Ok(
-                matches!(&*path.get_type().await?, FileSystemEntryType::File).then(|| {
-                    any_content_changed_of_module(asset_context.process(
-                        Vc::upcast(FileSource::new(path)),
-                        Value::new(ReferenceType::Internal(InnerAssets::empty())),
-                    ))
-                }),
+                if matches!(&*path.get_type().await?, FileSystemEntryType::File) {
+                    match *asset_context
+                        .process(
+                            Vc::upcast(FileSource::new(path)),
+                            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+                        )
+                        .await?
+                    {
+                        ProcessResult::Module(module) => {
+                            Some(any_content_changed_of_module(module))
+                        }
+                        ProcessResult::Ignore => None,
+                    }
+                } else {
+                    None
+                },
             )
         })
-        .try_join()
-        .await?
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
+        .try_flat_join()
+        .await?;
 
     Ok(Vc::<Completions>::cell(configs).completed())
 }
 
 #[turbo_tasks::function]
-fn postcss_executor(
+async fn postcss_executor(
     asset_context: Vc<Box<dyn AssetContext>>,
     postcss_config_path: Vc<FileSystemPath>,
-) -> Vc<Box<dyn Module>> {
-    let config_asset = asset_context.process(
-        Vc::upcast(FileSource::new(postcss_config_path)),
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-    );
+) -> Result<Vc<ProcessResult>> {
+    let config_asset = asset_context
+        .process(
+            Vc::upcast(FileSource::new(postcss_config_path)),
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+        )
+        .module();
 
-    asset_context.process(
+    Ok(asset_context.process(
         Vc::upcast(VirtualSource::new(
             postcss_config_path.join("transform.ts".to_string()),
             AssetContent::File(embed_file("transforms/postcss.ts".to_string())).cell(),
@@ -185,7 +193,7 @@ fn postcss_executor(
         Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
             "CONFIG".to_string() => config_asset
         }))),
-    )
+    ))
 }
 
 #[turbo_tasks::value_impl]
@@ -254,7 +262,7 @@ impl PostCssTransformedAsset {
         // This invalidates the transform when the config changes.
         let extra_configs_changed = extra_configs(evaluate_context, config_path);
 
-        let postcss_executor = postcss_executor(evaluate_context, config_path);
+        let postcss_executor = postcss_executor(evaluate_context, config_path).module();
         let css_fs_path = this.source.ident().path().await?;
         let css_path = css_fs_path.path.as_str();
 

@@ -7,27 +7,29 @@ use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
-use turbo_tasks::{Completion, TryJoinIterExt, TurboTasks, Value, Vc};
+use serde::{Deserialize, Serialize};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, TryJoinIterExt, TurboTasks, Value, Vc,
+};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
-    json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileSystem,
-    FileSystemPath,
+    json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileContent,
+    FileSystem, FileSystemEntryType, FileSystemPath,
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    condition::ContextCondition, module_options::ModuleOptionsContext,
+    condition::ContextCondition, ecmascript::TreeShakingMode, module_options::ModuleOptionsContext,
     resolve_options_context::ResolveOptionsContext, ModuleAssetContext,
 };
 use turbopack_core::{
     chunk::{EvaluatableAssetExt, EvaluatableAssets},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
-    context::AssetContext,
+    context::{AssetContext, ProcessResult},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     issue::{Issue, IssueDescriptionExt},
-    module::Module,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -149,9 +151,10 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     let tt = TurboTasks::new(MemoryBackend::default());
     tt.run_once(async move {
         let resource_str = resource.to_str().unwrap();
-        let run_result = run_test(resource_str.to_string());
+        let prepared_test = prepare_test(resource_str.to_string());
+        let run_result = run_test(prepared_test);
         if matches!(snapshot_mode, IssueSnapshotMode::Snapshots) {
-            snapshot_issues(run_result).await?;
+            snapshot_issues(prepared_test, run_result).await?;
         }
 
         Ok((*run_result.await.unwrap().js_result.await.unwrap()).clone())
@@ -159,8 +162,23 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     .await
 }
 
+#[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TestOptions {
+    tree_shaking_mode: Option<TreeShakingMode>,
+}
+
+#[turbo_tasks::value]
+struct PreparedTest {
+    path: Vc<FileSystemPath>,
+    project_path: Vc<FileSystemPath>,
+    tests_path: Vc<FileSystemPath>,
+    project_root: Vc<FileSystemPath>,
+    options: TestOptions,
+}
+
 #[turbo_tasks::function]
-async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
+async fn prepare_test(resource: String) -> Result<Vc<PreparedTest>> {
     let resource_path = canonicalize(&resource)?;
     assert!(resource_path.exists(), "{} does not exist", resource);
     assert!(
@@ -182,6 +200,36 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
     let path = root_fs.root().join(relative_path.to_string());
     let project_path = project_root.join(relative_path.to_string());
     let tests_path = project_fs.root().join("crates/turbopack-tests".to_string());
+
+    let options_file = path.join("options.json".to_string());
+
+    let mut options = TestOptions::default();
+    if matches!(*options_file.get_type().await?, FileSystemEntryType::File) {
+        if let FileContent::Content(content) = &*options_file.read().await? {
+            options =
+                serde_json::from_reader(content.read()).context("Unable to parse options.json")?;
+        }
+    }
+
+    Ok(PreparedTest {
+        path,
+        project_path,
+        tests_path,
+        project_root,
+        options,
+    }
+    .cell())
+}
+
+#[turbo_tasks::function]
+async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> {
+    let PreparedTest {
+        path,
+        project_path,
+        tests_path,
+        project_root,
+        ref options,
+    } = *prepared_test.await?;
 
     let jest_runtime_path = tests_path.join("js/jest-runtime.ts".to_string());
     let jest_entry_path = tests_path.join("js/jest-entry.ts".to_string());
@@ -211,9 +259,11 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
         ModuleOptionsContext {
             enable_typescript_transform: Some(Default::default()),
             preset_env_versions: Some(env),
+            tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".to_string()),
                 ModuleOptionsContext {
+                    tree_shaking_mode: options.tree_shaking_mode,
                     ..Default::default()
                 }
                 .cell(),
@@ -249,7 +299,7 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
     )
     .build();
 
-    let jest_entry_asset = process_path_to_asset(jest_entry_path, asset_context);
+    let jest_entry_asset = process_path_to_asset(jest_entry_path, asset_context).module();
     let jest_runtime_asset = FileSource::new(jest_runtime_path);
     let test_source = FileSource::new(test_path);
     let test_evaluatable = test_source.to_evaluatable(asset_context);
@@ -299,11 +349,14 @@ async fn run_test(resource: String) -> Result<Vc<RunTestResult>> {
 }
 
 #[turbo_tasks::function]
-async fn snapshot_issues(run_result: Vc<RunTestResult>) -> Result<Vc<()>> {
-    let _ = run_result.resolve_strongly_consistent().await?;
-    let captured_issues = run_result.peek_issues_with_path().await?;
+async fn snapshot_issues(
+    prepared_test: Vc<PreparedTest>,
+    run_result: Vc<RunTestResult>,
+) -> Result<Vc<()>> {
+    let PreparedTest { path, .. } = *prepared_test.await?;
+    let _ = run_result.resolve_strongly_consistent().await;
 
-    let RunTestResult { js_result: _, path } = *run_result.await?;
+    let captured_issues = run_result.peek_issues_with_path().await?;
 
     let plain_issues = captured_issues
         .iter_with_shortest_path()
@@ -326,7 +379,7 @@ async fn snapshot_issues(run_result: Vc<RunTestResult>) -> Result<Vc<()>> {
 fn process_path_to_asset(
     path: Vc<FileSystemPath>,
     asset_context: Vc<Box<dyn AssetContext>>,
-) -> Vc<Box<dyn Module>> {
+) -> Vc<ProcessResult> {
     asset_context.process(
         Vc::upcast(FileSource::new(path)),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),

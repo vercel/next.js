@@ -63,7 +63,7 @@ impl ModuleOptions {
         let ModuleOptionsContext {
             enable_jsx,
             enable_types,
-            enable_tree_shaking,
+            tree_shaking_mode,
             ref enable_typescript_transform,
             ref decorators,
             enable_mdx,
@@ -130,8 +130,7 @@ impl ModuleOptions {
         }
 
         let ecmascript_options = EcmascriptOptions {
-            split_into_parts: enable_tree_shaking,
-            import_parts: enable_tree_shaking,
+            tree_shaking_mode,
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
             ..Default::default()

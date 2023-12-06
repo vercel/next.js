@@ -77,7 +77,7 @@ impl WebAssemblyModuleAsset {
             Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
                 "WASM_PATH".to_string() => Vc::upcast(RawWebAssemblyModuleAsset::new(self.source, self.asset_context)),
             }))),
-        );
+        ).module();
 
         let Some(esm_asset) =
             Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?

@@ -1,6 +1,6 @@
 {
   "version": 3,
   "sections": [
-    {"offset": {"line": 9, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/index.js"],"sourcesContent":["import img from \"./vercel.svg\";\nconsole.log(img);\n"],"names":[],"mappings":";;;AACA,QAAQ,GAAG"}},
-    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+    {"offset": {"line": 9, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/index.js"],"sourcesContent":["import img from \"./vercel.svg\";\nconsole.log(img);\n"],"names":[],"mappings":";;;;AACA,QAAQ,GAAG"}},
+    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }

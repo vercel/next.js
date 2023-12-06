@@ -1,8 +1,8 @@
 {
   "version": 3,
   "sections": [
-    {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js"],"sourcesContent":["import { foo } from \"foo\";\nimport { bar } from \"bar\";\nimport \"./shared\";\n\nfoo(true);\nbar(true);\n"],"names":[],"mappings":";;;;;;;AAIA,oNAAI;AACJ,oNAAI"}},
-    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 19, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/node_modules/foo/index.js"],"sourcesContent":["export function foo(value) {\n  console.assert(value);\n}\n"],"names":[],"mappings":";;;AAAO,SAAS,IAAI,KAAK;IACvB,QAAQ,MAAM,CAAC;AACjB"}},
-    {"offset": {"line": 25, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+    {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js"],"sourcesContent":["import { foo } from \"foo\";\nimport { bar } from \"bar\";\nimport \"./shared\";\n\nfoo(true);\nbar(true);\n"],"names":[],"mappings":";;;;;;;;AAIA,oNAAI;AACJ,oNAAI"}},
+    {"offset": {"line": 15, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 20, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/node_modules/foo/index.js"],"sourcesContent":["export function foo(value) {\n  console.assert(value);\n}\n"],"names":[],"mappings":";;;AAAO,SAAS,IAAI,KAAK;IACvB,QAAQ,MAAM,CAAC;AACjB"}},
+    {"offset": {"line": 26, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }

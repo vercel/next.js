@@ -64,10 +64,12 @@ async fn main() -> Result<()> {
                 .cell(),
                 Vc::cell("default".to_string()),
             );
-            let module = module_asset_context.process(
-                Vc::upcast(source),
-                Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
-            );
+            let module = module_asset_context
+                .process(
+                    Vc::upcast(source),
+                    Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
+                )
+                .module();
             let rebased = RebasedAsset::new(module, input, output);
             emit_with_completion(Vc::upcast(rebased), output).await?;
 

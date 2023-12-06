@@ -5,6 +5,6 @@
     {"offset": {"line": 9, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
     {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 21, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 26, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/imports/subpath-imports-nested/input/index.js"],"sourcesContent":["import foo from \"./nested\";\n\nconsole.log(foo);\n"],"names":[],"mappings":";;;AAEA,QAAQ,GAAG"}},
-    {"offset": {"line": 30, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+    {"offset": {"line": 26, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/imports/subpath-imports-nested/input/index.js"],"sourcesContent":["import foo from \"./nested\";\n\nconsole.log(foo);\n"],"names":[],"mappings":";;;;AAEA,QAAQ,GAAG"}},
+    {"offset": {"line": 31, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }

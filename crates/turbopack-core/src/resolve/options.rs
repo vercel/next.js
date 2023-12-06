@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, future::Future, pin::Pin};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, TryJoinIterExt, Value, ValueToString, Vc,
@@ -272,11 +272,14 @@ async fn import_mapping_to_result(
     Ok(match &*mapping.await? {
         ImportMapping::Direct(result) => ImportMapResult::Result(*result),
         ImportMapping::External(name) => ImportMapResult::Result(
-            ResolveResult::primary(name.as_ref().map_or_else(
-                || ResolveResultItem::OriginalReferenceExternal,
-                |req| ResolveResultItem::OriginalReferenceTypeExternal(req.to_string()),
-            ))
-            .into(),
+            ResolveResult::primary(if let Some(name) = name {
+                ResolveResultItem::OriginalReferenceTypeExternal(name.to_string())
+            } else if let Some(request) = request.await?.request() {
+                ResolveResultItem::OriginalReferenceTypeExternal(request)
+            } else {
+                bail!("Cannot resolve external reference without request")
+            })
+            .cell(),
         ),
         ImportMapping::Ignore => {
             ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Ignore).into())

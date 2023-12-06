@@ -103,12 +103,14 @@ pub async fn get_evaluate_pool(
     additional_invalidation: Vc<Completion>,
     debug: bool,
 ) -> Result<Vc<NodeJsPool>> {
-    let runtime_asset = asset_context.process(
-        Vc::upcast(FileSource::new(embed_file_path(
-            "ipc/evaluate.ts".to_string(),
-        ))),
-        Value::new(ReferenceType::Internal(InnerAssets::empty())),
-    );
+    let runtime_asset = asset_context
+        .process(
+            Vc::upcast(FileSource::new(embed_file_path(
+                "ipc/evaluate.ts".to_string(),
+            ))),
+            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+        )
+        .module();
 
     let module_path = module_asset.ident().path().await?;
     let file_name = module_path.file_name();
@@ -120,22 +122,24 @@ pub async fn get_evaluate_pool(
         Cow::Owned(format!("{file_name}.js"))
     };
     let path = chunking_context.output_root().join(file_name.to_string());
-    let entry_module = asset_context.process(
-        Vc::upcast(VirtualSource::new(
-            runtime_asset.ident().path().join("evaluate.js".to_string()),
-            AssetContent::file(
-                File::from(
-                    "import { run } from 'RUNTIME'; run(async (...args) => ((await \
-                     import('INNER')).default(...args)))",
-                )
-                .into(),
-            ),
-        )),
-        Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-            "INNER".to_string() => module_asset,
-            "RUNTIME".to_string() => runtime_asset
-        }))),
-    );
+    let entry_module = asset_context
+        .process(
+            Vc::upcast(VirtualSource::new(
+                runtime_asset.ident().path().join("evaluate.js".to_string()),
+                AssetContent::file(
+                    File::from(
+                        "import { run } from 'RUNTIME'; run(async (...args) => ((await \
+                         import('INNER')).default(...args)))",
+                    )
+                    .into(),
+                ),
+            )),
+            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+                "INNER".to_string() => module_asset,
+                "RUNTIME".to_string() => runtime_asset
+            }))),
+        )
+        .module();
 
     let Some(entry_module) =
         Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
@@ -148,10 +152,12 @@ pub async fn get_evaluate_pool(
     };
 
     let runtime_entries = {
-        let globals_module = asset_context.process(
-            Vc::upcast(FileSource::new(embed_file_path("globals.ts".to_string()))),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
-        );
+        let globals_module = asset_context
+            .process(
+                Vc::upcast(FileSource::new(embed_file_path("globals.ts".to_string()))),
+                Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            )
+            .module();
 
         let Some(globals_module) =
             Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(globals_module).await?

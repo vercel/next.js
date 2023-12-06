@@ -80,12 +80,8 @@ impl UrlAssetReference {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn get_referenced_asset(self: Vc<Self>) -> Result<Vc<ReferencedAsset>> {
-        let this = self.await?;
-        Ok(ReferencedAsset::from_resolve_result(
-            self.resolve_reference(),
-            this.request,
-        ))
+    pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Vc<ReferencedAsset> {
+        ReferencedAsset::from_resolve_result(self.resolve_reference())
     }
 }
 

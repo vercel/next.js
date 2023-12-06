@@ -17,6 +17,7 @@ pub mod parse;
 mod path_visitor;
 pub mod references;
 pub mod resolve;
+pub mod side_effect_optimization;
 pub(crate) mod special_cases;
 pub(crate) mod static_code;
 mod swc_comments;
@@ -37,6 +38,7 @@ use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
 use references::esm::UrlRewriteBehavior;
 pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
+use serde::{Deserialize, Serialize};
 pub use static_code::StaticEcmascriptCode;
 use swc_core::{
     common::GLOBALS,
@@ -68,7 +70,7 @@ use turbopack_core::{
 
 use self::{
     chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports},
-    code_gen::{CodeGen, CodeGenerateableWithAsyncModuleInfo, VisitorFactory},
+    code_gen::{CodeGen, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables, VisitorFactory},
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 use crate::{
@@ -86,14 +88,32 @@ pub enum SpecifiedModuleType {
     EcmaScript,
 }
 
+#[derive(
+    PartialOrd,
+    Ord,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum TreeShakingMode {
+    #[default]
+    ModuleFragments,
+    ReexportsOnly,
+}
+
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
-    /// module is split into smaller module parts which can be selectively
-    /// imported
-    pub split_into_parts: bool,
-    /// imports will import parts of modules
-    pub import_parts: bool,
+    /// variant of tree shaking to use
+    pub tree_shaking_mode: Option<TreeShakingMode>,
     /// module is forced to a specific type (happens e. g. for .cjs and .mjs)
     pub specified_module_type: SpecifiedModuleType,
     /// Determines how to treat `new URL(...)` rewrites.
@@ -138,6 +158,9 @@ fn modifier() -> Vc<String> {
 struct MemoizedSuccessfulAnalysis {
     operation: Vc<AnalyzeEcmascriptModuleResult>,
     references: ReadRef<ModuleReferences>,
+    local_references: ReadRef<ModuleReferences>,
+    reexport_references: ReadRef<ModuleReferences>,
+    evaluation_references: ReadRef<ModuleReferences>,
     exports: ReadRef<EcmascriptExports>,
     async_module: ReadRef<OptionAsyncModule>,
 }
@@ -150,7 +173,6 @@ pub struct EcmascriptModuleAssetBuilder {
     options: EcmascriptOptions,
     compile_time_info: Vc<CompileTimeInfo>,
     inner_assets: Option<Vc<InnerAssets>>,
-    part: Option<Vc<ModulePart>>,
 }
 
 impl EcmascriptModuleAssetBuilder {
@@ -164,13 +186,8 @@ impl EcmascriptModuleAssetBuilder {
         self
     }
 
-    pub fn with_part(mut self, part: Vc<ModulePart>) -> Self {
-        self.part = Some(part);
-        self
-    }
-
-    pub fn build(self) -> Vc<Box<dyn Module>> {
-        let base = if let Some(inner_assets) = self.inner_assets {
+    pub fn build(self) -> Vc<EcmascriptModuleAsset> {
+        if let Some(inner_assets) = self.inner_assets {
             EcmascriptModuleAsset::new_with_inner_assets(
                 self.source,
                 self.asset_context,
@@ -189,16 +206,13 @@ impl EcmascriptModuleAssetBuilder {
                 Value::new(self.options),
                 self.compile_time_info,
             )
-        };
-        if let Some(part) = self.part {
-            Vc::upcast(EcmascriptModulePartAsset::new(
-                base,
-                part,
-                self.options.import_externals,
-            ))
-        } else {
-            Vc::upcast(base)
         }
+    }
+
+    pub fn build_part(self, part: Vc<ModulePart>) -> Vc<EcmascriptModulePartAsset> {
+        let import_externals = self.options.import_externals;
+        let base = self.build();
+        EcmascriptModulePartAsset::new(base, part, import_externals)
     }
 }
 
@@ -240,7 +254,6 @@ impl EcmascriptModuleAsset {
             options,
             compile_time_info,
             inner_assets: None,
-            part: None,
         }
     }
 }
@@ -311,12 +324,18 @@ impl EcmascriptModuleAsset {
                     operation: result,
                     // We need to store the ReadRefs since we want to keep a snapshot.
                     references: result_value.references.await?,
+                    local_references: result_value.local_references.await?,
+                    reexport_references: result_value.reexport_references.await?,
+                    evaluation_references: result_value.evaluation_references.await?,
                     exports: result_value.exports.await?,
                     async_module: result_value.async_module.await?,
                 }));
         } else if let Some(MemoizedSuccessfulAnalysis {
             operation,
             references,
+            local_references,
+            reexport_references,
+            evaluation_references,
             exports,
             async_module,
         }) = &*this.last_successful_analysis.get()
@@ -326,6 +345,9 @@ impl EcmascriptModuleAsset {
             Vc::connect(*operation);
             return Ok(AnalyzeEcmascriptModuleResult {
                 references: ReadRef::cell(references.clone()),
+                local_references: ReadRef::cell(local_references.clone()),
+                reexport_references: ReadRef::cell(reexport_references.clone()),
+                evaluation_references: ReadRef::cell(evaluation_references.clone()),
                 exports: ReadRef::cell(exports.clone()),
                 code_generation: result_value.code_generation,
                 async_module: ReadRef::cell(async_module.clone()),
@@ -338,9 +360,8 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        let this = self.await?;
-        Ok(parse(this.source, Value::new(this.ty), this.transforms))
+    pub fn parse(&self) -> Vc<ParseResult> {
+        parse(self.source, Value::new(self.ty), self.transforms)
     }
 
     /// Generates module contents without an analysis pass. This is useful for
@@ -371,11 +392,14 @@ impl EcmascriptModuleAsset {
             .resolve()
             .await?;
 
+        let analyze = self.analyze().await?;
         Ok(EcmascriptModuleContent::new(
             parsed,
             self.ident(),
             chunking_context,
-            self.analyze(),
+            analyze.references,
+            analyze.code_generation,
+            analyze.exports,
             async_module_info,
         ))
     }
@@ -403,7 +427,9 @@ impl Module for EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        Ok(self.failsafe_analyze().await?.references)
+        let analyze = self.failsafe_analyze().await?;
+        let references = analyze.references.await?.iter().copied().collect();
+        Ok(Vc::cell(references))
     }
 }
 
@@ -580,15 +606,11 @@ impl EcmascriptModuleContent {
         parsed: Vc<ParseResult>,
         ident: Vc<AssetIdent>,
         chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-        analyzed: Vc<AnalyzeEcmascriptModuleResult>,
+        references: Vc<ModuleReferences>,
+        code_generation: Vc<CodeGenerateables>,
+        exports: Vc<EcmascriptExports>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<Self>> {
-        let AnalyzeEcmascriptModuleResult {
-            references,
-            code_generation,
-            ..
-        } = &*analyzed.await?;
-
         let mut code_gens = Vec::new();
         for r in references.await?.iter() {
             let r = r.resolve().await?;
@@ -612,10 +634,13 @@ impl EcmascriptModuleContent {
                 }
             }
         }
+        if let EcmascriptExports::EsmExports(exports) = *exports.await? {
+            code_gens.push(exports.code_generation(chunking_context));
+        }
+
         // need to keep that around to allow references into that
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
-        // TOOD use interval tree with references into "code_gens"
         let mut visitors = Vec::new();
         let mut root_visitors = Vec::new();
         for code_gen in code_gens {

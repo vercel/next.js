@@ -66,7 +66,9 @@ function ensureDynamicExports(module, exports) {
  * Dynamically exports properties from an object
  */ function dynamicExport(module, exports, object) {
     ensureDynamicExports(module, exports);
-    module[REEXPORTED_OBJECTS].push(object);
+    if (typeof object === "object" && object !== null) {
+        module[REEXPORTED_OBJECTS].push(object);
+    }
 }
 function exportValue(module, value) {
     module.exports = value;
