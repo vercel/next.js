@@ -26,7 +26,7 @@ Before taking your Next.js application to production, here are some recommendati
 
 ## Caching
 
-Caching is essential for improving response times and reducing requests to external services. The App Router in Next.js offers robust caching capabilities, catering to both static and dynamic content as well as server actions.
+Caching is essential for improving response times and reducing requests to backend services. The App Router in Next.js offers a robust [caching mechanism](https://nextjs.org/docs/app/building-your-application/caching) that supports static and dynamic rendering, as well as [revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data). 
 
 - **Static Asset Caching:**
   Next.js automatically adds caching headers to immutable assets in **`/public`** or other static directories. Assets like CSS, static images, and other media are ideal candidates for long-term caching as they rarely change. The default caching headers applied are:
