@@ -329,6 +329,7 @@ module.exports = {
 Then pass the object or value you want to taint to the `experimental_taintObjectReference` or `experimental_taintUniqueValue` functions:
 
 ```ts filename="app/utils.ts" switcher
+import { queryDataFromDB } from './api'
 import {
   experimental_taintObjectReference,
   experimental_taintUniqueValue,
@@ -350,13 +351,14 @@ export async function getUserData() {
 ```
 
 ```js filename="app/utils.js" switcher
+import { queryDataFromDB } from './api'
 import {
   experimental_taintObjectReference,
   experimental_taintUniqueValue,
 } from 'react'
 
 export async function getUserData() {
-  const data = {}
+  const data = await queryDataFromDB()
   experimental_taintObjectReference(
     'Do not pass the whole user object to the client',
     data
