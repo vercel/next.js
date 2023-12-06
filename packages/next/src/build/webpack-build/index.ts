@@ -134,17 +134,16 @@ async function webpackBuildWithWorker(
   return combinedResult
 }
 
-export async function webpackBuild(
+export function webpackBuild(
+  withWorker: boolean,
   compilerNames?: typeof ORDERED_COMPILER_NAMES
-) {
-  const config = NextBuildContext.config!
-
-  if (config.experimental.webpackBuildWorker) {
+): ReturnType<typeof webpackBuildWithWorker> {
+  if (withWorker) {
     debug('using separate compiler workers')
-    return await webpackBuildWithWorker(compilerNames)
+    return webpackBuildWithWorker(compilerNames)
   } else {
     debug('building all compilers in same process')
     const webpackBuildImpl = require('./impl').webpackBuildImpl
-    return await webpackBuildImpl()
+    return webpackBuildImpl()
   }
 }
