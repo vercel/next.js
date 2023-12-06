@@ -44,7 +44,7 @@ The caching behavior of data requests can be controlled through various strategi
 - **Caching in Server Actions and Route Handlers:**
   Custom caching strategies can be implemented in Server Actions and Route Handlers. Developers can configure fetch requests to adhere to specific caching requirements, including opting for default settings like `force-cache`.
 ### Opting Out of Caching
-  There are scenarios where caching might not be desirable. Next.js allows opting out of the Data Cache for specific fetch requests. This can be achieved with settings such as `cache: 'no-store'` or `revalidate: 0`.
+There are scenarios where caching might not be desirable as users need the most up-to-date content. Next.js allows [opting out of the Data Cache](/docs/app/building-your-application/caching#opting-out-1) for specific fetch requests. This can be achieved with settings such as `cache: 'no-store'` or `revalidate: 0`.
 
 ## Reducing JavaScript Size
 
