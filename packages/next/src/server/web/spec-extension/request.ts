@@ -1,9 +1,24 @@
+import type { IncomingMessage } from 'node:http'
+import type { Duplex } from 'node:stream'
 import type { I18NConfig } from '../../config-shared'
 import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
 import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
 import { RemovedUAError, RemovedPageError } from '../error'
 import { RequestCookies } from './cookies'
+import { markSocketUpgraded } from './request-upgrade'
+import { scheduleOnNextTick } from '../../../lib/scheduler'
+
+export const RequestUpgradedName = 'RequestUpgraded'
+export class RequestUpgraded extends Error {
+  public readonly name = RequestUpgradedName
+}
+
+export function isUpgradeError(
+  e: any
+): e is Error & { name: typeof RequestUpgradedName } {
+  return e?.name === RequestUpgradedName
+}
 
 export const INTERNALS = Symbol('internal request')
 
@@ -14,6 +29,7 @@ export class NextRequest extends Request {
     ip?: string
     url: string
     nextUrl: NextURL
+    rawRequest?: IncomingMessage
   }
 
   constructor(input: URL | RequestInfo, init: RequestInit = {}) {
@@ -34,6 +50,7 @@ export class NextRequest extends Request {
       url: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
         ? url
         : nextUrl.toString(),
+      rawRequest: init.rawRequest,
     }
   }
 
@@ -98,6 +115,22 @@ export class NextRequest extends Request {
   public get url() {
     return this[INTERNALS].url
   }
+
+  public upgrade(
+    handler: (request: IncomingMessage, socket: Duplex) => void
+  ): never {
+    const rawRequest = this[INTERNALS].rawRequest
+    if (!rawRequest) {
+      throw new Error(
+        'Cannot upgrade to websocket, this feature is not compatible with the edge runtime.'
+      )
+    }
+
+    markSocketUpgraded(rawRequest.socket)
+    scheduleOnNextTick(() => handler(rawRequest, rawRequest.socket))
+
+    throw new RequestUpgraded('upgrade')
+  }
 }
 
 export interface RequestInit extends globalThis.RequestInit {
@@ -113,4 +146,5 @@ export interface RequestInit extends globalThis.RequestInit {
     trailingSlash?: boolean
   }
   signal?: AbortSignal
+  rawRequest?: IncomingMessage
 }

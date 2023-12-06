@@ -2244,6 +2244,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             )
 
             const response = await routeModule.handle(request, context)
+            if (response === 'Upgraded') {
+              return null
+            }
 
             ;(req as any).fetchMetrics = (
               context.renderOpts as any

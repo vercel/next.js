@@ -1,5 +1,5 @@
 // this must come first as it includes require hooks
-import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
+import type { WorkerRequestHandler } from './types'
 import type { DevBundler } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery } from '../request-meta'
 // This is required before other imports to ensure the require hook is setup.
@@ -24,6 +24,10 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import setupCompression from 'next/dist/compiled/compression'
 import { NoFallbackError } from '../base-server'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
+import {
+  handleClientError,
+  markSocketUpgraded,
+} from '../web/spec-extension/request-upgrade'
 import { isPostpone } from './router-utils/is-postpone'
 
 import {
@@ -64,7 +68,7 @@ export async function initialize(opts: {
   experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
   startServerSpan?: Span
-}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
+}): Promise<WorkerRequestHandler> {
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
@@ -178,8 +182,28 @@ export async function initialize(opts: {
     developmentBundler?.ensureMiddleware
   )
 
+  opts.server?.on('clientError', handleClientError)
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
-    if (compress) {
+    const isUpgradeReq =
+      req?.method === 'GET' &&
+      req?.headers?.connection?.toLowerCase() === 'upgrade'
+
+    if (
+      isUpgradeReq &&
+      opts.dev &&
+      developmentBundler &&
+      req.url?.includes(`/_next/webpack-hmr`)
+    ) {
+      markSocketUpgraded(req.socket)
+
+      return developmentBundler.hotReloader.onHMR(
+        req,
+        req.socket,
+        Buffer.alloc(0)
+      )
+    }
+
+    if (compress && !isUpgradeReq) {
       // @ts-expect-error not express req/res
       compress(req, res, () => {})
     }
@@ -300,7 +324,7 @@ export async function initialize(opts: {
       } = await resolveRoutes({
         req,
         res,
-        isUpgradeReq: false,
+        isUpgradeReq,
         signal: signalFromNodeResponse(res),
         invokedOutputs,
       })
@@ -571,47 +595,5 @@ export async function initialize(opts: {
   }
   requestHandlers[opts.dir] = requestHandler
 
-  const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
-    try {
-      req.on('error', (_err) => {
-        // TODO: log socket errors?
-        // console.error(_err);
-      })
-      socket.on('error', (_err) => {
-        // TODO: log socket errors?
-        // console.error(_err);
-      })
-
-      if (opts.dev && developmentBundler) {
-        if (req.url?.includes(`/_next/webpack-hmr`)) {
-          return developmentBundler.hotReloader.onHMR(req, socket, head)
-        }
-      }
-
-      const { matchedOutput, parsedUrl } = await resolveRoutes({
-        req,
-        res: socket as any,
-        isUpgradeReq: true,
-        signal: signalFromNodeResponse(socket),
-      })
-
-      // TODO: allow upgrade requests to pages/app paths?
-      // this was not previously supported
-      if (matchedOutput) {
-        return socket.end()
-      }
-
-      if (parsedUrl.protocol) {
-        return await proxyRequest(req, socket as any, parsedUrl, head)
-      }
-
-      // If there's no matched output, we don't handle the request as user's
-      // custom WS server may be listening on the same path.
-    } catch (err) {
-      console.error('Error handling upgrade request', err)
-      socket.end()
-    }
-  }
-
-  return [requestHandler, upgradeHandler]
+  return requestHandler
 }

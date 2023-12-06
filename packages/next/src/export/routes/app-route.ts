@@ -85,6 +85,12 @@ export async function exportAppRoute(
     const module = await RouteModuleLoader.load<AppRouteRouteModule>(filename)
     const response = await module.handle(request, context)
 
+    if (response === 'Upgraded') {
+      return {
+        revalidate: 0,
+      }
+    }
+
     const isValidStatus = response.status < 400 || response.status === 404
     if (!isValidStatus) {
       return { revalidate: 0 }

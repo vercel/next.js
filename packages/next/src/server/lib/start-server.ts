@@ -6,7 +6,7 @@ import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { SelfSignedCertificate } from '../../lib/mkcert'
-import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
+import type { WorkerRequestHandler } from './types'
 
 import fs from 'fs'
 import v8 from 'v8'
@@ -116,17 +116,6 @@ export async function startServer(
     }
     throw new Error('Invariant request handler was not setup')
   }
-  let upgradeHandler: WorkerUpgradeHandler = async (
-    req,
-    socket,
-    head
-  ): Promise<void> => {
-    if (handlersPromise) {
-      await handlersPromise
-      return upgradeHandler(req, socket, head)
-    }
-    throw new Error('Invariant upgrade handler was not setup')
-  }
 
   // setup server listener as fast as possible
   if (selfSignedCertificate && !isDev) {
@@ -182,15 +171,6 @@ export async function startServer(
   if (keepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout
   }
-  server.on('upgrade', async (req, socket, head) => {
-    try {
-      await upgradeHandler(req, socket, head)
-    } catch (err) {
-      socket.destroy()
-      Log.error(`Failed to handle request for ${req.url}`)
-      console.error(err)
-    }
-  })
 
   let portRetryCount = 0
 
@@ -293,7 +273,7 @@ export async function startServer(
         process.on('uncaughtException', exception)
         process.on('unhandledRejection', exception)
 
-        const initResult = await getRequestHandlers({
+        requestHandler = await getRequestHandlers({
           dir,
           port,
           isDev,
@@ -305,8 +285,6 @@ export async function startServer(
           experimentalTestProxy: !!isExperimentalTestProxy,
           experimentalHttpsServer: !!selfSignedCertificate,
         })
-        requestHandler = initResult[0]
-        upgradeHandler = initResult[1]
 
         const startServerProcessDuration =
           performance.mark('next-start-end') &&
