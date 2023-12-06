@@ -25,7 +25,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, GraphTraversalResult, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    ReadRef, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueToString, Vc,
+    ReadRef, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Upcast, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
@@ -271,6 +271,21 @@ struct ChunkGraphEdges(Vec<ChunkGraphEdge>);
 struct ChunkContentContext {
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     availability_info: AvailabilityInfo,
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkContentContext {
+    #[turbo_tasks::function]
+    fn new(
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Vc<Self> {
+        Self {
+            chunking_context,
+            availability_info: availability_info.into_value(),
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::function]
@@ -585,11 +600,8 @@ async fn chunk_content_internal_parallel(
         .try_flat_join()
         .await?;
 
-    let chunk_content_context = ChunkContentContext {
-        chunking_context,
-        availability_info,
-    }
-    .cell();
+    let chunk_content_context =
+        ChunkContentContext::new(chunking_context, Value::new(availability_info));
 
     let visit = ChunkContentVisit {
         chunk_content_context,
