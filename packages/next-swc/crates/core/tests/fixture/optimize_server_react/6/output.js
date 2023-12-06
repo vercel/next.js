@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect } from 'react';
 import React from 'react';
 
-const NoSSR = ({ children, fallback })=>{
+const Component = ({ children, fallback })=>{
   const mounted = false, setMounted = ()=>null;
   null;
   if (!mounted) {
@@ -9,4 +9,4 @@ const NoSSR = ({ children, fallback })=>{
   }
   return children;
 };
-export { NoSSR };
+export { Component };

@@ -90,6 +90,8 @@ impl Fold for OptimizeServerReact {
                         }
                     } else if let ImportSpecifier::Default(default_import) = specifier {
                         self.react_ident = Some(default_import.local.to_id());
+                    } else if let ImportSpecifier::Namespace(namespace_import) = specifier {
+                        self.react_ident = Some(namespace_import.local.to_id());
                     }
                 }
             }
