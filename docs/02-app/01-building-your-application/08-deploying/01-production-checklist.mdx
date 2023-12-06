@@ -46,8 +46,9 @@ Next.js's built-in [Data Cache](/docs/app/building-your-application/caching#data
 
 The caching behavior of data requests can be controlled through various strategies. Next.js supports [time-based revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#time-based-revalidation) (automatically refreshing the cache after a set period) and [on-demand revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#on-demand-revalidation) (refreshing the cache based on specific events).
 
-- **Caching in Server Actions and Route Handlers:**
-  Custom caching strategies can be implemented in Server Actions and Route Handlers. Developers can configure fetch requests to adhere to specific caching requirements, including opting for default settings like `force-cache`.
+### Caching in Server Actions
+
+While Server Actions in Next.js are primarily used for mutations (like POST, PUT, DELETE operations), they also play a crucial role in cache management. After a mutation, it's crucial to ensure that the cached data reflects the latest state. Next.js facilitates this by providing APIs such as `revalidatePath` and `revalidateTag`. These APIs can be used to purge or revalidate the cache immediately after a mutation. This capability ensures that any changes made by Server Actions are promptly reflected in the cached data, maintaining data consistency and accuracy.
 
 ### Opting Out of Caching
 
