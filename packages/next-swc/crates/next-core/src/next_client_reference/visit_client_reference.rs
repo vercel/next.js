@@ -12,7 +12,7 @@ use turbo_tasks::{
 };
 use turbopack_binding::turbopack::core::{
     module::{Module, Modules},
-    reference::ModuleReference,
+    reference::primary_referenced_modules,
 };
 
 use super::{
@@ -179,21 +179,9 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 // nodes' edges.
                 VisitClientReferenceNodeType::ClientReference(..) => Ok(vec![]),
                 VisitClientReferenceNodeType::Internal(module, _) => {
-                    let references = module.references().await?;
+                    let referenced_modules = primary_referenced_modules(module).await?;
 
-                    let referenced_modules = references
-                        .iter()
-                        .copied()
-                        .map(|reference| async move {
-                            let resolve_result = reference.resolve_reference();
-                            let assets = resolve_result.primary_modules().await?;
-                            Ok(assets.clone_value())
-                        })
-                        .try_join()
-                        .await?;
-                    let referenced_modules = referenced_modules.into_iter().flatten();
-
-                    let referenced_modules = referenced_modules.map(|module| async move {
+                    let referenced_modules = referenced_modules.iter().map(|module| async move {
                         let module = module.resolve().await?;
                         if let Some(client_reference_module) =
                             Vc::try_resolve_downcast_type::<EcmascriptClientReferenceModule>(module)
