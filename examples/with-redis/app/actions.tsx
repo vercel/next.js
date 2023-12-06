@@ -27,8 +27,6 @@ export async function saveEmail(formData: FormData) {
     await kv.sadd('emails', email)
     revalidatePath('/')
   }
-
-  console.log(await kv.smembers('emails'))
 }
 
 export async function upvote(feature: Feature) {
