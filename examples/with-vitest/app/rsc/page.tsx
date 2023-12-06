@@ -1,7 +1,7 @@
 // import 'server-only' does not currently
 // work with Vitest
 
-export const metdata = {
+export const metadata = {
   title: 'App Router',
 }
 
