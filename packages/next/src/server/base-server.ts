@@ -2314,30 +2314,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             { page: pathname, params: opts.params, query, renderOpts }
           )
         } else if (isAppPageRouteModule(routeModule)) {
-          // TODO: Re-enable once static prefetches re-land
-          // if (
-          //   !opts.experimental.ppr &&
-          //   isPrefetchRSCRequest &&
-          //   process.env.NODE_ENV === 'production' &&
-          //   !this.minimalMode
-          // ) {
-          //   try {
-          //     const prefetchRsc = await this.getPrefetchRsc(resolvedUrlPathname)
-          //     if (prefetchRsc) {
-          //       res.setHeader(
-          //         'cache-control',
-          //         'private, no-cache, no-store, max-age=0, must-revalidate'
-          //       )
-          //       res.setHeader('content-type', RSC_CONTENT_TYPE_HEADER)
-          //       res.body(prefetchRsc).send()
-          //       return null
-          //     }
-          //   } catch {
-          //     // We fallback to invoking the function if prefetch data is not
-          //     // available.
-          //   }
-          // }
-
           const module = components.routeModule as AppPageRouteModule
 
           // Due to the way we pass data by mutating `renderOpts`, we can't extend the
