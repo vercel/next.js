@@ -1,9 +1,17 @@
-import { a as a1, b as b1, /*c as c1,*/ local as local1 } from "package-named";
+import {
+  a as a1,
+  b as b1,
+  c as c1,
+  d as d1,
+  e as e1,
+  local as local1,
+} from "package-named";
 it("should optimize named reexports from side effect free module", () => {
   expect(a1).toBe("a");
   expect(b1).toBe("b");
-  // TODO handle renaming of exports
-  // expect(c1).toBe("c");
+  expect(c1).toBe("x");
+  expect(d1).toBe("y");
+  expect(e1).toBe("x");
   expect(local1).toBe("local");
 });
 

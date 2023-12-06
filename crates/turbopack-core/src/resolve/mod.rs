@@ -2060,15 +2060,22 @@ pub async fn handle_resolve_error(
 pub enum ModulePart {
     /// Represents the side effects of a module. This part is evaluated even if
     /// all exports are unused.
-    ModuleEvaluation,
+    Evaluation,
     /// Represents an export of a module.
     Export(Vc<String>),
+    /// Represents a renamed export of a module.
+    RenamedExport {
+        original_export: Vc<String>,
+        export: Vc<String>,
+    },
+    /// Represents a namespace object of a module exported as named export.
+    RenamedNamespace { export: Vc<String> },
     /// A pointer to a specific part.
     Internal(u32),
     /// The local declarations of a module.
     Locals,
-    /// The reexports of a module and a reexport of the Locals part.
-    Reexports,
+    /// The whole exports of a module.
+    Exports,
     /// A facade of the module behaving like the original, but referencing
     /// internal parts.
     Facade,
@@ -2077,12 +2084,27 @@ pub enum ModulePart {
 #[turbo_tasks::value_impl]
 impl ModulePart {
     #[turbo_tasks::function]
-    pub fn module_evaluation() -> Vc<Self> {
-        ModulePart::ModuleEvaluation.cell()
+    pub fn evaluation() -> Vc<Self> {
+        ModulePart::Evaluation.cell()
     }
     #[turbo_tasks::function]
     pub fn export(export: String) -> Vc<Self> {
         ModulePart::Export(Vc::cell(export)).cell()
+    }
+    #[turbo_tasks::function]
+    pub fn renamed_export(original_export: String, export: String) -> Vc<Self> {
+        ModulePart::RenamedExport {
+            original_export: Vc::cell(original_export),
+            export: Vc::cell(export),
+        }
+        .cell()
+    }
+    #[turbo_tasks::function]
+    pub fn renamed_namespace(export: String) -> Vc<Self> {
+        ModulePart::RenamedNamespace {
+            export: Vc::cell(export),
+        }
+        .cell()
     }
     #[turbo_tasks::function]
     pub fn internal(id: u32) -> Vc<Self> {
@@ -2093,11 +2115,33 @@ impl ModulePart {
         ModulePart::Locals.cell()
     }
     #[turbo_tasks::function]
-    pub fn reexports() -> Vc<Self> {
-        ModulePart::Reexports.cell()
+    pub fn exports() -> Vc<Self> {
+        ModulePart::Exports.cell()
     }
     #[turbo_tasks::function]
     pub fn facade() -> Vc<Self> {
         ModulePart::Facade.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for ModulePart {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<Vc<String>> {
+        Ok(Vc::cell(match self {
+            ModulePart::Evaluation => "module evaluation".to_string(),
+            ModulePart::Export(export) => format!("export {}", export.await?),
+            ModulePart::RenamedExport {
+                original_export,
+                export,
+            } => format!("export {} as {}", original_export.await?, export.await?),
+            ModulePart::RenamedNamespace { export } => {
+                format!("export * as {}", export.await?)
+            }
+            ModulePart::Internal(id) => format!("internal part {}", id),
+            ModulePart::Locals => "locals".to_string(),
+            ModulePart::Exports => "exports".to_string(),
+            ModulePart::Facade => "facade".to_string(),
+        }))
     }
 }

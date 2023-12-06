@@ -526,7 +526,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 Some(TreeShakingMode::ModuleFragments) => match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
                         evaluation_references.push(i);
-                        Some(ModulePart::module_evaluation())
+                        Some(ModulePart::evaluation())
                     }
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export(name.to_string())),
                     ImportedSymbol::Namespace => None,
@@ -534,7 +534,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 Some(TreeShakingMode::ReexportsOnly) => match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
                         evaluation_references.push(i);
-                        Some(ModulePart::module_evaluation())
+                        Some(ModulePart::evaluation())
                     }
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export(name.to_string())),
                     ImportedSymbol::Namespace => None,
@@ -572,9 +572,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         visitor.esm_star_exports.push(Vc::upcast(import_ref));
                     }
                     Reexport::Namespace { exported: n } => {
-                        visitor
-                            .esm_exports
-                            .insert(n.to_string(), EsmExport::ImportedNamespace(import_ref));
+                        visitor.esm_exports.insert(
+                            n.to_string(),
+                            EsmExport::ImportedNamespace(Vc::upcast(import_ref)),
+                        );
                     }
                     Reexport::Named {
                         imported: i,
@@ -2524,7 +2525,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
                                 if let Some(export) = export {
                                     EsmExport::ImportedBinding(Vc::upcast(esm_ref), export)
                                 } else {
-                                    EsmExport::ImportedNamespace(esm_ref)
+                                    EsmExport::ImportedNamespace(Vc::upcast(esm_ref))
                                 }
                             } else {
                                 EsmExport::LocalBinding(binding_name)

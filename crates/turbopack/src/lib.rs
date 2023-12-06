@@ -27,7 +27,7 @@ use css::{CssModuleAsset, GlobalCssAsset, ModuleCssAsset};
 use ecmascript::{
     chunk::EcmascriptChunkPlaceable,
     references::{follow_reexports, FollowExportsResult},
-    side_effect_optimization::facade::module::{EcmascriptModuleFacadeModule, FacadeType},
+    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
     typescript::resolve::TypescriptTypesAssetReference,
     EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
 };
@@ -166,21 +166,21 @@ async fn apply_module_type(
                         if let Some(part) = part {
                             Vc::upcast(builder.build_part(part))
                         } else {
-                            Vc::upcast(builder.build_part(ModulePart::reexports()))
+                            Vc::upcast(builder.build_part(ModulePart::exports()))
                         }
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
                         let module = builder.build();
                         if let Some(part) = part {
                             match *part.await? {
-                                ModulePart::ModuleEvaluation => {
+                                ModulePart::Evaluation => {
                                     if *module.is_marked_as_side_effect_free().await? {
                                         return Ok(ProcessResult::Ignore.cell());
                                     }
                                     if *module.get_exports().needs_facade().await? {
                                         Vc::upcast(EcmascriptModuleFacadeModule::new(
-                                            module,
-                                            FacadeType::Evaluation,
+                                            Vc::upcast(module),
+                                            part,
                                         ))
                                     } else {
                                         Vc::upcast(module)
@@ -190,8 +190,8 @@ async fn apply_module_type(
                                     if *module.get_exports().needs_facade().await? {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(EcmascriptModuleFacadeModule::new(
-                                                module,
-                                                FacadeType::Reexports,
+                                                Vc::upcast(module),
+                                                ModulePart::exports(),
                                             )),
                                             part,
                                         )
@@ -205,8 +205,8 @@ async fn apply_module_type(
                             }
                         } else if *module.get_exports().needs_facade().await? {
                             Vc::upcast(EcmascriptModuleFacadeModule::new(
-                                module,
-                                FacadeType::Complete,
+                                Vc::upcast(module),
+                                ModulePart::facade(),
                             ))
                         } else {
                             Vc::upcast(module)
@@ -269,15 +269,22 @@ async fn apply_reexport_tree_shaking(
             export_name: new_export,
             ..
         } = &*follow_reexports(module, export.clone_value()).await?;
-        if let Some(new_export) = new_export {
+        let module = if let Some(new_export) = new_export {
             if *new_export == *export {
-                return Ok(Vc::upcast(*final_module));
+                Vc::upcast(*final_module)
             } else {
-                // TODO: create a remapping module
+                Vc::upcast(EcmascriptModuleFacadeModule::new(
+                    *final_module,
+                    ModulePart::renamed_export(new_export.clone(), export.clone_value()),
+                ))
             }
         } else {
-            // TODO: create a remapping module
-        }
+            Vc::upcast(EcmascriptModuleFacadeModule::new(
+                *final_module,
+                ModulePart::renamed_namespace(export.clone_value()),
+            ))
+        };
+        return Ok(module);
     }
     Ok(Vc::upcast(module))
 }
