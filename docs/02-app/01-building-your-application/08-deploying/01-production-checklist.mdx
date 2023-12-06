@@ -11,7 +11,6 @@ Before taking your Next.js application to production, here are some recommendati
 - Ensure your database and backend are deployed in the same region.
 - Aim to reduce client-side JavaScript bundle sizes by [moving the "use client" boundaries down the React component tree](https://nextjs.org/docs/app/building-your-application/rendering/composition-patterns#moving-client-components-down-the-tree). 
 - Prevent sensitive data from being exposed to the client with [tainting](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client)
-- Ensure [logging](/docs/app/api-reference/next-config-js/logging) is set up.
 - Ensure [error handling](/docs/app/building-your-application/routing/error-handling) is set up.
 - Customize your 404 (Not Found) responses using the [`notfound()`](/docs/app/api-reference/functions/not-found) function, and set up your custom error page to handle 500 (Server Error) scenarios effectively.
 - Ensure you are [measuring performance](/docs/app/building-your-application/optimizing/analytics).
