@@ -41,7 +41,6 @@ export interface StaticGenerationStore {
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
   dynamicUsageErr?: DynamicServerError
-  staticPrefetchBailout?: boolean
 
   nextFetchId?: number
   pathWasRevalidated?: boolean

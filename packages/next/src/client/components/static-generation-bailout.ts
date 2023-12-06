@@ -53,12 +53,6 @@ export const staticGenerationBailout: StaticGenerationBailout = (
   // to 0.
   staticGenerationStore.revalidate = 0
 
-  if (!dynamic) {
-    // we can statically prefetch pages that opt into dynamic,
-    // but not things like headers/cookies
-    staticGenerationStore.staticPrefetchBailout = true
-  }
-
   if (staticGenerationStore.isStaticGeneration) {
     const err = new DynamicServerError(message)
     staticGenerationStore.dynamicUsageDescription = reason

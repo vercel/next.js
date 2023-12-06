@@ -2,8 +2,6 @@ import { createNextDescribe } from 'e2e-utils'
 import { check, getRedboxHeader, hasRedbox, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
-import { BrowserInterface } from 'test/lib/browsers/base'
-import { Request } from 'playwright-core'
 
 createNextDescribe(
   'app dir - basic',
@@ -34,60 +32,6 @@ createNextDescribe(
         ).not.toContain('_stringifiedConfig')
         expect(await next.readFile('.next/server/middleware.js')).not.toContain(
           '_middlewareConfig'
-        )
-      })
-
-      // TODO: Re-enable once static prefetches re-land
-      it.skip('should use RSC prefetch data from build', async () => {
-        expect(
-          await next.readFile('.next/server/app/linking.prefetch.rsc')
-        ).toBeTruthy()
-        expect(
-          await next.readFile('.next/server/app/linking/about.prefetch.rsc')
-        ).toContain('About loading...')
-        expect(
-          await next.readFile(
-            '.next/server/app/dashboard/deployments/breakdown.prefetch.rsc'
-          )
-        ).toBeTruthy()
-        expect(
-          await next
-            .readFile(
-              '.next/server/app/dashboard/deployments/[id].prefetch.rsc'
-            )
-            .catch(() => false)
-        ).toBeFalsy()
-
-        const outputStart = next.cliOutput.length
-        const browser: BrowserInterface = await next.browser('/')
-        const rscReqs = []
-
-        browser.on('request', (req: Request) => {
-          if (req.headers()['rsc']) {
-            rscReqs.push(req.url())
-          }
-        })
-
-        await browser.eval('window.location.href = "/linking"')
-
-        await check(async () => {
-          return rscReqs.length > 3 ? 'success' : JSON.stringify(rscReqs)
-        }, 'success')
-
-        const trimmedOutput = next.cliOutput.substring(outputStart)
-
-        expect(trimmedOutput).not.toContain(
-          'rendering dashboard/(custom)/deployments/breakdown'
-        )
-        expect(trimmedOutput).not.toContain(
-          'rendering /dashboard/deployments/[id]'
-        )
-        expect(trimmedOutput).not.toContain('rendering linking about page')
-
-        await browser.elementByCss('#breakdown').click()
-        await check(
-          () => next.cliOutput.substring(outputStart),
-          /rendering .*breakdown/
         )
       })
 
