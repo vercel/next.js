@@ -6,6 +6,61 @@ import { saveFeature, upvote } from './actions'
 import { v4 as uuidv4 } from 'uuid'
 import { Feature } from './types'
 
+function Item({
+  isFirst,
+  isLast,
+  isReleased,
+  hasVoted,
+  feature,
+  pending,
+  mutate,
+}: {
+  isFirst: boolean
+  isLast: boolean
+  isReleased: boolean
+  hasVoted: boolean
+  feature: Feature
+  pending: boolean
+  mutate: any
+}) {
+  return (
+    <form
+      action={async () => {
+        mutate({
+          updatedFeature: {
+            ...feature,
+            score: (Number(feature.score) + 1).toString(),
+          },
+          pending: true,
+        })
+        await upvote(feature)
+      }}
+      className={clsx(
+        'p-6 mx-8 flex items-center border-t border-l border-r',
+        isFirst && 'rounded-t-md',
+        isLast && 'border-b rounded-b-md'
+      )}
+    >
+      <button
+        className={clsx(
+          'ring-1 ring-gray-200 rounded-full w-8 min-w-[2rem] h-8 mr-4 focus:outline-none focus:ring focus:ring-blue-300',
+          (isReleased || hasVoted) &&
+            'bg-green-100 cursor-not-allowed ring-green-300',
+          pending && 'bg-gray-100 cursor-not-allowed'
+        )}
+        disabled={isReleased || hasVoted || pending}
+        type="submit"
+      >
+        {isReleased ? '✅' : '👍'}
+      </button>
+      <h3 className="text font-semibold w-full text-left">{feature.title}</h3>
+      <div className="bg-gray-200 text-gray-700 text-sm rounded-xl px-2 ml-2">
+        {feature.score}
+      </div>
+    </form>
+  )
+}
+
 type FeatureState = {
   newFeature: Feature
   updatedFeature?: Feature
@@ -104,60 +159,5 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
         ))}
       </div>
     </>
-  )
-}
-
-function Item({
-  isFirst,
-  isLast,
-  isReleased,
-  hasVoted,
-  feature,
-  pending,
-  mutate,
-}: {
-  isFirst: boolean
-  isLast: boolean
-  isReleased: boolean
-  hasVoted: boolean
-  feature: Feature
-  pending: boolean
-  mutate: any
-}) {
-  return (
-    <form
-      action={async () => {
-        mutate({
-          updatedFeature: {
-            ...feature,
-            score: (Number(feature.score) + 1).toString(),
-          },
-          pending: true,
-        })
-        await upvote(feature)
-      }}
-      className={clsx(
-        'p-6 mx-8 flex items-center border-t border-l border-r',
-        isFirst && 'rounded-t-md',
-        isLast && 'border-b rounded-b-md'
-      )}
-    >
-      <button
-        className={clsx(
-          'ring-1 ring-gray-200 rounded-full w-8 min-w-[2rem] h-8 mr-4 focus:outline-none focus:ring focus:ring-blue-300',
-          (isReleased || hasVoted) &&
-            'bg-green-100 cursor-not-allowed ring-green-300',
-          pending && 'bg-gray-100 cursor-not-allowed'
-        )}
-        disabled={isReleased || hasVoted || pending}
-        type="submit"
-      >
-        {isReleased ? '✅' : '👍'}
-      </button>
-      <h3 className="text font-semibold w-full text-left">{feature.title}</h3>
-      <div className="bg-gray-200 text-gray-700 text-sm rounded-xl px-2 ml-2">
-        {feature.score}
-      </div>
-    </form>
   )
 }
