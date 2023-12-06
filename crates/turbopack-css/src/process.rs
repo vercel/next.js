@@ -24,6 +24,7 @@ use swc_core::{
         visit::{VisitMut, VisitMutWith},
     },
 };
+use tracing::Instrument;
 use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
@@ -429,30 +430,38 @@ pub async fn parse_css(
     ty: CssModuleAssetType,
     use_lightningcss: bool,
 ) -> Result<Vc<ParseCssResult>> {
-    let content = source.content();
-    let fs_path = &*source.ident().path().await?;
-    let ident_str = &*source.ident().to_string().await?;
-    Ok(match &*content.await? {
-        AssetContent::Redirect { .. } => ParseCssResult::Unparseable.cell(),
-        AssetContent::File(file) => match &*file.await? {
-            FileContent::NotFound => ParseCssResult::NotFound.cell(),
-            FileContent::Content(file) => match file.content().to_str() {
-                Err(_err) => ParseCssResult::Unparseable.cell(),
-                Ok(string) => {
-                    process_content(
-                        string.into_owned(),
-                        fs_path,
-                        ident_str,
-                        source,
-                        origin,
-                        ty,
-                        use_lightningcss,
-                    )
-                    .await?
-                }
+    let span = {
+        let name = source.ident().to_string().await?;
+        tracing::info_span!("parse css", name = *name)
+    };
+    async move {
+        let content = source.content();
+        let fs_path = &*source.ident().path().await?;
+        let ident_str = &*source.ident().to_string().await?;
+        Ok(match &*content.await? {
+            AssetContent::Redirect { .. } => ParseCssResult::Unparseable.cell(),
+            AssetContent::File(file) => match &*file.await? {
+                FileContent::NotFound => ParseCssResult::NotFound.cell(),
+                FileContent::Content(file) => match file.content().to_str() {
+                    Err(_err) => ParseCssResult::Unparseable.cell(),
+                    Ok(string) => {
+                        process_content(
+                            string.into_owned(),
+                            fs_path,
+                            ident_str,
+                            source,
+                            origin,
+                            ty,
+                            use_lightningcss,
+                        )
+                        .await?
+                    }
+                },
             },
-        },
-    })
+        })
+    }
+    .instrument(span)
+    .await
 }
 
 async fn process_content(

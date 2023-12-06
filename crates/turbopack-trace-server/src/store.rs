@@ -178,8 +178,6 @@ impl<'a> SpanRef<'a> {
         self.span.start
     }
 
-    // TODO(sokra) show end in details
-    #[allow(dead_code)]
     pub fn end(&self) -> u64 {
         *self.span.end.get_or_init(|| {
             max(
