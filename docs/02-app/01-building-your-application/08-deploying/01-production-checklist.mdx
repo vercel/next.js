@@ -87,7 +87,7 @@ Doing this regularly while you develop and before deploying your site can help y
 Since Next.js runs on both the client and server, there are multiple forms of logging supported:
 
 - `console.log` in the browser
-- `stdout` on the server
+- `process.stdout.write` on the server
 
 If you want a structured logging package, we recommend [Pino](https://www.npmjs.com/package/pino). If you're using Vercel, there are [pre-built logging integrations](https://vercel.com/integrations?utm_source=next-site&utm_medium=docs&utm_campaign=next-website#logging) compatible with Next.js.
 
