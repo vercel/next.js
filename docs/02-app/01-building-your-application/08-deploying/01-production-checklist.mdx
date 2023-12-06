@@ -113,14 +113,20 @@ If an error is thrown inside a Server Component, Next.js forwards an `Error` obj
 
 ## Loading Performance
 
-To improve loading performance, you first need to determine what to measure and how to measure it.
+To effectively improve loading performance, it's essential to measure the user experience using [Core Web Vitals](https://vercel.com/blog/core-web-vitals?utm_source=next-site&utm_medium=docs&utm_campaign=next-website). These are a set of metrics developed by Google to gauge the quality of user experience on web pages, influencing Google's search rankings.
 
-[Core Web Vitals](https://vercel.com/blog/core-web-vitals?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) are metrics created by Google to measure the end-user experience of web pages. These metrics are important as they influence Google's ranking.
+### Using Lighthouse for Performance Analysis
 
-- In the lab, using your own computer or a simulator.
-- In the field, using real-world data from actual visitors.
-- Local, using a test that runs on your device.
-- Remote, using a test that runs in the cloud.
+Google Lighthouse is a powerful tool for assessing Core Web Vitals, along with other important aspects such as performance, accessibility, best practices, and SEO. To get the most accurate results:
+
+1. Use a production build of your Next.js application.
+2. Run Lighthouse in incognito mode to prevent browser extensions from affecting the results.
+
+Lighthouse can be used both as a browser extension and a command-line tool, providing detailed reports on how your website performs against these vital metrics.
+
+### Utilizing Vercel's Dashboard (for Vercel Deployments)
+
+If your Next.js application is deployed on [Vercel](https://vercel.com/vercel), you can leverage Vercel's built-in analytics dashboard to measure Core Web Vitals. This dashboard provides real-world performance insights based on actual visitor data, offering a practical view of how your website is performing in the field.
 
 Once you are able to measure the loading performance, use the following strategies to improve it iteratively. That is, if you apply one strategy, measure the new performance and continue tweaking until you do not see much improvement. Then, you can move on to the next strategy.
 
