@@ -22,7 +22,7 @@ use next_core::{
     next_client_reference::{
         ClientReferenceGraph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
     },
-    next_dynamic::{NextDynamicEntries, NextDynamicTransition},
+    next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
         AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
