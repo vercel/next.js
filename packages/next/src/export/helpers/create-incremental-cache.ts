@@ -1,15 +1,29 @@
+import type { NextEnabledDirectories } from '../../server/base-server'
+
 import path from 'path'
-import fs from 'fs'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 import { hasNextSupport } from '../../telemetry/ci-info'
+import { nodeFs } from '../../server/lib/node-fs-methods'
 
-export function createIncrementalCache(
-  incrementalCacheHandlerPath: string | undefined,
-  isrMemoryCacheSize: number | undefined,
-  fetchCacheKeyPrefix: string | undefined,
-  distDir: string,
+export function createIncrementalCache({
+  incrementalCacheHandlerPath,
+  isrMemoryCacheSize,
+  fetchCacheKeyPrefix,
+  distDir,
+  dir,
+  enabledDirectories,
+  experimental,
+  flushToDisk,
+}: {
+  incrementalCacheHandlerPath?: string
+  isrMemoryCacheSize?: number
+  fetchCacheKeyPrefix?: string
+  distDir: string
   dir: string
-) {
+  enabledDirectories: NextEnabledDirectories
+  experimental: { ppr: boolean }
+  flushToDisk?: boolean
+}) {
   // Custom cache handler overrides.
   let CacheHandler: any
   if (incrementalCacheHandlerPath) {
@@ -22,7 +36,7 @@ export function createIncrementalCache(
   const incrementalCache = new IncrementalCache({
     dev: false,
     requestHeaders: {},
-    flushToDisk: true,
+    flushToDisk,
     fetchCache: true,
     maxMemoryCacheSize: isrMemoryCacheSize,
     fetchCacheKeyPrefix,
@@ -37,16 +51,13 @@ export function createIncrementalCache(
       },
       notFoundRoutes: [],
     }),
-    fs: {
-      readFile: fs.promises.readFile,
-      readFileSync: fs.readFileSync,
-      writeFile: (f, d) => fs.promises.writeFile(f, d),
-      mkdir: (d) => fs.promises.mkdir(d, { recursive: true }),
-      stat: (f) => fs.promises.stat(f),
-    },
+    fs: nodeFs,
+    pagesDir: enabledDirectories.pages,
+    appDir: enabledDirectories.app,
     serverDistDir: path.join(distDir, 'server'),
     CurCacheHandler: CacheHandler,
     minimalMode: hasNextSupport,
+    experimental,
   })
 
   ;(globalThis as any).__incrementalCache = incrementalCache

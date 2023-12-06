@@ -39,6 +39,7 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -677,11 +678,13 @@ export function onDemandEntryHandler({
     appPaths,
     definition,
     isApp,
+    url,
   }: {
     page: string
     appPaths: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
     isApp: boolean | undefined
+    url?: string
   }): Promise<void> {
     const stalledTime = 60
     const stalledEnsureTimeout = setTimeout(() => {
@@ -832,7 +835,8 @@ export function onDemandEntryHandler({
       const hasNewEntry = addedValues.some((entry) => entry.newEntry)
 
       if (hasNewEntry) {
-        reportTrigger(route.page)
+        const routePage = isApp ? route.page : normalizeAppPath(route.page)
+        reportTrigger(routePage, url)
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
@@ -875,6 +879,7 @@ export function onDemandEntryHandler({
     appPaths?: ReadonlyArray<string> | null
     definition?: RouteDefinition
     isApp?: boolean
+    url?: string
   }
 
   // Make sure that we won't have multiple invalidations ongoing concurrently.
@@ -898,6 +903,7 @@ export function onDemandEntryHandler({
       appPaths = null,
       definition,
       isApp,
+      url,
     }: EnsurePageOptions) {
       // If the route is actually an app page route, then we should have access
       // to the app route definition, and therefore, the appPaths from it.
@@ -914,6 +920,7 @@ export function onDemandEntryHandler({
           appPaths,
           definition,
           isApp,
+          url,
         })
       })
     },

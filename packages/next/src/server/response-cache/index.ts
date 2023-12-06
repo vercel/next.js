@@ -3,18 +3,21 @@ import type {
   ResponseCacheEntry,
   ResponseGenerator,
   IncrementalCacheItem,
+  ResponseCacheBase,
+  IncrementalCacheKindHint,
 } from './types'
+import { RouteKind } from '../future/route-kind'
 
-import RenderResult from '../render-result'
 import { Batcher } from '../../lib/batcher'
 import { scheduleOnNextTick } from '../../lib/scheduler'
+import { fromResponseCacheEntry, toResponseCacheEntry } from './utils'
 
 export * from './types'
 
-export default class ResponseCache {
+export default class ResponseCache implements ResponseCacheBase {
   private readonly batcher = Batcher.create<
     { key: string; isOnDemandRevalidate: boolean },
-    ResponseCacheEntry | null,
+    IncrementalCacheItem | null,
     string
   >({
     // Ensure on-demand revalidate doesn't block normal requests, it should be
@@ -29,7 +32,7 @@ export default class ResponseCache {
 
   private previousCacheItem?: {
     key: string
-    entry: ResponseCacheEntry | null
+    entry: IncrementalCacheItem | null
     expiresAt: number
   }
 
@@ -42,10 +45,11 @@ export default class ResponseCache {
     this[minimalModeKey] = minimalMode
   }
 
-  public get(
+  public async get(
     key: string | null,
     responseGenerator: ResponseGenerator,
     context: {
+      routeKind?: RouteKind
       isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
       incrementalCache: IncrementalCache
@@ -57,7 +61,7 @@ export default class ResponseCache {
 
     const { incrementalCache, isOnDemandRevalidate = false } = context
 
-    return this.batcher.batch(
+    const response = await this.batcher.batch(
       { key, isOnDemandRevalidate },
       async (cacheKey, resolve) => {
         // We keep the previous cache entry around to leverage when the
@@ -70,11 +74,22 @@ export default class ResponseCache {
           return this.previousCacheItem.entry
         }
 
+        // Coerce the kindHint into a given kind for the incremental cache.
+        let kindHint: IncrementalCacheKindHint | undefined
+        if (
+          context.routeKind === RouteKind.APP_PAGE ||
+          context.routeKind === RouteKind.APP_ROUTE
+        ) {
+          kindHint = 'app'
+        } else if (context.routeKind === RouteKind.PAGES) {
+          kindHint = 'pages'
+        }
+
         let resolved = false
         let cachedResponse: IncrementalCacheItem = null
         try {
           cachedResponse = !this.minimalMode
-            ? await incrementalCache.get(key)
+            ? await incrementalCache.get(key, { kindHint })
             : null
 
           if (cachedResponse && !isOnDemandRevalidate) {
@@ -85,19 +100,8 @@ export default class ResponseCache {
             }
 
             resolve({
-              isStale: cachedResponse.isStale,
+              ...cachedResponse,
               revalidate: cachedResponse.curRevalidate,
-              value:
-                cachedResponse.value?.kind === 'PAGE'
-                  ? {
-                      kind: 'PAGE',
-                      html: RenderResult.fromStatic(cachedResponse.value.html),
-                      pageData: cachedResponse.value.pageData,
-                      postponed: cachedResponse.value.postponed,
-                      headers: cachedResponse.value.headers,
-                      status: cachedResponse.value.status,
-                    }
-                  : cachedResponse.value,
             })
             resolved = true
 
@@ -108,14 +112,29 @@ export default class ResponseCache {
             }
           }
 
-          const cacheEntry = await responseGenerator(resolved, cachedResponse)
-          const resolveValue =
-            cacheEntry === null
-              ? null
-              : {
-                  ...cacheEntry,
-                  isMiss: !cachedResponse,
-                }
+          const cacheEntry = await responseGenerator(
+            resolved,
+            cachedResponse,
+            true
+          )
+
+          // If the cache entry couldn't be generated, we don't want to cache
+          // the result.
+          if (!cacheEntry) {
+            // Unset the previous cache item if it was set.
+            if (this.minimalMode) this.previousCacheItem = undefined
+            return null
+          }
+
+          const resolveValue = await fromResponseCacheEntry({
+            ...cacheEntry,
+            isMiss: !cachedResponse,
+          })
+          if (!resolveValue) {
+            // Unset the previous cache item if it was set.
+            if (this.minimalMode) this.previousCacheItem = undefined
+            return null
+          }
 
           // For on-demand revalidate wait to resolve until cache is set.
           // Otherwise resolve now.
@@ -124,33 +143,18 @@ export default class ResponseCache {
             resolved = true
           }
 
-          if (cacheEntry && typeof cacheEntry.revalidate !== 'undefined') {
+          if (typeof resolveValue.revalidate !== 'undefined') {
             if (this.minimalMode) {
               this.previousCacheItem = {
                 key: cacheKey,
-                entry: cacheEntry,
+                entry: resolveValue,
                 expiresAt: Date.now() + 1000,
               }
             } else {
-              await incrementalCache.set(
-                key,
-                cacheEntry.value?.kind === 'PAGE'
-                  ? {
-                      kind: 'PAGE',
-                      html: cacheEntry.value.html.toUnchunkedString(),
-                      postponed: cacheEntry.value.postponed,
-                      pageData: cacheEntry.value.pageData,
-                      headers: cacheEntry.value.headers,
-                      status: cacheEntry.value.status,
-                    }
-                  : cacheEntry.value,
-                {
-                  revalidate: cacheEntry.revalidate,
-                }
-              )
+              await incrementalCache.set(key, resolveValue.value, {
+                revalidate: resolveValue.revalidate,
+              })
             }
-          } else {
-            this.previousCacheItem = undefined
           }
 
           return resolveValue
@@ -178,5 +182,7 @@ export default class ResponseCache {
         }
       }
     )
+
+    return toResponseCacheEntry(response)
   }
 }

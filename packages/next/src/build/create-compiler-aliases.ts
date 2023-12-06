@@ -24,6 +24,7 @@ interface CompilerAliases {
 }
 
 export function createWebpackAliases({
+  distDir,
   isClient,
   isEdgeServer,
   isNodeServer,
@@ -35,6 +36,7 @@ export function createWebpackAliases({
   reactProductionProfiling,
   hasRewrites,
 }: {
+  distDir: string
   isClient: boolean
   isEdgeServer: boolean
   isNodeServer: boolean
@@ -46,7 +48,6 @@ export function createWebpackAliases({
   reactProductionProfiling: boolean
   hasRewrites: boolean
 }): CompilerAliases {
-  const distDir = path.join(dir, config.distDir)
   const pageExtensions = config.pageExtensions
   const clientResolveRewrites = require.resolve(
     '../shared/lib/router/utils/resolve-rewrites'

@@ -114,7 +114,7 @@ pub async fn get_app_entries(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
-        Vc::cell("client".to_string()),
+        Vc::cell("app-client".to_string()),
     );
 
     let ssr_resolve_options_context = get_server_resolve_options_context(
@@ -137,7 +137,7 @@ pub async fn get_app_entries(
         server_compile_time_info,
         ssr_module_options_context,
         ssr_resolve_options_context,
-        Vc::cell("ssr".to_string()),
+        Vc::cell("app-ssr".to_string()),
     );
 
     transitions.insert("next-ssr".to_string(), Vc::upcast(ssr_transition));
@@ -184,7 +184,7 @@ pub async fn get_app_entries(
         server_compile_time_info,
         rsc_module_options_context,
         rsc_resolve_options_context,
-        Vc::cell("rsc".to_string()),
+        Vc::cell("app-rsc".to_string()),
     );
 
     let entries = entrypoints
@@ -228,7 +228,7 @@ pub async fn get_app_entries(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
-        Vc::cell("client".to_string()),
+        Vc::cell("app-client".to_string()),
     );
 
     let client_runtime_entries = get_client_runtime_entries(

@@ -3,11 +3,12 @@ use std::future::Future;
 use anyhow::Result;
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    TryJoinIterExt, Vc,
+    ReadRef, TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::turbopack::core::{
     module::{Module, Modules},
@@ -61,26 +62,36 @@ pub struct ClientReferenceGraph {
 impl ClientReferenceGraph {
     #[turbo_tasks::function]
     pub async fn new(entries: Vc<Modules>) -> Result<Vc<Self>> {
-        let entries = entries.await?;
+        async move {
+            let entries = entries.await?;
 
-        let graph = AdjacencyMap::new()
-            .skip_duplicates()
-            .visit(
-                entries
-                    .iter()
-                    .copied()
-                    .map(|module| VisitClientReferenceNode {
-                        server_component: None,
-                        ty: VisitClientReferenceNodeType::Internal(module),
-                    })
-                    .collect::<Vec<_>>(),
-                VisitClientReference,
-            )
-            .await
-            .completed()?
-            .into_inner();
+            let graph = AdjacencyMap::new()
+                .skip_duplicates()
+                .visit(
+                    entries
+                        .iter()
+                        .copied()
+                        .map(|module| async move {
+                            Ok(VisitClientReferenceNode {
+                                server_component: None,
+                                ty: VisitClientReferenceNodeType::Internal(
+                                    module,
+                                    module.ident().to_string().await?,
+                                ),
+                            })
+                        })
+                        .try_join()
+                        .await?,
+                    VisitClientReference,
+                )
+                .await
+                .completed()?
+                .into_inner();
 
-        Ok(ClientReferenceGraph { graph }.cell())
+            Ok(ClientReferenceGraph { graph }.cell())
+        }
+        .instrument(tracing::info_span!("find client references"))
+        .await
     }
 
     #[turbo_tasks::function]
@@ -90,11 +101,11 @@ impl ClientReferenceGraph {
 
         for node in this.graph.reverse_topological() {
             match &node.ty {
-                VisitClientReferenceNodeType::Internal(_asset) => {
+                VisitClientReferenceNodeType::Internal(_asset, _) => {
                     // No-op. These nodes are only useful during graph
                     // traversal.
                 }
-                VisitClientReferenceNodeType::ClientReference(client_reference) => {
+                VisitClientReferenceNodeType::ClientReference(client_reference, _) => {
                     client_reference_types.insert(*client_reference.ty());
                 }
             }
@@ -112,15 +123,15 @@ impl ClientReferenceGraph {
             .graph
             .reverse_topological_from_node(&VisitClientReferenceNode {
                 server_component: None,
-                ty: VisitClientReferenceNodeType::Internal(entry),
+                ty: VisitClientReferenceNodeType::Internal(entry, entry.ident().to_string().await?),
             })
         {
             match &node.ty {
-                VisitClientReferenceNodeType::Internal(_asset) => {
+                VisitClientReferenceNodeType::Internal(_asset, _) => {
                     // No-op. These nodes are only useful during graph
                     // traversal.
                 }
-                VisitClientReferenceNodeType::ClientReference(client_reference) => {
+                VisitClientReferenceNodeType::ClientReference(client_reference, _) => {
                     entry_client_references.push(*client_reference);
                 }
             }
@@ -144,8 +155,8 @@ struct VisitClientReferenceNode {
     Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
 )]
 enum VisitClientReferenceNodeType {
-    ClientReference(ClientReference),
-    Internal(Vc<Box<dyn Module>>),
+    ClientReference(ClientReference, ReadRef<String>),
+    Internal(Vc<Box<dyn Module>>, ReadRef<String>),
 }
 
 impl Visit<VisitClientReferenceNode> for VisitClientReference {
@@ -155,8 +166,8 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
 
     fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<VisitClientReferenceNode> {
         match edge.ty {
-            VisitClientReferenceNodeType::ClientReference(_) => VisitControlFlow::Skip(edge),
-            VisitClientReferenceNodeType::Internal(_) => VisitControlFlow::Continue(edge),
+            VisitClientReferenceNodeType::ClientReference(..) => VisitControlFlow::Skip(edge),
+            VisitClientReferenceNodeType::Internal(..) => VisitControlFlow::Continue(edge),
         }
     }
 
@@ -166,8 +177,8 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
             match node.ty {
                 // This should never occur since we always skip visiting these
                 // nodes' edges.
-                VisitClientReferenceNodeType::ClientReference(_) => Ok(vec![]),
-                VisitClientReferenceNodeType::Internal(module) => {
+                VisitClientReferenceNodeType::ClientReference(..) => Ok(vec![]),
+                VisitClientReferenceNodeType::Internal(module, _) => {
                     let references = module.references().await?;
 
                     let referenced_modules = references
@@ -197,6 +208,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                                             client_reference_module,
                                         ),
                                     },
+                                    client_reference_module.ident().to_string().await?,
                                 ),
                             });
                         }
@@ -214,6 +226,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                                             css_client_reference_asset,
                                         ),
                                     },
+                                    css_client_reference_asset.ident().to_string().await?,
                                 ),
                             });
                         }
@@ -224,13 +237,19 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         {
                             return Ok(VisitClientReferenceNode {
                                 server_component: Some(server_component_asset),
-                                ty: VisitClientReferenceNodeType::Internal(module),
+                                ty: VisitClientReferenceNodeType::Internal(
+                                    module,
+                                    module.ident().to_string().await?,
+                                ),
                             });
                         }
 
                         Ok(VisitClientReferenceNode {
                             server_component: node.server_component,
-                            ty: VisitClientReferenceNodeType::Internal(module),
+                            ty: VisitClientReferenceNodeType::Internal(
+                                module,
+                                module.ident().to_string().await?,
+                            ),
                         })
                     });
 
@@ -238,6 +257,17 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
 
                     Ok(assets)
                 }
+            }
+        }
+    }
+
+    fn span(&mut self, node: &VisitClientReferenceNode) -> tracing::Span {
+        match &node.ty {
+            VisitClientReferenceNodeType::ClientReference(_, name) => {
+                tracing::info_span!("client reference", name = **name)
+            }
+            VisitClientReferenceNodeType::Internal(_, name) => {
+                tracing::info_span!("module", name = **name)
             }
         }
     }
