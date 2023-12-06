@@ -1705,35 +1705,38 @@ createNextDescribe(
       { path: '/stale-cache-serving-edge/app-page' },
       { path: '/stale-cache-serving-edge/route-handler' },
     ])('should stream properly for $path', async ({ path }) => {
-      // prime cache initially
-      await next.fetch(path)
+      // Prime the cache.
+      let res = await next.fetch(path)
+      expect(res.status).toBe(200)
+
+      // Consume the cache, the revalidations are completed on the end of the
+      // stream so we need to wait for that to complete.
+      await res.text()
 
       for (let i = 0; i < 6; i++) {
         await waitFor(1000)
-        const start = Date.now()
-        let streamStart = 0
-        const res = await next.fetch(path)
-        const chunks: any[] = []
 
-        await new Promise<void>((bodyResolve) => {
-          res.body.on('data', (chunk) => {
-            if (!streamStart) {
-              streamStart = Date.now()
+        const timings = {
+          start: Date.now(),
+          startedStreaming: 0,
+        }
+
+        res = await next.fetch(path)
+
+        // eslint-disable-next-line no-loop-func
+        await new Promise<void>((resolve) => {
+          res.body.on('data', () => {
+            if (!timings.startedStreaming) {
+              timings.startedStreaming = Date.now()
             }
-            chunks.push(chunk)
           })
 
           res.body.on('end', () => {
-            bodyResolve()
+            resolve()
           })
         })
-        require('console').log({
-          start,
-          duration: Date.now() - start,
-          streamStart,
-          startDuration: streamStart - start,
-        })
-        expect(streamStart - start).toBeLessThan(3000)
+
+        expect(timings.startedStreaming - timings.start).toBeLessThan(3000)
       }
     })
 

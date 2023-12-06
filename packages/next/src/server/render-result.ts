@@ -204,22 +204,42 @@ export default class RenderResult<
 
   /**
    * Pipes the response to a writable stream. This will close/cancel the
-   * writable stream if an error is encountered.
+   * writable stream if an error is encountered. If this doesn't throw, then
+   * the writable stream will be closed or aborted.
    *
    * @param writable Writable stream to pipe the response to
    */
   public async pipeTo(writable: WritableStream<Uint8Array>): Promise<void> {
     try {
-      await this.readable.pipeTo(writable)
+      await this.readable.pipeTo(writable, {
+        // We want to close the writable stream ourselves so that we can wait
+        // for the waitUntil promise to resolve before closing it. If an error
+        // is encountered, we'll abort the writable stream if we swallowed the
+        // error.
+        preventClose: true,
+      })
+
+      // If there is a waitUntil promise, wait for it to resolve before
+      // closing the writable stream.
+      if (this.waitUntil) await this.waitUntil
+
+      // Close the writable stream.
+      await writable.close()
     } catch (err) {
-      // If this isn't a client abort, then re-throw the error.
-      if (!isAbortError(err)) {
-        throw err
+      // If this is an abort error, we should abort the writable stream (as we
+      // took ownership of it when we started piping). We don't need to re-throw
+      // because we handled the error.
+      if (isAbortError(err)) {
+        // Abort the writable stream if an error is encountered.
+        await writable.abort(err)
+
+        return
       }
-    } finally {
-      if (this.waitUntil) {
-        await this.waitUntil
-      }
+
+      // We're not aborting the writer here as when this method throws it's not
+      // clear as to how so the caller should assume it's their responsibility
+      // to clean up the writer.
+      throw err
     }
   }
 
