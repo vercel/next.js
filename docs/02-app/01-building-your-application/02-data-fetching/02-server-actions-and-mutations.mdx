@@ -170,9 +170,9 @@ To learn more about the `<form>` element in React, see the following resources:
 - [React `<form>` documentation](https://react.dev/reference/react-dom/components/form#handle-form-submission-with-a-server-action)
 - Next.js Example: [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
 
-#### Binding Additional Arguments
+#### Passing Additional Arguments
 
-You can bind additional arguments to a Server Action using the JavaScript `bind` method.
+You can pass additional arguments to a Server Action using the JavaScript `bind` method.
 
 ```jsx filename="app/client-component.jsx" highlight={6}
 'use client'
@@ -201,7 +201,10 @@ export async function updateUser(userId, formData) {
 }
 ```
 
-> **Good to know**: `.bind` of a Server Action works in both Server and Client Components. It also supports progressive enhancement.
+> **Good to know**:
+>
+> - An alternative is to pass arguments as hidden input fields in the form (e.g. `<input type="hidden" name="userId" value={userId} />`). However, the value will be part of the rendered HTML and will not be encoded.
+> - `.bind` of a Server Action works in both Server and Client Components. It also supports progressive enhancement.
 
 #### Pending states
 
@@ -246,10 +249,11 @@ export function SubmitButton() {
 
 ```tsx filename="app/page.tsx" switcher
 import { SubmitButton } from '@/app/submit-button'
+import { createItem } from '@/app/actions'
 
 export default async function Home() {
   return (
-    <form action={}>
+    <form action={createItem}>
       <input type="text" name="field-name" />
       <SubmitButton />
     </form>
@@ -259,10 +263,11 @@ export default async function Home() {
 
 ```jsx filename="app/page.jsx" switcher
 import { SubmitButton } from '@/app/submit-button'
+import { createItem } from '@/app/actions'
 
 export default async function Home() {
   return (
-    <form action={}>
+    <form action={createItem}>
       <input type="text" name="field-name" />
       <SubmitButton />
     </form>
@@ -270,7 +275,7 @@ export default async function Home() {
 }
 ```
 
-#### Form Validation
+#### Server-side validation and error handling
 
 We recommend using HTML validation like `required` and `type="email"` for basic client-side validation.
 
@@ -282,14 +287,14 @@ For more advanced server-side validation, you can use a library like [zod](https
 import { z } from 'zod'
 
 const schema = z.object({
-  id: z.string({
-    invalid_type_error: 'Invalid ID',
+  email: z.string({
+    invalid_type_error: 'Invalid Email',
   }),
 })
 
-export default async function submit(formData: FormData) {
+export default async function createUser(formData: FormData) {
   const validatedFields = schema.safeParse({
-    id: formData.get('id'),
+    email: formData.get('email'),
   })
 
   // Return early if the form data is invalid
@@ -309,14 +314,14 @@ export default async function submit(formData: FormData) {
 import { z } from 'zod'
 
 const schema = z.object({
-  id: z.string({
-    invalid_type_error: 'Invalid ID',
+  email: z.string({
+    invalid_type_error: 'Invalid Email',
   }),
 })
 
-export default async function submit(formData) {
+export default async function createsUser(formData) {
   const validatedFields = schema.safeParse({
-    id: formData.get('id'),
+    email: formData.get('email'),
   })
 
   // Return early if the form data is invalid
@@ -330,11 +335,9 @@ export default async function submit(formData) {
 }
 ```
 
-Please refer to the [Zod documentation](https://zod.dev/) for more information.
+> Please refer to the [Zod documentation](https://zod.dev/) for more information.
 
-#### Error Handling
-
-To handle form errors on the server, you can return a serializable object in your action and use the React [`useFormState`](https://react.dev/reference/react-dom/hooks/useFormState) hook to show a message to the user.
+Once the fields have been validated on the server, you can return a serializable object in your action and use the React [`useFormState`](https://react.dev/reference/react-dom/hooks/useFormState) hook to show a message to the user.
 
 - By passing the action to `useFormState`, the action's function signature changes to receive a new `prevState` or `initialState` parameter as its first argument.
 - `useFormState` is a React hook and therefore must be used in a Client Component.
@@ -494,7 +497,9 @@ export function Thread({ messages }) {
 
 #### `<button>` and `<input>` Elements
 
-You can invoke a Server Action from other form elements like `<button>`, `<input type="submit">`, and `<input type="image">`. These elements accept the `formAction` prop. For example, you can create a specific `<button>` element for saving a post draft in addition to publishing it. See the [React `<form>` docs](https://react.dev/docs/forms#handling-multiple-submit-buttons) for examples.
+You can invoke a Server Action from other form elements like `<button>`, `<input type="submit">`, and `<input type="image">`. These elements accept the `formAction` prop or [event handlers](#event-handlers).
+
+This is useful in cases where you want to call multiple server actions within a form. For example, you can create a specific `<button>` element for saving a post draft in addition to publishing it. See the [React `<form>` docs](https://react.dev/docs/forms#handling-multiple-submit-buttons) for more information.
 
 ### Non-form Elements
 
@@ -502,7 +507,7 @@ While it's common to use Server Actions within `<form>` elements, they can also 
 
 #### Event Handlers
 
-You can invoke a Server Action from event handlers such as `onClick`:
+You can invoke a Server Action from event handlers such as `onClick`. For example, to increment a like count:
 
 ```js filename="app/actions.js" switcher
 'use server'
@@ -538,11 +543,55 @@ export default function LikeButton({ initialLikes }: { initialLikes: number }) {
 }
 ```
 
-To improve the user experience, we recommend using other React APIs like [`useOptimistic`](https://react.dev/reference/react/useOptimistic) and [`useTransition`](https://react.dev/reference/react/useTransition) to update the UI before the Server Action finishes or show a pending state.
+To improve the user experience, we recommend using other React APIs like [`useOptimistic`](https://react.dev/reference/react/useOptimistic) and [`useTransition`](https://react.dev/reference/react/useTransition) to update the UI before the Server Action finishes executing on the server, or to show a pending state.
+
+You can also add event handlers to form elements, for example, to save a form field `onChange`:
+
+```tsx filename="app/ui/edit-post.tsx" switcher
+'use client'
+
+import { publishPost, saveDraft } from './actions'
+
+export default function EditPost() {
+  return (
+    <form action={publishPost}>
+      <textarea
+        name="content"
+        onChange={async (e) => {
+          await saveDraft(e.target.value)
+        }}
+      />
+      <button type="submit">Publish</button>
+    </form>
+  )
+}
+```
+
+```jsx filename="app/ui/edit-post.js" switcher
+'use client'
+
+import { publishPost, saveDraft } from './actions'
+
+export default function EditPost() {
+  return (
+    <form action={publishPost}>
+      <textarea
+        name="content"
+        onChange={async (e) => {
+          await saveDraft(e.target.value)
+        }}
+      />
+      <button type="submit">Publish</button>
+    </form>
+  )
+}
+```
+
+For cases like this, where multiple events might be fired in succession, we recommend debouncing to prevent unnecessary Server Action invocations.
 
 #### `useEffect`
 
-You can use the React [`useEffect`](https://react.dev/reference/react/useEffect) hook to invoke a Server Action when the component mounts or a dependency changes. Remember to consider the [behavior and caveats](https://react.dev/reference/react/useEffect#caveats) of `useEffect`.
+You can use the React [`useEffect`](https://react.dev/reference/react/useEffect) hook to invoke a Server Action when the component mounts or a dependency changes. This is useful for mutations that depend on global events or need to be triggered automatically. For example, `onKeyDown` for app shortcuts, `onScroll` for infinite scrolling, or when the component mounts to update the view count:
 
 ```tsx filename="app/view-count.tsx" switcher
 'use client'
@@ -565,6 +614,8 @@ export default function ViewCount({ initialViews }: { initialViews: number }) {
   return <p>Total Views: {views}</p>
 }
 ```
+
+Remember to consider the [behavior and caveats](https://react.dev/reference/react/useEffect#caveats) of `useEffect`.
 
 ### Error Handling
 
