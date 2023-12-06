@@ -22,7 +22,7 @@ use next_core::{
     next_client_reference::{
         ClientReferenceGraph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
     },
-    next_dynamic::{NextDynamicEntries, NextDynamicTransition},
+    next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
         AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
@@ -584,30 +584,31 @@ impl AppEndpoint {
         let client_reference_types = client_reference_graph.types();
         let client_references = client_reference_graph.entry(rsc_entry_asset);
 
-        let app_ssr_entries: Vec<_> = client_reference_types
-            .await?
-            .iter()
-            .map(|client_reference_ty| async move {
-                let ClientReferenceType::EcmascriptClientReference(entry) = client_reference_ty
-                else {
-                    return Ok(None);
-                };
-
-                Ok(Some(entry.await?.ssr_module))
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten()
-            .collect();
-
-        let app_node_entries: Vec<_> = app_ssr_entries.iter().copied().chain([rsc_entry]).collect();
-
         // TODO(alexkirsz) Handle dynamic entries and dynamic chunks.
-        let _dynamic_entries = NextDynamicEntries::from_entries(Vc::cell(
-            app_node_entries.iter().copied().map(Vc::upcast).collect(),
-        ))
-        .await?;
+        // let app_ssr_entries: Vec<_> = client_reference_types
+        //     .await?
+        //     .iter()
+        //     .map(|client_reference_ty| async move {
+        //         let ClientReferenceType::EcmascriptClientReference(entry) =
+        // client_reference_ty         else {
+        //             return Ok(None);
+        //         };
+
+        //         Ok(Some(entry.await?.ssr_module))
+        //     })
+        //     .try_join()
+        //     .await?
+        //     .into_iter()
+        //     .flatten()
+        //     .collect();
+
+        // let app_node_entries: Vec<_> =
+        // app_ssr_entries.iter().copied().chain([rsc_entry]).collect();
+
+        // let _dynamic_entries = NextDynamicEntries::from_entries(Vc::cell(
+        //     app_node_entries.iter().copied().map(Vc::upcast).collect(),
+        // ))
+        // .await?;
 
         let app_entry_client_references = client_reference_graph
             .entry(Vc::upcast(app_entry.rsc_entry))
