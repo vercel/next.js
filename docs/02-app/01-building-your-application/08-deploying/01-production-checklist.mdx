@@ -99,7 +99,6 @@ Proper error handling is key to keeping your application stable and providing a 
 
 The [`error.js` file](/docs/app/building-your-application/routing/error-handling) convention is used for gracefully handling runtime errors in nested routes. It automatically wraps a route segment and its nested children in a React Error Boundary, allowing you to create a tailored error UI and isolate errors to specific segments while keeping the rest of the application functional.
 
-**Handling Server Errors**:
 
 If an error is thrown inside a Server Component, Next.js forwards an `Error` object to the nearest `error.js` file. This object includes a generic message and a digest property in production as a security measure to prevent leaking sensitive details.
 
