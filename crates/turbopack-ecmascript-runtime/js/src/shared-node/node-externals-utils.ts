@@ -24,9 +24,7 @@ const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
  */
 function resolveAbsolutePath(modulePath?: string): string {
   if (modulePath) {
-    // Module path can contain common relative path to the root, recalaute to avoid duplicated joined path.
-    const relativePathToRoot = path.relative(ABSOLUTE_ROOT, modulePath);
-    return path.join(ABSOLUTE_ROOT, relativePathToRoot);
+    return path.join(ABSOLUTE_ROOT, modulePath);
   }
   return ABSOLUTE_ROOT;
 }
