@@ -81,7 +81,6 @@ store.subscribe((state) => {
   if (state.loading) {
     if (state.trigger) {
       trigger = formatTrigger(state.trigger)
-      console.log('trigger', trigger)
       triggerUrl = state.url
       if (trigger !== 'initial') {
         traceSpan = trace('compile-path', undefined, {
