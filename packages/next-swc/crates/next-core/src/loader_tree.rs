@@ -403,11 +403,11 @@ impl LoaderTreeBuilder {
             metadata,
             route: _,
         } = &*components.await?;
+        self.write_component(ComponentType::Layout, *layout).await?;
         self.write_component(ComponentType::Page, *page).await?;
         self.write_component(ComponentType::DefaultPage, *default)
             .await?;
         self.write_component(ComponentType::Error, *error).await?;
-        self.write_component(ComponentType::Layout, *layout).await?;
         self.write_component(ComponentType::Loading, *loading)
             .await?;
         self.write_component(ComponentType::Template, *template)
