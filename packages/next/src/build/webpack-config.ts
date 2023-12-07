@@ -727,6 +727,21 @@ export default async function getBaseWebpackConfig(
 
   const crossOrigin = config.crossOrigin
 
+  // The `serverComponentsExternalPackages` should not conflict with
+  // the `transpilePackages`.
+  if (config.experimental.serverComponentsExternalPackages) {
+    const externalPackageConflicts = config.transpilePackages.filter((pkg) =>
+      config.experimental.serverComponentsExternalPackages?.includes(pkg)
+    )
+    if (externalPackageConflicts.length > 0) {
+      throw new Error(
+        `The packages specified in the 'transpilePackages' conflict with the 'serverComponentsExternalPackages': ${externalPackageConflicts.join(
+          ', '
+        )}`
+      )
+    }
+  }
+
   // For original request, such as `package name`
   const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
     ...(config.experimental.serverComponentsExternalPackages || [])
