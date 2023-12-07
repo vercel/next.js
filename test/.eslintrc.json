@@ -1,9 +1,0 @@
-{
-  "overrides": [
-    {
-      "rules": {
-        "no-console": "off"
-      }
-    }
-  ]
-}
