@@ -176,7 +176,7 @@ createNextDescribe(
           }, /success/)
         })
 
-        it.only('should not contain metadata internal segments for dynamic metadata routes', async () => {
+        it('should not contain metadata internal segments for dynamic metadata routes', async () => {
           const logLength = next.cliOutput.length
           await next.fetch('/dynamic/big/icon')
 
