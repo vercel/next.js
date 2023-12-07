@@ -66,6 +66,10 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.useDeploymentId',
   'experimental.useDeploymentIdServerActions',
   'experimental.deploymentId',
+  'experimental.useLightningcss',
+  'experimental.windowHistorySupport',
+  'experimental.instrumentationHook',
+  'experimental.externalDir',
 
   // Experimental options that don't affect compilation
   'experimental.ppr',
@@ -76,6 +80,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.isrFlushToDisk',
   'experimental.logging.level',
   'experimental.logging.fullUrl',
+  'logging.fetches.fullUrl',
   'experimental.scrollRestoration',
   'experimental.forceSwcTransforms',
   'experimental.serverActions.bodySizeLimit',
@@ -104,7 +109,6 @@ const supportedTurbopackNextConfigOptions = [
   // 'compiler.removeConsole',
   // 'compiler.styledComponents',
   // 'experimental.fetchCacheKeyPrefix',
-  // 'experimental.instrumentationHook',
 
   // Left to be implemented
   'excludeDefaultMomentLocales',
@@ -128,7 +132,6 @@ const supportedTurbopackNextConfigOptions = [
   // 'experimental.craCompat',
   // 'experimental.disablePostcssPresetEnv',
   // 'experimental.esmExternals',
-  // 'experimental.externalDir',
   // This is used to force swc-loader to run regardless of finding Babel.
   // 'experimental.forceSwcTransforms',
   // 'experimental.fullySpecified',

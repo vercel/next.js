@@ -64,11 +64,12 @@ export class NextInstance {
   protected _parsedUrl: URL
   protected packageJson?: PackageJson = {}
   protected basePath?: string
-  protected env?: Record<string, string>
+  public env: Record<string, string>
   public forcedPort?: string
   public dirSuffix: string = ''
 
   constructor(opts: NextInstanceOpts) {
+    this.env = {}
     Object.assign(this, opts)
 
     if (!(global as any).isNextDeploy) {

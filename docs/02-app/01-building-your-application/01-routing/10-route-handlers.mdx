@@ -99,7 +99,7 @@ export async function GET(request: Request) {
   const res = await fetch(`https://data.mongodb-api.com/product/${id}`, {
     headers: {
       'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY,
+      'API-Key': process.env.DATA_API_KEY!,
     },
   })
   const product = await res.json()
@@ -132,7 +132,7 @@ export async function POST() {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY,
+      'API-Key': process.env.DATA_API_KEY!,
     },
     body: JSON.stringify({ time: new Date().toISOString() }),
   })
@@ -160,7 +160,7 @@ export async function POST() {
 }
 ```
 
-> **Good to know**: Like API Routes, Route Handlers can be used for cases like handling form submissions. A new abstraction for [handling forms and mutations](/docs/app/building-your-application/data-fetching/forms-and-mutations) that integrates deeply with React is being worked on.
+> **Good to know**: Like API Routes, Route Handlers can be used for cases like handling form submissions. A new abstraction for [handling forms and mutations](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) that integrates deeply with React is being worked on.
 
 ### Route Resolution
 

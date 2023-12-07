@@ -7,7 +7,7 @@ import {
   TEST_PROJECT_NAME,
   TEST_TEAM_NAME,
   TEST_TOKEN,
-} from '../../../scripts/reset-vercel-project.mjs'
+} from '../../../scripts/reset-project.mjs'
 import fetch from 'node-fetch'
 import { Span } from 'next/src/trace'
 

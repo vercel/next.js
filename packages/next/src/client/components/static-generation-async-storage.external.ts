@@ -2,6 +2,8 @@ import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import type { DynamicServerError } from './hooks-server-context'
 import type { FetchMetrics } from '../../server/base-http'
+import type { Revalidate } from '../../server/lib/revalidate'
+
 import { createAsyncLocalStorage } from './async-local-storage'
 
 export interface StaticGenerationStore {
@@ -14,6 +16,13 @@ export interface StaticGenerationStore {
   readonly isRevalidate?: boolean
   readonly isUnstableCacheCallback?: boolean
 
+  /**
+   * If defined, this function when called will throw an error postponing
+   * rendering during the React render phase. This should not be invoked outside
+   * of the React render phase as it'll throw an error.
+   */
+  readonly postpone: ((reason: string) => never) | undefined
+
   forceDynamic?: boolean
   fetchCache?:
     | 'only-cache'
@@ -23,17 +32,15 @@ export interface StaticGenerationStore {
     | 'default-no-store'
     | 'only-no-store'
 
-  revalidate?: false | number
+  revalidate?: Revalidate
   forceStatic?: boolean
   dynamicShouldError?: boolean
-  pendingRevalidates?: Promise<any>[]
+  pendingRevalidates?: Record<string, Promise<any>>
   postponeWasTriggered?: boolean
-  postpone?: (reason: string) => never
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
   dynamicUsageErr?: DynamicServerError
-  staticPrefetchBailout?: boolean
 
   nextFetchId?: number
   pathWasRevalidated?: boolean
@@ -44,10 +51,6 @@ export interface StaticGenerationStore {
   fetchMetrics?: FetchMetrics
 
   isDraftMode?: boolean
-
-  readonly experimental: {
-    readonly ppr: boolean
-  }
 }
 
 export type StaticGenerationAsyncStorage =
