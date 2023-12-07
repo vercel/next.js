@@ -3133,6 +3133,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/edge-route-catchall/edge-route-catchall.test.ts": {
+    "passed": [
+      "edge-route-catchall should correctly normalize edge route catch-all with a single param",
+      "edge-route-catchall should correctly normalize edge route catch-all with multiple params"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/edge-route-rewrite/edge-route-rewrite.test.ts": {
     "passed": [
       "edge-route-rewrite it should support a rewrite to a dynamic edge route",
@@ -5335,7 +5345,8 @@
       "multi-zone should correctly respond for /first/blog/post-1",
       "multi-zone should correctly respond for /second",
       "multi-zone should correctly respond for /second/another/post-1",
-      "multi-zone should correctly respond for /second/blog/post-1"
+      "multi-zone should correctly respond for /second/blog/post-1",
+      "multi-zone should support HMR in both apps"
     ],
     "failed": [],
     "pending": [],
