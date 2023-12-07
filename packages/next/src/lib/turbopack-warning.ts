@@ -68,6 +68,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.deploymentId',
   'experimental.useLightningcss',
   'experimental.windowHistorySupport',
+  'experimental.instrumentationHook',
 
   // Experimental options that don't affect compilation
   'experimental.ppr',
@@ -78,6 +79,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.isrFlushToDisk',
   'experimental.logging.level',
   'experimental.logging.fullUrl',
+  'logging.fetches.fullUrl',
   'experimental.scrollRestoration',
   'experimental.forceSwcTransforms',
   'experimental.serverActions.bodySizeLimit',
@@ -106,7 +108,6 @@ const supportedTurbopackNextConfigOptions = [
   // 'compiler.removeConsole',
   // 'compiler.styledComponents',
   // 'experimental.fetchCacheKeyPrefix',
-  // 'experimental.instrumentationHook',
 
   // Left to be implemented
   'excludeDefaultMomentLocales',

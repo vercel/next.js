@@ -82,10 +82,11 @@ pub(super) async fn get_font_fallback(
                 Err(_) => {
                     NextFontIssue {
                         path: context,
-                        title: Vc::cell(format!(
+                        title: StyledString::Text(format!(
                             "Failed to find font override values for font `{}`",
                             &options.font_family,
-                        )),
+                        ))
+                        .cell(),
                         description: StyledString::Text(
                             "Skipping generating a fallback font.".to_owned(),
                         )

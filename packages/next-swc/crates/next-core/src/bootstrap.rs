@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
@@ -77,35 +77,39 @@ pub async fn bootstrap(
     config.insert("PAGE".to_string(), path.to_string());
     config.insert("PATHNAME".to_string(), pathname);
 
-    let config_asset = context.process(
-        Vc::upcast(VirtualSource::new(
-            asset.ident().path().join("bootstrap-config.ts".to_string()),
-            AssetContent::file(
-                File::from(
-                    config
-                        .iter()
-                        .map(|(k, v)| format!("export const {} = {};\n", k, StringifyJs(v)))
-                        .collect::<Vec<_>>()
-                        .join(""),
-                )
-                .into(),
-            ),
-        )),
-        Value::new(ReferenceType::Internal(InnerAssets::empty())),
-    );
+    let config_asset = context
+        .process(
+            Vc::upcast(VirtualSource::new(
+                asset.ident().path().join("bootstrap-config.ts".to_string()),
+                AssetContent::file(
+                    File::from(
+                        config
+                            .iter()
+                            .map(|(k, v)| format!("export const {} = {};\n", k, StringifyJs(v)))
+                            .collect::<Vec<_>>()
+                            .join(""),
+                    )
+                    .into(),
+                ),
+            )),
+            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+        )
+        .module();
 
     let mut inner_assets = inner_assets.await?.clone_value();
     inner_assets.insert("ENTRY".to_string(), asset);
     inner_assets.insert("BOOTSTRAP_CONFIG".to_string(), config_asset);
 
-    let asset = context.process(
-        bootstrap_asset,
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    );
+    let asset = context
+        .process(
+            bootstrap_asset,
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
 
-    let Some(asset) = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(asset).await? else {
-        bail!("internal module must be evaluatable");
-    };
+    let asset = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(asset)
+        .await?
+        .context("internal module must be evaluatable")?;
 
     Ok(asset)
 }

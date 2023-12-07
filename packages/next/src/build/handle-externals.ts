@@ -28,8 +28,9 @@ export function isResourceInPackages(
   resource: string,
   packageNames?: string[],
   packageDirMapping?: Map<string, string>
-) {
-  return packageNames?.some((p: string) =>
+): boolean {
+  if (!packageNames) return false
+  return packageNames.some((p: string) =>
     packageDirMapping && packageDirMapping.has(p)
       ? resource.startsWith(packageDirMapping.get(p)! + path.sep)
       : resource.includes(
