@@ -63,9 +63,6 @@ export async function resolveExternal(
 ) {
   const esmExternals = !!esmExternalsConfig
   const looseEsmExternals = esmExternalsConfig === 'loose'
-  const isPackageExcludedFromBundling = optOutBundlingPackages.some((optOut) =>
-    request.startsWith(optOut)
-  )
 
   let res: string | null = null
   let isEsm: boolean = false
@@ -76,7 +73,7 @@ export async function resolveExternal(
     // For package that marked as externals that should be not bundled,
     // we don't resolve them as ESM since it could be resolved as async module,
     // such as `import(external package)` in the bundle, valued as a `Promise`.
-    !isPackageExcludedFromBundling
+    !optOutBundlingPackages.some((optOut) => request.startsWith(optOut))
       ? [true, false]
       : [false]
 
