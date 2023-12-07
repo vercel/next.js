@@ -28,6 +28,19 @@ export type OutputState =
         }
     ))
 
+const internalSegments = ['[[...__metadata_id__]]', '[__metadata_id__]']
+export function formatTrigger(trigger: string) {
+  for (const segment of internalSegments) {
+    if (trigger.includes(segment)) {
+      trigger = trigger.replace(segment, '')
+    }
+  }
+  if (trigger.length > 1 && trigger.endsWith('/')) {
+    trigger = trigger.slice(0, -1)
+  }
+  return trigger
+}
+
 export const store = createStore<OutputState>({
   appUrl: null,
   bindAddr: null,
@@ -67,7 +80,8 @@ store.subscribe((state) => {
 
   if (state.loading) {
     if (state.trigger) {
-      trigger = state.trigger
+      trigger = formatTrigger(state.trigger)
+      console.log('trigger', trigger)
       triggerUrl = state.url
       if (trigger !== 'initial') {
         traceSpan = trace('compile-path', undefined, {
