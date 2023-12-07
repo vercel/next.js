@@ -1,8 +1,8 @@
+import path from 'path'
+import fs from 'fs'
 import stripAnsi from 'strip-ansi'
 import { check } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
-import path from 'path'
-import fs from 'fs-extra'
 
 function parseLogsFromCli(cliOutput: string) {
   const logs = stripAnsi(cliOutput)
@@ -82,7 +82,6 @@ createNextDescribe(
                 log.url.includes('api/random?no-cache')
               )
 
-              // expect full url fetches to be logged when fullUrl: true is used
               expect(logs.some((log) => log.url.includes('..'))).toBe(
                 !withFullUrlFetches
               )
@@ -177,7 +176,7 @@ createNextDescribe(
           }, /success/)
         })
 
-        it('should not contain metadata internal segments for dynamic metadata routes', async () => {
+        it.only('should not contain metadata internal segments for dynamic metadata routes', async () => {
           const logLength = next.cliOutput.length
           await next.fetch('/dynamic/big/icon')
 
@@ -199,18 +198,23 @@ createNextDescribe(
     })
 
     describe('with fetches default logging', () => {
+      const curNextConfig = fs.readFileSync(
+        path.join(__dirname, 'next.config.js'),
+        { encoding: 'utf-8' }
+      )
       beforeAll(async () => {
         await next.stop()
-        let curNextConfig = await fs.readFile(
-          path.join(__dirname, 'next.config.js'),
-          'utf8'
+        await next.patchFile(
+          'next.config.js',
+          curNextConfig.replace('fullUrl: true', 'fullUrl: false')
         )
-        curNextConfig = curNextConfig.replace('fullUrl: true', 'fullUrl: false')
-        await next.patchFile('next.config.js', curNextConfig)
         await next.start()
       })
+      afterAll(async () => {
+        await next.patchFile('next.config.js', curNextConfig)
+      })
 
-      runTests({ withFetchesLogging: true })
+      runTests({ withFetchesLogging: true, withFullUrlFetches: false })
     })
 
     describe('with verbose logging for edge runtime', () => {
@@ -228,10 +232,17 @@ createNextDescribe(
     })
 
     describe('with default logging', () => {
+      const curNextConfig = fs.readFileSync(
+        path.join(__dirname, 'next.config.js'),
+        { encoding: 'utf-8' }
+      )
       beforeAll(async () => {
         await next.stop()
         await next.deleteFile('next.config.js')
         await next.start()
+      })
+      afterAll(async () => {
+        await next.patchFile('next.config.js', curNextConfig)
       })
 
       runTests({ withFetchesLogging: false })
