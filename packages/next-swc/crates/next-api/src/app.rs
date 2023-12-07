@@ -625,6 +625,7 @@ impl AppEndpoint {
             };
 
             let client_references_chunks = get_app_client_references_chunks(
+                app_entry.rsc_entry.ident(),
                 client_reference_types,
                 this.app_project.project().client_chunking_context(),
                 ssr_chunking_context,
@@ -637,7 +638,7 @@ impl AppEndpoint {
             for client_reference in app_entry_client_references.iter() {
                 let client_reference_chunks = client_references_chunks_ref
                     .get(client_reference.ty())
-                    .expect("client reference should have corresponding chunks");
+                    .context("client reference should have corresponding chunks")?;
                 entry_client_chunks
                     .extend(client_reference_chunks.client_chunks.await?.iter().copied());
                 entry_ssr_chunks.extend(client_reference_chunks.ssr_chunks.await?.iter().copied());
@@ -651,15 +652,15 @@ impl AppEndpoint {
                 .map(|chunk| chunk.ident().path())
                 .try_join()
                 .await?;
-            let mut entry_client_chunks_paths: Vec<_> = entry_client_chunks_paths
+            let mut entry_client_chunks_paths = entry_client_chunks_paths
                 .iter()
                 .map(|path| {
-                    client_relative_path_ref
+                    Ok(client_relative_path_ref
                         .get_path_to(path)
-                        .expect("asset path should be inside client root")
-                        .to_string()
+                        .context("asset path should be inside client root")?
+                        .to_string())
                 })
-                .collect();
+                .collect::<anyhow::Result<Vec<_>>>()?;
             entry_client_chunks_paths.extend(client_shared_chunks_paths.iter().cloned());
 
             let app_build_manifest = AppBuildManifest {
@@ -997,7 +998,7 @@ impl AppEndpoint {
                     server_path
                         .await?
                         .get_path_to(&*rsc_chunk.ident().path().await?)
-                        .expect("RSC chunk path should be within app paths manifest directory")
+                        .context("RSC chunk path should be within app paths manifest directory")?
                         .to_string(),
                 )?;
                 server_assets.push(app_paths_manifest_output);
