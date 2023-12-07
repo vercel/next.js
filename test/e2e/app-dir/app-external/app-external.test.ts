@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { shouldRunTurboDevTest } from '../../../lib/next-test-utils'
+import { check, shouldRunTurboDevTest } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -249,6 +249,18 @@ createNextDescribe(
     it('should use the same async storages if imported directly', async () => {
       const html = await next.render('/async-storage')
       expect(html).toContain('success')
+    })
+
+    it('should not prefer to resolve esm over cjs for bundling optout packages', async () => {
+      const browser = await next.browser('/optout/action')
+      expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
+
+      browser.elementByCss('#dual-pkg-outout button').click()
+      await check(async () => {
+        const text = await browser.elementByCss('#dual-pkg-outout p').text()
+        expect(text).toBe('dual-pkg-optout:cjs')
+        return 'success'
+      }, /success/)
     })
   }
 )

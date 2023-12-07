@@ -47,6 +47,7 @@ export async function resolveExternal(
   context: string,
   request: string,
   isEsmRequested: boolean,
+  optOutBundlingPackages: string[],
   getResolve: (
     options: any
   ) => (
@@ -62,12 +63,22 @@ export async function resolveExternal(
 ) {
   const esmExternals = !!esmExternalsConfig
   const looseEsmExternals = esmExternalsConfig === 'loose'
+  const isPackageExcludedFromBundling = optOutBundlingPackages.some((optOut) =>
+    request.startsWith(optOut)
+  )
 
   let res: string | null = null
   let isEsm: boolean = false
 
-  let preferEsmOptions =
-    esmExternals && isEsmRequested ? [true, false] : [false]
+  const preferEsmOptions =
+    esmExternals &&
+    isEsmRequested &&
+    // For package that marked as externals that should be not bundled,
+    // we don't resolve them as ESM since it could be resolved as async module,
+    // such as `import(external package)` in the bundle, valued as a `Promise`.
+    !isPackageExcludedFromBundling
+      ? [true, false]
+      : [false]
 
   for (const preferEsm of preferEsmOptions) {
     const resolve = getResolve(
@@ -131,10 +142,12 @@ export async function resolveExternal(
 
 export function makeExternalHandler({
   config,
+  optOutBundlingPackages,
   optOutBundlingPackageRegex,
   dir,
 }: {
   config: NextConfigComplete
+  optOutBundlingPackages: string[]
   optOutBundlingPackageRegex: RegExp
   dir: string
 }) {
@@ -289,6 +302,7 @@ export function makeExternalHandler({
       context,
       request,
       isEsmRequested,
+      optOutBundlingPackages,
       getResolve,
       isLocal ? resolveNextExternal : undefined
     )
@@ -349,6 +363,7 @@ export function makeExternalHandler({
           context,
           pkg + '/package.json',
           isEsmRequested,
+          optOutBundlingPackages,
           getResolve,
           isLocal ? resolveNextExternal : undefined
         )
