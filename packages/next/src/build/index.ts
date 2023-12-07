@@ -28,7 +28,6 @@ import {
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
-  NEXT_DID_POSTPONE_HEADER,
   RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
 } from '../lib/constants'
@@ -142,6 +141,7 @@ import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   RSC_VARY_HEADER,
+  NEXT_DID_POSTPONE_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
@@ -1109,7 +1109,6 @@ export default async function build(
                 dir,
                 config,
                 distDir,
-                pageKeys,
                 pageInfos: [],
                 staticPages: [],
                 hasSsrAmpPages: false,
@@ -1924,7 +1923,6 @@ export default async function build(
           dir,
           config,
           distDir,
-          pageKeys,
           pageInfos: Object.entries(pageInfos),
           staticPages: [...staticPages],
           nextBuildSpan,

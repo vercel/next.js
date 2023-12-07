@@ -1,7 +1,6 @@
 import type { AppConfigDynamic } from '../../build/utils'
 
 import { DynamicServerError } from './hooks-server-context'
-import { maybePostpone } from './maybe-postpone'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
 class StaticGenBailoutError extends Error {
@@ -47,17 +46,12 @@ export const staticGenerationBailout: StaticGenerationBailout = (
     link: 'https://nextjs.org/docs/messages/dynamic-server-error',
   })
 
-  maybePostpone(staticGenerationStore, reason)
+  // If postpone is available, we should postpone the render.
+  staticGenerationStore.postpone?.(reason)
 
   // As this is a bailout, we don't want to revalidate, so set the revalidate
   // to 0.
   staticGenerationStore.revalidate = 0
-
-  if (!dynamic) {
-    // we can statically prefetch pages that opt into dynamic,
-    // but not things like headers/cookies
-    staticGenerationStore.staticPrefetchBailout = true
-  }
 
   if (staticGenerationStore.isStaticGeneration) {
     const err = new DynamicServerError(message)
