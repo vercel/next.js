@@ -292,20 +292,20 @@ describe('Error overlay - RSC build errors', () => {
       next.normalizeTestDirContent(await session.getRedboxSource())
     ).toMatchInlineSnapshot(
       next.normalizeSnapshot(`
-        "./app/server-with-errors/error-file/error.js
-        ReactServerComponentsError:
+      "./app/server-with-errors/error-file/error.js
+      ReactServerComponentsError:
 
-        ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
-        Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
+      ./app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
+      Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
 
-           ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
-         1 | export default function Error() {}
-           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-           \`----
+         ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
+       1 | export default function Error() {}
+         : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         \`----
 
-        Import path:
-        ./app/server-with-errors/error-file/error.js"
-      `)
+      Import path:
+      ./app/server-with-errors/error-file/error.js"
+    `)
     )
 
     await cleanup()
@@ -330,7 +330,7 @@ describe('Error overlay - RSC build errors', () => {
     //   "./app/server-with-errors/error-file/error.js
     //   ReactServerComponentsError:
 
-    //   ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
+    //   ./app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
 
     //      ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
     //    1 |
@@ -375,65 +375,6 @@ describe('Error overlay - RSC build errors', () => {
 
     expect(await session.getRedboxDescription()).toContain(
       'Cannot add property x, object is not extensible'
-    )
-
-    await cleanup()
-  })
-
-  it('should show which import caused an error in node_modules', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      new Map([
-        [
-          'node_modules/client-package/module2.js',
-          "import { useState } from 'react'",
-        ],
-        ['node_modules/client-package/module1.js', "import './module2.js'"],
-        ['node_modules/client-package/index.js', "import './module1.js'"],
-        [
-          'node_modules/client-package/package.json',
-          outdent`
-            {
-              "name": "client-package",
-              "version": "0.0.1"
-            }
-          `,
-        ],
-        ['app/Component.js', "import 'client-package'"],
-        [
-          'app/page.js',
-          outdent`
-            import './Component.js'
-            export default function Page() {
-              return <p>Hello world</p>
-            }
-          `,
-        ],
-      ])
-    )
-
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
-        "./app/Component.js
-        ReactServerComponentsError:
-
-        You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
-        Learn more: https://nextjs.org/docs/getting-started/react-essentials
-
-           ,-[TEST_DIR/node_modules/client-package/module2.js:1:1]
-         1 | import { useState } from 'react'
-           :          ^^^^^^^^
-           \`----
-
-        The error was caused by importing 'client-package/index.js' in './app/Component.js'.
-
-        Maybe one of these should be marked as a client entry with \\"use client\\":
-          ./app/Component.js
-          ./app/page.js"
-      `)
     )
 
     await cleanup()

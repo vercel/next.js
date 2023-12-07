@@ -1,11 +1,9 @@
 import nodePath from 'path'
-import { Span } from '../../../trace'
+import type { Span } from '../../../trace'
 import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
-import {
-  nodeFileTrace,
-  NodeFileTraceReasons,
-} from 'next/dist/compiled/@vercel/nft'
+import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
+import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
   TRACE_OUTPUT_VERSION,
@@ -15,7 +13,7 @@ import {
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
 } from '../../webpack-config'
-import { NextConfigComplete } from '../../../server/config-shared'
+import type { NextConfigComplete } from '../../../server/config-shared'
 import { loadBindings } from '../../swc'
 import { isMatch } from 'next/dist/compiled/micromatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
@@ -120,12 +118,12 @@ export interface BuildTraceContext {
     appDir: string
     outputPath: string
     depModArray: string[]
-    entryNameMap: Map<string, string>
+    entryNameMap: Record<string, string>
   }
   chunksTrace?: {
     action: TurbotraceAction
     outputPath: string
-    entryNameFilesMap: Map<string, Array<string>>
+    entryNameFilesMap: Record<string, Array<string>>
   }
 }
 
@@ -135,6 +133,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private rootDir: string
   private appDir: string | undefined
   private pagesDir: string | undefined
+  private optOutBundlingPackages: string[]
   private appDirEnabled?: boolean
   private tracingRoot: string
   private entryTraces: Map<string, Set<string>>
@@ -146,6 +145,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     rootDir,
     appDir,
     pagesDir,
+    optOutBundlingPackages,
     appDirEnabled,
     traceIgnores,
     esmExternals,
@@ -155,6 +155,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     rootDir: string
     appDir: string | undefined
     pagesDir: string | undefined
+    optOutBundlingPackages: string[]
     appDirEnabled?: boolean
     traceIgnores?: string[]
     outputFileTracingRoot?: string
@@ -170,6 +171,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     this.traceIgnores = traceIgnores || []
     this.tracingRoot = outputFileTracingRoot || rootDir
     this.turbotrace = turbotrace
+    this.optOutBundlingPackages = optOutBundlingPackages
   }
 
   // Here we output all traced assets and webpack chunks to a
@@ -224,7 +226,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           logLevel: this.turbotrace?.logLevel,
         },
         outputPath,
-        entryNameFilesMap,
+        entryNameFilesMap: Object.fromEntries(entryNameFilesMap),
       }
 
       for (const [entrypoint, entryFiles] of entryFilesMap) {
@@ -436,7 +438,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               },
               appDir: this.rootDir,
               depModArray: Array.from(depModMap.keys()),
-              entryNameMap,
+              entryNameMap: Object.fromEntries(entryNameMap),
               outputPath: compilation.outputOptions.path!,
             }
 
@@ -745,7 +747,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             context,
             request,
             isEsmRequested,
-            !!this.appDirEnabled,
+            this.optOutBundlingPackages,
             (options) => (_: string, resRequest: string) => {
               return getResolve(options)(parent, resRequest, job)
             },

@@ -1,10 +1,7 @@
 import type { FetchServerResponseResult } from './fetch-server-response'
-import type { ThenableRecord } from './router-reducer-types'
-import { FlightSegmentPath } from '../../../server/app-render/types'
-import {
-  CacheNode,
-  CacheStates,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+import type { FlightSegmentPath } from '../../../server/app-render/types'
+import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import { createRouterCacheKey } from './create-router-cache-key'
 
 /**
@@ -14,9 +11,8 @@ export function fillCacheWithDataProperty(
   newCache: CacheNode,
   existingCache: CacheNode,
   flightSegmentPath: FlightSegmentPath,
-  fetchResponse: () => ThenableRecord<FetchServerResponseResult>,
-  bailOnParallelRoutes: boolean = false
-): { bailOptimistic: boolean } | undefined {
+  fetchResponse: () => Promise<FetchServerResponseResult>
+): void {
   const isLastEntry = flightSegmentPath.length <= 2
 
   const [parallelRouteKey, segment] = flightSegmentPath
@@ -25,16 +21,6 @@ export function fillCacheWithDataProperty(
   const existingChildSegmentMap =
     existingCache.parallelRoutes.get(parallelRouteKey)
 
-  if (
-    !existingChildSegmentMap ||
-    (bailOnParallelRoutes && existingCache.parallelRoutes.size > 1)
-  ) {
-    // Bailout because the existing cache does not have the path to the leaf node
-    // or the existing cache has multiple parallel routes
-    // Will trigger lazy fetch in layout-router because of missing segment
-    return { bailOptimistic: true }
-  }
-
   let childSegmentMap = newCache.parallelRoutes.get(parallelRouteKey)
 
   if (!childSegmentMap || childSegmentMap === existingChildSegmentMap) {
@@ -42,7 +28,7 @@ export function fillCacheWithDataProperty(
     newCache.parallelRoutes.set(parallelRouteKey, childSegmentMap)
   }
 
-  const existingChildCacheNode = existingChildSegmentMap.get(cacheKey)
+  const existingChildCacheNode = existingChildSegmentMap?.get(cacheKey)
   let childCacheNode = childSegmentMap.get(cacheKey)
 
   // In case of last segment start off the fetch at this level and don't copy further down.

@@ -53,5 +53,21 @@ createNextDescribe(
         return browser.elementByCss('#hydrated').text()
       }, 'hydrated')
     })
+
+    it('should send the action to the provided permalink with form state when JS disabled', async () => {
+      const browser = await next.browser('/client/form-state/page-2', {
+        disableJavaScript: true,
+      })
+
+      // Simulate a progressively enhanced form request
+      await browser.eval(
+        `document.getElementById('name-input').value = 'test-permalink'`
+      )
+      await browser.eval(`document.getElementById('form-state-form').submit()`)
+
+      await check(() => {
+        return browser.elementByCss('#form-state').text()
+      }, 'initial-state:test-permalink')
+    })
   }
 )

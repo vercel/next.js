@@ -1,12 +1,13 @@
 use anyhow::Result;
+use indexmap::IndexMap;
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
+    turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
         core::{
-            compile_time_defines,
             compile_time_info::{
-                CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences,
+                CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
+                FreeVarReferences,
             },
             environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, ServerAddr},
             free_var_references,
@@ -20,7 +21,6 @@ use turbopack_binding::{
 
 use crate::{
     mode::NextMode,
-    next_client::context::get_client_assets_path,
     next_config::NextConfig,
     next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType,
@@ -31,46 +31,37 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-fn defines(dist_root_path: Option<&str>) -> CompileTimeDefines {
-    // [TODO] macro may need to allow dynamically expand from some iterable values
-    let mut defines = compile_time_defines!(
-        process.turbopack = true,
-        process.env.NODE_ENV = "development",
-        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
-        process.env.NEXT_RUNTIME = "edge",
-    );
+fn defines(define_env: &IndexMap<String, String>) -> CompileTimeDefines {
+    let mut defines = IndexMap::new();
 
-    if let Some(dist_root_path) = dist_root_path {
-        defines.0.insert(
-            vec![
-                "process".to_string(),
-                "env".to_string(),
-                "__NEXT_DIST_DIR".to_string(),
-            ],
-            dist_root_path.to_string().into(),
-        );
+    for (k, v) in define_env {
+        defines
+            .entry(k.split('.').map(|s| s.to_string()).collect::<Vec<String>>())
+            .or_insert_with(|| {
+                let val = serde_json::from_str(v);
+                match val {
+                    Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
+                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v),
+                    _ => CompileTimeDefineValue::JSON(v.clone()),
+                }
+            });
     }
 
-    // TODO(WEB-937) there are more defines needed, see
-    // packages/next/src/build/webpack-config.ts
-
-    defines
+    CompileTimeDefines(defines)
 }
 
 #[turbo_tasks::function]
-async fn next_edge_defines(dist_root_path: Vc<String>) -> Result<Vc<CompileTimeDefines>> {
-    let dist_root_path = &*dist_root_path.await?;
-    Ok(defines(Some(dist_root_path.as_str())).cell())
+async fn next_edge_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefines>> {
+    Ok(defines(&*define_env.await?).cell())
 }
 
 #[turbo_tasks::function]
 async fn next_edge_free_vars(
     project_path: Vc<FileSystemPath>,
-    dist_root_path: Vc<String>,
+    define_env: Vc<EnvMap>,
 ) -> Result<Vc<FreeVarReferences>> {
-    let dist_root_path = &*dist_root_path.await?;
     Ok(free_var_references!(
-        ..defines(Some(dist_root_path.as_str())).into_iter(),
+        ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "next/dist/compiled/buffer".to_string(),
             lookup_path: Some(project_path),
@@ -89,13 +80,13 @@ async fn next_edge_free_vars(
 pub fn get_edge_compile_time_info(
     project_path: Vc<FileSystemPath>,
     server_addr: Vc<ServerAddr>,
-    dist_root_path: Vc<String>,
+    define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(
         ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment { server_addr }.into()),
     )))
-    .defines(next_edge_defines(dist_root_path))
-    .free_var_references(next_edge_free_vars(project_path, dist_root_path))
+    .defines(next_edge_defines(define_env))
+    .free_var_references(next_edge_free_vars(project_path, define_env))
     .cell()
 }
 
@@ -124,12 +115,15 @@ pub async fn get_edge_resolve_options_context(
         ServerContextType::AppRoute { .. }
         | ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
         | ServerContextType::AppSSR { .. }
-        | ServerContextType::Middleware { .. } => {}
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. } => {}
     };
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
+        enable_edge_node_externals: true,
         custom_conditions,
         import_map: Some(next_edge_import_map),
         module: true,
@@ -145,6 +139,8 @@ pub async fn get_edge_resolve_options_context(
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
+        enable_mjs_extension: true,
+        enable_edge_node_externals: true,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().cell(),
@@ -158,15 +154,15 @@ pub async fn get_edge_resolve_options_context(
 pub fn get_edge_chunking_context(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
-    client_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
 ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    let output_root = node_root.join("server/edge".to_string());
     Vc::upcast(
         DevChunkingContext::builder(
             project_path,
-            node_root.join("server/edge".to_string()),
-            node_root.join("server/edge/chunks".to_string()),
-            get_client_assets_path(client_root),
+            output_root,
+            output_root.join("chunks".to_string()),
+            output_root.join("assets".to_string()),
             environment,
         )
         .reference_chunk_source_maps(should_debug("edge"))

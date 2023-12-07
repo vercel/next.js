@@ -131,7 +131,7 @@ createNextDescribe(
       expect(serverTrace.version).toBe(1)
       expect(
         serverTrace.files.some((file) =>
-          file.includes('next/dist/server/send-payload/index.js')
+          file.includes('next/dist/server/send-payload.js')
         )
       ).toBe(true)
       expect(

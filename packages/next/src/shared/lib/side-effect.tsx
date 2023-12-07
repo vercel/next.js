@@ -1,4 +1,5 @@
-import React, { Children, useEffect, useLayoutEffect } from 'react'
+import type React from 'react'
+import { Children, useEffect, useLayoutEffect } from 'react'
 
 type State = JSX.Element[] | undefined
 

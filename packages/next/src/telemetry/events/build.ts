@@ -1,4 +1,4 @@
-import { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin'
+import type { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin'
 import type { SWC_TARGET_TRIPLE } from '../../build/webpack/plugins/telemetry-plugin'
 
 const REGEXP_DIRECTORY_DUNDER =

@@ -39,6 +39,7 @@ fn next_dynamic_errors_run(input: &Path, output: &str, mode: NextDynamicMode) {
                 true,
                 false,
                 false,
+                false,
                 mode.clone(),
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),

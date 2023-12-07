@@ -1,4 +1,4 @@
-import { FileReader } from './file-reader'
+import type { FileReader } from './file-reader'
 
 interface FileReaderBatch {
   completed: boolean

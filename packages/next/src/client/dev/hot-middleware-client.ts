@@ -58,7 +58,9 @@ export default (mode: 'webpack' | 'turbopack') => {
         return
       }
       case 'serverError':
-      case 'devPagesManifestUpdate': {
+      case 'devPagesManifestUpdate':
+      case 'building':
+      case 'finishBuilding': {
         return
       }
       default: {

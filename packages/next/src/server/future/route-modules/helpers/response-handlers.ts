@@ -1,5 +1,5 @@
 import { appendMutableCookies } from '../../../web/spec-extension/adapters/request-cookies'
-import { ResponseCookies } from '../../../web/spec-extension/cookies'
+import type { ResponseCookies } from '../../../web/spec-extension/cookies'
 
 export function handleRedirectResponse(
   url: string,

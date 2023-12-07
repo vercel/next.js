@@ -82,30 +82,44 @@ describe('Edge runtime code with imports', () => {
 
     beforeEach(() => init(importStatement))
 
-    it('throws unsupported module error in dev at runtime and highlights the faulty line', async () => {
-      context.app = await launchApp(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, url)
-      expect(res.status).toBe(500)
-      await check(async () => {
-        expectUnsupportedModuleDevError(
-          moduleName,
-          importStatement,
-          await res.text()
+    describe('development mode', () => {
+      it('throws unsupported module error in dev at runtime and highlights the faulty line', async () => {
+        context.app = await launchApp(
+          context.appDir,
+          context.appPort,
+          appOption
         )
-        return 'success'
-      }, 'success')
-    })
-
-    it('throws unsupported module error in production at runtime and prints error on logs', async () => {
-      const { stderr } = await nextBuild(context.appDir, undefined, {
-        stderr: true,
+        const res = await fetchViaHTTP(context.appPort, url)
+        expect(res.status).toBe(500)
+        await check(async () => {
+          expectUnsupportedModuleDevError(
+            moduleName,
+            importStatement,
+            await res.text()
+          )
+          return 'success'
+        }, 'success')
       })
-      expect(stderr).toContain(getUnsupportedModuleWarning(moduleName))
-      context.app = await nextStart(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, url)
-      expect(res.status).toBe(500)
-      expectUnsupportedModuleProdError(moduleName)
     })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        it('throws unsupported module error in production at runtime and prints error on logs', async () => {
+          const { stderr } = await nextBuild(context.appDir, undefined, {
+            stderr: true,
+          })
+          expect(stderr).toContain(getUnsupportedModuleWarning(moduleName))
+          context.app = await nextStart(
+            context.appDir,
+            context.appPort,
+            appOption
+          )
+          const res = await fetchViaHTTP(context.appPort, url)
+          expect(res.status).toBe(500)
+          expectUnsupportedModuleProdError(moduleName)
+        })
+      }
+    )
   })
 
   describe.each([
@@ -154,38 +168,44 @@ describe('Edge runtime code with imports', () => {
       `)
       })
 
-      it('throws unsupported module error in dev at runtime and highlights the faulty line', async () => {
-        context.app = await launchApp(
-          context.appDir,
-          context.appPort,
-          appOption
-        )
-        const res = await fetchViaHTTP(context.appPort, url)
-        expect(res.status).toBe(500)
-        await check(async () => {
-          expectUnsupportedModuleDevError(
-            moduleName,
-            importStatement,
-            await res.text()
+      describe('development mode', () => {
+        it('throws unsupported module error in dev at runtime and highlights the faulty line', async () => {
+          context.app = await launchApp(
+            context.appDir,
+            context.appPort,
+            appOption
           )
-          return 'success'
-        }, 'success')
-      })
-
-      it('throws unsupported module error in production at runtime and prints error on logs', async () => {
-        const { stderr } = await nextBuild(context.appDir, undefined, {
-          stderr: true,
+          const res = await fetchViaHTTP(context.appPort, url)
+          expect(res.status).toBe(500)
+          await check(async () => {
+            expectUnsupportedModuleDevError(
+              moduleName,
+              importStatement,
+              await res.text()
+            )
+            return 'success'
+          }, 'success')
         })
-        expect(stderr).toContain(getUnsupportedModuleWarning(moduleName))
-        context.app = await nextStart(
-          context.appDir,
-          context.appPort,
-          appOption
-        )
-        const res = await fetchViaHTTP(context.appPort, url)
-        expect(res.status).toBe(500)
-        expectUnsupportedModuleProdError(moduleName)
       })
+      ;(process.env.TURBOPACK ? describe.skip : describe)(
+        'production mode',
+        () => {
+          it('throws unsupported module error in production at runtime and prints error on logs', async () => {
+            const { stderr } = await nextBuild(context.appDir, undefined, {
+              stderr: true,
+            })
+            expect(stderr).toContain(getUnsupportedModuleWarning(moduleName))
+            context.app = await nextStart(
+              context.appDir,
+              context.appPort,
+              appOption
+            )
+            const res = await fetchViaHTTP(context.appPort, url)
+            expect(res.status).toBe(500)
+            expectUnsupportedModuleProdError(moduleName)
+          })
+        }
+      )
     }
   )
 
@@ -241,16 +261,20 @@ describe('Edge runtime code with imports', () => {
         return 'success'
       }, 'success')
     })
-
-    it('does not build and reports', async () => {
-      const { code, stderr } = await nextBuild(context.appDir, undefined, {
-        ignoreFail: true,
-        stdout: true,
-        stderr: true,
-      })
-      expect(code).toEqual(1)
-      expectModuleNotFoundProdError(moduleName, stderr)
-    })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        it('does not build and reports', async () => {
+          const { code, stderr } = await nextBuild(context.appDir, undefined, {
+            ignoreFail: true,
+            stdout: true,
+            stderr: true,
+          })
+          expect(code).toEqual(1)
+          expectModuleNotFoundProdError(moduleName, stderr)
+        })
+      }
+    )
   })
 
   describe.each([
@@ -299,18 +323,26 @@ describe('Edge runtime code with imports', () => {
       expect(res.headers.get('x-from-runtime')).toBeDefined()
       expectNoError(moduleName)
     })
-
-    it('does not throw in production at runtime', async () => {
-      const { stderr } = await nextBuild(context.appDir, undefined, {
-        stderr: true,
-      })
-      expect(stderr).not.toContain(getUnsupportedModuleWarning(moduleName))
-      context.app = await nextStart(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, url)
-      expect(res.status).toBe(200)
-      expect(res.headers.get('x-from-runtime')).toBeDefined()
-      expectNoError(moduleName)
-    })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        it('does not throw in production at runtime', async () => {
+          const { stderr } = await nextBuild(context.appDir, undefined, {
+            stderr: true,
+          })
+          expect(stderr).not.toContain(getUnsupportedModuleWarning(moduleName))
+          context.app = await nextStart(
+            context.appDir,
+            context.appPort,
+            appOption
+          )
+          const res = await fetchViaHTTP(context.appPort, url)
+          expect(res.status).toBe(200)
+          expect(res.headers.get('x-from-runtime')).toBeDefined()
+          expectNoError(moduleName)
+        })
+      }
+    )
   })
 
   describe.each([
@@ -360,14 +392,22 @@ describe('Edge runtime code with imports', () => {
       expect(res.headers.get('x-from-runtime')).toBe('false')
       expectNoError(moduleName)
     })
-
-    it('does not throw in production at runtime', async () => {
-      await nextBuild(context.appDir, undefined, { stderr: true })
-      context.app = await nextStart(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, url)
-      expect(res.status).toBe(200)
-      expect(res.headers.get('x-from-runtime')).toBe('false')
-      expectNoError(moduleName)
-    })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        it('does not throw in production at runtime', async () => {
+          await nextBuild(context.appDir, undefined, { stderr: true })
+          context.app = await nextStart(
+            context.appDir,
+            context.appPort,
+            appOption
+          )
+          const res = await fetchViaHTTP(context.appPort, url)
+          expect(res.status).toBe(200)
+          expect(res.headers.get('x-from-runtime')).toBe('false')
+          expectNoError(moduleName)
+        })
+      }
+    )
   })
 })

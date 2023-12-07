@@ -1,15 +1,38 @@
-import { COMPILER_INDEXES } from '../../shared/lib/constants'
+import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import * as Log from '../output/log'
 import { NextBuildContext } from '../build-context'
 import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import origDebug from 'next/dist/compiled/debug'
-import { ChildProcess } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import path from 'path'
+import { exportTraceState, recordTraceEvents } from '../../trace'
 
 const debug = origDebug('next:build:webpack-build')
 
-async function webpackBuildWithWorker() {
+const ORDERED_COMPILER_NAMES = [
+  'server',
+  'edge-server',
+  'client',
+] as (keyof typeof COMPILER_INDEXES)[]
+
+let pluginState: Record<any, any> = {}
+
+function deepMerge(target: any, source: any) {
+  const result = { ...target, ...source }
+  for (const key of Object.keys(result)) {
+    result[key] = Array.isArray(target[key])
+      ? (target[key] = [...target[key], ...(source[key] || [])])
+      : typeof target[key] == 'object' && typeof source[key] == 'object'
+      ? deepMerge(target[key], source[key])
+      : result[key]
+  }
+  return result
+}
+
+async function webpackBuildWithWorker(
+  compilerNames: typeof ORDERED_COMPILER_NAMES = ORDERED_COMPILER_NAMES
+) {
   const {
     config,
     telemetryPlugin,
@@ -17,6 +40,8 @@ async function webpackBuildWithWorker() {
     nextBuildSpan,
     ...prunedBuildContext
   } = NextBuildContext
+
+  prunedBuildContext.pluginState = pluginState
 
   const getWorker = (compilerName: string) => {
     const _worker = new Worker(path.join(__dirname, 'impl.js'), {
@@ -37,7 +62,7 @@ async function webpackBuildWithWorker() {
       _child: ChildProcess
     }[]) {
       worker._child.on('exit', (code, signal) => {
-        if (code || signal) {
+        if (code || (signal && signal !== 'SIGINT')) {
           console.error(
             `Compiler ${compilerName} unexpectedly exited with code: ${code} and signal: ${signal}`
           )
@@ -52,36 +77,28 @@ async function webpackBuildWithWorker() {
     duration: 0,
     buildTraceContext: {} as BuildTraceContext,
   }
-  // order matters here
-  const ORDERED_COMPILER_NAMES = [
-    'server',
-    'edge-server',
-    'client',
-  ] as (keyof typeof COMPILER_INDEXES)[]
 
-  for (const compilerName of ORDERED_COMPILER_NAMES) {
+  for (const compilerName of compilerNames) {
     const worker = getWorker(compilerName)
 
     const curResult = await worker.workerMain({
       buildContext: prunedBuildContext,
       compilerName,
+      traceState: {
+        ...exportTraceState(),
+        defaultParentSpanId: nextBuildSpan?.getId(),
+        shouldSaveTraceEvents: true,
+      },
     })
+    if (nextBuildSpan && curResult.debugTraceEvents) {
+      recordTraceEvents(curResult.debugTraceEvents)
+    }
     // destroy worker so it's not sticking around using memory
     await worker.end()
 
     // Update plugin state
-    prunedBuildContext.pluginState = curResult.pluginState
-
-    prunedBuildContext.serializedPagesManifestEntries = {
-      edgeServerAppPaths:
-        curResult.serializedPagesManifestEntries?.edgeServerAppPaths,
-      edgeServerPages:
-        curResult.serializedPagesManifestEntries?.edgeServerPages,
-      nodeServerAppPaths:
-        curResult.serializedPagesManifestEntries?.nodeServerAppPaths,
-      nodeServerPages:
-        curResult.serializedPagesManifestEntries?.nodeServerPages,
-    }
+    pluginState = deepMerge(pluginState, curResult.pluginState)
+    prunedBuildContext.pluginState = pluginState
 
     combinedResult.duration += curResult.duration
 
@@ -91,9 +108,8 @@ async function webpackBuildWithWorker() {
       if (entryNameMap) {
         combinedResult.buildTraceContext.entriesTrace =
           curResult.buildTraceContext.entriesTrace
-        combinedResult.buildTraceContext.entriesTrace!.entryNameMap = new Map(
+        combinedResult.buildTraceContext.entriesTrace!.entryNameMap =
           entryNameMap
-        )
       }
 
       if (curResult.buildTraceContext?.chunksTrace) {
@@ -104,23 +120,28 @@ async function webpackBuildWithWorker() {
             curResult.buildTraceContext.chunksTrace!
 
           combinedResult.buildTraceContext.chunksTrace!.entryNameFilesMap =
-            new Map(entryNameFilesMap)
+            entryNameFilesMap
         }
       }
     }
   }
-  buildSpinner?.stopAndPersist()
-  Log.event('Compiled successfully')
+
+  if (compilerNames.length === 3) {
+    buildSpinner?.stopAndPersist()
+    Log.event('Compiled successfully')
+  }
 
   return combinedResult
 }
 
-export async function webpackBuild() {
+export async function webpackBuild(
+  compilerNames?: typeof ORDERED_COMPILER_NAMES
+) {
   const config = NextBuildContext.config!
 
   if (config.experimental.webpackBuildWorker) {
     debug('using separate compiler workers')
-    return await webpackBuildWithWorker()
+    return await webpackBuildWithWorker(compilerNames)
   } else {
     debug('building all compilers in same process')
     const webpackBuildImpl = require('./impl').webpackBuildImpl

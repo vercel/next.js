@@ -3,7 +3,6 @@ pub mod app_client_shared_chunks;
 pub mod app_entry;
 pub mod app_page_entry;
 pub mod app_route_entry;
-pub mod bloom_filter;
 pub mod metadata;
 
 use std::{
@@ -296,6 +295,16 @@ impl AppPath {
                     | PathSegment::OptionalCatchAll(_),)
             )
         })
+    }
+
+    pub fn contains(&self, other: &AppPath) -> bool {
+        for (i, segment) in other.0.iter().enumerate() {
+            if self.0.get(i) != Some(segment) {
+                return false;
+            }
+        }
+
+        true
     }
 }
 

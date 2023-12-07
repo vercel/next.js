@@ -64,7 +64,7 @@ fn test(input: &Path, minify: bool) {
                 pages_dir: None,
                 is_page_file: false,
                 is_development: true,
-                is_server: false,
+                is_server_compiler: false,
                 server_components: None,
                 styled_components: Some(assert_json("{}")),
                 styled_jsx: Some(assert_json("{}")),
@@ -81,7 +81,7 @@ fn test(input: &Path, minify: bool) {
                 auto_modularize_imports: None,
                 optimize_barrel_exports: None,
                 optimize_server_react: None,
-                bundle_target: String::from("default").into(),
+                prefer_esm: false,
             };
 
             let unresolved_mark = Mark::new();

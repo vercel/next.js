@@ -499,13 +499,12 @@ describe('GS(S)P Redirect Support', () => {
     afterAll(() => killApp(app))
 
     runTests()
-  })
 
-  it('should error for redirect during prerendering', async () => {
-    await fs.mkdirp(join(appDir, 'pages/invalid'))
-    await fs.writeFile(
-      join(appDir, 'pages', 'invalid', '[slug].js'),
-      `
+    it('should error for redirect during prerendering', async () => {
+      await fs.mkdirp(join(appDir, 'pages/invalid'))
+      await fs.writeFile(
+        join(appDir, 'pages', 'invalid', '[slug].js'),
+        `
         export default function Post(props) {
           return "hi"
         }
@@ -526,16 +525,17 @@ describe('GS(S)P Redirect Support', () => {
           }
         }
       `
-    )
-    const { stdout, stderr } = await nextBuild(appDir, undefined, {
-      stdout: true,
-      stderr: true,
-    })
-    const output = stdout + stderr
-    await fs.remove(join(appDir, 'pages/invalid'))
+      )
+      const { stdout, stderr } = await nextBuild(appDir, undefined, {
+        stdout: true,
+        stderr: true,
+      })
+      const output = stdout + stderr
+      await fs.remove(join(appDir, 'pages/invalid'))
 
-    expect(output).toContain(
-      '`redirect` can not be returned from getStaticProps during prerendering'
-    )
+      expect(output).toContain(
+        '`redirect` can not be returned from getStaticProps during prerendering'
+      )
+    })
   })
 })

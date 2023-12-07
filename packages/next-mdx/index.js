@@ -28,12 +28,7 @@ module.exports =
         ]
         config.module.rules.push({
           test: extension,
-          use: [
-            nextConfig?.experimental?.mdxRs
-              ? undefined
-              : options.defaultLoaders.babel,
-            loader,
-          ].filter(Boolean),
+          use: [options.defaultLoaders.babel, loader],
         })
 
         if (typeof nextConfig.webpack === 'function') {

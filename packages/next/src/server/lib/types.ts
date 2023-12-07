@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 
-import { Duplex } from 'stream'
+import type { Duplex } from 'stream'
 
 export type WorkerRequestHandler = (
   req: IncomingMessage,

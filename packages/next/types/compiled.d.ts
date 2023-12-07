@@ -8,6 +8,8 @@ declare module 'next/dist/compiled/webpack/webpack' {
   export let GraphHelpers: any
   export let sources: any
   export let StringXor: any
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  export type LoaderDefinitionFunction<T> = any
   namespace webpack {
     export type Compiler = any
     export type WebpackPluginInstance = any
@@ -27,6 +29,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
     export type EntryObject = any
     export type Chunk = any
     export type ChunkGroup = any
+    export type DefinePlugin = any
     // eslint-disable-next-line @typescript-eslint/no-shadow
     namespace sources {
       export type RawSource = any
@@ -43,3 +46,10 @@ declare module 'next/dist/compiled/superstruct' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   export type Describe<T> = any
 }
+
+declare module 'react-server-dom-webpack/server.edge'
+
+declare module 'VAR_MODULE_GLOBAL_ERROR'
+declare module 'VAR_USERLAND'
+declare module 'VAR_MODULE_DOCUMENT'
+declare module 'VAR_MODULE_APP'

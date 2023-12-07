@@ -1,18 +1,18 @@
-import { type webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { red } from '../../lib/picocolors'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
+import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import {
   COMPILER_NAMES,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   APP_CLIENT_INTERNALS,
   PHASE_PRODUCTION_BUILD,
-  COMPILER_INDEXES,
 } from '../../shared/lib/constants'
 import { runCompiler } from '../compiler'
 import * as Log from '../output/log'
 import getBaseWebpackConfig, { loadProjectInfo } from '../webpack-config'
-import { NextError } from '../../lib/is-error'
+import type { NextError } from '../../lib/is-error'
 import { TelemetryPlugin } from '../webpack/plugins/telemetry-plugin'
 import {
   NextBuildContext,
@@ -21,14 +21,17 @@ import {
 } from '../build-context'
 import { createEntrypoints } from '../entries'
 import loadConfig from '../../server/config'
-import { trace } from '../../trace'
-import { WEBPACK_LAYERS } from '../../lib/constants'
 import {
-  BuildTraceContext,
-  TraceEntryPointsPlugin,
-} from '../webpack/plugins/next-trace-entrypoints-plugin'
-import { UnwrapPromise } from '../../lib/coalesced-function'
-import * as pagesPluginModule from '../webpack/plugins/pages-manifest-plugin'
+  getTraceEvents,
+  initializeTraceState,
+  trace,
+  type TraceEvent,
+  type TraceState,
+} from '../../trace'
+import { WEBPACK_LAYERS } from '../../lib/constants'
+import { TraceEntryPointsPlugin } from '../webpack/plugins/next-trace-entrypoints-plugin'
+import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
+import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import origDebug from 'next/dist/compiled/debug'
 
@@ -62,7 +65,6 @@ export async function webpackBuildImpl(
   duration: number
   pluginState: any
   buildTraceContext?: BuildTraceContext
-  serializedPagesManifestEntries?: (typeof NextBuildContext)['serializedPagesManifestEntries']
 }> {
   let result: CompilerResult | null = {
     warnings: [],
@@ -327,12 +329,6 @@ export async function webpackBuildImpl(
       duration: webpackBuildEnd[0],
       buildTraceContext: traceEntryPointsPlugin?.buildTraceContext,
       pluginState: getPluginState(),
-      serializedPagesManifestEntries: {
-        edgeServerPages: pagesPluginModule.edgeServerPages,
-        edgeServerAppPaths: pagesPluginModule.edgeServerAppPaths,
-        nodeServerPages: pagesPluginModule.nodeServerPages,
-        nodeServerAppPaths: pagesPluginModule.nodeServerAppPaths,
-      },
     }
   }
 }
@@ -341,29 +337,29 @@ export async function webpackBuildImpl(
 export async function workerMain(workerData: {
   compilerName: keyof typeof COMPILER_INDEXES
   buildContext: typeof NextBuildContext
-}) {
+  traceState: TraceState
+}): Promise<
+  Awaited<ReturnType<typeof webpackBuildImpl>> & {
+    debugTraceEvents: TraceEvent[]
+  }
+> {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
 
+  // Initialize tracer state from the parent
+  initializeTraceState(workerData.traceState)
+
   // Resume plugin state
   resumePluginState(NextBuildContext.pluginState)
-
-  // restore module scope maps for flight plugins
-  const { serializedPagesManifestEntries } = NextBuildContext
-
-  for (const key of Object.keys(serializedPagesManifestEntries || {})) {
-    Object.assign(
-      (pagesPluginModule as any)[key],
-      (serializedPagesManifestEntries as any)?.[key]
-    )
-  }
 
   /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!
   )
-  NextBuildContext.nextBuildSpan = trace('next-build')
+  NextBuildContext.nextBuildSpan = trace(
+    `worker-main-${workerData.compilerName}`
+  )
 
   const result = await webpackBuildImpl(workerData.compilerName)
   const { entriesTrace, chunksTrace } = result.buildTraceContext ?? {}
@@ -373,18 +369,14 @@ export async function workerMain(workerData: {
       result.buildTraceContext!.entriesTrace!.depModArray = depModArray
     }
     if (entryNameMap) {
-      const entryEntries = Array.from(entryNameMap?.entries() ?? [])
-      // @ts-expect-error
-      result.buildTraceContext.entriesTrace.entryNameMap = entryEntries
+      const entryEntries = entryNameMap
+      result.buildTraceContext!.entriesTrace!.entryNameMap = entryEntries
     }
   }
   if (chunksTrace?.entryNameFilesMap) {
-    const entryNameFilesMap = Array.from(
-      chunksTrace.entryNameFilesMap.entries() ?? []
-    )
-
-    // @ts-expect-error
+    const entryNameFilesMap = chunksTrace.entryNameFilesMap
     result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
   }
-  return result
+  NextBuildContext.nextBuildSpan.stop()
+  return { ...result, debugTraceEvents: getTraceEvents() }
 }

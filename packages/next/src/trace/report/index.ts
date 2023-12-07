@@ -1,19 +1,7 @@
-import { SpanId } from '../shared'
+import type { TraceEvent } from '../types'
 import reportToTelemetry from './to-telemetry'
 import reportToJson from './to-json'
-
-type Reporter = {
-  flushAll: () => Promise<void> | void
-  report: (
-    spanName: string,
-    duration: number,
-    timestamp: number,
-    id: SpanId,
-    parentId?: SpanId,
-    attrs?: Object,
-    startTime?: number
-  ) => void
-}
+import type { Reporter } from './types'
 
 class MultiReporter implements Reporter {
   private reporters: Reporter[] = []
@@ -26,26 +14,8 @@ class MultiReporter implements Reporter {
     await Promise.all(this.reporters.map((reporter) => reporter.flushAll()))
   }
 
-  report(
-    spanName: string,
-    duration: number,
-    timestamp: number,
-    id: SpanId,
-    parentId?: SpanId,
-    attrs?: Object,
-    startTime?: number
-  ) {
-    this.reporters.forEach((reporter) =>
-      reporter.report(
-        spanName,
-        duration,
-        timestamp,
-        id,
-        parentId,
-        attrs,
-        startTime
-      )
-    )
+  report(event: TraceEvent) {
+    this.reporters.forEach((reporter) => reporter.report(event))
   }
 }
 

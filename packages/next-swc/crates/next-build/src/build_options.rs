@@ -30,6 +30,8 @@ pub struct BuildOptions {
 
     /// The Next.js build context.
     pub build_context: Option<BuildContext>,
+
+    pub define_env: DefineEnv,
 }
 
 #[derive(Clone, Debug)]
@@ -39,4 +41,11 @@ pub struct BuildContext {
 
     /// Next.js config rewrites.
     pub rewrites: Rewrites,
+}
+
+#[derive(Debug, Clone)]
+pub struct DefineEnv {
+    pub client: Vec<(String, String)>,
+    pub edge: Vec<(String, String)>,
+    pub nodejs: Vec<(String, String)>,
 }

@@ -5,10 +5,7 @@ import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
-import {
-  createNextInstall,
-  setPnpmResolutionMode,
-} from '../create-next-install'
+import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/src/trace'
 import webdriver from '../next-webdriver'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
@@ -67,11 +64,12 @@ export class NextInstance {
   protected _parsedUrl: URL
   protected packageJson?: PackageJson = {}
   protected basePath?: string
-  protected env?: Record<string, string>
+  public env: Record<string, string>
   public forcedPort?: string
   public dirSuffix: string = ''
 
   constructor(opts: NextInstanceOpts) {
+    this.env = {}
     Object.assign(this, opts)
 
     if (!(global as any).isNextDeploy) {
@@ -187,7 +185,6 @@ export class NextInstance {
               2
             )
           )
-          await setPnpmResolutionMode(this.testDir)
         } else {
           if (
             process.env.NEXT_TEST_STARTER &&
@@ -198,7 +195,7 @@ export class NextInstance {
           ) {
             await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
           } else {
-            this.testDir = await createNextInstall({
+            const { installDir } = await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
               resolutions: this.resolutions ?? null,
@@ -206,6 +203,7 @@ export class NextInstance {
               packageJson: this.packageJson,
               dirSuffix: this.dirSuffix,
             })
+            this.testDir = installDir
           }
           require('console').log('created next.js install, writing test files')
         }
@@ -339,11 +337,7 @@ export class NextInstance {
   public async build(): Promise<{ exitCode?: number; cliOutput?: string }> {
     throw new Error('Not implemented')
   }
-  public async export(args?: {
-    outdir?: string
-  }): Promise<{ exitCode?: number; cliOutput?: string }> {
-    throw new Error('Not implemented')
-  }
+
   public async setup(parentSpan: Span): Promise<void> {}
   public async start(useDirArg: boolean = false): Promise<void> {}
   public async stop(): Promise<void> {
@@ -468,6 +462,10 @@ export class NextInstance {
     if (newFile) {
       await this.handleDevWatchDelayAfterChange(filename)
     }
+  }
+  public async patchFileFast(filename: string, content: string) {
+    const outputPath = path.join(this.testDir, filename)
+    await fs.writeFile(outputPath, content)
   }
   public async renameFile(filename: string, newFilename: string) {
     await this.handleDevWatchDelayBeforeChange(filename)

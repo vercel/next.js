@@ -1,4 +1,7 @@
-import { FlightRouterState, Segment } from '../../../server/app-render/types'
+import type {
+  FlightRouterState,
+  Segment,
+} from '../../../server/app-render/types'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/future/helpers/interception-routes'
 import { isGroupSegment } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'

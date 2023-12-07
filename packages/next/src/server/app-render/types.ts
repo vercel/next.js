@@ -1,9 +1,10 @@
 import type { LoadComponentsReturnType } from '../load-components'
 import type { ServerRuntime, SizeLimit } from '../../../types'
-import { NextConfigComplete } from '../../server/config-shared'
+import type { NextConfigComplete } from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
+import type { AppPageModule } from '../future/route-modules/app-page/module'
 
 import s from 'next/dist/compiled/superstruct'
 
@@ -61,6 +62,21 @@ export type FlightSegmentPath =
       parallelRouterKey: string
     ]
 
+/**
+ * Represents a tree of segments and the Flight data (i.e. React nodes) that
+ * correspond to each one. The tree is isomorphic to the FlightRouterState;
+ * however in the future we want to be able to fetch arbitrary partial segments
+ * without having to fetch all its children. So this response format will
+ * likely change.
+ */
+export type CacheNodeSeedData = [
+  segment: Segment,
+  parallelRoutes: {
+    [parallelRouterKey: string]: CacheNodeSeedData | null
+  } | null,
+  node: React.ReactNode | null
+]
+
 export type FlightDataPath =
   // Uses `any` as repeating pattern can't be typed.
   | any[]
@@ -70,7 +86,7 @@ export type FlightDataPath =
       ...FlightSegmentPath[],
       /* segment of the rendered slice: */ Segment,
       /* treePatch */ FlightRouterState,
-      /* subTreeData: */ React.ReactNode | null, // Can be null during prefetch if there's no loading component
+      /* cacheNodeSeedData */ CacheNodeSeedData, // Can be null during prefetch if there's no loading component
       /* head */ React.ReactNode | null
     ]
 
@@ -90,18 +106,7 @@ export type ActionFlightResponse =
   // This case happens when `redirect()` is called in a server action.
   | NextFlightResponse
 
-/**
- * Property holding the current subTreeData.
- */
-export type ChildProp = {
-  /**
-   * Null indicates that the tree is partial
-   */
-  current: React.ReactNode | null
-  segment: Segment
-}
-
-export type RenderOptsPartial = {
+export interface RenderOptsPartial {
   err?: Error | null
   dev?: boolean
   buildId: string
@@ -110,7 +115,9 @@ export type RenderOptsPartial = {
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
+  enableTainting?: boolean
   assetPrefix?: string
+  crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
   nextFontManifest?: NextFontManifest
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
@@ -129,8 +136,15 @@ export type RenderOptsPartial = {
     rawConfig?: boolean,
     silent?: boolean
   ) => Promise<NextConfigComplete>
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedOrigins?: string[]
+  }
   params?: ParsedUrlQuery
+  isPrefetch?: boolean
+  experimental: { ppr: boolean }
+  postponed?: string
 }
 
-export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
+export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
+  RenderOptsPartial

@@ -1,6 +1,15 @@
 import React from 'react'
 import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
 import type { FlightData } from '../../../../server/app-render/types'
+import type { FlightRouterState } from '../../../../server/app-render/types'
+import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import { createInitialRouterState } from '../create-initial-router-state'
+import { ACTION_PREFETCH, PrefetchKind } from '../router-reducer-types'
+import type { PrefetchAction } from '../router-reducer-types'
+import { prefetchReducer } from './prefetch-reducer'
+import { fetchServerResponse } from '../fetch-server-response'
+
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [
@@ -14,7 +23,7 @@ jest.mock('../fetch-server-response', () => {
           children: ['', {}],
         },
       ],
-      <h1>About Page!</h1>,
+      ['about', null, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
@@ -32,20 +41,6 @@ jest.mock('../fetch-server-response', () => {
     },
   }
 })
-import { FlightRouterState } from '../../../../server/app-render/types'
-import {
-  CacheNode,
-  CacheStates,
-} from '../../../../shared/lib/app-router-context.shared-runtime'
-import { createInitialRouterState } from '../create-initial-router-state'
-import {
-  PrefetchAction,
-  ACTION_PREFETCH,
-  PrefetchKind,
-} from '../router-reducer-types'
-import { prefetchReducer } from './prefetch-reducer'
-import { fetchServerResponse } from '../fetch-server-response'
-import { createRecordFromThenable } from '../create-record-from-thenable'
 
 const getInitialRouterStateTree = (): FlightRouterState => [
   '',
@@ -122,7 +117,7 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -146,7 +141,6 @@ describe('prefetchReducer', () => {
     )
 
     const prom = Promise.resolve(serverResponse)
-    const record = createRecordFromThenable(prom)
     await prom
 
     const expectedState: ReturnType<typeof prefetchReducer> = {
@@ -155,7 +149,7 @@ describe('prefetchReducer', () => {
         [
           '/linking/about',
           {
-            data: record,
+            data: prom,
             kind: PrefetchKind.AUTO,
             lastUsedTime: null,
             prefetchTime: expect.any(Number),
@@ -179,6 +173,7 @@ describe('prefetchReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: true,
       },
       focusAndScrollRef: {
         apply: false,
@@ -264,7 +259,7 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -275,7 +270,7 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -302,7 +297,6 @@ describe('prefetchReducer', () => {
     )
 
     const prom = Promise.resolve(serverResponse)
-    const record = createRecordFromThenable(prom)
     await prom
 
     const expectedState: ReturnType<typeof prefetchReducer> = {
@@ -311,7 +305,7 @@ describe('prefetchReducer', () => {
         [
           '/linking/about',
           {
-            data: record,
+            data: prom,
             prefetchTime: expect.any(Number),
             kind: PrefetchKind.AUTO,
             lastUsedTime: null,
@@ -335,6 +329,7 @@ describe('prefetchReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: true,
       },
       focusAndScrollRef: {
         apply: false,

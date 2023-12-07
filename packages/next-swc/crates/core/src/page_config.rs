@@ -77,7 +77,7 @@ impl Fold for PageConfig {
             for decl in &var_decl.decls {
                 let mut is_config = false;
                 if let Pat::Ident(ident) = &decl.name {
-                    if &ident.id.sym == CONFIG_KEY {
+                    if ident.id.sym == CONFIG_KEY {
                         is_config = true;
                     }
                 }
@@ -151,14 +151,14 @@ impl Fold for PageConfig {
         match &specifier.exported {
             Some(ident) => {
                 if let ModuleExportName::Ident(ident) = ident {
-                    if &ident.sym == CONFIG_KEY {
+                    if ident.sym == CONFIG_KEY {
                         self.handle_error("Config cannot be re-exported.", specifier.span)
                     }
                 }
             }
             None => {
                 if let ModuleExportName::Ident(ident) = &specifier.orig {
-                    if &ident.sym == CONFIG_KEY {
+                    if ident.sym == CONFIG_KEY {
                         self.handle_error("Config cannot be re-exported.", specifier.span)
                     }
                 }

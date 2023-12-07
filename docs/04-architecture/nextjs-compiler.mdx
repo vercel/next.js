@@ -3,13 +3,13 @@ title: Next.js Compiler
 description: Next.js Compiler, written in Rust, which transforms and minifies your Next.js application.
 ---
 
-The Next.js Compiler, written in Rust using [SWC](http://swc.rs/), allows Next.js to transform and minify your JavaScript code for production. This replaces Babel for individual files and Terser for minifying output bundles.
+The Next.js Compiler, written in Rust using [SWC](https://swc.rs/), allows Next.js to transform and minify your JavaScript code for production. This replaces Babel for individual files and Terser for minifying output bundles.
 
 Compilation using the Next.js Compiler is 17x faster than Babel and enabled by default since Next.js version 12. If you have an existing Babel configuration or are using [unsupported features](#unsupported-features), your application will opt-out of the Next.js Compiler and continue using Babel.
 
 ## Why SWC?
 
-[SWC](http://swc.rs/) is an extensible Rust-based platform for the next generation of fast developer tools.
+[SWC](https://swc.rs/) is an extensible Rust-based platform for the next generation of fast developer tools.
 
 SWC can be used for compilation, minification, bundling, and more – and is designed to be extended. It's something you can call to perform code transformations (either built-in or custom). Running those transformations happens through higher-level tools like Next.js.
 

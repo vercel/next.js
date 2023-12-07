@@ -3,7 +3,7 @@ import type {
   MiddlewareMatcher,
   RSCModuleType,
 } from '../../analysis/get-page-static-info'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 export type ModuleBuildInfo = {
   nextEdgeMiddleware?: EdgeMiddlewareMeta
