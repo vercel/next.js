@@ -1,11 +1,15 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Context, Error};
 use js_sys::JsString;
-use next_page_static_info::collect_exports;
+use next_page_static_info::{
+    build_ast_from_source, collect_exports, collect_rsc_module_info, extract_expored_const_values,
+    Const, ExportInfo, RscModuleInfo,
+};
 use next_swc::{custom_before_pass, TransformOptions};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use swc_core::common::Mark;
 use turbopack_binding::swc::core::{
     base::{
@@ -28,6 +32,16 @@ pub mod mdx;
 /// parse the page or short circuit and return false.
 static DYNAMIC_METADATA_ROUTE_SHORT_CURCUIT: Lazy<Regex> =
     Lazy::new(|| Regex::new("generateImageMetadata|generateSitemaps").unwrap());
+
+/// A regex pattern to determine if get_page_static_info should continue to
+/// parse the page or short circuit and return default.
+static PAGE_STATIC_INFO_SHORT_CURCUIT: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        "runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export \
+         const",
+    )
+    .unwrap()
+});
 
 fn convert_err(err: Error) -> JsValue {
     format!("{:?}", err).into()
@@ -210,7 +224,9 @@ pub fn is_dynamic_metadata_route(page_file_path: String, page_contents: String) 
             return Ok(JsValue::from(false));
         }
 
-        collect_exports(&page_contents, &page_file_path)
+        let (source_ast, _) = build_ast_from_source(&page_contents, &page_file_path)
+            .map_err(|e| JsValue::from_str(format!("{:?}", e).as_str()))?;
+        collect_exports(&source_ast)
             .map(|exports_info| {
                 JsValue::from(
                     !exports_info.generate_image_metadata.unwrap_or_default()
@@ -218,6 +234,61 @@ pub fn is_dynamic_metadata_route(page_file_path: String, page_contents: String) 
                 )
             })
             .map_err(|e| JsValue::from_str(format!("{:?}", e).as_str()))
+    })
+}
+
+#[derive(Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StaticPageInfo {
+    pub exports_info: Option<ExportInfo>,
+    pub extracted_values: HashMap<String, serde_json::Value>,
+    pub rsc_info: Option<RscModuleInfo>,
+    pub should_warn: bool,
+}
+
+#[wasm_bindgen(js_name = "getPageStaticInfo")]
+pub fn get_page_static_info(page_file_path: String, page_contents: String) -> js_sys::Promise {
+    future_to_promise(async move {
+        if !PAGE_STATIC_INFO_SHORT_CURCUIT.is_match(&page_contents) {
+            return Ok(JsValue::null());
+        }
+
+        let (source_ast, comments) = build_ast_from_source(&page_contents, &page_file_path)
+            .map_err(|e| JsValue::from_str(format!("{:?}", e).as_str()))?;
+        let exports_info = collect_exports(&source_ast)
+            .map_err(|e| JsValue::from_str(format!("{:?}", e).as_str()))?;
+        let rsc_info = collect_rsc_module_info(&comments, true);
+
+        let mut properties_to_extract = exports_info.extra_properties.clone();
+        properties_to_extract.insert("config".to_string());
+
+        let mut exported_const_values =
+            extract_expored_const_values(&source_ast, properties_to_extract);
+
+        let should_warn = exported_const_values
+            .iter()
+            .any(|(_, v)| matches!(v, Some(Const::Unsupported)));
+
+        let mut extracted_values = HashMap::new();
+
+        for (key, value) in exported_const_values.drain() {
+            if let Some(Const::Value(v)) = value {
+                extracted_values.insert(key.clone(), v);
+            }
+        }
+
+        let ret = StaticPageInfo {
+            exports_info: Some(exports_info),
+            extracted_values,
+            rsc_info: Some(rsc_info),
+            should_warn,
+        };
+
+        let s = serde_json::to_string(&ret)
+            .map(|s| JsValue::from_str(&s))
+            .unwrap_or(JsValue::null());
+
+        Ok(s)
     })
 }
 

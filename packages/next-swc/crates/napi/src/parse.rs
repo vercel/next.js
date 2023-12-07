@@ -1,10 +1,15 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Context as _;
-use napi::{bindgen_prelude::*, JsObject};
-use next_page_static_info::{collect_exports, ExportInfo};
+use napi::bindgen_prelude::*;
+use next_page_static_info::{
+    build_ast_from_source, collect_exports, collect_rsc_module_info, extract_expored_const_values,
+    Const, ExportInfo, RscModuleInfo,
+};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use turbopack_binding::swc::core::{
     base::{config::ParseOptions, try_with_handler},
     common::{
@@ -114,6 +119,16 @@ fn read_file_wrapped_err(path: &str, raise_err: bool) -> Result<String> {
 static DYNAMIC_METADATA_ROUTE_SHORT_CURCUIT: Lazy<Regex> =
     Lazy::new(|| Regex::new("generateImageMetadata|generateSitemaps").unwrap());
 
+/// A regex pattern to determine if get_page_static_info should continue to
+/// parse the page or short circuit and return default.
+static PAGE_STATIC_INFO_SHORT_CURCUIT: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        "runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export \
+         const",
+    )
+    .unwrap()
+});
+
 pub struct DetectMetadataRouteTask {
     page_file_path: String,
 }
@@ -130,9 +145,8 @@ impl Task for DetectMetadataRouteTask {
             return Ok(None);
         }
 
-        collect_exports(&file_content, &self.page_file_path)
-            .map(Some)
-            .convert_err()
+        let (source_ast, _) = build_ast_from_source(&file_content, &self.page_file_path)?;
+        collect_exports(&source_ast).map(Some).convert_err()
     }
 
     fn resolve(&mut self, env: Env, exports_info: Self::Output) -> napi::Result<Self::JsValue> {
@@ -178,31 +192,98 @@ pub fn is_dynamic_metadata_route(page_file_path: String) -> AsyncTask<DetectMeta
 #[napi(object, object_to_js = false)]
 pub struct CollectPageStaticInfoOption {
     pub page_file_path: String,
-    pub next_config: JsObject, // NextConfig
     pub is_dev: Option<bool>,
     pub page: Option<String>,
     pub page_type: String, //'pages' | 'app' | 'root'
 }
 
-pub struct CollectPageStaticInfoTask {}
+pub struct CollectPageStaticInfoTask {
+    option: CollectPageStaticInfoOption,
+}
 
 #[napi]
 impl Task for CollectPageStaticInfoTask {
-    type Output = bool;
-    type JsValue = bool;
+    type Output = Option<(ExportInfo, HashMap<String, Value>, RscModuleInfo, bool)>;
+    type JsValue = Option<String>;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        Ok(false)
+        let CollectPageStaticInfoOption {
+            page_file_path,
+            is_dev,
+            ..
+        } = &self.option;
+        let file_content =
+            read_file_wrapped_err(page_file_path.as_str(), !is_dev.unwrap_or_default())?;
+
+        if !PAGE_STATIC_INFO_SHORT_CURCUIT.is_match(file_content.as_str()) {
+            return Ok(None);
+        }
+
+        let (source_ast, comments) = build_ast_from_source(&file_content, page_file_path)?;
+        let exports_info = collect_exports(&source_ast)?;
+        let rsc_info = collect_rsc_module_info(&comments, true);
+
+        let mut properties_to_extract = exports_info.extra_properties.clone();
+        properties_to_extract.insert("config".to_string());
+
+        let mut exported_const_values =
+            extract_expored_const_values(&source_ast, properties_to_extract);
+
+        let should_warn = exported_const_values
+            .iter()
+            .any(|(_, v)| matches!(v, Some(Const::Unsupported)));
+
+        let mut extracted_values = HashMap::new();
+
+        for (key, value) in exported_const_values.drain() {
+            if let Some(Const::Value(v)) = value {
+                extracted_values.insert(key.clone(), v);
+            }
+        }
+
+        Ok(Some((
+            exports_info,
+            extracted_values,
+            rsc_info,
+            should_warn,
+        )))
     }
 
     fn resolve(&mut self, _env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
-        Ok(result)
+        if let Some((exports_info, extracted_values, rsc_info, should_warn)) = result {
+            // [TODO] this is stopgap; there are some non n-api serializable types in the
+            // nested result. However, this is still much smaller than passing whole ast.
+            // Should go away once all of logics in the getPageStaticInfo is internalized.
+            let ret = StaticPageInfo {
+                exports_info: Some(exports_info),
+                extracted_values,
+                rsc_info: Some(rsc_info),
+                should_warn,
+            };
+
+            let ret = serde_json::to_string(&ret)
+                .context("failed to serialize static info result")
+                .convert_err()?;
+
+            Ok(Some(ret))
+        } else {
+            Ok(None)
+        }
     }
+}
+
+#[derive(Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StaticPageInfo {
+    pub exports_info: Option<ExportInfo>,
+    pub extracted_values: HashMap<String, Value>,
+    pub rsc_info: Option<RscModuleInfo>,
+    pub should_warn: bool,
 }
 
 #[napi]
 pub fn get_page_static_info(
-    _option: CollectPageStaticInfoOption,
+    option: CollectPageStaticInfoOption,
 ) -> AsyncTask<CollectPageStaticInfoTask> {
-    AsyncTask::new(CollectPageStaticInfoTask {})
+    AsyncTask::new(CollectPageStaticInfoTask { option })
 }

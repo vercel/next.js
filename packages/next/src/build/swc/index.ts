@@ -1192,6 +1192,16 @@ async function loadWasm(importPath = '') {
             )
             return isDynamicMetadataRoute
           },
+          getPageStaticInfo: async (params: Record<string, any>) => {
+            const fileContent =
+              (await tryToReadFile(params.pageFilePath, true)) || ''
+
+            const ret = await bindings.getPageStaticInfo(
+              params.pageFilePath,
+              fileContent
+            )
+            return JSON.parse(ret)
+          },
         },
         getTargetTriple() {
           return undefined
@@ -1390,6 +1400,8 @@ function loadNative(importPath?: string) {
           )
           return isDynamicMetadataRoute
         },
+
+        getPageStaticInfo: bindings.getPageStaticInfo,
       },
 
       getTargetTriple: bindings.getTargetTriple,
