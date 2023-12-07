@@ -1,5 +1,7 @@
 /* eslint-env jest */
 import { transform } from 'next/dist/build/swc'
+import path from 'path'
+import fsp from 'fs/promises'
 
 const swc = async (code) => {
   let output = await transform(code)
@@ -109,6 +111,20 @@ describe('next/swc', () => {
         var _useState = _to_array(useState(0)), copy = _useState.slice(0);
         "
       `)
+    })
+  })
+
+  describe('private env replacement', () => {
+    it('__NEXT_REQUIRED_NODE_VERSION is replaced', async () => {
+      const pkgDir = path.dirname(require.resolve('next/package.json'))
+      const nextEntryContent = await fsp.readFile(
+        path.join(pkgDir, 'dist/bin/next'),
+        'utf8'
+      )
+      expect(nextEntryContent).not.toContain('__NEXT_REQUIRED_NODE_VERSION')
+      expect(nextEntryContent).toMatch(
+        /For Next.js, Node.js version >= v\$\{"\d+\.\d+\.\d*"\}/
+      )
     })
   })
 })

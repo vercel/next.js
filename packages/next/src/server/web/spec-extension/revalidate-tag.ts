@@ -30,13 +30,13 @@ export function revalidateTag(tag: string) {
   }
 
   if (!store.pendingRevalidates) {
-    store.pendingRevalidates = []
+    store.pendingRevalidates = {}
   }
-  store.pendingRevalidates.push(
-    store.incrementalCache.revalidateTag?.(tag).catch((err) => {
+  store.pendingRevalidates[tag] = store.incrementalCache
+    .revalidateTag?.(tag)
+    .catch((err) => {
       console.error(`revalidateTag failed for ${tag}`, err)
     })
-  )
 
   // TODO: only revalidate if the path matches
   store.pathWasRevalidated = true

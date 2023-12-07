@@ -1,4 +1,7 @@
-import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
+import {
+  BARREL_OPTIMIZATION_PREFIX,
+  RSC_MODULE_TYPES,
+} from '../../../shared/lib/constants'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { regexCSS } from './utils'
 
@@ -26,7 +29,11 @@ export default function transformSource(this: any) {
     .filter((request) => (isServer ? !regexCSS.test(request) : true))
     .map(
       (request) =>
-        `import(/* webpackMode: "eager" */ ${JSON.stringify(request)})`
+        `import(/* webpackMode: "eager" */ ${JSON.stringify(
+          request.startsWith(BARREL_OPTIMIZATION_PREFIX)
+            ? request.replace(':', '!=!')
+            : request
+        )})`
     )
     .join(';\n')
 

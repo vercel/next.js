@@ -16,6 +16,7 @@ export type OutputState =
       | {
           loading: true
           trigger: string | undefined
+          url: string | undefined
         }
       | {
           loading: false
@@ -51,6 +52,7 @@ function hasStoreChanged(nextStore: OutputState) {
 
 let startTime = 0
 let trigger = '' // default, use empty string for trigger
+let triggerUrl: string | undefined = undefined
 let loadingLogTimer: NodeJS.Timeout | null = null
 let traceSpan: Span | null = null
 
@@ -66,6 +68,7 @@ store.subscribe((state) => {
   if (state.loading) {
     if (state.trigger) {
       trigger = state.trigger
+      triggerUrl = state.url
       if (trigger !== 'initial') {
         traceSpan = trace('compile-path', undefined, {
           trigger: trigger,
@@ -73,7 +76,15 @@ store.subscribe((state) => {
         if (!loadingLogTimer) {
           // Only log compiling if compiled is not finished in 3 seconds
           loadingLogTimer = setTimeout(() => {
-            Log.wait(`Compiling ${trigger} ...`)
+            if (
+              triggerUrl &&
+              triggerUrl !== trigger &&
+              process.env.NEXT_TRIGGER_URL
+            ) {
+              Log.wait(`Compiling ${trigger} (${triggerUrl}) ...`)
+            } else {
+              Log.wait(`Compiling ${trigger} ...`)
+            }
           }, MAX_LOG_SKIP_DURATION)
         }
       }

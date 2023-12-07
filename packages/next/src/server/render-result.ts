@@ -1,6 +1,6 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'http'
-import type { StaticGenerationStore } from '../client/components/static-generation-async-storage.external'
 import type { Revalidate } from './lib/revalidate'
+import type { FetchMetrics } from './base-http'
 
 import {
   chainStreams,
@@ -11,38 +11,58 @@ import { isAbortError, pipeToNodeResponse } from './pipe-readable'
 
 type ContentTypeOption = string | undefined
 
-export type RenderResultMetadata = {
-  pageData?: any
+export type AppPageRenderResultMetadata = {
+  flightData?: string
   revalidate?: Revalidate
   staticBailoutInfo?: {
     stack?: string
     description?: string
   }
-  assetQueryString?: string
-  isNotFound?: boolean
-  isRedirect?: boolean
-  fetchMetrics?: StaticGenerationStore['fetchMetrics']
-  fetchTags?: string
-  waitUntil?: Promise<any>
-
-  /**
-   * The headers to set on the response that were added by the render.
-   */
-  headers?: OutgoingHttpHeaders
 
   /**
    * The postponed state if the render had postponed and needs to be resumed.
    */
   postponed?: string
+
+  /**
+   * The headers to set on the response that were added by the render.
+   */
+  headers?: OutgoingHttpHeaders
+  fetchTags?: string
+  fetchMetrics?: FetchMetrics
 }
 
-type RenderResultResponse =
+export type PagesRenderResultMetadata = {
+  pageData?: any
+  revalidate?: Revalidate
+  assetQueryString?: string
+  isNotFound?: boolean
+  isRedirect?: boolean
+}
+
+export type StaticRenderResultMetadata = {}
+
+export type RenderResultMetadata = AppPageRenderResultMetadata &
+  PagesRenderResultMetadata &
+  StaticRenderResultMetadata
+
+export type RenderResultResponse =
   | ReadableStream<Uint8Array>[]
   | ReadableStream<Uint8Array>
   | string
   | null
 
-export default class RenderResult {
+export type RenderResultOptions<
+  Metadata extends RenderResultMetadata = RenderResultMetadata
+> = {
+  contentType?: ContentTypeOption
+  waitUntil?: Promise<unknown>
+  metadata: Metadata
+}
+
+export default class RenderResult<
+  Metadata extends RenderResultMetadata = RenderResultMetadata
+> {
   /**
    * The detected content type for the response. This is used to set the
    * `Content-Type` header.
@@ -53,7 +73,7 @@ export default class RenderResult {
    * The metadata for the response. This is used to set the revalidation times
    * and other metadata.
    */
-  public readonly metadata: RenderResultMetadata
+  public readonly metadata: Readonly<Metadata>
 
   /**
    * The response itself. This can be a string, a stream, or null. If it's a
@@ -69,21 +89,15 @@ export default class RenderResult {
    * @param value the static response value
    * @returns a new RenderResult instance
    */
-  public static fromStatic(value: string): RenderResult {
-    return new RenderResult(value)
+  public static fromStatic(value: string) {
+    return new RenderResult<StaticRenderResultMetadata>(value, { metadata: {} })
   }
 
-  private waitUntil?: Promise<void>
+  private readonly waitUntil?: Promise<unknown>
 
   constructor(
     response: RenderResultResponse,
-    {
-      contentType,
-      waitUntil,
-      ...metadata
-    }: {
-      contentType?: ContentTypeOption
-    } & RenderResultMetadata = {}
+    { contentType, waitUntil, metadata }: RenderResultOptions<Metadata>
   ) {
     this.response = response
     this.contentType = contentType
@@ -91,7 +105,7 @@ export default class RenderResult {
     this.waitUntil = waitUntil
   }
 
-  public extendMetadata(metadata: RenderResultMetadata) {
+  public assignMetadata(metadata: Metadata) {
     Object.assign(this.metadata, metadata)
   }
 
@@ -190,22 +204,42 @@ export default class RenderResult {
 
   /**
    * Pipes the response to a writable stream. This will close/cancel the
-   * writable stream if an error is encountered.
+   * writable stream if an error is encountered. If this doesn't throw, then
+   * the writable stream will be closed or aborted.
    *
    * @param writable Writable stream to pipe the response to
    */
   public async pipeTo(writable: WritableStream<Uint8Array>): Promise<void> {
     try {
-      await this.readable.pipeTo(writable)
+      await this.readable.pipeTo(writable, {
+        // We want to close the writable stream ourselves so that we can wait
+        // for the waitUntil promise to resolve before closing it. If an error
+        // is encountered, we'll abort the writable stream if we swallowed the
+        // error.
+        preventClose: true,
+      })
+
+      // If there is a waitUntil promise, wait for it to resolve before
+      // closing the writable stream.
+      if (this.waitUntil) await this.waitUntil
+
+      // Close the writable stream.
+      await writable.close()
     } catch (err) {
-      // If this isn't a client abort, then re-throw the error.
-      if (!isAbortError(err)) {
-        throw err
+      // If this is an abort error, we should abort the writable stream (as we
+      // took ownership of it when we started piping). We don't need to re-throw
+      // because we handled the error.
+      if (isAbortError(err)) {
+        // Abort the writable stream if an error is encountered.
+        await writable.abort(err)
+
+        return
       }
-    } finally {
-      if (this.waitUntil) {
-        await this.waitUntil
-      }
+
+      // We're not aborting the writer here as when this method throws it's not
+      // clear as to how so the caller should assume it's their responsibility
+      // to clean up the writer.
+      throw err
     }
   }
 
