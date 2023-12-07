@@ -247,7 +247,6 @@ const nextDev: CliCommand = async (args) => {
         stdio: 'inherit',
         env: {
           ...defaultEnv,
-          NODE_OPTIONS: getNodeOptionsWithoutInspect(),
           TURBOPACK: process.env.TURBOPACK,
           NEXT_PRIVATE_WORKER: '1',
           NODE_EXTRA_CA_CERTS: options.selfSignedCertificate
