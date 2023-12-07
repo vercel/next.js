@@ -81,6 +81,7 @@ where
             stack: self
                 .roots
                 .into_iter()
+                .rev()
                 .map(|root| (ReverseTopologicalPass::Pre, root))
                 .collect(),
             visited: HashSet::new(),
@@ -95,6 +96,7 @@ where
             stack: self
                 .roots
                 .iter()
+                .rev()
                 .map(|root| (ReverseTopologicalPass::Pre, root))
                 .collect(),
             visited: HashSet::new(),
@@ -161,6 +163,7 @@ where
                     self.stack.extend(
                         neighbors
                             .iter()
+                            .rev()
                             .map(|neighbor| (ReverseTopologicalPass::Pre, neighbor.clone())),
                     );
                 }
@@ -211,6 +214,7 @@ where
                     self.stack.extend(
                         neighbors
                             .iter()
+                            .rev()
                             .map(|neighbor| (ReverseTopologicalPass::Pre, neighbor)),
                     );
                 }
