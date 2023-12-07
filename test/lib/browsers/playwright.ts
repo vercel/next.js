@@ -128,7 +128,11 @@ export class Playwright extends BrowserInterface {
 
   async loadPage(
     url: string,
-    opts?: { disableCache: boolean; beforePageLoad?: (...args: any[]) => void }
+    opts?: {
+      disableCache: boolean
+      cpuThrottleRate: number
+      beforePageLoad?: (...args: any[]) => void
+    }
   ) {
     if (this.activeTrace) {
       const traceDir = path.join(__dirname, '../../traces')
@@ -180,6 +184,14 @@ export class Playwright extends BrowserInterface {
       // TODO: this doesn't seem to work (dev tools does not check the box as expected)
       const session = await context.newCDPSession(page)
       session.send('Network.setCacheDisabled', { cacheDisabled: true })
+    }
+
+    if (opts?.cpuThrottleRate) {
+      const session = await context.newCDPSession(page)
+      // https://chromedevtools.github.io/devtools-protocol/tot/Emulation/#method-setCPUThrottlingRate
+      session.send('Emulation.setCPUThrottlingRate', {
+        rate: opts.cpuThrottleRate,
+      })
     }
 
     page.on('websocket', (ws) => {
