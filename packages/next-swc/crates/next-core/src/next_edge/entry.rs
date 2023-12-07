@@ -39,8 +39,11 @@ pub async fn wrap_edge_entry(
         "MODULE".to_string() => entry
     };
 
-    Ok(context.process(
-        Vc::upcast(virtual_source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    ))
+    let module = context
+        .process(
+            Vc::upcast(virtual_source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
+    Ok(module)
 }

@@ -40,7 +40,7 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
-import { setGlobal } from '../../trace'
+import { type Span, setGlobal, trace } from '../../trace'
 import { findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
@@ -84,6 +84,11 @@ export interface Options extends ServerOptions {
    * Interface to the development bundler.
    */
   bundlerService: DevBundlerService
+
+  /**
+   * Trace span for server startup.
+   */
+  startServerSpan: Span
 }
 
 export default class DevServer extends Server {
@@ -104,6 +109,7 @@ export default class DevServer extends Server {
     string,
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
   >
+  private startServerSpan: Span
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -145,6 +151,8 @@ export default class DevServer extends Server {
     } catch {}
     super({ ...options, dev: true })
     this.bundlerService = options.bundlerService
+    this.startServerSpan =
+      options.startServerSpan ?? trace('start-next-dev-server')
     this.originalFetch = global.fetch
     this.renderOpts.dev = true
     this.renderOpts.appDirDevErrorLogger = (err: any) =>
@@ -190,11 +198,12 @@ export default class DevServer extends Server {
     const { pagesDir, appDir } = findPagesDir(this.dir)
 
     const ensurer: RouteEnsurer = {
-      ensure: async (match) => {
+      ensure: async (match, pathname) => {
         await this.ensurePage({
           definition: match.definition,
           page: match.definition.page,
           clientOnly: false,
+          url: pathname,
         })
       },
     }
@@ -268,7 +277,9 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
 
     await super.prepareImpl()
-    await this.runInstrumentationHookIfAvailable()
+    await this.startServerSpan
+      .traceChild('run-instrumentation-hook')
+      .traceAsyncFn(() => this.runInstrumentationHookIfAvailable())
     await this.matchers.reload()
 
     this.ready?.resolve()
@@ -437,8 +448,21 @@ export default class DevServer extends Server {
     res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
-    await this.ready?.promise
-    return await super.handleRequest(req, res, parsedUrl)
+    const span = trace('handle-request', undefined, { url: req.url })
+    const result = await span.traceAsyncFn(async () => {
+      await this.ready?.promise
+      return await super.handleRequest(req, res, parsedUrl)
+    })
+    const memoryUsage = process.memoryUsage()
+    span
+      .traceChild('memory-usage', {
+        url: req.url,
+        'memory.rss': String(memoryUsage.rss),
+        'memory.heapUsed': String(memoryUsage.heapUsed),
+        'memory.heapTotal': String(memoryUsage.heapTotal),
+      })
+      .stop()
+    return result
   }
 
   async run(
@@ -536,11 +560,12 @@ export default class DevServer extends Server {
     return this.hasPage(this.actualMiddlewareFile!)
   }
 
-  protected async ensureMiddleware() {
+  protected async ensureMiddleware(url: string) {
     return this.ensurePage({
       page: this.actualMiddlewareFile!,
       clientOnly: false,
       definition: undefined,
+      url,
     })
   }
 
@@ -574,15 +599,18 @@ export default class DevServer extends Server {
   protected async ensureEdgeFunction({
     page,
     appPaths,
+    url,
   }: {
     page: string
     appPaths: string[] | null
+    url: string
   }) {
     return this.ensurePage({
       page,
       appPaths,
       clientOnly: false,
       definition: undefined,
+      url,
     })
   }
 
@@ -739,6 +767,7 @@ export default class DevServer extends Server {
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
+    url?: string
   }): Promise<void> {
     await this.bundlerService.ensurePage(opts)
   }
@@ -750,6 +779,7 @@ export default class DevServer extends Server {
     isAppPath,
     appPaths = null,
     shouldEnsure,
+    url,
   }: {
     page: string
     query: NextParsedUrlQuery
@@ -758,6 +788,7 @@ export default class DevServer extends Server {
     sriEnabled?: boolean
     appPaths?: ReadonlyArray<string> | null
     shouldEnsure: boolean
+    url?: string
   }): Promise<FindComponentsResult | null> {
     await this.ready?.promise
 
@@ -773,6 +804,7 @@ export default class DevServer extends Server {
           appPaths,
           clientOnly: false,
           definition: undefined,
+          url,
         })
       }
 
@@ -789,6 +821,7 @@ export default class DevServer extends Server {
         params,
         isAppPath,
         shouldEnsure,
+        url,
       })
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
@@ -798,8 +831,10 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
-    await this.bundlerService.getFallbackErrorComponents()
+  protected async getFallbackErrorComponents(
+    url?: string
+  ): Promise<LoadComponentsReturnType | null> {
+    await this.bundlerService.getFallbackErrorComponents(url)
     return await loadDefaultErrorComponents(this.distDir)
   }
 

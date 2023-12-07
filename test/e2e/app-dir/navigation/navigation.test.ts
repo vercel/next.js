@@ -55,6 +55,17 @@ createNextDescribe(
         }, 'success')
       })
 
+      it('should not reset shallow url updates on prefetch', async () => {
+        const browser = await next.browser('/search-params/shallow')
+        const button = await browser.elementByCss('button')
+        await button.click()
+        expect(await browser.url()).toMatch(/\?foo=bar$/)
+        const link = await browser.elementByCss('a')
+        await link.hover()
+        // Hovering a prefetch link should keep the URL intact
+        expect(await browser.url()).toMatch(/\?foo=bar$/)
+      })
+
       describe('useParams identity between renders', () => {
         async function runTests(page: string) {
           const browser = await next.browser(page)

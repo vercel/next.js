@@ -1,3 +1,5 @@
+'use client'
+
 import { type PropsWithChildren, useRef } from 'react'
 import type { StoreType } from './store'
 import { initializeStore, Provider } from './store'

@@ -2,9 +2,8 @@
 
 const path = require('path')
 const execa = require('execa')
-const { copy } = require('fs-extra')
 const { Sema } = require('async-sema')
-const { readFile, readdir, writeFile } = require('fs/promises')
+const { readFile, readdir, writeFile, cp } = require('fs/promises')
 
 const cwd = process.cwd()
 
@@ -28,7 +27,7 @@ const cwd = process.cwd()
 
         try {
           let binaryName = `next-swc.${platform}.node`
-          await copy(
+          await cp(
             path.join(cwd, 'packages/next-swc/native', binaryName),
             path.join(nativePackagesDir, platform, binaryName)
           )

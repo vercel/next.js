@@ -31,6 +31,8 @@ Then, build and start the Next.js app as usual.
 
 ## Notes
 
+- **Handlers:** The `@neshca/cache-handler` package now includes new [Handlers](https://caching-tools.github.io/next-shared-cache/redis-stack) for Redis, making it almost zero-config.
+
 - **Think different:** Ensure that your Redis server is operational and accessible before starting your Next.js application to prevent any connection errors. Remember to flush the cache or use namespacing if you preserve the Redis instance between builds.
 
 - **Configure:** Add your Redis credentials to the provided `cache-handler-redis*` files. Learn more about connecting to Redis with Node.js [here](https://redis.io/docs/connect/clients/nodejs/).

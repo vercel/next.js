@@ -1,12 +1,16 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
+        chunk::ChunkingContext,
         ident::AssetIdent,
         module::Module,
     },
-    turbopack::css::{chunk::CssChunkPlaceable, ParseCss, ParseCssResult},
+    turbopack::css::{
+        chunk::CssChunkPlaceable, CssWithPlaceholderResult, FinalCssResult, ParseCss,
+        ParseCssResult, ProcessCss,
+    },
 };
 
 /// A [`CssClientReferenceModule`] is a marker module used to indicate which
@@ -61,5 +65,29 @@ impl ParseCss for CssClientReferenceModule {
         };
 
         Ok(parse_css.parse_css())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ProcessCss for CssClientReferenceModule {
+    #[turbo_tasks::function]
+    async fn get_css_with_placeholder(&self) -> Result<Vc<CssWithPlaceholderResult>> {
+        let imp = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(self.client_module)
+            .await?
+            .context("CSS client reference client module must be CSS processable")?;
+
+        Ok(imp.get_css_with_placeholder())
+    }
+
+    #[turbo_tasks::function]
+    async fn finalize_css(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Vc<FinalCssResult>> {
+        let imp = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(self.client_module)
+            .await?
+            .context("CSS client reference client module must be CSS processable")?;
+
+        Ok(imp.finalize_css(chunking_context))
     }
 }

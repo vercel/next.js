@@ -4,7 +4,11 @@ import type { AppRouteRouteHandlerContext } from '../../server/future/route-modu
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 
 import { join } from 'path'
-import { NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
+import {
+  NEXT_BODY_SUFFIX,
+  NEXT_CACHE_TAGS_HEADER,
+  NEXT_META_SUFFIX,
+} from '../../lib/constants'
 import { NodeNextRequest } from '../../server/base-http/node'
 import { RouteModuleLoader } from '../../server/future/helpers/module-loader/route-module-loader'
 import {
@@ -104,7 +108,7 @@ export async function exportAppRoute(
     const body = Buffer.from(await blob.arrayBuffer())
     await fileWriter(
       ExportedAppRouteFiles.BODY,
-      htmlFilepath.replace(/\.html$/, '.body'),
+      htmlFilepath.replace(/\.html$/, NEXT_BODY_SUFFIX),
       body,
       'utf8'
     )
@@ -113,7 +117,7 @@ export async function exportAppRoute(
     const meta = { status: response.status, headers }
     await fileWriter(
       ExportedAppRouteFiles.META,
-      htmlFilepath.replace(/\.html$/, '.meta'),
+      htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
       JSON.stringify(meta)
     )
 

@@ -454,6 +454,12 @@ createNextDescribe(
       expect(await res.text()).toBe('Hello from import-test.js')
     })
 
+    // TODO: (PPR) remove once PPR is stable
+    const bundledReactVersionPattern =
+      process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? '-experimental-'
+        : '-canary-'
+
     it('should not use bundled react for pages with app', async () => {
       const ssrPaths = ['/pages-react', '/edge-pages-react']
       const promises = ssrPaths.map(async (pathname) => {
@@ -465,7 +471,7 @@ createNextDescribe(
         ]
 
         ssrPagesReactVersions.forEach((version) => {
-          expect(version).not.toMatch('-canary-')
+          expect(version).not.toMatch(bundledReactVersionPattern)
         })
       })
       await Promise.all(promises)
@@ -478,7 +484,7 @@ createNextDescribe(
       ]
 
       ssrAppReactVersions.forEach((version) =>
-        expect(version).toMatch('-canary-')
+        expect(version).toMatch(bundledReactVersionPattern)
       )
 
       const browser = await next.browser('/pages-react')
@@ -500,10 +506,10 @@ createNextDescribe(
       `)
 
       browserPagesReactVersions.forEach((version) =>
-        expect(version).not.toMatch('-canary-')
+        expect(version).not.toMatch(bundledReactVersionPattern)
       )
       browserEdgePagesReactVersions.forEach((version) =>
-        expect(version).not.toMatch('-canary-')
+        expect(version).not.toMatch(bundledReactVersionPattern)
       )
     })
 
@@ -519,7 +525,7 @@ createNextDescribe(
       ]
 
       ssrPagesReactVersions.forEach((version) => {
-        expect(version).toMatch('-canary-')
+        expect(version).toMatch(bundledReactVersionPattern)
       })
 
       const browser = await next.browser('/app-react')
@@ -534,7 +540,7 @@ createNextDescribe(
         ]
       `)
       browserAppReactVersions.forEach((version) =>
-        expect(version).toMatch('-canary-')
+        expect(version).toMatch(bundledReactVersionPattern)
       )
     })
 
