@@ -727,9 +727,11 @@ export default async function getBaseWebpackConfig(
 
   const crossOrigin = config.crossOrigin
 
+  // For original request, such as `package name`
   const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
     ...(config.experimental.serverComponentsExternalPackages || [])
   )
+  // For resolved request, such as `absolute path/package name/foo/bar.js`
   const optOutBundlingPackageRegex = new RegExp(
     `[/\\\\]node_modules[/\\\\](${optOutBundlingPackages
       .map((p) => p.replace(/\//g, '[/\\\\]'))
@@ -738,6 +740,7 @@ export default async function getBaseWebpackConfig(
 
   const handleExternals = makeExternalHandler({
     config,
+    optOutBundlingPackages,
     optOutBundlingPackageRegex,
     dir,
   })
@@ -1662,6 +1665,7 @@ export default async function getBaseWebpackConfig(
             outputFileTracingRoot: config.experimental.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
             turbotrace: config.experimental.turbotrace,
+            optOutBundlingPackages,
             traceIgnores: config.experimental.outputFileTracingIgnores || [],
           }
         ),
