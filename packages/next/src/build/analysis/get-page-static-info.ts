@@ -1,15 +1,11 @@
 import type { NextConfig } from '../../server/config-shared'
 import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 
+import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import picomatch from 'next/dist/compiled/picomatch'
 import type { ServerRuntime } from 'next/types'
-import {
-  extractExportedConstValue,
-  UnsupportedValueError,
-} from './extract-const-value'
-import { parseModule } from './parse-module'
 import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
 import { checkCustomRoutes } from '../../lib/load-custom-routes'
@@ -430,10 +426,11 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
 
 const warnedUnsupportedValueMap = new LRUCache<string, boolean>({ max: 250 })
 
+// [TODO] next-swc does not returns path where unsupported value is found yet.
 function warnAboutUnsupportedValue(
   pageFilePath: string,
   page: string | undefined,
-  error: UnsupportedValueError
+  message: string
 ) {
   if (warnedUnsupportedValueMap.has(pageFilePath)) {
     return
@@ -443,9 +440,8 @@ function warnAboutUnsupportedValue(
     `Next.js can't recognize the exported \`config\` field in ` +
       (page ? `route "${page}"` : `"${pageFilePath}"`) +
       ':\n' +
-      error.message +
-      (error.path ? ` at "${error.path}"` : '') +
-      '.\n' +
+      message +
+      '\n' +
       'The default config will be used instead.\n' +
       'Read More - https://nextjs.org/docs/messages/invalid-page-config'
   )
@@ -469,13 +465,13 @@ export async function getPageStaticInfo(params: {
 }): Promise<PageStaticInfo> {
   const { isDev, pageFilePath, nextConfig, page, pageType } = params
 
-  const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
-  if (
-    /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
-      fileContent
-    )
-  ) {
-    const swcAST = await parseModule(pageFilePath, fileContent)
+  const binding = await require('../swc').loadBindings()
+  const pageStaticInfo = await binding.analysis.getPageStaticInfo(params)
+
+  if (pageStaticInfo) {
+    const { exportsInfo, extractedValues, rscInfo, warnings } =
+      await binding.analysis.getPageStaticInfo(params)
+
     const {
       ssg,
       ssr,
@@ -484,33 +480,22 @@ export async function getPageStaticInfo(params: {
       generateStaticParams,
       extraProperties,
       directives,
-    } = checkExports(swcAST, pageFilePath)
-    const rscInfo = getRSCModuleInformation(fileContent, true)
+    } = exportsInfo
     const rsc = rscInfo.type
 
+    warnings?.forEach((warning: string) => {
+      warnAboutUnsupportedValue(pageFilePath, page, warning)
+    })
+
     // default / failsafe value for config
-    let config: any
-    try {
-      config = extractExportedConstValue(swcAST, 'config')
-    } catch (e) {
-      if (e instanceof UnsupportedValueError) {
-        warnAboutUnsupportedValue(pageFilePath, page, e)
-      }
-      // `export config` doesn't exist, or other unknown error throw by swc, silence them
-    }
+    let config = extractedValues.config
 
     const extraConfig: Record<string, any> = {}
 
     if (extraProperties && pageType === PAGE_TYPES.APP) {
       for (const prop of extraProperties) {
         if (!AUTHORIZED_EXTRA_ROUTER_PROPS.includes(prop)) continue
-        try {
-          extraConfig[prop] = extractExportedConstValue(swcAST, prop)
-        } catch (e) {
-          if (e instanceof UnsupportedValueError) {
-            warnAboutUnsupportedValue(pageFilePath, page, e)
-          }
-        }
+        extraConfig[prop] = extractedValues[prop]
       }
     } else if (pageType === PAGE_TYPES.PAGES) {
       for (const key in config) {

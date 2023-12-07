@@ -15,6 +15,10 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 lazy_static = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+once_cell = { workspace = true }
+regex = { workspace = true }
 swc_core = { workspace = true, features = [
   "ecma_ast",
   "common",
@@ -22,6 +26,7 @@ swc_core = { workspace = true, features = [
   "ecma_parser",
   "ecma_quote",
   "ecma_visit",
+  "ecma_visit_path",
   "ecma_utils",
   "testing",
   "base",
