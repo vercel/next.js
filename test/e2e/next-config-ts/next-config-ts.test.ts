@@ -8,6 +8,7 @@ const tests = [
   'export-assignment',
   'export-as-default',
   'fs-path',
+  'import-from-other-ts',
 ]
 const failingTests = ['no-default-export']
 
