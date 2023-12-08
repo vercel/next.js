@@ -135,6 +135,7 @@ static PAGE_STATIC_INFO_SHORT_CURCUIT: Lazy<Regex> = Lazy::new(|| {
 
 pub struct DetectMetadataRouteTask {
     page_file_path: String,
+    file_content: Option<String>,
 }
 
 #[napi]
@@ -143,7 +144,11 @@ impl Task for DetectMetadataRouteTask {
     type JsValue = Object;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        let file_content = read_file_wrapped_err(self.page_file_path.as_str(), true)?;
+        let file_content = if let Some(file_content) = &self.file_content {
+            file_content.clone()
+        } else {
+            read_file_wrapped_err(self.page_file_path.as_str(), true)?
+        };
 
         if !DYNAMIC_METADATA_ROUTE_SHORT_CURCUIT.is_match(file_content.as_str()) {
             return Ok(None);
@@ -189,8 +194,14 @@ impl Task for DetectMetadataRouteTask {
 /// Detect if metadata routes is a dynamic route, which containing
 /// generateImageMetadata or generateSitemaps as export
 #[napi]
-pub fn is_dynamic_metadata_route(page_file_path: String) -> AsyncTask<DetectMetadataRouteTask> {
-    AsyncTask::new(DetectMetadataRouteTask { page_file_path })
+pub fn is_dynamic_metadata_route(
+    page_file_path: String,
+    file_content: Option<String>,
+) -> AsyncTask<DetectMetadataRouteTask> {
+    AsyncTask::new(DetectMetadataRouteTask {
+        page_file_path,
+        file_content,
+    })
 }
 
 #[napi(object, object_to_js = false)]
@@ -203,6 +214,7 @@ pub struct CollectPageStaticInfoOption {
 
 pub struct CollectPageStaticInfoTask {
     option: CollectPageStaticInfoOption,
+    file_content: Option<String>,
 }
 
 #[napi]
@@ -216,8 +228,11 @@ impl Task for CollectPageStaticInfoTask {
             is_dev,
             ..
         } = &self.option;
-        let file_content =
-            read_file_wrapped_err(page_file_path.as_str(), !is_dev.unwrap_or_default())?;
+        let file_content = if let Some(file_content) = &self.file_content {
+            file_content.clone()
+        } else {
+            read_file_wrapped_err(page_file_path.as_str(), !is_dev.unwrap_or_default())?
+        };
 
         if !PAGE_STATIC_INFO_SHORT_CURCUIT.is_match(file_content.as_str()) {
             return Ok(None);
@@ -288,6 +303,10 @@ pub struct StaticPageInfo {
 #[napi]
 pub fn get_page_static_info(
     option: CollectPageStaticInfoOption,
+    file_content: Option<String>,
 ) -> AsyncTask<CollectPageStaticInfoTask> {
-    AsyncTask::new(CollectPageStaticInfoTask { option })
+    AsyncTask::new(CollectPageStaticInfoTask {
+        option,
+        file_content,
+    })
 }

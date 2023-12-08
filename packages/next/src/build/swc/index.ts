@@ -15,6 +15,7 @@ import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
 
 const nextVersion = process.env.__NEXT_VERSION as string
+const isYarnPnP = process?.versions?.pnp && require('pnpapi').VERSIONS
 
 const ArchName = arch()
 const PlatformName = platform()
@@ -1384,8 +1385,13 @@ function loadNative(importPath?: string) {
 
       analysis: {
         isDynamicMetadataRoute: async (pageFilePath: string) => {
+          let fileContent: string | undefined = undefined
+          if (isYarnPnP) {
+            fileContent = (await tryToReadFile(pageFilePath, true)) || ''
+          }
+
           const { isDynamicMetadataRoute, warnings } =
-            await bindings.isDynamicMetadataRoute(pageFilePath)
+            await bindings.isDynamicMetadataRoute(pageFilePath, fileContent)
 
           // Instead of passing js callback into napi's context, bindings bubble up the warning messages
           // and let next.js logger handles it.
@@ -1402,7 +1408,12 @@ function loadNative(importPath?: string) {
         },
 
         getPageStaticInfo: async (params: Record<string, any>) => {
-          const ret = await bindings.getPageStaticInfo(params)
+          let fileContent: string | undefined = undefined
+          if (isYarnPnP) {
+            fileContent = (await tryToReadFile(params.pageFilePath, true)) || ''
+          }
+
+          const ret = await bindings.getPageStaticInfo(params, fileContent)
 
           if (ret) {
             const parsed = JSON.parse(ret)
