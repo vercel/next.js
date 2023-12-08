@@ -21,7 +21,7 @@ use swc_core::{
     ecma::{
         ast::Program,
         parser::{EsConfig, Syntax, TsConfig},
-        visit::VisitWith,
+        visit::{VisitWith, VisitWithPath},
     },
 };
 
@@ -266,7 +266,7 @@ pub fn extract_expored_const_values(
         let mut visitor =
             collect_exported_const_visitor::CollectExportedConstVisitor::new(properties_to_extract);
 
-        source_ast.visit_with(&mut visitor);
+        source_ast.visit_with_path(&mut visitor, &mut Default::default());
 
         visitor.properties
     })

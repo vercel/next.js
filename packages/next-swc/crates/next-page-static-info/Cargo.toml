@@ -26,6 +26,7 @@ swc_core = { workspace = true, features = [
   "ecma_parser",
   "ecma_quote",
   "ecma_visit",
+  "ecma_visit_path",
   "ecma_utils",
   "testing",
   "base",

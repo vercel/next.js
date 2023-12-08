@@ -2,14 +2,17 @@ use std::collections::{HashMap, HashSet};
 
 use serde_json::{Map, Number, Value};
 use swc_core::{
-    common::{Mark, SyntaxContext},
+    common::{
+        pass::{AstKindPath, AstNodePath},
+        Mark, SyntaxContext,
+    },
     ecma::{
         ast::{
             BindingIdent, Decl, ExportDecl, Expr, Lit, Pat, Prop, PropName, PropOrSpread, VarDecl,
             VarDeclKind, VarDeclarator,
         },
         utils::{ExprCtx, ExprExt},
-        visit::{Visit, VisitWith},
+        visit::{AstParentKind, AstParentNodeRef, Visit, VisitAstPath, VisitWith, VisitWithPath},
     },
 };
 
@@ -41,8 +44,12 @@ impl CollectExportedConstVisitor {
     }
 }
 
-impl Visit for CollectExportedConstVisitor {
-    fn visit_export_decl(&mut self, export_decl: &ExportDecl) {
+impl<'a> VisitAstPath for CollectExportedConstVisitor {
+    fn visit_export_decl<'ast: 'r, 'r>(
+        &mut self,
+        export_decl: &'ast ExportDecl,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
         match &export_decl.decl {
             Decl::Var(box VarDecl { kind, decls, .. }) if kind == &VarDeclKind::Const => {
                 for decl in decls {
@@ -62,7 +69,7 @@ impl Visit for CollectExportedConstVisitor {
             _ => {}
         }
 
-        export_decl.visit_children_with(self);
+        export_decl.visit_children_with_path(self, ast_path);
     }
 }
 
