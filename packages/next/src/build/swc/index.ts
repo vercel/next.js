@@ -1401,7 +1401,27 @@ function loadNative(importPath?: string) {
           return isDynamicMetadataRoute
         },
 
-        getPageStaticInfo: bindings.getPageStaticInfo,
+        getPageStaticInfo: async (params: Record<string, any>) => {
+          const ret = await bindings.getPageStaticInfo(params)
+
+          if (ret) {
+            const parsed = JSON.parse(ret)
+            const rrr = {
+              ...parsed,
+              exportsInfo: {
+                ...(parsed?.exportsInfo ?? {}),
+                directives: new Set(parsed?.exportsInfo?.directives ?? []),
+                extraProperties: new Set(
+                  parsed?.exportsInfo?.extraProperties ?? []
+                ),
+              },
+            }
+
+            return rrr
+          }
+
+          return ret
+        },
       },
 
       getTargetTriple: bindings.getTargetTriple,

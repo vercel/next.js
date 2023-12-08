@@ -108,6 +108,7 @@ pub struct PageStaticInfo {
 pub struct ExportInfo {
     pub ssr: bool,
     pub ssg: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub runtime: Option<String>,
     pub preferred_region: Option<Vec<String>>,
     pub generate_image_metadata: Option<bool>,
