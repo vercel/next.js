@@ -1,5 +1,6 @@
 {
   "name": "@vercel/og",
+  "version": "0.5.15",
   "LICENSE": "MLP-2.0",
   "type": "module",
   "main": "./index.node.js",
@@ -9,6 +10,7 @@
       "import": "./index.node.js",
       "node": "./index.node.js",
       "default": "./index.node.js"
-    }
+    },
+    "./package.json": "./package.json"
   }
 }

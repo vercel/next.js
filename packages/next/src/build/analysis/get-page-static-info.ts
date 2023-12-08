@@ -61,7 +61,7 @@ const SERVER_ACTION_DIRECTIVE = 'use server'
 export type RSCModuleType = 'server' | 'client'
 export function getRSCModuleInformation(
   source: string,
-  isServerLayer: boolean
+  isReactServerLayer: boolean
 ): RSCMeta {
   const actionsJson = source.match(ACTION_MODULE_LABEL)
   const actions = actionsJson
@@ -70,7 +70,7 @@ export function getRSCModuleInformation(
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const isClientRef = !!clientInfoMatch
 
-  if (!isServerLayer) {
+  if (!isReactServerLayer) {
     return {
       type: RSC_MODULE_TYPES.client,
       actions,

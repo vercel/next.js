@@ -323,7 +323,7 @@ export const dynamic = 'error'
 
 With a static export, Next.js can be deployed and hosted on any web server that can serve HTML/CSS/JS static assets.
 
-When running `next build`, Next.js generates the static export into the `out` folder. Using `next export` is no longer needed. For example, let's say you have the following routes:
+When running `next build`, Next.js generates the static export into the `out` folder. For example, let's say you have the following routes:
 
 - `/`
 - `/blog/[id]`
@@ -365,5 +365,6 @@ server {
 
 | Version   | Changes                                                                                                              |
 | --------- | -------------------------------------------------------------------------------------------------------------------- |
+| `v14.0.0` | `next export` has been removed in favor of `"output": "export"`                                                      |
 | `v13.4.0` | App Router (Stable) adds enhanced static export support, including using React Server Components and Route Handlers. |
 | `v13.3.0` | `next export` is deprecated and replaced with `"output": "export"`                                                   |

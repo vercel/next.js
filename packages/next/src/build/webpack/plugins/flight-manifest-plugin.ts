@@ -76,6 +76,9 @@ export type ClientReferenceManifest = {
   entryCSSFiles: {
     [entry: string]: string[]
   }
+  entryJSFiles?: {
+    [entry: string]: string[]
+  }
 }
 
 function getAppPathRequiredChunks(

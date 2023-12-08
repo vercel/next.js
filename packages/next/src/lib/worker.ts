@@ -21,11 +21,12 @@ export class Worker {
     options: FarmOptions & {
       timeout?: number
       onRestart?: (method: string, args: any[], attempts: number) => void
+      logger?: Pick<typeof console, 'error' | 'info' | 'warn'>
       exposedMethods: ReadonlyArray<string>
       enableWorkerThreads?: boolean
     }
   ) {
-    let { timeout, onRestart, ...farmOptions } = options
+    let { timeout, onRestart, logger = console, ...farmOptions } = options
 
     let restartPromise: Promise<typeof RESTARTED>
     let resolveRestartPromise: (arg: typeof RESTARTED) => void
@@ -68,10 +69,9 @@ export class Worker {
           _child?: ChildProcess
         }[]) {
           worker._child?.on('exit', (code, signal) => {
-            // log unexpected exit if .end() wasn't called
             if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
-              console.error(
-                `Static worker unexpectedly exited with code: ${code} and signal: ${signal}`
+              logger.error(
+                `Static worker exited with code: ${code} and signal: ${signal}`
               )
             }
           })
@@ -88,6 +88,11 @@ export class Worker {
       if (!worker) return
       const resolve = resolveRestartPromise
       createWorker()
+      logger.warn(
+        `Sending SIGTERM signal to static worker due to timeout${
+          timeout ? ` of ${timeout / 1000} seconds` : ''
+        }. Subsequent errors may be a result of the worker exiting.`
+      )
       worker.end().then(() => {
         resolve(RESTARTED)
       })

@@ -100,17 +100,8 @@
           }
         ],
         "no-use-before-define": "off",
-        "@typescript-eslint/no-use-before-define": [
-          "warn",
-          {
-            "functions": true,
-            "classes": true,
-            "variables": true,
-            "enums": true,
-            "typedefs": true
-          }
-        ],
         "no-useless-constructor": "off",
+        "@typescript-eslint/no-use-before-define": "off",
         "@typescript-eslint/no-useless-constructor": "warn",
         "@typescript-eslint/prefer-literal-enum-member": "error"
       }
@@ -310,14 +301,7 @@
         "ignoreRestSiblings": true
       }
     ],
-    "no-use-before-define": [
-      "warn",
-      {
-        "functions": false,
-        "classes": false,
-        "variables": false
-      }
-    ],
+    "no-use-before-define": "off",
     "no-useless-computed-key": "warn",
     "no-useless-concat": "warn",
     "no-useless-constructor": "warn",

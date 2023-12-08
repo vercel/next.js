@@ -88,7 +88,7 @@ module.exports = function (task) {
         jsc: {
           loose: true,
           // Do not enable external helpers on server-side files build
-          // _is_native_funtion helper is not compatible with edge runtime (need investigate)
+          // _is_native_function helper is not compatible with edge runtime (need investigate)
           externalHelpers: false,
           parser: {
             syntax: 'typescript',
@@ -189,6 +189,10 @@ function setNextVersion(code) {
     .replace(
       /process\.env\.__NEXT_VERSION/g,
       `"${require('./package.json').version}"`
+    )
+    .replace(
+      /process\.env\.__NEXT_REQUIRED_NODE_VERSION/g,
+      `"${require('./package.json').engines.node.replace('>=', '')}"`
     )
     .replace(
       /process\.env\.REQUIRED_APP_REACT_VERSION/,

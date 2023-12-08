@@ -2,6 +2,7 @@
   "@aws-sdk/client-s3",
   "@aws-sdk/s3-presigned-post",
   "@blockfrost/blockfrost-js",
+  "@highlight-run/node",
   "@libsql/client",
   "@jpg-store/lucid-cardano",
   "@mikro-orm/core",
@@ -30,6 +31,7 @@
   "mongoose",
   "next-mdx-remote",
   "next-seo",
+  "node-pty",
   "payload",
   "pg",
   "playwright",
@@ -45,5 +47,6 @@
   "ts-node",
   "typescript",
   "vscode-oniguruma",
-  "webpack"
+  "webpack",
+  "websocket"
 ]

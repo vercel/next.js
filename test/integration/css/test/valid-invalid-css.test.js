@@ -77,7 +77,7 @@ describe('Valid Global CSS from npm', () => {
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".red-text{color:\\"red\\"}"`)
+      ).toMatchInlineSnapshot(`".red-text{color:"red"}"`)
     })
   })
 })

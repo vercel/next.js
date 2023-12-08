@@ -3,19 +3,16 @@ import type { FetchServerResponseResult } from './fetch-server-response'
 import { fillCacheWithDataProperty } from './fill-cache-with-data-property'
 import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import { createRecordFromThenable } from './create-record-from-thenable'
-import type { ThenableRecord } from './router-reducer-types'
+
 describe('fillCacheWithDataProperty', () => {
   it('should add data property', () => {
     const fetchServerResponseMock: jest.Mock<
-      ThenableRecord<FetchServerResponseResult>
+      Promise<FetchServerResponseResult>
     > = jest.fn(() =>
-      createRecordFromThenable(
-        Promise.resolve([
-          /* TODO-APP: replace with actual FlightData */ '',
-          undefined,
-        ])
-      )
+      Promise.resolve([
+        /* TODO-APP: replace with actual FlightData */ '',
+        undefined,
+      ])
     )
     const pathname = '/dashboard/settings'
     const segments = pathname.split('/')
@@ -73,15 +70,15 @@ describe('fillCacheWithDataProperty', () => {
     )
 
     expect(cache).toMatchInlineSnapshot(`
-      Object {
+      {
         "data": null,
         "parallelRoutes": Map {
           "children" => Map {
-            "linking" => Object {
+            "linking" => {
               "data": null,
               "parallelRoutes": Map {
                 "children" => Map {
-                  "" => Object {
+                  "" => {
                     "data": null,
                     "parallelRoutes": Map {},
                     "status": "READY",
@@ -96,10 +93,8 @@ describe('fillCacheWithDataProperty', () => {
                 Linking
               </React.Fragment>,
             },
-            "dashboard" => Object {
-              "data": Promise {
-                "status": "pending",
-              },
+            "dashboard" => {
+              "data": Promise {},
               "parallelRoutes": Map {},
               "status": "DATAFETCH",
               "subTreeData": null,

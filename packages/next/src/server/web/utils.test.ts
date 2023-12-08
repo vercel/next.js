@@ -1,8 +1,5 @@
 import { toNodeOutgoingHttpHeaders } from './utils'
 
-// We use `Headers` here which is provided by the polyfill.
-import '../node-polyfill-fetch'
-
 describe('toNodeHeaders', () => {
   it('should handle multiple set-cookie headers correctly', () => {
     const headers = new Headers()

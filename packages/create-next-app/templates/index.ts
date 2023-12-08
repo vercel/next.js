@@ -8,7 +8,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import { cyan, bold } from 'picocolors'
 import { Sema } from 'async-sema'
-import { version } from '../package.json'
+import pkg from '../package.json'
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from './types'
 
@@ -167,6 +167,9 @@ export const installTemplate = async ({
     }
   }
 
+  /** Copy the version from package.json or override for tests. */
+  const version = process.env.NEXT_PRIVATE_TEST_VERSION ?? pkg.version
+
   /** Create a package.json for the new project and write it to disk. */
   const packageJson: any = {
     name: appName,
@@ -184,7 +187,7 @@ export const installTemplate = async ({
     dependencies: {
       react: '^18',
       'react-dom': '^18',
-      next: process.env.NEXT_PRIVATE_TEST_VERSION ?? version,
+      next: version,
     },
     devDependencies: {},
   }
@@ -206,9 +209,9 @@ export const installTemplate = async ({
   if (tailwind) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      autoprefixer: '^10',
+      autoprefixer: '^10.0.1',
       postcss: '^8',
-      tailwindcss: '^3',
+      tailwindcss: '^3.3.0',
     }
   }
 

@@ -1,3 +1,4 @@
+import { DetachedPromise } from '../../lib/detached-promise'
 import type { ResponseCacheEntry, ResponseGenerator } from './types'
 
 /**
@@ -45,7 +46,7 @@ export default class WebResponseCache {
       promise,
       resolve: resolver,
       reject: rejecter,
-    } = Promise.withResolvers<ResponseCacheEntry | null>()
+    } = new DetachedPromise<ResponseCacheEntry | null>()
     if (pendingResponseKey) {
       this.pendingResponses.set(pendingResponseKey, promise)
     }

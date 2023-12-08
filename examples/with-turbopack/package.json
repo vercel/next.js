@@ -1,50 +1,19 @@
 {
   "private": true,
   "scripts": {
-    "build": "next build",
     "dev": "next dev --turbo",
-    "lint": "next lint",
-    "lint-staged": "lint-staged",
-    "prettier": "prettier --write --ignore-unknown .",
-    "prettier:check": "prettier --check --ignore-unknown .",
-    "start": "next start",
-    "test": "yarn prettier:check && yarn lint"
-  },
-  "git": {
-    "pre-commit": "lint-staged"
-  },
-  "lint-staged": {
-    "*": "prettier --write --ignore-unknown"
+    "build": "next build",
+    "start": "next start"
   },
   "dependencies": {
-    "@heroicons/react": "1.0.6",
-    "clsx": "1.2.1",
-    "date-fns": "2.29.3",
-    "dinero.js": "2.0.0-alpha.8",
-    "ms": "3.0.0-canary.1",
     "next": "latest",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "server-only": "0.0.1",
-    "styled-components": "6.0.0-beta.2",
-    "use-count-up": "3.0.1"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@tailwindcss/forms": "0.5.3",
-    "@tailwindcss/typography": "0.5.9",
-    "@types/ms": "0.7.31",
-    "@types/node": "18.11.17",
-    "@types/react": "18.0.26",
-    "@types/react-dom": "18.0.9",
-    "@vercel/git-hooks": "1.0.0",
-    "autoprefixer": "10.4.13",
-    "eslint": "8.30.0",
-    "eslint-config-next": "latest",
-    "lint-staged": "13.1.0",
-    "postcss": "8.4.20",
-    "prettier": "2.8.1",
-    "prettier-plugin-tailwindcss": "0.2.1",
-    "tailwindcss": "3.3.1",
-    "typescript": "4.9.4"
+    "@types/node": "20.8.10",
+    "@types/react": "18.2.33",
+    "@types/react-dom": "18.2.14",
+    "typescript": "^5.2.2"
   }
 }

@@ -90,10 +90,8 @@ export function useSearchParams(): ReadonlyURLSearchParams {
     // AsyncLocalStorage should not be included in the client bundle.
     const { bailoutToClientRendering } =
       require('./bailout-to-client-rendering') as typeof import('./bailout-to-client-rendering')
-    if (bailoutToClientRendering()) {
-      // TODO-APP: handle dynamic = 'force-static' here and on the client
-      return readonlySearchParams
-    }
+    // TODO-APP: handle dynamic = 'force-static' here and on the client
+    bailoutToClientRendering()
   }
 
   return readonlySearchParams

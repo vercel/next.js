@@ -4,8 +4,7 @@ import type {
   EmotionConfig,
   StyledComponentsConfig,
 } from '../../server/config-shared'
-
-export type BundleType = 'client' | 'server' | 'default'
+import type { ResolvedBaseUrl } from '../load-jsconfig'
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -37,32 +36,30 @@ function getBaseSWCOptions({
   development,
   hasReactRefresh,
   globalWindow,
+  esm,
   modularizeImports,
   swcPlugins,
   compilerOptions,
   resolvedBaseUrl,
   jsConfig,
   swcCacheDir,
-  isServerLayer,
-  bundleTarget,
-  hasServerComponents,
-  isServerActionsEnabled,
+  serverComponents,
+  isReactServerLayer,
 }: {
   filename: string
   jest?: boolean
   development: boolean
   hasReactRefresh: boolean
   globalWindow: boolean
+  esm: boolean
   modularizeImports?: NextConfig['modularizeImports']
   compilerOptions: NextConfig['compiler']
   swcPlugins: ExperimentalConfig['swcPlugins']
-  isServerActionsEnabled?: ExperimentalConfig['serverActions']
-  resolvedBaseUrl?: string
+  resolvedBaseUrl?: ResolvedBaseUrl
   jsConfig: any
-  bundleTarget: BundleType
   swcCacheDir?: string
-  isServerLayer?: boolean
-  hasServerComponents?: boolean
+  serverComponents?: boolean
+  isReactServerLayer?: boolean
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -83,7 +80,7 @@ function getBaseSWCOptions({
     jsc: {
       ...(resolvedBaseUrl && paths
         ? {
-            baseUrl: resolvedBaseUrl,
+            baseUrl: resolvedBaseUrl.baseUrl,
             paths,
           }
         : {}),
@@ -110,7 +107,7 @@ function getBaseSWCOptions({
         react: {
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
-            (compilerOptions?.emotion && !isServerLayer
+            (compilerOptions?.emotion && !isReactServerLayer
               ? '@emotion/react'
               : 'react'),
           runtime: 'automatic',
@@ -168,7 +165,7 @@ function getBaseSWCOptions({
     // Always transform styled-jsx and error when `client-only` condition is triggered
     styledJsx: {},
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
-    ...(!isServerLayer && {
+    ...(!isReactServerLayer && {
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
       emotion: getEmotionOptions(compilerOptions?.emotion, development),
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -178,16 +175,23 @@ function getBaseSWCOptions({
       ),
     }),
     serverComponents:
-      hasServerComponents && !jest ? { isServer: !!isServerLayer } : undefined,
-    serverActions:
-      hasServerComponents && !jest
+      serverComponents && !jest
         ? {
-            // TODO-APP: When Server Actions is stable, we need to remove this flag.
-            enabled: !!isServerActionsEnabled,
-            isServer: !!isServerLayer,
+            isReactServerLayer: !!isReactServerLayer,
           }
         : undefined,
-    bundleTarget,
+    serverActions:
+      serverComponents && !jest
+        ? {
+            // always enable server actions
+            // TODO: remove this option
+            enabled: true,
+            isReactServerLayer: !!isReactServerLayer,
+          }
+        : undefined,
+    // For app router we prefer to bundle ESM,
+    // On server side of pages router we prefer CJS.
+    preferEsm: esm,
   }
 }
 
@@ -207,6 +211,22 @@ function getStyledComponentsOptions(
       displayName: Boolean(development),
     }
   }
+}
+
+/*
+Output module type
+
+For app router where server components is enabled, we prefer to bundle es6 modules,
+Use output module es6 to make sure:
+- the esm module is present
+- if the module is mixed syntax, the esm + cjs code are both present
+
+For pages router will remain untouched
+*/
+function getModuleOptions(
+  esm: boolean | undefined = false
+): { module: { type: 'es6' } } | {} {
+  return esm ? { module: { type: 'es6' } } : {}
 }
 
 function getEmotionOptions(
@@ -250,7 +270,6 @@ export function getJestSWCOptions({
   jsConfig,
   resolvedBaseUrl,
   pagesDir,
-  hasServerComponents,
 }: {
   isServer: boolean
   filename: string
@@ -259,9 +278,9 @@ export function getJestSWCOptions({
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
-  resolvedBaseUrl?: string
+  resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
-  hasServerComponents?: boolean
+  serverComponents?: boolean
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
@@ -273,12 +292,12 @@ export function getJestSWCOptions({
     swcPlugins,
     compilerOptions,
     jsConfig,
-    hasServerComponents,
     resolvedBaseUrl,
+    esm,
     // Don't apply server layer transformations for Jest
-    isServerLayer: false,
+    isReactServerLayer: false,
     // Disable server / client graph assertions for Jest
-    bundleTarget: 'default',
+    serverComponents: false,
   })
 
   const isNextDist = nextDistPath.test(filename)
@@ -301,6 +320,8 @@ export function getJestSWCOptions({
 }
 
 export function getLoaderSWCOptions({
+  // This is not passed yet as "paths" resolving is handled by webpack currently.
+  // resolvedBaseUrl,
   filename,
   development,
   isServer,
@@ -317,13 +338,10 @@ export function getLoaderSWCOptions({
   supportedBrowsers,
   swcCacheDir,
   relativeFilePathFromRoot,
-  hasServerComponents,
-  isServerLayer,
-  isServerActionsEnabled,
-  bundleTarget,
-}: // This is not passed yet as "paths" resolving is handled by webpack currently.
-// resolvedBaseUrl,
-{
+  serverComponents,
+  isReactServerLayer,
+  esm,
+}: {
   filename: string
   development: boolean
   isServer: boolean
@@ -342,10 +360,9 @@ export function getLoaderSWCOptions({
   supportedBrowsers: string[] | undefined
   swcCacheDir: string
   relativeFilePathFromRoot: string
-  bundleTarget: BundleType
-  hasServerComponents?: boolean
-  isServerLayer: boolean
-  isServerActionsEnabled?: boolean
+  esm?: boolean
+  serverComponents?: boolean
+  isReactServerLayer?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -358,10 +375,9 @@ export function getLoaderSWCOptions({
     jsConfig,
     // resolvedBaseUrl,
     swcCacheDir,
-    hasServerComponents,
-    isServerLayer,
-    isServerActionsEnabled,
-    bundleTarget,
+    isReactServerLayer,
+    serverComponents,
+    esm: !!esm,
   })
   baseOptions.fontLoaders = {
     fontLoaders: [
@@ -410,9 +426,10 @@ export function getLoaderSWCOptions({
       disableNextSsg: true,
       disablePageConfig: true,
       isDevelopment: development,
-      isServer,
+      isServerCompiler: isServer,
       pagesDir,
       appDir,
+      preferEsm: !!esm,
       isPageFile,
       env: {
         targets: {
@@ -420,6 +437,7 @@ export function getLoaderSWCOptions({
           node: process.versions.node,
         },
       },
+      ...getModuleOptions(esm),
     }
   } else {
     const options = {
@@ -431,10 +449,10 @@ export function getLoaderSWCOptions({
               type: 'commonjs',
             },
           }
-        : {}),
+        : getModuleOptions(esm)),
       disableNextSsg: !isPageFile,
       isDevelopment: development,
-      isServer,
+      isServerCompiler: isServer,
       pagesDir,
       appDir,
       isPageFile,

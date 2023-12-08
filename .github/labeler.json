@@ -20,10 +20,8 @@
       { "type": "user", "pattern": "balazsorban44" },
       { "type": "user", "pattern": "feedthejim" },
       { "type": "user", "pattern": "gnoff" },
-      { "type": "user", "pattern": "hanneslund" },
       { "type": "user", "pattern": "huozhi" },
       { "type": "user", "pattern": "ijjk" },
-      { "type": "user", "pattern": "JanKaifer" },
       { "type": "user", "pattern": "javivelasco" },
       { "type": "user", "pattern": "kikobeats" },
       { "type": "user", "pattern": "schniz" },
@@ -41,15 +39,12 @@
       { "type": "user", "pattern": "delbaoliveira" },
       { "type": "user", "pattern": "lydiahallie" },
       { "type": "user", "pattern": "steven-tey" },
-      { "type": "user", "pattern": "nutlope" },
       { "type": "user", "pattern": "stephdietz" },
       { "type": "user", "pattern": "timeyoutakeit" },
       { "type": "user", "pattern": "s3prototype" },
       { "type": "user", "pattern": "manovotny" }
     ],
-    "created-by: web-tooling team": [
-      { "type": "user", "pattern": "alexkirsz" },
-      { "type": "user", "pattern": "Brooooooklyn" },
+    "created-by: turbopack team": [
       { "type": "user", "pattern": "ForsakenHarmony" },
       { "type": "user", "pattern": "jridgewell" },
       { "type": "user", "pattern": "kdy1" },

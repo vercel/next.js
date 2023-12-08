@@ -9,6 +9,12 @@ describe('worker-restart', () => {
 
     const output = stdout + stderr
     expect(output).toContain(
+      'Sending SIGTERM signal to static worker due to timeout of 10 seconds. Subsequent errors may be a result of the worker exiting.'
+    )
+    expect(output).toContain(
+      'Static worker exited with code: null and signal: SIGTERM'
+    )
+    expect(output).toContain(
       'Restarted static page generation for /bad-page because it took more than 10 seconds'
     )
     expect(output).toContain(

@@ -236,7 +236,6 @@ createNextDescribe(
 
       it('should support other basic tags (edge)', async () => {
         const browser = await next.browser('/basic-edge')
-        const matchDom = createDomMatcher(browser)
         const matchMultiDom = createMultiDomMatcher(browser)
 
         await matchMultiDom('meta', 'name', 'content', {
@@ -245,11 +244,6 @@ createNextDescribe(
           referrer: 'origin-when-cross-origin',
           keywords: 'next.js,react,javascript',
           author: ['huozhi', 'tree'],
-          'color-scheme': 'dark',
-          viewport:
-            'width=device-width, initial-scale=1, maximum-scale=1, interactive-widget=resizes-visual',
-          creator: 'shu',
-          publisher: 'vercel',
           robots: 'index, follow',
           'format-detection': 'telephone=no, address=no, email=no',
         })
@@ -260,11 +254,6 @@ createNextDescribe(
           preconnect: '/preconnect-url',
           preload: '/api/preload',
           'dns-prefetch': '/dns-prefetch-url',
-        })
-
-        await matchDom('meta', 'name="theme-color"', {
-          media: '(prefers-color-scheme: dark)',
-          content: 'cyan',
         })
       })
 
@@ -370,6 +359,7 @@ createNextDescribe(
           'yandex-verification': 'yandex',
           me: ['my-email', 'my-link'],
         })
+        expect($('meta[name="me"]').length).toBe(2)
       })
 
       it('should support appLinks tags', async () => {
@@ -523,7 +513,7 @@ createNextDescribe(
         })
 
         // favicon shouldn't be overridden
-        expect($('link[rel="icon"]').attr('href')).toBe('/favicon.ico')
+        expect($('link[rel="icon"]').attr('href')).toMatch('/favicon.ico')
       })
 
       it('should override file based images when opengraph-image and twitter-image specify images property', async () => {
@@ -671,18 +661,20 @@ createNextDescribe(
       it('should support root level of favicon.ico', async () => {
         let $ = await next.render$('/')
         const favIcon = $('link[rel="icon"]')
-        expect(favIcon.attr('href')).toBe('/favicon.ico')
+        expect(favIcon.attr('href')).toMatch('/favicon.ico')
         expect(favIcon.attr('type')).toBe('image/x-icon')
-        expect(favIcon.attr('sizes')).toBe('16x16')
+        // Turbopack renders / emits image differently
+        expect(['16x16', '48x48']).toContain(favIcon.attr('sizes'))
 
         const iconSvg = $('link[rel="icon"][type="image/svg+xml"]')
-        expect(iconSvg.attr('href')).toBe('/icon.svg?90699bff34adba1f')
-        expect(iconSvg.attr('sizes')).toBe('any')
+        expect(iconSvg.attr('href')).toMatch('/icon.svg?')
+        // Turbopack renders / emits image differently
+        expect(['any', '48x48']).toContain(iconSvg.attr('sizes'))
 
         $ = await next.render$('/basic')
         const icon = $('link[rel="icon"]')
-        expect(icon.attr('href')).toBe('/favicon.ico')
-        expect(icon.attr('sizes')).toBe('16x16')
+        expect(icon.attr('href')).toMatch('/favicon.ico')
+        expect(['16x16', '48x48']).toContain(favIcon.attr('sizes'))
 
         if (!isNextDeploy) {
           const faviconFileBuffer = await fs.readFile(
@@ -940,6 +932,16 @@ createNextDescribe(
         })
       })
     }
+
+    describe('viewport', () => {
+      it('should support dynamic viewport export', async () => {
+        const browser = await next.browser('/viewport')
+        const matchMultiDom = createMultiDomMatcher(browser)
+        await matchMultiDom('meta', 'name', 'content', {
+          'theme-color': '#000',
+        })
+      })
+    })
 
     describe('react cache', () => {
       it('should have same title and page value on initial load', async () => {

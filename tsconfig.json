@@ -10,7 +10,7 @@
     "esModuleInterop": true,
     "moduleResolution": "node",
     "baseUrl": ".",
-    "types": ["react", "jest", "node", "trusted-types"],
+    "types": ["react", "jest", "node", "trusted-types", "jest-extended"],
     "paths": {
       "development-sandbox": ["test/lib/development-sandbox"],
       "next-test-utils": ["test/lib/next-test-utils"],
@@ -20,7 +20,6 @@
     }
   },
   "include": [
-    "test/jest.d.ts",
     "test/**/*.test.ts",
     "test/**/*.test.tsx",
     "test/**/test/*",

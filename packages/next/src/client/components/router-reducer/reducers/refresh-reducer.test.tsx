@@ -27,12 +27,16 @@ jest.mock('../fetch-server-response', () => {
         null,
         true,
       ],
-      <html>
-        <head></head>
-        <body>
-          <h1>Linking Page!</h1>
-        </body>
-      </html>,
+      [
+        '',
+        null,
+        <html>
+          <head></head>
+          <body>
+            <h1>Linking Page!</h1>
+          </body>
+        </html>,
+      ],
       <>
         <title>Linking page!</title>
       </>,
@@ -63,10 +67,6 @@ const getInitialRouterStateTree = (): FlightRouterState => [
   undefined,
   true,
 ]
-
-const globalMutable = {
-  refresh: () => {},
-}
 
 async function runPromiseThrowChain(fn: any): Promise<any> {
   try {
@@ -128,20 +128,13 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: { globalMutable },
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -155,6 +148,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,
@@ -277,7 +271,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -288,7 +282,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -296,13 +290,6 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: { globalMutable },
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -318,6 +305,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,
@@ -464,7 +452,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -475,7 +463,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -483,13 +471,6 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: { globalMutable },
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -505,6 +486,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,
@@ -697,7 +679,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -710,7 +692,7 @@ describe('refreshReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -719,13 +701,6 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: { globalMutable },
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -741,6 +716,7 @@ describe('refreshReducer', () => {
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
+        preserveCustomHistoryState: false,
       },
       focusAndScrollRef: {
         apply: false,

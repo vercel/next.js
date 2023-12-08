@@ -39,6 +39,9 @@ __internal_dhat-heap = ["dhat"]
 # effectively does nothing.
 __internal_dhat-ad-hoc = ["dhat"]
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = "1.0.66"
 backtrace = "0.3"
@@ -75,6 +78,8 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack",
   "__turbopack_ecmascript_hmr_protocol",
 ] }
+url = {workspace = true}
+urlencoding = {workspace = true}
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))'.dependencies]
 turbopack-binding = { workspace = true, features = ["__turbo_tasks_malloc"] }

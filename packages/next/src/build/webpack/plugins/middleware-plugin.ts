@@ -587,7 +587,7 @@ function getExtractMetadata(params: {
           const resource = module.resource
           const hasOGImageGeneration =
             resource &&
-            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index\.(edge|node)\.js$|[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]web[\\/]spec-extension[\\/]image-response\.js$/.test(
+            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index\.(edge|node)\.js$|[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]og[\\/]image-response\.js$/.test(
               resource
             )
 
