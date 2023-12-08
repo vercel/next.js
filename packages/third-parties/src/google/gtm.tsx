@@ -22,7 +22,7 @@ export function GoogleTagManager(props: GTMParams) {
     // performance.mark is being used as a feature use signal. While it is traditionally used for performance
     // benchmarking it is low overhead and thus considered safe to use in production and it is a widely available
     // existing API.
-    // The performance measurement will be done at the Browser side by Chrome
+    // The performance measurement will be handled by Chrome Aurora
 
     performance.mark('mark_feature_usage', {
       detail: {
