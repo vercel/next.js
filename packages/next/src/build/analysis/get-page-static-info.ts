@@ -460,12 +460,14 @@ export async function getPageStaticInfo(params: {
   pageType: 'pages' | 'app' | 'root'
 }): Promise<PageStaticInfo> {
   const { isDev, pageFilePath, nextConfig, page, pageType } = params
-  const binding = await require('../swc').loadBindings()
-  const pageStaticInfo = await binding.analysis.getPageStaticInfo(params)
-
   let oldExport: Record<string, any> = null as any
-
+  /*console.log('getPageStaticInfo', {
+    yarn: !!process?.versions?.pnp,
+    pageFilePath,
+    shouldThrow: !isDev,
+  })*/
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
+  //console.log('getPageStaticInfo read filecontents', !!process?.versions?.pnp ? {fileContent} : null)
   if (
     /runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
       fileContent
@@ -476,6 +478,10 @@ export async function getPageStaticInfo(params: {
     oldExport.exportsInfo = checkExports(swcAST, pageFilePath)
     oldExport.rscInfo = getRSCModuleInformation(fileContent, true)
   }
+
+  const binding = await require('../swc').loadBindings()
+  console.log('entering napi');
+  const pageStaticInfo = await binding.analysis.getPageStaticInfo(params)
 
   if (!!oldExport !== !!pageStaticInfo) {
     console.log('mismatch short-circuiting', { oldExport, pageStaticInfo })
@@ -488,8 +494,8 @@ export async function getPageStaticInfo(params: {
   }
 
   if (pageStaticInfo) {
-    const { exportsInfo, extractedValues, rscInfo, shouldWarn } =
-      await binding.analysis.getPageStaticInfo(params)
+    const { exportsInfo, extractedValues, rscInfo, shouldWarn } = await binding.analysis.getPageStaticInfo(params)
+
 
     const {
       ssg,

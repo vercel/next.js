@@ -145,6 +145,7 @@ impl Task for DetectMetadataRouteTask {
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         let file_content = if let Some(file_content) = &self.file_content {
+            println!("{}", file_content);
             file_content.clone()
         } else {
             read_file_wrapped_err(self.page_file_path.as_str(), true)?
@@ -229,6 +230,7 @@ impl Task for CollectPageStaticInfoTask {
             ..
         } = &self.option;
         let file_content = if let Some(file_content) = &self.file_content {
+            println!("{}", file_content);
             file_content.clone()
         } else {
             read_file_wrapped_err(page_file_path.as_str(), !is_dev.unwrap_or_default())?

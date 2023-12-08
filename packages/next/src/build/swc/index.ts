@@ -15,7 +15,12 @@ import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
 
 const nextVersion = process.env.__NEXT_VERSION as string
-const isYarnPnP = process?.versions?.pnp && require('pnpapi').VERSIONS
+const isYarnPnP = !!process?.versions?.pnp
+
+console.log('----------', {
+  isYarnPnP,
+  p: process?.versions?.pnp
+})
 
 const ArchName = arch()
 const PlatformName = platform()
@@ -116,7 +121,7 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
     })
   } catch (error: any) {
     if (shouldThrow) {
-      error.message = `Next.js ERROR: Failed to read file ${filePath}:\n${error.message}`
+      error.message = `Next.js ERROR Legacy: Failed to read file ${filePath}:\n${error.message}`
       throw error
     }
   }
@@ -1195,7 +1200,7 @@ async function loadWasm(importPath = '') {
           },
           getPageStaticInfo: async (params: Record<string, any>) => {
             const fileContent =
-              (await tryToReadFile(params.pageFilePath, true)) || ''
+              (await tryToReadFile(params.pageFilePath, !params.isDev)) || ''
 
             const ret = await bindings.getPageStaticInfo(
               params.pageFilePath,
@@ -1388,6 +1393,7 @@ function loadNative(importPath?: string) {
           let fileContent: string | undefined = undefined
           if (isYarnPnP) {
             fileContent = (await tryToReadFile(pageFilePath, true)) || ''
+            //console.log('isYarnPnp FileContents', {fileContent})
           }
 
           const { isDynamicMetadataRoute, warnings } =
@@ -1410,7 +1416,8 @@ function loadNative(importPath?: string) {
         getPageStaticInfo: async (params: Record<string, any>) => {
           let fileContent: string | undefined = undefined
           if (isYarnPnP) {
-            fileContent = (await tryToReadFile(params.pageFilePath, true)) || ''
+            fileContent = (await tryToReadFile(params.pageFilePath, !params.isDev)) || ''
+            //console.log('isYarnPnp FileContents', {fileContent})
           }
 
           const ret = await bindings.getPageStaticInfo(params, fileContent)
