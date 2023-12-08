@@ -100,16 +100,20 @@ pub fn parse(
 }
 
 /// wrap read file to suppress errors conditionally.
+/// [NOTE] currently next.js passes _every_ file in the paths regardless of if
+/// it's an asset or an ecmascript, So skipping non-utf8 read errors. Probably
+/// should skip based on file extension.
 fn read_file_wrapped_err(path: &str, raise_err: bool) -> Result<String> {
-    let ret = std::fs::read_to_string(path).map_err(|e| {
+    let buf = std::fs::read(path).map_err(|e| {
         napi::Error::new(
             Status::GenericFailure,
             format!("Next.js ERROR: Failed to read file {}:\n{:#?}", path, e),
         )
     });
 
-    match ret {
-        Ok(_) | Err(_) if raise_err => ret,
+    match buf {
+        Ok(buf) => Ok(String::from_utf8(buf).ok().unwrap_or("".to_string())),
+        Err(e) if raise_err => Err(e),
         _ => Ok("".to_string()),
     }
 }
