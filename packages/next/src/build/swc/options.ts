@@ -114,7 +114,6 @@ function getBaseSWCOptions({
               ? '@emotion/react'
               : 'react'),
           runtime: 'automatic',
-          pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
           throwIfNamespace: true,
           development: !!development,
