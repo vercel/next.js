@@ -1,7 +1,8 @@
-"TURBOPACK { transition: next-client-chunks }";
-import id, { chunks as chunks } from "./components/hello";
+import id, { chunks as chunks } from "./components/hello" with {
+    "transition": "next-client-chunks"
+};
 import dynamic from 'next/dynamic';
-const DynamicComponent = dynamic(null, {
+const DynamicComponent = dynamic(()=>handleImport(import('./components/hello')), {
     loadableGenerated: {
         modules: [
             JSON.stringify({

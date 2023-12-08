@@ -1,9 +1,12 @@
-"TURBOPACK { chunking-type: none }";
-import { __turbopack_module_id__ as id } from "../components/hello";
-"TURBOPACK { chunking-type: none }";
-import { __turbopack_module_id__ as id1 } from "../components/hello";
-"TURBOPACK { chunking-type: none }";
-import { __turbopack_module_id__ as id2 } from "../components/hello";
+import { __turbopack_module_id__ as id } from "../components/hello" with {
+    "chunking-type": "none"
+};
+import { __turbopack_module_id__ as id1 } from "../components/hello" with {
+    "chunking-type": "none"
+};
+import { __turbopack_module_id__ as id2 } from "../components/hello" with {
+    "chunking-type": "none"
+};
 import dynamic from 'next/dynamic';
 const DynamicComponentWithCustomLoading = dynamic(()=>import('../components/hello'), {
     loadableGenerated: {
@@ -11,7 +14,7 @@ const DynamicComponentWithCustomLoading = dynamic(()=>import('../components/hell
             id
         ]
     },
-    loading: ()=><p >...</p>
+    loading: ()=><p>...</p>
 });
 const DynamicClientOnlyComponent = dynamic(()=>import('../components/hello'), {
     loadableGenerated: {

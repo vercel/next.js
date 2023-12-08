@@ -1,9 +1,12 @@
-"TURBOPACK { transition: next-client-chunks }";
-import id, { chunks as chunks } from "../components/hello";
-"TURBOPACK { transition: next-client-chunks }";
-import id1, { chunks as chunks1 } from "../components/hello";
-"TURBOPACK { transition: next-client-chunks }";
-import id2, { chunks as chunks2 } from "../components/hello";
+import id, { chunks as chunks } from "../components/hello" with {
+    "transition": "next-client-chunks"
+};
+import id1, { chunks as chunks1 } from "../components/hello" with {
+    "transition": "next-client-chunks"
+};
+import id2, { chunks as chunks2 } from "../components/hello" with {
+    "transition": "next-client-chunks"
+};
 import dynamic from 'next/dynamic';
 const DynamicComponentWithCustomLoading = dynamic(()=>import('../components/hello'), {
     loadableGenerated: {
@@ -14,9 +17,9 @@ const DynamicComponentWithCustomLoading = dynamic(()=>import('../components/hell
             })
         ]
     },
-    loading: ()=><p >...</p>
+    loading: ()=><p>...</p>
 });
-const DynamicClientOnlyComponent = dynamic(null, {
+const DynamicClientOnlyComponent = dynamic(()=>import('../components/hello'), {
     loadableGenerated: {
         modules: [
             JSON.stringify({

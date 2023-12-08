@@ -4,7 +4,6 @@
 _next/
 __tmp__/
 dist/
-node_modules/
 target/
 compiled/
 
@@ -36,3 +35,6 @@ bench/nested-deps/components/**/*
 
 **/convex/_generated/**
 **/.tina/__generated__/**
+
+# TODO: remove this, but it needs https://github.com/prettier/prettier/pull/15718
+packages/next/src/build/templates/app-page.ts

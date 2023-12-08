@@ -52,7 +52,6 @@ module.exports = function (task) {
           },
           experimental: {
             keepImportAttributes,
-            emitAssertForImportAttributes: keepImportAttributes,
           },
           transform: {
             react: {
@@ -98,7 +97,6 @@ module.exports = function (task) {
           },
           experimental: {
             keepImportAttributes,
-            emitAssertForImportAttributes: keepImportAttributes,
           },
           transform: {
             react: {
