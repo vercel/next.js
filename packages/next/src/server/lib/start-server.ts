@@ -17,7 +17,7 @@ import os from 'os'
 import Watchpack from 'watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { RESTART_EXIT_CODE, checkNodeDebugType, getDebugPort } from './utils'
+import { RESTART_EXIT_CODE, checkNodeDebugType, getDebugPort, getDebugHost } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
@@ -239,8 +239,9 @@ export async function startServer(
 
       if (nodeDebugType) {
         const debugPort = getDebugPort()
+        const debugHost = getDebugHost();
         Log.info(
-          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at port ${debugPort}.`
+          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at ${debugHost}:${debugPort}.`
         )
       }
 

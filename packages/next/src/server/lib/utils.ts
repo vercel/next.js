@@ -10,17 +10,25 @@ export function printAndExit(message: string, code = 1) {
   process.exit(code)
 }
 
-export const getDebugPort = () => {
-  const debugPortStr =
-    process.execArgv
+const getDebugStr = () => {
+  return process.execArgv
       .find(
         (localArg) =>
           localArg.startsWith('--inspect') ||
           localArg.startsWith('--inspect-brk')
       )
-      ?.split('=', 2)[1] ??
-    process.env.NODE_OPTIONS?.match?.(/--inspect(-brk)?(=(\S+))?( |$)/)?.[3]
+      ?.split('=', 2)[1].split(":").pop() ??
+    process.env.NODE_OPTIONS?.match?.(/--inspect(-brk)?(=(\S+))?( |$)/)?.[3] ?? ""
+}
+
+export const getDebugPort = () => {
+  const debugPortStr = getDebugStr().split(":").pop()
   return debugPortStr ? parseInt(debugPortStr, 10) : 9229
+}
+
+export const getDebugHost = () => {
+  const debugStr = getDebugStr();
+  return debugStr.includes(":") ? debugStr.split(":")[0] : '127.0.0.1';
 }
 
 const NODE_INSPECT_RE = /--inspect(-brk)?(=\S+)?( |$)/

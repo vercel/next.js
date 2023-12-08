@@ -6,6 +6,7 @@ import {
   RESTART_EXIT_CODE,
   checkNodeDebugType,
   getDebugPort,
+  getDebugHost,
   getMaxOldSpaceSize,
   getNodeOptionsWithoutInspect,
   getPort,
@@ -238,7 +239,7 @@ const nextDev: CliCommand = async (args) => {
       }
 
       if (nodeDebugType) {
-        NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${
+        NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${getDebugHost()}:${
           getDebugPort() + 1
         }`
       }
