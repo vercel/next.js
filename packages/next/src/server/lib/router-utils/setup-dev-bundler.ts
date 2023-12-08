@@ -18,7 +18,10 @@ import type { BuildManifest } from '../../get-page-files'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import type { PropagateToWorkersField } from './types'
-import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
+import type {
+  EdgeFunctionDefinition,
+  MiddlewareManifest,
+} from '../../../build/webpack/plugins/middleware-plugin'
 import type {
   HMR_ACTION_TYPES,
   NextJsHotReloaderInterface,
@@ -598,11 +601,12 @@ async function startWatcher(opts: SetupOpts) {
       ) as T
     }
 
+    type InstrumentationDefinition = {
+      files: string[]
+      name: 'instrumentation'
+    }
     type TurbopackMiddlewareManifest = MiddlewareManifest & {
-      instrumentation?: {
-        files: string[]
-        name: 'instrumentation'
-      }
+      instrumentation?: InstrumentationDefinition
     }
 
     const buildManifests = new Map<string, BuildManifest>()
@@ -770,7 +774,7 @@ async function startWatcher(opts: SetupOpts) {
         sortedMiddleware: [],
         functions: {},
       }
-      let instrumentation = undefined
+      let instrumentation: InstrumentationDefinition | undefined = undefined
       for (const m of manifests) {
         Object.assign(manifest.functions, m.functions)
         Object.assign(manifest.middleware, m.middleware)
@@ -778,12 +782,25 @@ async function startWatcher(opts: SetupOpts) {
           instrumentation = m.instrumentation
         }
       }
+      const updateFunctionDefinition = (
+        fun: EdgeFunctionDefinition
+      ): EdgeFunctionDefinition => {
+        return {
+          ...fun,
+          files: [...(instrumentation?.files ?? []), ...fun.files],
+        }
+      }
+      for (const key of Object.keys(manifest.middleware)) {
+        const value = manifest.middleware[key]
+        manifest.middleware[key] = updateFunctionDefinition(value)
+      }
+      for (const key of Object.keys(manifest.functions)) {
+        const value = manifest.functions[key]
+        manifest.functions[key] = updateFunctionDefinition(value)
+      }
       for (const fun of Object.values(manifest.functions).concat(
         Object.values(manifest.middleware)
       )) {
-        if (instrumentation) {
-          fun.files.unshift(...instrumentation.files)
-        }
         for (const matcher of fun.matchers) {
           if (!matcher.regexp) {
             matcher.regexp = pathToRegexp(matcher.originalSource, [], {
@@ -1591,7 +1608,6 @@ async function startWatcher(opts: SetupOpts) {
                   false,
                   route.dataEndpoint,
                   (pageName) => {
-                    console.log('server change', pageName)
                     return {
                       event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
                       pages: [pageName],

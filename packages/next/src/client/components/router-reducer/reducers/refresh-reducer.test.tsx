@@ -135,7 +135,6 @@ describe('refreshReducer', () => {
     })
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -291,7 +290,6 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -473,7 +471,6 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -704,7 +701,6 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 

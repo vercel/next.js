@@ -19,6 +19,7 @@ use next_core::{
     next_telemetry::NextFeatureTelemetry,
 };
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
@@ -41,7 +42,6 @@ use turbopack_binding::{
             environment::ServerAddr,
             file_source::FileSource,
             output::{OutputAsset, OutputAssets},
-            reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
             source::Source,
             version::{Update, Version, VersionState, VersionedContent},
@@ -728,15 +728,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn middleware_endpoint(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Vc<MiddlewareEndpoint> {
+    async fn middleware_endpoint(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+    ) -> Result<Vc<MiddlewareEndpoint>> {
         let context = self.middleware_context();
 
-        let module = context.process(
-            source,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
-        );
-
-        MiddlewareEndpoint::new(self, context, module)
+        Ok(MiddlewareEndpoint::new(self, context, source))
     }
 
     #[turbo_tasks::function]
@@ -774,12 +772,7 @@ impl Project {
             self.node_instrumentation_context()
         };
 
-        let module = context.process(
-            source,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-        );
-
-        InstrumentationEndpoint::new(self, context, module, is_edge)
+        InstrumentationEndpoint::new(self, context, source, is_edge)
     }
 
     #[turbo_tasks::function]
@@ -787,19 +780,24 @@ impl Project {
         self: Vc<Self>,
         output_assets: Vc<OutputAssetsOperation>,
     ) -> Result<Vc<Completion>> {
-        let all_output_assets = all_assets_from_entries_operation(output_assets);
+        let span = tracing::info_span!("emitting");
+        async move {
+            let all_output_assets = all_assets_from_entries_operation(output_assets);
 
-        self.await?
-            .versioned_content_map
-            .insert_output_assets(all_output_assets)
-            .await?;
+            self.await?
+                .versioned_content_map
+                .insert_output_assets(all_output_assets)
+                .await?;
 
-        Ok(emit_assets(
-            *all_output_assets.await?,
-            self.node_root(),
-            self.client_relative_path(),
-            self.node_root(),
-        ))
+            Ok(emit_assets(
+                *all_output_assets.await?,
+                self.node_root(),
+                self.client_relative_path(),
+                self.node_root(),
+            ))
+        }
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]

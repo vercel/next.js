@@ -138,14 +138,11 @@ function HistoryUpdater({
     ) {
       // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
       pushRef.pendingPush = false
-      if (originalPushState) {
-        originalPushState(historyState, '', canonicalUrl)
-      }
+      window.history.pushState(historyState, '', canonicalUrl)
     } else {
-      if (originalReplaceState) {
-        originalReplaceState(historyState, '', canonicalUrl)
-      }
+      window.history.replaceState(historyState, '', canonicalUrl)
     }
+
     sync(appRouterState)
   }, [appRouterState, sync])
   return null
@@ -165,7 +162,6 @@ function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
         dispatch({
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
-          mutable: {},
         })
       })
     },
@@ -192,7 +188,6 @@ function useChangeByServerResponse(
           flightData,
           previousTree,
           overrideCanonicalUrl,
-          mutable: {},
         })
       })
     },
@@ -212,21 +207,11 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         locationSearch: location.search,
         shouldScroll: shouldScroll ?? true,
         navigateType,
-        mutable: {},
       })
     },
     [dispatch]
   )
 }
-
-const originalPushState =
-  typeof window !== 'undefined'
-    ? window.history.pushState.bind(window.history)
-    : null
-const originalReplaceState =
-  typeof window !== 'undefined'
-    ? window.history.replaceState.bind(window.history)
-    : null
 
 function copyNextJsInternalHistoryState(data: any) {
   if (data == null) data = {}
@@ -341,7 +326,6 @@ function Router({
         startTransition(() => {
           dispatch({
             type: ACTION_REFRESH,
-            mutable: {},
             origin: window.location.origin,
           })
         })
@@ -356,7 +340,6 @@ function Router({
           startTransition(() => {
             dispatch({
               type: ACTION_FAST_REFRESH,
-              mutable: {},
               origin: window.location.origin,
             })
           })
@@ -450,6 +433,10 @@ function Router({
   }
 
   useEffect(() => {
+    const originalPushState = window.history.pushState.bind(window.history)
+    const originalReplaceState = window.history.replaceState.bind(
+      window.history
+    )
     if (process.env.__NEXT_WINDOW_HISTORY_SUPPORT) {
       // Ensure the canonical URL in the Next.js Router is updated when the URL is changed so that `usePathname` and `useSearchParams` hold the pushed values.
       const applyUrlFromHistoryPushReplace = (
@@ -465,42 +452,49 @@ function Router({
         })
       }
 
-      if (originalPushState) {
-        /**
-         * Patch pushState to ensure external changes to the history are reflected in the Next.js Router.
-         * Ensures Next.js internal history state is copied to the new history entry.
-         * Ensures usePathname and useSearchParams hold the newly provided url.
-         */
-        window.history.pushState = function pushState(
-          data: any,
-          _unused: string,
-          url?: string | URL | null
-        ): void {
-          data = copyNextJsInternalHistoryState(data)
-
-          applyUrlFromHistoryPushReplace(url)
-
+      /**
+       * Patch pushState to ensure external changes to the history are reflected in the Next.js Router.
+       * Ensures Next.js internal history state is copied to the new history entry.
+       * Ensures usePathname and useSearchParams hold the newly provided url.
+       */
+      window.history.pushState = function pushState(
+        data: any,
+        _unused: string,
+        url?: string | URL | null
+      ): void {
+        // Avoid a loop when Next.js internals trigger pushState/replaceState
+        if (data?.__NA || data?._N) {
           return originalPushState(data, _unused, url)
         }
-      }
-      if (originalReplaceState) {
-        /**
-         * Patch replaceState to ensure external changes to the history are reflected in the Next.js Router.
-         * Ensures Next.js internal history state is copied to the new history entry.
-         * Ensures usePathname and useSearchParams hold the newly provided url.
-         */
-        window.history.replaceState = function replaceState(
-          data: any,
-          _unused: string,
-          url?: string | URL | null
-        ): void {
-          data = copyNextJsInternalHistoryState(data)
+        data = copyNextJsInternalHistoryState(data)
 
-          if (url) {
-            applyUrlFromHistoryPushReplace(url)
-          }
+        if (url) {
+          applyUrlFromHistoryPushReplace(url)
+        }
+
+        return originalPushState(data, _unused, url)
+      }
+
+      /**
+       * Patch replaceState to ensure external changes to the history are reflected in the Next.js Router.
+       * Ensures Next.js internal history state is copied to the new history entry.
+       * Ensures usePathname and useSearchParams hold the newly provided url.
+       */
+      window.history.replaceState = function replaceState(
+        data: any,
+        _unused: string,
+        url?: string | URL | null
+      ): void {
+        // Avoid a loop when Next.js internals trigger pushState/replaceState
+        if (data?.__NA || data?._N) {
           return originalReplaceState(data, _unused, url)
         }
+        data = copyNextJsInternalHistoryState(data)
+
+        if (url) {
+          applyUrlFromHistoryPushReplace(url)
+        }
+        return originalReplaceState(data, _unused, url)
       }
     }
 
@@ -536,10 +530,8 @@ function Router({
     // Register popstate event to call onPopstate.
     window.addEventListener('popstate', onPopState)
     return () => {
-      if (originalPushState) {
+      if (process.env.__NEXT_WINDOW_HISTORY_SUPPORT) {
         window.history.pushState = originalPushState
-      }
-      if (originalReplaceState) {
         window.history.replaceState = originalReplaceState
       }
       window.removeEventListener('popstate', onPopState)
