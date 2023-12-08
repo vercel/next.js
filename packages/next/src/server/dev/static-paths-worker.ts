@@ -38,7 +38,7 @@ export async function loadStaticPaths({
   maxMemoryCacheSize,
   requestHeaders,
   incrementalCacheHandlerPath,
-  ppr,
+  nextConfigPPREnabled,
 }: {
   dir: string
   distDir: string
@@ -54,7 +54,7 @@ export async function loadStaticPaths({
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   incrementalCacheHandlerPath?: string
-  ppr: boolean
+  nextConfigPPREnabled: boolean
 }): Promise<{
   paths?: string[]
   encodedPaths?: string[]
@@ -109,7 +109,7 @@ export async function loadStaticPaths({
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
-      ppr,
+      nextConfigPPREnabled,
       ComponentMod: components.ComponentMod,
     })
   }

@@ -45,15 +45,15 @@ export interface LoadableManifest {
 }
 
 export type LoadComponentsReturnType<NextModule = any> = {
-  Component: NextComponentType
+  Component?: NextComponentType
   pageConfig: PageConfig
   buildManifest: BuildManifest
   subresourceIntegrityManifest?: Record<string, string>
   reactLoadableManifest: ReactLoadableManifest
   clientReferenceManifest?: ClientReferenceManifest
   serverActionsManifest?: any
-  Document: DocumentType
-  App: AppType
+  Document?: DocumentType
+  App?: AppType
   getStaticProps?: GetStaticProps
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
@@ -108,14 +108,18 @@ async function loadComponentsImpl<N = any>({
   page: string
   isAppPath: boolean
 }): Promise<LoadComponentsReturnType<N>> {
-  let DocumentMod = {}
-  let AppMod = {}
+  let Document: DocumentType | undefined
+  let App: AppType | undefined
   if (!isAppPath) {
-    ;[DocumentMod, AppMod] = await Promise.all([
+    const [DocumentMod, AppMod] = await Promise.all([
       Promise.resolve().then(() => requirePage('/_document', distDir, false)),
       Promise.resolve().then(() => requirePage('/_app', distDir, false)),
     ])
+
+    Document = interopDefault(DocumentMod)
+    App = interopDefault(AppMod)
   }
+
   const ComponentMod = await Promise.resolve().then(() =>
     requirePage(page, distDir, isAppPath)
   )
@@ -153,9 +157,7 @@ async function loadComponentsImpl<N = any>({
       : null,
   ])
 
-  const Component = interopDefault(ComponentMod)
-  const Document = interopDefault(DocumentMod)
-  const App = interopDefault(AppMod)
+  const Component = interopDefault<NextComponentType>(ComponentMod)
 
   const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
     ComponentMod

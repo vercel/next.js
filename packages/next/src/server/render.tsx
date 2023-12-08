@@ -452,15 +452,17 @@ export async function renderToHTMLImpl(
     runtime: globalRuntime,
     isExperimentalCompile,
   } = renderOpts
+
+  if (!renderOpts.Component) {
+    throw new Error('Invariant: Cannot render without a Component')
+  }
+
   const { App } = extra
+  let { Document } = extra
 
   const assetQueryString = metadata.assetQueryString
 
-  let Document = extra.Document
-
-  let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
-    renderOpts.Component
-  const OriginComponent = Component
+  const { Component } = renderOpts
 
   let serverComponentsInlinedTransformStream: TransformStream<
     Uint8Array,
@@ -772,7 +774,7 @@ export async function renderToHTMLImpl(
     AppTree: (props: any) => {
       return (
         <AppContainerWithIsomorphicFiberStructure>
-          {renderPageTree(App, OriginComponent, { ...props, router })}
+          {renderPageTree(App, Component, { ...props, router })}
         </AppContainerWithIsomorphicFiberStructure>
       )
     },
@@ -1521,7 +1523,7 @@ export async function renderToHTMLImpl(
   )
 
   if (process.env.NODE_ENV !== 'production') {
-    const nonRenderedComponents = []
+    const nonRenderedComponents: string[] = []
     const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
 
     for (const comp of expectedDocComponents) {
@@ -1587,5 +1589,18 @@ export const renderToHTML: PagesRender = (
   query,
   renderOpts
 ) => {
-  return renderToHTMLImpl(req, res, pathname, query, renderOpts, renderOpts)
+  if (!renderOpts.App) {
+    throw new Error('Invariant: missing App in renderOpts')
+  }
+
+  if (!renderOpts.Document) {
+    throw new Error('Invariant: missing Document in renderOpts')
+  }
+
+  const extra = {
+    App: renderOpts.App,
+    Document: renderOpts.Document,
+  }
+
+  return renderToHTMLImpl(req, res, pathname, query, renderOpts, extra)
 }

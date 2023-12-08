@@ -1,5 +1,6 @@
 import { Span } from '../trace'
 import type { NextConfigComplete } from '../server/config-shared'
+import type { PageInfoRegistry } from './page-info'
 
 import {
   TRACE_IGNORES,
@@ -14,7 +15,6 @@ import {
 
 import path from 'path'
 import fs from 'fs/promises'
-import type { PageInfo } from './utils'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -67,7 +67,7 @@ export async function collectBuildTraces({
   dir,
   config,
   distDir,
-  pageInfos,
+  pageInfoRegistry,
   staticPages,
   nextBuildSpan = new Span({ name: 'build' }),
   hasSsrAmpPages,
@@ -79,7 +79,7 @@ export async function collectBuildTraces({
   staticPages: string[]
   hasSsrAmpPages: boolean
   outputFileTracingRoot: string
-  pageInfos: [string, PageInfo][]
+  pageInfoRegistry: PageInfoRegistry | undefined
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
@@ -638,10 +638,8 @@ export async function collectBuildTraces({
         }
 
         // edge routes have no trace files
-        const [, pageInfo] = pageInfos.find((item) => item[0] === route) || []
-        if (pageInfo?.runtime === 'edge') {
-          return
-        }
+        const pageInfo = pageInfoRegistry?.get(route)
+        if (pageInfo?.runtime === 'edge') return
 
         const combinedIncludes = new Set<string>()
         const combinedExcludes = new Set<string>()

@@ -115,7 +115,8 @@ import {
   isReservedPage,
   isAppBuiltinNotFoundPage,
 } from './utils'
-import type { PageInfo, AppConfig } from './utils'
+import { PageInfoRegistry } from './page-info'
+import type { AppConfig } from './utils'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -349,6 +350,34 @@ function pageToRoute(page: string) {
   }
 }
 
+function createAppDataRouteInfo(
+  page: string,
+  {
+    supportsPPR,
+    isRouteHandler,
+  }: {
+    supportsPPR: boolean
+    isRouteHandler: boolean
+  }
+): DataRouteRouteInfo {
+  const normalizedRoute = normalizePagePath(page)
+
+  // If the page is not a route handler we need to generate a data route.
+  let dataRoute: string | null = null
+  if (!isRouteHandler) {
+    dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
+  }
+
+  let prefetchDataRoute: string | undefined
+  if (supportsPPR) {
+    prefetchDataRoute = path.posix.join(
+      `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
+    )
+  }
+
+  return { dataRoute, prefetchDataRoute }
+}
+
 export default async function build(
   dir: string,
   reactProductionProfiling = false,
@@ -394,6 +423,8 @@ export default async function build(
 
       process.env.NEXT_DEPLOYMENT_ID = config.experimental.deploymentId || ''
       NextBuildContext.config = config
+
+      const nextConfigPPREnabled = config.experimental.ppr === true
 
       let configOutDir = 'out'
       if (config.output === 'export' && config.distDir !== '.next') {
@@ -1109,7 +1140,7 @@ export default async function build(
                 dir,
                 config,
                 distDir,
-                pageInfos: [],
+                pageInfoRegistry: undefined,
                 staticPages: [],
                 hasSsrAmpPages: false,
                 buildTraceContext,
@@ -1183,7 +1214,7 @@ export default async function build(
       const appNormalizedPaths = new Map<string, string>()
       const appDynamicParamPaths = new Set<string>()
       const appDefaultConfigs = new Map<string, AppConfig>()
-      const pageInfos = new Map<string, PageInfo>()
+      const pageInfoRegistry = new PageInfoRegistry()
       const pagesManifest = JSON.parse(
         await fs.readFile(manifestPath, 'utf8')
       ) as PagesManifest
@@ -1337,7 +1368,7 @@ export default async function build(
           minimalMode: ciEnvironment.hasNextSupport,
           allowedRevalidateHeaderKeys:
             config.experimental.allowedRevalidateHeaderKeys,
-          experimental: { ppr: config.experimental.ppr === true },
+          experimental: { ppr: nextConfigPPREnabled },
         })
 
         incrementalCacheIpcPort = cacheInitialization.ipcPort
@@ -1408,7 +1439,7 @@ export default async function build(
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
-              ppr: config.experimental.ppr === true,
+              nextConfigPPREnabled,
             })
         )
 
@@ -1620,7 +1651,7 @@ export default async function build(
                             maxMemoryCacheSize:
                               config.experimental.isrMemoryCacheSize,
                             nextConfigOutput: config.output,
-                            ppr: config.experimental.ppr === true,
+                            nextConfigPPREnabled,
                           })
                         }
                       )
@@ -1636,11 +1667,8 @@ export default async function build(
                             `Using edge runtime on a page currently disables static generation for that page`
                           )
                         } else {
-                          // If this route can be partially pre-rendered, then
-                          // mark it as such and mark it that it can be
-                          // generated server-side.
                           if (workerResult.isPPR) {
-                            isPPR = workerResult.isPPR
+                            isPPR = true
                             isSSG = true
                             isStatic = true
 
@@ -1838,7 +1866,7 @@ export default async function build(
                   }
                 }
 
-                pageInfos.set(page, {
+                pageInfoRegistry.set(page, {
                   size,
                   totalSize,
                   isStatic,
@@ -1923,7 +1951,7 @@ export default async function build(
           dir,
           config,
           distDir,
-          pageInfos: Object.entries(pageInfos),
+          pageInfoRegistry,
           staticPages: [...staticPages],
           nextBuildSpan,
           hasSsrAmpPages,
@@ -2164,7 +2192,7 @@ export default async function build(
               })
 
               // Ensure we don't generate explicit app prefetches while in PPR.
-              if (config.experimental.ppr && appPrefetchPaths.size > 0) {
+              if (nextConfigPPREnabled && appPrefetchPaths.size > 0) {
                 throw new Error(
                   "Invariant: explicit app prefetches shouldn't generated with PPR"
                 )
@@ -2258,11 +2286,11 @@ export default async function build(
               appConfig.revalidate === 0 ||
               exportResult.byPath.get(page)?.revalidate === 0
 
-            if (hasDynamicData && pageInfos.get(page)?.isStatic) {
+            const { isStatic, isPPR } = pageInfoRegistry.get(page, true)
+            if (hasDynamicData && isStatic) {
               // if the page was marked as being static, but it contains dynamic data
               // (ie, in the case of a static generation bailout), then it should be marked dynamic
-              pageInfos.set(page, {
-                ...(pageInfos.get(page) as PageInfo),
+              pageInfoRegistry.patch(page, {
                 isStatic: false,
                 isSSG: false,
               })
@@ -2270,12 +2298,13 @@ export default async function build(
 
             const isRouteHandler = isAppRouteRoute(originalAppPath)
 
-            // When this is an app page and PPR is enabled, the route supports
-            // partial pre-rendering.
-            const experimentalPPR =
-              !isRouteHandler && config.experimental.ppr === true
-                ? true
-                : undefined
+            /**
+             * If this page is not an app route and PPR is enabled, then it
+             * could support PPR.
+             */
+            const supportsPPR = !isRouteHandler && nextConfigPPREnabled
+
+            const experimentalPPR = isPPR ? true : undefined
 
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
             // to enable server actions on static routes
@@ -2299,35 +2328,22 @@ export default async function build(
                 hasPostponed,
               } = exportResult.byPath.get(route) ?? {}
 
-              pageInfos.set(route, {
-                ...(pageInfos.get(route) as PageInfo),
+              // update the page (eg /blog/[slug]) to also have the postpone metadata
+              const pageInfo = pageInfoRegistry.patch(page, {
                 hasPostponed,
                 hasEmptyPrelude,
               })
 
-              // update the page (eg /blog/[slug]) to also have the postpone metadata
-              pageInfos.set(page, {
-                ...(pageInfos.get(page) as PageInfo),
-                hasPostponed,
-                hasEmptyPrelude,
-              })
+              pageInfoRegistry.set(route, pageInfo)
 
               if (revalidate !== 0) {
-                const normalizedRoute = normalizePagePath(route)
-
-                let dataRoute: string | null
-                if (isRouteHandler) {
-                  dataRoute = null
-                } else {
-                  dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
-                }
-
-                let prefetchDataRoute: string | null | undefined
-                if (experimentalPPR) {
-                  prefetchDataRoute = path.posix.join(
-                    `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
-                  )
-                }
+                const { dataRoute, prefetchDataRoute } = createAppDataRouteInfo(
+                  route,
+                  {
+                    supportsPPR,
+                    isRouteHandler,
+                  }
+                )
 
                 const routeMeta: Partial<SsgRoute> = {}
 
@@ -2373,8 +2389,7 @@ export default async function build(
                 hasDynamicData = true
                 // we might have determined during prerendering that this page
                 // used dynamic data
-                pageInfos.set(route, {
-                  ...(pageInfos.get(route) as PageInfo),
+                pageInfoRegistry.patch(route, {
                   isSSG: false,
                   isStatic: false,
                 })
@@ -2382,24 +2397,19 @@ export default async function build(
             })
 
             if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
-              const normalizedRoute = normalizePagePath(page)
-              const dataRoute = path.posix.join(
-                `${normalizedRoute}${RSC_SUFFIX}`
+              const { dataRoute, prefetchDataRoute } = createAppDataRouteInfo(
+                page,
+                {
+                  supportsPPR,
+                  isRouteHandler,
+                }
               )
 
-              let prefetchDataRoute: string | null | undefined
-              if (experimentalPPR) {
-                prefetchDataRoute = path.posix.join(
-                  `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
-                )
-              }
-
-              pageInfos.set(page, {
-                ...(pageInfos.get(page) as PageInfo),
+              pageInfoRegistry.patch(page, {
                 isDynamicAppRoute: true,
                 // if PPR is turned on and the route contains a dynamic segment,
                 // we assume it'll be partially prerendered
-                hasPostponed: experimentalPPR,
+                hasPostponed: supportsPPR,
               })
 
               // TODO: create a separate manifest to allow enforcing
@@ -2410,33 +2420,32 @@ export default async function build(
                 routeRegex: normalizeRouteRegex(
                   getNamedRouteRegex(page, false).re.source
                 ),
-                dataRoute,
                 // if dynamicParams are enabled treat as fallback:
                 // 'blocking' if not it's fallback: false
                 fallback: appDynamicParamPaths.has(originalAppPath)
                   ? null
                   : false,
-                dataRouteRegex: isRouteHandler
-                  ? null
-                  : normalizeRouteRegex(
+                dataRoute,
+                dataRouteRegex: dataRoute
+                  ? normalizeRouteRegex(
                       getNamedRouteRegex(
                         dataRoute.replace(/\.rsc$/, ''),
                         false
                       ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
-                    ),
+                    )
+                  : null,
                 prefetchDataRoute,
-                prefetchDataRouteRegex:
-                  isRouteHandler || !prefetchDataRoute
-                    ? undefined
-                    : normalizeRouteRegex(
-                        getNamedRouteRegex(
-                          prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
-                          false
-                        ).re.source.replace(
-                          /\(\?:\\\/\)\?\$$/,
-                          '\\.prefetch\\.rsc$'
-                        )
-                      ),
+                prefetchDataRouteRegex: prefetchDataRoute
+                  ? normalizeRouteRegex(
+                      getNamedRouteRegex(
+                        prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
+                        false
+                      ).re.source.replace(
+                        /\(\?:\\\/\)\?\$$/,
+                        '\\.prefetch\\.rsc$'
+                      )
+                    )
+                  : undefined,
               }
             }
           }
@@ -2601,7 +2610,7 @@ export default async function build(
             const hasAmp = hybridAmpPages.has(page)
             const file = normalizePagePath(page)
 
-            const pageInfo = pageInfos.get(page)
+            const pageInfo = pageInfoRegistry.get(page)
             const durationInfo = exportResult.byPage.get(page)
             if (pageInfo && durationInfo) {
               // Set Build Duration
@@ -3083,7 +3092,7 @@ export default async function build(
       console.log()
 
       await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
-        printTreeView(pageKeys, pageInfos, {
+        printTreeView(pageKeys, pageInfoRegistry, {
           distPath: distDir,
           buildId: buildId,
           pagesDir,
