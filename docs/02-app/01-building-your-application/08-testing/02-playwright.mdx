@@ -1,10 +1,10 @@
 ---
 title: Setting up Playwright with Next.js
 nav: Playwright
-description: Learn how to set up Next.js with Playwright for End-to-End (E2E) and Integration testing.
+description: Learn how to set up Next.js with Playwright for End-to-End (E2E) testing.
 ---
 
-Playwright is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** and **Integration** tests across all platforms.
+Playwright is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** testing.
 
 <PagesOnly>
 
@@ -30,7 +30,7 @@ yarn create playwright
 pnpm create playwright
 ```
 
-This will take you through a series of prompts to configure Playwright for your project. Please refer to the [Playwright installation guide](https://playwright.dev/docs/intro#installation) for the step-by-step guide.
+This will take you through a series of prompts to setup and configure Playwright for your project, including adding a `playwright.config.ts` file. Please refer to the [Playwright installation guide](https://playwright.dev/docs/intro#installation) for the step-by-step guide.
 
 ## Creating your first Playwright E2E test
 
@@ -44,7 +44,7 @@ import Link from 'next/link'
 export default function Page() {
   return (
     <div>
-      <h1>Home Page</h1>
+      <h1>Home</h1>
       <Link href="/about">About</Link>
     </div>
   )
@@ -57,7 +57,7 @@ import Link from 'next/link'
 export default function Page() {
   return (
     <div>
-      <h1>About Page</h1>
+      <h1>About</h1>
       <Link href="/">Home</Link>
     </div>
   )
@@ -72,7 +72,7 @@ import Link from 'next/link'
 export default function Home() {
   return (
     <div>
-      <h1>Home Page</h1>
+      <h1>Home</h1>
       <Link href="/about">About</Link>
     </div>
   )
@@ -85,7 +85,7 @@ import Link from 'next/link'
 export default function About() {
   return (
     <div>
-      <h1>About Page</h1>
+      <h1>About</h1>
       <Link href="/">Home</Link>
     </div>
   )
@@ -102,11 +102,11 @@ import { test, expect } from '@playwright/test'
 test('should navigate to the about page', async ({ page }) => {
   // Start from the index page (the baseURL is set via the webServer in the playwright.config.ts)
   await page.goto('http://localhost:3000/')
-  // Find an element with the text 'About Page' and click on it
+  // Find an element with the text 'About' and click on it
   await page.click('text=About')
   // The new URL should be "/about" (baseURL is used there)
   await expect(page).toHaveURL('http://localhost:3000/about')
-  // The new page should contain an h1 with "About Page"
+  // The new page should contain an h1 with "About"
   await expect(page.locator('h1')).toContainText('About')
 })
 ```
@@ -117,9 +117,9 @@ test('should navigate to the about page', async ({ page }) => {
 
 ### Running your Playwright tests
 
-Since Playwright is testing a real Next.js application, it requires the Next.js server to be running prior to starting Playwright. It is recommended to run your tests against your production code to more closely resemble how your application will behave.
+Playwright will simulate a user navigating your application using three browsers: Chromium, Firefox and Webkit, this requires your Next.js server to be running. We recommend running your tests against your production code to more closely resemble how your application will behave.
 
-Run `npm run build` and `npm run start`, then run `npm run test:e2e` in another terminal window to run the Playwright tests.
+Run `npm run build` and `npm run start`, then run `npx playwright test` in another terminal window to run the Playwright tests.
 
 > **Good to know**: Alternatively, you can use the [`webServer`](https://playwright.dev/docs/test-webserver/) feature to let Playwright start the development server and wait until it's fully available.
 
@@ -129,11 +129,5 @@ Playwright will by default run your tests in the [headless mode](https://playwri
 
 You can learn more about Playwright and Continuous Integration from these resources:
 
-- [Getting started with Playwright](https://playwright.dev/docs/intro)
-- [Use a development server](https://playwright.dev/docs/test-webserver/)
 - [Playwright on your CI provider](https://playwright.dev/docs/ci)
 - [Playwright Discord](https://discord.com/invite/playwright-807756831384403968)
-
-```
-
-```

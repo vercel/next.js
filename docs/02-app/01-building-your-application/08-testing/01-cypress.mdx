@@ -155,7 +155,7 @@ describe('Navigation', () => {
     // The new url should include "/about"
     cy.url().should('include', '/about')
 
-    // The new page should contain an h1 with "About page"
+    // The new page should contain an h1 with "About"
     cy.get('h1').contains('About')
   })
 })
@@ -215,10 +215,10 @@ import Page from '../../app/page'
 
 describe('<Page />', () => {
   it('should render and display expected content', () => {
-    // Mount the React component for the About page
+    // Mount the React component for the Home page
     cy.mount(<Page />)
 
-    // The new page should contain an h1 with "About page"
+    // The new page should contain an h1 with "Home"
     cy.get('h1').contains('Home')
 
     // Validate that a link with the expected URL is present
