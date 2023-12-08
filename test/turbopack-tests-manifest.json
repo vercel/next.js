@@ -2359,7 +2359,6 @@
       "app dir - css HMR should support HMR for CSS imports in client components",
       "app dir - css HMR should support HMR for CSS imports in server components",
       "app dir - css HMR should support HMR with sass/scss",
-      "app dir - css Suspensey CSS should suspend on CSS imports if its slow on client navigation",
       "app dir - css css support client components should support css modules inside client components",
       "app dir - css css support client components should support css modules inside client page",
       "app dir - css css support client layouts should support css modules inside client layouts",
@@ -2392,6 +2391,7 @@
     ],
     "failed": [
       "app dir - css HMR should not create duplicate link tags during HMR",
+      "app dir - css Suspensey CSS should suspend on CSS imports if its slow on client navigation",
       "app dir - css css support chunks should bundle css resources into chunks",
       "app dir - css css support multiple entries should deduplicate styles on the module level",
       "app dir - css css support multiple entries should only include the same style once in the flight data",
@@ -7387,11 +7387,11 @@
   },
   "test/integration/css/test/css-modules.test.js": {
     "passed": [
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "Ordering with Global CSS and Modules (dev) should not execute scripts in any order"
     ],
     "failed": [
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)",

@@ -1,4 +1,7 @@
-use std::fmt::Write;
+use std::{
+    fmt::Write,
+    mem::{replace, take},
+};
 
 use anyhow::Result;
 use async_recursion::async_recursion;
@@ -384,13 +387,9 @@ impl LoaderTreeBuilder {
             "[{segment}, {{",
             segment = StringifyJs(segment)
         )?;
-        // add parallel_routes
-        for (key, &parallel_route) in parallel_routes.iter() {
-            write!(self.loader_tree_code, "{key}: ", key = StringifyJs(key))?;
-            self.walk_tree(parallel_route, false).await?;
-            writeln!(self.loader_tree_code, ",")?;
-        }
-        writeln!(self.loader_tree_code, "}}, {{")?;
+
+        // Components need to be referenced first
+        let temp_loader_tree_code = take(&mut self.loader_tree_code);
         // add components
         let Components {
             page,
@@ -403,17 +402,28 @@ impl LoaderTreeBuilder {
             metadata,
             route: _,
         } = &*components.await?;
+        self.write_component(ComponentType::Layout, *layout).await?;
         self.write_component(ComponentType::Page, *page).await?;
         self.write_component(ComponentType::DefaultPage, *default)
             .await?;
         self.write_component(ComponentType::Error, *error).await?;
-        self.write_component(ComponentType::Layout, *layout).await?;
         self.write_component(ComponentType::Loading, *loading)
             .await?;
         self.write_component(ComponentType::Template, *template)
             .await?;
         self.write_component(ComponentType::NotFound, *not_found)
             .await?;
+        let components_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
+
+        // add parallel_routes
+        for (key, &parallel_route) in parallel_routes.iter() {
+            write!(self.loader_tree_code, "{key}: ", key = StringifyJs(key))?;
+            self.walk_tree(parallel_route, false).await?;
+            writeln!(self.loader_tree_code, ",")?;
+        }
+        writeln!(self.loader_tree_code, "}}, {{")?;
+
+        self.loader_tree_code += &components_code;
 
         // Ensure global metadata being written only once at the root level
         // Otherwise child pages will have redundant metadata
