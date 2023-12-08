@@ -54,15 +54,15 @@ jobs:
       - name: Get commit of the latest tag
         run: echo "LATEST_TAG_COMMIT=$(git rev-list -n 1 $(git describe --tags --abbrev=0))" >> $GITHUB_ENV
 
-      # - name: Get latest commit
-      #   run: echo "LATEST_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+      - name: Get latest commit
+        run: echo "LATEST_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
-      # - name: Check if new commits since last tag
-      #   run: |
-      #     if [ "$LATEST_TAG_COMMIT" = "$LATEST_COMMIT" ]; then
-      #       echo "No new commits. Exiting..."
-      #       exit 1
-      #     fi
+      - name: Check if new commits since last tag
+        run: |
+          if [ "$LATEST_TAG_COMMIT" = "$LATEST_COMMIT" ]; then
+            echo "No new commits. Exiting..."
+            exit 1
+          fi
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
