@@ -21,7 +21,7 @@ use swc_core::{
 /// Undefined / null is treated as None.
 pub enum Const {
     Value(Value),
-    Unsupported,
+    Unsupported(String),
 }
 
 pub(crate) struct CollectExportedConstVisitor {
@@ -77,7 +77,10 @@ impl<'a> VisitAstPath for CollectExportedConstVisitor {
 fn extract_value(ctx: &ExprCtx, init: &Expr) -> Option<Const> {
     match init {
         init if init.is_undefined(ctx) => Some(Const::Value(Value::Null)),
-        Expr::Ident(_) => Some(Const::Unsupported),
+        Expr::Ident(id) => Some(Const::Unsupported(format!(
+            "Unknown Identifier {:#?}",
+            id.sym
+        ))),
         Expr::Lit(lit) => match lit {
             Lit::Num(num) => Some(Const::Value(Value::Number(
                 Number::from_f64(num.value).expect("Should able to convert f64 to Number"),
@@ -89,7 +92,7 @@ fn extract_value(ctx: &ExprCtx, init: &Expr) -> Option<Const> {
                 "/{}/{}",
                 r.exp, r.flags
             )))),
-            _ => Some(Const::Unsupported),
+            _ => Some(Const::Unsupported("Unsupported Literal".to_string())),
         },
         Expr::Array(arr) => {
             let mut a = vec![];
@@ -98,12 +101,18 @@ fn extract_value(ctx: &ExprCtx, init: &Expr) -> Option<Const> {
                 match elem {
                     Some(elem) => {
                         if elem.spread.is_some() {
-                            return Some(Const::Unsupported);
+                            return Some(Const::Unsupported(
+                                "Unsupported spread operator in the Array Expression".to_string(),
+                            ));
                         }
 
                         match extract_value(ctx, &elem.expr) {
                             Some(Const::Value(value)) => a.push(value),
-                            _ => return Some(Const::Unsupported),
+                            _ => {
+                                return Some(Const::Unsupported(
+                                    "Unsupported value in the Array Expression".to_string(),
+                                ))
+                            }
                         }
                     }
                     None => {
@@ -121,19 +130,32 @@ fn extract_value(ctx: &ExprCtx, init: &Expr) -> Option<Const> {
                 let kv = match prop {
                     PropOrSpread::Prop(box Prop::KeyValue(kv)) => match kv.key {
                         PropName::Ident(_) | PropName::Str(_) => kv,
-                        _ => return Some(Const::Unsupported),
+                        _ => {
+                            return Some(Const::Unsupported(
+                                "Unsupported spread operator in the Object Expression".to_string(),
+                            ))
+                        }
                     },
-                    _ => return Some(Const::Unsupported),
+                    _ => {
+                        return Some(Const::Unsupported(
+                            "Unsupported property in the object".to_string(),
+                        ))
+                    }
                 };
 
                 let key = match &kv.key {
                     PropName::Ident(i) => i.sym.as_ref(),
                     PropName::Str(s) => s.value.as_ref(),
-                    _ => return Some(Const::Unsupported),
+                    _ => {
+                        return Some(Const::Unsupported(format!(
+                            "Unsupported key type {:#?} in the Object Expression",
+                            kv.key
+                        )))
+                    }
                 };
                 let new_value = extract_value(ctx, &kv.value);
-                if let Some(Const::Unsupported) = new_value {
-                    return Some(Const::Unsupported);
+                if let Some(Const::Unsupported(msg)) = new_value {
+                    return Some(Const::Unsupported(msg));
                 }
 
                 if let Some(Const::Value(value)) = new_value {
@@ -146,7 +168,9 @@ fn extract_value(ctx: &ExprCtx, init: &Expr) -> Option<Const> {
         Expr::Tpl(tpl) => {
             // [TODO] should we add support for `${'e'}d${'g'}'e'`?
             if !tpl.exprs.is_empty() {
-                Some(Const::Unsupported)
+                Some(Const::Unsupported(
+                    "Unsupported template literal with expressions".to_string(),
+                ))
             } else {
                 Some(
                     tpl.quasis
@@ -170,10 +194,10 @@ fn extract_value(ctx: &ExprCtx, init: &Expr) -> Option<Const> {
                                 cooked.map(|c| c.to_string()).unwrap_or(raw.to_string()),
                             ))
                         })
-                        .unwrap_or(Const::Unsupported),
+                        .unwrap_or(Const::Unsupported("Unsupprted node type".to_string())),
                 )
             }
         }
-        _ => Some(Const::Unsupported),
+        _ => Some(Const::Unsupported("Unsupprted node type".to_string())),
     }
 }

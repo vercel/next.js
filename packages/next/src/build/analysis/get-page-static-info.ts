@@ -428,7 +428,8 @@ const warnedUnsupportedValueMap = new LRUCache<string, boolean>({ max: 250 })
 // [TODO] next-swc does not returns path where unsupported value is found yet.
 function warnAboutUnsupportedValue(
   pageFilePath: string,
-  page: string | undefined
+  page: string | undefined,
+  message: string
 ) {
   if (warnedUnsupportedValueMap.has(pageFilePath)) {
     return
@@ -438,6 +439,7 @@ function warnAboutUnsupportedValue(
     `Next.js can't recognize the exported \`config\` field in ` +
       (page ? `route "${page}"` : `"${pageFilePath}"`) +
       ':\n' +
+      message +
       'The default config will be used instead.\n' +
       'Read More - https://nextjs.org/docs/messages/invalid-page-config'
   )
@@ -480,7 +482,7 @@ export async function getPageStaticInfo(params: {
   }
 
   const binding = await require('../swc').loadBindings()
-  console.log('entering napi');
+  console.log('entering napi')
   const pageStaticInfo = await binding.analysis.getPageStaticInfo(params)
 
   if (!!oldExport !== !!pageStaticInfo) {
@@ -494,8 +496,8 @@ export async function getPageStaticInfo(params: {
   }
 
   if (pageStaticInfo) {
-    const { exportsInfo, extractedValues, rscInfo, shouldWarn } = await binding.analysis.getPageStaticInfo(params)
-
+    const { exportsInfo, extractedValues, rscInfo, warnings } =
+      await binding.analysis.getPageStaticInfo(params)
 
     const {
       ssg,
@@ -508,9 +510,9 @@ export async function getPageStaticInfo(params: {
     } = exportsInfo
     const rsc = rscInfo.type
 
-    if (shouldWarn) {
-      warnAboutUnsupportedValue(pageFilePath, page)
-    }
+    warnings?.forEach((warning: string) => {
+      warnAboutUnsupportedValue(pageFilePath, page, warning)
+    })
 
     // default / failsafe value for config
     let config = extractedValues.config

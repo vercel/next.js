@@ -243,7 +243,7 @@ pub struct StaticPageInfo {
     pub exports_info: Option<ExportInfo>,
     pub extracted_values: HashMap<String, serde_json::Value>,
     pub rsc_info: Option<RscModuleInfo>,
-    pub should_warn: bool,
+    pub warnings: Vec<String>,
 }
 
 #[wasm_bindgen(js_name = "getPageStaticInfo")]
@@ -265,15 +265,18 @@ pub fn get_page_static_info(page_file_path: String, page_contents: String) -> js
         let mut exported_const_values =
             extract_expored_const_values(&source_ast, properties_to_extract);
 
-        let should_warn = exported_const_values
-            .iter()
-            .any(|(_, v)| matches!(v, Some(Const::Unsupported)));
-
         let mut extracted_values = HashMap::new();
+        let mut warnings = vec![];
 
         for (key, value) in exported_const_values.drain() {
-            if let Some(Const::Value(v)) = value {
-                extracted_values.insert(key.clone(), v);
+            match value {
+                Some(Const::Value(v)) => {
+                    extracted_values.insert(key.clone(), v);
+                }
+                Some(Const::Unsupported(msg)) => {
+                    warnings.push(msg);
+                }
+                _ => {}
             }
         }
 
@@ -281,7 +284,7 @@ pub fn get_page_static_info(page_file_path: String, page_contents: String) -> js
             exports_info: Some(exports_info),
             extracted_values,
             rsc_info: Some(rsc_info),
-            should_warn,
+            warnings,
         };
 
         let s = serde_json::to_string(&ret)

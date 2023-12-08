@@ -220,7 +220,12 @@ pub struct CollectPageStaticInfoTask {
 
 #[napi]
 impl Task for CollectPageStaticInfoTask {
-    type Output = Option<(ExportInfo, HashMap<String, Value>, RscModuleInfo, bool)>;
+    type Output = Option<(
+        ExportInfo,
+        HashMap<String, Value>,
+        RscModuleInfo,
+        Vec<String>,
+    )>;
     type JsValue = Option<String>;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
@@ -250,28 +255,26 @@ impl Task for CollectPageStaticInfoTask {
         let mut exported_const_values =
             extract_expored_const_values(&source_ast, properties_to_extract);
 
-        let should_warn = exported_const_values
-            .iter()
-            .any(|(_, v)| matches!(v, Some(Const::Unsupported)));
-
         let mut extracted_values = HashMap::new();
+        let mut warnings = vec![];
 
         for (key, value) in exported_const_values.drain() {
-            if let Some(Const::Value(v)) = value {
-                extracted_values.insert(key.clone(), v);
+            match value {
+                Some(Const::Value(v)) => {
+                    extracted_values.insert(key.clone(), v);
+                }
+                Some(Const::Unsupported(msg)) => {
+                    warnings.push(msg);
+                }
+                _ => {}
             }
         }
 
-        Ok(Some((
-            exports_info,
-            extracted_values,
-            rsc_info,
-            should_warn,
-        )))
+        Ok(Some((exports_info, extracted_values, rsc_info, warnings)))
     }
 
     fn resolve(&mut self, _env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
-        if let Some((exports_info, extracted_values, rsc_info, should_warn)) = result {
+        if let Some((exports_info, extracted_values, rsc_info, warnings)) = result {
             // [TODO] this is stopgap; there are some non n-api serializable types in the
             // nested result. However, this is still much smaller than passing whole ast.
             // Should go away once all of logics in the getPageStaticInfo is internalized.
@@ -279,7 +282,7 @@ impl Task for CollectPageStaticInfoTask {
                 exports_info: Some(exports_info),
                 extracted_values,
                 rsc_info: Some(rsc_info),
-                should_warn,
+                warnings,
             };
 
             let ret = serde_json::to_string(&ret)
@@ -299,7 +302,7 @@ pub struct StaticPageInfo {
     pub exports_info: Option<ExportInfo>,
     pub extracted_values: HashMap<String, Value>,
     pub rsc_info: Option<RscModuleInfo>,
-    pub should_warn: bool,
+    pub warnings: Vec<String>,
 }
 
 #[napi]
