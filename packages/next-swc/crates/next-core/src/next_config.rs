@@ -9,10 +9,13 @@ use turbopack_binding::{
     turbopack::{
         core::{
             changed::any_content_changed_of_module,
-            context::AssetContext,
+            context::{AssetContext, ProcessResult},
             file_source::FileSource,
             ident::AssetIdent,
-            issue::{Issue, IssueDescriptionExt, IssueExt, IssueSeverity, StyledString},
+            issue::{
+                Issue, IssueDescriptionExt, IssueExt, IssueSeverity, OptionStyledString,
+                StyledString,
+            },
             reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
             resolve::{
                 find_context_file,
@@ -503,6 +506,8 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+
+    use_lightningcss: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -765,6 +770,13 @@ impl NextConfig {
     pub async fn enable_taint(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.await?.experimental.taint.unwrap_or(false)))
     }
+
+    #[turbo_tasks::function]
+    pub async fn use_lightningcss(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.experimental.use_lightningcss.unwrap_or(false),
+        ))
+    }
 }
 
 fn next_configs() -> Vc<Vec<String>> {
@@ -823,6 +835,10 @@ async fn load_next_config_and_custom_routes_internal(
     import_map.insert_exact_alias("next", ImportMapping::External(None).into());
     import_map.insert_wildcard_alias("next/", ImportMapping::External(None).into());
     import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
+    import_map.insert_exact_alias(
+        "styled-jsx/style",
+        ImportMapping::External(Some("styled-jsx/style.js".to_string())).cell(),
+    );
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
     let context = node_evaluate_asset_context(
@@ -833,19 +849,28 @@ async fn load_next_config_and_custom_routes_internal(
     );
     let config_asset = config_file.map(FileSource::new);
 
-    let config_changed = config_asset.map_or_else(Completion::immutable, |config_asset| {
+    let config_changed = if let Some(config_asset) = config_asset {
         // This invalidates the execution when anything referenced by the config file
         // changes
-        let config_asset = context.process(
-            Vc::upcast(config_asset),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
-        );
-        any_content_changed_of_module(config_asset)
-    });
-    let load_next_config_asset = context.process(
-        next_asset("entry/config/next.js".to_string()),
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-    );
+        match *context
+            .process(
+                Vc::upcast(config_asset),
+                Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            )
+            .await?
+        {
+            ProcessResult::Module(module) => any_content_changed_of_module(module),
+            ProcessResult::Ignore => Completion::immutable(),
+        }
+    } else {
+        Completion::immutable()
+    };
+    let load_next_config_asset = context
+        .process(
+            next_asset("entry/config/next.js".to_string()),
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+        )
+        .module();
     let config_value = evaluate(
         load_next_config_asset,
         project_path,
@@ -970,15 +995,19 @@ impl Issue for OutdatedConfigIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell(format!(
-            "\"{}\" has been replaced by \"{}\"",
-            self.old_name, self.new_name
-        ))
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Line(vec![
+            StyledString::Code(self.old_name.clone()),
+            StyledString::Text(" has been replaced by ".to_string()),
+            StyledString::Code(self.new_name.clone()),
+        ])
+        .cell()
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<StyledString> {
-        StyledString::Text(self.description.to_string()).cell()
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(self.description.to_string()).cell(),
+        ))
     }
 }

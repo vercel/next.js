@@ -1,11 +1,8 @@
-import { DYNAMIC_ERROR_CODE } from '../../client/components/hooks-server-context'
 import stringHash from 'next/dist/compiled/string-hash'
 import { formatServerError } from '../../lib/format-server-error'
-import { isNotFoundError } from '../../client/components/not-found'
-import { isRedirectError } from '../../client/components/redirect'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
 import { isAbortError } from '../pipe-readable'
+import { isDynamicUsageError } from '../../export/helpers/is-dynamic-usage-error'
 
 export type ErrorHandler = (err: any) => string | undefined
 
@@ -37,13 +34,7 @@ export function createErrorHandler({
   return (err) => {
     if (allCapturedErrors) allCapturedErrors.push(err)
 
-    if (
-      err &&
-      (err.digest === DYNAMIC_ERROR_CODE ||
-        isNotFoundError(err) ||
-        err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-        isRedirectError(err))
-    ) {
+    if (isDynamicUsageError(err)) {
       return err.digest
     }
 

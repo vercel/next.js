@@ -65,6 +65,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 false,
+                false,
                 NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
@@ -78,6 +79,7 @@ fn next_dynamic_fixture(input: PathBuf) {
         syntax(),
         &|_tr| {
             next_dynamic(
+                false,
                 false,
                 false,
                 false,
@@ -96,6 +98,7 @@ fn next_dynamic_fixture(input: PathBuf) {
             next_dynamic(
                 false,
                 true,
+                false,
                 false,
                 NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
@@ -124,6 +127,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 true,
+                false,
                 NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
@@ -140,6 +144,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 true,
+                false,
                 NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
@@ -156,6 +161,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 true,
                 true,
+                false,
                 NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
@@ -171,6 +177,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
             next_dynamic(
                 false,
                 true,
+                false,
                 false,
                 NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),

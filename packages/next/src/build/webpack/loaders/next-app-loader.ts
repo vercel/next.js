@@ -24,6 +24,7 @@ import { getFilenameAndExtension } from './next-metadata-route-loader'
 import { isAppBuiltinNotFoundPage } from '../../utils'
 import { loadEntrypoint } from '../../load-entrypoint'
 import { isGroupSegment } from '../../../shared/lib/segment'
+import { getFilesInDir } from '../../../lib/get-files-in-dir'
 
 export type AppLoaderOptions = {
   name: string
@@ -56,6 +57,8 @@ const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
 const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
+const defaultGlobalErrorPath = 'next/dist/client/components/error-boundary'
+const defaultLayoutPath = 'next/dist/client/components/default-layout'
 
 type DirResolver = (pathToResolve: string) => string
 type PathResolver = (
@@ -176,7 +179,7 @@ async function createTreeCodeFromPath(
   treeCode: string
   pages: string
   rootLayout: string | undefined
-  globalError: string | undefined
+  globalError: string
 }> {
   const splittedPath = pagePath.split(/[\\/]/, 1)
   const isNotFoundRoute = page === '/_not-found'
@@ -188,7 +191,7 @@ async function createTreeCodeFromPath(
   const pages: string[] = []
 
   let rootLayout: string | undefined
-  let globalError: string | undefined
+  let globalError: string = defaultGlobalErrorPath
 
   async function resolveAdjacentParallelSegments(
     segmentPath: string
@@ -345,14 +348,17 @@ async function createTreeCodeFromPath(
         rootLayout = layoutPath
 
         if (isDefaultNotFound && !layoutPath) {
-          rootLayout = 'next/dist/client/components/default-layout'
+          rootLayout = defaultLayoutPath
           definedFilePaths.push(['layout', rootLayout])
         }
 
         if (layoutPath) {
-          globalError = await resolver(
+          const resolvedGlobalErrorPath = await resolver(
             `${path.dirname(layoutPath)}/${GLOBAL_ERROR_FILE_TYPE}`
           )
+          if (resolvedGlobalErrorPath) {
+            globalError = resolvedGlobalErrorPath
+          }
         }
       }
 
@@ -553,13 +559,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       return existingFiles.has(fileName)
     }
     try {
-      const files = await fs.readdir(dirname, { withFileTypes: true })
-      const fileNames = new Set<string>()
-      for (const file of files) {
-        if (file.isFile()) {
-          fileNames.add(file.name)
-        }
-      }
+      const files = await getFilesInDir(dirname)
+      const fileNames = new Set<string>(files)
       filesInDir.set(dirname, fileNames)
       return fileNames.has(fileName)
     } catch (err) {
@@ -698,9 +699,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     {
       VAR_DEFINITION_PAGE: page,
       VAR_DEFINITION_PATHNAME: pathname,
-      VAR_MODULE_GLOBAL_ERROR: treeCodeResult.globalError
-        ? treeCodeResult.globalError
-        : 'next/dist/client/components/error-boundary',
+      VAR_MODULE_GLOBAL_ERROR: treeCodeResult.globalError,
       VAR_ORIGINAL_PATHNAME: page,
     },
     {

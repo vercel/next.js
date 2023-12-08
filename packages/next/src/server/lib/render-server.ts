@@ -3,6 +3,7 @@ import type { DevBundlerService } from './dev-bundler-service'
 import type { PropagateToWorkersField } from './router-utils/types'
 
 import next from '../next'
+import type { Span } from '../../trace'
 
 let initializations: Record<
   string,
@@ -81,6 +82,7 @@ async function initializeImpl(opts: {
   _ipcPort?: string
   _ipcKey?: string
   bundlerService: DevBundlerService | undefined
+  startServerSpan: Span | undefined
 }) {
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
   if (type) {

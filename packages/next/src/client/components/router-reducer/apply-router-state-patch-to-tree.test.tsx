@@ -33,11 +33,10 @@ const getFlightData = (): FlightData => {
           children: ['', {}],
         },
       ],
-      <h1>About Page!</h1>,
+      ['about', null, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
-      null,
     ],
   ]
 }
@@ -53,8 +52,8 @@ describe('applyRouterStatePatchToTree', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    const [treePatch /*, subTreeData, head*/] = flightDataPath.slice(-4)
-    const flightSegmentPath = flightDataPath.slice(0, -5)
+    const [treePatch /*, cacheNodeSeedData, head*/] = flightDataPath.slice(-3)
+    const flightSegmentPath = flightDataPath.slice(0, -4)
 
     const newRouterStateTree = applyRouterStatePatchToTree(
       ['', ...flightSegmentPath],

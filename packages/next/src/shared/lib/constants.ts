@@ -95,8 +95,6 @@ export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL = Symbol(
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
 )
 export const EDGE_RUNTIME_WEBPACK = 'edge-runtime-webpack'
-export const TEMPORARY_REDIRECT_STATUS = 307
-export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'
 export const PAGE_SEGMENT_KEY = '__PAGE__'

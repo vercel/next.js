@@ -28,7 +28,6 @@ import {
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
-  NEXT_DID_POSTPONE_HEADER,
   RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
 } from '../lib/constants'
@@ -133,7 +132,7 @@ import {
   createDefineEnv,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { flatReaddir } from '../lib/flat-readdir'
+import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import {
@@ -142,6 +141,7 @@ import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   RSC_VARY_HEADER,
+  NEXT_DID_POSTPONE_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
@@ -567,16 +567,18 @@ export default async function build(
       const instrumentationHookEnabled = Boolean(
         config.experimental.instrumentationHook
       )
-      const rootPaths = (
-        await flatReaddir(rootDir, [
-          middlewareDetectionRegExp,
-          ...(instrumentationHookEnabled
-            ? [instrumentationHookDetectionRegExp]
-            : []),
-        ])
-      )
+
+      const includes = [
+        middlewareDetectionRegExp,
+        ...(instrumentationHookEnabled
+          ? [instrumentationHookDetectionRegExp]
+          : []),
+      ]
+
+      const rootPaths = (await getFilesInDir(rootDir))
+        .filter((file) => includes.some((include) => include.test(file)))
         .sort(sortByPageExts(config.pageExtensions))
-        .map((absoluteFile) => absoluteFile.replace(dir, ''))
+        .map((file) => path.join(rootDir, file).replace(dir, ''))
 
       const hasInstrumentationHook = rootPaths.some((p) =>
         p.includes(INSTRUMENTATION_HOOK_FILENAME)
@@ -1107,7 +1109,6 @@ export default async function build(
                 dir,
                 config,
                 distDir,
-                pageKeys,
                 pageInfos: [],
                 staticPages: [],
                 hasSsrAmpPages: false,
@@ -1318,7 +1319,9 @@ export default async function build(
           pagesDir: true,
           appDir: true,
           fetchCache: true,
-          flushToDisk: config.experimental.isrFlushToDisk,
+          flushToDisk: ciEnvironment.hasNextSupport
+            ? false
+            : config.experimental.isrFlushToDisk,
           serverDistDir: path.join(distDir, 'server'),
           fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
           maxMemoryCacheSize: config.experimental.isrMemoryCacheSize,
@@ -1605,13 +1608,15 @@ export default async function build(
                             httpAgentOptions: config.httpAgentOptions,
                             locales: config.i18n?.locales,
                             defaultLocale: config.i18n?.defaultLocale,
-                            parentId: isPageStaticSpan.id,
+                            parentId: isPageStaticSpan.getId(),
                             pageRuntime,
                             edgeInfo,
                             pageType,
                             incrementalCacheHandlerPath:
                               config.experimental.incrementalCacheHandlerPath,
-                            isrFlushToDisk: config.experimental.isrFlushToDisk,
+                            isrFlushToDisk: ciEnvironment.hasNextSupport
+                              ? false
+                              : config.experimental.isrFlushToDisk,
                             maxMemoryCacheSize:
                               config.experimental.isrMemoryCacheSize,
                             nextConfigOutput: config.output,
@@ -1918,7 +1923,6 @@ export default async function build(
           dir,
           config,
           distDir,
-          pageKeys,
           pageInfos: Object.entries(pageInfos),
           staticPages: [...staticPages],
           nextBuildSpan,
