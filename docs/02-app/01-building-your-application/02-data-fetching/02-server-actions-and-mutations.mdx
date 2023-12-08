@@ -768,7 +768,7 @@ export async function createPost(id) {
 
 ### Cookies
 
-You can get, set, and delete cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) API:
+You can `get`, `set`, and `delete` cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) API:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -808,7 +808,7 @@ See [additional examples](/docs/app/api-reference/functions/cookies#deleting-coo
 
 ## Security
 
-#### Authentication and Authorization
+### Authentication and Authorization
 
 You should treat Server Actions as you would public-facing API endpoints, and ensure that the user is authorized to perform the action. For example:
 
@@ -827,7 +827,7 @@ export function addItem() {
 }
 ```
 
-#### Closures and encryption
+### Closures and encryption
 
 Defining a Server Action inside a component creates a [closure](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures) where the action has access to the outer function's scope. For example, the `publish` action has access to the `publishVersion` variable:
 
@@ -869,7 +869,7 @@ However, for this to happen, the captured variables are sent to the client and b
 
 > **Good to know:** We don't recommend relying on encryption alone to prevent sensitive values from being exposed on the client. Instead, you should use the [React taint APIs](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client) to proactively prevent specific data from being sent to the client.
 
-#### Overwriting encryption keys (advanced)
+### Overwriting encryption keys (advanced)
 
 When self-hosting your Next.js application across multiple servers, each server instance may end up with a different encryption key, leading to potential inconsistencies.
 
@@ -879,7 +879,7 @@ This is an advanced use case where consistent encryption behavior across multipl
 
 > **Good to know:** Next.js applications deployed to Vercel automatically handle this.
 
-#### Allowed origins (advanced)
+### Allowed origins (advanced)
 
 Since Server Actions can be invoked in a `<form>` element, this opens them up to [CSRF attacks](https://developer.mozilla.org/en-US/docs/Glossary/CSRF).
 
