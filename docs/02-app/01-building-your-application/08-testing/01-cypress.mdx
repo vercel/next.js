@@ -1,14 +1,14 @@
 ---
 title: Setting up Cypress with Next.js
 nav: Cypress
-description: Learn how to set up Next.js with Cypress - a popular end-to-end and component testing framework.
+description: Learn how to set up Next.js with Cypress for End-to-End (E2E) and Component Testing.
 ---
 
 [Cypress](https://www.cypress.io/) is a test runner used for **End-to-End (E2E)** and **Component Testing**. This page will show you how to set up Cypress with Next.js and write your first tests.
 
-<AppOnly>
+> **Warning:** Cypress currently does not support [Next.js version 14](https://github.com/cypress-io/cypress/issues/28185) or [TypeScript version 5](https://github.com/cypress-io/cypress/issues/27731) with `moduleResolution:"bundler"`. These issues are being tracked.
 
-> **Good to know**: We recommend using E2E Testing over Component Testing for **async** React components, as async components are new to the ecosystem and Cypress does not currently support them.
+<AppOnly>
 
 ## Quickstart
 
@@ -55,10 +55,6 @@ npm run cypress:open
 
 You can choose to configure **E2E Testing** and/or **Component Testing**. Selecting any of these options will automatically create a `cypress.config.js` file and a `cypress` folder in your project.
 
-> **Should I use E2E or Component Tests?**
->
-> The [Cypress docs contain a guide](https://docs.cypress.io/guides/core-concepts/testing-types) on the difference between these two types of tests and when it is appropriate to use each.
-
 ## Creating your first Cypress E2E test
 
 Ensure your `cypress.config.js` file has the following configuration:
@@ -92,10 +88,10 @@ import Link from 'next/link'
 
 export default function Page() {
   return (
-    <nav>
-      <h1>Homepage</h1>
+    <div>
+      <h1>Home</h1>
       <Link href="/about">About</Link>
-    </nav>
+    </div>
   )
 }
 ```
@@ -106,8 +102,8 @@ import Link from 'next/link'
 export default function Page() {
   return (
     <div>
-      <h1>About Page</h1>
-      <Link href="/">Homepage</Link>
+      <h1>About</h1>
+      <Link href="/">Home</Link>
     </div>
   )
 }
@@ -122,10 +118,10 @@ import Link from 'next/link'
 
 export default function Home() {
   return (
-    <nav>
-      <h1>Homepage</h1>
+    <div>
+      <h1>Home</h1>
       <Link href="/about">About</Link>
-    </nav>
+    </div>
   )
 }
 ```
@@ -136,8 +132,8 @@ import Link from 'next/link'
 export default function About() {
   return (
     <div>
-      <h1>About Page</h1>
-      <Link href="/">Homepage</Link>
+      <h1>About</h1>
+      <Link href="/">Home</Link>
     </div>
   )
 }
@@ -160,14 +156,14 @@ describe('Navigation', () => {
     cy.url().should('include', '/about')
 
     // The new page should contain an h1 with "About page"
-    cy.get('h1').contains('About Page')
+    cy.get('h1').contains('About')
   })
 })
 ```
 
 ### Running E2E Tests
 
-Since Cypress E2E tests are testing a real Next.js application they require the Next.js server to be running before starting Cypress. We recommend running your tests against your production code to more closely resemble how your application will behave.
+Cypress will simulate a user navigating your application, this requires your Next.js server to be running. We recommend running your tests against your production code to more closely resemble how your application will behave.
 
 Run `npm run build && npm run start` to build your Next.js application, then run `npm run cypress:open` in another terminal window to start Cypress and run your E2E testing suite.
 
@@ -178,9 +174,9 @@ Run `npm run build && npm run start` to build your Next.js application, then run
 
 ## Creating your first Cypress component test
 
-Component tests build and mount a specific component without having to bundle your whole application or launch a server. This allows for more performant tests that still provide visual feedback and the same API used for Cypress E2E tests.
+Component tests build and mount a specific component without having to bundle your whole application or start a server.
 
-When you select "Component Testing" in the Cypress app, a `cypress/component` folder will be created in your project, and a `cypress.config.js` file will be updated to enable component testing.
+Select **Component Testing** in the Cypress app, then select **Next.js** as your front-end framework. A `cypress/component` folder will be created in your project, and a `cypress.config.js` file will be updated to enable component testing.
 
 Ensure your `cypress.config.js` file has the following configuration:
 
@@ -212,8 +208,32 @@ module.exports = defineConfig({
 
 Assuming the same components from the previous section, add a test to validate a component is rendering the expected output:
 
-```jsx filename="cypress/about.cy.js"
-import AboutPage from './about.js'
+<AppOnly>
+
+```tsx filename="cypress/component/about.cy.tsx"
+import Page from '../../app/page'
+
+describe('<Page />', () => {
+  it('should render and display expected content', () => {
+    // Mount the React component for the About page
+    cy.mount(<Page />)
+
+    // The new page should contain an h1 with "About page"
+    cy.get('h1').contains('Home')
+
+    // Validate that a link with the expected URL is present
+    // Following the link is better suited to an E2E test
+    cy.get('a[href="/about"]').should('be.visible')
+  })
+})
+```
+
+</AppOnly>
+
+<PagesOnly>
+
+```jsx filename="cypress/component/about.cy.js"
+import AboutPage from '../../pages/about'
 
 describe('<AboutPage />', () => {
   it('should render and display expected content', () => {
@@ -221,7 +241,7 @@ describe('<AboutPage />', () => {
     cy.mount(<AboutPage />)
 
     // The new page should contain an h1 with "About page"
-    cy.get('h1').contains('About Page')
+    cy.get('h1').contains('About')
 
     // Validate that a link with the expected URL is present
     // *Following* the link is better suited to an E2E test
@@ -230,15 +250,20 @@ describe('<AboutPage />', () => {
 })
 ```
 
-> **Good to know**: Since component tests do not launch a Next.js server, capabilities like `<Image />` <PagesOnly>and `getServerSideProps`</PagesOnly> which rely on a server being available will not function out-of-the-box. See the [Cypress Next.js docs](https://docs.cypress.io/guides/component-testing/react/overview#Nextjs) for examples of getting these features working within component tests.
+</PagesOnly>
+
+> **Good to know**:
+>
+> - Cypress currently doesn't support component testing for `async` Server Components. We recommend using E2E testing.
+> - Since component tests do not require a Next.js server, features like `<Image />` that rely on a server being available may not function out-of-the-box.
 
 ### Running Component Tests
 
-run `npm run cypress:open` in your terminal to start Cypress and run your component testing suite.
+Run `npm run cypress:open` in your terminal to start Cypress and run your component testing suite.
 
 ## Continuous Integration (CI)
 
-You will have noticed that running Cypress so far has opened an interactive browser which is not ideal for CI environments. You can also run Cypress headlessly using the `cypress run` command:
+In addition to interactive testing, you can also run Cypress headlessly using the `cypress run` command, which is better suited for CI environments:
 
 ```json filename="package.json"
 {
