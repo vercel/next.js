@@ -470,7 +470,6 @@ export async function getPageStaticInfo(params: {
     shouldThrow: !isDev,
   })*/
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
-  //console.log('getPageStaticInfo read filecontents', !!process?.versions?.pnp ? {fileContent} : null)
   if (
     /runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
       fileContent
@@ -483,17 +482,15 @@ export async function getPageStaticInfo(params: {
   }
 
   const binding = await require('../swc').loadBindings()
-  console.log('entering napi')
   const pageStaticInfo = await binding.analysis.getPageStaticInfo(params)
 
   if (!!oldExport !== !!pageStaticInfo) {
-    console.log('mismatch short-circuiting', { oldExport, pageStaticInfo })
-    throw new Error('should match')
-  } else {
-    /*console.log('=====================', {
+    /*console.log('mismatch short-circuiting', {
       oldExport,
       pageStaticInfo,
+      //pageFilePath,
     })*/
+    //throw new Error('should match')
   }
 
   if (pageStaticInfo) {

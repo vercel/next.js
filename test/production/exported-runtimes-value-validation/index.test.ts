@@ -88,9 +88,7 @@ describe('Exported runtimes value validation', () => {
       )
     )
     expect(result.stderr).toEqual(
-      expect.stringContaining(
-        'Unsupported node type at "config.runtime"'
-      )
+      expect.stringContaining('Unsupported node type at "config.runtime"')
     )
     // Unknown Object Key
     expect(result.stderr).toEqual(

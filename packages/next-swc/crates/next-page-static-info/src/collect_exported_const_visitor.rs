@@ -2,17 +2,14 @@ use std::collections::{HashMap, HashSet};
 
 use serde_json::{Map, Number, Value};
 use swc_core::{
-    common::{
-        pass::{AstKindPath, AstNodePath},
-        Mark, SyntaxContext,
-    },
+    common::{pass::AstNodePath, Mark, SyntaxContext},
     ecma::{
         ast::{
             BindingIdent, Decl, ExportDecl, Expr, Lit, Pat, Prop, PropName, PropOrSpread, VarDecl,
             VarDeclKind, VarDeclarator,
         },
         utils::{ExprCtx, ExprExt},
-        visit::{AstParentKind, AstParentNodeRef, Visit, VisitAstPath, VisitWith, VisitWithPath},
+        visit::{AstParentNodeRef, VisitAstPath, VisitWithPath},
     },
 };
 
@@ -44,7 +41,7 @@ impl CollectExportedConstVisitor {
     }
 }
 
-impl<'a> VisitAstPath for CollectExportedConstVisitor {
+impl VisitAstPath for CollectExportedConstVisitor {
     fn visit_export_decl<'ast: 'r, 'r>(
         &mut self,
         export_decl: &'ast ExportDecl,
@@ -132,15 +129,17 @@ fn extract_value(ctx: &ExprCtx, init: &Expr, id: String) -> Option<Const> {
                     PropOrSpread::Prop(box Prop::KeyValue(kv)) => match kv.key {
                         PropName::Ident(_) | PropName::Str(_) => kv,
                         _ => {
-                            return Some(Const::Unsupported(
-                                format!("Unsupported key type in the Object Expression at \"{}\"", id),
-                            ))
+                            return Some(Const::Unsupported(format!(
+                                "Unsupported key type in the Object Expression at \"{}\"",
+                                id
+                            )))
                         }
                     },
                     _ => {
-                        return Some(Const::Unsupported(
-                            format!("Unsupported spread operator in the Object Expression at \"{}\"", id))
-                        )
+                        return Some(Const::Unsupported(format!(
+                            "Unsupported spread operator in the Object Expression at \"{}\"",
+                            id
+                        )))
                     }
                 };
 

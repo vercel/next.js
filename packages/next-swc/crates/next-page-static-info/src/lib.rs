@@ -46,6 +46,7 @@ pub fn build_ast_from_source(contents: &str, file_path: &str) -> Result<(Program
             } else {
                 Syntax::Es(EsConfig {
                     jsx: true,
+                    decorators: true,
                     ..Default::default()
                 })
             },

@@ -127,8 +127,7 @@ static DYNAMIC_METADATA_ROUTE_SHORT_CURCUIT: Lazy<Regex> =
 /// parse the page or short circuit and return default.
 static PAGE_STATIC_INFO_SHORT_CURCUIT: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
-        "runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export \
-         const",
+        r#"runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const"#,
     )
     .unwrap()
 });

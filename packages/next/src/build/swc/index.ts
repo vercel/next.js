@@ -17,11 +17,6 @@ import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugi
 const nextVersion = process.env.__NEXT_VERSION as string
 const isYarnPnP = !!process?.versions?.pnp
 
-console.log('----------', {
-  isYarnPnP,
-  p: process?.versions?.pnp,
-})
-
 const ArchName = arch()
 const PlatformName = platform()
 
@@ -1415,7 +1410,6 @@ function loadNative(importPath?: string) {
           if (isYarnPnP) {
             fileContent =
               (await tryToReadFile(params.pageFilePath, !params.isDev)) || ''
-            //console.log('isYarnPnp FileContents', {fileContent})
           }
 
           const ret = await bindings.getPageStaticInfo(params, fileContent)
