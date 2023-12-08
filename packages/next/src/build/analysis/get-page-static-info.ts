@@ -1,6 +1,7 @@
 import type { NextConfig } from '../../server/config-shared'
 import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 
+import { parseModule } from './parse-module'
 import { promises as fs } from 'fs'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { matcher } from 'next/dist/compiled/micromatch'
@@ -461,6 +462,30 @@ export async function getPageStaticInfo(params: {
   const { isDev, pageFilePath, nextConfig, page, pageType } = params
   const binding = await require('../swc').loadBindings()
   const pageStaticInfo = await binding.analysis.getPageStaticInfo(params)
+
+  let oldExport: Record<string, any> = null as any
+
+  const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
+  if (
+    /runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
+      fileContent
+    )
+  ) {
+    oldExport = {}
+    const swcAST = await parseModule(pageFilePath, fileContent)
+    oldExport.exportsInfo = checkExports(swcAST, pageFilePath)
+    oldExport.rscInfo = getRSCModuleInformation(fileContent, true)
+  }
+
+  if (!!oldExport !== !!pageStaticInfo) {
+    console.log('mismatch short-circuiting', { oldExport, pageStaticInfo })
+    throw new Error('should match')
+  } else {
+    /*console.log('=====================', {
+      oldExport,
+      pageStaticInfo,
+    })*/
+  }
 
   if (pageStaticInfo) {
     const { exportsInfo, extractedValues, rscInfo, shouldWarn } = JSON.parse(
