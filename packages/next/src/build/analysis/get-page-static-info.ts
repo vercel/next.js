@@ -440,6 +440,7 @@ function warnAboutUnsupportedValue(
       (page ? `route "${page}"` : `"${pageFilePath}"`) +
       ':\n' +
       message +
+      '\n' +
       'The default config will be used instead.\n' +
       'Read More - https://nextjs.org/docs/messages/invalid-page-config'
   )

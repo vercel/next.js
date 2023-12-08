@@ -19,7 +19,7 @@ const isYarnPnP = !!process?.versions?.pnp
 
 console.log('----------', {
   isYarnPnP,
-  p: process?.versions?.pnp
+  p: process?.versions?.pnp,
 })
 
 const ArchName = arch()
@@ -1117,9 +1117,6 @@ function warnInvalidValue(
   key: keyof typeof warnedInvalidValueMap,
   message: string
 ): void {
-  throw new Error(
-    `key ${key} message: ${message} pageFilePath: ${pageFilePath}`
-  )
   if (warnedInvalidValueMap[key].has(pageFilePath)) return
 
   Log.warn(
@@ -1416,7 +1413,8 @@ function loadNative(importPath?: string) {
         getPageStaticInfo: async (params: Record<string, any>) => {
           let fileContent: string | undefined = undefined
           if (isYarnPnP) {
-            fileContent = (await tryToReadFile(params.pageFilePath, !params.isDev)) || ''
+            fileContent =
+              (await tryToReadFile(params.pageFilePath, !params.isDev)) || ''
             //console.log('isYarnPnp FileContents', {fileContent})
           }
 
