@@ -240,9 +240,9 @@ pub fn collect_rsc_module_info(
             }
         }
         None => RscModuleInfo::new(if !is_react_server_layer {
-            "server".to_string()
-        } else {
             "client".to_string()
+        } else {
+            "server".to_string()
         }),
     }
 }
@@ -277,6 +277,31 @@ pub fn extract_expored_const_values(
 #[cfg(test)]
 mod tests {
     use crate::{build_ast_from_source, collect_rsc_module_info, RscModuleInfo};
+
+    #[test]
+    fn should_parse_server_info() {
+        let input = r#"export default function Page() {
+            return <p>app-edge-ssr</p>
+          }
+
+          export const runtime = 'edge'
+          export const maxDuration = 4
+          "#;
+
+        let (_, comments) = build_ast_from_source(input, "some-file.js")
+            .expect("Should able to parse test fixture input");
+
+        let module_info = collect_rsc_module_info(&comments, true);
+        let expected = RscModuleInfo {
+            module_type: "server".to_string(),
+            actions: None,
+            is_client_ref: false,
+            client_refs: None,
+            client_entry_type: None,
+        };
+
+        assert_eq!(module_info, expected);
+    }
 
     #[test]
     fn should_parse_actions_json() {

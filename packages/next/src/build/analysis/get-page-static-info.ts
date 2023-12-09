@@ -485,18 +485,18 @@ export async function getPageStaticInfo(params: {
   const pageStaticInfo = await binding.analysis.getPageStaticInfo(params)
 
   if (!!oldExport !== !!pageStaticInfo) {
-    /*console.log('mismatch short-circuiting', {
+    console.log('mismatch short-circuiting', {
       oldExport,
       pageStaticInfo,
       //pageFilePath,
-    })*/
+    })
     //throw new Error('should match')
   }
 
   let a = oldExport?.exportsInfo?.preferredRegion
   let b = pageStaticInfo?.exportsInfo?.preferredRegion
 
-  if (a?.length !== b?.length || a?.every((v: any) => b?.includes(v))) {
+  if (a?.length !== b?.length || !a?.every((v: any) => b?.includes(v))) {
     require('console').log({
       old: a,
       new: b,
