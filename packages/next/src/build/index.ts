@@ -115,7 +115,8 @@ import {
   isReservedPage,
   isAppBuiltinNotFoundPage,
 } from './utils'
-import type { PageInfo, AppConfig } from './utils'
+import type { AppConfig } from './utils'
+import { patchPageInfos, type PageInfo } from './page-info'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -347,6 +348,34 @@ function pageToRoute(page: string) {
     routeKeys: routeRegex.routeKeys,
     namedRegex: routeRegex.namedRegex,
   }
+}
+
+function createAppDataRouteInfo(
+  page: string,
+  {
+    experimentalPPR,
+    isRouteHandler,
+  }: {
+    experimentalPPR: boolean | undefined
+    isRouteHandler: boolean
+  }
+): DataRouteRouteInfo {
+  const normalizedRoute = normalizePagePath(page)
+
+  // If the page is not a route handler we need to generate a data route.
+  let dataRoute: string | null = null
+  if (!isRouteHandler) {
+    dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
+  }
+
+  let prefetchDataRoute: string | undefined
+  if (experimentalPPR) {
+    prefetchDataRoute = path.posix.join(
+      `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
+    )
+  }
+
+  return { dataRoute, prefetchDataRoute }
 }
 
 export default async function build(
@@ -1109,7 +1138,7 @@ export default async function build(
                 dir,
                 config,
                 distDir,
-                pageInfos: [],
+                pageInfos: undefined,
                 staticPages: [],
                 hasSsrAmpPages: false,
                 buildTraceContext,
@@ -1923,7 +1952,7 @@ export default async function build(
           dir,
           config,
           distDir,
-          pageInfos: Object.entries(pageInfos),
+          pageInfos,
           staticPages: [...staticPages],
           nextBuildSpan,
           hasSsrAmpPages,
@@ -2258,11 +2287,17 @@ export default async function build(
               appConfig.revalidate === 0 ||
               exportResult.byPath.get(page)?.revalidate === 0
 
-            if (hasDynamicData && pageInfos.get(page)?.isStatic) {
+            const pageInfo = pageInfos.get(page)
+            if (!pageInfo) {
+              throw new Error(
+                `Invariant: page info for ${page} is missing from registry`
+              )
+            }
+
+            if (hasDynamicData && pageInfo.isStatic) {
               // if the page was marked as being static, but it contains dynamic data
               // (ie, in the case of a static generation bailout), then it should be marked dynamic
-              pageInfos.set(page, {
-                ...(pageInfos.get(page) as PageInfo),
+              patchPageInfos(pageInfos, page, {
                 isStatic: false,
                 isSSG: false,
               })
@@ -2299,35 +2334,28 @@ export default async function build(
                 hasPostponed,
               } = exportResult.byPath.get(route) ?? {}
 
-              pageInfos.set(route, {
-                ...(pageInfos.get(route) as PageInfo),
-                hasPostponed,
-                hasEmptyPrelude,
-              })
+              // Update the page (eg /blog/[slug]) to also have the postpone
+              // metadata if it's changed.
+              if (
+                pageInfo.hasPostponed !== hasPostponed ||
+                pageInfo.hasEmptyPrelude !== hasEmptyPrelude
+              ) {
+                pageInfo.hasPostponed = hasPostponed
+                pageInfo.hasEmptyPrelude = hasEmptyPrelude
 
-              // update the page (eg /blog/[slug]) to also have the postpone metadata
-              pageInfos.set(page, {
-                ...(pageInfos.get(page) as PageInfo),
-                hasPostponed,
-                hasEmptyPrelude,
-              })
+                pageInfos.set(page, pageInfo)
+              }
+
+              pageInfos.set(route, pageInfo)
 
               if (revalidate !== 0) {
-                const normalizedRoute = normalizePagePath(route)
-
-                let dataRoute: string | null
-                if (isRouteHandler) {
-                  dataRoute = null
-                } else {
-                  dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
-                }
-
-                let prefetchDataRoute: string | null | undefined
-                if (experimentalPPR) {
-                  prefetchDataRoute = path.posix.join(
-                    `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
-                  )
-                }
+                const { dataRoute, prefetchDataRoute } = createAppDataRouteInfo(
+                  route,
+                  {
+                    experimentalPPR,
+                    isRouteHandler,
+                  }
+                )
 
                 const routeMeta: Partial<SsgRoute> = {}
 
@@ -2373,8 +2401,7 @@ export default async function build(
                 hasDynamicData = true
                 // we might have determined during prerendering that this page
                 // used dynamic data
-                pageInfos.set(route, {
-                  ...(pageInfos.get(route) as PageInfo),
+                patchPageInfos(pageInfos, route, {
                   isSSG: false,
                   isStatic: false,
                 })
@@ -2382,20 +2409,15 @@ export default async function build(
             })
 
             if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
-              const normalizedRoute = normalizePagePath(page)
-              const dataRoute = path.posix.join(
-                `${normalizedRoute}${RSC_SUFFIX}`
+              const { dataRoute, prefetchDataRoute } = createAppDataRouteInfo(
+                page,
+                {
+                  experimentalPPR,
+                  isRouteHandler,
+                }
               )
 
-              let prefetchDataRoute: string | null | undefined
-              if (experimentalPPR) {
-                prefetchDataRoute = path.posix.join(
-                  `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
-                )
-              }
-
-              pageInfos.set(page, {
-                ...(pageInfos.get(page) as PageInfo),
+              patchPageInfos(pageInfos, page, {
                 isDynamicAppRoute: true,
                 // if PPR is turned on and the route contains a dynamic segment,
                 // we assume it'll be partially prerendered
@@ -2410,33 +2432,32 @@ export default async function build(
                 routeRegex: normalizeRouteRegex(
                   getNamedRouteRegex(page, false).re.source
                 ),
-                dataRoute,
                 // if dynamicParams are enabled treat as fallback:
                 // 'blocking' if not it's fallback: false
                 fallback: appDynamicParamPaths.has(originalAppPath)
                   ? null
                   : false,
-                dataRouteRegex: isRouteHandler
-                  ? null
-                  : normalizeRouteRegex(
+                dataRoute,
+                dataRouteRegex: dataRoute
+                  ? normalizeRouteRegex(
                       getNamedRouteRegex(
                         dataRoute.replace(/\.rsc$/, ''),
                         false
                       ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
-                    ),
+                    )
+                  : null,
                 prefetchDataRoute,
-                prefetchDataRouteRegex:
-                  isRouteHandler || !prefetchDataRoute
-                    ? undefined
-                    : normalizeRouteRegex(
-                        getNamedRouteRegex(
-                          prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
-                          false
-                        ).re.source.replace(
-                          /\(\?:\\\/\)\?\$$/,
-                          '\\.prefetch\\.rsc$'
-                        )
-                      ),
+                prefetchDataRouteRegex: prefetchDataRoute
+                  ? normalizeRouteRegex(
+                      getNamedRouteRegex(
+                        prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
+                        false
+                      ).re.source.replace(
+                        /\(\?:\\\/\)\?\$$/,
+                        '\\.prefetch\\.rsc$'
+                      )
+                    )
+                  : undefined,
               }
             }
           }
