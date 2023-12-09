@@ -732,5 +732,34 @@ createNextDescribe(
         }
       })
     })
+
+    describe('scroll restoration', () => {
+      it('should restore original scroll position when navigating back', async () => {
+        const browser = await next.browser('/scroll-restoration', {
+          // throttling the CPU to rule out flakiness based on how quickly the page loads
+          cpuThrottleRate: 6,
+        })
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain('Item 50')
+        await browser.elementById('load-more').click()
+        await browser.elementById('load-more').click()
+        await browser.elementById('load-more').click()
+        expect(await body.text()).toContain('Item 200')
+
+        // scroll to the bottom of the page
+        await browser.eval('window.scrollTo(0, document.body.scrollHeight)')
+
+        // grab the current position
+        const scrollPosition = await browser.eval('window.pageYOffset')
+
+        await browser.elementByCss("[href='/scroll-restoration/other']").click()
+        await browser.elementById('back-button').click()
+
+        const newScrollPosition = await browser.eval('window.pageYOffset')
+
+        // confirm that the scroll position was restored
+        await check(() => scrollPosition === newScrollPosition, true)
+      })
+    })
   }
 )

@@ -23,11 +23,10 @@ jest.mock('../fetch-server-response', () => {
           children: ['', {}],
         },
       ],
-      <h1>About Page!</h1>,
+      ['about', null, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
-      null,
     ],
   ]
   return {
@@ -118,7 +117,7 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -260,7 +259,7 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -271,7 +270,7 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', null, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,

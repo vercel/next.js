@@ -1,0 +1,50 @@
+name: retry-tests
+
+on:
+  workflow_run:
+    workflows: ['build-and-test']
+    branches: [canary]
+    types:
+      - completed
+
+env:
+  SLACK_WEBHOOK_URL: ${{ secrets.BROKEN_CANARY_SLACK_WEBHOOK_URL }}
+
+permissions:
+  actions: write
+
+jobs:
+  retry-on-failure:
+    name: retry failed jobs
+    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.run_attempt < 3 && github.repository == 'vercel/next.js' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: send retry request to GitHub API
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/rerun-failed-jobs
+
+  report-failure:
+    name: report failure to slack
+    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.run_attempt >= 3 && !github.event.workflow_run.head_repository.fork }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: send webhook
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          # These urls are intentionally missing the protocol,
+          # allowing them to be transformed into actual links in the Slack workflow
+          # (through slightly hacky means).
+          payload: |
+            {
+              "commit_title": "${{ github.event.workflow_run.display_title }}",
+              "commit_url": "github.com/${{ github.repository }}/commit/${{ github.event.workflow_run.head_sha }}",
+              "workflow_run_url": "github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/attempts/${{ github.event.workflow_run.run_attempt }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}

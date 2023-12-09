@@ -1,14 +1,16 @@
 {
   "name": "@next/third-parties",
-  "version": "14.0.4-canary.4",
+  "version": "14.0.5-canary.4",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/third-parties"
   },
   "exports": {
-    "./google": "./dist/google/index.js"
+    "./google": {
+      "types": "./dist/google/index.d.ts",
+      "default": "./dist/google/index.js"
+    }
   },
-  "types": "dist/types/google.d.ts",
   "files": [
     "dist"
   ],
@@ -23,7 +25,7 @@
     "third-party-capital": "1.0.20"
   },
   "devDependencies": {
-    "next": "14.0.4-canary.4",
+    "next": "14.0.5-canary.4",
     "outdent": "0.8.0",
     "prettier": "2.5.1"
   },

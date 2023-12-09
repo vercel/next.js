@@ -63,6 +63,10 @@ type TitleTemplates = {
   openGraph: string | null
 }
 
+type BuildState = {
+  warnings: Set<string>
+}
+
 function hasIconsProperty(
   icons: Metadata['icons'],
   prop: 'icon' | 'apple'
@@ -135,12 +139,14 @@ function mergeMetadata({
   staticFilesMetadata,
   titleTemplates,
   metadataContext,
+  buildState,
 }: {
   source: Metadata | null
   target: ResolvedMetadata
   staticFilesMetadata: StaticMetadata
   titleTemplates: TitleTemplates
   metadataContext: MetadataContext
+  buildState: BuildState
 }): void {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
@@ -244,8 +250,8 @@ function mergeMetadata({
           key === 'themeColor' ||
           key === 'colorScheme'
         ) {
-          Log.warn(
-            `Unsupported metadata ${key} is configured in metadata export. Please move it to viewport export instead.`
+          buildState.warnings.add(
+            `Unsupported metadata ${key} is configured in metadata export in ${metadataContext.pathname}. Please move it to viewport export instead.\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport`
           )
         }
         break
@@ -685,6 +691,9 @@ export async function accumulateMetadata(
     resolvers: [],
     resolvingIndex: 0,
   }
+  const buildState = {
+    warnings: new Set<string>(),
+  }
   for (let i = 0; i < metadataItems.length; i++) {
     const staticFilesMetadata = metadataItems[i][1]
 
@@ -703,6 +712,7 @@ export async function accumulateMetadata(
       metadataContext,
       staticFilesMetadata,
       titleTemplates,
+      buildState,
     })
 
     // If the layout is the same layer with page, skip the leaf layout and leaf page
@@ -713,6 +723,13 @@ export async function accumulateMetadata(
         openGraph: resolvedMetadata.openGraph?.title.template || null,
         twitter: resolvedMetadata.twitter?.title.template || null,
       }
+    }
+  }
+
+  // Only log warnings if there are any, and only once after the metadata resolving process is finished
+  if (buildState.warnings.size > 0) {
+    for (const warning of buildState.warnings) {
+      Log.warn(warning)
     }
   }
 

@@ -25,7 +25,7 @@ export default class PostCSSSyntaxError extends Error {
 
     this.message += plugin ? `${plugin}: ` : ''
     this.message += file ? `${file} ` : '<css input> '
-    this.message += `${reason}`
+    this.message += reason
 
     const code = error.showSourceCode()
 
