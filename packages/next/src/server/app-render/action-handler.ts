@@ -40,6 +40,7 @@ import {
   getIsServerAction,
   getServerActionRequestMetadata,
 } from '../lib/server-action-request-meta'
+import { isCsrfOriginAllowed } from './csrf-protection'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -331,7 +332,8 @@ export async function handleAction({
     // If the customer sets a list of allowed origins, we'll allow the request.
     // These are considered safe but might be different from forwarded host set
     // by the infra (i.e. reverse proxies).
-    if (serverActions?.allowedOrigins?.includes(originDomain)) {
+    // regex is used to support wildcard domains
+    if (isCsrfOriginAllowed(originDomain, serverActions?.allowedOrigins)) {
       // Ignore it
     } else {
       if (host) {
