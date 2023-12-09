@@ -148,7 +148,7 @@ async function lint(
     let { ESLint } = mod
     let shouldUseFlatConfig = false
     if (unsupportedApi) {
-      shouldUseFlatConfig = await unsupportedApi.shouldUseFlatConfig()
+      shouldUseFlatConfig = await unsupportedApi.shouldUseFlatConfig?.()
       if (shouldUseFlatConfig) {
         ESLint = unsupportedApi.FlatESLint
       }
@@ -166,12 +166,12 @@ async function lint(
 
     let options: any = {
       baseConfig: {},
+      errorOnUnmatchedPattern: false,
+      cache: true,
       ...(!shouldUseFlatConfig
         ? {
             useEslintrc: true,
-            errorOnUnmatchedPattern: false,
             extensions: ['.js', '.jsx', '.ts', '.tsx'],
-            cache: true,
             ...eslintOptions,
           }
         : {}),
@@ -182,54 +182,39 @@ async function lint(
     let nextEslintPluginIsEnabled = false
     const nextRulesEnabled = new Map<string, Severity>()
 
-    for (const configFile of [eslintrcFile, pkgJsonPath]) {
-      if (!configFile) continue
-      if (shouldUseFlatConfig && !configFile.endsWith('eslint.config.js'))
-        continue
+    if (!shouldUseFlatConfig) {
+      for (const configFile of [eslintrcFile, pkgJsonPath]) {
+        if (!configFile) continue
+        if (shouldUseFlatConfig && !configFile.endsWith('eslint.config.js'))
+          continue
 
-      const completeConfig: Config = !shouldUseFlatConfig
-        ? await eslint.calculateConfigForFile(configFile)
-        : (await import(configFile)).default.reduce(
-            (acc: Config, config: any) => {
-              if (config.plugins) {
-                acc.plugins = [...acc.plugins, ...Object.keys(config.plugins)]
-              }
-              if (config.rules) {
-                for (const rule of Object.keys(config.rules)) {
-                  if (
-                    typeof config.rules[rule] === 'number' ||
-                    typeof config.rules[rule] === 'string'
-                  ) {
-                    config.rules[rule] = [config.rules[rule]]
-                  }
-                }
-                acc.rules = { ...acc.rules, ...config.rules }
-              }
-              return acc
-            },
-            { plugins: [], rules: {} }
-          )
+        const completeConfig: Config = await eslint.calculateConfigForFile(
+          configFile
+        )
 
-      if (completeConfig.plugins?.includes('@next/next')) {
-        nextEslintPluginIsEnabled = true
-        for (const [name, [severity]] of Object.entries(completeConfig.rules)) {
-          if (!name.startsWith('@next/next/')) {
-            continue
+        if (completeConfig.plugins?.includes('@next/next')) {
+          nextEslintPluginIsEnabled = true
+          for (const [name, [severity]] of Object.entries(
+            completeConfig.rules
+          )) {
+            if (!name.startsWith('@next/next/')) {
+              continue
+            }
+            if (
+              typeof severity === 'number' &&
+              severity >= 0 &&
+              severity < VALID_SEVERITY.length
+            ) {
+              nextRulesEnabled.set(name, VALID_SEVERITY[severity])
+            } else if (
+              typeof severity === 'string' &&
+              isValidSeverity(severity)
+            ) {
+              nextRulesEnabled.set(name, severity)
+            }
           }
-          if (
-            typeof severity === 'number' &&
-            severity >= 0 &&
-            severity < VALID_SEVERITY.length
-          ) {
-            nextRulesEnabled.set(name, VALID_SEVERITY[severity])
-          } else if (
-            typeof severity === 'string' &&
-            isValidSeverity(severity)
-          ) {
-            nextRulesEnabled.set(name, severity)
-          }
+          break
         }
-        break
       }
     }
 
@@ -258,10 +243,12 @@ async function lint(
         eslint = new ESLint(options)
       }
     } else {
-      Log.warn('')
-      Log.warn(
-        'The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/basic-features/eslint#migrating-existing-config'
-      )
+      if (!shouldUseFlatConfig) {
+        Log.warn('')
+        Log.warn(
+          'The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/basic-features/eslint#migrating-existing-config'
+        )
+      }
     }
 
     const lintStart = process.hrtime()
