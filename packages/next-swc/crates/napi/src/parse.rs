@@ -144,7 +144,6 @@ impl Task for DetectMetadataRouteTask {
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         let file_content = if let Some(file_content) = &self.file_content {
-            println!("{}", file_content);
             file_content.clone()
         } else {
             read_file_wrapped_err(self.page_file_path.as_str(), true)?
@@ -155,7 +154,7 @@ impl Task for DetectMetadataRouteTask {
         }
 
         let (source_ast, _) = build_ast_from_source(&file_content, &self.page_file_path)?;
-        collect_exports(&source_ast).map(Some).convert_err()
+        collect_exports(&source_ast).convert_err()
     }
 
     fn resolve(&mut self, env: Env, exports_info: Self::Output) -> napi::Result<Self::JsValue> {
@@ -239,48 +238,41 @@ impl Task for CollectPageStaticInfoTask {
             read_file_wrapped_err(page_file_path.as_str(), !is_dev.unwrap_or_default())?
         };
 
-        if page_file_path.ends_with("client/components/not-found-error.js") {
-            println!("{}", file_content);
-            println!(
-                "shuld_skip {}",
-                !PAGE_STATIC_INFO_SHORT_CURCUIT.is_match(file_content.as_str())
-            );
-            println!(
-                "shuld_skip captured {:#?}",
-                PAGE_STATIC_INFO_SHORT_CURCUIT.captures(file_content.as_str())
-            );
-        }
-
         if !PAGE_STATIC_INFO_SHORT_CURCUIT.is_match(file_content.as_str()) {
             return Ok(None);
         }
 
         let (source_ast, comments) = build_ast_from_source(&file_content, page_file_path)?;
-        let exports_info = collect_exports(&source_ast)?;
-        let rsc_info = collect_rsc_module_info(&comments, true);
+        let mut exports_info = collect_exports(&source_ast)?;
+        match exports_info {
+            None => return Ok(None),
+            Some(mut exports_info) => {
+                let rsc_info = collect_rsc_module_info(&comments, true);
 
-        let mut properties_to_extract = exports_info.extra_properties.clone();
-        properties_to_extract.insert("config".to_string());
+                let mut properties_to_extract = exports_info.extra_properties.clone();
+                properties_to_extract.insert("config".to_string());
 
-        let mut exported_const_values =
-            extract_expored_const_values(&source_ast, properties_to_extract);
+                let mut exported_const_values =
+                    extract_expored_const_values(&source_ast, properties_to_extract);
 
-        let mut extracted_values = HashMap::new();
-        let mut warnings = vec![];
+                let mut extracted_values = HashMap::new();
+                let mut warnings = vec![];
 
-        for (key, value) in exported_const_values.drain() {
-            match value {
-                Some(Const::Value(v)) => {
-                    extracted_values.insert(key.clone(), v);
+                for (key, value) in exported_const_values.drain() {
+                    match value {
+                        Some(Const::Value(v)) => {
+                            extracted_values.insert(key.clone(), v);
+                        }
+                        Some(Const::Unsupported(msg)) => {
+                            warnings.push(msg);
+                        }
+                        _ => {}
+                    }
                 }
-                Some(Const::Unsupported(msg)) => {
-                    warnings.push(msg);
-                }
-                _ => {}
+
+                Ok(Some((exports_info, extracted_values, rsc_info, warnings)))
             }
         }
-
-        Ok(Some((exports_info, extracted_values, rsc_info, warnings)))
     }
 
     fn resolve(&mut self, _env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {

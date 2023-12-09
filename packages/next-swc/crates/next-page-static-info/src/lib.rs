@@ -126,7 +126,7 @@ pub struct ExportInfo {
 /// Collects static page export information for the next.js from given source's
 /// AST. This is being used for some places like detecting page
 /// is a dynamic route or not, or building a PageStaticInfo object.
-pub fn collect_exports(program: &Program) -> Result<ExportInfo> {
+pub fn collect_exports(program: &Program) -> Result<Option<ExportInfo>> {
     let mut collect_export_visitor = CollectExportsVisitor::new();
     program.visit_with(&mut collect_export_visitor);
 

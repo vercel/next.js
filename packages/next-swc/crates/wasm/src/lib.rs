@@ -228,10 +228,14 @@ pub fn is_dynamic_metadata_route(page_file_path: String, page_contents: String) 
             .map_err(|e| JsValue::from_str(format!("{:?}", e).as_str()))?;
         collect_exports(&source_ast)
             .map(|exports_info| {
-                JsValue::from(
-                    !exports_info.generate_image_metadata.unwrap_or_default()
-                        || !exports_info.generate_sitemaps.unwrap_or_default(),
-                )
+                exports_info
+                    .map(|exports_info| {
+                        JsValue::from(
+                            !exports_info.generate_image_metadata.unwrap_or_default()
+                                || !exports_info.generate_sitemaps.unwrap_or_default(),
+                        )
+                    })
+                    .unwrap_or_default()
             })
             .map_err(|e| JsValue::from_str(format!("{:?}", e).as_str()))
     })
@@ -255,43 +259,49 @@ pub fn get_page_static_info(page_file_path: String, page_contents: String) -> js
 
         let (source_ast, comments) = build_ast_from_source(&page_contents, &page_file_path)
             .map_err(|e| JsValue::from_str(format!("{:?}", e).as_str()))?;
-        let exports_info = collect_exports(&source_ast)
+        let mut exports_info = collect_exports(&source_ast)
             .map_err(|e| JsValue::from_str(format!("{:?}", e).as_str()))?;
-        let rsc_info = collect_rsc_module_info(&comments, true);
 
-        let mut properties_to_extract = exports_info.extra_properties.clone();
-        properties_to_extract.insert("config".to_string());
+        match exports_info {
+            None => Ok(JsValue::null()),
+            Some(mut exports_info) => {
+                let rsc_info = collect_rsc_module_info(&comments, true);
 
-        let mut exported_const_values =
-            extract_expored_const_values(&source_ast, properties_to_extract);
+                let mut properties_to_extract = exports_info.extra_properties.clone();
+                properties_to_extract.insert("config".to_string());
 
-        let mut extracted_values = HashMap::new();
-        let mut warnings = vec![];
+                let mut exported_const_values =
+                    extract_expored_const_values(&source_ast, properties_to_extract);
 
-        for (key, value) in exported_const_values.drain() {
-            match value {
-                Some(Const::Value(v)) => {
-                    extracted_values.insert(key.clone(), v);
+                let mut extracted_values = HashMap::new();
+                let mut warnings = vec![];
+
+                for (key, value) in exported_const_values.drain() {
+                    match value {
+                        Some(Const::Value(v)) => {
+                            extracted_values.insert(key.clone(), v);
+                        }
+                        Some(Const::Unsupported(msg)) => {
+                            warnings.push(msg);
+                        }
+                        _ => {}
+                    }
                 }
-                Some(Const::Unsupported(msg)) => {
-                    warnings.push(msg);
-                }
-                _ => {}
+
+                let ret = StaticPageInfo {
+                    exports_info: Some(exports_info),
+                    extracted_values,
+                    rsc_info: Some(rsc_info),
+                    warnings,
+                };
+
+                let s = serde_json::to_string(&ret)
+                    .map(|s| JsValue::from_str(&s))
+                    .unwrap_or(JsValue::null());
+
+                Ok(s)
             }
         }
-
-        let ret = StaticPageInfo {
-            exports_info: Some(exports_info),
-            extracted_values,
-            rsc_info: Some(rsc_info),
-            warnings,
-        };
-
-        let s = serde_json::to_string(&ret)
-            .map(|s| JsValue::from_str(&s))
-            .unwrap_or(JsValue::null());
-
-        Ok(s)
     })
 }
 
