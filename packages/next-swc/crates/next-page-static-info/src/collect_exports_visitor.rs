@@ -91,19 +91,13 @@ impl Visit for CollectExportsVisitor {
                                             ..
                                         } = expr
                                         {
-                                            if let Some(preferred_region) =
-                                                &mut self.export_info.preferred_region
-                                            {
-                                                preferred_region.push(value.to_string());
-                                            }
+                                            self.export_info
+                                                .preferred_region
+                                                .push(value.to_string());
                                         }
                                     }
                                 } else if let Expr::Lit(Lit::Str(Str { value, .. })) = &**init {
-                                    if let Some(preferred_region) =
-                                        &mut self.export_info.preferred_region
-                                    {
-                                        preferred_region.push(value.to_string());
-                                    }
+                                    self.export_info.preferred_region.push(value.to_string());
                                 }
                             }
                         } else {
@@ -165,7 +159,7 @@ impl Visit for CollectExportsVisitor {
                     ));
                 }
 
-                if self.export_info.preferred_region.is_none() && value.sym == "preferredRegion" {
+                if self.export_info.preferred_region.is_empty() && value.sym == "preferredRegion" {
                     self.export_info.warnings.push((
                         value.sym.to_string(),
                         "it was not assigned to a string literal or an array of string literals"

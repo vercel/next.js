@@ -493,6 +493,17 @@ export async function getPageStaticInfo(params: {
     //throw new Error('should match')
   }
 
+  let a = oldExport?.exportsInfo?.preferredRegion
+  let b = pageStaticInfo?.exportsInfo?.preferredRegion
+
+  if (a?.length !== b?.length || a?.every((v: any) => b?.includes(v))) {
+    require('console').log({
+      old: a,
+      new: b,
+    })
+    //throw new Error('preferredRegion mismatch')
+  }
+
   if (pageStaticInfo) {
     const { exportsInfo, extractedValues, rscInfo, warnings } =
       await binding.analysis.getPageStaticInfo(params)

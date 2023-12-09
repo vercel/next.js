@@ -111,7 +111,8 @@ pub struct ExportInfo {
     pub ssg: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub runtime: Option<String>,
-    pub preferred_region: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub preferred_region: Vec<String>,
     pub generate_image_metadata: Option<bool>,
     pub generate_sitemaps: Option<bool>,
     pub generate_static_params: bool,
