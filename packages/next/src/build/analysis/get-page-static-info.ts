@@ -470,15 +470,23 @@ export async function getPageStaticInfo(params: {
     shouldThrow: !isDev,
   })*/
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
-  if (
+  let mmm = (
     /runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
       fileContent
     )
+  )
+  if (
+    mmm
   ) {
     oldExport = {}
     const swcAST = await parseModule(pageFilePath, fileContent)
     oldExport.exportsInfo = checkExports(swcAST, pageFilePath)
     oldExport.rscInfo = getRSCModuleInformation(fileContent, true)
+  } else {
+    require('console').log('short-circuiting', {pageFilePath,
+      mmm,
+      m: /runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.exec(fileContent),
+       fileContent, })
   }
 
   const binding = await require('../swc').loadBindings()
@@ -488,9 +496,15 @@ export async function getPageStaticInfo(params: {
     console.log('mismatch short-circuiting', {
       oldExport,
       pageStaticInfo,
-      //pageFilePath,
+      pageFilePath,
+      fileContent,
+      oldExportShortCurcuit: !(
+        /runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
+          fileContent
+        )
+      ),
     })
-    //throw new Error('should match')
+    throw new Error('should match')
   }
 
   let a = oldExport?.exportsInfo?.preferredRegion

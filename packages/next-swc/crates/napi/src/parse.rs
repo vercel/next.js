@@ -234,11 +234,22 @@ impl Task for CollectPageStaticInfoTask {
             ..
         } = &self.option;
         let file_content = if let Some(file_content) = &self.file_content {
-            println!("{}", file_content);
             file_content.clone()
         } else {
             read_file_wrapped_err(page_file_path.as_str(), !is_dev.unwrap_or_default())?
         };
+
+        if page_file_path.ends_with("client/components/not-found-error.js") {
+            println!("{}", file_content);
+            println!(
+                "shuld_skip {}",
+                !PAGE_STATIC_INFO_SHORT_CURCUIT.is_match(file_content.as_str())
+            );
+            println!(
+                "shuld_skip captured {:#?}",
+                PAGE_STATIC_INFO_SHORT_CURCUIT.captures(file_content.as_str())
+            );
+        }
 
         if !PAGE_STATIC_INFO_SHORT_CURCUIT.is_match(file_content.as_str()) {
             return Ok(None);
