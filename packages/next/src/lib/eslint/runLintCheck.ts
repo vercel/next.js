@@ -172,9 +172,9 @@ async function lint(
         ? {
             useEslintrc: true,
             extensions: ['.js', '.jsx', '.ts', '.tsx'],
+            ...eslintOptions,
           }
         : {}),
-      ...eslintOptions,
     }
 
     let eslint = new ESLint(options)
