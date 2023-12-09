@@ -172,9 +172,9 @@ async function lint(
         ? {
             useEslintrc: true,
             extensions: ['.js', '.jsx', '.ts', '.tsx'],
-            ...eslintOptions,
           }
         : {}),
+      ...eslintOptions,
     }
 
     let eslint = new ESLint(options)
@@ -185,8 +185,6 @@ async function lint(
     if (!shouldUseFlatConfig) {
       for (const configFile of [eslintrcFile, pkgJsonPath]) {
         if (!configFile) continue
-        if (shouldUseFlatConfig && !configFile.endsWith('eslint.config.js'))
-          continue
 
         const completeConfig: Config = await eslint.calculateConfigForFile(
           configFile
