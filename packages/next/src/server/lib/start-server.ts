@@ -232,10 +232,10 @@ export async function startServer(
 
       port = typeof addr === 'object' ? addr?.port || port : port
 
-      const networkUrl = hostname ? `http://${actualHostname}:${port}` : null
-      const appUrl = `${
-        selfSignedCertificate ? 'https' : 'http'
-      }://${formattedHostname}:${port}`
+      const protocol = selfSignedCertificate ? 'https' : 'http'
+
+      const networkUrl = hostname ? `${protocol}://${actualHostname}:${port}` : null
+      const appUrl = `${protocol}://${formattedHostname}:${port}`
 
       if (nodeDebugType) {
         const debugPort = getDebugPort()
