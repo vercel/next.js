@@ -56,7 +56,7 @@ export async function createComponentTree({
   ctx: AppRenderContext
 }): Promise<ComponentTree> {
   const {
-    renderOpts: { nextConfigOutput },
+    renderOpts: { nextConfigOutput, experimental },
     staticGenerationStore,
     componentMod: {
       staticGenerationBailout,
@@ -325,12 +325,43 @@ export async function createComponentTree({
         // We also want to bail out if there's no Loading component in the tree.
         let currentStyles = undefined
         let childCacheNodeSeedData: CacheNodeSeedData | null = null
+
         if (
-          !(
-            isPrefetch &&
-            (Loading || !hasLoadingComponentInTree(parallelRoute))
-          )
+          // Before PPR, the way instant navigations work in Next.js is we
+          // prefetch everything up to the first route segment that defines a
+          // loading.tsx boundary. (We do the same if there's no loading
+          // boundary in the entire tree, because we don't want to prefetch too
+          // much) The rest of the tree is defered until the actual navigation.
+          // It does not take into account whether the data is dynamic — even if
+          // the tree is completely static, it will still defer everything
+          // inside the loading boundary.
+          //
+          // This behavior predates PPR and is only relevant if the
+          // PPR flag is not enabled.
+          isPrefetch &&
+          (Loading || !hasLoadingComponentInTree(parallelRoute)) &&
+          // The approach with PPR is different — loading.tsx behaves like a
+          // regular Suspense boundary and has no special behavior.
+          //
+          // With PPR, we prefetch as deeply as possible, and only defer when
+          // dynamic data is accessed. If so, we only defer the nearest parent
+          // Suspense boundary of the dynamic data access, regardless of whether
+          // the boundary is defined by loading.tsx or a normal <Suspense>
+          // component in userspace.
+          //
+          // NOTE: In practice this usually means we'll end up prefetching more
+          // than we were before PPR, which may or may not be considered a
+          // performance regression by some apps. The plan is to address this
+          // before General Availability of PPR by introducing granular
+          // per-segment fetching, so we can reuse as much of the tree as
+          // possible during both prefetches and dynamic navigations. But during
+          // the beta period, we should be clear about this trade off in our
+          // communications.
+          !experimental.ppr
         ) {
+          // Don't prefetch this child. This will trigger a lazy fetch by the
+          // client router.
+        } else {
           // Create the child component
           const { seedData, styles: childComponentStyles } =
             await createComponentTree({
