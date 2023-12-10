@@ -36,6 +36,7 @@ function getBaseSWCOptions({
   development,
   hasReactRefresh,
   globalWindow,
+  esm,
   modularizeImports,
   swcPlugins,
   compilerOptions,
@@ -50,6 +51,7 @@ function getBaseSWCOptions({
   development: boolean
   hasReactRefresh: boolean
   globalWindow: boolean
+  esm: boolean
   modularizeImports?: NextConfig['modularizeImports']
   compilerOptions: NextConfig['compiler']
   swcPlugins: ExperimentalConfig['swcPlugins']
@@ -109,7 +111,6 @@ function getBaseSWCOptions({
               ? '@emotion/react'
               : 'react'),
           runtime: 'automatic',
-          pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
           throwIfNamespace: true,
           development: !!development,
@@ -188,6 +189,9 @@ function getBaseSWCOptions({
             isReactServerLayer: !!isReactServerLayer,
           }
         : undefined,
+    // For app router we prefer to bundle ESM,
+    // On server side of pages router we prefer CJS.
+    preferEsm: esm,
   }
 }
 
@@ -289,6 +293,7 @@ export function getJestSWCOptions({
     compilerOptions,
     jsConfig,
     resolvedBaseUrl,
+    esm,
     // Don't apply server layer transformations for Jest
     isReactServerLayer: false,
     // Disable server / client graph assertions for Jest
@@ -372,6 +377,7 @@ export function getLoaderSWCOptions({
     swcCacheDir,
     isReactServerLayer,
     serverComponents,
+    esm: !!esm,
   })
   baseOptions.fontLoaders = {
     fontLoaders: [
@@ -423,6 +429,7 @@ export function getLoaderSWCOptions({
       isServerCompiler: isServer,
       pagesDir,
       appDir,
+      preferEsm: !!esm,
       isPageFile,
       env: {
         targets: {
