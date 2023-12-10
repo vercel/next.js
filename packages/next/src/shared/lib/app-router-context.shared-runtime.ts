@@ -13,59 +13,57 @@ import React from 'react'
 
 export type ChildSegmentMap = Map<string, CacheNode>
 
-// eslint-disable-next-line no-shadow
-export enum CacheStates {
-  LAZY_INITIALIZED = 'LAZYINITIALIZED',
-  DATA_FETCH = 'DATAFETCH',
-  READY = 'READY',
-}
-
 /**
  * Cache node used in app-router / layout-router.
  */
-export type CacheNode =
-  | {
-      status: CacheStates.DATA_FETCH
-      /**
-       * In-flight request for this node.
-       */
-      data: Promise<FetchServerResponseResult> | null
-      head?: React.ReactNode
-      /**
-       * React Component for this node.
-       */
-      subTreeData: null
-      /**
-       * Child parallel routes.
-       */
-      parallelRoutes: Map<string, ChildSegmentMap>
-    }
-  | {
-      status: CacheStates.READY
-      /**
-       * In-flight request for this node.
-       */
-      data: null
-      head?: React.ReactNode
-      /**
-       * React Component for this node.
-       */
-      subTreeData: React.ReactNode
-      /**
-       * Child parallel routes.
-       */
-      parallelRoutes: Map<string, ChildSegmentMap>
-    }
-  | {
-      status: CacheStates.LAZY_INITIALIZED
-      data: null
-      head?: React.ReactNode
-      subTreeData: null
-      /**
-       * Child parallel routes.
-       */
-      parallelRoutes: Map<string, ChildSegmentMap>
-    }
+export type CacheNode = ReadyCacheNode | LazyCacheNode
+
+export type LazyCacheNode = {
+  /**
+   * When subtreeData is null, this is a lazily-initialized cache node.
+   *
+   * If the app attempts to render it, it triggers a lazy data fetch,
+   * postpones the render, and schedules an update to a new tree.
+   *
+   * TODO: This mechanism should not be used when PPR is enabled, though it
+   * currently is in some cases until we've implemented partial
+   * segment fetching.
+   */
+  subTreeData: null
+
+  /**
+   * A pending response for the lazy data fetch. If this is not present
+   * during render, it is lazily created.
+   */
+  data: Promise<FetchServerResponseResult> | null
+
+  head?: React.ReactNode
+  /**
+   * Child parallel routes.
+   */
+  parallelRoutes: Map<string, ChildSegmentMap>
+}
+
+export type ReadyCacheNode = {
+  /**
+   * When subtreeData is not null, it represents the RSC data for the
+   * corresponding segment.
+   *
+   * `null` is a valid React Node but because segment data is always a
+   * <LayoutRouter> component, we can use `null` to represent empty.
+   *
+   * TODO: For additional type safety, update this type to
+   * Exclude<React.ReactNode, null>. Need to update createEmptyCacheNode to
+   * accept subTreeData as an argument, or just inline the callers.
+   */
+  subTreeData: React.ReactNode
+  /**
+   * There should never be a pending data request in this case.
+   */
+  data: null
+  head?: React.ReactNode
+  parallelRoutes: Map<string, ChildSegmentMap>
+}
 
 export interface NavigateOptions {
   scroll?: boolean

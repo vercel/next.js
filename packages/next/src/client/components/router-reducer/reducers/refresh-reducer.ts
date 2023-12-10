@@ -10,10 +10,7 @@ import type {
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
-import {
-  CacheStates,
-  type CacheNode,
-} from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
 
@@ -98,7 +95,6 @@ export function refreshReducer(
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (cacheNodeSeedData !== null) {
           const subTreeData = cacheNodeSeedData[2]
-          cache.status = CacheStates.READY
           cache.subTreeData = subTreeData
           fillLazyItemsTillLeafWithHead(
             cache,

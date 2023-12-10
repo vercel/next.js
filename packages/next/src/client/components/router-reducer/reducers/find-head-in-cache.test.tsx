@@ -1,6 +1,5 @@
 import React from 'react'
 import type { FlightRouterState } from '../../../../server/app-render/types'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { findHeadInCache } from './find-head-in-cache'
 
@@ -28,7 +27,6 @@ describe('findHeadInCache', () => {
 
     const cache: CacheNode = {
       data: null,
-      status: CacheStates.LAZY_INITIALIZED,
       subTreeData: null,
       parallelRoutes: new Map([
         [
@@ -38,7 +36,6 @@ describe('findHeadInCache', () => {
               'linking',
               {
                 data: null,
-                status: CacheStates.LAZY_INITIALIZED,
                 subTreeData: null,
                 parallelRoutes: new Map([
                   [
@@ -56,7 +53,6 @@ describe('findHeadInCache', () => {
                                   '',
                                   {
                                     data: null,
-                                    status: CacheStates.LAZY_INITIALIZED,
                                     subTreeData: null,
                                     parallelRoutes: new Map(),
                                     head: (
@@ -70,7 +66,6 @@ describe('findHeadInCache', () => {
                             ],
                           ]),
                           subTreeData: null,
-                          status: CacheStates.LAZY_INITIALIZED,
                         },
                       ],
                       // TODO-APP: this segment should be preserved when creating the new cache
@@ -78,7 +73,6 @@ describe('findHeadInCache', () => {
                       //   '',
                       //   {
                       //     data: null,
-                      //     status: CacheStates.READY,
                       //     subTreeData: <>Page</>,
                       //     parallelRoutes: new Map(),
                       //   },

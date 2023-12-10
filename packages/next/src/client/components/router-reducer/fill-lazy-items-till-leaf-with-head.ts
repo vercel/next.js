@@ -1,4 +1,3 @@
-import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
@@ -52,7 +51,6 @@ export function fillLazyItemsTillLeafWithHead(
           // New data was sent from the server.
           const seedNode = parallelSeedData[2]
           newCacheNode = {
-            status: CacheStates.READY,
             data: null,
             subTreeData: seedNode,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
@@ -61,7 +59,6 @@ export function fillLazyItemsTillLeafWithHead(
           // No new data was sent from the server, but the existing cache node
           // was prefetched, so we should reuse that.
           newCacheNode = {
-            status: existingCacheNode.status,
             data: existingCacheNode.data,
             subTreeData: existingCacheNode.subTreeData,
             parallelRoutes: new Map(existingCacheNode.parallelRoutes),
@@ -70,7 +67,6 @@ export function fillLazyItemsTillLeafWithHead(
           // No data available for this node. This will trigger a lazy fetch
           // during render.
           newCacheNode = {
-            status: CacheStates.LAZY_INITIALIZED,
             data: null,
             subTreeData: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
@@ -99,7 +95,6 @@ export function fillLazyItemsTillLeafWithHead(
       // New data was sent from the server.
       const seedNode = parallelSeedData[2]
       newCacheNode = {
-        status: CacheStates.READY,
         data: null,
         subTreeData: seedNode,
         parallelRoutes: new Map(),
@@ -108,7 +103,6 @@ export function fillLazyItemsTillLeafWithHead(
       // No data available for this node. This will trigger a lazy fetch
       // during render.
       newCacheNode = {
-        status: CacheStates.LAZY_INITIALIZED,
         data: null,
         subTreeData: null,
         parallelRoutes: new Map(),

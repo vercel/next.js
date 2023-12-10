@@ -1,4 +1,3 @@
-import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightDataPath,
@@ -49,7 +48,6 @@ export function fillCacheWithNewSubTreeData(
       const seedData: CacheNodeSeedData = flightDataPath[3]
       const subTreeData = seedData[2]
       childCacheNode = {
-        status: CacheStates.READY,
         data: null,
         subTreeData,
         // Ensure segments other than the one we got data for are preserved.
@@ -88,7 +86,6 @@ export function fillCacheWithNewSubTreeData(
 
   if (childCacheNode === existingChildCacheNode) {
     childCacheNode = {
-      status: childCacheNode.status,
       data: childCacheNode.data,
       subTreeData: childCacheNode.subTreeData,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),

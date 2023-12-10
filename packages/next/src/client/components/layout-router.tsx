@@ -12,7 +12,6 @@ import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 import React, { useContext, use, startTransition, Suspense } from 'react'
 import ReactDOM from 'react-dom'
 import {
-  CacheStates,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   TemplateContext,
@@ -338,8 +337,16 @@ function InnerLayoutRouter({
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(cacheKey)
 
-  // When childNode is not available during rendering client-side we need to fetch it from the server.
-  if (!childNode || childNode.status === CacheStates.LAZY_INITIALIZED) {
+  // When data is not available during rendering client-side we need to fetch
+  // it from the server.
+  if (
+    !childNode ||
+    // Check if this is a lazy cache entry that has not yet initiated a
+    // data request.
+    //
+    // TODO: An eventual goal of PPR is to remove this case entirely.
+    (childNode.subTreeData === null && childNode.data === null)
+  ) {
     /**
      * Router state with refetch marker added
      */
@@ -347,7 +354,6 @@ function InnerLayoutRouter({
     const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
 
     childNode = {
-      status: CacheStates.DATA_FETCH,
       data: fetchServerResponse(
         new URL(url, location.origin),
         refetchTree,
@@ -355,14 +361,8 @@ function InnerLayoutRouter({
         buildId
       ),
       subTreeData: null,
-      head:
-        childNode && childNode.status === CacheStates.LAZY_INITIALIZED
-          ? childNode.head
-          : undefined,
-      parallelRoutes:
-        childNode && childNode.status === CacheStates.LAZY_INITIALIZED
-          ? childNode.parallelRoutes
-          : new Map(),
+      head: childNode ? childNode.head : undefined,
+      parallelRoutes: childNode ? childNode.parallelRoutes : new Map(),
     }
 
     /**
