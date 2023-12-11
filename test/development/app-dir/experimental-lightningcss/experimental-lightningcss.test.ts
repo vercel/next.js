@@ -11,6 +11,8 @@ describe('experimental-lightningcss', () => {
     const $ = await next.render$('/')
     expect($('p').text()).toBe('hello world')
     // swc_css does not include `-module` in the class name, while lightningcss does.
-    expect($('p').attr('class')).toBe('style-module__hlQ3RG__blue')
+    expect($('p').attr('class')).toBe(
+      'search-keyword style-module__hlQ3RG__blue'
+    )
   })
 })
