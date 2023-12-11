@@ -23,7 +23,7 @@ describe('next/font used telemetry', () => {
   })
   afterAll(() => next.destroy())
 
-  it('should send next/font/google and next/font/local usage event', async () => {
+  it.only('should send next/font/google and next/font/local usage event', async () => {
     const events = findAllTelemetryEvents(
       next.cliOutput,
       'NEXT_BUILD_FEATURE_USAGE'

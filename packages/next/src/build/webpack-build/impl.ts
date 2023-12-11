@@ -13,7 +13,10 @@ import { runCompiler } from '../compiler'
 import * as Log from '../output/log'
 import getBaseWebpackConfig, { loadProjectInfo } from '../webpack-config'
 import type { NextError } from '../../lib/is-error'
-import { TelemetryPlugin } from '../webpack/plugins/telemetry-plugin'
+import {
+  TelemetryPlugin,
+  type TelemetryPluginState,
+} from '../webpack/plugins/telemetry-plugin'
 import {
   NextBuildContext,
   resumePluginState,
@@ -60,11 +63,12 @@ function isTraceEntryPointsPlugin(
 }
 
 export async function webpackBuildImpl(
-  compilerName?: keyof typeof COMPILER_INDEXES
+  compilerName: keyof typeof COMPILER_INDEXES | null
 ): Promise<{
   duration: number
   pluginState: any
   buildTraceContext?: BuildTraceContext
+  telemetryState?: TelemetryPluginState
 }> {
   let result: CompilerResult | null = {
     warnings: [],
@@ -267,9 +271,9 @@ export async function webpackBuildImpl(
     .traceChild('format-webpack-messages')
     .traceFn(() => formatWebpackMessages(result, true)) as CompilerResult
 
-  NextBuildContext.telemetryPlugin = (
-    clientConfig as webpack.Configuration
-  ).plugins?.find(isTelemetryPlugin)
+  const telemetryPlugin = (clientConfig as webpack.Configuration).plugins?.find(
+    isTelemetryPlugin
+  )
 
   const traceEntryPointsPlugin = (
     serverConfig as webpack.Configuration
@@ -329,6 +333,11 @@ export async function webpackBuildImpl(
       duration: webpackBuildEnd[0],
       buildTraceContext: traceEntryPointsPlugin?.buildTraceContext,
       pluginState: getPluginState(),
+      telemetryState: {
+        usages: telemetryPlugin?.usages() || [],
+        packagesUsedInServerSideProps:
+          telemetryPlugin?.packagesUsedInServerSideProps() || [],
+      },
     }
   }
 }

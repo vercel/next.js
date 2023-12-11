@@ -1109,7 +1109,7 @@ export default async function build(
       }
 
       if (!isGenerate) {
-        if (isCompile) {
+        if (isCompile && useBuildWorker) {
           let durationInSeconds = 0
 
           await webpackBuild(useBuildWorker, ['server']).then((res) => {
@@ -1160,7 +1160,7 @@ export default async function build(
         } else {
           const { duration: webpackBuildDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
-            : await webpackBuild(useBuildWorker)
+            : await webpackBuild(useBuildWorker, null)
 
           buildTraceContext = rest.buildTraceContext
 
@@ -2822,11 +2822,15 @@ export default async function build(
         })
       )
 
-      if (NextBuildContext.telemetryPlugin) {
-        const events = eventBuildFeatureUsage(NextBuildContext.telemetryPlugin)
+      if (NextBuildContext.telemetryState) {
+        const events = eventBuildFeatureUsage(
+          NextBuildContext.telemetryState.usages
+        )
         telemetry.record(events)
         telemetry.record(
-          eventPackageUsedInGetServerSideProps(NextBuildContext.telemetryPlugin)
+          eventPackageUsedInGetServerSideProps(
+            NextBuildContext.telemetryState.packagesUsedInServerSideProps
+          )
         )
       }
 
