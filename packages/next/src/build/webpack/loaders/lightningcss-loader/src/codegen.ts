@@ -1,6 +1,3 @@
-import { fileURLToPath } from 'url'
-import path from 'path'
-
 import type { LoaderContext } from 'next/dist/compiled/webpack/webpack'
 import type { ILightningCssLoaderConfig } from './interface'
 import camelCase from '../../css-loader/src/camelcase'
