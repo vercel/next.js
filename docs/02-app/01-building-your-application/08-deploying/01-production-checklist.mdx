@@ -9,7 +9,7 @@ Before taking your Next.js application to production, here are some recommendati
 
 - Use [caching](/docs/app/building-your-application/caching) wherever possible.
 - Ensure your database and backend are deployed in the same region.
-- Aim to reduce client-side JavaScript bundle sizes by [moving the "use client" boundaries down the React component tree](https://nextjs.org/docs/app/building-your-application/rendering/composition-patterns#moving-client-components-down-the-tree).
+- Focus on leveraging [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components) for efficient rendering. Server Components enable rendering on the server, which can significantly reduce the size of your client-side JavaScript bundle. Remember, Server Components can contain Client Components, offering flexibility in how you compose your application's UI. For an in-depth understanding of security best practices with Server Components, see our [blog post on security in Next.js Server Components and Actions](https://nextjs.org/blog/security-nextjs-server-components-actions).
 - Prevent sensitive data from being exposed to the client with [tainting](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client)
 - Ensure errors in nested route segments are handled gracefully with the [error.js file](https://nextjs.org/docs/app/building-your-application/routing/error-handling)
 - Customize your 404 (Not Found) responses using the [`notFound()`](/docs/app/api-reference/functions/not-found) function and [`not-found.js` file](https://nextjs.org/docs/app/api-reference/file-conventions/not-found)
@@ -48,7 +48,7 @@ The caching behavior of data requests can be controlled through various strategi
 
 ### Caching in Server Actions
 
-While Server Actions in Next.js are primarily used for mutations (like POST, PUT, DELETE operations), they also play a crucial role in cache management. After a mutation, it's crucial to ensure that the cached data reflects the latest state. Next.js facilitates this by providing APIs such as `revalidatePath` and `revalidateTag`. These APIs can be used to purge or revalidate the cache immediately after a mutation. This capability ensures that any changes made by Server Actions are promptly reflected in the cached data, maintaining data consistency and accuracy.
+While Server Actions in Next.js are primarily used for mutations (like POST, PUT, DELETE operations), they also play a crucial role in cache management. After a mutation, it's crucial to ensure that the cached data reflects the latest state. Next.js facilitates this by providing APIs such as [`revalidatePath`](https://nextjs.org/docs/app/api-reference/functions/revalidatePath) and [`revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag). These APIs can be used to purge or revalidate the cache immediately after a mutation. This capability ensures that any changes made by Server Actions are promptly reflected in the cached data, maintaining data consistency and accuracy.
 
 ### Opting Out of Caching
 
@@ -56,7 +56,7 @@ There are scenarios where caching might not be desirable as users need the most 
 
 ## Reducing JavaScript bundle sizes
 
-Making sure your website sends less JavaScript to the browser is important for speed. To help you understand and manage your JavaScript bundles, you can use these tools to visualize your bundles and/or identify large dependencies.
+Reducing the amount of JavaScript your website sends to the browser can play a role in enhancing site speed and performance. To help you understand and manage your JavaScript bundles, you can use these tools to visualize your bundles and/or identify large dependencies.
 
 - [Import Cost](https://marketplace.visualstudio.com/items?itemName=wix.vscode-import-cost) – Shows the size of each package you import right in VSCode.
 - [Package Phobia](https://packagephobia.com/) – Helps you see the size impact of adding new dev dependencies to your project.
@@ -66,9 +66,8 @@ Making sure your website sends less JavaScript to the browser is important for s
 
 Additionally, make sure to implement the recommended optimization strategies.
 
-- Optimize Server Actions - Focus on simplifying and speeding up your server actions. This can be achieved by optimizing database queries, reducing external API calls, and ensuring server-side computations are efficient. Efficient server-side processing helps reduce the time it takes for your pages to load and improves the overall performance of your website.
 - Minimize Client-Side JavaScript - It's important to keep JavaScript on the client-side as small as possible for quicker website loading and a better user experience.
-- Moving client components down the tree or carefully considering where to place the "use client" boundaries. In other words, moving more rendering / logic to the server using Server Components.
+- Leverage [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components) for efficient rendering. Server Components enable rendering on the server, which can significantly reduce the size of your client-side JavaScript bundle.
 - Fetching data on the server: https://nextjs.org/docs/app/building-your-application/data-fetching/patterns#fetching-data-on-the-server
 
 ### Optimizing with `@next/bundle-analyzer`
@@ -122,11 +121,11 @@ Google Lighthouse is a powerful tool for assessing Core Web Vitals, along with o
 1. Use a production build of your Next.js application.
 2. Run Lighthouse in incognito mode to prevent browser extensions from affecting the results.
 
-Lighthouse can be used both as a browser extension and a command-line tool, providing detailed reports on how your website performs against these vital metrics.
+Lighthouse is available directly within Chrome DevTools, as well as a command-line tool, providing detailed reports on how your website performs against these vital metrics.
 
 ### Utilizing Vercel's Dashboard (for Vercel Deployments)
 
-If your Next.js application is deployed on [Vercel](https://vercel.com/vercel), you can leverage Vercel's built-in analytics dashboard to measure Core Web Vitals. This dashboard provides real-world performance insights based on actual visitor data, offering a practical view of how your website is performing in the field.
+If your Next.js application is deployed on [Vercel](https://vercel.com), you can leverage Vercel's built-in analytics dashboard to measure Core Web Vitals. This dashboard provides real-world performance insights based on actual visitor data, offering a practical view of how your website is performing in the field.
 
 Once you are able to measure the loading performance, use the following strategies to improve it iteratively. That is, if you apply one strategy, measure the new performance and continue tweaking until you do not see much improvement. Then, you can move on to the next strategy.
 
