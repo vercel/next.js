@@ -82,7 +82,13 @@ export async function LightningCssLoader(
     const cssCodeAsString = code.toString()
 
     const importCode = getImportCode(imports, options)
-    const moduleCode = getModuleCode(result, api, replacements, options, this)
+    const moduleCode = getModuleCode(
+      { css: cssCodeAsString, map },
+      api,
+      replacements,
+      options,
+      this
+    )
     const exportCode = getExportCode(exports, replacements, options)
 
     const esCode = `${importCode}${moduleCode}${exportCode}`
