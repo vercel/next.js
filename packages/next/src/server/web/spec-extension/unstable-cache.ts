@@ -153,15 +153,7 @@ export function unstable_cache<T extends Callback>(
           )
           return invokeCallback()
         }
-        let cachedValue: any
         const isStale = cacheEntry.isStale
-
-        if (cacheEntry) {
-          const resData = cacheEntry.value.data
-          // JSON.stringify(undefined) returns `undefined`, but JSON.parse(undefined) throws an error
-          cachedValue =
-            resData.body !== undefined ? JSON.parse(resData.body) : undefined
-        }
 
         if (isStale) {
           if (!store) {
@@ -175,6 +167,14 @@ export function unstable_cache<T extends Callback>(
                 console.error(`revalidating cache with key: ${joinedKey}`, err)
             )
           }
+        }
+
+        let cachedValue: any
+        if (cacheEntry) {
+          const resData = cacheEntry.value.data
+          // JSON.stringify(undefined) returns `undefined`, but JSON.parse(undefined) throws an error
+          cachedValue =
+            resData.body !== undefined ? JSON.parse(resData.body) : undefined
         }
         return cachedValue
       }
