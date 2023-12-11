@@ -332,7 +332,6 @@ export async function handleAction({
     // If the customer sets a list of allowed origins, we'll allow the request.
     // These are considered safe but might be different from forwarded host set
     // by the infra (i.e. reverse proxies).
-    // regex is used to support wildcard domains
     if (isCsrfOriginAllowed(originDomain, serverActions?.allowedOrigins)) {
       // Ignore it
     } else {
