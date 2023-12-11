@@ -1,7 +1,6 @@
 import React from 'react'
 import type { FlightData } from '../../../server/app-render/types'
 import { invalidateCacheBelowFlightSegmentPath } from './invalidate-cache-below-flight-segmentpath'
-import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 
@@ -29,14 +28,12 @@ const getFlightData = (): FlightData => {
 describe('invalidateCacheBelowFlightSegmentPath', () => {
   it('should invalidate cache below flight segment path', () => {
     const cache: CacheNode = {
-      status: CacheStates.LAZY_INITIALIZED,
       data: null,
       subTreeData: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
       data: null,
-      status: CacheStates.READY,
       subTreeData: <>Root layout</>,
       parallelRoutes: new Map([
         [
@@ -46,7 +43,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
               'linking',
               {
                 data: null,
-                status: CacheStates.READY,
                 subTreeData: <>Linking</>,
                 parallelRoutes: new Map([
                   [
@@ -56,7 +52,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                         '',
                         {
                           data: null,
-                          status: CacheStates.READY,
                           subTreeData: <>Page</>,
                           parallelRoutes: new Map(),
                         },
@@ -81,10 +76,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
     const flightDataPath = flightData[0]
     const flightSegmentPath = flightDataPath.slice(0, -3)
 
-    // @ts-expect-error TODO-APP: investigate why this is not a TS error in router-reducer.
-    cache.status = CacheStates.READY
     // Copy subTreeData for the root node of the cache.
-    // @ts-expect-error TODO-APP: investigate why this is not a TS error in router-reducer.
     cache.subTreeData = existingCache.subTreeData
     // Create a copy of the existing cache with the subTreeData applied.
     fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath, false)
@@ -115,21 +107,18 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                         {
                           data: null,
                           parallelRoutes: new Map(),
-                          status: CacheStates.READY,
                           subTreeData: <React.Fragment>Page</React.Fragment>,
                         },
                       ],
                     ]),
                   ],
                 ]),
-                status: CacheStates.READY,
                 subTreeData: <React.Fragment>Linking</React.Fragment>,
               },
             ],
           ]),
         ],
       ]),
-      status: CacheStates.READY,
       subTreeData: <>Root layout</>,
     }
 

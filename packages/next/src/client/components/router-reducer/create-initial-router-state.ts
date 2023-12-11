@@ -5,7 +5,6 @@ import type {
   CacheNodeSeedData,
 } from '../../../server/app-render/types'
 
-import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
@@ -34,7 +33,6 @@ export function createInitialRouterState({
   const subTreeData = initialSeedData[2]
 
   const cache: CacheNode = {
-    status: CacheStates.READY,
     data: null,
     subTreeData: subTreeData,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
