@@ -64,6 +64,11 @@ export async function LightningCssLoader(
   try {
     const { code, map } = transform({
       visitor: createVisitor(options, api, replacements),
+      cssModules: options.modules
+        ? {
+            pattern: '[name]__[hash]___[local]',
+          }
+        : undefined,
       filename: this.resourcePath,
       code: Buffer.from(source),
       sourceMap: this.sourceMap,
