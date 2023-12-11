@@ -5,7 +5,15 @@ import { transform as transformCss, type Visitor } from 'lightningcss'
 import { Buffer } from 'buffer'
 import { getTargets } from './utils'
 import path from 'path'
-import type { ApiParam, ApiReplacement, CssExport, CssImport } from './codegen'
+import {
+  getImportCode,
+  type ApiParam,
+  type ApiReplacement,
+  type CssExport,
+  type CssImport,
+  getModuleCode,
+  getExportCode,
+} from './codegen'
 
 function createVisitor(
   options: ILightningCssLoaderConfig,
@@ -71,8 +79,14 @@ export async function LightningCssLoader(
         this.sourceMap && prevMap ? JSON.stringify(prevMap) : undefined,
       ...opts,
     })
-    const codeAsString = code.toString()
-    done(null, codeAsString, map && JSON.parse(map.toString()))
+    const cssCodeAsString = code.toString()
+
+    const importCode = getImportCode(imports, options)
+    const moduleCode = getModuleCode(result, api, replacements, options, this)
+    const exportCode = getExportCode(exports, replacements, options)
+
+    const esCode = `${importCode}${moduleCode}${exportCode}`
+    done(null, esCode, map && JSON.parse(map.toString()))
   } catch (error: unknown) {
     done(error as Error)
   }
