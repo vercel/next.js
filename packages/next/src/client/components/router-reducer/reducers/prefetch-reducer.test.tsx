@@ -93,7 +93,7 @@ describe('prefetchReducer', () => {
                     [
                       '',
                       {
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -101,7 +101,7 @@ describe('prefetchReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -180,7 +180,7 @@ describe('prefetchReducer', () => {
       },
       canonicalUrl: '/linking',
       cache: {
-        data: null,
+        lazyData: null,
         subTreeData: (
           <html>
             <head></head>
@@ -232,7 +232,7 @@ describe('prefetchReducer', () => {
                     [
                       '',
                       {
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -240,7 +240,7 @@ describe('prefetchReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -333,7 +333,7 @@ describe('prefetchReducer', () => {
       },
       canonicalUrl: '/linking',
       cache: {
-        data: null,
+        lazyData: null,
         subTreeData: (
           <html>
             <head></head>

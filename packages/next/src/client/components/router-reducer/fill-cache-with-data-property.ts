@@ -34,11 +34,11 @@ export function fillCacheWithDataProperty(
   if (isLastEntry) {
     if (
       !childCacheNode ||
-      !childCacheNode.data ||
+      !childCacheNode.lazyData ||
       childCacheNode === existingChildCacheNode
     ) {
       childSegmentMap.set(cacheKey, {
-        data: fetchResponse(),
+        lazyData: fetchResponse(),
         subTreeData: null,
         parallelRoutes: new Map(),
       })
@@ -50,7 +50,7 @@ export function fillCacheWithDataProperty(
     // Start fetch in the place where the existing cache doesn't have the data yet.
     if (!childCacheNode) {
       childSegmentMap.set(cacheKey, {
-        data: fetchResponse(),
+        lazyData: fetchResponse(),
         subTreeData: null,
         parallelRoutes: new Map(),
       })
@@ -60,7 +60,7 @@ export function fillCacheWithDataProperty(
 
   if (childCacheNode === existingChildCacheNode) {
     childCacheNode = {
-      data: childCacheNode.data,
+      lazyData: childCacheNode.lazyData,
       subTreeData: childCacheNode.subTreeData,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
     } as CacheNode

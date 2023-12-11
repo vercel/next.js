@@ -6,12 +6,12 @@ import type { FlightRouterState } from '../../../server/app-render/types'
 describe('invalidateCacheByRouterState', () => {
   it('should invalidate the cache by router state', () => {
     const cache: CacheNode = {
-      data: null,
+      lazyData: null,
       subTreeData: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
-      data: null,
+      lazyData: null,
       subTreeData: <>Root layout</>,
       parallelRoutes: new Map([
         [
@@ -20,7 +20,7 @@ describe('invalidateCacheByRouterState', () => {
             [
               'linking',
               {
-                data: null,
+                lazyData: null,
                 subTreeData: <>Linking</>,
                 parallelRoutes: new Map([
                   [
@@ -29,7 +29,7 @@ describe('invalidateCacheByRouterState', () => {
                       [
                         '',
                         {
-                          data: null,
+                          lazyData: null,
                           subTreeData: <>Page</>,
                           parallelRoutes: new Map(),
                         },
@@ -67,7 +67,7 @@ describe('invalidateCacheByRouterState', () => {
     invalidateCacheByRouterState(cache, existingCache, routerState)
 
     const expectedCache: CacheNode = {
-      data: null,
+      lazyData: null,
       subTreeData: null,
       parallelRoutes: new Map([['children', new Map()]]),
     }

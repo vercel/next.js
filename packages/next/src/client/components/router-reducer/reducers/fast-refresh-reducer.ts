@@ -28,14 +28,14 @@ function fastRefreshReducerImpl(
   const cache: CacheNode = createEmptyCacheNode()
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
-  cache.data = fetchServerResponse(
+  cache.lazyData = fetchServerResponse(
     new URL(href, origin),
     [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
     state.nextUrl,
     state.buildId
   )
 
-  return cache.data.then(
+  return cache.lazyData.then(
     ([flightData, canonicalUrlOverride]) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
@@ -47,8 +47,8 @@ function fastRefreshReducerImpl(
         )
       }
 
-      // Remove cache.data as it has been resolved at this point.
-      cache.data = null
+      // Remove cache.lazyData as it has been resolved at this point.
+      cache.lazyData = null
 
       let currentTree = state.tree
       let currentCache = state.cache

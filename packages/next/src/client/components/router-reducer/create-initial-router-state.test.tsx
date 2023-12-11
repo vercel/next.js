@@ -55,7 +55,7 @@ describe('createInitialRouterState', () => {
     })
 
     const expectedCache: CacheNode = {
-      data: null,
+      lazyData: null,
       subTreeData: children,
       parallelRoutes: new Map([
         [
@@ -71,7 +71,7 @@ describe('createInitialRouterState', () => {
                       [
                         '',
                         {
-                          data: null,
+                          lazyData: null,
                           subTreeData: null,
                           parallelRoutes: new Map(),
                           head: <title>Test</title>,
@@ -80,7 +80,7 @@ describe('createInitialRouterState', () => {
                     ]),
                   ],
                 ]),
-                data: null,
+                lazyData: null,
                 subTreeData: null,
               },
             ],

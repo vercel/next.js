@@ -28,12 +28,12 @@ const getFlightData = (): FlightData => {
 describe('invalidateCacheBelowFlightSegmentPath', () => {
   it('should invalidate cache below flight segment path', () => {
     const cache: CacheNode = {
-      data: null,
+      lazyData: null,
       subTreeData: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
-      data: null,
+      lazyData: null,
       subTreeData: <>Root layout</>,
       parallelRoutes: new Map([
         [
@@ -42,7 +42,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
             [
               'linking',
               {
-                data: null,
+                lazyData: null,
                 subTreeData: <>Linking</>,
                 parallelRoutes: new Map([
                   [
@@ -51,7 +51,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                       [
                         '',
                         {
-                          data: null,
+                          lazyData: null,
                           subTreeData: <>Page</>,
                           parallelRoutes: new Map(),
                         },
@@ -89,7 +89,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
     )
 
     const expectedCache: CacheNode = {
-      data: null,
+      lazyData: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -97,7 +97,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
             [
               'linking',
               {
-                data: null,
+                lazyData: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -105,7 +105,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                       [
                         '',
                         {
-                          data: null,
+                          lazyData: null,
                           parallelRoutes: new Map(),
                           subTreeData: <React.Fragment>Page</React.Fragment>,
                         },
