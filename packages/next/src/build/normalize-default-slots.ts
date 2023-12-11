@@ -1,7 +1,17 @@
 import { DEFAULT_SEGMENT, isDefaultRoute } from '../lib/is-default-route'
+import { isGroupSegment } from '../shared/lib/segment'
 
-function parallelSegmentHasSlot(segment: string[], slot: string) {
-  return segment.some((route) => route.includes(`/${slot}`))
+function parallelSegmentHasSlot(paths: string[], slot: string) {
+  return paths.some((path) => {
+    // when checking if a parallel segment contains a slot, it shouldn't factor in the group.
+    // this is because groups don't play a role in route matching, they're only for organizational purposes
+    const pathWithoutGroup = path
+      .split('/')
+      .filter((segment) => !isGroupSegment(segment))
+      .join('/')
+
+    return pathWithoutGroup.includes(`/${slot}`)
+  })
 }
 
 export function normalizeDefaultSlots(appPaths: Record<string, string[]>) {
@@ -14,7 +24,12 @@ export function normalizeDefaultSlots(appPaths: Record<string, string[]>) {
     // app paths that contain the `/default` segment can only have a single path
     const defaultSegment = appPaths[key][0]
     // /@sidebar/foo/default -> ["", "@sidebar", "foo", "default"], slot is "@sidebar"
-    const slot = defaultSegment.split('/')[1]
+    const slot = defaultSegment
+      .split('/')
+      .find((segment) => segment.startsWith('@'))
+
+    // this should never happen as you wouldn't have a default route without a slot, but added as a typeguard.
+    if (!slot) continue
     // find the closest parallel segment that this default segment belongs to
     // for example, the value of `/foo/default` should belong to `/foo`
     // we slice up to the point of `/default` so that we can try and match the path the default
