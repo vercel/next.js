@@ -62,7 +62,11 @@ export async function LightningCssLoader(
   const transform = implementation?.transformCss ?? transformCss
 
   try {
-    const { code, map } = transform({
+    const {
+      code,
+      map,
+      exports: moduleExports,
+    } = transform({
       visitor: createVisitor(options, api, replacements),
       cssModules: options.modules
         ? {
@@ -78,6 +82,17 @@ export async function LightningCssLoader(
       ...opts,
     })
     const cssCodeAsString = code.toString()
+
+    if (moduleExports) {
+      for (const name in moduleExports) {
+        if (Object.prototype.hasOwnProperty.call(moduleExports, name)) {
+          exports.push({
+            name,
+            value: moduleExports[name].name,
+          })
+        }
+      }
+    }
 
     const importCode = getImportCode(imports, options)
     const moduleCode = getModuleCode(
