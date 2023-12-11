@@ -10,10 +10,7 @@ import type {
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
-import {
-  CacheStates,
-  type CacheNode,
-} from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
 
@@ -32,14 +29,14 @@ export function refreshReducer(
   const cache: CacheNode = createEmptyCacheNode()
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
-  cache.data = fetchServerResponse(
+  cache.lazyData = fetchServerResponse(
     new URL(href, origin),
     [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
     state.nextUrl,
     state.buildId
   )
 
-  return cache.data.then(
+  return cache.lazyData.then(
     ([flightData, canonicalUrlOverride]) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
@@ -51,8 +48,8 @@ export function refreshReducer(
         )
       }
 
-      // Remove cache.data as it has been resolved at this point.
-      cache.data = null
+      // Remove cache.lazyData as it has been resolved at this point.
+      cache.lazyData = null
 
       for (const flightDataPath of flightData) {
         // FlightDataPath with more than two items means unexpected Flight data was returned
@@ -98,7 +95,6 @@ export function refreshReducer(
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (cacheNodeSeedData !== null) {
           const subTreeData = cacheNodeSeedData[2]
-          cache.status = CacheStates.READY
           cache.subTreeData = subTreeData
           fillLazyItemsTillLeafWithHead(
             cache,

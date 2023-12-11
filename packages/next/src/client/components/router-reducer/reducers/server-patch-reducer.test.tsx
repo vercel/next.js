@@ -4,7 +4,6 @@ import type {
   FlightData,
   FlightRouterState,
 } from '../../../../server/app-render/types'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
 import { ACTION_SERVER_PATCH, ACTION_NAVIGATE } from '../router-reducer-types'
@@ -105,7 +104,6 @@ describe('serverPatchReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -113,8 +111,7 @@ describe('serverPatchReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -122,7 +119,7 @@ describe('serverPatchReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -166,53 +163,48 @@ describe('serverPatchReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "somewhere-else" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 Somewhere page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
                             "subTreeData": null,
                           },
                         },
                       },
-                      "status": "READY",
                       "subTreeData": <h1>
                         Somewhere Page!
                       </h1>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -276,7 +268,6 @@ describe('serverPatchReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -284,8 +275,7 @@ describe('serverPatchReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -293,7 +283,7 @@ describe('serverPatchReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -349,75 +339,68 @@ describe('serverPatchReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "about" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 About page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
                             "subTreeData": null,
                           },
                         },
                       },
-                      "status": "READY",
                       "subTreeData": <h1>
                         About Page!
                       </h1>,
                     },
                     "somewhere-else" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 Somewhere page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
                             "subTreeData": null,
                           },
                         },
                       },
-                      "status": "READY",
                       "subTreeData": <h1>
                         Somewhere Page!
                       </h1>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>

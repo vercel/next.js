@@ -178,6 +178,7 @@ jobs:
         with:
           name: test-reports
           path: |
+            test/traces
             test/test-junit-report
             test/turbopack-test-junit-report
           if-no-files-found: ignore

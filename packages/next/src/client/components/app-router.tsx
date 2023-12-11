@@ -13,7 +13,6 @@ import {
   AppRouterContext,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
-  CacheStates,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   CacheNode,
@@ -149,8 +148,7 @@ function HistoryUpdater({
 }
 
 export const createEmptyCacheNode = () => ({
-  status: CacheStates.LAZY_INITIALIZED,
-  data: null,
+  lazyData: null,
   subTreeData: null,
   parallelRoutes: new Map(),
 })
