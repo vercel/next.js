@@ -33,6 +33,8 @@ export async function LightningCssLoader(
   const options = this.getOptions()
   const { implementation, targets: userTargets, ...opts } = options
 
+  options.modules ??= {}
+
   if (implementation && typeof implementation.transformCss !== 'function') {
     done(
       new TypeError(
@@ -47,7 +49,7 @@ export async function LightningCssLoader(
   const api: ApiParam[] = []
   const replacements: ApiReplacement[] = []
 
-  if (options.modules.exportOnlyLocals !== true) {
+  if (options.modules?.exportOnlyLocals !== true) {
     imports.unshift({
       type: 'api_import',
       importName: '___CSS_LOADER_API_IMPORT___',
