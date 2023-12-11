@@ -58,6 +58,8 @@ export interface ILightningCssLoaderConfig extends AllowLoaderTransformOpts {
   implementation?: Implementation
 
   modules: ModulesOptions
+
+  esModule: boolean
 }
 
 export interface ModulesOptions {

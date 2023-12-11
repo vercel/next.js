@@ -578,4 +578,5 @@ export {
   resolveRequests,
   isUrlRequestable,
   sort,
+  normalizeSourceMapForRuntime,
 }
