@@ -42,6 +42,12 @@ export function getGlobalCssLoader(
   if (ctx.experimental.useLightningcss) {
     loaders.push({
       loader: require.resolve('../../../../loaders/lightningcss-loader/src'),
+      options: {
+        url: (url: string, resourcePath: string) =>
+          cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
+        import: (url: string, _: any, resourcePath: string) =>
+          cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
+      },
     })
   } else {
     // Compile CSS
