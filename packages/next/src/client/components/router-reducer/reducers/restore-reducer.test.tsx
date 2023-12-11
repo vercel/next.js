@@ -1,6 +1,5 @@
 import React from 'react'
 import type { FlightRouterState } from '../../../../server/app-render/types'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
 import { ACTION_RESTORE } from '../router-reducer-types'
@@ -54,7 +53,6 @@ describe('serverPatchReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -62,8 +60,7 @@ describe('serverPatchReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -71,7 +68,7 @@ describe('serverPatchReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -134,8 +131,7 @@ describe('serverPatchReducer', () => {
       canonicalUrl: '/linking/about',
       nextUrl: '/linking/about',
       cache: {
-        status: CacheStates.READY,
-        data: null,
+        lazyData: null,
         subTreeData: (
           <html>
             <head></head>
@@ -149,7 +145,6 @@ describe('serverPatchReducer', () => {
               [
                 'linking',
                 {
-                  status: CacheStates.READY,
                   parallelRoutes: new Map([
                     [
                       'children',
@@ -157,8 +152,7 @@ describe('serverPatchReducer', () => {
                         [
                           '',
                           {
-                            status: CacheStates.READY,
-                            data: null,
+                            lazyData: null,
                             subTreeData: <>Linking page</>,
                             parallelRoutes: new Map(),
                           },
@@ -166,7 +160,7 @@ describe('serverPatchReducer', () => {
                       ]),
                     ],
                   ]),
-                  data: null,
+                  lazyData: null,
                   subTreeData: <>Linking layout level</>,
                 },
               ],
@@ -209,7 +203,6 @@ describe('serverPatchReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -217,8 +210,7 @@ describe('serverPatchReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -226,7 +218,7 @@ describe('serverPatchReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -302,8 +294,7 @@ describe('serverPatchReducer', () => {
       canonicalUrl: '/linking/about',
       nextUrl: '/linking/about',
       cache: {
-        status: CacheStates.READY,
-        data: null,
+        lazyData: null,
         subTreeData: (
           <html>
             <head></head>
@@ -317,7 +308,6 @@ describe('serverPatchReducer', () => {
               [
                 'linking',
                 {
-                  status: CacheStates.READY,
                   parallelRoutes: new Map([
                     [
                       'children',
@@ -325,8 +315,7 @@ describe('serverPatchReducer', () => {
                         [
                           '',
                           {
-                            status: CacheStates.READY,
-                            data: null,
+                            lazyData: null,
                             subTreeData: <>Linking page</>,
                             parallelRoutes: new Map(),
                           },
@@ -334,7 +323,7 @@ describe('serverPatchReducer', () => {
                       ]),
                     ],
                   ]),
-                  data: null,
+                  lazyData: null,
                   subTreeData: <>Linking layout level</>,
                 },
               ],

@@ -1,6 +1,5 @@
 import React from 'react'
 import type { FlightRouterState } from '../../../server/app-render/types'
-import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from './create-initial-router-state'
 
@@ -56,8 +55,7 @@ describe('createInitialRouterState', () => {
     })
 
     const expectedCache: CacheNode = {
-      status: CacheStates.READY,
-      data: null,
+      lazyData: null,
       subTreeData: children,
       parallelRoutes: new Map([
         [
@@ -66,7 +64,6 @@ describe('createInitialRouterState', () => {
             [
               'linking',
               {
-                status: CacheStates.LAZY_INITIALIZED,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -74,8 +71,7 @@ describe('createInitialRouterState', () => {
                       [
                         '',
                         {
-                          status: CacheStates.LAZY_INITIALIZED,
-                          data: null,
+                          lazyData: null,
                           subTreeData: null,
                           parallelRoutes: new Map(),
                           head: <title>Test</title>,
@@ -84,7 +80,7 @@ describe('createInitialRouterState', () => {
                     ]),
                   ],
                 ]),
-                data: null,
+                lazyData: null,
                 subTreeData: null,
               },
             ],

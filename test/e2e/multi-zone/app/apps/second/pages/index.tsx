@@ -1,3 +1,11 @@
 export default function Page() {
-  return <p>hello from second app</p>
+  // this variable is edited by the test to verify HMR
+  const editedContent = ''
+  return (
+    <>
+      <p>hello from second app</p>
+      <div>{editedContent}</div>
+      <div id="now">{Date.now()}</div>
+    </>
+  )
 }

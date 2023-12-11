@@ -16,6 +16,13 @@ export interface StaticGenerationStore {
   readonly isRevalidate?: boolean
   readonly isUnstableCacheCallback?: boolean
 
+  /**
+   * If defined, this function when called will throw an error postponing
+   * rendering during the React render phase. This should not be invoked outside
+   * of the React render phase as it'll throw an error.
+   */
+  readonly postpone: ((reason: string) => never) | undefined
+
   forceDynamic?: boolean
   fetchCache?:
     | 'only-cache'
@@ -30,12 +37,10 @@ export interface StaticGenerationStore {
   dynamicShouldError?: boolean
   pendingRevalidates?: Record<string, Promise<any>>
   postponeWasTriggered?: boolean
-  postpone?: (reason: string) => never
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
   dynamicUsageErr?: DynamicServerError
-  staticPrefetchBailout?: boolean
 
   nextFetchId?: number
   pathWasRevalidated?: boolean
@@ -46,10 +51,6 @@ export interface StaticGenerationStore {
   fetchMetrics?: FetchMetrics
 
   isDraftMode?: boolean
-
-  readonly experimental: {
-    readonly ppr: boolean
-  }
 }
 
 export type StaticGenerationAsyncStorage =

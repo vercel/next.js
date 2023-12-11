@@ -2,7 +2,6 @@ import React from 'react'
 import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
 import type { FlightData } from '../../../../server/app-render/types'
 import type { FlightRouterState } from '../../../../server/app-render/types'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
 import {
@@ -13,6 +12,7 @@ import {
 import type { NavigateAction, PrefetchAction } from '../router-reducer-types'
 import { navigateReducer } from './navigate-reducer'
 import { prefetchReducer } from './prefetch-reducer'
+import { handleMutable } from '../handle-mutable'
 
 const buildId = 'development'
 
@@ -106,19 +106,6 @@ const getInitialRouterStateTree = (): FlightRouterState => [
   true,
 ]
 
-async function runPromiseThrowChain(fn: any): Promise<any> {
-  try {
-    return await fn()
-  } catch (err) {
-    if (err instanceof Promise) {
-      await err
-      return await runPromiseThrowChain(fn)
-    }
-
-    throw err
-  }
-}
-
 describe('navigateReducer', () => {
   beforeAll(() => {
     jest.useFakeTimers()
@@ -145,7 +132,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -153,8 +139,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -162,7 +147,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -187,64 +172,56 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      mutable: {},
     }
 
-    const newState = await runPromiseThrowChain(() =>
-      navigateReducer(state, action)
-    )
+    const newState = await navigateReducer(state, action)
 
     expect(newState).toMatchInlineSnapshot(`
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "about" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "__PAGE__" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 About page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
                             "subTreeData": null,
                           },
                         },
                       },
-                      "status": "READY",
                       "subTreeData": <h1>
                         About Page!
                       </h1>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -341,7 +318,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -349,8 +325,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -358,7 +333,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -377,17 +352,6 @@ describe('navigateReducer', () => {
       location: new URL('/linking', 'https://localhost') as any,
     })
 
-    const state2 = createInitialRouterState({
-      buildId,
-      initialTree,
-      initialHead: null,
-      initialCanonicalUrl,
-      initialSeedData: ['', null, children],
-      initialParallelRoutes,
-      isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
-
     const action: NavigateAction = {
       type: ACTION_NAVIGATE,
       url: new URL('/linking/about', 'https://localhost'),
@@ -395,66 +359,56 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      mutable: {},
     }
 
-    await runPromiseThrowChain(() => navigateReducer(state, action))
-
-    const newState = await runPromiseThrowChain(() =>
-      navigateReducer(state2, action)
-    )
+    const newState = await navigateReducer(state, action)
 
     expect(newState).toMatchInlineSnapshot(`
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "about" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "__PAGE__" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 About page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
                             "subTreeData": null,
                           },
                         },
                       },
-                      "status": "READY",
                       "subTreeData": <h1>
                         About Page!
                       </h1>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -479,7 +433,31 @@ describe('navigateReducer', () => {
           ],
         },
         "nextUrl": "/linking/about",
-        "prefetchCache": Map {},
+        "prefetchCache": Map {
+          "/linking/about" => {
+            "data": Promise {},
+            "kind": "temporary",
+            "lastUsedTime": 1690329600000,
+            "prefetchTime": 1690329600000,
+            "treeAtTimeOfPrefetch": [
+              "",
+              {
+                "children": [
+                  "linking",
+                  {
+                    "children": [
+                      "__PAGE__",
+                      {},
+                    ],
+                  },
+                ],
+              },
+              undefined,
+              undefined,
+              true,
+            ],
+          },
+        },
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
@@ -527,7 +505,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -535,8 +512,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -544,7 +520,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -553,17 +529,6 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
-      buildId,
-      initialTree,
-      initialHead: null,
-      initialCanonicalUrl,
-      initialSeedData: ['', null, children],
-      initialParallelRoutes,
-      isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
-
-    const state2 = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
@@ -584,44 +549,36 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      mutable: {},
     }
 
-    await runPromiseThrowChain(() => navigateReducer(state, action))
-
-    const newState = await runPromiseThrowChain(() =>
-      navigateReducer(state2, action)
-    )
+    const newState = await navigateReducer(state, action)
 
     expect(newState).toMatchInlineSnapshot(`
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -680,7 +637,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -688,8 +644,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -697,7 +652,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -706,17 +661,6 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
-      buildId,
-      initialTree,
-      initialHead: null,
-      initialCanonicalUrl,
-      initialSeedData: ['', null, children],
-      initialParallelRoutes,
-      isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
-
-    const state2 = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
@@ -737,44 +681,36 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'replace',
       shouldScroll: true,
-      mutable: {},
     }
 
-    await runPromiseThrowChain(() => navigateReducer(state, action))
-
-    const newState = await runPromiseThrowChain(() =>
-      navigateReducer(state2, action)
-    )
+    const newState = await navigateReducer(state, action)
 
     expect(newState).toMatchInlineSnapshot(`
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -833,7 +769,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -841,8 +776,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -850,7 +784,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -859,17 +793,6 @@ describe('navigateReducer', () => {
     ])
 
     const state = createInitialRouterState({
-      buildId,
-      initialTree,
-      initialHead: null,
-      initialCanonicalUrl,
-      initialSeedData: ['', null, children],
-      initialParallelRoutes,
-      isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
-
-    const state2 = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
@@ -887,44 +810,36 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: false, // should not scroll
-      mutable: {},
     }
 
-    await runPromiseThrowChain(() => navigateReducer(state, action))
-
-    const newState = await runPromiseThrowChain(() =>
-      navigateReducer(state2, action)
-    )
+    const newState = await navigateReducer(state, action)
 
     expect(newState).toMatchInlineSnapshot(`
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -940,7 +855,31 @@ describe('navigateReducer', () => {
           "segmentPaths": [],
         },
         "nextUrl": "/linking",
-        "prefetchCache": Map {},
+        "prefetchCache": Map {
+          "/linking" => {
+            "data": Promise {},
+            "kind": "temporary",
+            "lastUsedTime": 1690329600000,
+            "prefetchTime": 1690329600000,
+            "treeAtTimeOfPrefetch": [
+              "",
+              {
+                "children": [
+                  "linking",
+                  {
+                    "children": [
+                      "__PAGE__",
+                      {},
+                    ],
+                  },
+                ],
+              },
+              undefined,
+              undefined,
+              true,
+            ],
+          },
+        },
         "pushRef": {
           "mpaNavigation": true,
           "pendingPush": true,
@@ -983,7 +922,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -991,8 +929,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -1000,7 +937,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -1026,23 +963,12 @@ describe('navigateReducer', () => {
       location: new URL('/linking', 'https://localhost') as any,
     })
 
-    await runPromiseThrowChain(() => prefetchReducer(state, prefetchAction))
+    await prefetchReducer(state, prefetchAction)
 
     await state.prefetchCache.get(url.pathname + url.search)?.data
 
-    const state2 = createInitialRouterState({
-      buildId,
-      initialTree,
-      initialHead: null,
-      initialCanonicalUrl,
-      initialSeedData: ['', null, children],
-      initialParallelRoutes,
-      isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
-
-    await runPromiseThrowChain(() => prefetchReducer(state2, prefetchAction))
-    await state2.prefetchCache.get(url.pathname + url.search)?.data
+    await prefetchReducer(state, prefetchAction)
+    await state.prefetchCache.get(url.pathname + url.search)?.data
 
     const action: NavigateAction = {
       type: ACTION_NAVIGATE,
@@ -1051,14 +977,9 @@ describe('navigateReducer', () => {
       navigateType: 'push',
       locationSearch: '',
       shouldScroll: true,
-      mutable: {},
     }
 
-    await runPromiseThrowChain(() => navigateReducer(state, action))
-
-    const newState = await runPromiseThrowChain(() =>
-      navigateReducer(state2, action)
-    )
+    const newState = await navigateReducer(state, action)
 
     const prom = Promise.resolve([
       [
@@ -1087,53 +1008,48 @@ describe('navigateReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "about" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "__PAGE__" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 About page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
                             "subTreeData": null,
                           },
                         },
                       },
-                      "status": "READY",
                       "subTreeData": <h1>
                         About Page!
                       </h1>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -1162,7 +1078,7 @@ describe('navigateReducer', () => {
           "/linking/about" => {
             "data": Promise {},
             "kind": "auto",
-            "lastUsedTime": null,
+            "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
             "treeAtTimeOfPrefetch": [
               "",
@@ -1246,7 +1162,6 @@ describe('navigateReducer', () => {
           [
             'parallel-tab-bar',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'audience',
@@ -1254,8 +1169,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Audience Page</>,
                         parallelRoutes: new Map(),
                       },
@@ -1268,8 +1182,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Views Page</>,
                         parallelRoutes: new Map(),
                       },
@@ -1282,8 +1195,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Children Page</>,
                         parallelRoutes: new Map(),
                       },
@@ -1291,7 +1203,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Layout level</>,
             },
           ],
@@ -1310,17 +1222,6 @@ describe('navigateReducer', () => {
       location: new URL('/parallel-tab-bar', 'https://localhost') as any,
     })
 
-    const state2 = createInitialRouterState({
-      buildId,
-      initialTree,
-      initialHead: null,
-      initialCanonicalUrl,
-      initialSeedData: ['', null, children],
-      initialParallelRoutes,
-      isServer: false,
-      location: new URL('/parallel-tab-bar', 'https://localhost') as any,
-    })
-
     const action: NavigateAction = {
       type: ACTION_NAVIGATE,
       url: new URL('/parallel-tab-bar/demographics', 'https://localhost'),
@@ -1328,60 +1229,51 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      mutable: {},
     }
 
-    await runPromiseThrowChain(() => navigateReducer(state, action))
-
-    const newState = await runPromiseThrowChain(() =>
-      navigateReducer(state2, action)
-    )
+    const newState = await navigateReducer(state, action)
 
     expect(newState).toMatchInlineSnapshot(`
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "parallel-tab-bar" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "audience" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Audience Page
                       </React.Fragment>,
                     },
                     "demographics" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "__PAGE__" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 Demographics Head
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
                             "subTreeData": null,
                           },
                         },
                       },
-                      "status": "LAZYINITIALIZED",
                       "subTreeData": null,
                     },
                   },
                   "views" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Views Page
                       </React.Fragment>,
@@ -1389,21 +1281,18 @@ describe('navigateReducer', () => {
                   },
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Children Page
                       </React.Fragment>,
                     },
                   },
                 },
-                "status": "LAZYINITIALIZED",
                 "subTreeData": null,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -1428,7 +1317,39 @@ describe('navigateReducer', () => {
           ],
         },
         "nextUrl": "/parallel-tab-bar/demographics",
-        "prefetchCache": Map {},
+        "prefetchCache": Map {
+          "/parallel-tab-bar/demographics" => {
+            "data": Promise {},
+            "kind": "temporary",
+            "lastUsedTime": 1690329600000,
+            "prefetchTime": 1690329600000,
+            "treeAtTimeOfPrefetch": [
+              "",
+              {
+                "children": [
+                  "parallel-tab-bar",
+                  {
+                    "audience": [
+                      "__PAGE__",
+                      {},
+                    ],
+                    "children": [
+                      "__PAGE__",
+                      {},
+                    ],
+                    "views": [
+                      "__PAGE__",
+                      {},
+                    ],
+                  },
+                ],
+              },
+              null,
+              null,
+              true,
+            ],
+          },
+        },
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": true,
@@ -1484,7 +1405,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -1492,8 +1412,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -1501,7 +1420,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -1520,56 +1439,43 @@ describe('navigateReducer', () => {
       location: new URL('/linking#hash', 'https://localhost') as any,
     })
 
-    const action: NavigateAction = {
-      type: ACTION_NAVIGATE,
-      url: new URL('/linking#hash', 'https://localhost'),
-      isExternalUrl: false,
-      locationSearch: '',
-      navigateType: 'push',
+    const mutable = {
+      canonicalUrl: '/linking#hash',
+      previousTree: initialTree,
+      hashFragment: '#hash',
+      pendingPush: true,
       shouldScroll: true,
-      mutable: {
-        canonicalUrl: '/linking#hash',
-        previousTree: initialTree,
-        hashFragment: '#hash',
-        pendingPush: true,
-        shouldScroll: true,
-        preserveCustomHistoryState: false,
-      },
+      preserveCustomHistoryState: false,
     }
 
-    const newState = await runPromiseThrowChain(() =>
-      navigateReducer(state, action)
-    )
+    const newState = handleMutable(state, mutable)
 
     expect(newState).toMatchInlineSnapshot(`
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -1628,7 +1534,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -1636,8 +1541,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -1645,7 +1549,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -1670,64 +1574,56 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
-      mutable: {},
     }
 
-    const newState = await runPromiseThrowChain(() =>
-      navigateReducer(state, action)
-    )
+    const newState = await navigateReducer(state, action)
 
     expect(newState).toMatchInlineSnapshot(`
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "about" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "__PAGE__" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 About page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
                             "subTreeData": null,
                           },
                         },
                       },
-                      "status": "READY",
                       "subTreeData": <h1>
                         About Page!
                       </h1>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>

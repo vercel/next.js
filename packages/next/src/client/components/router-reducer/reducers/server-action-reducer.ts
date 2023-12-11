@@ -26,16 +26,14 @@ import type {
   ReadonlyReducerState,
   ReducerState,
   ServerActionAction,
+  ServerActionMutable,
 } from '../router-reducer-types'
 import { addBasePath } from '../../../add-base-path'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { handleExternalUrl } from './navigate-reducer'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import {
-  CacheStates,
-  type CacheNode,
-} from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { handleMutable } from '../handle-mutable'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
@@ -157,17 +155,11 @@ export function serverActionReducer(
   state: ReadonlyReducerState,
   action: ServerActionAction
 ): ReducerState {
-  const { mutable, resolve, reject } = action
+  const { resolve, reject } = action
+  const mutable: ServerActionMutable = {}
   const href = state.canonicalUrl
 
   let currentTree = state.tree
-
-  const isForCurrentTree =
-    JSON.stringify(mutable.previousTree) === JSON.stringify(currentTree)
-
-  if (isForCurrentTree) {
-    return handleMutable(state, mutable)
-  }
 
   mutable.preserveCustomHistoryState = false
   mutable.inFlightServerAction = fetchServerAction(state, action)
@@ -182,8 +174,6 @@ export function serverActionReducer(
         state.pushRef.pendingPush = true
         mutable.pendingPush = true
       }
-
-      mutable.previousTree = state.tree
 
       if (!flightData) {
         if (!mutable.actionResultResolved) {
@@ -254,7 +244,6 @@ export function serverActionReducer(
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (subTreeData !== null) {
           const cache: CacheNode = createEmptyCacheNode()
-          cache.status = CacheStates.READY
           cache.subTreeData = subTreeData
           fillLazyItemsTillLeafWithHead(
             cache,
@@ -268,7 +257,6 @@ export function serverActionReducer(
           mutable.prefetchCache = new Map()
         }
 
-        mutable.previousTree = currentTree
         mutable.patchedTree = newTree
         mutable.canonicalUrl = href
 
