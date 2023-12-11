@@ -58,24 +58,6 @@ export async function LightningCssLoader(
         require.resolve('../../css-loader/src/runtime/api')
       ),
     })
-
-    if (options.sourceMap) {
-      imports.unshift({
-        importName: '___CSS_LOADER_API_SOURCEMAP_IMPORT___',
-        url: stringifyRequest(
-          this,
-          require.resolve('../../css-loader/src/runtime/sourceMaps')
-        ),
-      })
-    } else {
-      imports.unshift({
-        importName: '___CSS_LOADER_API_NO_SOURCEMAP_IMPORT___',
-        url: stringifyRequest(
-          this,
-          require.resolve('../../css-loader/src/runtime/noSourceMaps')
-        ),
-      })
-    }
   }
   const transform = implementation?.transformCss ?? transformCss
 
