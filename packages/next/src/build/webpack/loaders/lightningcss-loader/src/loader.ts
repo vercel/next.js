@@ -1,15 +1,16 @@
 import type { LoaderContext } from 'webpack'
 import type { ILightningCssLoaderConfig } from './interface'
 import { ECacheKey } from './interface'
-import {
-  transform as transformCss,
-  type TransformOptions,
-  type Visitor,
-} from 'lightningcss'
+import { transform as transformCss, type Visitor } from 'lightningcss'
 import { Buffer } from 'buffer'
 import { getTargets } from './utils'
+import type { ApiParam, ApiReplacement } from './codegen'
 
-function createVisitor(options: ILightningCssLoaderConfig): Visitor<{}> {
+function createVisitor(
+  options: ILightningCssLoaderConfig,
+  apis: ApiParam[],
+  replacements: ApiReplacement[]
+): Visitor<{}> {
   return {}
 }
 
@@ -32,11 +33,13 @@ export async function LightningCssLoader(
     return
   }
 
+  const apis: ApiParam[] = []
+  const replacements: ApiReplacement[] = []
   const transform = implementation?.transformCss ?? transformCss
 
   try {
     const { code, map } = transform({
-      visitor: createVisitor(options),
+      visitor: createVisitor(options, apis, replacements),
       filename: this.resourcePath,
       code: Buffer.from(source),
       sourceMap: this.sourceMap,
