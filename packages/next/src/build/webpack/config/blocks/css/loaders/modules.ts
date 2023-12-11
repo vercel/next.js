@@ -32,7 +32,12 @@ export function getCssModuleLoader(
           cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
         import: (url: string, _: any, resourcePath: string) =>
           cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
-        module: true,
+        module: {
+          // Do not transform class names (CJS mode backwards compatibility):
+          exportLocalsConvention: 'asIs',
+          // Server-side (Node.js) rendering support:
+          exportOnlyLocals: ctx.isServer,
+        },
       },
     })
   } else {
