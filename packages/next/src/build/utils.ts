@@ -1191,9 +1191,17 @@ export const collectGenerateParams = async (
   const page: string | undefined = segment[0]
   const isClientComponent = isClientReference(mod)
   const isDynamicSegment = /^\[.+\]$/.test(page || '')
-  const { generateStaticParams, getStaticPaths } = mod || {}
+  let { generateStaticParams } = mod || {}
+  const { getStaticPaths } = mod || {}
 
-  //console.log({parentSegments, page, isDynamicSegment, isClientComponent, generateStaticParams})
+  // Look for generateStaticParams in template or page if not already found
+  if (isDynamicSegment && !generateStaticParams) {
+    ;({ generateStaticParams } = (await segment[2]?.template?.[0]?.()) || {})
+
+    if (!generateStaticParams && isLayout)
+      ({ generateStaticParams } = (await segment[2]?.page?.[0]?.()) || {})
+  }
+
   if (isDynamicSegment && isClientComponent && generateStaticParams) {
     throw new Error(
       `Page "${page}" cannot export "generateStaticParams()" because it is a client component`

@@ -52,6 +52,8 @@ const FILE_TYPES = {
   'not-found': 'not-found',
 } as const
 
+type FileTypeValues = (typeof FILE_TYPES)[keyof typeof FILE_TYPES]
+
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
@@ -305,9 +307,18 @@ async function createTreeCodeFromPath(
 
       const parallelSegmentPath = subSegmentPath.join('/')
 
+      const fileTypesToResolve: (FileTypeValues | 'page')[] =
+        Object.values(FILE_TYPES)
+
+      // Special case for exports in parent pages
+      const isSegmentDynamic = /^\[.*\]$/.test(normalizedParallelSegments[0])
+      const isFinalSegment =
+        normalizedParallelSegments[0] === page.split('/').at(-2)
+      if (isSegmentDynamic && !isFinalSegment) fileTypesToResolve.push('page')
+
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
-        Object.values(FILE_TYPES).map(async (file) => {
+        fileTypesToResolve.map(async (file) => {
           return [
             file,
             await resolver(
