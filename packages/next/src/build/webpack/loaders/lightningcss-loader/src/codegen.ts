@@ -4,7 +4,10 @@ import path from 'path'
 import type { LoaderContext } from 'next/dist/compiled/webpack/webpack'
 import type { ILightningCssLoaderConfig } from './interface'
 import camelCase from '../../css-loader/src/camelcase'
-import { normalizeSourceMapForRuntime } from '../../css-loader/src/utils'
+import {
+  dashesCamelCase,
+  normalizeSourceMapForRuntime,
+} from '../../css-loader/src/utils'
 
 export interface CssImport {
   icss?: boolean

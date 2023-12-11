@@ -578,5 +578,7 @@ export {
   resolveRequests,
   isUrlRequestable,
   sort,
+  // For lightningcss-loader
   normalizeSourceMapForRuntime,
+  dashesCamelCase,
 }
