@@ -18,7 +18,7 @@ export function fillLazyItemsTillLeafWithHead(
     newCache.head = head
     return
   }
-  // Remove segment that we got data for so that it is filled in during rendering of subTreeData.
+  // Remove segment that we got data for so that it is filled in during rendering of rsc.
   for (const key in routerState[1]) {
     const parallelRouteState = routerState[1][key]
     const segmentForParallelRoute = parallelRouteState[0]
@@ -52,7 +52,7 @@ export function fillLazyItemsTillLeafWithHead(
           const seedNode = parallelSeedData[2]
           newCacheNode = {
             lazyData: null,
-            subTreeData: seedNode,
+            rsc: seedNode,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
           }
         } else if (wasPrefetched && existingCacheNode) {
@@ -60,7 +60,7 @@ export function fillLazyItemsTillLeafWithHead(
           // was prefetched, so we should reuse that.
           newCacheNode = {
             lazyData: existingCacheNode.lazyData,
-            subTreeData: existingCacheNode.subTreeData,
+            rsc: existingCacheNode.rsc,
             parallelRoutes: new Map(existingCacheNode.parallelRoutes),
           } as CacheNode
         } else {
@@ -68,7 +68,7 @@ export function fillLazyItemsTillLeafWithHead(
           // during render.
           newCacheNode = {
             lazyData: null,
-            subTreeData: null,
+            rsc: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
           }
         }
@@ -96,7 +96,7 @@ export function fillLazyItemsTillLeafWithHead(
       const seedNode = parallelSeedData[2]
       newCacheNode = {
         lazyData: null,
-        subTreeData: seedNode,
+        rsc: seedNode,
         parallelRoutes: new Map(),
       }
     } else {
@@ -104,7 +104,7 @@ export function fillLazyItemsTillLeafWithHead(
       // during render.
       newCacheNode = {
         lazyData: null,
-        subTreeData: null,
+        rsc: null,
         parallelRoutes: new Map(),
       }
     }

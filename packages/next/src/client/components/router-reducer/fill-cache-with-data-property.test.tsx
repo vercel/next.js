@@ -23,12 +23,12 @@ describe('fillCacheWithDataProperty', () => {
 
     const cache: CacheNode = {
       lazyData: null,
-      subTreeData: null,
+      rsc: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
       lazyData: null,
-      subTreeData: <>Root layout</>,
+      rsc: <>Root layout</>,
       parallelRoutes: new Map([
         [
           'children',
@@ -37,7 +37,7 @@ describe('fillCacheWithDataProperty', () => {
               'linking',
               {
                 lazyData: null,
-                subTreeData: <>Linking</>,
+                rsc: <>Linking</>,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -46,7 +46,7 @@ describe('fillCacheWithDataProperty', () => {
                         '',
                         {
                           lazyData: null,
-                          subTreeData: <>Page</>,
+                          rsc: <>Page</>,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -76,24 +76,24 @@ describe('fillCacheWithDataProperty', () => {
                   "" => {
                     "lazyData": null,
                     "parallelRoutes": Map {},
-                    "subTreeData": <React.Fragment>
+                    "rsc": <React.Fragment>
                       Page
                     </React.Fragment>,
                   },
                 },
               },
-              "subTreeData": <React.Fragment>
+              "rsc": <React.Fragment>
                 Linking
               </React.Fragment>,
             },
             "dashboard" => {
               "lazyData": Promise {},
               "parallelRoutes": Map {},
-              "subTreeData": null,
+              "rsc": null,
             },
           },
         },
-        "subTreeData": null,
+        "rsc": null,
       }
     `)
   })

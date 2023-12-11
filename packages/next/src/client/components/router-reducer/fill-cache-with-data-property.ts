@@ -39,7 +39,7 @@ export function fillCacheWithDataProperty(
     ) {
       childSegmentMap.set(cacheKey, {
         lazyData: fetchResponse(),
-        subTreeData: null,
+        rsc: null,
         parallelRoutes: new Map(),
       })
     }
@@ -51,7 +51,7 @@ export function fillCacheWithDataProperty(
     if (!childCacheNode) {
       childSegmentMap.set(cacheKey, {
         lazyData: fetchResponse(),
-        subTreeData: null,
+        rsc: null,
         parallelRoutes: new Map(),
       })
     }
@@ -61,7 +61,7 @@ export function fillCacheWithDataProperty(
   if (childCacheNode === existingChildCacheNode) {
     childCacheNode = {
       lazyData: childCacheNode.lazyData,
-      subTreeData: childCacheNode.subTreeData,
+      rsc: childCacheNode.rsc,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
     } as CacheNode
     childSegmentMap.set(cacheKey, childCacheNode)

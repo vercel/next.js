@@ -37,12 +37,12 @@ describe('fillLazyItemsTillLeafWithHead', () => {
   it('should fill lazy items till leaf with head', () => {
     const cache: CacheNode = {
       lazyData: null,
-      subTreeData: null,
+      rsc: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
       lazyData: null,
-      subTreeData: <>Root layout</>,
+      rsc: <>Root layout</>,
       parallelRoutes: new Map([
         [
           'children',
@@ -51,7 +51,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
               'linking',
               {
                 lazyData: null,
-                subTreeData: <>Linking</>,
+                rsc: <>Linking</>,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -60,7 +60,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                         '',
                         {
                           lazyData: null,
-                          subTreeData: <>Page</>,
+                          rsc: <>Page</>,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -93,7 +93,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
 
     const expectedCache: CacheNode = {
       lazyData: null,
-      subTreeData: null,
+      rsc: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -102,7 +102,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
               'linking',
               {
                 lazyData: null,
-                subTreeData: null,
+                rsc: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -119,7 +119,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                                   '',
                                   {
                                     lazyData: null,
-                                    subTreeData: null,
+                                    rsc: null,
                                     parallelRoutes: new Map(),
                                     head: (
                                       <>
@@ -131,14 +131,14 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                               ]),
                             ],
                           ]),
-                          subTreeData: null,
+                          rsc: null,
                         },
                       ],
                       [
                         '',
                         {
                           lazyData: null,
-                          subTreeData: <>Page</>,
+                          rsc: <>Page</>,
                           parallelRoutes: new Map(),
                         },
                       ],

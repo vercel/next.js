@@ -214,7 +214,7 @@ export function serverActionReducer(
           return state
         }
 
-        // Given the path can only have two items the items are only the router state and subTreeData for the root.
+        // Given the path can only have two items the items are only the router state and rsc for the root.
         const [treePatch] = flightDataPath
         const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
@@ -238,13 +238,12 @@ export function serverActionReducer(
 
         // The one before last item is the router state tree patch
         const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
-        const subTreeData =
-          cacheNodeSeedData !== null ? cacheNodeSeedData[2] : null
+        const rsc = cacheNodeSeedData !== null ? cacheNodeSeedData[2] : null
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
-        if (subTreeData !== null) {
+        if (rsc !== null) {
           const cache: CacheNode = createEmptyCacheNode()
-          cache.subTreeData = subTreeData
+          cache.rsc = rsc
           fillLazyItemsTillLeafWithHead(
             cache,
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.

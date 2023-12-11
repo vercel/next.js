@@ -20,7 +20,7 @@ export type CacheNode = ReadyCacheNode | LazyCacheNode
 
 export type LazyCacheNode = {
   /**
-   * When subtreeData is null, this is a lazily-initialized cache node.
+   * When rsc is null, this is a lazily-initialized cache node.
    *
    * If the app attempts to render it, it triggers a lazy data fetch,
    * postpones the render, and schedules an update to a new tree.
@@ -29,7 +29,10 @@ export type LazyCacheNode = {
    * currently is in some cases until we've implemented partial
    * segment fetching.
    */
-  subTreeData: null
+  rsc: null
+
+  // TODO: Add prefetchRsc field.
+  // prefetchRsc: null
 
   /**
    * A pending response for the lazy data fetch. If this is not present
@@ -46,7 +49,7 @@ export type LazyCacheNode = {
 
 export type ReadyCacheNode = {
   /**
-   * When subtreeData is not null, it represents the RSC data for the
+   * When rsc is not null, it represents the RSC data for the
    * corresponding segment.
    *
    * `null` is a valid React Node but because segment data is always a
@@ -54,9 +57,13 @@ export type ReadyCacheNode = {
    *
    * TODO: For additional type safety, update this type to
    * Exclude<React.ReactNode, null>. Need to update createEmptyCacheNode to
-   * accept subTreeData as an argument, or just inline the callers.
+   * accept rsc as an argument, or just inline the callers.
    */
-  subTreeData: React.ReactNode
+  rsc: React.ReactNode
+
+  // TODO: Add prefetchRsc field.
+  // prefetchRsc: React.ReactNode
+
   /**
    * There should never be a lazy data request in this case.
    */

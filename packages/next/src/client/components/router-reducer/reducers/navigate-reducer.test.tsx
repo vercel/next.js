@@ -140,7 +140,7 @@ describe('navigateReducer', () => {
                       '__PAGE__',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -148,7 +148,7 @@ describe('navigateReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -190,7 +190,7 @@ describe('navigateReducer', () => {
                     "__PAGE__" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
-                      "subTreeData": <React.Fragment>
+                      "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
@@ -206,23 +206,23 @@ describe('navigateReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
-                            "subTreeData": null,
+                            "rsc": null,
                           },
                         },
                       },
-                      "subTreeData": <h1>
+                      "rsc": <h1>
                         About Page!
                       </h1>,
                     },
                   },
                 },
-                "subTreeData": <React.Fragment>
+                "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "subTreeData": <html>
+          "rsc": <html>
             <head />
             <body>
               Root layout
@@ -326,7 +326,7 @@ describe('navigateReducer', () => {
                       '__PAGE__',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -334,7 +334,7 @@ describe('navigateReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -377,7 +377,7 @@ describe('navigateReducer', () => {
                     "__PAGE__" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
-                      "subTreeData": <React.Fragment>
+                      "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
@@ -393,23 +393,23 @@ describe('navigateReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
-                            "subTreeData": null,
+                            "rsc": null,
                           },
                         },
                       },
-                      "subTreeData": <h1>
+                      "rsc": <h1>
                         About Page!
                       </h1>,
                     },
                   },
                 },
-                "subTreeData": <React.Fragment>
+                "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "subTreeData": <html>
+          "rsc": <html>
             <head />
             <body>
               Root layout
@@ -513,7 +513,7 @@ describe('navigateReducer', () => {
                       '__PAGE__',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -521,7 +521,7 @@ describe('navigateReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -567,19 +567,19 @@ describe('navigateReducer', () => {
                     "__PAGE__" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
-                      "subTreeData": <React.Fragment>
+                      "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                   },
                 },
-                "subTreeData": <React.Fragment>
+                "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "subTreeData": <html>
+          "rsc": <html>
             <head />
             <body>
               Root layout
@@ -645,7 +645,7 @@ describe('navigateReducer', () => {
                       '__PAGE__',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -653,7 +653,7 @@ describe('navigateReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -699,19 +699,19 @@ describe('navigateReducer', () => {
                     "__PAGE__" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
-                      "subTreeData": <React.Fragment>
+                      "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                   },
                 },
-                "subTreeData": <React.Fragment>
+                "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "subTreeData": <html>
+          "rsc": <html>
             <head />
             <body>
               Root layout
@@ -777,7 +777,7 @@ describe('navigateReducer', () => {
                       '__PAGE__',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -785,7 +785,7 @@ describe('navigateReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -828,19 +828,19 @@ describe('navigateReducer', () => {
                     "__PAGE__" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
-                      "subTreeData": <React.Fragment>
+                      "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                   },
                 },
-                "subTreeData": <React.Fragment>
+                "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "subTreeData": <html>
+          "rsc": <html>
             <head />
             <body>
               Root layout
@@ -930,7 +930,7 @@ describe('navigateReducer', () => {
                       '__PAGE__',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -938,7 +938,7 @@ describe('navigateReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -1018,7 +1018,7 @@ describe('navigateReducer', () => {
                     "__PAGE__" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
-                      "subTreeData": <React.Fragment>
+                      "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
@@ -1034,23 +1034,23 @@ describe('navigateReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
-                            "subTreeData": null,
+                            "rsc": null,
                           },
                         },
                       },
-                      "subTreeData": <h1>
+                      "rsc": <h1>
                         About Page!
                       </h1>,
                     },
                   },
                 },
-                "subTreeData": <React.Fragment>
+                "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "subTreeData": <html>
+          "rsc": <html>
             <head />
             <body>
               Root layout
@@ -1170,7 +1170,7 @@ describe('navigateReducer', () => {
                       '__PAGE__',
                       {
                         lazyData: null,
-                        subTreeData: <>Audience Page</>,
+                        rsc: <>Audience Page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -1183,7 +1183,7 @@ describe('navigateReducer', () => {
                       '__PAGE__',
                       {
                         lazyData: null,
-                        subTreeData: <>Views Page</>,
+                        rsc: <>Views Page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -1196,7 +1196,7 @@ describe('navigateReducer', () => {
                       '__PAGE__',
                       {
                         lazyData: null,
-                        subTreeData: <>Children Page</>,
+                        rsc: <>Children Page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -1204,7 +1204,7 @@ describe('navigateReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Layout level</>,
+              rsc: <>Layout level</>,
             },
           ],
         ]),
@@ -1247,7 +1247,7 @@ describe('navigateReducer', () => {
                     "__PAGE__" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
-                      "subTreeData": <React.Fragment>
+                      "rsc": <React.Fragment>
                         Audience Page
                       </React.Fragment>,
                     },
@@ -1263,18 +1263,18 @@ describe('navigateReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
-                            "subTreeData": null,
+                            "rsc": null,
                           },
                         },
                       },
-                      "subTreeData": null,
+                      "rsc": null,
                     },
                   },
                   "views" => Map {
                     "__PAGE__" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
-                      "subTreeData": <React.Fragment>
+                      "rsc": <React.Fragment>
                         Views Page
                       </React.Fragment>,
                     },
@@ -1283,17 +1283,17 @@ describe('navigateReducer', () => {
                     "__PAGE__" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
-                      "subTreeData": <React.Fragment>
+                      "rsc": <React.Fragment>
                         Children Page
                       </React.Fragment>,
                     },
                   },
                 },
-                "subTreeData": null,
+                "rsc": null,
               },
             },
           },
-          "subTreeData": <html>
+          "rsc": <html>
             <head />
             <body>
               Root layout from response
@@ -1413,7 +1413,7 @@ describe('navigateReducer', () => {
                       '__PAGE__',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -1421,7 +1421,7 @@ describe('navigateReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -1464,19 +1464,19 @@ describe('navigateReducer', () => {
                     "__PAGE__" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
-                      "subTreeData": <React.Fragment>
+                      "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                   },
                 },
-                "subTreeData": <React.Fragment>
+                "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "subTreeData": <html>
+          "rsc": <html>
             <head />
             <body>
               Root layout
@@ -1542,7 +1542,7 @@ describe('navigateReducer', () => {
                       '__PAGE__',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -1550,7 +1550,7 @@ describe('navigateReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -1592,7 +1592,7 @@ describe('navigateReducer', () => {
                     "__PAGE__" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
-                      "subTreeData": <React.Fragment>
+                      "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
@@ -1608,23 +1608,23 @@ describe('navigateReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
-                            "subTreeData": null,
+                            "rsc": null,
                           },
                         },
                       },
-                      "subTreeData": <h1>
+                      "rsc": <h1>
                         About Page!
                       </h1>,
                     },
                   },
                 },
-                "subTreeData": <React.Fragment>
+                "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "subTreeData": <html>
+          "rsc": <html>
             <head />
             <body>
               Root layout
