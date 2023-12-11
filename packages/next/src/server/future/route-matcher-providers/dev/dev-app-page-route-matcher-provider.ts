@@ -5,6 +5,7 @@ import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provid
 
 import { DevAppNormalizers } from '../../normalizers/built/app'
 import { normalizeCatchAllRoutes } from '../../../../build/normalize-catchall-routes'
+import { normalizeDefaultSlots } from '../../../../build/normalize-default-slots'
 
 export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
   private readonly expression: RegExp
@@ -21,7 +22,9 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
 
     // Match any page file that ends with `/page.${extension}` under the app
     // directory.
-    this.expression = new RegExp(`[/\\\\]page\\.(?:${extensions.join('|')})$`)
+    this.expression = new RegExp(
+      `[/\\\\](page|default)\\.(?:${extensions.join('|')})$`
+    )
   }
 
   protected async transform(
@@ -58,6 +61,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     }
 
     normalizeCatchAllRoutes(appPaths)
+    normalizeDefaultSlots(appPaths)
 
     const matchers: Array<AppPageRouteMatcher> = []
     for (const filename of routeFilenames) {

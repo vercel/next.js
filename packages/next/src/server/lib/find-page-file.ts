@@ -126,6 +126,10 @@ export function createValidFileMatcher(
     return validExtensionFileRegex.test(filePath) || isMetadataFile(filePath)
   }
 
+  function isDefaultSlot(filePath: string) {
+    return filePath.endsWith(`default.${pageExtensions[0]}`)
+  }
+
   function isRootNotFound(filePath: string) {
     if (!appDirPath) {
       return false
@@ -140,6 +144,7 @@ export function createValidFileMatcher(
   return {
     isPageFile,
     isAppRouterPage,
+    isDefaultSlot,
     isMetadataFile,
     isRootNotFound,
   }

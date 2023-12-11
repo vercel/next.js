@@ -617,7 +617,10 @@ export default async function build(
                 validFileMatcher.isAppRouterPage(absolutePath) ||
                 // For now we only collect the root /not-found page in the app
                 // directory as the 404 fallback
-                validFileMatcher.isRootNotFound(absolutePath),
+                validFileMatcher.isRootNotFound(absolutePath) ||
+                // include /default parallel routes so that we are able to merge them into
+                // their corresponding pages at build time
+                validFileMatcher.isDefaultSlot(absolutePath),
               ignorePartFilter: (part) => part.startsWith('_'),
             })
           )

@@ -25,6 +25,7 @@ import { isAppBuiltinNotFoundPage } from '../../utils'
 import { loadEntrypoint } from '../../load-entrypoint'
 import { isGroupSegment } from '../../../shared/lib/segment'
 import { getFilesInDir } from '../../../lib/get-files-in-dir'
+import { DEFAULT_SEGMENT } from '../../../lib/is-default-route'
 
 export type AppLoaderOptions = {
   name: string
@@ -282,6 +283,24 @@ async function createTreeCodeFromPath(
         }]`
 
         continue
+      } else if (parallelSegment === DEFAULT_SEGMENT) {
+        const matchedPagePath = `${appDirPrefix}${segmentPath}${
+          parallelKey === 'children' ? '' : `/${parallelKey}`
+        }/default`
+
+        const resolvedPagePath = await resolver(matchedPagePath)
+
+        props[normalizeParallelKey(parallelKey)] = `[
+        '__DEFAULT__',
+        {},
+        {
+          defaultPage: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+            resolvedPagePath
+          )}), ${JSON.stringify(resolvedPagePath)}],
+        }
+      ]`
+
+        continue
       }
 
       const subSegmentPath = [...segments]
@@ -416,6 +435,7 @@ async function createTreeCodeFromPath(
       if (!props[normalizeParallelKey(adjacentParallelSegment)]) {
         const actualSegment =
           adjacentParallelSegment === 'children' ? '' : adjacentParallelSegment
+
         const defaultPath =
           (await resolver(
             `${appDirPrefix}${segmentPath}/${actualSegment}/default`

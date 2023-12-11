@@ -61,6 +61,7 @@ import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/future/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
+import { normalizeDefaultSlots } from './normalize-default-slots'
 
 export function sortByPageExts(pageExtensions: string[]) {
   return (a: string, b: string) => {
@@ -548,6 +549,7 @@ export async function createEntrypoints(
 
     // TODO: find a better place to do this
     normalizeCatchAllRoutes(appPathsPerRoute)
+    normalizeDefaultSlots(appPathsPerRoute)
 
     // Make sure to sort parallel routes to make the result deterministic.
     appPathsPerRoute = Object.fromEntries(
