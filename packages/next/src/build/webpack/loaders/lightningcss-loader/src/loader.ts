@@ -1,9 +1,15 @@
 import type { LoaderContext } from 'webpack'
 import type { ILightningCssLoaderConfig } from './interface'
 import { ECacheKey } from './interface'
-import { transform as transformCss } from 'lightningcss'
+import { transform as transformCss, type TransformOptions } from 'lightningcss'
 import { Buffer } from 'buffer'
 import { getTargets } from './utils'
+
+function createVisitor(
+  options: ILightningCssLoaderConfig
+): TransformOptions<{}>['visitor'] {
+  return {}
+}
 
 const LOADER_NAME = `lightningcss-loader`
 export async function LightningCssLoader(
@@ -28,6 +34,7 @@ export async function LightningCssLoader(
 
   try {
     const { code, map } = transform({
+      visitor: createVisitor(options),
       filename: this.resourcePath,
       code: Buffer.from(source),
       sourceMap: this.sourceMap,
