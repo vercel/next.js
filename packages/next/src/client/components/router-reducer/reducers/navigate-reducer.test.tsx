@@ -2,7 +2,6 @@ import React from 'react'
 import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
 import type { FlightData } from '../../../../server/app-render/types'
 import type { FlightRouterState } from '../../../../server/app-render/types'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
 import {
@@ -133,7 +132,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -141,8 +139,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -150,7 +147,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -183,53 +180,48 @@ describe('navigateReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "about" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "__PAGE__" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 About page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
                             "subTreeData": null,
                           },
                         },
                       },
-                      "status": "READY",
                       "subTreeData": <h1>
                         About Page!
                       </h1>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -326,7 +318,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -334,8 +325,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -343,7 +333,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -377,53 +367,48 @@ describe('navigateReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "about" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "__PAGE__" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 About page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
                             "subTreeData": null,
                           },
                         },
                       },
-                      "status": "READY",
                       "subTreeData": <h1>
                         About Page!
                       </h1>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -520,7 +505,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -528,8 +512,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -537,7 +520,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -574,31 +557,28 @@ describe('navigateReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -657,7 +637,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -665,8 +644,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -674,7 +652,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -711,31 +689,28 @@ describe('navigateReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -794,7 +769,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -802,8 +776,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -811,7 +784,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -845,31 +818,28 @@ describe('navigateReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -952,7 +922,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -960,8 +929,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -969,7 +937,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -1040,53 +1008,48 @@ describe('navigateReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "about" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "__PAGE__" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 About page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
                             "subTreeData": null,
                           },
                         },
                       },
-                      "status": "READY",
                       "subTreeData": <h1>
                         About Page!
                       </h1>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -1199,7 +1162,6 @@ describe('navigateReducer', () => {
           [
             'parallel-tab-bar',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'audience',
@@ -1207,8 +1169,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Audience Page</>,
                         parallelRoutes: new Map(),
                       },
@@ -1221,8 +1182,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Views Page</>,
                         parallelRoutes: new Map(),
                       },
@@ -1235,8 +1195,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Children Page</>,
                         parallelRoutes: new Map(),
                       },
@@ -1244,7 +1203,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Layout level</>,
             },
           ],
@@ -1278,47 +1237,43 @@ describe('navigateReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "parallel-tab-bar" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "audience" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Audience Page
                       </React.Fragment>,
                     },
                     "demographics" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "__PAGE__" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 Demographics Head
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
                             "subTreeData": null,
                           },
                         },
                       },
-                      "status": "LAZYINITIALIZED",
                       "subTreeData": null,
                     },
                   },
                   "views" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Views Page
                       </React.Fragment>,
@@ -1326,21 +1281,18 @@ describe('navigateReducer', () => {
                   },
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Children Page
                       </React.Fragment>,
                     },
                   },
                 },
-                "status": "LAZYINITIALIZED",
                 "subTreeData": null,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -1453,7 +1405,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -1461,8 +1412,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -1470,7 +1420,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -1504,31 +1454,28 @@ describe('navigateReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>
@@ -1587,7 +1534,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -1595,8 +1541,7 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -1604,7 +1549,7 @@ describe('navigateReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -1637,53 +1582,48 @@ describe('navigateReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "about" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "__PAGE__" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 About page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
                             "subTreeData": null,
                           },
                         },
                       },
-                      "status": "READY",
                       "subTreeData": <h1>
                         About Page!
                       </h1>,
                     },
                   },
                 },
-                "status": "READY",
                 "subTreeData": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
           "subTreeData": <html>
             <head />
             <body>

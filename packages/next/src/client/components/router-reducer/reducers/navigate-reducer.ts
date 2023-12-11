@@ -1,4 +1,3 @@
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
@@ -78,7 +77,6 @@ function addRefetchToLeafSegments(
 ) {
   let appliedPatch = false
 
-  newCache.status = CacheStates.READY
   newCache.subTreeData = currentCache.subTreeData
   newCache.parallelRoutes = new Map(currentCache.parallelRoutes)
 
@@ -239,7 +237,6 @@ export function navigateReducer(
           )
 
           if (hardNavigate) {
-            cache.status = CacheStates.READY
             // Copy subTreeData for the root node of the cache.
             cache.subTreeData = currentCache.subTreeData
 

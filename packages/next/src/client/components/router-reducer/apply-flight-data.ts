@@ -1,4 +1,3 @@
-import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightDataPath } from '../../../server/app-render/types'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
@@ -20,7 +19,6 @@ export function applyFlightData(
 
   if (flightDataPath.length === 3) {
     const subTreeData = cacheNodeSeedData[2]
-    cache.status = CacheStates.READY
     cache.subTreeData = subTreeData
     fillLazyItemsTillLeafWithHead(
       cache,
@@ -32,7 +30,6 @@ export function applyFlightData(
     )
   } else {
     // Copy subTreeData for the root node of the cache.
-    cache.status = CacheStates.READY
     cache.subTreeData = existingCache.subTreeData
     cache.parallelRoutes = new Map(existingCache.parallelRoutes)
     // Create a copy of the existing cache with the subTreeData applied.

@@ -1,7 +1,6 @@
 import React from 'react'
 import type { FetchServerResponseResult } from './fetch-server-response'
 import { fillCacheWithDataProperty } from './fill-cache-with-data-property'
-import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 
 describe('fillCacheWithDataProperty', () => {
@@ -23,14 +22,12 @@ describe('fillCacheWithDataProperty', () => {
       .flat()
 
     const cache: CacheNode = {
-      status: CacheStates.LAZY_INITIALIZED,
-      data: null,
+      lazyData: null,
       subTreeData: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
-      data: null,
-      status: CacheStates.READY,
+      lazyData: null,
       subTreeData: <>Root layout</>,
       parallelRoutes: new Map([
         [
@@ -39,8 +36,7 @@ describe('fillCacheWithDataProperty', () => {
             [
               'linking',
               {
-                data: null,
-                status: CacheStates.READY,
+                lazyData: null,
                 subTreeData: <>Linking</>,
                 parallelRoutes: new Map([
                   [
@@ -49,8 +45,7 @@ describe('fillCacheWithDataProperty', () => {
                       [
                         '',
                         {
-                          data: null,
-                          status: CacheStates.READY,
+                          lazyData: null,
                           subTreeData: <>Page</>,
                           parallelRoutes: new Map(),
                         },
@@ -71,37 +66,33 @@ describe('fillCacheWithDataProperty', () => {
 
     expect(cache).toMatchInlineSnapshot(`
       {
-        "data": null,
+        "lazyData": null,
         "parallelRoutes": Map {
           "children" => Map {
             "linking" => {
-              "data": null,
+              "lazyData": null,
               "parallelRoutes": Map {
                 "children" => Map {
                   "" => {
-                    "data": null,
+                    "lazyData": null,
                     "parallelRoutes": Map {},
-                    "status": "READY",
                     "subTreeData": <React.Fragment>
                       Page
                     </React.Fragment>,
                   },
                 },
               },
-              "status": "READY",
               "subTreeData": <React.Fragment>
                 Linking
               </React.Fragment>,
             },
             "dashboard" => {
-              "data": Promise {},
+              "lazyData": Promise {},
               "parallelRoutes": Map {},
-              "status": "DATAFETCH",
               "subTreeData": null,
             },
           },
         },
-        "status": "LAZYINITIALIZED",
         "subTreeData": null,
       }
     `)
