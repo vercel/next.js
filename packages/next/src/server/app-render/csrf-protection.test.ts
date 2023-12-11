@@ -6,15 +6,22 @@ describe('isCsrfOriginAllowed', () => {
     expect(isCsrfOriginAllowed('www.vercel.com', ['www.vercel.com'])).toBe(true)
   })
 
-  it('should return true when allowedOrigins contains originDomain with matching regex', () => {
+  it('should return true when allowedOrigins contains originDomain with matching pattern', () => {
     expect(isCsrfOriginAllowed('asdf.vercel.com', ['*.vercel.com'])).toBe(true)
-    expect(isCsrfOriginAllowed('asdf.jkl.vercel.com', ['*.vercel.com'])).toBe(
+    expect(isCsrfOriginAllowed('asdf.vercel.com', ['**.vercel.com'])).toBe(true)
+    expect(isCsrfOriginAllowed('asdf.jkl.vercel.com', ['**.vercel.com'])).toBe(
       true
     )
   })
 
-  it('should return false when allowedOrigins contains originDomain with non-matching regex', () => {
+  it('should return false when allowedOrigins contains originDomain with non-matching pattern', () => {
     expect(isCsrfOriginAllowed('asdf.vercel.com', ['*.vercel.app'])).toBe(false)
+    expect(isCsrfOriginAllowed('asdf.jkl.vercel.com', ['*.vercel.com'])).toBe(
+      false
+    )
+    expect(isCsrfOriginAllowed('asdf.jkl.vercel.app', ['**.vercel.com'])).toBe(
+      false
+    )
   })
 
   it('should return false when allowedOrigins does not contain originDomain', () => {
