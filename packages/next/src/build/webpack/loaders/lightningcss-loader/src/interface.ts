@@ -56,6 +56,14 @@ type AllowLoaderTransformOpts = Omit<
 export interface ILightningCssLoaderConfig extends AllowLoaderTransformOpts {
   targets?: string | string[]
   implementation?: Implementation
+
+  modules: ModulesOptions
+}
+
+export interface ModulesOptions {
+  namedExport: boolean
+  exportOnlyLocals: boolean
+  exportLocalsConvention: (name: string) => string
 }
 
 // other
