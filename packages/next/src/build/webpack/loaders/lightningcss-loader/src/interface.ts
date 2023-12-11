@@ -65,7 +65,12 @@ export interface ILightningCssLoaderConfig extends AllowLoaderTransformOpts {
 export interface ModulesOptions {
   namedExport: boolean
   exportOnlyLocals: boolean
-  exportLocalsConvention: (name: string) => string
+  exportLocalsConvention:
+    | 'camelCase'
+    | 'camelCaseOnly'
+    | 'dashes'
+    | 'dashesOnly'
+    | 'asIs'
 }
 
 // other
