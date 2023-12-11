@@ -12,7 +12,7 @@ Before taking your Next.js application to production, here are some recommendati
 - Aim to reduce client-side JavaScript bundle sizes by [moving the "use client" boundaries down the React component tree](https://nextjs.org/docs/app/building-your-application/rendering/composition-patterns#moving-client-components-down-the-tree).
 - Prevent sensitive data from being exposed to the client with [tainting](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client)
 - Ensure errors in nested route segments are handled gracefully with the [error.js file](https://nextjs.org/docs/app/building-your-application/routing/error-handling)
-- Customize your 404 (Not Found) responses using the [`notfound()`](/docs/app/api-reference/functions/not-found) function and [`not-found.js` file](https://nextjs.org/docs/app/api-reference/file-conventions/not-found)
+- Customize your 404 (Not Found) responses using the [`notFound()`](/docs/app/api-reference/functions/not-found) function and [`not-found.js` file](https://nextjs.org/docs/app/api-reference/file-conventions/not-found)
 - Ensure you are [measuring performance](/docs/app/building-your-application/optimizing/analytics).
 - Run [Lighthouse](https://developers.google.com/web/tools/lighthouse) to check for performance, best practices, accessibility, and SEO. For best results, use a production build of Next.js and use incognito in your browser so results aren't affected by extensions.
 - Review [Supported Browsers and Features](/docs/architecture/supported-browsers).
