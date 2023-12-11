@@ -1,3 +1,15 @@
+export interface CssImport {
+  icss?: boolean
+  importName: string
+  url: string
+  type?: 'url' | string
+}
+
+export interface CssExport {
+  name: string
+  value: string
+}
+
 export interface ApiParam {
   url: string
   importName?: string
