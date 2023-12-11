@@ -6,6 +6,7 @@ import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 import type { ExportAppOptions, ExportAppWorker } from '../export/types'
 import type { Revalidate } from '../server/lib/revalidate'
+import type { PageInfo } from './page-info'
 
 import '../lib/setup-exception-listeners'
 
@@ -116,7 +117,6 @@ import {
   isAppBuiltinNotFoundPage,
 } from './utils'
 import type { AppConfig } from './utils'
-import { patchPageInfos, type PageInfo } from './page-info'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -2295,12 +2295,11 @@ export default async function build(
             }
 
             if (hasDynamicData && pageInfo.isStatic) {
-              // if the page was marked as being static, but it contains dynamic data
-              // (ie, in the case of a static generation bailout), then it should be marked dynamic
-              patchPageInfos(pageInfos, page, {
-                isStatic: false,
-                isSSG: false,
-              })
+              // If the page was marked as being static, but it contains dynamic
+              // data (ie, in the case of a static generation bailout), then it
+              // should be marked dynamic.
+              pageInfo.isStatic = false
+              pageInfo.isSSG = false
             }
 
             const isRouteHandler = isAppRouteRoute(originalAppPath)
@@ -2334,18 +2333,13 @@ export default async function build(
                 hasPostponed,
               } = exportResult.byPath.get(route) ?? {}
 
-              // Update the page (eg /blog/[slug]) to also have the postpone
-              // metadata if it's changed.
-              if (
-                pageInfo.hasPostponed !== hasPostponed ||
-                pageInfo.hasEmptyPrelude !== hasEmptyPrelude
-              ) {
-                pageInfo.hasPostponed = hasPostponed
-                pageInfo.hasEmptyPrelude = hasEmptyPrelude
+              // If this route postponed and/or had an empty prelude, then
+              // mark the page as having postponed and/or an empty prelude.
+              pageInfo.hasPostponed ||= hasPostponed
+              pageInfo.hasEmptyPrelude ||= hasEmptyPrelude
 
-                pageInfos.set(page, pageInfo)
-              }
-
+              // Link the same pageInfo used for the `page` to this specific
+              // `route` as they should all share the same characteristics.
               pageInfos.set(route, pageInfo)
 
               if (revalidate !== 0) {
@@ -2401,10 +2395,8 @@ export default async function build(
                 hasDynamicData = true
                 // we might have determined during prerendering that this page
                 // used dynamic data
-                patchPageInfos(pageInfos, route, {
-                  isSSG: false,
-                  isStatic: false,
-                })
+                pageInfo.isStatic = false
+                pageInfo.isSSG = false
               }
             })
 
@@ -2417,12 +2409,11 @@ export default async function build(
                 }
               )
 
-              patchPageInfos(pageInfos, page, {
-                isDynamicAppRoute: true,
-                // if PPR is turned on and the route contains a dynamic segment,
-                // we assume it'll be partially prerendered
-                hasPostponed: experimentalPPR,
-              })
+              pageInfo.isDynamicAppRoute = true
+
+              // If PPR is turned on and the route contains a dynamic segment,
+              // we assume it'll be partially prerendered
+              pageInfo.hasPostponed = experimentalPPR
 
               // TODO: create a separate manifest to allow enforcing
               // dynamicParams for non-static paths?
