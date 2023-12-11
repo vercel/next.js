@@ -55,7 +55,7 @@ export async function LightningCssLoader(
       importName: '___CSS_LOADER_API_IMPORT___',
       url: stringifyRequest(
         this,
-        require.resolve('../../css-loader/runtime/api')
+        require.resolve('../../css-loader/src/runtime/api')
       ),
     })
 
@@ -64,7 +64,7 @@ export async function LightningCssLoader(
         importName: '___CSS_LOADER_API_SOURCEMAP_IMPORT___',
         url: stringifyRequest(
           this,
-          require.resolve('../../css-loader/runtime/sourceMaps')
+          require.resolve('../../css-loader/src/runtime/sourceMaps')
         ),
       })
     } else {
@@ -72,7 +72,7 @@ export async function LightningCssLoader(
         importName: '___CSS_LOADER_API_NO_SOURCEMAP_IMPORT___',
         url: stringifyRequest(
           this,
-          require.resolve('../../css-loader/runtime/noSourceMaps')
+          require.resolve('../../css-loader/src/runtime/noSourceMaps')
         ),
       })
     }
