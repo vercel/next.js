@@ -35,7 +35,7 @@ export type LazyCacheNode = {
    * A pending response for the lazy data fetch. If this is not present
    * during render, it is lazily created.
    */
-  data: Promise<FetchServerResponseResult> | null
+  lazyData: Promise<FetchServerResponseResult> | null
 
   head?: React.ReactNode
   /**
@@ -58,9 +58,9 @@ export type ReadyCacheNode = {
    */
   subTreeData: React.ReactNode
   /**
-   * There should never be a pending data request in this case.
+   * There should never be a lazy data request in this case.
    */
-  data: null
+  lazyData: null
   head?: React.ReactNode
   parallelRoutes: Map<string, ChildSegmentMap>
 }

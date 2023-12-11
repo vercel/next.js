@@ -42,13 +42,13 @@ export function fillCacheWithNewSubTreeData(
   if (isLastEntry) {
     if (
       !childCacheNode ||
-      !childCacheNode.data ||
+      !childCacheNode.lazyData ||
       childCacheNode === existingChildCacheNode
     ) {
       const seedData: CacheNodeSeedData = flightDataPath[3]
       const subTreeData = seedData[2]
       childCacheNode = {
-        data: null,
+        lazyData: null,
         subTreeData,
         // Ensure segments other than the one we got data for are preserved.
         parallelRoutes: existingChildCacheNode
@@ -86,7 +86,7 @@ export function fillCacheWithNewSubTreeData(
 
   if (childCacheNode === existingChildCacheNode) {
     childCacheNode = {
-      data: childCacheNode.data,
+      lazyData: childCacheNode.lazyData,
       subTreeData: childCacheNode.subTreeData,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
     } as CacheNode

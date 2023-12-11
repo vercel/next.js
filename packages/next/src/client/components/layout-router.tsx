@@ -345,7 +345,7 @@ function InnerLayoutRouter({
     // data request.
     //
     // TODO: An eventual goal of PPR is to remove this case entirely.
-    (childNode.subTreeData === null && childNode.data === null)
+    (childNode.subTreeData === null && childNode.lazyData === null)
   ) {
     /**
      * Router state with refetch marker added
@@ -354,7 +354,7 @@ function InnerLayoutRouter({
     const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
 
     childNode = {
-      data: fetchServerResponse(
+      lazyData: fetchServerResponse(
         new URL(url, location.origin),
         refetchTree,
         context.nextUrl,
@@ -377,20 +377,20 @@ function InnerLayoutRouter({
   }
 
   // This case should never happen so it throws an error. It indicates there's a bug in the Next.js.
-  if (childNode.subTreeData && childNode.data) {
-    throw new Error('Child node should not have both subTreeData and data')
+  if (childNode.subTreeData && childNode.lazyData) {
+    throw new Error('Child node should not have both subTreeData and lazyData')
   }
 
   // If cache node has a data request we have to unwrap response by `use` and update the cache.
-  if (childNode.data) {
+  if (childNode.lazyData) {
     /**
      * Flight response data
      */
     // When the data has not resolved yet `use` will suspend here.
-    const [flightData, overrideCanonicalUrl] = use(childNode.data)
+    const [flightData, overrideCanonicalUrl] = use(childNode.lazyData)
 
     // segmentPath from the server does not match the layout's segmentPath
-    childNode.data = null
+    childNode.lazyData = null
 
     // setTimeout is used to start a new transition during render, this is an intentional hack around React.
     setTimeout(() => {
@@ -402,7 +402,7 @@ function InnerLayoutRouter({
     use(createInfinitePromise())
   }
 
-  // If cache node has no subTreeData and no data request we have to infinitely suspend as the data will likely flow in from another place.
+  // If cache node has no subTreeData and no lazy data request we have to infinitely suspend as the data will likely flow in from another place.
   // TODO-APP: double check users can't return null in a component that will kick in here.
   if (!childNode.subTreeData) {
     use(createInfinitePromise())

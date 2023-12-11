@@ -148,7 +148,7 @@ function HistoryUpdater({
 }
 
 export const createEmptyCacheNode = () => ({
-  data: null,
+  lazyData: null,
   subTreeData: null,
   parallelRoutes: new Map(),
 })

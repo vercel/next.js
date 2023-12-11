@@ -33,7 +33,7 @@ export function createInitialRouterState({
   const subTreeData = initialSeedData[2]
 
   const cache: CacheNode = {
-    data: null,
+    lazyData: null,
     subTreeData: subTreeData,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,

@@ -27,12 +27,12 @@ const getFlightData = (): FlightData => {
 describe('fillCacheWithNewSubtreeData', () => {
   it('should apply subTreeData and head property', () => {
     const cache: CacheNode = {
-      data: null,
+      lazyData: null,
       subTreeData: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
-      data: null,
+      lazyData: null,
       subTreeData: <>Root layout</>,
       parallelRoutes: new Map([
         [
@@ -41,7 +41,7 @@ describe('fillCacheWithNewSubtreeData', () => {
             [
               'linking',
               {
-                data: null,
+                lazyData: null,
                 subTreeData: <>Linking</>,
                 parallelRoutes: new Map([
                   [
@@ -50,7 +50,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                       [
                         '',
                         {
-                          data: null,
+                          lazyData: null,
                           subTreeData: <>Page</>,
                           parallelRoutes: new Map(),
                         },
@@ -77,7 +77,7 @@ describe('fillCacheWithNewSubtreeData', () => {
     fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath, false)
 
     const expectedCache: CacheNode = {
-      data: null,
+      lazyData: null,
       subTreeData: null,
       parallelRoutes: new Map([
         [
@@ -86,7 +86,7 @@ describe('fillCacheWithNewSubtreeData', () => {
             [
               'linking',
               {
-                data: null,
+                lazyData: null,
                 subTreeData: <>Linking</>,
                 parallelRoutes: new Map([
                   [
@@ -96,7 +96,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                       [
                         '',
                         {
-                          data: null,
+                          lazyData: null,
                           subTreeData: <>Page</>,
                           parallelRoutes: new Map(),
                         },
@@ -104,7 +104,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                       [
                         'about',
                         {
-                          data: null,
+                          lazyData: null,
                           parallelRoutes: new Map([
                             [
                               'children',
@@ -112,7 +112,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                                 [
                                   '',
                                   {
-                                    data: null,
+                                    lazyData: null,
                                     subTreeData: null,
                                     parallelRoutes: new Map(),
                                     head: (

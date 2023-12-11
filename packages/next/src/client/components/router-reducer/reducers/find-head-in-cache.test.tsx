@@ -26,7 +26,7 @@ describe('findHeadInCache', () => {
     ]
 
     const cache: CacheNode = {
-      data: null,
+      lazyData: null,
       subTreeData: null,
       parallelRoutes: new Map([
         [
@@ -35,7 +35,7 @@ describe('findHeadInCache', () => {
             [
               'linking',
               {
-                data: null,
+                lazyData: null,
                 subTreeData: null,
                 parallelRoutes: new Map([
                   [
@@ -44,7 +44,7 @@ describe('findHeadInCache', () => {
                       [
                         'about',
                         {
-                          data: null,
+                          lazyData: null,
                           parallelRoutes: new Map([
                             [
                               'children',
@@ -52,7 +52,7 @@ describe('findHeadInCache', () => {
                                 [
                                   '',
                                   {
-                                    data: null,
+                                    lazyData: null,
                                     subTreeData: null,
                                     parallelRoutes: new Map(),
                                     head: (
@@ -72,7 +72,7 @@ describe('findHeadInCache', () => {
                       // [
                       //   '',
                       //   {
-                      //     data: null,
+                      //     lazyData: null,
                       //     subTreeData: <>Page</>,
                       //     parallelRoutes: new Map(),
                       //   },

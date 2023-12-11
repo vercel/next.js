@@ -111,7 +111,7 @@ describe('serverPatchReducer', () => {
                     [
                       '',
                       {
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -119,7 +119,7 @@ describe('serverPatchReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -163,31 +163,31 @@ describe('serverPatchReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "somewhere-else" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 Somewhere page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
                             "subTreeData": null,
                           },
@@ -275,7 +275,7 @@ describe('serverPatchReducer', () => {
                     [
                       '',
                       {
-                        data: null,
+                        lazyData: null,
                         subTreeData: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
@@ -283,7 +283,7 @@ describe('serverPatchReducer', () => {
                   ]),
                 ],
               ]),
-              data: null,
+              lazyData: null,
               subTreeData: <>Linking layout level</>,
             },
           ],
@@ -339,31 +339,31 @@ describe('serverPatchReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
                       "subTreeData": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "about" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 About page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
                             "subTreeData": null,
                           },
@@ -374,16 +374,16 @@ describe('serverPatchReducer', () => {
                       </h1>,
                     },
                     "somewhere-else" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 Somewhere page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
                             "subTreeData": null,
                           },
