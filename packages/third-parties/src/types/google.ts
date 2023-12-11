@@ -13,6 +13,11 @@ export type GTMParams = {
   preview?: string
 }
 
+export type GAParams = {
+  gaId: string
+  dataLayerName?: string
+}
+
 export type GoogleMapsEmbed = {
   height?: number
   width?: number
