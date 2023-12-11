@@ -161,6 +161,7 @@ import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints
 import { formatManifest } from './manifests/formatter/format-manifest'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
+import { RouteKind } from '../server/future/route-kind'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -348,34 +349,6 @@ function pageToRoute(page: string) {
     routeKeys: routeRegex.routeKeys,
     namedRegex: routeRegex.namedRegex,
   }
-}
-
-function createAppDataRouteInfo(
-  page: string,
-  {
-    experimentalPPR,
-    isRouteHandler,
-  }: {
-    experimentalPPR: boolean | undefined
-    isRouteHandler: boolean
-  }
-): DataRouteRouteInfo {
-  const normalizedRoute = normalizePagePath(page)
-
-  // If the page is not a route handler we need to generate a data route.
-  let dataRoute: string | null = null
-  if (!isRouteHandler) {
-    dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
-  }
-
-  let prefetchDataRoute: string | undefined
-  if (experimentalPPR) {
-    prefetchDataRoute = path.posix.join(
-      `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
-    )
-  }
-
-  return { dataRoute, prefetchDataRoute }
 }
 
 export default async function build(
@@ -2302,12 +2275,15 @@ export default async function build(
               pageInfo.isSSG = false
             }
 
-            const isRouteHandler = isAppRouteRoute(originalAppPath)
+            const isDynamic = isDynamicRoute(page)
+            const kind = isAppRouteRoute(originalAppPath)
+              ? RouteKind.APP_ROUTE
+              : RouteKind.APP_PAGE
 
             // When this is an app page and PPR is enabled, the route supports
             // partial pre-rendering.
             const experimentalPPR =
-              !isRouteHandler && config.experimental.ppr === true
+              kind === RouteKind.APP_PAGE && config.experimental.ppr === true
                 ? true
                 : undefined
 
@@ -2343,13 +2319,18 @@ export default async function build(
               pageInfos.set(route, pageInfo)
 
               if (revalidate !== 0) {
-                const { dataRoute, prefetchDataRoute } = createAppDataRouteInfo(
-                  route,
-                  {
-                    experimentalPPR,
-                    isRouteHandler,
+                let dataRoute: string | null = null
+                let prefetchDataRoute: string | undefined
+
+                // If this is for an app page, then we should associate a data
+                // route (and prefetch if PPR is enabled) for it.
+                if (kind === RouteKind.APP_PAGE) {
+                  const normalized = normalizePagePath(route)
+                  dataRoute = `${normalized}${RSC_SUFFIX}`
+                  if (experimentalPPR) {
+                    prefetchDataRoute = `${normalized}${RSC_PREFETCH_SUFFIX}`
                   }
-                )
+                }
 
                 const routeMeta: Partial<SsgRoute> = {}
 
@@ -2400,14 +2381,19 @@ export default async function build(
               }
             })
 
-            if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
-              const { dataRoute, prefetchDataRoute } = createAppDataRouteInfo(
-                page,
-                {
-                  experimentalPPR,
-                  isRouteHandler,
+            if (!hasDynamicData && isDynamic) {
+              let dataRoute: string | null = null
+              let prefetchDataRoute: string | undefined
+
+              // If this is for an app page, then we should associate a data
+              // route (and prefetch if PPR is enabled) for it.
+              if (kind === RouteKind.APP_PAGE) {
+                const normalized = normalizePagePath(page)
+                dataRoute = `${normalized}${RSC_SUFFIX}`
+                if (experimentalPPR) {
+                  prefetchDataRoute = `${normalized}${RSC_PREFETCH_SUFFIX}`
                 }
-              )
+              }
 
               pageInfo.isDynamicAppRoute = true
 
