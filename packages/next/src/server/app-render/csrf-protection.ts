@@ -1,3 +1,5 @@
+import { isMatch } from 'next/dist/compiled/micromatch'
+
 export const isCsrfOriginAllowed = (
   originDomain: string,
   allowedOrigins: string[] | undefined
@@ -5,7 +7,8 @@ export const isCsrfOriginAllowed = (
   return (
     allowedOrigins?.some(
       (allowedOrigin) =>
-        allowedOrigin && originDomain.match(new RegExp(allowedOrigin))
+        allowedOrigin &&
+        (allowedOrigin === originDomain || isMatch(originDomain, allowedOrigin))
     ) ?? false
   )
 }
