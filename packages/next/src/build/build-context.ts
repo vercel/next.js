@@ -5,10 +5,7 @@ import type { __ApiPreviewProps } from '../server/api-utils'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'
 import type getBaseWebpackConfig from './webpack-config'
-import type {
-  TelemetryPlugin,
-  TelemetryPluginState,
-} from './webpack/plugins/telemetry-plugin'
+import type { TelemetryPluginState } from './webpack/plugins/telemetry-plugin'
 
 // A layer for storing data that is used by plugins to communicate with each
 // other between different steps of the build process. This is only internal
