@@ -160,6 +160,7 @@ import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints
 import { formatManifest } from './manifests/formatter/format-manifest'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
+import { hasCustomExportOutput } from '../export/utils'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -396,12 +397,7 @@ export default async function build(
       NextBuildContext.config = config
 
       let configOutDir = 'out'
-      if (config.output === 'export' && config.distDir !== '.next') {
-        // In the past, a user had to run "next build" to generate
-        // ".next" (or whatever the distDir) followed by "next export"
-        // to generate "out" (or whatever the outDir). However, when
-        // "output: export" is configured, "next build" does both steps.
-        // So the user-configured distDir is actually the outDir.
+      if (hasCustomExportOutput(config)) {
         configOutDir = config.distDir
         config.distDir = '.next'
       }

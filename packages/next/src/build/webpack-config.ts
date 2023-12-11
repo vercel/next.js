@@ -75,6 +75,7 @@ import { createWebpackAliases } from './create-compiler-aliases'
 import { createServerOnlyClientOnlyAliases } from './create-compiler-aliases'
 import { createRSCAliases } from './create-compiler-aliases'
 import { createServerComponentsNoopAliases } from './create-compiler-aliases'
+import { hasCustomExportOutput } from '../export/utils'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -352,6 +353,10 @@ export default async function getBaseWebpackConfig(
     : ''
 
   const babelConfigFile = getBabelConfigFile(dir)
+
+  if (hasCustomExportOutput(config)) {
+    config.distDir = '.next'
+  }
   const distDir = path.join(dir, config.distDir)
 
   let useSWCLoader = !babelConfigFile || config.experimental.forceSwcTransforms
