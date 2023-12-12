@@ -78,6 +78,7 @@ function addRefetchToLeafSegments(
   let appliedPatch = false
 
   newCache.rsc = currentCache.rsc
+  newCache.prefetchRsc = currentCache.prefetchRsc
   newCache.parallelRoutes = new Map(currentCache.parallelRoutes)
 
   const segmentPathsToFill = generateSegmentsFromPatch(treePatch).map(
@@ -239,6 +240,7 @@ export function navigateReducer(
           if (hardNavigate) {
             // Copy rsc for the root node of the cache.
             cache.rsc = currentCache.rsc
+            cache.prefetchRsc = currentCache.prefetchRsc
 
             invalidateCacheBelowFlightSegmentPath(
               cache,

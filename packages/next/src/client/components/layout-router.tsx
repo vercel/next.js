@@ -353,6 +353,9 @@ function InnerLayoutRouter({
     // TODO-APP: remove ''
     const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
 
+    // TODO: Since this case always suspends indefinitely, and the only thing
+    // we're doing here is setting `lazyData`, it would be fine to mutate the
+    // current cache node (if it exists) rather than cloning it.
     childNode = {
       lazyData: fetchServerResponse(
         new URL(url, location.origin),
@@ -361,6 +364,7 @@ function InnerLayoutRouter({
         buildId
       ),
       rsc: null,
+      prefetchRsc: childNode ? childNode.prefetchRsc : null,
       head: childNode ? childNode.head : undefined,
       parallelRoutes: childNode ? childNode.parallelRoutes : new Map(),
     }
