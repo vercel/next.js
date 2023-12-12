@@ -70,7 +70,9 @@ export async function LightningCssLoader(
       visitor: createVisitor(options, api, replacements),
       cssModules: options.modules
         ? {
-            pattern: '[name]__[hash]___[local]',
+            pattern: process.env.__NEXT_TEST_MODE
+              ? '[name]__[local]'
+              : '[name]__[hash]__[local]',
           }
         : undefined,
       filename: this.resourcePath,
