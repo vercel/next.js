@@ -1088,7 +1088,9 @@ export default async function build(
       // If there's has a custom webpack config and disable the build worker.
       // Otherwise respect the option if it's set.
       const useBuildWorker =
-        !config.webpack || config.experimental.webpackBuildWorker
+        config.experimental.webpackBuildWorker ||
+        (config.experimental.webpackBuildWorker === undefined &&
+          !config.webpack)
 
       nextBuildSpan.setAttribute(
         'has-custom-webpack-config',
