@@ -7,12 +7,12 @@ describe('invalidateCacheByRouterState', () => {
   it('should invalidate the cache by router state', () => {
     const cache: CacheNode = {
       lazyData: null,
-      subTreeData: null,
+      rsc: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
       lazyData: null,
-      subTreeData: <>Root layout</>,
+      rsc: <>Root layout</>,
       parallelRoutes: new Map([
         [
           'children',
@@ -21,7 +21,7 @@ describe('invalidateCacheByRouterState', () => {
               'linking',
               {
                 lazyData: null,
-                subTreeData: <>Linking</>,
+                rsc: <>Linking</>,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -30,7 +30,7 @@ describe('invalidateCacheByRouterState', () => {
                         '',
                         {
                           lazyData: null,
-                          subTreeData: <>Page</>,
+                          rsc: <>Page</>,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -68,7 +68,7 @@ describe('invalidateCacheByRouterState', () => {
 
     const expectedCache: CacheNode = {
       lazyData: null,
-      subTreeData: null,
+      rsc: null,
       parallelRoutes: new Map([['children', new Map()]]),
     }
 

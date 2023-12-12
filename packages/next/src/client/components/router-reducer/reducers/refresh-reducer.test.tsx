@@ -105,7 +105,7 @@ describe('refreshReducer', () => {
                       '',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -113,7 +113,7 @@ describe('refreshReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -157,7 +157,7 @@ describe('refreshReducer', () => {
       nextUrl: '/linking',
       cache: {
         lazyData: null,
-        subTreeData: (
+        rsc: (
           <html>
             <head></head>
             <body>
@@ -180,7 +180,7 @@ describe('refreshReducer', () => {
                           '',
                           {
                             lazyData: null,
-                            subTreeData: null,
+                            rsc: null,
                             parallelRoutes: new Map(),
                             head: (
                               <>
@@ -193,7 +193,7 @@ describe('refreshReducer', () => {
                     ],
                   ]),
                   lazyData: null,
-                  subTreeData: null,
+                  rsc: null,
                 },
               ],
             ]),
@@ -243,7 +243,7 @@ describe('refreshReducer', () => {
                       '',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -251,7 +251,7 @@ describe('refreshReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -309,7 +309,7 @@ describe('refreshReducer', () => {
       nextUrl: '/linking',
       cache: {
         lazyData: null,
-        subTreeData: (
+        rsc: (
           <html>
             <head></head>
             <body>
@@ -332,7 +332,7 @@ describe('refreshReducer', () => {
                           '',
                           {
                             lazyData: null,
-                            subTreeData: null,
+                            rsc: null,
                             parallelRoutes: new Map(),
                             head: (
                               <>
@@ -345,7 +345,7 @@ describe('refreshReducer', () => {
                     ],
                   ]),
                   lazyData: null,
-                  subTreeData: null,
+                  rsc: null,
                 },
               ],
             ]),
@@ -395,7 +395,7 @@ describe('refreshReducer', () => {
                       '',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -403,7 +403,7 @@ describe('refreshReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
           [
@@ -417,7 +417,7 @@ describe('refreshReducer', () => {
                       '',
                       {
                         lazyData: null,
-                        subTreeData: <>About page</>,
+                        rsc: <>About page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -425,7 +425,7 @@ describe('refreshReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>About layout level</>,
+              rsc: <>About layout level</>,
             },
           ],
         ]),
@@ -483,7 +483,7 @@ describe('refreshReducer', () => {
       nextUrl: '/linking',
       cache: {
         lazyData: null,
-        subTreeData: (
+        rsc: (
           <html>
             <head></head>
             <body>
@@ -506,7 +506,7 @@ describe('refreshReducer', () => {
                           '',
                           {
                             lazyData: null,
-                            subTreeData: null,
+                            rsc: null,
                             parallelRoutes: new Map(),
                             head: (
                               <>
@@ -519,7 +519,7 @@ describe('refreshReducer', () => {
                     ],
                   ]),
                   lazyData: null,
-                  subTreeData: null,
+                  rsc: null,
                 },
               ],
             ]),
@@ -569,7 +569,7 @@ describe('refreshReducer', () => {
                       '',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -577,7 +577,7 @@ describe('refreshReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
           [
@@ -591,7 +591,7 @@ describe('refreshReducer', () => {
                       '',
                       {
                         lazyData: null,
-                        subTreeData: <>About page</>,
+                        rsc: <>About page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -599,7 +599,7 @@ describe('refreshReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>About layout level</>,
+              rsc: <>About layout level</>,
             },
           ],
         ]),
@@ -706,7 +706,7 @@ describe('refreshReducer', () => {
       nextUrl: '/linking',
       cache: {
         lazyData: null,
-        subTreeData: (
+        rsc: (
           <html>
             <head></head>
             <body>
@@ -729,7 +729,7 @@ describe('refreshReducer', () => {
                           '',
                           {
                             lazyData: null,
-                            subTreeData: null,
+                            rsc: null,
                             parallelRoutes: new Map(),
                             head: (
                               <>
@@ -742,7 +742,7 @@ describe('refreshReducer', () => {
                     ],
                   ]),
                   lazyData: null,
-                  subTreeData: null,
+                  rsc: null,
                 },
               ],
             ]),

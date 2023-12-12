@@ -224,7 +224,7 @@
   },
   "packages/next/src/client/components/router-reducer/fill-cache-with-new-subtree-data.test.tsx": {
     "passed": [
-      "fillCacheWithNewSubtreeData should apply subTreeData and head property"
+      "fillCacheWithNewSubtreeData should apply rsc and head property"
     ],
     "failed": [],
     "pending": [],

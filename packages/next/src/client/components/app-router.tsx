@@ -149,7 +149,7 @@ function HistoryUpdater({
 
 export const createEmptyCacheNode = () => ({
   lazyData: null,
-  subTreeData: null,
+  rsc: null,
   parallelRoutes: new Map(),
 })
 
@@ -546,7 +546,7 @@ function Router({
   let content = (
     <RedirectBoundary>
       {head}
-      {cache.subTreeData}
+      {cache.rsc}
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
   )
