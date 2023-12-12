@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { describeVariants as describe } from 'next-test-utils'
+import { join } from 'path'
+import { readdir, readFile } from 'node:fs/promises'
 
 describe.each(['turbo'])('experimental-lightningcss', () => {
   const { next } = nextTestSetup({
@@ -40,7 +42,9 @@ describe.each(['default'])(
       const { next } = nextTestSetup({
         files: __dirname,
         dependencies: { lightningcss: '^1' },
+        build: true,
       })
+      const appDir = next.testDir
 
       // Copied from the css-loader test in next.js
       it(`should've emitted expected files`, async () => {
