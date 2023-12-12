@@ -5,7 +5,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextStart, isNextDeploy }) => {
+  ({ next, isNextDeploy }) => {
     describe('from pages', () => {
       it.each([
         { pathname: '/adapter-hooks/static' },

@@ -1,5 +1,7 @@
 import React from 'react'
 
+export const dynamic = 'force-dynamic'
+
 export default function Layout({ children }) {
   return (
     <html>
@@ -8,5 +10,3 @@ export default function Layout({ children }) {
     </html>
   )
 }
-
-export const dynamic = 'force-dynamic'
