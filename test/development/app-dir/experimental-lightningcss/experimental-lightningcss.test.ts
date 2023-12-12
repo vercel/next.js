@@ -21,7 +21,7 @@ describeVariants.each(['turbo'])('experimental-lightningcss', () => {
 
 // lightningcss produces different class names in turbo mode
 describeVariants.each(['default'])(
-  'experimental-lightningcss with default mdoe',
+  'experimental-lightningcss with default mode',
   () => {
     describe('in dev server', () => {
       const { next } = nextTestSetup({
