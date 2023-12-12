@@ -6,7 +6,7 @@ description: Learn how to set up Jest with Next.js for Unit Testing and Snapshot
 
 Jest and React Testing Library are frequently used together for **Unit Testing** and **Snapshot Testing**. This guide will show you how to set up Jest with Next.js and write your first tests.
 
-> **Warning:** You can test Client and _synchronous_ Server Components, however, Jest and React Testing Library currently do not support _async_ Server Components.
+> **Good to know:** Since `async` Server Components are new to the React ecosystem, Jest currently does not support them. We recommend using an **E2E tests** for `async` components for now. You can still run **unit tests** for Server and Client Components with Jest.
 
 ## Quickstart
 
@@ -40,7 +40,7 @@ yarn create jest@latest
 pnpm create jest@latest
 ```
 
-This will take you through a series of prompts to setup Jest for your project, including automatically creating a `jest.config.ts` file.
+This will take you through a series of prompts to setup Jest for your project, including automatically creating a `jest.config.ts|js` file.
 
 Update your config file to use `next/jest`. This transformer has all the necessary configuration options for Jest to work with Next.js:
 
@@ -96,6 +96,8 @@ Under the hood, `next/jest` is automatically configuring Jest for you, including
 - Loading `next.config.js` for flags that enable SWC transforms
 
 > **Good to know**: To test environment variables directly, load them manually in a separate setup script or in your `jest.config.ts` file. For more information, please see [Test Environment Variables](/docs/pages/building-your-application/configuring/environment-variables#test-environment-variables).
+
+<PagesOnly>
 
 ## Setting up Jest (with Babel)
 
@@ -192,7 +194,9 @@ module.exports = new Proxy(
 )
 ```
 
-### Handling Absolute Imports and Module Path Aliases
+</PagesOnly>
+
+## Optional: Handling Absolute Imports and Module Path Aliases
 
 If your project is using [Module Path Aliases](/docs/pages/building-your-application/configuring/absolute-imports-and-module-aliases), you will need to configure Jest to resolve the imports by matching the paths option in the `jsconfig.json` file with the `moduleNameMapper` option in the `jest.config.js` file. For example:
 

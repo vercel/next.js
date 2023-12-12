@@ -4,7 +4,9 @@ nav: Vitest
 description: Learn how to set up Vitest with Next.js for Unit Testing.
 ---
 
-Vite and React Testing Library are frequently used together for **Unit Testing**. This guide will walk you through setting up Vitest with Next.js and write your first tests.
+Vite and React Testing Library are frequently used together for **Unit Testing**. This guide will show you how to setup Vitest with Next.js and write your first tests.
+
+> **Good to know:** Since `async` Server Components are new to the React ecosystem, Vitest currently does not support them. We recommend using an E2E tests for `async` components for now. You can still run **unit tests** for Server and Client Components with Vitest.
 
 ## Quickstart
 
@@ -14,7 +16,7 @@ You can use `create-next-app` with the Next.js [with-vitest](https://github.com/
 npx create-next-app@latest --example with-vitest with-jest-vitest
 ```
 
-## Setting up Vitest
+## Manual Setup
 
 To manually set up Vitest, install `vitest` and the following packages as dev dependencies:
 
@@ -26,9 +28,7 @@ yarn add -D vitest @vitejs/plugin-react jsdom @testing-library/react @vitejs/plu
 pnpm install -D vitest @vitejs/plugin-react jsdom @testing-library/react
 ```
 
-{/* TODO: Check if we need to install vite peer dependecy */}
-
-Create a `vitest.config.js` file in the root of your project, and add the following options:
+Create a `vitest.config.ts|js` file in the root of your project, and add the following options:
 
 ```ts filename="vitest.config.ts" switcher
 import { defineConfig } from 'vitest/config'
@@ -42,11 +42,21 @@ export default defineConfig({
 })
 ```
 
-{/* TODO: Add JS Example */}
+```js filename="vitest.config.js" switcher
+import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
 
-For more information on configuring Vitest, refer to the [Vitest Cofiguration](https://vitest.dev/config/#configuration) docs.
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom',
+  },
+})
+```
 
-Finally, add a `test` script to your `package.json`:
+For more information on configuring Vitest, please refer to the [Vitest Cofiguration](https://vitest.dev/config/#configuration) docs.
+
+Then, add a `test` script to your `package.json`:
 
 ```json filename="package.json"
 {
@@ -59,7 +69,7 @@ Finally, add a `test` script to your `package.json`:
 }
 ```
 
-When you run `npm run test`, Vitest will watch for changes in your project by default.
+When you run `npm run test`, Vitest will **watch** for changes in your project by default.
 
 ## Creating your first Vitest Unit Test
 
@@ -115,7 +125,7 @@ test('Page', () => {
 })
 ```
 
-> **Good to know**: Test files can be colocated inside the `app` router.
+> **Good to know**: The example above uses the common `__tests__` convention, but test files can also be colocated inside the `app` router.
 
 </AppOnly>
 

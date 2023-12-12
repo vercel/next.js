@@ -6,7 +6,10 @@ description: Learn how to set up Cypress with Next.js for End-to-End (E2E) and C
 
 [Cypress](https://www.cypress.io/) is a test runner used for **End-to-End (E2E)** and **Component Testing**. This page will show you how to set up Cypress with Next.js and write your first tests.
 
-> **Warning:** Cypress currently does not support [Next.js version 14](https://github.com/cypress-io/cypress/issues/28185) or [TypeScript version 5](https://github.com/cypress-io/cypress/issues/27731) with `moduleResolution:"bundler"`. These issues are being tracked.
+> **Warning:**
+>
+> - For **component testing**, Cypress currently does not support [Next.js version 14](https://github.com/cypress-io/cypress/issues/28185) and `async` Server Components. These issues are being tracked. Fow now, component testing works with Next.js version 13, and we recommend E2E testing for `async` Server Components.
+> - Cypress currently does not support [TypeScript version 5](https://github.com/cypress-io/cypress/issues/27731) with `moduleResolution:"bundler"`. This issue is being tracked.
 
 <AppOnly>
 
@@ -32,7 +35,7 @@ yarn add -D cypress
 pnpm install -D cypress
 ```
 
-Add the Cypress `open` and `run` commands to the `package.json` scripts field:
+Add the Cypress `open` command to the `package.json` scripts field:
 
 ```json filename="package.json"
 {
@@ -41,8 +44,7 @@ Add the Cypress `open` and `run` commands to the `package.json` scripts field:
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "cypress:open": "cypress open",
-    "cypress:run": "cypress run"
+    "cypress:open": "cypress open"
   }
 }
 ```
