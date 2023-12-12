@@ -729,7 +729,10 @@ export default async function getBaseWebpackConfig(
 
   // The `serverComponentsExternalPackages` should not conflict with
   // the `transpilePackages`.
-  if (config.experimental.serverComponentsExternalPackages) {
+  if (
+    config.experimental.serverComponentsExternalPackages &&
+    config.transpilePackages
+  ) {
     const externalPackageConflicts = config.transpilePackages.filter((pkg) =>
       config.experimental.serverComponentsExternalPackages?.includes(pkg)
     )
@@ -745,7 +748,7 @@ export default async function getBaseWebpackConfig(
   // For original request, such as `package name`
   const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
     ...(config.experimental.serverComponentsExternalPackages || [])
-  ).filter((pkg) => !config.transpilePackages.includes(pkg))
+  ).filter((pkg) => !config.transpilePackages?.includes(pkg))
   // For resolved request, such as `absolute path/package name/foo/bar.js`
   const optOutBundlingPackageRegex = new RegExp(
     `[/\\\\]node_modules[/\\\\](${optOutBundlingPackages
