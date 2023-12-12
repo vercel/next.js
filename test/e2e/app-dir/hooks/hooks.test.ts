@@ -60,6 +60,9 @@ createNextDescribe(
         expect($('#params-second').text()).toBe('other value')
         expect($('#params-third').text()).toBe('')
         expect($('#params-not-real').text()).toBe('N/A')
+
+        // should not have noindex meta tag as it's erroring on purpose, for nextjs internal use only
+        expect($('meta[name=noindex]').length).toBe(0)
       })
 
       // TODO-APP: correct this behavior when deployed

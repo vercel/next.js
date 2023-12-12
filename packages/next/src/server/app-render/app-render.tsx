@@ -66,7 +66,7 @@ import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-r
 import { validateURL } from './validate-url'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { isBailoutCSRError } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn, error } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
@@ -408,7 +408,7 @@ function createServerComponentsRenderer(
           initialSeedData={seedData}
           initialHead={
             <>
-              {ctx.res.statusCode > 400 && (
+              {ctx.res.statusCode >= 400 && (
                 <meta name="robots" content="noindex" />
               )}
               {/* Adding requestId as react key to make metadata remount for each render */}
@@ -847,6 +847,7 @@ async function renderToHTMLOrFlightImpl(
 
         return await continueFizzStream(stream, options)
       } catch (err: any) {
+        console.log('found err', err)
         if (
           err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
           err.message?.includes(
@@ -863,7 +864,8 @@ async function renderToHTMLOrFlightImpl(
           throw err
         }
 
-        if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
+        const isBailoutCSR = isBailoutCSRError(err)
+        if (isBailoutCSR) {
           warn(
             `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
             pagePath
@@ -894,7 +896,7 @@ async function renderToHTMLOrFlightImpl(
         }
 
         const is404 = res.statusCode === 404
-        if (!is404 && !hasRedirectError) {
+        if (!is404 && !hasRedirectError && !isBailoutCSR) {
           res.statusCode = 500
         }
 
