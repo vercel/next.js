@@ -1,4 +1,4 @@
-import styles from '../styles/Home.module.css'
+import styles from '../../styles/Home.module.css'
 import Link from 'next/link'
 
 export default function About() {
@@ -7,7 +7,7 @@ export default function About() {
       <main className={styles.main}>
         <h1>About Page</h1>
         <p className={styles.description}>
-          <Link href="/">&larr; Go Back</Link>
+          <Link href="/home">&larr; Go Back</Link>
         </p>
       </main>
     </div>
