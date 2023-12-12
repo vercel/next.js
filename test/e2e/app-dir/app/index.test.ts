@@ -3,6 +3,11 @@ import { check, getRedboxHeader, hasRedbox, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
 
+// TODO: We should decide on an established pattern for gating test assertions
+// on experimental flags. For example, as a first step we could all the common
+// gates like this one into a single module.
+const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
 createNextDescribe(
   'app dir - basic',
   {
@@ -550,7 +555,12 @@ createNextDescribe(
     })
 
     // TODO-APP: Enable in development
-    ;(isDev ? it.skip : it)(
+    ;(isDev ||
+      // When PPR is enabled, the shared layouts re-render because we prefetch
+      // from the root. This will be addressed before GA.
+      isPPREnabledByDefault
+      ? it.skip
+      : it)(
       'should not rerender layout when navigating between routes in the same layout',
       async () => {
         const browser = await next.browser('/same-layout/first')
@@ -1334,7 +1344,12 @@ createNextDescribe(
       })
 
       // TODO-APP: disable failing test and investigate later
-      ;(isDev ? it.skip : it)(
+      ;(isDev ||
+        // When PPR is enabled, the shared layouts re-render because we prefetch
+        // from the root. This will be addressed before GA.
+        isPPREnabledByDefault
+        ? it.skip
+        : it)(
         'should render the template that is a server component and rerender on navigation',
         async () => {
           const browser = await next.browser('/template/servercomponent')

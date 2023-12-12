@@ -317,7 +317,7 @@ export interface ExperimentalConfig {
      * Allowed origins that can bypass Server Action's CSRF check. This is helpful
      * when you have reverse proxy in front of your app.
      * @example
-     * ["my-app.com"]
+     * ["my-app.com", "*.my-app.com"]
      */
     allowedOrigins?: string[]
   }

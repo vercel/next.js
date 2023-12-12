@@ -46,7 +46,7 @@ export interface ServerActionMutable extends Mutable {
 
 /**
  * Refresh triggers a refresh of the full page data.
- * - fetches the Flight data and fills subTreeData at the root of the cache.
+ * - fetches the Flight data and fills rsc at the root of the cache.
  * - The router state is updated at the root.
  */
 export interface RefreshAction {

@@ -58,7 +58,7 @@ export async function walkTreeWithFlightRouterState({
   ctx: AppRenderContext
 }): Promise<FlightDataPath[]> {
   const {
-    renderOpts: { nextFontManifest },
+    renderOpts: { nextFontManifest, experimental },
     query,
     isPrefetch,
     getDynamicParamFromSegment,
@@ -111,6 +111,8 @@ export async function walkTreeWithFlightRouterState({
     flightRouterState[3] === 'refetch'
 
   const shouldSkipComponentTree =
+    // loading.tsx has no effect on prefetching when PPR is enabled
+    !experimental.ppr &&
     isPrefetch &&
     !Boolean(components.loading) &&
     (flightRouterState ||
