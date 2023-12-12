@@ -5,7 +5,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDeploy }) => {
+  ({ next, isNextStart, isNextDeploy }) => {
     describe('from pages', () => {
       it.each([
         { pathname: '/adapter-hooks/static' },
@@ -71,7 +71,7 @@ createNextDescribe(
           '/hooks/use-search-params/static?first=value'
         )
         // static built page will not have search params
-        expect($('#params-first').text()).toBe('')
+        expect($('#params-first').text()).toBe(isNextStart ? '' : 'value')
         // should not have noindex meta tag as it's erroring on purpose, for nextjs internal use only
         expect($('meta[content=noindex]').length).toBe(0)
       })
