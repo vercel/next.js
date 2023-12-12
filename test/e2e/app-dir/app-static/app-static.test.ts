@@ -966,22 +966,6 @@ createNextDescribe(
               "initialRevalidateSeconds": false,
               "srcRoute": "/hooks/use-pathname/[slug]",
             },
-            "/hooks/use-search-params/static-bailout": {
-              "dataRoute": "/hooks/use-search-params/static-bailout.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/hooks/use-search-params/static-bailout",
-            },
             "/hooks/use-search-params/force-static": {
               "dataRoute": "/hooks/use-search-params/force-static.rsc",
               "experimentalBypassFor": [
@@ -997,6 +981,22 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/hooks/use-search-params/force-static",
+            },
+            "/hooks/use-search-params/static-bailout": {
+              "dataRoute": "/hooks/use-search-params/static-bailout.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/hooks/use-search-params/static-bailout",
             },
             "/hooks/use-search-params/with-suspense": {
               "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
@@ -2909,7 +2909,7 @@ createNextDescribe(
         if (!(global as any).isNextDeploy) {
           it('should have values from canonical url on rewrite', async () => {
             const browser = await next.browser(
-              '/rewritten-use-search-params?first=a&second=b&third=c'
+              '/rewritten-use-search-params/static-bailout?first=a&second=b&third=c'
             )
 
             expect(await browser.elementByCss('#params-first').text()).toBe('a')
