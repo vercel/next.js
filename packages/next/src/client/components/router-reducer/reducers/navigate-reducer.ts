@@ -1,4 +1,3 @@
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
@@ -78,8 +77,7 @@ function addRefetchToLeafSegments(
 ) {
   let appliedPatch = false
 
-  newCache.status = CacheStates.READY
-  newCache.subTreeData = currentCache.subTreeData
+  newCache.rsc = currentCache.rsc
   newCache.parallelRoutes = new Map(currentCache.parallelRoutes)
 
   const segmentPathsToFill = generateSegmentsFromPatch(treePatch).map(
@@ -239,9 +237,8 @@ export function navigateReducer(
           )
 
           if (hardNavigate) {
-            cache.status = CacheStates.READY
-            // Copy subTreeData for the root node of the cache.
-            cache.subTreeData = currentCache.subTreeData
+            // Copy rsc for the root node of the cache.
+            cache.rsc = currentCache.rsc
 
             invalidateCacheBelowFlightSegmentPath(
               cache,
