@@ -1,3 +1,4 @@
+import valueParser from 'next/dist/compiled/postcss-value-parser'
 import type { LoaderContext } from 'webpack'
 import type { ILightningCssLoaderConfig, VisitorOptions } from './interface'
 import { ECacheKey } from './interface'
@@ -14,7 +15,11 @@ import {
   getModuleCode,
   getExportCode,
 } from './codegen'
-import { getFilter, getPreRequester } from '../../css-loader/src/utils'
+import {
+  getFilter,
+  getPreRequester,
+  isUrlRequestable,
+} from '../../css-loader/src/utils'
 
 function createVisitor(
   options: ILightningCssLoaderConfig,
@@ -42,7 +47,43 @@ function createVisitor(
         }
       }
 
-      console.log('Rule.node', node)
+      let url = node.value.url
+      // TODO: Use identical logic as valueParser.stringify()
+      const media = JSON.stringify(node.value.media.mediaQueries)
+
+      const isRequestable = isUrlRequestable(url)
+      let prefix: string | undefined
+      if (isRequestable) {
+        const queryParts = url.split('!')
+
+        if (queryParts.length > 1) {
+          url = queryParts.pop()!
+          prefix = queryParts.join('!')
+        }
+      }
+
+      importIndex++
+      if (!isRequestable) {
+        apis.push({ url, media })
+
+        return { type: 'ignored' }
+      }
+
+      const newUrl = prefix ? `${prefix}!${url}` : url
+      let importName = importUrlToNameMap.get(newUrl)
+
+      if (!importName) {
+        importName = `___CSS_LOADER_AT_RULE_IMPORT_${importUrlToNameMap.size}___`
+        importUrlToNameMap.set(newUrl, importName)
+
+        imports.push({
+          type: 'rule_import',
+          importName,
+          url: visitorOptions.urlHandler(newUrl),
+        })
+      }
+
+      apis.push({ importName, media })
 
       return {
         type: 'ignored',
