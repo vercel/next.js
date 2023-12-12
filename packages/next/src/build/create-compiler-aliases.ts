@@ -90,7 +90,7 @@ export function createWebpackAliases({
   }
 
   return {
-    '^@vercel/og': 'next/dist/server/og/image-response',
+    '@vercel/og': 'next/dist/server/og/image-response',
     // avoid ESM import from directory - error code: ERR_UNSUPPORTED_DIR_IMPORT
     '^next/dist/compiled/@vercel/og$':
       'next/dist/compiled/@vercel/og/index.node.js',
