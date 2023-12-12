@@ -2838,9 +2838,9 @@ createNextDescribe(
     describe('useSearchParams', () => {
       describe('client', () => {
         it('should bailout to client rendering - without suspense boundary', async () => {
-          const browser = await next.browser(
-            '/hooks/use-search-params?first=value&second=other&third'
-          )
+          const url =
+            '/hooks/use-search-params/static-bailout?first=value&second=other&third'
+          const browser = await next.browser(url)
 
           expect(await browser.elementByCss('#params-first').text()).toBe(
             'value'
@@ -2852,12 +2852,15 @@ createNextDescribe(
           expect(await browser.elementByCss('#params-not-real').text()).toBe(
             'N/A'
           )
+
+          const $ = next.render$(url)
+          expect($('meta[content=noindex]').length).toBe(0)
         })
 
         it('should bailout to client rendering - with suspense boundary', async () => {
-          const browser = await next.browser(
+          const url =
             '/hooks/use-search-params/with-suspense?first=value&second=other&third'
-          )
+          const browser = await next.browser(url)
 
           expect(await browser.elementByCss('#params-first').text()).toBe(
             'value'
@@ -2869,6 +2872,11 @@ createNextDescribe(
           expect(await browser.elementByCss('#params-not-real').text()).toBe(
             'N/A'
           )
+
+          const $ = next.render$(url)
+          // dynamic page doesn't have bail out
+          expect($('html#__next_error__').length).toBe(0)
+          expect($('meta[content=noindex]').length).toBe(0)
         })
 
         it.skip('should have empty search params on force-static', async () => {

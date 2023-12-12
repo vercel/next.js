@@ -60,20 +60,6 @@ createNextDescribe(
         expect($('#params-second').text()).toBe('other value')
         expect($('#params-third').text()).toBe('')
         expect($('#params-not-real').text()).toBe('N/A')
-
-        // dynamic page doesn't have bail out
-        expect($('html#__next_error__').length).toBe(0)
-        expect($('meta[content=noindex]').length).toBe(0)
-      })
-
-      it('should not contain noindex meta tag for static built page', async () => {
-        const $ = await next.render$(
-          '/hooks/use-search-params/static?first=value'
-        )
-        // static built page will not have search params
-        expect($('#params-first').text()).toBe(isNextStart ? '' : 'value')
-        // should not have noindex meta tag as it's erroring on purpose, for nextjs internal use only
-        expect($('meta[content=noindex]').length).toBe(0)
       })
 
       // TODO-APP: correct this behavior when deployed
@@ -99,7 +85,7 @@ createNextDescribe(
         initialRand = $('#rand').text()
       })
 
-      it('should genenerate rand when draft mode enabled', async () => {
+      it('should generate rand when draft mode enabled', async () => {
         const res = await next.fetch('/enable')
         const h = res.headers.get('set-cookie') || ''
         const cookie = h
