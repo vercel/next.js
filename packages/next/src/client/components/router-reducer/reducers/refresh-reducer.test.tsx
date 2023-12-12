@@ -106,6 +106,7 @@ describe('refreshReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -114,6 +115,7 @@ describe('refreshReducer', () => {
               ]),
               lazyData: null,
               rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -165,6 +167,7 @@ describe('refreshReducer', () => {
             </body>
           </html>
         ),
+        prefetchRsc: null,
         parallelRoutes: new Map([
           [
             'children',
@@ -181,6 +184,7 @@ describe('refreshReducer', () => {
                           {
                             lazyData: null,
                             rsc: null,
+                            prefetchRsc: null,
                             parallelRoutes: new Map(),
                             head: (
                               <>
@@ -194,6 +198,7 @@ describe('refreshReducer', () => {
                   ]),
                   lazyData: null,
                   rsc: null,
+                  prefetchRsc: null,
                 },
               ],
             ]),
@@ -244,6 +249,7 @@ describe('refreshReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -252,6 +258,7 @@ describe('refreshReducer', () => {
               ]),
               lazyData: null,
               rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -317,6 +324,7 @@ describe('refreshReducer', () => {
             </body>
           </html>
         ),
+        prefetchRsc: null,
         parallelRoutes: new Map([
           [
             'children',
@@ -333,6 +341,7 @@ describe('refreshReducer', () => {
                           {
                             lazyData: null,
                             rsc: null,
+                            prefetchRsc: null,
                             parallelRoutes: new Map(),
                             head: (
                               <>
@@ -346,6 +355,7 @@ describe('refreshReducer', () => {
                   ]),
                   lazyData: null,
                   rsc: null,
+                  prefetchRsc: null,
                 },
               ],
             ]),
@@ -396,6 +406,7 @@ describe('refreshReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -404,6 +415,7 @@ describe('refreshReducer', () => {
               ]),
               lazyData: null,
               rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
           [
@@ -418,6 +430,7 @@ describe('refreshReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>About page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -426,6 +439,7 @@ describe('refreshReducer', () => {
               ]),
               lazyData: null,
               rsc: <>About layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -491,6 +505,7 @@ describe('refreshReducer', () => {
             </body>
           </html>
         ),
+        prefetchRsc: null,
         parallelRoutes: new Map([
           [
             'children',
@@ -507,6 +522,7 @@ describe('refreshReducer', () => {
                           {
                             lazyData: null,
                             rsc: null,
+                            prefetchRsc: null,
                             parallelRoutes: new Map(),
                             head: (
                               <>
@@ -520,6 +536,7 @@ describe('refreshReducer', () => {
                   ]),
                   lazyData: null,
                   rsc: null,
+                  prefetchRsc: null,
                 },
               ],
             ]),
@@ -570,6 +587,7 @@ describe('refreshReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -578,6 +596,7 @@ describe('refreshReducer', () => {
               ]),
               lazyData: null,
               rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
           [
@@ -592,6 +611,7 @@ describe('refreshReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>About page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -600,6 +620,7 @@ describe('refreshReducer', () => {
               ]),
               lazyData: null,
               rsc: <>About layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -714,6 +735,7 @@ describe('refreshReducer', () => {
             </body>
           </html>
         ),
+        prefetchRsc: null,
         parallelRoutes: new Map([
           [
             'children',
@@ -730,6 +752,7 @@ describe('refreshReducer', () => {
                           {
                             lazyData: null,
                             rsc: null,
+                            prefetchRsc: null,
                             parallelRoutes: new Map(),
                             head: (
                               <>
@@ -743,6 +766,7 @@ describe('refreshReducer', () => {
                   ]),
                   lazyData: null,
                   rsc: null,
+                  prefetchRsc: null,
                 },
               ],
             ]),

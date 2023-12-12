@@ -31,8 +31,16 @@ export type LazyCacheNode = {
    */
   rsc: null
 
-  // TODO: Add prefetchRsc field.
-  // prefetchRsc: null
+  /**
+   * A prefetched version of the segment data. See explanation in corresponding
+   * field of ReadyCacheNode (below).
+   *
+   * Since LazyCacheNode mostly only exists in the non-PPR implementation, this
+   * will usually be null, but it could have been cloned from a previous
+   * CacheNode that was created by the PPR implementation. Eventually we want
+   * to migrate everything away from LazyCacheNode entirely.
+   */
+  prefetchRsc: React.ReactNode
 
   /**
    * A pending response for the lazy data fetch. If this is not present
@@ -61,8 +69,18 @@ export type ReadyCacheNode = {
    */
   rsc: React.ReactNode
 
-  // TODO: Add prefetchRsc field.
-  // prefetchRsc: React.ReactNode
+  /**
+   * Represents a static version of the segment that can be shown immediately,
+   * and may or may not contain dynamic holes. It's prefetched before a
+   * navigation occurs.
+   *
+   * During rendering, we will choose whether to render `rsc` or `prefetchRsc`
+   * with `useDeferredValue`. As with the `rsc` field, a value of `null` means
+   * no value was provided. In this case, the LayoutRouter will go straight to
+   * rendering the `rsc` value; if that one is also missing, it will suspend and
+   * trigger a lazy fetch.
+   */
+  prefetchRsc: React.ReactNode
 
   /**
    * There should never be a lazy data request in this case.

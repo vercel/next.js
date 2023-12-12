@@ -95,6 +95,7 @@ describe('prefetchReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -103,6 +104,7 @@ describe('prefetchReducer', () => {
               ]),
               lazyData: null,
               rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -187,6 +189,7 @@ describe('prefetchReducer', () => {
             <body>Root layout</body>
           </html>
         ),
+        prefetchRsc: null,
         parallelRoutes: initialParallelRoutes,
       },
       tree: [
@@ -234,6 +237,7 @@ describe('prefetchReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -242,6 +246,7 @@ describe('prefetchReducer', () => {
               ]),
               lazyData: null,
               rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -340,6 +345,7 @@ describe('prefetchReducer', () => {
             <body>Root layout</body>
           </html>
         ),
+        prefetchRsc: null,
         parallelRoutes: initialParallelRoutes,
       },
       tree: [
