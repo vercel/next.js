@@ -122,7 +122,7 @@ if (isNextProd) {
     })
   })
 
-  describe.only('react 18 streaming SSR in minimal mode with node runtime', () => {
+  describe('react 18 streaming SSR in minimal mode with node runtime', () => {
     let next: NextInstance
 
     beforeAll(async () => {
