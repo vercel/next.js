@@ -90,10 +90,12 @@ async function loadWebAssemblyModule(
       deleteResolver(chunkPath);
 
       const chunkUrl = getChunkRelativeUrl(chunkPath);
+      // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
+      const decodedChunkUrl = decodeURI(chunkUrl);
 
       if (chunkPath.endsWith(".css")) {
         const links = document.querySelectorAll(
-          `link[href="${chunkUrl}"],link[href^="${chunkUrl}?"]`
+          `link[href="${chunkUrl}"],link[href^="${chunkUrl}?"],link[href="${decodedChunkUrl}"],link[href^="${decodedChunkUrl}?"]`
         );
         for (const link of Array.from(links)) {
           link.remove();
@@ -104,7 +106,7 @@ async function loadWebAssemblyModule(
         // However, we still want to remove the script tag from the DOM to keep
         // the HTML somewhat consistent from the user's perspective.
         const scripts = document.querySelectorAll(
-          `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"]`
+          `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
         );
         for (const script of Array.from(scripts)) {
           script.remove();
@@ -122,9 +124,10 @@ async function loadWebAssemblyModule(
         }
 
         const chunkUrl = getChunkRelativeUrl(chunkPath);
+        const decodedChunkUrl = decodeURI(chunkUrl);
 
         const previousLinks = document.querySelectorAll(
-          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"]`
+          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
         );
 
         if (previousLinks.length == 0) {
@@ -222,10 +225,11 @@ async function loadWebAssemblyModule(
     }
 
     const chunkUrl = getChunkRelativeUrl(chunkPath);
+    const decodedChunkUrl = decodeURI(chunkUrl);
 
     if (chunkPath.endsWith(".css")) {
       const previousLinks = document.querySelectorAll(
-        `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"]`
+        `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
       );
       if (previousLinks.length > 0) {
         // CSS chunks do not register themselves, and as such must be marked as
@@ -247,7 +251,7 @@ async function loadWebAssemblyModule(
       }
     } else if (chunkPath.endsWith(".js")) {
       const previousScripts = document.querySelectorAll(
-        `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"]`
+        `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
       );
       if (previousScripts.length > 0) {
         // There is this edge where the script already failed loading, but we
