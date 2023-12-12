@@ -93,7 +93,7 @@ export default function Page() {
 }
 ```
 
-```tsx filename="tests/page.test.tsx" switcher
+```tsx filename="__tests__/page.test.tsx" switcher
 import { expect, test } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import Page from '../app/page'
@@ -104,7 +104,7 @@ test('Page', () => {
 })
 ```
 
-```jsx filename="tests/page.test.jsx" switcher
+```jsx filename="__tests__/page.test.jsx" switcher
 import { expect, test } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import Page from '../app/page'
@@ -147,7 +147,7 @@ export default function Page() {
 }
 ```
 
-```tsx filename="tests/index.test.tsx" switcher
+```tsx filename="__tests__/index.test.tsx" switcher
 import { expect, test } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import Page from '../pages/index'
@@ -158,7 +158,7 @@ test('Page', () => {
 })
 ```
 
-```jsx filename="tests/index.test.jsx" switcher
+```jsx filename="__tests__/index.test.jsx" switcher
 import { expect, test } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import Page from '../pages/index'
@@ -185,8 +185,8 @@ pnpm test
 
 ## Additional Resources
 
-For further reading, you may find these resources helpful:
+You may find these resources helpful:
 
-- [Vitest](https://vitest.dev/guide/)
+- [Next.js with Vitest example](https://github.com/vercel/next.js/tree/canary/examples/with-vitest)
+- [Vitest Docs](https://vitest.dev/guide/)
 - [React Testing Library Docs](https://testing-library.com/docs/react-testing-library/intro/)
-- [Testing Playground](https://testing-playground.com/) - use good testing practices to match elements.
