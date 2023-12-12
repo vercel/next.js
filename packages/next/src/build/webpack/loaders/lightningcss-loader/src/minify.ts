@@ -1,6 +1,7 @@
 // @ts-ignore
 import { ModuleFilenameHelpers } from 'next/dist/compiled/webpack/webpack'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
+// @ts-ignore
 import { RawSource, SourceMapSource } from 'next/dist/compiled/webpack-sources3'
 import { transform as transformCss } from 'lightningcss'
 import {
