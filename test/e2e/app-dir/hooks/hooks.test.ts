@@ -60,6 +60,10 @@ createNextDescribe(
         expect($('#params-second').text()).toBe('other value')
         expect($('#params-third').text()).toBe('')
         expect($('#params-not-real').text()).toBe('N/A')
+
+        // dynamic page doesn't have bail out
+        expect($('html#__next_error__').length).toBe(0)
+        expect($('meta[content=noindex]').length).toBe(0)
       })
 
       it('should not contain noindex meta tag for static built page', async () => {
