@@ -5,7 +5,6 @@ import { platform, arch } from 'os'
 import { promises as fs } from 'fs'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
-import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadWasmSwc, downloadNativeNextSwc } from '../../lib/download-swc'
@@ -182,8 +181,6 @@ export interface Binding {
   minifySync: any
   transform: any
   transformSync: any
-  parse: any
-  parseSync: any
   getTargetTriple(): string | undefined
   initCustomTraceSubscriber?: any
   teardownTraceSubscriber?: any
@@ -1211,15 +1208,6 @@ async function loadWasm(importPath = '') {
         minifySync(src: string, options: any) {
           return bindings.minifySync(src.toString(), options)
         },
-        parse(src: string, options: any) {
-          return bindings?.parse
-            ? bindings.parse(src.toString(), options)
-            : Promise.resolve(bindings.parseSync(src.toString(), options))
-        },
-        parseSync(src: string, options: any) {
-          const astStr = bindings.parseSync(src.toString(), options)
-          return astStr
-        },
         analysis: {
           isDynamicMetadataRoute: async (pageFilePath: string) => {
             const fileContent = (await tryToReadFile(pageFilePath, true)) || ''
@@ -1411,10 +1399,6 @@ function loadNative(importPath?: string) {
         return bindings.minifySync(toBuffer(src), toBuffer(options ?? {}))
       },
 
-      parse(src: string, options: any) {
-        return bindings.parse(src, toBuffer(options ?? {}))
-      },
-
       analysis: {
         isDynamicMetadataRoute: async (pageFilePath: string) => {
           let fileContent: string | undefined = undefined
@@ -1580,14 +1564,6 @@ export async function minify(src: string, options: any): Promise<string> {
 export function minifySync(src: string, options: any): string {
   let bindings = loadBindingsSync()
   return bindings.minifySync(src, options)
-}
-
-export async function parse(src: string, options: any): Promise<any> {
-  let bindings = await loadBindings()
-  let parserOptions = getParserOptions(options)
-  return bindings
-    .parse(src, parserOptions)
-    .then((astStr: any) => JSON.parse(astStr))
 }
 
 export function getBinaryMetadata() {

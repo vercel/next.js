@@ -12,14 +12,10 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use swc_core::common::Mark;
 use turbopack_binding::swc::core::{
-    base::{
-        config::{JsMinifyOptions, ParseOptions},
-        try_with_handler, Compiler,
-    },
+    base::{config::JsMinifyOptions, try_with_handler, Compiler},
     common::{
-        comments::{Comments, SingleThreadedComments},
-        errors::ColorConfig,
-        FileName, FilePathMapping, SourceMap, GLOBALS,
+        comments::SingleThreadedComments, errors::ColorConfig, FileName, FilePathMapping,
+        SourceMap, GLOBALS,
     },
     ecma::transforms::base::pass::noop,
 };
@@ -157,59 +153,6 @@ pub fn transform(s: JsValue, opts: JsValue) -> js_sys::Promise {
     // TODO: This'll be properly scheduled once wasm have standard backed thread
     // support.
     future_to_promise(async { transform_sync(s, opts) })
-}
-
-#[wasm_bindgen(js_name = "parseSync")]
-pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
-    console_error_panic_hook::set_once();
-
-    let c = turbopack_binding::swc::core::base::Compiler::new(Arc::new(SourceMap::new(
-        FilePathMapping::empty(),
-    )));
-    let opts: ParseOptions = serde_wasm_bindgen::from_value(opts)?;
-
-    try_with_handler(
-        c.cm.clone(),
-        turbopack_binding::swc::core::base::HandlerOpts {
-            ..Default::default()
-        },
-        |handler| {
-            c.run(|| {
-                GLOBALS.set(&Default::default(), || {
-                    let fm = c.cm.new_source_file(FileName::Anon, s.into());
-
-                    let cmts = c.comments().clone();
-                    let comments = if opts.comments {
-                        Some(&cmts as &dyn Comments)
-                    } else {
-                        None
-                    };
-
-                    let program = c
-                        .parse_js(
-                            fm,
-                            handler,
-                            opts.target,
-                            opts.syntax,
-                            opts.is_module,
-                            comments,
-                        )
-                        .context("failed to parse code")?;
-
-                    let s = serde_json::to_string(&program).unwrap();
-                    Ok(JsValue::from_str(&s))
-                })
-            })
-        },
-    )
-    .map_err(convert_err)
-}
-
-#[wasm_bindgen(js_name = "parse")]
-pub fn parse(s: JsString, opts: JsValue) -> js_sys::Promise {
-    // TODO: This'll be properly scheduled once wasm have standard backed thread
-    // support.
-    future_to_promise(async { parse_sync(s, opts) })
 }
 
 /// Detect if metadata routes is a dynamic route, which containing
