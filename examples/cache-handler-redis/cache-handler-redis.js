@@ -13,7 +13,7 @@ client.on('error', (error) => {
 
 IncrementalCache.onCreation(async () => {
   // read more about TTL limitations https://caching-tools.github.io/next-shared-cache/configuration/ttl
-  const useTtl = false
+  const useTtl = true
 
   await client.connect()
 
