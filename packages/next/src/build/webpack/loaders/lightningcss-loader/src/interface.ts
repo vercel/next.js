@@ -60,6 +60,18 @@ export interface ILightningCssLoaderConfig extends AllowLoaderTransformOpts {
   modules: ModulesOptions
 
   esModule: boolean
+
+  url?: (url: string, resourcePath: string) => boolean
+  import?: (url: string, _: any, resourcePath: string) => boolean
+
+  importLoaders?: number
+}
+
+export interface VisitorOptions {
+  urlFilter: (url: string) => boolean
+  importFilter: (url: string) => boolean
+
+  urlHandler: (url: any) => string
 }
 
 export interface ModulesOptions {

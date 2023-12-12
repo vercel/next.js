@@ -28,6 +28,7 @@ export function getCssModuleLoader(
     loaders.push({
       loader: require.resolve('../../../../loaders/lightningcss-loader/src'),
       options: {
+        importLoaders: 1 + preProcessors.length,
         url: (url: string, resourcePath: string) =>
           cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
         import: (url: string, _: any, resourcePath: string) =>
