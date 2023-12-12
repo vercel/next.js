@@ -54,7 +54,7 @@ createNextDescribe(
     describe('useSearchParams', () => {
       it('should have the correct search params', async () => {
         const $ = await next.render$(
-          '/hooks/use-search-params/dynamic?first=value&second=other%20value&third'
+          '/hooks/use-search-params?first=value&second=other%20value&third'
         )
         expect($('#params-first').text()).toBe('value')
         expect($('#params-second').text()).toBe('other value')
