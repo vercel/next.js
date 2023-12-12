@@ -1085,10 +1085,11 @@ export default async function build(
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
-      // if the option is set, we respect it, otherwise we check if the user
-      // has a custom webpack config and disable the build worker by default.
+      // If there's has a custom webpack config and disable the build worker.
+      // Otherwise respect the option if it's set.
       const useBuildWorker =
-        config.experimental.webpackBuildWorker || !config.webpack
+        !config.webpack && config.experimental.webpackBuildWorker
+
       nextBuildSpan.setAttribute(
         'has-custom-webpack-config',
         String(!!config.webpack)
