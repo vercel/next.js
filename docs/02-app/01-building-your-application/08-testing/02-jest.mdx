@@ -18,9 +18,9 @@ npx create-next-app@latest --example with-jest with-jest-app
 
 ## Manual setup
 
-Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built in configuration for Jest.
+Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built-in configuration for Jest.
 
-To set up Jest, install `jest`, `jest-environment-jsdom`, `@testing-library/react`, `@testing-library/jest-dom`:
+To set up Jest, install `jest` and the following packages as dev dependencies:
 
 ```bash filename="Terminal"
 npm install -D jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
@@ -361,9 +361,17 @@ it('renders homepage unchanged', () => {
 
 </AppOnly>
 
-## Running your test suite
+## Running your tests
 
-Run `npm run test` to run your test suite.
+Then, run the following command to run your tests:
+
+```bash filename="Terminal"
+npm run test
+# or
+yarn test
+# or
+pnpm test
+```
 
 ## Additional Resources
 
