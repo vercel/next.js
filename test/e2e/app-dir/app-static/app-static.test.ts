@@ -46,11 +46,13 @@ createNextDescribe(
         )
       })
 
-      it('should honor force-static with fetch cache: no-store correctly', async () => {
-        const res = await next.fetch('/force-static-fetch-no-store')
-        expect(res.status).toBe(200)
-        expect(res.headers.get('x-nextjs-cache').toLowerCase()).toBe('hit')
-      })
+      if (!process.env.CUSTOM_CACHE_HANDLER) {
+        it('should honor force-static with fetch cache: no-store correctly', async () => {
+          const res = await next.fetch('/force-static-fetch-no-store')
+          expect(res.status).toBe(200)
+          expect(res.headers.get('x-nextjs-cache').toLowerCase()).toBe('hit')
+        })
+      }
     }
 
     it('should correctly include headers instance in cache key', async () => {
