@@ -2853,7 +2853,7 @@ createNextDescribe(
             'N/A'
           )
 
-          const $ = next.render$(url)
+          const $ = await next.render$(url)
           expect($('meta[content=noindex]').length).toBe(0)
         })
 
@@ -2873,7 +2873,7 @@ createNextDescribe(
             'N/A'
           )
 
-          const $ = next.render$(url)
+          const $ = await next.render$(url)
           // dynamic page doesn't have bail out
           expect($('html#__next_error__').length).toBe(0)
           expect($('meta[content=noindex]').length).toBe(0)
