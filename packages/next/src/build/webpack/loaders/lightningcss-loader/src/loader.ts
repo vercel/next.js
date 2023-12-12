@@ -28,79 +28,62 @@ function createVisitor(
   imports: CssImport[],
   replacements: ApiReplacement[]
 ): Visitor<{}> {
-  let importIndex = 0
   const importUrlToNameMap = new Map<string, string>()
 
   return {
-    Rule(node) {
-      if (node.type !== 'import') {
-        return node
-      }
-      if (visitorOptions.importFilter) {
-        const needKeep = visitorOptions.importFilter(
-          node.value.url,
-          node.value.media
-        )
-
-        if (!needKeep) {
-          return node
-        }
-      }
-
-      let url = node.value.url
-      // TODO: Use identical logic as valueParser.stringify()
-      const media = JSON.stringify(node.value.media.mediaQueries)
-
-      const isRequestable = isUrlRequestable(url)
-      let prefix: string | undefined
-      if (isRequestable) {
-        const queryParts = url.split('!')
-
-        if (queryParts.length > 1) {
-          url = queryParts.pop()!
-          prefix = queryParts.join('!')
-        }
-      }
-
-      importIndex++
-      if (!isRequestable) {
-        apis.push({ url, media })
-
-        return { type: 'ignored' }
-      }
-
-      const newUrl = prefix ? `${prefix}!${url}` : url
-      let importName = importUrlToNameMap.get(newUrl)
-
-      if (!importName) {
-        importName = `___CSS_LOADER_AT_RULE_IMPORT_${importUrlToNameMap.size}___`
-        importUrlToNameMap.set(newUrl, importName)
-
-        imports.push({
-          type: 'rule_import',
-          importName,
-          url: visitorOptions.urlHandler(newUrl),
-        })
-      }
-
-      apis.push({ importName, media })
-
-      return {
-        type: 'ignored',
-      }
-    },
-
-    Url(node) {
-      console.log('Url.node', node)
-
-      const { url } = node
-      const { urlHandler } = visitorOptions
-
-      node.url = urlHandler(url)
-
-      console.log('After: Url.node', node)
-      return node
-    },
+    // Rule(node) {
+    //   if (node.type !== 'import') {
+    //     return node
+    //   }
+    //   if (visitorOptions.importFilter) {
+    //     const needKeep = visitorOptions.importFilter(
+    //       node.value.url,
+    //       node.value.media
+    //     )
+    //     if (!needKeep) {
+    //       return node
+    //     }
+    //   }
+    //   let url = node.value.url
+    //   // TODO: Use identical logic as valueParser.stringify()
+    //   const media = JSON.stringify(node.value.media.mediaQueries)
+    //   const isRequestable = isUrlRequestable(url)
+    //   let prefix: string | undefined
+    //   if (isRequestable) {
+    //     const queryParts = url.split('!')
+    //     if (queryParts.length > 1) {
+    //       url = queryParts.pop()!
+    //       prefix = queryParts.join('!')
+    //     }
+    //   }
+    //   if (!isRequestable) {
+    //     apis.push({ url, media })
+    //     return { type: 'ignored' }
+    //   }
+    //   const newUrl = prefix ? `${prefix}!${url}` : url
+    //   let importName = importUrlToNameMap.get(newUrl)
+    //   if (!importName) {
+    //     importName = `___CSS_LOADER_AT_RULE_IMPORT_${importUrlToNameMap.size}___`
+    //     importUrlToNameMap.set(newUrl, importName)
+    //     imports.push({
+    //       type: 'rule_import',
+    //       importName,
+    //       url: visitorOptions.urlHandler(newUrl),
+    //     })
+    //   }
+    //   apis.push({ importName, media })
+    //   return {
+    //     type: 'ignored',
+    //   }
+    // },
+    // Url(node) {
+    //   console.log('Url.node', node)
+    //   const { url } = node
+    //   const { urlHandler } = visitorOptions
+    //   node.url = urlHandler(url)
+    //   console.log('After: Url.node', node)
+    //   return node
+    // },
   }
 }
 
