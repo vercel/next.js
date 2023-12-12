@@ -23,12 +23,35 @@ function createVisitor(
   replacements: ApiReplacement[]
 ): Visitor<{}> {
   return {
+    Rule(node) {
+      if (node.type !== 'import') {
+        return node
+      }
+      if (visitorOptions.importFilter) {
+        const needKeep = visitorOptions.importFilter(
+          node.value.url,
+          node.value.media
+        )
+
+        if (!needKeep) {
+          return node
+        }
+      }
+
+      console.log('Rule.node', node)
+
+      return node
+    },
+
     Url(node) {
+      console.log('Url.node', node)
+
       const { url } = node
       const { urlHandler } = visitorOptions
 
       node.url = urlHandler(url)
 
+      console.log('After: Url.node', node)
       return node
     },
   }
