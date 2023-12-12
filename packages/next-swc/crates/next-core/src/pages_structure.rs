@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{Completion, Vc};
+use tracing::Instrument;
+use turbo_tasks::{Completion, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPathOption;
 use turbopack_binding::turbo::tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
@@ -319,61 +320,69 @@ async fn get_pages_structure_for_directory(
     position: u32,
     page_extensions: Vc<Vec<String>>,
 ) -> Result<Vc<PagesDirectoryStructure>> {
-    let page_extensions_raw = &*page_extensions.await?;
+    let span = {
+        let path = project_path.to_string().await?;
+        tracing::info_span!("analyse pages structure", name = *path)
+    };
+    async move {
+        let page_extensions_raw = &*page_extensions.await?;
 
-    let mut children = vec![];
-    let mut items = vec![];
-    let dir_content = project_path.read_dir().await?;
-    if let DirectoryContent::Entries(entries) = &*dir_content {
-        for (name, entry) in entries.iter() {
-            match entry {
-                DirectoryEntry::File(file_project_path) => {
-                    let Some(basename) = page_basename(name, page_extensions_raw) else {
-                        continue;
-                    };
-                    let item_next_router_path = match basename {
-                        "index" => next_router_path,
-                        _ => next_router_path.join(basename.to_string()),
-                    };
-                    let item_original_name = next_router_path.join(basename.to_string());
-                    items.push((
-                        basename,
-                        PagesStructureItem::new(
-                            *file_project_path,
-                            item_next_router_path,
-                            item_original_name,
-                        ),
-                    ));
+        let mut children = vec![];
+        let mut items = vec![];
+        let dir_content = project_path.read_dir().await?;
+        if let DirectoryContent::Entries(entries) = &*dir_content {
+            for (name, entry) in entries.iter() {
+                match entry {
+                    DirectoryEntry::File(file_project_path) => {
+                        let Some(basename) = page_basename(name, page_extensions_raw) else {
+                            continue;
+                        };
+                        let item_next_router_path = match basename {
+                            "index" => next_router_path,
+                            _ => next_router_path.join(basename.to_string()),
+                        };
+                        let item_original_name = next_router_path.join(basename.to_string());
+                        items.push((
+                            basename,
+                            PagesStructureItem::new(
+                                *file_project_path,
+                                item_next_router_path,
+                                item_original_name,
+                            ),
+                        ));
+                    }
+                    DirectoryEntry::Directory(dir_project_path) => {
+                        children.push((
+                            name,
+                            get_pages_structure_for_directory(
+                                *dir_project_path,
+                                next_router_path.join(name.clone()),
+                                position + 1,
+                                page_extensions,
+                            ),
+                        ));
+                    }
+                    _ => {}
                 }
-                DirectoryEntry::Directory(dir_project_path) => {
-                    children.push((
-                        name,
-                        get_pages_structure_for_directory(
-                            *dir_project_path,
-                            next_router_path.join(name.clone()),
-                            position + 1,
-                            page_extensions,
-                        ),
-                    ));
-                }
-                _ => {}
             }
         }
+
+        // Ensure deterministic order since read_dir is not deterministic
+        items.sort_by_key(|(k, _)| *k);
+
+        // Ensure deterministic order since read_dir is not deterministic
+        children.sort_by_key(|(k, _)| *k);
+
+        Ok(PagesDirectoryStructure {
+            project_path,
+            next_router_path,
+            items: items.into_iter().map(|(_, v)| v).collect(),
+            children: children.into_iter().map(|(_, v)| v).collect(),
+        }
+        .cell())
     }
-
-    // Ensure deterministic order since read_dir is not deterministic
-    items.sort_by_key(|(k, _)| *k);
-
-    // Ensure deterministic order since read_dir is not deterministic
-    children.sort_by_key(|(k, _)| *k);
-
-    Ok(PagesDirectoryStructure {
-        project_path,
-        next_router_path,
-        items: items.into_iter().map(|(_, v)| v).collect(),
-        children: children.into_iter().map(|(_, v)| v).collect(),
-    }
-    .cell())
+    .instrument(span)
+    .await
 }
 
 fn page_basename<'a>(name: &'a str, page_extensions: &'a [String]) -> Option<&'a str> {

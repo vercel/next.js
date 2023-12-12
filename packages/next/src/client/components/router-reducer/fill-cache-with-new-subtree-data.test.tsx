@@ -1,6 +1,5 @@
 import React from 'react'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
-import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightData } from '../../../server/app-render/types'
 
@@ -26,17 +25,15 @@ const getFlightData = (): FlightData => {
 }
 
 describe('fillCacheWithNewSubtreeData', () => {
-  it('should apply subTreeData and head property', () => {
+  it('should apply rsc and head property', () => {
     const cache: CacheNode = {
-      status: CacheStates.LAZY_INITIALIZED,
-      data: null,
-      subTreeData: null,
+      lazyData: null,
+      rsc: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
-      data: null,
-      status: CacheStates.READY,
-      subTreeData: <>Root layout</>,
+      lazyData: null,
+      rsc: <>Root layout</>,
       parallelRoutes: new Map([
         [
           'children',
@@ -44,9 +41,8 @@ describe('fillCacheWithNewSubtreeData', () => {
             [
               'linking',
               {
-                data: null,
-                status: CacheStates.READY,
-                subTreeData: <>Linking</>,
+                lazyData: null,
+                rsc: <>Linking</>,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -54,9 +50,8 @@ describe('fillCacheWithNewSubtreeData', () => {
                       [
                         '',
                         {
-                          data: null,
-                          status: CacheStates.READY,
-                          subTreeData: <>Page</>,
+                          lazyData: null,
+                          rsc: <>Page</>,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -82,9 +77,8 @@ describe('fillCacheWithNewSubtreeData', () => {
     fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath, false)
 
     const expectedCache: CacheNode = {
-      data: null,
-      status: CacheStates.LAZY_INITIALIZED,
-      subTreeData: null,
+      lazyData: null,
+      rsc: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -92,9 +86,8 @@ describe('fillCacheWithNewSubtreeData', () => {
             [
               'linking',
               {
-                data: null,
-                status: CacheStates.READY,
-                subTreeData: <>Linking</>,
+                lazyData: null,
+                rsc: <>Linking</>,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -103,16 +96,15 @@ describe('fillCacheWithNewSubtreeData', () => {
                       [
                         '',
                         {
-                          data: null,
-                          status: CacheStates.READY,
-                          subTreeData: <>Page</>,
+                          lazyData: null,
+                          rsc: <>Page</>,
                           parallelRoutes: new Map(),
                         },
                       ],
                       [
                         'about',
                         {
-                          data: null,
+                          lazyData: null,
                           parallelRoutes: new Map([
                             [
                               'children',
@@ -120,9 +112,8 @@ describe('fillCacheWithNewSubtreeData', () => {
                                 [
                                   '',
                                   {
-                                    data: null,
-                                    status: CacheStates.LAZY_INITIALIZED,
-                                    subTreeData: null,
+                                    lazyData: null,
+                                    rsc: null,
                                     parallelRoutes: new Map(),
                                     head: (
                                       <>
@@ -134,8 +125,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                               ]),
                             ],
                           ]),
-                          subTreeData: <h1>SubTreeData Injected!</h1>,
-                          status: CacheStates.READY,
+                          rsc: <h1>SubTreeData Injected!</h1>,
                         },
                       ],
                     ]),
