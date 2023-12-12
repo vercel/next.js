@@ -1,10 +1,10 @@
 ---
 title: Setting up Jest with Next.js
 nav: Jest
-description: Learn how to set up Next.js with Jest for Unit Testing and Snapshot Testing.
+description: Learn how to set up Jest with Next.js for Unit Testing and Snapshot Testing.
 ---
 
-Jest and React Testing Library are frequently used together for **Unit Testing** and **Snapshot Testing**.
+Jest and React Testing Library are frequently used together for **Unit Testing** and **Snapshot Testing**. This guide will show you how to set up Jest with Next.js and write your first tests.
 
 > **Warning:** You can test Client and _synchronous_ Server Components, however, Jest and React Testing Library currently do not support _async_ Server Components.
 
@@ -16,7 +16,7 @@ You can use `create-next-app` with the Next.js [with-jest](https://github.com/ve
 npx create-next-app@latest --example with-jest with-jest-app
 ```
 
-## Setting up Jest
+## Manual setup
 
 Since the release of [Next.js 12](https://nextjs.org/blog/next-12), Next.js now has built in configuration for Jest.
 
@@ -25,7 +25,7 @@ To set up Jest, install `jest`, `jest-environment-jsdom`, `@testing-library/reac
 ```bash filename="Terminal"
 npm install -D jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
 # or
-yarn add jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom --dev
+yarn add -D jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
 # or
 pnpm install -D jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
 ```
