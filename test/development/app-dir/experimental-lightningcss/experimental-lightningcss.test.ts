@@ -23,7 +23,7 @@ describeVariants.each(['turbo'])('experimental-lightningcss', () => {
 describeVariants.each(['default'])(
   'experimental-lightningcss with default mdoe',
   () => {
-    describe('in dev server', async () => {
+    describe('in dev server', () => {
       const { next } = nextTestSetup({
         files: __dirname,
         dependencies: { lightningcss: '^1' },
@@ -38,7 +38,7 @@ describeVariants.each(['default'])(
       })
     })
 
-    describe('in production build', async () => {
+    describe('in production build', () => {
       const { next } = nextTestSetup({
         files: __dirname,
         dependencies: { lightningcss: '^1' },
