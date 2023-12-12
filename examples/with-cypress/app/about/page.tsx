@@ -1,5 +1,5 @@
 import AboutComponent from '../../components/about-component'
-import styles from '../Home.module.css'
+import styles from '../../styles/Home.module.css'
 
 export default function About() {
   return (

@@ -1,4 +1,4 @@
-import AboutComponent from '../../src/components/about-component'
+import AboutComponent from './components/about-component'
 /* eslint-disable */
 // Disable ESLint to prevent failing linting inside the Next.js repo.
 // If you're using ESLint on your project, we recommend installing the ESLint Cypress plugin instead:
@@ -6,7 +6,7 @@ import AboutComponent from '../../src/components/about-component'
 
 // Cypress Component Test
 describe('<AboutComponent />', () => {
-  it('should render and display expected content', () => {
+  it('should render and display expected content in a Client Component', () => {
     // Mount the React component for the About page
     cy.mount(<AboutComponent />)
 
