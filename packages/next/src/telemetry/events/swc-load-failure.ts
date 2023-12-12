@@ -1,3 +1,4 @@
+import { NextBuildContext } from '../../build/build-context'
 import { traceGlobals } from '../../trace/shared'
 import type { Telemetry } from '../storage'
 // @ts-ignore JSON

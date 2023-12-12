@@ -27,6 +27,7 @@ import loadConfig from '../../server/config'
 import {
   getTraceEvents,
   initializeTraceState,
+  setGlobal,
   trace,
   type TraceEvent,
   type TraceState,
@@ -37,6 +38,7 @@ import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoint
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import origDebug from 'next/dist/compiled/debug'
+import { Telemetry } from '../../telemetry/storage'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -352,6 +354,11 @@ export async function workerMain(workerData: {
     debugTraceEvents: TraceEvent[]
   }
 > {
+  // Clone the telemetry for worker
+  const telemetry = new Telemetry({
+    distDir: workerData.buildContext.config!.distDir,
+  })
+  setGlobal('telemetry', telemetry)
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
 

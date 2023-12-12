@@ -34,7 +34,7 @@ async function webpackBuildWithWorker(
   compilerNamesArg: typeof ORDERED_COMPILER_NAMES | null
 ) {
   const compilerNames = compilerNamesArg || ORDERED_COMPILER_NAMES
-  const { config, buildSpinner, nextBuildSpan, ...prunedBuildContext } =
+  const { buildSpinner, nextBuildSpan, ...prunedBuildContext } =
     NextBuildContext
 
   prunedBuildContext.pluginState = pluginState

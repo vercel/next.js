@@ -6,6 +6,7 @@ import type { NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'
 import type getBaseWebpackConfig from './webpack-config'
 import type { TelemetryPluginState } from './webpack/plugins/telemetry-plugin'
+import type { Telemetry } from '../telemetry/storage'
 
 // A layer for storing data that is used by plugins to communicate with each
 // other between different steps of the build process. This is only internal
@@ -82,6 +83,7 @@ export const NextBuildContext: Partial<{
   hasInstrumentationHook: boolean
 
   // misc fields
+  telemetry: Telemetry
   telemetryState: TelemetryPluginState
   buildSpinner: Ora
   nextBuildSpan: Span
