@@ -7,29 +7,72 @@ function matchWildcardDomain(domain: string, pattern: string) {
   const domainParts = domain.split('.')
   const patternParts = pattern.split('.')
 
-  // Iterate through each part and compare them
-  for (let i = 0; i < patternParts.length; i++) {
-    if (patternParts[i] === '**') {
-      // If '**' is encountered, ensure remaining domain ends with remaining pattern
-      // e.g. **.y.z and a.b.c.y.z should match (b.c.y.z ends with y.z)
-      const remainingPattern = patternParts.slice(i + 1).join('.')
-      const remainingDomain = domainParts.slice(i + 1).join('.')
-      return remainingDomain.endsWith(remainingPattern)
-    } else if (patternParts[i] === '*') {
-      // If '*' is encountered, ensure remaining domain is equal to remaining pattern
-      // e.g. *.y.z and c.y.z should match (y.z is equal to y.z)
-      const remainingPattern = patternParts.slice(i + 1).join('.')
-      const remainingDomain = domainParts.slice(i + 1).join('.')
-      return remainingDomain === remainingPattern
-    }
+  if (patternParts.length < 1) {
+    // pattern is empty and therefore invalid to match against
+    return false
+  }
 
-    // If '*' is not encountered, compare the parts
-    if (patternParts[i] !== domainParts[i]) {
-      return false
+  if (domainParts.length < patternParts.length) {
+    // domain has too few segments and thus cannot match
+    return false
+  }
+
+  let depth = 0
+  while (patternParts.length && depth++ < 2) {
+    const patternPart = patternParts.pop()
+    const domainPart = domainParts.pop()
+
+    switch (patternPart) {
+      case '':
+      case '*':
+      case '**': {
+        // invalid pattern. pattern segments must be non empty
+        // Additionally wildcards are only supported below the domain level
+        return false
+      }
+      default: {
+        if (domainPart !== patternPart) {
+          return false
+        }
+      }
     }
   }
 
-  return true
+  while (patternParts.length) {
+    const patternPart = patternParts.pop()
+    const domainPart = domainParts.pop()
+
+    switch (patternPart) {
+      case '': {
+        // invalid pattern. pattern segments must be non empty
+        return false
+      }
+      case '*': {
+        // wildcard matches anything so we continue if the domain part is non-empty
+        if (domainPart) {
+          continue
+        } else {
+          return false
+        }
+      }
+      case '**': {
+        // if this is not the last item in the pattern the pattern is invalid
+        if (patternParts.length > 0) {
+          return false
+        }
+        // recursive wildcard matches anything so we terminate here if the domain part is non empty
+        return domainPart !== undefined
+      }
+      default: {
+        if (domainPart !== patternPart) {
+          return false
+        }
+      }
+    }
+  }
+
+  // We exhausted the pattern. If we also exhausted the domain we have a match
+  return domainParts.length === 0
 }
 
 export const isCsrfOriginAllowed = (
