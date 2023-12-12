@@ -2,7 +2,6 @@ import React from 'react'
 import type { fetchServerResponse } from '../fetch-server-response'
 import type { FlightData } from '../../../../server/app-render/types'
 import type { FlightRouterState } from '../../../../server/app-render/types'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
 import { ACTION_REFRESH } from '../router-reducer-types'
@@ -98,7 +97,6 @@ describe('refreshReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -106,17 +104,16 @@ describe('refreshReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
-                        subTreeData: <>Linking page</>,
+                        lazyData: null,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
                   ]),
                 ],
               ]),
-              data: null,
-              subTreeData: <>Linking layout level</>,
+              lazyData: null,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -135,7 +132,6 @@ describe('refreshReducer', () => {
     })
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -160,9 +156,8 @@ describe('refreshReducer', () => {
       canonicalUrl: '/linking',
       nextUrl: '/linking',
       cache: {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: (
+        lazyData: null,
+        rsc: (
           <html>
             <head></head>
             <body>
@@ -177,7 +172,6 @@ describe('refreshReducer', () => {
               [
                 'linking',
                 {
-                  status: CacheStates.LAZY_INITIALIZED,
                   parallelRoutes: new Map([
                     [
                       'children',
@@ -185,9 +179,8 @@ describe('refreshReducer', () => {
                         [
                           '',
                           {
-                            status: CacheStates.LAZY_INITIALIZED,
-                            data: null,
-                            subTreeData: null,
+                            lazyData: null,
+                            rsc: null,
                             parallelRoutes: new Map(),
                             head: (
                               <>
@@ -199,8 +192,8 @@ describe('refreshReducer', () => {
                       ]),
                     ],
                   ]),
-                  data: null,
-                  subTreeData: null,
+                  lazyData: null,
+                  rsc: null,
                 },
               ],
             ]),
@@ -242,7 +235,6 @@ describe('refreshReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -250,17 +242,16 @@ describe('refreshReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
-                        subTreeData: <>Linking page</>,
+                        lazyData: null,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
                   ]),
                 ],
               ]),
-              data: null,
-              subTreeData: <>Linking layout level</>,
+              lazyData: null,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -291,7 +282,6 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -318,9 +308,8 @@ describe('refreshReducer', () => {
       canonicalUrl: '/linking',
       nextUrl: '/linking',
       cache: {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: (
+        lazyData: null,
+        rsc: (
           <html>
             <head></head>
             <body>
@@ -335,7 +324,6 @@ describe('refreshReducer', () => {
               [
                 'linking',
                 {
-                  status: CacheStates.LAZY_INITIALIZED,
                   parallelRoutes: new Map([
                     [
                       'children',
@@ -343,9 +331,8 @@ describe('refreshReducer', () => {
                         [
                           '',
                           {
-                            status: CacheStates.LAZY_INITIALIZED,
-                            data: null,
-                            subTreeData: null,
+                            lazyData: null,
+                            rsc: null,
                             parallelRoutes: new Map(),
                             head: (
                               <>
@@ -357,8 +344,8 @@ describe('refreshReducer', () => {
                       ]),
                     ],
                   ]),
-                  data: null,
-                  subTreeData: null,
+                  lazyData: null,
+                  rsc: null,
                 },
               ],
             ]),
@@ -400,7 +387,6 @@ describe('refreshReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -408,23 +394,21 @@ describe('refreshReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
-                        subTreeData: <>Linking page</>,
+                        lazyData: null,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
                   ]),
                 ],
               ]),
-              data: null,
-              subTreeData: <>Linking layout level</>,
+              lazyData: null,
+              rsc: <>Linking layout level</>,
             },
           ],
           [
             'about',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -432,17 +416,16 @@ describe('refreshReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
-                        subTreeData: <>About page</>,
+                        lazyData: null,
+                        rsc: <>About page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
                   ]),
                 ],
               ]),
-              data: null,
-              subTreeData: <>About layout level</>,
+              lazyData: null,
+              rsc: <>About layout level</>,
             },
           ],
         ]),
@@ -473,7 +456,6 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -500,9 +482,8 @@ describe('refreshReducer', () => {
       canonicalUrl: '/linking',
       nextUrl: '/linking',
       cache: {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: (
+        lazyData: null,
+        rsc: (
           <html>
             <head></head>
             <body>
@@ -517,7 +498,6 @@ describe('refreshReducer', () => {
               [
                 'linking',
                 {
-                  status: CacheStates.LAZY_INITIALIZED,
                   parallelRoutes: new Map([
                     [
                       'children',
@@ -525,9 +505,8 @@ describe('refreshReducer', () => {
                         [
                           '',
                           {
-                            status: CacheStates.LAZY_INITIALIZED,
-                            data: null,
-                            subTreeData: null,
+                            lazyData: null,
+                            rsc: null,
                             parallelRoutes: new Map(),
                             head: (
                               <>
@@ -539,8 +518,8 @@ describe('refreshReducer', () => {
                       ]),
                     ],
                   ]),
-                  data: null,
-                  subTreeData: null,
+                  lazyData: null,
+                  rsc: null,
                 },
               ],
             ]),
@@ -582,7 +561,6 @@ describe('refreshReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -590,23 +568,21 @@ describe('refreshReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
-                        subTreeData: <>Linking page</>,
+                        lazyData: null,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
                   ]),
                 ],
               ]),
-              data: null,
-              subTreeData: <>Linking layout level</>,
+              lazyData: null,
+              rsc: <>Linking layout level</>,
             },
           ],
           [
             'about',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -614,17 +590,16 @@ describe('refreshReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
-                        subTreeData: <>About page</>,
+                        lazyData: null,
+                        rsc: <>About page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
                   ]),
                 ],
               ]),
-              data: null,
-              subTreeData: <>About layout level</>,
+              lazyData: null,
+              rsc: <>About layout level</>,
             },
           ],
         ]),
@@ -704,7 +679,6 @@ describe('refreshReducer', () => {
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,
-      mutable: {},
       origin: new URL('/linking', 'https://localhost').origin,
     }
 
@@ -731,9 +705,8 @@ describe('refreshReducer', () => {
       canonicalUrl: '/linking',
       nextUrl: '/linking',
       cache: {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: (
+        lazyData: null,
+        rsc: (
           <html>
             <head></head>
             <body>
@@ -748,7 +721,6 @@ describe('refreshReducer', () => {
               [
                 'linking',
                 {
-                  status: CacheStates.LAZY_INITIALIZED,
                   parallelRoutes: new Map([
                     [
                       'children',
@@ -756,9 +728,8 @@ describe('refreshReducer', () => {
                         [
                           '',
                           {
-                            status: CacheStates.LAZY_INITIALIZED,
-                            data: null,
-                            subTreeData: null,
+                            lazyData: null,
+                            rsc: null,
                             parallelRoutes: new Map(),
                             head: (
                               <>
@@ -770,8 +741,8 @@ describe('refreshReducer', () => {
                       ]),
                     ],
                   ]),
-                  data: null,
-                  subTreeData: null,
+                  lazyData: null,
+                  rsc: null,
                 },
               ],
             ]),

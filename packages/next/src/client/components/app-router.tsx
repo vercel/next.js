@@ -13,7 +13,6 @@ import {
   AppRouterContext,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
-  CacheStates,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   CacheNode,
@@ -149,9 +148,8 @@ function HistoryUpdater({
 }
 
 export const createEmptyCacheNode = () => ({
-  status: CacheStates.LAZY_INITIALIZED,
-  data: null,
-  subTreeData: null,
+  lazyData: null,
+  rsc: null,
   parallelRoutes: new Map(),
 })
 
@@ -162,7 +160,6 @@ function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
         dispatch({
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
-          mutable: {},
         })
       })
     },
@@ -189,7 +186,6 @@ function useChangeByServerResponse(
           flightData,
           previousTree,
           overrideCanonicalUrl,
-          mutable: {},
         })
       })
     },
@@ -209,7 +205,6 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         locationSearch: location.search,
         shouldScroll: shouldScroll ?? true,
         navigateType,
-        mutable: {},
       })
     },
     [dispatch]
@@ -329,7 +324,6 @@ function Router({
         startTransition(() => {
           dispatch({
             type: ACTION_REFRESH,
-            mutable: {},
             origin: window.location.origin,
           })
         })
@@ -344,7 +338,6 @@ function Router({
           startTransition(() => {
             dispatch({
               type: ACTION_FAST_REFRESH,
-              mutable: {},
               origin: window.location.origin,
             })
           })
@@ -553,7 +546,7 @@ function Router({
   let content = (
     <RedirectBoundary>
       {head}
-      {cache.subTreeData}
+      {cache.rsc}
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
   )

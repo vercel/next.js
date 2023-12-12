@@ -12,7 +12,6 @@ import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 import React, { useContext, use, startTransition, Suspense } from 'react'
 import ReactDOM from 'react-dom'
 import {
-  CacheStates,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   TemplateContext,
@@ -338,8 +337,16 @@ function InnerLayoutRouter({
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(cacheKey)
 
-  // When childNode is not available during rendering client-side we need to fetch it from the server.
-  if (!childNode || childNode.status === CacheStates.LAZY_INITIALIZED) {
+  // When data is not available during rendering client-side we need to fetch
+  // it from the server.
+  if (
+    !childNode ||
+    // Check if this is a lazy cache entry that has not yet initiated a
+    // data request.
+    //
+    // TODO: An eventual goal of PPR is to remove this case entirely.
+    (childNode.rsc === null && childNode.lazyData === null)
+  ) {
     /**
      * Router state with refetch marker added
      */
@@ -347,22 +354,15 @@ function InnerLayoutRouter({
     const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
 
     childNode = {
-      status: CacheStates.DATA_FETCH,
-      data: fetchServerResponse(
+      lazyData: fetchServerResponse(
         new URL(url, location.origin),
         refetchTree,
         context.nextUrl,
         buildId
       ),
-      subTreeData: null,
-      head:
-        childNode && childNode.status === CacheStates.LAZY_INITIALIZED
-          ? childNode.head
-          : undefined,
-      parallelRoutes:
-        childNode && childNode.status === CacheStates.LAZY_INITIALIZED
-          ? childNode.parallelRoutes
-          : new Map(),
+      rsc: null,
+      head: childNode ? childNode.head : undefined,
+      parallelRoutes: childNode ? childNode.parallelRoutes : new Map(),
     }
 
     /**
@@ -377,20 +377,20 @@ function InnerLayoutRouter({
   }
 
   // This case should never happen so it throws an error. It indicates there's a bug in the Next.js.
-  if (childNode.subTreeData && childNode.data) {
-    throw new Error('Child node should not have both subTreeData and data')
+  if (childNode.rsc && childNode.lazyData) {
+    throw new Error('Child node should not have both rsc and lazyData')
   }
 
   // If cache node has a data request we have to unwrap response by `use` and update the cache.
-  if (childNode.data) {
+  if (childNode.lazyData) {
     /**
      * Flight response data
      */
     // When the data has not resolved yet `use` will suspend here.
-    const [flightData, overrideCanonicalUrl] = use(childNode.data)
+    const [flightData, overrideCanonicalUrl] = use(childNode.lazyData)
 
     // segmentPath from the server does not match the layout's segmentPath
-    childNode.data = null
+    childNode.lazyData = null
 
     // setTimeout is used to start a new transition during render, this is an intentional hack around React.
     setTimeout(() => {
@@ -402,9 +402,9 @@ function InnerLayoutRouter({
     use(createInfinitePromise())
   }
 
-  // If cache node has no subTreeData and no data request we have to infinitely suspend as the data will likely flow in from another place.
+  // If cache node has no rsc and no lazy data request we have to infinitely suspend as the data will likely flow in from another place.
   // TODO-APP: double check users can't return null in a component that will kick in here.
-  if (!childNode.subTreeData) {
+  if (!childNode.rsc) {
     use(createInfinitePromise())
   }
 
@@ -418,7 +418,7 @@ function InnerLayoutRouter({
         url: url,
       }}
     >
-      {childNode.subTreeData}
+      {childNode.rsc}
     </LayoutRouterContext.Provider>
   )
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`

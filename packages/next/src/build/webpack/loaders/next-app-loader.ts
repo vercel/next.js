@@ -24,6 +24,7 @@ import { getFilenameAndExtension } from './next-metadata-route-loader'
 import { isAppBuiltinNotFoundPage } from '../../utils'
 import { loadEntrypoint } from '../../load-entrypoint'
 import { isGroupSegment } from '../../../shared/lib/segment'
+import { getFilesInDir } from '../../../lib/get-files-in-dir'
 
 export type AppLoaderOptions = {
   name: string
@@ -558,13 +559,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       return existingFiles.has(fileName)
     }
     try {
-      const files = await fs.readdir(dirname, { withFileTypes: true })
-      const fileNames = new Set<string>()
-      for (const file of files) {
-        if (file.isFile()) {
-          fileNames.add(file.name)
-        }
-      }
+      const files = await getFilesInDir(dirname)
+      const fileNames = new Set<string>(files)
       filesInDir.set(dirname, fileNames)
       return fileNames.has(fileName)
     } catch (err) {

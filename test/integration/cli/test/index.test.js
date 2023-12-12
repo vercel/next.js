@@ -310,6 +310,56 @@ describe('CLI Usage', () => {
         expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
       })
     })
+
+    describe('build', () => {
+      test('--help', async () => {
+        const help = await runNextCommand(['build', '--help'], {
+          stdout: true,
+        })
+        expect(help.stdout).toMatch(
+          /Compiles the application for production deployment/
+        )
+      })
+
+      test('-h', async () => {
+        const help = await runNextCommand(['build', '-h'], {
+          stdout: true,
+        })
+        expect(help.stdout).toMatch(
+          /Compiles the application for production deployment/
+        )
+      })
+
+      test('should warn when unknown argument provided', async () => {
+        const { stderr } = await runNextCommand(['build', '--random'], {
+          stderr: true,
+        })
+        expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+      })
+      test('should not throw UnhandledPromiseRejectionWarning', async () => {
+        const { stderr } = await runNextCommand(['build', '--random'], {
+          stderr: true,
+        })
+        expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+      })
+
+      test('should exit when SIGINT is signalled', async () => {
+        await testExitSignal('SIGINT', ['build', dirBasic])
+      })
+
+      test('should exit when SIGTERM is signalled', async () => {
+        await testExitSignal('SIGTERM', ['build', dirBasic])
+      })
+
+      test('invalid directory', async () => {
+        const output = await runNextCommand(['build', 'non-existent'], {
+          stderr: true,
+        })
+        expect(output.stderr).toContain(
+          'Invalid project directory provided, no such directory'
+        )
+      })
+    })
   })
 
   describe('no command', () => {
@@ -371,56 +421,6 @@ describe('CLI Usage', () => {
           `"next ${check[0]}" does not exist. Did you mean "next ${check[1]}"?`
         )
       }
-    })
-  })
-
-  describe('build', () => {
-    test('--help', async () => {
-      const help = await runNextCommand(['build', '--help'], {
-        stdout: true,
-      })
-      expect(help.stdout).toMatch(
-        /Compiles the application for production deployment/
-      )
-    })
-
-    test('-h', async () => {
-      const help = await runNextCommand(['build', '-h'], {
-        stdout: true,
-      })
-      expect(help.stdout).toMatch(
-        /Compiles the application for production deployment/
-      )
-    })
-
-    test('should warn when unknown argument provided', async () => {
-      const { stderr } = await runNextCommand(['build', '--random'], {
-        stderr: true,
-      })
-      expect(stderr).toEqual('Unknown or unexpected option: --random\n')
-    })
-    test('should not throw UnhandledPromiseRejectionWarning', async () => {
-      const { stderr } = await runNextCommand(['build', '--random'], {
-        stderr: true,
-      })
-      expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
-    })
-
-    test('should exit when SIGINT is signalled', async () => {
-      await testExitSignal('SIGINT', ['build', dirBasic])
-    })
-
-    test('should exit when SIGTERM is signalled', async () => {
-      await testExitSignal('SIGTERM', ['build', dirBasic])
-    })
-
-    test('invalid directory', async () => {
-      const output = await runNextCommand(['build', 'non-existent'], {
-        stderr: true,
-      })
-      expect(output.stderr).toContain(
-        'Invalid project directory provided, no such directory'
-      )
     })
   })
 
@@ -530,6 +530,7 @@ describe('CLI Usage', () => {
     test("NODE_OPTIONS='--inspect'", async () => {
       const port = await findPort()
       let output = ''
+      let errOutput = ''
       const app = await runNextCommandDev(
         [dirBasic, '--port', port],
         undefined,
@@ -537,11 +538,17 @@ describe('CLI Usage', () => {
           onStdout(msg) {
             output += stripAnsi(msg)
           },
+          onStderr(msg) {
+            errOutput += stripAnsi(msg)
+          },
           env: { NODE_OPTIONS: '--inspect' },
         }
       )
       try {
         await check(() => output, new RegExp(`http://localhost:${port}`))
+        await check(() => errOutput, /Debugger listening on/)
+        // TODO: This should work, but is currently failing.
+        // expect(errOutput).not.toContain('address already in use')
       } finally {
         await killApp(app)
       }
