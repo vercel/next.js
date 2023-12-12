@@ -1119,7 +1119,7 @@ async function renderToHTMLOrFlightImpl(
   if (
     // if PPR is enabled
     renderOpts.experimental.ppr &&
-    // and a call to `maybePostpone` happened
+    // and a call to `postpone` happened
     staticGenerationStore.postponeWasTriggered &&
     // but there's no postpone state
     !metadata.postponed
