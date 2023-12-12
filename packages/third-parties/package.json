@@ -12,7 +12,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "google.d.ts"
   ],
   "license": "MIT",
   "scripts": {
