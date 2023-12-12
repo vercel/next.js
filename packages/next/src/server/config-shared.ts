@@ -313,7 +313,7 @@ export interface ExperimentalConfig {
      * Allowed origins that can bypass Server Action's CSRF check. This is helpful
      * when you have reverse proxy in front of your app.
      * @example
-     * ["my-app.com"]
+     * ["my-app.com", "*.my-app.com"]
      */
     allowedOrigins?: string[]
   }
@@ -797,7 +797,16 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
-    ppr: false,
+    ppr:
+      // TODO: remove once we've made PPR default
+      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
+      // has been set to `true`, enable the experimental PPR feature so long as it
+      // wasn't explicitly disabled in the config.
+      process.env.__NEXT_TEST_MODE &&
+      process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? true
+        : false,
+    webpackBuildWorker: false,
   },
 }
 

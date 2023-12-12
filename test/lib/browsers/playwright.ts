@@ -39,6 +39,59 @@ export class Playwright extends BrowserInterface {
     request: new Set(),
   }
 
+  private async initContextTracing(
+    url: string,
+    page: Page,
+    context: BrowserContext
+  ) {
+    if (!tracePlaywright) {
+      return
+    }
+
+    try {
+      // Clean up if any previous traces are still active
+      await this.teardownTracing()
+
+      await context.tracing.start({
+        screenshots: true,
+        snapshots: true,
+        sources: true,
+      })
+      this.activeTrace = encodeURIComponent(url)
+
+      page.on('close', async () => {
+        await this.teardownTracing()
+      })
+    } catch (e) {
+      this.activeTrace = undefined
+    }
+  }
+
+  private async teardownTracing() {
+    if (!tracePlaywright || !this.activeTrace) {
+      return
+    }
+
+    try {
+      const traceDir = path.join(__dirname, '../../traces')
+      const traceOutputPath = path.join(
+        traceDir,
+        `${path
+          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
+          .replace(/\//g, '-')}`,
+        `playwright-${this.activeTrace}-${Date.now()}.zip`
+      )
+
+      await fs.remove(traceOutputPath)
+      await context.tracing.stop({
+        path: traceOutputPath,
+      })
+    } catch (e) {
+    } finally {
+      this.activeTrace = undefined
+    }
+  }
+
   on(event: Event, cb: (...args: any[]) => void) {
     if (!this.eventCallbacks[event]) {
       throw new Error(
@@ -82,6 +135,9 @@ export class Playwright extends BrowserInterface {
           ignoreHTTPSErrors,
           ...device,
         })
+        context.once('close', async () => {
+          await this.teardownTracing()
+        })
         contextHasJSEnabled = javaScriptEnabled
       }
       return
@@ -93,6 +149,9 @@ export class Playwright extends BrowserInterface {
       javaScriptEnabled,
       ignoreHTTPSErrors,
       ...device,
+    })
+    context.once('close', async () => {
+      await this.teardownTracing()
     })
     contextHasJSEnabled = javaScriptEnabled
   }
@@ -128,31 +187,19 @@ export class Playwright extends BrowserInterface {
 
   async loadPage(
     url: string,
-    opts?: { disableCache: boolean; beforePageLoad?: (...args: any[]) => void }
-  ) {
-    if (this.activeTrace) {
-      const traceDir = path.join(__dirname, '../../traces')
-      const traceOutputPath = path.join(
-        traceDir,
-        `${path
-          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
-          .replace(/\//g, '-')}`,
-        `playwright-${this.activeTrace}-${Date.now()}.zip`
-      )
-
-      await fs.remove(traceOutputPath)
-      await context.tracing
-        .stop({
-          path: traceOutputPath,
-        })
-        .catch((err) => console.error('failed to write playwright trace', err))
+    opts?: {
+      disableCache: boolean
+      cpuThrottleRate: number
+      beforePageLoad?: (...args: any[]) => void
     }
-
+  ) {
     // clean-up existing pages
     for (const oldPage of context.pages()) {
       await oldPage.close()
     }
+
     page = await context.newPage()
+    await this.initContextTracing(url, page, context)
 
     // in development compilation can take longer due to
     // lower CPU availability in GH actions
@@ -182,6 +229,14 @@ export class Playwright extends BrowserInterface {
       session.send('Network.setCacheDisabled', { cacheDisabled: true })
     }
 
+    if (opts?.cpuThrottleRate) {
+      const session = await context.newCDPSession(page)
+      // https://chromedevtools.github.io/devtools-protocol/tot/Emulation/#method-setCPUThrottlingRate
+      session.send('Emulation.setCPUThrottlingRate', {
+        rate: opts.cpuThrottleRate,
+      })
+    }
+
     page.on('websocket', (ws) => {
       if (tracePlaywright) {
         page
@@ -207,13 +262,6 @@ export class Playwright extends BrowserInterface {
 
     opts?.beforePageLoad?.(page)
 
-    if (tracePlaywright) {
-      await context.tracing.start({
-        screenshots: true,
-        snapshots: true,
-      })
-      this.activeTrace = encodeURIComponent(url)
-    }
     await page.goto(url, { waitUntil: 'load' })
   }
 

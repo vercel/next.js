@@ -280,9 +280,11 @@ export async function startServer(
           console.error(err)
         }
         process.on('exit', (code) => cleanup(code))
-        // callback value is signal string, exit with 0
-        process.on('SIGINT', () => cleanup(0))
-        process.on('SIGTERM', () => cleanup(0))
+        if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+          // callback value is signal string, exit with 0
+          process.on('SIGINT', () => cleanup(0))
+          process.on('SIGTERM', () => cleanup(0))
+        }
         process.on('rejectionHandled', () => {
           // It is ok to await a Promise late in Next.js as it allows for better
           // prefetching patterns to avoid waterfalls. We ignore loggining these.

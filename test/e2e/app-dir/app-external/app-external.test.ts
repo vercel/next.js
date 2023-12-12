@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { shouldRunTurboDevTest } from '../../../lib/next-test-utils'
+import { check, shouldRunTurboDevTest } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -210,6 +210,24 @@ createNextDescribe(
       })
     })
 
+    describe('mixed syntax external modules', () => {
+      it('should handle mixed module with next/dynamic', async () => {
+        const browser = await next.browser('/mixed/dynamic')
+        expect(await browser.elementByCss('#component').text()).toContain(
+          'mixed-syntax-esm'
+        )
+      })
+
+      it('should handle mixed module in server and client components', async () => {
+        const $ = await next.render$('/mixed/import')
+        expect(await $('#server').text()).toContain('server:mixed-syntax-esm')
+        expect(await $('#client').text()).toContain('client:mixed-syntax-esm')
+        expect(await $('#relative-mixed').text()).toContain(
+          'relative-mixed-syntax-esm'
+        )
+      })
+    })
+
     it('should export client module references in esm', async () => {
       const html = await next.render('/esm-client-ref')
       expect(html).toContain('hello')
@@ -231,6 +249,23 @@ createNextDescribe(
     it('should use the same async storages if imported directly', async () => {
       const html = await next.render('/async-storage')
       expect(html).toContain('success')
+    })
+
+    it('should not prefer to resolve esm over cjs for bundling optout packages', async () => {
+      const browser = await next.browser('/optout/action')
+      expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
+
+      browser.elementByCss('#dual-pkg-outout button').click()
+      await check(async () => {
+        const text = await browser.elementByCss('#dual-pkg-outout p').text()
+        if (process.env.TURBOPACK) {
+          // The prefer esm won't effect turbopack resolving
+          expect(text).toBe('dual-pkg-optout:mjs')
+        } else {
+          expect(text).toBe('dual-pkg-optout:cjs')
+        }
+        return 'success'
+      }, /success/)
     })
   }
 )

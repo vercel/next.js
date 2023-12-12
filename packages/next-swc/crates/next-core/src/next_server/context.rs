@@ -17,7 +17,7 @@ use turbopack_binding::{
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
-        ecmascript::{references::esm::UrlRewriteBehavior, TransformPlugin},
+        ecmascript::{references::esm::UrlRewriteBehavior, TransformPlugin, TreeShakingMode},
         ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
         node::execution_context::ExecutionContext,
         turbopack::{
@@ -90,6 +90,7 @@ pub enum ServerContextType {
         app_dir: Vc<FileSystemPath>,
     },
     Middleware,
+    Instrumentation,
 }
 
 #[turbo_tasks::function]
@@ -140,7 +141,8 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppSSR { .. }
-        | ServerContextType::Middleware { .. } => {}
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. } => {}
     };
     let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
@@ -168,11 +170,25 @@ pub async fn get_server_resolve_options_context(
         }
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware { .. } => {
+        | ServerContextType::AppRoute { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(server_component_externals_plugin),
+                Vc::upcast(unsupported_modules_resolve_plugin),
+                Vc::upcast(next_external_plugin),
+                Vc::upcast(next_node_shared_runtime_plugin),
+            ]
+        }
+        ServerContextType::Middleware { .. } => {
+            vec![
+                Vc::upcast(module_feature_report_resolve_plugin),
+                Vc::upcast(unsupported_modules_resolve_plugin),
+                Vc::upcast(next_node_shared_runtime_plugin),
+            ]
+        }
+        ServerContextType::Instrumentation { .. } => {
+            vec![
+                Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_external_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
@@ -255,7 +271,9 @@ pub async fn get_server_module_options_context(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value(), mode).await?;
-    let internal_custom_rules = get_next_server_internal_transforms_rules(ty.into_value()).await?;
+    let internal_custom_rules =
+        get_next_server_internal_transforms_rules(ty.into_value(), *next_config.mdx_rs().await?)
+            .await?;
 
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
@@ -371,6 +389,7 @@ pub async fn get_server_module_options_context(
                 execution_context: Some(execution_context),
                 esm_url_rewrite_behavior: url_rewrite_behavior,
                 use_lightningcss,
+                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
 
@@ -440,6 +459,7 @@ pub async fn get_server_module_options_context(
                 custom_ecma_transform_plugins: base_ecma_transform_plugins,
                 execution_context: Some(execution_context),
                 use_lightningcss,
+                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -525,6 +545,7 @@ pub async fn get_server_module_options_context(
                 custom_ecma_transform_plugins: base_ecma_transform_plugins,
                 execution_context: Some(execution_context),
                 use_lightningcss,
+                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -564,6 +585,7 @@ pub async fn get_server_module_options_context(
         ServerContextType::AppRoute { .. } => {
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
+                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -592,7 +614,7 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             }
         }
-        ServerContextType::Middleware => {
+        ServerContextType::Middleware | ServerContextType::Instrumentation => {
             let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
                 styled_components_transform_plugin,
                 styled_jsx_transform_plugin,
@@ -612,6 +634,7 @@ pub async fn get_server_module_options_context(
 
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
+                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -651,6 +674,7 @@ pub async fn get_server_module_options_context(
 pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
     ModuleOptionsContext {
         enable_typescript_transform: Some(Default::default()),
+        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         ..Default::default()
     }
     .cell()

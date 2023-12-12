@@ -6,7 +6,7 @@
     "src"
   ],
   "scripts": {
-    "build": "ncc -m -o . build src/index.mjs --license licenses.txt"
+    "build": "ncc build src/index.mjs -m -o dist --license licenses.txt"
   },
   "devDependencies": {
     "@vercel/ncc": "0.34.0"
