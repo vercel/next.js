@@ -1,4 +1,8 @@
-import type { transform as transformCss, TransformOptions } from 'lightningcss'
+import type {
+  MediaList,
+  transform as transformCss,
+  TransformOptions,
+} from 'lightningcss'
 
 type Implementation = {
   transformCss: typeof transformCss
@@ -69,7 +73,7 @@ export interface ILightningCssLoaderConfig extends AllowLoaderTransformOpts {
 
 export interface VisitorOptions {
   urlFilter: (url: string) => boolean
-  importFilter: (url: string) => boolean
+  importFilter: (url: string, media: MediaList) => boolean
 
   urlHandler: (url: any) => string
 }
