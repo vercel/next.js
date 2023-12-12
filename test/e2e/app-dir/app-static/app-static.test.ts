@@ -2909,7 +2909,7 @@ createNextDescribe(
         if (!(global as any).isNextDeploy) {
           it('should have values from canonical url on rewrite', async () => {
             const browser = await next.browser(
-              '/rewritten-use-search-params/static-bailout?first=a&second=b&third=c'
+              '/rewritten-use-search-params?first=a&second=b&third=c'
             )
 
             expect(await browser.elementByCss('#params-first').text()).toBe('a')
