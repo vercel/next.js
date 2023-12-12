@@ -542,15 +542,12 @@ createNextDescribe(
             'blog/styfle/second-post.rsc',
             'force-static/[slug]/page.js',
             'hooks/use-pathname/slug.rsc',
-            'hooks/use-search-params.rsc',
             'route-handler/post/route.js',
             'blog/[author]/[slug]/page.js',
             'blog/styfle/second-post.html',
             'hooks/use-pathname/slug.html',
-            'hooks/use-search-params.html',
             'flight/[slug]/[slug2]/page.js',
             'variable-revalidate/cookie.rsc',
-            'hooks/use-search-params/page.js',
             'ssr-auto/cache-no-store/page.js',
             'variable-revalidate/cookie.html',
             'api/revalidate-tag-edge/route.js',
@@ -663,7 +660,10 @@ createNextDescribe(
             'force-static/[slug]/page_client-reference-manifest.js',
             'blog/[author]/[slug]/page_client-reference-manifest.js',
             'flight/[slug]/[slug2]/page_client-reference-manifest.js',
-            'hooks/use-search-params/page_client-reference-manifest.js',
+            'hooks/use-search-params/static-bailout.html',
+            'hooks/use-search-params/static-bailout.rsc',
+            'hooks/use-search-params/static-bailout/page.js',
+            'hooks/use-search-params/static-bailout/page_client-reference-manifest.js',
             'ssr-auto/cache-no-store/page_client-reference-manifest.js',
             'gen-params-dynamic/[slug]/page_client-reference-manifest.js',
             'hooks/use-pathname/[slug]/page_client-reference-manifest.js',
@@ -966,8 +966,8 @@ createNextDescribe(
               "initialRevalidateSeconds": false,
               "srcRoute": "/hooks/use-pathname/[slug]",
             },
-            "/hooks/use-search-params": {
-              "dataRoute": "/hooks/use-search-params.rsc",
+            "/hooks/use-search-params/static-bailout": {
+              "dataRoute": "/hooks/use-search-params/static-bailout.rsc",
               "experimentalBypassFor": [
                 {
                   "key": "Next-Action",
@@ -980,7 +980,7 @@ createNextDescribe(
                 },
               ],
               "initialRevalidateSeconds": false,
-              "srcRoute": "/hooks/use-search-params",
+              "srcRoute": "/hooks/use-search-params/static-bailout",
             },
             "/hooks/use-search-params/force-static": {
               "dataRoute": "/hooks/use-search-params/force-static.rsc",
@@ -2927,7 +2927,9 @@ createNextDescribe(
       if (!isDev) {
         describe('server response', () => {
           it('should bailout to client rendering - without suspense boundary', async () => {
-            const res = await next.fetch('/hooks/use-search-params')
+            const res = await next.fetch(
+              '/hooks/use-search-params/static-bailout'
+            )
             const html = await res.text()
             expect(html).toInclude('<html id="__next_error__">')
           })
