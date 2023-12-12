@@ -55,6 +55,7 @@ export class Playwright extends BrowserInterface {
       await context.tracing.start({
         screenshots: true,
         snapshots: true,
+        sources: true,
       })
       this.activeTrace = encodeURIComponent(url)
 

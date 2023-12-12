@@ -112,7 +112,7 @@ describe('serverPatchReducer', () => {
                       '',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -120,7 +120,7 @@ describe('serverPatchReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -173,7 +173,7 @@ describe('serverPatchReducer', () => {
                     "" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
-                      "subTreeData": <React.Fragment>
+                      "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
@@ -189,23 +189,23 @@ describe('serverPatchReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
-                            "subTreeData": null,
+                            "rsc": null,
                           },
                         },
                       },
-                      "subTreeData": <h1>
+                      "rsc": <h1>
                         Somewhere Page!
                       </h1>,
                     },
                   },
                 },
-                "subTreeData": <React.Fragment>
+                "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "subTreeData": <html>
+          "rsc": <html>
             <head />
             <body>
               Root layout
@@ -276,7 +276,7 @@ describe('serverPatchReducer', () => {
                       '',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -284,7 +284,7 @@ describe('serverPatchReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
             },
           ],
         ]),
@@ -349,7 +349,7 @@ describe('serverPatchReducer', () => {
                     "" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
-                      "subTreeData": <React.Fragment>
+                      "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
@@ -365,11 +365,11 @@ describe('serverPatchReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
-                            "subTreeData": null,
+                            "rsc": null,
                           },
                         },
                       },
-                      "subTreeData": <h1>
+                      "rsc": <h1>
                         About Page!
                       </h1>,
                     },
@@ -385,23 +385,23 @@ describe('serverPatchReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
-                            "subTreeData": null,
+                            "rsc": null,
                           },
                         },
                       },
-                      "subTreeData": <h1>
+                      "rsc": <h1>
                         Somewhere Page!
                       </h1>,
                     },
                   },
                 },
-                "subTreeData": <React.Fragment>
+                "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "subTreeData": <html>
+          "rsc": <html>
             <head />
             <body>
               Root layout
