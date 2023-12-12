@@ -242,7 +242,7 @@ export function makeExternalHandler({
     // TODO-APP: bundle route.js with different layer that externals common node_module deps.
     if (
       isWebpackServerLayer(layer) &&
-      request === 'next/dist/compiled/@vercel/og/index.node.js'
+      request.startsWith('next/dist/compiled/@vercel/og/index.')
     ) {
       return `module ${request}`
     }
