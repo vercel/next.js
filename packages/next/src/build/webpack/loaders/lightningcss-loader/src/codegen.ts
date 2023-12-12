@@ -19,11 +19,11 @@ export interface CssExport {
 }
 
 export interface ApiParam {
-  url: string
+  url?: string
   importName?: string
 
-  layer: string
-  supports: string
+  layer?: string
+  supports?: string
   media: string
 
   dedupe?: boolean
