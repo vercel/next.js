@@ -20,8 +20,12 @@ function createVisitor(
   options: ILightningCssLoaderConfig,
   visitorOptions: VisitorOptions,
   apis: ApiParam[],
+  imports: CssImport[],
   replacements: ApiReplacement[]
 ): Visitor<{}> {
+  let importIndex = 0
+  const importUrlToNameMap = new Map<string, string>()
+
   return {
     Rule(node) {
       if (node.type !== 'import') {
@@ -40,7 +44,9 @@ function createVisitor(
 
       console.log('Rule.node', node)
 
-      return node
+      return {
+        type: 'ignored',
+      }
     },
 
     Url(node) {
@@ -113,6 +119,7 @@ export async function LightningCssLoader(
           importFilter: getFilter(options.import, this.resourcePath),
         },
         api,
+        imports,
         replacements
       ),
       cssModules: options.modules
