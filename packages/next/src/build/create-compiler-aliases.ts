@@ -147,7 +147,7 @@ export function createWebpackAliases({
 
           // Adding dynamic alias for next/dist/compiled/@vercel/og,
           // as conditionNames didn't pick up the export asset properly.
-          [require.resolve('next/dist/compiled/@vercel/og')]:
+          '^next/dist/compiled/@vercel/og$':
             'next/dist/compiled/@vercel/og/index.edge.js',
         }
       : undefined),
