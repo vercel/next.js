@@ -1,5 +1,5 @@
 import type { LoaderContext } from 'webpack'
-import type { ILightningCssLoaderConfig } from './interface'
+import type { ILightningCssLoaderConfig, VisitorOptions } from './interface'
 import { ECacheKey } from './interface'
 import { transform as transformCss, type Visitor } from 'lightningcss'
 import { Buffer } from 'buffer'
@@ -14,13 +14,24 @@ import {
   getModuleCode,
   getExportCode,
 } from './codegen'
+import { getFilter, getPreRequester } from '../../css-loader/src/utils'
 
 function createVisitor(
   options: ILightningCssLoaderConfig,
+  visitorOptions: VisitorOptions,
   apis: ApiParam[],
   replacements: ApiReplacement[]
 ): Visitor<{}> {
-  return {}
+  return {
+    Url(node) {
+      const { url } = node
+      const { urlHandler } = visitorOptions
+
+      node.url = urlHandler(url)
+
+      return node
+    },
+  }
 }
 
 const LOADER_NAME = `lightningcss-loader`
@@ -67,7 +78,20 @@ export async function LightningCssLoader(
       map,
       exports: moduleExports,
     } = transform({
-      visitor: createVisitor(options, api, replacements),
+      visitor: createVisitor(
+        options,
+        {
+          urlHandler: (url) =>
+            stringifyRequest(
+              this,
+              getPreRequester(this)(options.importLoaders ?? 0) + url
+            ),
+          urlFilter: getFilter(options.url, this.resourcePath),
+          importFilter: getFilter(options.import, this.resourcePath),
+        },
+        api,
+        replacements
+      ),
       cssModules: options.modules
         ? {
             pattern: process.env.__NEXT_TEST_MODE
