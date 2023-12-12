@@ -174,6 +174,9 @@ impl AssetIdent {
         context_path: Vc<FileSystemPath>,
         expected_extension: String,
     ) -> Result<Vc<String>> {
+        // TODO(PACK-2140): restrict character set to A–Za–z0–9-_.~'()
+        // to be compatible with all operating systems + URLs.
+
         // For clippy -- This explicit deref is necessary
         let path = &*self.path.await?;
         let mut name = if let Some(inner) = context_path.await?.get_path_to(path) {
