@@ -110,7 +110,7 @@
     "@typescript-eslint/eslint-plugin": "6.14.0",
     "@typescript-eslint/parser": "6.14.0",
     "@vercel/fetch": "6.1.1",
-    "@vercel/og": "0.6.0",
+    "@vercel/og": "0.6.1",
     "abort-controller": "3.0.0",
     "alex": "9.1.0",
     "amphtml-validator": "1.0.35",

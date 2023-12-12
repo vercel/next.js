@@ -177,8 +177,8 @@ importers:
         specifier: 6.1.1
         version: 6.1.1(@types/node-fetch@2.6.1)(node-fetch@2.6.7)
       '@vercel/og':
-        specifier: 0.6.0
-        version: 0.6.0
+        specifier: 0.6.1
+        version: 0.6.1
       abort-controller:
         specifier: 3.0.0
         version: 3.0.0
@@ -7193,8 +7193,8 @@ packages:
       - supports-color
     dev: true
 
-  /@vercel/og@0.6.0:
-    resolution: {integrity: sha512-dLHUWTZnMAWJtXZPb6wQHoFwcxd/OaxYPW1HOxL5alT1AphF3ODC4clUoQsofrKdNGRkKfNlYZQh6AvHD6hryA==}
+  /@vercel/og@0.6.1:
+    resolution: {integrity: sha512-o0ItpTQrn7TdBRiYLoBmATfunenfI87AZ5S/SvS9puxN4rjuNdDHSV6ND24WBt0FK2SljfM9LYowK/99ql2bEA==}
     engines: {node: '>=16'}
     dependencies:
       '@resvg/resvg-wasm': 2.6.0

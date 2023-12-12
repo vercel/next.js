@@ -1,5 +1,5 @@
-import { EdgeImageResponse } from 'src/index.edge.types';
-import { FigmaImageResponseProps } from 'src/types';
+import type { EdgeImageResponse } from '../index.edge';
+import { FigmaImageResponseProps } from '../types';
 declare type InternalFigmaImageResponseProps = FigmaImageResponseProps & {
     Response: EdgeImageResponse;
 };
