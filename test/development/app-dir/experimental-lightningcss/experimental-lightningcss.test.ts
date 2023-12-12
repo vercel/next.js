@@ -1,9 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { describeVariants as describe } from 'next-test-utils'
+import { describeVariants } from 'next-test-utils'
 import { join } from 'path'
 import { readdir, readFile } from 'node:fs/promises'
 
-describe.each(['turbo'])('experimental-lightningcss', () => {
+describeVariants.each(['turbo'])('experimental-lightningcss', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
@@ -20,7 +20,7 @@ describe.each(['turbo'])('experimental-lightningcss', () => {
 })
 
 // lightningcss produces different class names in turbo mode
-describe.each(['default'])(
+describeVariants.each(['default'])(
   'experimental-lightningcss with default mdoe',
   () => {
     describe('in dev server', async () => {
