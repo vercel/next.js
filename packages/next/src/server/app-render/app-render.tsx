@@ -408,7 +408,7 @@ function createServerComponentsRenderer(
           initialSeedData={seedData}
           initialHead={
             <>
-              {ctx.res.statusCode >= 400 && (
+              {ctx.res.statusCode > 400 && (
                 <meta name="robots" content="noindex" />
               )}
               {/* Adding requestId as react key to make metadata remount for each render */}
@@ -847,7 +847,6 @@ async function renderToHTMLOrFlightImpl(
 
         return await continueFizzStream(stream, options)
       } catch (err: any) {
-        console.log('found err', err)
         if (
           err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
           err.message?.includes(
