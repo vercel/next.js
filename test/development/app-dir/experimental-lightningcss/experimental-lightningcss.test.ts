@@ -44,10 +44,11 @@ describeVariants.each(['default'])(
         dependencies: { lightningcss: '^1' },
         build: true,
       })
-      const appDir = next.testDir
 
       // Copied from the css-loader test in next.js
       it(`should've emitted expected files`, async () => {
+        const appDir = next.testDir
+
         const cssFolder = join(appDir, '.next/static/css')
         const mediaFolder = join(appDir, '.next/static/media')
 
