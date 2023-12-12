@@ -113,6 +113,7 @@ describe('serverPatchReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -121,6 +122,7 @@ describe('serverPatchReducer', () => {
               ]),
               lazyData: null,
               rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -173,6 +175,7 @@ describe('serverPatchReducer', () => {
                     "" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
+                      "prefetchRsc": null,
                       "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
@@ -189,22 +192,26 @@ describe('serverPatchReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
+                            "prefetchRsc": null,
                             "rsc": null,
                           },
                         },
                       },
+                      "prefetchRsc": null,
                       "rsc": <h1>
                         Somewhere Page!
                       </h1>,
                     },
                   },
                 },
+                "prefetchRsc": null,
                 "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
+          "prefetchRsc": null,
           "rsc": <html>
             <head />
             <body>
@@ -277,6 +284,7 @@ describe('serverPatchReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -285,6 +293,7 @@ describe('serverPatchReducer', () => {
               ]),
               lazyData: null,
               rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -349,6 +358,7 @@ describe('serverPatchReducer', () => {
                     "" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
+                      "prefetchRsc": null,
                       "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
@@ -365,10 +375,12 @@ describe('serverPatchReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
+                            "prefetchRsc": null,
                             "rsc": null,
                           },
                         },
                       },
+                      "prefetchRsc": null,
                       "rsc": <h1>
                         About Page!
                       </h1>,
@@ -385,22 +397,26 @@ describe('serverPatchReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
+                            "prefetchRsc": null,
                             "rsc": null,
                           },
                         },
                       },
+                      "prefetchRsc": null,
                       "rsc": <h1>
                         Somewhere Page!
                       </h1>,
                     },
                   },
                 },
+                "prefetchRsc": null,
                 "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
+          "prefetchRsc": null,
           "rsc": <html>
             <head />
             <body>
