@@ -9,7 +9,7 @@ const Page = () => {
   }
 
   return (
-    <div class="container">
+    <div className="container">
       <GoogleAnalytics gaId="GA-XYZ" />
       <h1>GA</h1>
       <button id="ga-send" onClick={onClick}>
