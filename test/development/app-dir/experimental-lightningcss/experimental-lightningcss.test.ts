@@ -18,48 +18,60 @@ describe.each(['turbo'])('experimental-lightningcss', () => {
 })
 
 // lightningcss produces different class names in turbo mode
-describe.each(['default'])('experimental-lightningcss', () => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    dependencies: { lightningcss: '^1' },
-  })
+describe.each(['default'])(
+  'experimental-lightningcss with default mdoe',
+  () => {
+    describe('in dev server', async () => {
+      const { next } = nextTestSetup({
+        files: __dirname,
+        dependencies: { lightningcss: '^1' },
+      })
 
-  it('should support css modules', async () => {
-    // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
-    const $ = await next.render$('/')
-    expect($('p').text()).toBe('hello world')
-    // We remove hash frmo the class name in test mode using env var because it is not deterministic.
-    expect($('p').attr('class')).toBe('search-keyword style-module__blue')
-  })
+      it('should support css modules', async () => {
+        // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
+        const $ = await next.render$('/')
+        expect($('p').text()).toBe('hello world')
+        // We remove hash frmo the class name in test mode using env var because it is not deterministic.
+        expect($('p').attr('class')).toBe('search-keyword style-module__blue')
+      })
+    })
 
-  // Copied from the css-loader test in next.js
-  it(`should've emitted expected files`, async () => {
-    const cssFolder = join(appDir, '.next/static/css')
-    const mediaFolder = join(appDir, '.next/static/media')
+    describe('in production build', async () => {
+      const { next } = nextTestSetup({
+        files: __dirname,
+        dependencies: { lightningcss: '^1' },
+      })
 
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
+      // Copied from the css-loader test in next.js
+      it(`should've emitted expected files`, async () => {
+        const cssFolder = join(appDir, '.next/static/css')
+        const mediaFolder = join(appDir, '.next/static/media')
 
-    expect(cssFiles.length).toBe(1)
-    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-      /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
-    )
+        const files = await readdir(cssFolder)
+        const cssFiles = files.filter((f) => /\.css$/.test(f))
 
-    const mediaFiles = await readdir(mediaFolder)
-    expect(mediaFiles.length).toBe(3)
-    expect(
-      mediaFiles
-        .map((fileName) =>
-          /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
+        expect(cssFiles.length).toBe(1)
+        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+        expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+          /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
         )
-        .sort()
-    ).toMatchInlineSnapshot(`
+
+        const mediaFiles = await readdir(mediaFolder)
+        expect(mediaFiles.length).toBe(3)
+        expect(
+          mediaFiles
+            .map((fileName) =>
+              /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
+            )
+            .sort()
+        ).toMatchInlineSnapshot(`
       [
         "dark.svg",
         "dark2.svg",
         "light.svg",
       ]
     `)
-  })
-})
+      })
+    })
+  }
+)
