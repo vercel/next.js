@@ -1,7 +1,7 @@
 // @ts-ignore
 import { ModuleFilenameHelpers } from 'next/dist/compiled/webpack/webpack'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { RawSource, SourceMapSource } from 'webpack-sources'
+import { RawSource, SourceMapSource } from 'next/dist/compiled/webpack-sources3'
 import { transform as transformCss } from 'lightningcss'
 import {
   ECacheKey,
