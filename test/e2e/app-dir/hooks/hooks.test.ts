@@ -54,15 +54,22 @@ createNextDescribe(
     describe('useSearchParams', () => {
       it('should have the correct search params', async () => {
         const $ = await next.render$(
-          '/hooks/use-search-params?first=value&second=other%20value&third'
+          '/hooks/use-search-params/dynamic?first=value&second=other%20value&third'
         )
         expect($('#params-first').text()).toBe('value')
         expect($('#params-second').text()).toBe('other value')
         expect($('#params-third').text()).toBe('')
         expect($('#params-not-real').text()).toBe('N/A')
+      })
 
+      it('should not contain noindex meta tag for static built page', async () => {
+        const $ = await next.render$(
+          '/hooks/use-search-params/static?first=value'
+        )
+        // static built page will not have search params
+        expect($('#params-first').text()).toBe('')
         // should not have noindex meta tag as it's erroring on purpose, for nextjs internal use only
-        expect($('meta[name=noindex]').length).toBe(0)
+        expect($('meta[content=noindex]').length).toBe(0)
       })
 
       // TODO-APP: correct this behavior when deployed
