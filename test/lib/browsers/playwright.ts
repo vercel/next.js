@@ -192,6 +192,12 @@ export class Playwright extends BrowserInterface {
     await page.goto(url)
   }
 
+  async close(): Promise<void> {
+    await teardown(this.teardownTracing.bind(this))
+    await Promise.all(pendingTeardown.map((fn) => fn()))
+    await super.close()
+  }
+
   async loadPage(
     url: string,
     opts?: {
