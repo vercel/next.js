@@ -2334,7 +2334,22 @@ export default async function build(
 
               // Link the same pageInfo used for the `page` to this specific
               // `route` as they should all share the same characteristics.
-              pageInfos.set(route, pageInfo)
+              console.log('FOR ROUTE', route, 'PAGE', page, 'KIND', kind)
+              if (pageInfos.get(route) === pageInfo) {
+                console.log('PAGE_INFO ALREADY SET TO THIS PAGE', route)
+              } else if (pageInfos.has(route)) {
+                console.error(
+                  'OLD',
+                  JSON.stringify(pageInfos.get(route), null, 2)
+                )
+                console.error('NEW', JSON.stringify(pageInfo, null, 2))
+                throw new Error(
+                  `Invariant: page info for ${route} already exists in registry`
+                )
+              } else {
+                console.log('SETTING NEW', JSON.stringify(pageInfo, null, 2))
+                pageInfos.set(route, pageInfo)
+              }
 
               if (revalidate !== 0) {
                 let dataRoute: string | null = null
