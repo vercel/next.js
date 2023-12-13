@@ -1,6 +1,7 @@
 use std::{io::Write, iter::once};
 
 use anyhow::{bail, Context, Result};
+use indexmap::IndexSet;
 use indoc::writedoc;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
@@ -65,18 +66,17 @@ impl EcmascriptClientReferenceProxyModule {
     }
 
     #[turbo_tasks::function]
-    async fn proxy_module(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAsset>> {
-        let this = self.await?;
+    async fn proxy_module(&self) -> Result<Vc<EcmascriptModuleAsset>> {
         let mut code = CodeBuilder::default();
 
-        // Adapted from
-        // next.js/packages/next/src/build/webpack/loaders/next-flight-loader/index.ts
+        let server_module_path = &*self.server_module_ident.path().to_string().await?;
+
         writedoc!(
             code,
             r#"
-                import {{ createProxy }} from 'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
+                import {{ createProxy }} from 'next/dist/build/webpack/loaders/next-flight-loader/module-proxy';
 
-                const proxy = createProxy({server_module_path})
+                const proxy = createProxy({server_module_path});
 
                 // Accessing the __esModule property and exporting $$typeof are required here.
                 // The __esModule getter forces the proxy target to create the default export
@@ -84,22 +84,54 @@ impl EcmascriptClientReferenceProxyModule {
                 // is a client boundary.
                 const {{ __esModule, $$typeof }} = proxy;
 
-                export {{ __esModule, $$typeof }};
                 export default proxy;
             "#,
-            server_module_path = StringifyJs(&this.server_module_ident.path().to_string().await?)
+            server_module_path = StringifyJs(server_module_path),
         )?;
+
+        // Adapted from
+        // next.js/packages/next/src/build/webpack/loaders/next-flight-loader/index.ts
+        if let EcmascriptExports::EsmExports(exports) = &*self.client_module.get_exports().await? {
+            let mut exported_names = exports
+                .await?
+                .exports
+                .keys()
+                .cloned()
+                .collect::<IndexSet<_>>();
+
+            for result in exports.expand_star_exports().await? {
+                let export_info = result.await?;
+
+                exported_names.extend(export_info.star_exports.iter().cloned());
+
+                if export_info.has_dynamic_exports {
+                    // TODO: throw? warn?
+                }
+            }
+
+            for (i, client_ref) in exported_names.into_iter().enumerate() {
+                writedoc!(
+                    code,
+                    r#"
+                        // Initialize export.
+                        const _e{cnt} = proxy[{client_ref}];
+                    "#,
+                    client_ref = StringifyJs(&client_ref),
+                    cnt = i,
+                )?;
+            }
+        };
 
         let code = code.build();
         let proxy_module_content =
             AssetContent::file(File::from(code.source_code().clone()).into());
 
         let proxy_source = VirtualSource::new(
-            this.server_module_ident.path().join("proxy.ts".to_string()),
+            self.server_module_ident.path().join("proxy.ts".to_string()),
             proxy_module_content,
         );
 
-        let proxy_module = this
+        let proxy_module = self
             .server_asset_context
             .process(
                 Vc::upcast(proxy_source),
