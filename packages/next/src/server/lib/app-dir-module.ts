@@ -1,5 +1,5 @@
 import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
-import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/constants'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 /**
  * LoaderTree is generated in next-app-loader.

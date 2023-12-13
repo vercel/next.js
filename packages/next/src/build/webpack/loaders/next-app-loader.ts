@@ -1,9 +1,5 @@
 import type webpack from 'next/dist/compiled/webpack/webpack'
-import {
-  DEFAULT_SEGMENT_KEY,
-  PAGE_SEGMENT_KEY,
-  type ValueOf,
-} from '../../../shared/lib/constants'
+import type { ValueOf } from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
@@ -27,7 +23,11 @@ import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
 import { isAppBuiltinNotFoundPage } from '../../utils'
 import { loadEntrypoint } from '../../load-entrypoint'
-import { isGroupSegment } from '../../../shared/lib/segment'
+import {
+  isGroupSegment,
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 import { getFilesInDir } from '../../../lib/get-files-in-dir'
 
 export type AppLoaderOptions = {

@@ -2,7 +2,7 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
 } from '../../../server/app-render/types'
-import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/constants'
+import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 
 /**

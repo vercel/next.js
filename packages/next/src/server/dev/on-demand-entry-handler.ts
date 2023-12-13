@@ -33,9 +33,9 @@ import { PageNotFoundError, stringifyError } from '../../shared/lib/utils'
 import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
-  PAGE_SEGMENT_KEY,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'

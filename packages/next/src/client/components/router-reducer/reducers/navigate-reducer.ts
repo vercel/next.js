@@ -27,7 +27,7 @@ import {
 import { prunePrefetchCache } from './prune-prefetch-cache'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
-import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/constants'
+import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,

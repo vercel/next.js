@@ -1,5 +1,5 @@
 import type { Segment } from '../../../server/app-render/types'
-import { PAGE_SEGMENT_KEY } from '../../../shared/lib/constants'
+import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 
 export function createRouterCacheKey(
   segment: Segment,
