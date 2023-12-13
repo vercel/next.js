@@ -574,7 +574,9 @@ createNextDescribe(
           )
         )
 
-        console.log(fileTrace)
+        expect(JSON.stringify(fileTrace.files, null, 2)).toMatchInlineSnapshot(`
+          []
+        `)
 
         // @vercel/og default font should be traced
         const isTraced = fileTrace.files.some((filePath) =>
