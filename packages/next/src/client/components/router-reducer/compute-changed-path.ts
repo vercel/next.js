@@ -4,10 +4,10 @@ import type {
 } from '../../../server/app-render/types'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/future/helpers/interception-routes'
 import {
+  isGroupSegment,
   DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
-} from '../../../shared/lib/constants'
-import { isGroupSegment } from '../../../shared/lib/segment'
+} from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 
 const removeLeadingSlash = (segment: string): string => {

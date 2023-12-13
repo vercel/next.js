@@ -21,7 +21,7 @@ import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { createComponentTree } from './create-component-tree'
-import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/constants'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 /**
  * Use router state to decide at what common layout to render the page.

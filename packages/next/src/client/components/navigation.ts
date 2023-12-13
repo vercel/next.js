@@ -12,7 +12,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
