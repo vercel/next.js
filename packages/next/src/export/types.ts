@@ -9,6 +9,10 @@ import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'
 import type { Revalidate } from '../server/lib/revalidate'
 import type { NextEnabledDirectories } from '../server/base-server'
+import type {
+  SerializableAccessProxy,
+  AccessProxy,
+} from '../build/access-proxy'
 
 export interface AmpValidation {
   page: string
@@ -60,6 +64,7 @@ export interface ExportPageInput {
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
   enabledDirectories: NextEnabledDirectories
+  isExportTraceEnabled?: boolean
 }
 
 export type ExportedPageFile = {
@@ -86,6 +91,7 @@ export type ExportRouteResult =
 export type ExportPageResult = ExportRouteResult & {
   files: ExportedPageFile[]
   duration: number
+  traceResult?: SerializableAccessProxy
 }
 
 export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
@@ -104,6 +110,7 @@ export interface ExportAppOptions {
   silent?: boolean
   threads?: number
   debugOutput?: boolean
+  isExportTraceEnabled?: boolean
   pages?: string[]
   buildExport: boolean
   statusMessage?: string
@@ -160,6 +167,11 @@ export type ExportAppResult = {
    * The paths that were not found during SSG.
    */
   ssgNotFoundPaths: Set<string>
+
+  /**
+   * Traced dependencies for each page.
+   */
+  exportTrace: Map<string, AccessProxy>
 }
 
 export type ExportAppWorker = (

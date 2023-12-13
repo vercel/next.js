@@ -55,6 +55,8 @@ import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
 import { validateRevalidate } from '../server/lib/patch-fetch'
+import { isDefaultRoute } from '../lib/is-default-route'
+import { AccessProxy } from '../build/access-proxy'
 
 function divideSegments(number: number, segments: number): number[] {
   const result = []
@@ -703,6 +705,7 @@ export async function exportAppImpl(
           cacheHandler: nextConfig.cacheHandler,
           enableExperimentalReact: needsExperimentalReact(nextConfig),
           enabledDirectories,
+          isExportTraceEnabled: options.isExportTraceEnabled,
         })
       })
 
@@ -720,12 +723,20 @@ export async function exportAppImpl(
     byPath: new Map(),
     byPage: new Map(),
     ssgNotFoundPaths: new Set(),
+    exportTrace: new Map(),
   }
 
   for (const { result, path } of results) {
     if (!result) continue
 
     const { page } = exportPathMap[path]
+
+    if (result.traceResult) {
+      collector.exportTrace?.set(
+        path,
+        AccessProxy.fromSerialized(result.traceResult)
+      )
+    }
 
     // Capture any render errors.
     if ('error' in result) {
