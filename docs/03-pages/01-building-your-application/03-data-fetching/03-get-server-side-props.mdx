@@ -30,7 +30,7 @@ export default function Page({
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   return (
     <main>
-      <p>repo.stargazers_count</p>
+      <p>{repo.stargazers_count}</p>
     </main>
   )
 }
@@ -48,7 +48,7 @@ export async function getServerSideProps() {
 export default function Page({ repo }) {
   return (
     <main>
-      <p>repo.stargazers_count</p>
+      <p>{repo.stargazers_count}</p>
     </main>
   )
 }

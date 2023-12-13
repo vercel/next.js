@@ -14,8 +14,10 @@ type Repo = {
 }
 
 export const getServerSideProps = (async () => {
+  // Fetch data from external API
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo: Repo = await res.json()
+  // Pass data to the page via props
   return { props: { repo } }
 }) satisfies GetServerSideProps<{ repo: Repo }>
 
@@ -24,7 +26,7 @@ export default function Page({
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   return (
     <main>
-      <p>repo.stargazers_count</p>
+      <p>{repo.stargazers_count}</p>
     </main>
   )
 }
@@ -32,15 +34,17 @@ export default function Page({
 
 ```jsx filename="pages/index.js" switcher
 export async function getServerSideProps() {
+  // Fetch data from external API
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
+  // Pass data to the page via props
   return { props: { repo } }
 }
 
 export default function Page({ repo }) {
   return (
     <main>
-      <p>repo.stargazers_count</p>
+      <p>{repo.stargazers_count}</p>
     </main>
   )
 }
