@@ -50,6 +50,7 @@ export function fillCacheWithNewSubTreeData(
       childCacheNode = {
         lazyData: null,
         rsc,
+        prefetchRsc: null,
         // Ensure segments other than the one we got data for are preserved.
         parallelRoutes: existingChildCacheNode
           ? new Map(existingChildCacheNode.parallelRoutes)
@@ -88,6 +89,7 @@ export function fillCacheWithNewSubTreeData(
     childCacheNode = {
       lazyData: childCacheNode.lazyData,
       rsc: childCacheNode.rsc,
+      prefetchRsc: childCacheNode.prefetchRsc,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
     } as CacheNode
     childSegmentMap.set(cacheKey, childCacheNode)

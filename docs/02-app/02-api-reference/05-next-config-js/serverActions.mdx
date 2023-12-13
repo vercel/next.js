@@ -15,7 +15,7 @@ A list of extra safe origin domains from which Server Actions can be invoked. Ne
 module.exports = {
   experimental: {
     serverActions: {
-      allowedOrigins: ['my-proxy.com'],
+      allowedOrigins: ['my-proxy.com', '*.my-proxy.com'],
     },
   },
 }

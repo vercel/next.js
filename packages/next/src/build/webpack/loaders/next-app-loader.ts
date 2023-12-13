@@ -23,7 +23,11 @@ import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
 import { isAppBuiltinNotFoundPage } from '../../utils'
 import { loadEntrypoint } from '../../load-entrypoint'
-import { isGroupSegment } from '../../../shared/lib/segment'
+import {
+  isGroupSegment,
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 import { getFilesInDir } from '../../../lib/get-files-in-dir'
 import { DEFAULT_SEGMENT } from '../../../lib/is-default-route'
 
@@ -275,7 +279,9 @@ async function createTreeCodeFromPath(
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-        props[normalizeParallelKey(parallelKey)] = `['__PAGE__', {}, {
+        props[
+          normalizeParallelKey(parallelKey)
+        ] = `['${PAGE_SEGMENT_KEY}', {}, {
           page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
           )}), ${JSON.stringify(resolvedPagePath)}],
@@ -398,7 +404,7 @@ async function createTreeCodeFromPath(
           definedFilePaths.find(([type]) => type === 'not-found')?.[1] ??
           defaultNotFoundPath
         subtreeCode = `{
-          children: ['__PAGE__', {}, {
+          children: ['${PAGE_SEGMENT_KEY}', {}, {
             page: [
               () => import(/* webpackMode: "eager" */ ${JSON.stringify(
                 notFoundPath
@@ -442,7 +448,7 @@ async function createTreeCodeFromPath(
           )) ?? 'next/dist/client/components/parallel-route-default'
 
         props[normalizeParallelKey(adjacentParallelSegment)] = `[
-          '__DEFAULT__',
+          '${DEFAULT_SEGMENT_KEY}',
           {},
           {
             defaultPage: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(

@@ -35,9 +35,7 @@ export function fillLazyItemsTillLeafWithHead(
     // in the response format, so that we don't have to send the keys twice.
     // Then the client can convert them into separate representations.
     const parallelSeedData =
-      cacheNodeSeedData !== null &&
-      cacheNodeSeedData[1] !== null &&
-      cacheNodeSeedData[1][key] !== undefined
+      cacheNodeSeedData !== null && cacheNodeSeedData[1][key] !== undefined
         ? cacheNodeSeedData[1][key]
         : null
     if (existingCache) {
@@ -53,6 +51,12 @@ export function fillLazyItemsTillLeafWithHead(
           newCacheNode = {
             lazyData: null,
             rsc: seedNode,
+            // This is a PPR-only field. When PPR is enabled, we shouldn't hit
+            // this path during a navigation, but until PPR is fully implemented
+            // yet it's possible the existing node does have a non-null
+            // `prefetchRsc`. As an incremental step, we'll just de-opt to the
+            // old behavior — no PPR value.
+            prefetchRsc: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
           }
         } else if (wasPrefetched && existingCacheNode) {
@@ -61,6 +65,10 @@ export function fillLazyItemsTillLeafWithHead(
           newCacheNode = {
             lazyData: existingCacheNode.lazyData,
             rsc: existingCacheNode.rsc,
+            // This is a PPR-only field. Unlike the previous branch, since we're
+            // just cloning the existing cache node, we might as well keep the
+            // PPR value, if it exists.
+            prefetchRsc: existingCacheNode.prefetchRsc,
             parallelRoutes: new Map(existingCacheNode.parallelRoutes),
           } as CacheNode
         } else {
@@ -69,6 +77,7 @@ export function fillLazyItemsTillLeafWithHead(
           newCacheNode = {
             lazyData: null,
             rsc: null,
+            prefetchRsc: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
           }
         }
@@ -97,6 +106,7 @@ export function fillLazyItemsTillLeafWithHead(
       newCacheNode = {
         lazyData: null,
         rsc: seedNode,
+        prefetchRsc: null,
         parallelRoutes: new Map(),
       }
     } else {
@@ -105,6 +115,7 @@ export function fillLazyItemsTillLeafWithHead(
       newCacheNode = {
         lazyData: null,
         rsc: null,
+        prefetchRsc: null,
         parallelRoutes: new Map(),
       }
     }

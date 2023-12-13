@@ -25,7 +25,7 @@ jest.mock('../fetch-server-response', () => {
           children: ['', {}],
         },
       ],
-      ['about', null, <h1>About Page!</h1>],
+      ['about', {}, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
@@ -56,7 +56,7 @@ const flightDataForPatch: FlightData = [
         children: ['', {}],
       },
     ],
-    ['somewhere-else', null, <h1>Somewhere Page!</h1>],
+    ['somewhere-else', {}, <h1>Somewhere Page!</h1>],
     <>
       <title>Somewhere page!</title>
     </>,
@@ -113,6 +113,7 @@ describe('serverPatchReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -121,6 +122,7 @@ describe('serverPatchReducer', () => {
               ]),
               lazyData: null,
               rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -132,7 +134,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking/about', 'https://localhost') as any,
@@ -173,6 +175,7 @@ describe('serverPatchReducer', () => {
                     "" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
+                      "prefetchRsc": null,
                       "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
@@ -189,22 +192,26 @@ describe('serverPatchReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
+                            "prefetchRsc": null,
                             "rsc": null,
                           },
                         },
                       },
+                      "prefetchRsc": null,
                       "rsc": <h1>
                         Somewhere Page!
                       </h1>,
                     },
                   },
                 },
+                "prefetchRsc": null,
                 "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
+          "prefetchRsc": null,
           "rsc": <html>
             <head />
             <body>
@@ -277,6 +284,7 @@ describe('serverPatchReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -285,6 +293,7 @@ describe('serverPatchReducer', () => {
               ]),
               lazyData: null,
               rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -305,7 +314,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL(initialCanonicalUrl, 'https://localhost') as any,
@@ -349,6 +358,7 @@ describe('serverPatchReducer', () => {
                     "" => {
                       "lazyData": null,
                       "parallelRoutes": Map {},
+                      "prefetchRsc": null,
                       "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
@@ -365,10 +375,12 @@ describe('serverPatchReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
+                            "prefetchRsc": null,
                             "rsc": null,
                           },
                         },
                       },
+                      "prefetchRsc": null,
                       "rsc": <h1>
                         About Page!
                       </h1>,
@@ -385,22 +397,26 @@ describe('serverPatchReducer', () => {
                             </React.Fragment>,
                             "lazyData": null,
                             "parallelRoutes": Map {},
+                            "prefetchRsc": null,
                             "rsc": null,
                           },
                         },
                       },
+                      "prefetchRsc": null,
                       "rsc": <h1>
                         Somewhere Page!
                       </h1>,
                     },
                   },
                 },
+                "prefetchRsc": null,
                 "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
+          "prefetchRsc": null,
           "rsc": <html>
             <head />
             <body>

@@ -160,6 +160,7 @@ import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints
 import { formatManifest } from './manifests/formatter/format-manifest'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
+import { hasCustomExportOutput } from '../export/utils'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -396,12 +397,7 @@ export default async function build(
       NextBuildContext.config = config
 
       let configOutDir = 'out'
-      if (config.output === 'export' && config.distDir !== '.next') {
-        // In the past, a user had to run "next build" to generate
-        // ".next" (or whatever the distDir) followed by "next export"
-        // to generate "out" (or whatever the outDir). However, when
-        // "output: export" is configured, "next build" does both steps.
-        // So the user-configured distDir is actually the outDir.
+      if (hasCustomExportOutput(config)) {
         configOutDir = config.distDir
         config.distDir = '.next'
       }
@@ -1087,16 +1083,38 @@ export default async function build(
         })
 
         const [duration] = process.hrtime(turboNextBuildStart)
-        return { duration, buildTraceContext: null }
+        return { duration, buildTraceContext: undefined }
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
+      // If there's has a custom webpack config and disable the build worker.
+      // Otherwise respect the option if it's set.
+      const useBuildWorker =
+        config.experimental.webpackBuildWorker ||
+        (config.experimental.webpackBuildWorker === undefined &&
+          !config.webpack)
+
+      nextBuildSpan.setAttribute(
+        'has-custom-webpack-config',
+        String(!!config.webpack)
+      )
+      nextBuildSpan.setAttribute('use-build-worker', String(useBuildWorker))
+
+      if (
+        config.webpack &&
+        config.experimental.webpackBuildWorker === undefined
+      ) {
+        Log.warn(
+          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
+        )
+      }
+
       if (!isGenerate) {
-        if (isCompile && config.experimental.webpackBuildWorker) {
+        if (isCompile && useBuildWorker) {
           let durationInSeconds = 0
 
-          await webpackBuild(['server']).then((res) => {
+          await webpackBuild(useBuildWorker, ['server']).then((res) => {
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
             const buildTraceWorker = new Worker(
@@ -1124,11 +1142,11 @@ export default async function build(
               })
           })
 
-          await webpackBuild(['edge-server']).then((res) => {
+          await webpackBuild(useBuildWorker, ['edge-server']).then((res) => {
             durationInSeconds += res.duration
           })
 
-          await webpackBuild(['client']).then((res) => {
+          await webpackBuild(useBuildWorker, ['client']).then((res) => {
             durationInSeconds += res.duration
           })
 
@@ -1144,7 +1162,7 @@ export default async function build(
         } else {
           const { duration: webpackBuildDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
-            : await webpackBuild()
+            : await webpackBuild(useBuildWorker, null)
 
           buildTraceContext = rest.buildTraceContext
 
@@ -2806,11 +2824,15 @@ export default async function build(
         })
       )
 
-      if (NextBuildContext.telemetryPlugin) {
-        const events = eventBuildFeatureUsage(NextBuildContext.telemetryPlugin)
+      if (NextBuildContext.telemetryState) {
+        const events = eventBuildFeatureUsage(
+          NextBuildContext.telemetryState.usages
+        )
         telemetry.record(events)
         telemetry.record(
-          eventPackageUsedInGetServerSideProps(NextBuildContext.telemetryPlugin)
+          eventPackageUsedInGetServerSideProps(
+            NextBuildContext.telemetryState.packagesUsedInServerSideProps
+          )
         )
       }
 
