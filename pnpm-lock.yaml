@@ -687,8 +687,8 @@ importers:
         specifier: 20.2.5
         version: 20.2.5
       '@types/prompts':
-        specifier: 2.0.1
-        version: 2.0.1
+        specifier: 2.4.2
+        version: 2.4.2
       '@types/tar':
         specifier: 6.1.5
         version: 6.1.5
@@ -726,8 +726,8 @@ importers:
         specifier: 0.3.0
         version: 0.3.0(prettier@2.8.8)
       prompts:
-        specifier: 2.1.0
-        version: 2.1.0
+        specifier: 2.4.2
+        version: 2.4.2
       tar:
         specifier: 6.1.15
         version: 6.1.15
@@ -741,7 +741,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.0.5-canary.7
+        specifier: 14.0.5-canary.9
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -806,7 +806,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.0.5-canary.7
+        specifier: 14.0.5-canary.9
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.2
@@ -933,19 +933,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 14.0.5-canary.7
+        specifier: 14.0.5-canary.9
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.0.5-canary.7
+        specifier: 14.0.5-canary.9
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 14.0.5-canary.7
+        specifier: 14.0.5-canary.9
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 14.0.5-canary.7
+        specifier: 14.0.5-canary.9
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.0.5-canary.7
+        specifier: 14.0.5-canary.9
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1599,7 +1599,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.0.5-canary.7
+        specifier: 14.0.5-canary.9
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -6690,8 +6690,11 @@ packages:
     resolution: {integrity: sha512-U0o4K+GNiK0PNxoDwd8xRnvLVe4kzei6opn3/FCjAriqaP+rfrDdSl1kP/hLL6Y3/Y3hhGnBwD4dCkkAqs1W/Q==}
     dev: true
 
-  /@types/prompts@2.0.1:
-    resolution: {integrity: sha512-AhtMcmETelF8wFDV1ucbChKhLgsc+ytXZXkNz/nnTAMSDeqsjALknEFxi7ZtLgS/G8bV2rp90LhDW5SGACimIQ==}
+  /@types/prompts@2.4.2:
+    resolution: {integrity: sha512-TwNx7qsjvRIUv/BCx583tqF5IINEVjCNqg9ofKHRlSoUHE62WBHrem4B1HGXcIrG511v29d1kJ9a/t2Esz7MIg==}
+    dependencies:
+      '@types/node': 20.2.5
+      kleur: 3.0.3
     dev: true
 
   /@types/prop-types@15.7.8:
@@ -9651,7 +9654,7 @@ packages:
       graceful-fs: 4.2.11
       jest-config: 29.7.0(@types/node@20.2.5)
       jest-util: 29.7.0
-      prompts: 2.1.0
+      prompts: 2.4.2
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -19965,12 +19968,12 @@ packages:
       asap: 2.0.6
     dev: true
 
-  /prompts@2.1.0:
-    resolution: {integrity: sha512-+x5TozgqYdOwWsQFZizE/Tra3fKvAoy037kOyU6cgz84n8f6zxngLOV4O32kTwt9FcLCxAqw0P/c8rOr9y+Gfg==}
+  /prompts@2.4.2:
+    resolution: {integrity: sha512-NxNv/kLguCA7p3jE8oL2aEBsrJWgAakBpgmgK6lpPWV+WuOmY6r2/zbAVnP+T8bQlA0nzHXSJSJW0Hq7ylaD2Q==}
     engines: {node: '>= 6'}
     dependencies:
       kleur: 3.0.3
-      sisteransi: 1.0.4
+      sisteransi: 1.0.5
     dev: true
 
   /promzard@0.3.0:
@@ -21755,8 +21758,8 @@ packages:
       mime: 2.5.2
       totalist: 1.1.0
 
-  /sisteransi@1.0.4:
-    resolution: {integrity: sha512-/ekMoM4NJ59ivGSfKapeG+FWtrmWvA1p6FBZwXrqojw90vJu8lBmrTxCMuBCydKtkaUe2zt4PlxeTKpjwMbyig==}
+  /sisteransi@1.0.5:
+    resolution: {integrity: sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg==}
     dev: true
 
   /slash@1.0.0:
