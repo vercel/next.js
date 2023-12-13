@@ -15,10 +15,10 @@ import {
 import path from 'path'
 import fs from 'fs/promises'
 import {
-  deserializePageInfos,
   type PageInfos,
   type SerializedPageInfos,
-} from './utils'
+  deserializePageInfos,
+} from './page-info'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
