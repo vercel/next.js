@@ -144,111 +144,111 @@ In this step, you'll convert your `index.html` file into a root layout file:
 1. Create a new `app` directory in your `src` directory.
 2. Create a new `layout.tsx` file inside that `app` directory:
 
-  ```tsx filename="app/layout.tsx" switcher
-  export default function RootLayout({
-    children,
-  }: {
-    children: React.ReactNode
-  }) {
-    return null
-  }
-  ```
+```tsx filename="app/layout.tsx" switcher
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return null
+}
+```
 
-  ```jsx filename="app/layout.js" switcher
-  export default function RootLayout({ children }) {
-    return null
-  }
-  ```
+```jsx filename="app/layout.js" switcher
+export default function RootLayout({ children }) {
+  return null
+}
+```
 
-  > **Good to know**: `.js`, `.jsx`, or `.tsx` extensions can be used for Layout files.
+> **Good to know**: `.js`, `.jsx`, or `.tsx` extensions can be used for Layout files.
 
 3. Copy the content of your `index.html` file into the previously created `<RootLayout>` component while
    replacing the `body.div#root` and `body.script` tags with `<div id="root">{children}</div>`:
 
-  ```tsx filename="app/layout.tsx" switcher
-  export default function RootLayout({
-    children,
-  }: {
-    children: React.ReactNode
-  }) {
-    return (
-      <html lang="en">
-        <head>
-          <meta charset="UTF-8" />
-          <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>My App</title>
-          <meta name="description" content="My App is a..." />
-        </head>
-        <body>
-          <div id="root">{children}</div>
-        </body>
-      </html>
-    )
-  }
-  ```
+```tsx filename="app/layout.tsx" switcher
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>My App</title>
+        <meta name="description" content="My App is a..." />
+      </head>
+      <body>
+        <div id="root">{children}</div>
+      </body>
+    </html>
+  )
+}
+```
 
-  ```jsx filename="app/layout.js" switcher
-  export default function RootLayout({ children }) {
-    return (
-      <html lang="en">
-        <head>
-          <meta charset="UTF-8" />
-          <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>My App</title>
-          <meta name="description" content="My App is a..." />
-        </head>
-        <body>
-          <div id="root">{children}</div>
-        </body>
-      </html>
-    )
-  }
-  ```
+```jsx filename="app/layout.js" switcher
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>My App</title>
+        <meta name="description" content="My App is a..." />
+      </head>
+      <body>
+        <div id="root">{children}</div>
+      </body>
+    </html>
+  )
+}
+```
 
 4. Next.js already includes by default the
    [meta charset](https://developer.mozilla.org/docs/Web/HTML/Element/meta#charset) and
    [meta viewport](https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag) tags, so you
    can safely remove those from your `<head>`:
 
-  ```tsx filename="app/layout.tsx" switcher
-  export default function RootLayout({
-    children,
-  }: {
-    children: React.ReactNode
-  }) {
-    return (
-      <html lang="en">
-        <head>
-          <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-          <title>My App</title>
-          <meta name="description" content="My App is a..." />
-        </head>
-        <body>
-          <div id="root">{children}</div>
-        </body>
-      </html>
-    )
-  }
-  ```
+```tsx filename="app/layout.tsx" switcher
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <head>
+        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+        <title>My App</title>
+        <meta name="description" content="My App is a..." />
+      </head>
+      <body>
+        <div id="root">{children}</div>
+      </body>
+    </html>
+  )
+}
+```
 
-  ```jsx filename="app/layout.js" switcher
-  export default function RootLayout({ children }) {
-    return (
-      <html lang="en">
-        <head>
-          <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-          <title>My App</title>
-          <meta name="description" content="My App is a..." />
-        </head>
-        <body>
-          <div id="root">{children}</div>
-        </body>
-      </html>
-    )
-  }
-  ```
+```jsx filename="app/layout.js" switcher
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <head>
+        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+        <title>My App</title>
+        <meta name="description" content="My App is a..." />
+      </head>
+      <body>
+        <div id="root">{children}</div>
+      </body>
+    </html>
+  )
+}
+```
 
 5. Any [metadata files](/docs/app/building-your-application/optimizing/metadata#file-based-metadata)
    such as `favicon.ico`, `icon.png`, `robots.txt` are automatically added to the application
@@ -257,91 +257,91 @@ In this step, you'll convert your `index.html` file into a root layout file:
    [all supported files](/docs/app/building-your-application/optimizing/metadata#file-based-metadata)
    into the `app` directory you can safely delete their `<link>` tags:
 
-  ```tsx filename="app/layout.tsx" switcher
-  export default function RootLayout({
-    children,
-  }: {
-    children: React.ReactNode
-  }) {
-    return (
-      <html lang="en">
-        <head>
-          <title>My App</title>
-          <meta name="description" content="My App is a..." />
-        </head>
-        <body>
-          <div id="root">{children}</div>
-        </body>
-      </html>
-    )
-  }
-  ```
+```tsx filename="app/layout.tsx" switcher
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <head>
+        <title>My App</title>
+        <meta name="description" content="My App is a..." />
+      </head>
+      <body>
+        <div id="root">{children}</div>
+      </body>
+    </html>
+  )
+}
+```
 
-  ```jsx filename="app/layout.js" switcher
-  export default function RootLayout({ children }) {
-    return (
-      <html lang="en">
-        <head>
-          <title>My App</title>
-          <meta name="description" content="My App is a..." />
-        </head>
-        <body>
-          <div id="root">{children}</div>
-        </body>
-      </html>
-    )
-  }
-  ```
+```jsx filename="app/layout.js" switcher
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <head>
+        <title>My App</title>
+        <meta name="description" content="My App is a..." />
+      </head>
+      <body>
+        <div id="root">{children}</div>
+      </body>
+    </html>
+  )
+}
+```
 
 6. Finally, Next.js can manage your last `<head>` tags with the
    [Metadata API](/docs/app/building-your-application/optimizing/metadata). Move your final metadata
    info into an exported
    [`metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object):
 
-  ```tsx filename="app/layout.tsx" switcher
-  import type { Metadata } from 'next'
+```tsx filename="app/layout.tsx" switcher
+import type { Metadata } from 'next'
 
-  export const metadata: Metadata = {
-    title: 'My App',
-    description: 'My App is a...',
-  }
+export const metadata: Metadata = {
+  title: 'My App',
+  description: 'My App is a...',
+}
 
-  export default function RootLayout({
-    children,
-  }: {
-    children: React.ReactNode
-  }) {
-    return (
-      <html lang="en">
-        <body>
-          <div id="root">{children}</div>
-        </body>
-      </html>
-    )
-  }
-  ```
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <div id="root">{children}</div>
+      </body>
+    </html>
+  )
+}
+```
 
-  ```jsx filename="app/layout.js" switcher
-  export const metadata = {
-    title: 'My App',
-    description: 'My App is a...',
-  }
+```jsx filename="app/layout.js" switcher
+export const metadata = {
+  title: 'My App',
+  description: 'My App is a...',
+}
 
-  export default function RootLayout({ children }) {
-    return (
-      <html lang="en">
-        <body>
-          <div id="root">{children}</div>
-        </body>
-      </html>
-    )
-  }
-  ```
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <div id="root">{children}</div>
+      </body>
+    </html>
+  )
+}
+```
 
-  With the above changes, you shifted from declaring everything in your `index.html` to using Next.js'
-  convention-based approach built into the framework
-  ([Metadata API](/docs/app/building-your-application/optimizing/metadata)). This approach enables you
-  to more easily improve your SEO and web shareability of your pages.
+With the above changes, you shifted from declaring everything in your `index.html` to using Next.js'
+convention-based approach built into the framework
+([Metadata API](/docs/app/building-your-application/optimizing/metadata)). This approach enables you
+to more easily improve your SEO and web shareability of your pages.
 
 ### Step 5: Create the Entrypoint Page
 
@@ -351,60 +351,60 @@ entrypoint of your application.
 
 1. **Create a `[[...slug]]` directory in your `app` directory.**
 
-  Since in this guide we're aiming first to set up our Next.js as an SPA (Single Page Application),
-  you need your page entrypoint to catch all possible routes of your application. For that, create a
-  new `[[...slug]]` directory in your `app` directory.
+Since in this guide we're aiming first to set up our Next.js as an SPA (Single Page Application),
+you need your page entrypoint to catch all possible routes of your application. For that, create a
+new `[[...slug]]` directory in your `app` directory.
 
-  This directory is what is called an
-  [optional catch-all route segment](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments).
-  Next.js uses a file-system based router where
-  [directories are used to define routes](/docs/app/building-your-application/routing/defining-routes#creating-routes).
-  This special directory will make sure that all routes of your application will be directed to its
-  containing `page.tsx` file.
+This directory is what is called an
+[optional catch-all route segment](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments).
+Next.js uses a file-system based router where
+[directories are used to define routes](/docs/app/building-your-application/routing/defining-routes#creating-routes).
+This special directory will make sure that all routes of your application will be directed to its
+containing `page.tsx` file.
 
 2. **Create a new `page.tsx` file inside the `app/[[...slug]]` directory with the following content:**
 
-  ```tsx filename="app/[[...slug]]/page.tsx" switcher
-  'use client'
+```tsx filename="app/[[...slug]]/page.tsx" switcher
+'use client'
 
-  import dynamic from 'next/dynamic'
-  import '../../index.css'
+import dynamic from 'next/dynamic'
+import '../../index.css'
 
-  const App = dynamic(() => import('../../App'), { ssr: false })
+const App = dynamic(() => import('../../App'), { ssr: false })
 
-  export default function Page() {
-    return <App />
-  }
-  ```
+export default function Page() {
+  return <App />
+}
+```
 
-  ```jsx filename="app/[[...slug]]/page.js" switcher
-  'use client'
+```jsx filename="app/[[...slug]]/page.js" switcher
+'use client'
 
-  import dynamic from 'next/dynamic'
-  import '../../index.css'
+import dynamic from 'next/dynamic'
+import '../../index.css'
 
-  const App = dynamic(() => import('../../App'), { ssr: false })
+const App = dynamic(() => import('../../App'), { ssr: false })
 
-  export default function Page() {
-    return <App />
-  }
-  ```
+export default function Page() {
+  return <App />
+}
+```
 
-  > **Good to know**: `.js`, `.jsx`, or `.tsx` extensions can be used for Page files.
+> **Good to know**: `.js`, `.jsx`, or `.tsx` extensions can be used for Page files.
 
-  This file contains a `<Page>` component which is marked as a
-  [Client Component](/docs/app/building-your-application/rendering/client-components) by the `'use client'`
-  directive. Without that directive, the component would have been a
-  [Server Component](/docs/app/building-your-application/rendering/server-components).
+This file contains a `<Page>` component which is marked as a
+[Client Component](/docs/app/building-your-application/rendering/client-components) by the `'use client'`
+directive. Without that directive, the component would have been a
+[Server Component](/docs/app/building-your-application/rendering/server-components).
 
-  In Next.js, Client Components are [prerendered to HTML](/docs/app/building-your-application/rendering/client-components#how-are-client-components-rendered)
-  on the server before being sent to the client, but since we want to first have a purely client-side
-  application, you need to tell Next.js to disable the prerendering for the `<App>` component by
-  dynamically importing it with the `ssr` option set to `false`:
+In Next.js, Client Components are [prerendered to HTML](/docs/app/building-your-application/rendering/client-components#how-are-client-components-rendered)
+on the server before being sent to the client, but since we want to first have a purely client-side
+application, you need to tell Next.js to disable the prerendering for the `<App>` component by
+dynamically importing it with the `ssr` option set to `false`:
 
-  ```tsx
-  const App = dynamic(() => import('../../App'), { ssr: false })
-  ```
+```tsx
+const App = dynamic(() => import('../../App'), { ssr: false })
+```
 
 ### Step 6: Update Static Image Imports
 
@@ -437,26 +437,26 @@ the automatic optimizations.
 
 1. **Convert absolute import paths for images imported from `/public` into relative imports:**
 
-  ```tsx
-  // Before
-  import logo from '/logo.png'
+```tsx
+// Before
+import logo from '/logo.png'
 
-  // After
-  import logo from '../public/logo.png'
-  ```
+// After
+import logo from '../public/logo.png'
+```
 
 2. **Pass the image `src` property instead of the whole image object to your `<img>` tag:**
 
-  ```tsx
-  // Before
-  <img src={logo} />
+```tsx
+// Before
+<img src={logo} />
 
-  // After
-  <img src={logo.src} />
-  ```
+// After
+<img src={logo.src} />
+```
 
-  > **Warning:** If you're using TypeScript, you might encounter type errors when accessing the `src`
-  > property. You can safely ignore those for now. They will be fixed by the end of this guide.
+> **Warning:** If you're using TypeScript, you might encounter type errors when accessing the `src`
+> property. You can safely ignore those for now. They will be fixed by the end of this guide.
 
 ### Step 7: Migrate the Environment Variables
 
@@ -480,23 +480,23 @@ configure one, if you need it:
 
 1. **Add the following to your `.env` file:**
 
-  ```bash filename=".env"
-  # ...
-  NEXT_PUBLIC_BASE_PATH="/some-base-path"
-  ```
+```bash filename=".env"
+# ...
+NEXT_PUBLIC_BASE_PATH="/some-base-path"
+```
 
 2. **Set [`basePath`](/docs/app/api-reference/next-config-js/basePath) to `process.env.NEXT_PUBLIC_BASE_PATH` in your `next.config.mjs` file:**
 
-  ```js filename="next.config.mjs"
-  /** @type {import('next').NextConfig} */
-  const nextConfig = {
-    output: 'export', // Outputs a Single-Page Application (SPA).
-    distDir: './dist', // Changes the build output directory to `./dist/`.
-    basePath: process.env.NEXT_PUBLIC_BASE_PATH, // Sets the base path to `/some-base-path`.
-  }
+```js filename="next.config.mjs"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export', // Outputs a Single-Page Application (SPA).
+  distDir: './dist', // Changes the build output directory to `./dist/`.
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH, // Sets the base path to `/some-base-path`.
+}
 
-  export default nextConfig
-  ```
+export default nextConfig
+```
 
 3. **Update `import.meta.env.BASE_URL` usages to `process.env.NEXT_PUBLIC_BASE_PATH`**
 
