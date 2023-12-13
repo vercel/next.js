@@ -12,6 +12,9 @@
     "react-dom": "18.2.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.36.2"
+    "@playwright/test": "^1.40.1",
+    "@types/node": "20.10.4",
+    "@types/react": "18.2.43",
+    "typescript": "5.3.3"
   }
 }
