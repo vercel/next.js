@@ -181,3 +181,13 @@ jobs:
             test/test-junit-report
             test/turbopack-test-junit-report
           if-no-files-found: ignore
+
+      # upload playwright snapshots from failed tests
+      - name: Upload test report artifacts
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.afterBuild && always() }}
+        with:
+          name: test-playwright-snapshots
+          path: |
+            test/traces
+          if-no-files-found: ignore

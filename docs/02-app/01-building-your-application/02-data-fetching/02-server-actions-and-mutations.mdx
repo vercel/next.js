@@ -2,34 +2,23 @@
 title: Server Actions and Mutations
 nav_title: Server Actions and Mutations
 description: Learn how to handle form submissions and data mutations with Next.js.
+related:
+  description: Learn how to configure Server Actions in Next.js
+  links:
+    - app/api-reference/next-config-js/serverActions
 ---
 
 Server Actions are **asynchronous functions** that are executed on the server. They can be used in Server and Client Components to handle form submissions and data mutations in Next.js applications.
 
-> **🎥 Watch:** Learn more about forms and mutations with the App Router → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
-
-## Behavior
-
-- Server actions can be invoked using the `action` attribute in a [`<form>` element](#forms):
-  - Server Components support progressive enhancement by default, meaning the form will be submitted even if JavaScript hasn't loaded yet or is disabled.
-  - In Client Components, forms invoking Server Actions will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
-  - After hydration, the browser does not refresh on form submission.
-- Server Actions are not limited to `<form>` and can be invoked from event handlers, `useEffect`, third-party libraries, and other form elements like `<button>`.
-- Server Actions integrate with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server roundtrip.
-- Behind the scenes, actions use the `POST` method, and only this HTTP method is allowed to invoke them.
-- The arguments and return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
-- Server Actions are just functions. This means they can be used and reused anywhere in your application.
-- Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
+> **🎥 Watch:** Learn more about forms and mutations with Server Actions → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
 
 ## Convention
 
 A Server Action can be defined with the React [`"use server"`](https://react.dev/reference/react/use-server) directive. You can place the directive at the top of an `async` function to mark the function as a Server Action, or at the top of a separate file to mark all exports of that file as Server Actions.
 
-Server components can use the inline function level or module level `"use server"` directive. Client components can only import actions that use the module-level `"use server"` directive.
-
 ### Server Components
 
-In Server Components, the action can be inlined and the `"use server"` added at the top of the function body:
+Server Components can use the inline function level or module level `"use server"` directive. To inline a Server Action, add `"use server"` to the top of the function body:
 
 ```tsx filename="app/page.tsx" switcher
 // Server Component
@@ -64,6 +53,8 @@ export default function Page() {
 ```
 
 ### Client Components
+
+Client Components can only import actions that use the module-level `"use server"` directive.
 
 To call a Server Action in a Client Component, create a new file and add the `"use server"` directive at the top of it. All functions within the file will be marked as Server Actions that can be reused in both Client and Server Components:
 
@@ -103,7 +94,7 @@ export function Button() {
 }
 ```
 
-In some cases, you might want to pass down a Server Action to a Client Component as a prop:
+You can also pass a Server Action to a Client Component as a prop:
 
 ```jsx
 <ClientComponent updateItem={updateItem} />
@@ -116,6 +107,19 @@ export default function ClientComponent({ updateItem }) {
   return <form action={updateItem}>{/* ... */}</form>
 }
 ```
+
+## Behavior
+
+- Server actions can be invoked using the `action` attribute in a [`<form>` element](#forms):
+  - Server Components support progressive enhancement by default, meaning the form will be submitted even if JavaScript hasn't loaded yet or is disabled.
+  - In Client Components, forms invoking Server Actions will queue submissions if JavaScript isn't loaded yet, prioritizing client hydration.
+  - After hydration, the browser does not refresh on form submission.
+- Server Actions are not limited to `<form>` and can be invoked from event handlers, `useEffect`, third-party libraries, and other form elements like `<button>`.
+- Server Actions integrate with the Next.js [caching and revalidation](/docs/app/building-your-application/caching) architecture. When an action is invoked, Next.js can return both the updated UI and new data in a single server roundtrip.
+- Behind the scenes, actions use the `POST` method, and only this HTTP method can invoke them.
+- The arguments and return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
+- Server Actions are functions. This means they can be reused anywhere in your application.
+- Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
 
 ## Examples
 
@@ -163,18 +167,34 @@ export default function Page() {
 }
 ```
 
-> **Good to know:** When working with forms that have many fields, you may want to consider using the [`entries()`](https://developer.mozilla.org/en-US/docs/Web/API/FormData/entries) method with JavaScript's [`Object.fromEntries()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries). For example: `const rawFormData = Object.fromEntries(formData.entries())`
-
-To learn more about the `<form>` element in React, see the following resources:
-
-- [React `<form>` documentation](https://react.dev/reference/react-dom/components/form#handle-form-submission-with-a-server-action)
-- Next.js Example: [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
+> **Good to know:**
+>
+> - Example: [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
+> - When working with forms that have many fields, you may want to consider using the [`entries()`](https://developer.mozilla.org/en-US/docs/Web/API/FormData/entries) method with JavaScript's [`Object.fromEntries()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries). For example: `const rawFormData = Object.fromEntries(formData.entries())`
+> - See [React `<form>` documentation](https://react.dev/reference/react-dom/components/form#handle-form-submission-with-a-server-action) to learn more.
 
 #### Passing Additional Arguments
 
 You can pass additional arguments to a Server Action using the JavaScript `bind` method.
 
-```jsx filename="app/client-component.jsx" highlight={6}
+```tsx filename="app/client-component.tsx" highlight={6} switcher
+'use client'
+
+import { updateUser } from './actions'
+
+export function UserProfile({ userId }: { userId: string }) {
+  const updateUserWithId = updateUser.bind(null, userId)
+
+  return (
+    <form action={updateUserWithId}>
+      <input type="text" name="name" />
+      <button type="submit">Update User Name</button>
+    </form>
+  )
+}
+```
+
+```jsx filename="app/client-component.js" highlight={6} switcher
 'use client'
 
 import { updateUser } from './actions'
@@ -191,7 +211,7 @@ export function UserProfile({ userId }) {
 }
 ```
 
-`updateUser` Server Action will always receive the `userId` argument, in addition to the form data:
+The Server Action will receive the `userId` argument, in addition to the form data:
 
 ```js filename="app/actions.js"
 'use server'
@@ -204,7 +224,7 @@ export async function updateUser(userId, formData) {
 > **Good to know**:
 >
 > - An alternative is to pass arguments as hidden input fields in the form (e.g. `<input type="hidden" name="userId" value={userId} />`). However, the value will be part of the rendered HTML and will not be encoded.
-> - `.bind` of a Server Action works in both Server and Client Components. It also supports progressive enhancement.
+> - `.bind` works in both Server and Client Components. It also supports progressive enhancement.
 
 #### Pending states
 
@@ -251,6 +271,7 @@ export function SubmitButton() {
 import { SubmitButton } from '@/app/submit-button'
 import { createItem } from '@/app/actions'
 
+// Server Component
 export default async function Home() {
   return (
     <form action={createItem}>
@@ -265,6 +286,7 @@ export default async function Home() {
 import { SubmitButton } from '@/app/submit-button'
 import { createItem } from '@/app/actions'
 
+// Server Component
 export default async function Home() {
   return (
     <form action={createItem}>
@@ -277,7 +299,7 @@ export default async function Home() {
 
 #### Server-side validation and error handling
 
-We recommend using HTML validation like `required` and `type="email"` for basic client-side validation.
+We recommend using HTML validation like `required` and `type="email"` for basic client-side form validation.
 
 For more advanced server-side validation, you can use a library like [zod](https://zod.dev/) to validate the form fields before mutating the data:
 
@@ -334,11 +356,6 @@ export default async function createsUser(formData) {
   // Mutate data
 }
 ```
-
-> **Good to know:**
->
-> - Before mutating data, you should always ensure a user is also authorized to perform the action. See [Authentication and Authorization](#authentication-and-authorization).
-> - Refer to the [Zod documentation](https://zod.dev/) for more information.
 
 Once the fields have been validated on the server, you can return a serializable object in your action and use the React [`useFormState`](https://react.dev/reference/react-dom/hooks/useFormState) hook to show a message to the user.
 
@@ -423,6 +440,10 @@ export function Signup() {
 }
 ```
 
+> **Good to know:**
+>
+> - Before mutating data, you should always ensure a user is also authorized to perform the action. See [Authentication and Authorization](#authentication-and-authorization).
+
 #### Optimistic updates
 
 You can use the React [`useOptimistic`](https://react.dev/reference/react/useOptimistic) hook to optimistically update the UI before the Server Action finishes, rather than waiting for the response:
@@ -498,9 +519,9 @@ export function Thread({ messages }) {
 }
 ```
 
-#### `<button>` and `<input>` Elements
+#### Nested elements
 
-You can invoke a Server Action from other form elements like `<button>`, `<input type="submit">`, and `<input type="image">`. These elements accept the `formAction` prop or [event handlers](#event-handlers).
+You can invoke a Server Action in elements nested inside `<form>` such as `<button>`, `<input type="submit">`, and `<input type="image">`. These elements accept the `formAction` prop or [event handlers](#event-handlers).
 
 This is useful in cases where you want to call multiple server actions within a form. For example, you can create a specific `<button>` element for saving a post draft in addition to publishing it. See the [React `<form>` docs](https://react.dev/docs/forms#handling-multiple-submit-buttons) for more information.
 
@@ -706,7 +727,7 @@ export async function createPost() {
 
 ### Redirecting
 
-If you would like to redirect the user to a different route after the completion of a Server Action, you can use [`redirect`](/docs/app/api-reference/functions/redirect) API:
+If you would like to redirect the user to a different route after the completion of a Server Action, you can use [`redirect`](/docs/app/api-reference/functions/redirect) API. `redirect` needs to be called outside of the `try/catch` block:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -744,11 +765,9 @@ export async function createPost(id) {
 }
 ```
 
-> **Good to know:** `redirect` should be called outside of the `try/catch` block.
-
 ### Cookies
 
-You can get, set, and delete cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) API:
+You can `get`, `set`, and `delete` cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) API:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -788,7 +807,7 @@ See [additional examples](/docs/app/api-reference/functions/cookies#deleting-coo
 
 ## Security
 
-#### Authentication and Authorization
+### Authentication and authorization
 
 You should treat Server Actions as you would public-facing API endpoints, and ensure that the user is authorized to perform the action. For example:
 
@@ -807,7 +826,7 @@ export function addItem() {
 }
 ```
 
-#### Closures and encryption
+### Closures and encryption
 
 Defining a Server Action inside a component creates a [closure](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures) where the action has access to the outer function's scope. For example, the `publish` action has access to the `publishVersion` variable:
 
@@ -849,7 +868,7 @@ However, for this to happen, the captured variables are sent to the client and b
 
 > **Good to know:** We don't recommend relying on encryption alone to prevent sensitive values from being exposed on the client. Instead, you should use the [React taint APIs](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client) to proactively prevent specific data from being sent to the client.
 
-#### Overwriting encryption keys (advanced)
+### Overwriting encryption keys (advanced)
 
 When self-hosting your Next.js application across multiple servers, each server instance may end up with a different encryption key, leading to potential inconsistencies.
 
@@ -859,13 +878,13 @@ This is an advanced use case where consistent encryption behavior across multipl
 
 > **Good to know:** Next.js applications deployed to Vercel automatically handle this.
 
-#### Allowed origins (advanced)
+### Allowed origins (advanced)
 
 Since Server Actions can be invoked in a `<form>` element, this opens them up to [CSRF attacks](https://developer.mozilla.org/en-US/docs/Glossary/CSRF).
 
 Behind the scenes, Server Actions use the `POST` method, and only this HTTP method is allowed to invoke them. This prevents most CSRF vulnerabilities in modern browsers, particularly with [SameSite cookies](https://web.dev/articles/samesite-cookies-explained) being the default.
 
-As an additional protection, Server Actions in Next.js also compares the [Origin header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin) to the [Host header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Host) (or `X-Forwarded-Host`). If these don't match, the request will be aborted. In other words, Server Actions can only be invoked on the same host as the page that hosts it.
+As an additional protection, Server Actions in Next.js also compare the [Origin header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin) to the [Host header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Host) (or `X-Forwarded-Host`). If these don't match, the request will be aborted. In other words, Server Actions can only be invoked on the same host as the page that hosts it.
 
 For large applications that use reverse proxies or multi-layered backend architectures (where the server API differs from the production domain), it's recommended to use the configuration option [`serverActions.allowedOrigins`](/docs/app/api-reference/next-config-js/serverActions) option to specify a list of safe origins. The option accepts an array of strings.
 
@@ -874,7 +893,7 @@ For large applications that use reverse proxies or multi-layered backend archite
 module.exports = {
   experimental: {
     serverActions: {
-      allowedOrigins: ['my-proxy.com'],
+      allowedOrigins: ['my-proxy.com', '*.my-proxy.com'],
     },
   },
 }

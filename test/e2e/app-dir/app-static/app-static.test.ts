@@ -45,6 +45,14 @@ createNextDescribe(
           'unstable_cache_tag1'
         )
       })
+
+      if (!process.env.CUSTOM_CACHE_HANDLER) {
+        it('should honor force-static with fetch cache: no-store correctly', async () => {
+          const res = await next.fetch('/force-static-fetch-no-store')
+          expect(res.status).toBe(200)
+          expect(res.headers.get('x-nextjs-cache').toLowerCase()).toBe('hit')
+        })
+      }
     }
 
     it('should correctly include headers instance in cache key', async () => {
@@ -519,6 +527,10 @@ createNextDescribe(
             'default-cache/page.js',
             'fetch-no-cache/page.js',
             'force-no-store/page.js',
+            'force-static-fetch-no-store.html',
+            'force-static-fetch-no-store.rsc',
+            'force-static-fetch-no-store/page.js',
+            'force-static-fetch-no-store/page_client-reference-manifest.js',
             'force-static/first.rsc',
             'api/draft-mode/route.js',
             'blog/tim/first-post.rsc',
@@ -901,6 +913,22 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": 3,
               "srcRoute": "/force-cache",
+            },
+            "/force-static-fetch-no-store": {
+              "dataRoute": "/force-static-fetch-no-store.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/force-static-fetch-no-store",
             },
             "/force-static/first": {
               "dataRoute": "/force-static/first.rsc",

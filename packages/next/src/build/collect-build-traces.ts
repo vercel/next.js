@@ -14,7 +14,7 @@ import {
 
 import path from 'path'
 import fs from 'fs/promises'
-import type { PageInfo } from './utils'
+import type { PageInfo } from './page-info'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -79,7 +79,7 @@ export async function collectBuildTraces({
   staticPages: string[]
   hasSsrAmpPages: boolean
   outputFileTracingRoot: string
-  pageInfos: [string, PageInfo][]
+  pageInfos: Map<string, PageInfo> | undefined
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
@@ -305,6 +305,10 @@ export async function collectBuildTraces({
 
       const routesIgnores = [
         ...sharedIgnores,
+        // server chunks are provided via next-trace-entrypoints-plugin plugin
+        // as otherwise all chunks are traced here and included for all pages
+        // whether they are needed or not
+        '**/.next/server/chunks/**',
         '**/next/dist/server/optimize-amp.js',
         '**/next/dist/server/post-process.js',
       ].filter(nonNullable)
@@ -638,10 +642,8 @@ export async function collectBuildTraces({
         }
 
         // edge routes have no trace files
-        const [, pageInfo] = pageInfos.find((item) => item[0] === route) || []
-        if (pageInfo?.runtime === 'edge') {
-          return
-        }
+        const pageInfo = pageInfos?.get(route)
+        if (pageInfo?.runtime === 'edge') return
 
         const combinedIncludes = new Set<string>()
         const combinedExcludes = new Set<string>()
