@@ -13,18 +13,20 @@ type Repo = {
   stargazers_count: number
 }
 
-export const getServerSideProps = (async (context) => {
+export const getServerSideProps = (async () => {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
-  const repo = await res.json()
+  const repo: Repo = await res.json()
   return { props: { repo } }
-}) satisfies GetServerSideProps<{
-  repo: Repo
-}>
+}) satisfies GetServerSideProps<{ repo: Repo }>
 
 export default function Page({
   repo,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
-  return repo.stargazers_count
+  return (
+    <main>
+      <p>repo.stargazers_count</p>
+    </main>
+  )
 }
 ```
 
@@ -36,7 +38,11 @@ export async function getServerSideProps() {
 }
 
 export default function Page({ repo }) {
-  return repo.stargazers_count
+  return (
+    <main>
+      <p>repo.stargazers_count</p>
+    </main>
+  )
 }
 ```
 
