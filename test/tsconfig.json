@@ -1,3 +1,4 @@
+// Make development mode typescript module resolving and jsx parsing correct for all tests
 {
   "compilerOptions": {
     "strict": false,
@@ -18,7 +19,5 @@
       "next-webdriver": ["test/lib/next-webdriver"],
       "e2e-utils": ["test/lib/e2e-utils"]
     }
-  },
-  "include": ["test/**/*.test.ts", "test/**/*.test.tsx"],
-  "exclude": ["node_modules"]
+  }
 }
