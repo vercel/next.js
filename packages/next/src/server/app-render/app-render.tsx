@@ -338,7 +338,6 @@ function createFlightDataResolver(ctx: AppRenderContext) {
 
 type ServerComponentsRendererOptions = {
   ctx: AppRenderContext
-  preinitScripts: () => void
   options: ServerComponentRendererOptions
 }
 
@@ -348,12 +347,11 @@ type ServerComponentsRendererOptions = {
  */
 function createServerComponentsRenderer(
   loaderTreeToRender: LoaderTree,
-  { ctx, preinitScripts, options }: ServerComponentsRendererOptions
+  { ctx, options }: ServerComponentsRendererOptions
 ) {
   return createServerComponentRenderer<{
     asNotFound: boolean
   }>(async (props) => {
-    preinitScripts()
     // Create full component tree from root to leaf.
     const injectedCSS = new Set<string>()
     const injectedJS = new Set<string>()
@@ -742,7 +740,7 @@ async function renderToHTMLOrFlightImpl(
             nonce,
           }))
 
-      const [preinitScripts, bootstrapScript] = getRequiredScripts(
+      const [PreinitScripts, bootstrapScript] = getRequiredScripts(
         buildManifest,
         assetPrefix,
         renderOpts.crossOrigin,
@@ -753,21 +751,23 @@ async function renderToHTMLOrFlightImpl(
 
       const ServerComponentsRenderer = createServerComponentsRenderer(tree, {
         ctx,
-        preinitScripts,
         options: serverComponentsRenderOpts,
       })
 
       const children = (
-        <HeadManagerContext.Provider
-          value={{
-            appDir: true,
-            nonce,
-          }}
-        >
-          <ServerInsertedHTMLProvider>
-            <ServerComponentsRenderer asNotFound={asNotFound} />
-          </ServerInsertedHTMLProvider>
-        </HeadManagerContext.Provider>
+        <>
+          <PreinitScripts />
+          <HeadManagerContext.Provider
+            value={{
+              appDir: true,
+              nonce,
+            }}
+          >
+            <ServerInsertedHTMLProvider>
+              <ServerComponentsRenderer asNotFound={asNotFound} />
+            </ServerInsertedHTMLProvider>
+          </HeadManagerContext.Provider>
+        </>
       )
 
       const getServerInsertedHTML = makeGetServerInsertedHTML({
@@ -925,7 +925,7 @@ async function renderToHTMLOrFlightImpl(
           </>
         )
 
-        const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
+        const [ErrorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
           buildManifest,
           assetPrefix,
           renderOpts.crossOrigin,
@@ -936,7 +936,6 @@ async function renderToHTMLOrFlightImpl(
 
         const ErrorPage = createServerComponentRenderer(
           async () => {
-            errorPreinitScripts()
             const [MetadataTree] = createMetadataComponents({
               tree,
               pathname: urlPathname,
@@ -993,7 +992,12 @@ async function renderToHTMLOrFlightImpl(
         try {
           const fizzStream = await renderToInitialFizzStream({
             ReactDOMServer: require('react-dom/server.edge'),
-            element: <ErrorPage />,
+            element: (
+              <>
+                <ErrorPreinitScripts />
+                <ErrorPage />
+              </>
+            ),
             streamOptions: {
               nonce,
               // Include hydration scripts in the HTML
