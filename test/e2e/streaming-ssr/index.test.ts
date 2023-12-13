@@ -170,10 +170,7 @@ if (isNextProd) {
 
     it('should pass correct nextRuntime values', async () => {
       const content = await next.readFile('runtimes.txt')
-      const uniqueRuntimes = [
-        ...new Set(content.split('\n').filter(Boolean)),
-      ].sort()
-      expect(uniqueRuntimes).toEqual(['client', 'edge', 'nodejs'])
+      expect(content.split('\n').sort()).toEqual(['client', 'edge', 'nodejs'])
     })
 
     it('should generate html response by streaming correctly', async () => {
