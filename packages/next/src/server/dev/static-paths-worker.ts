@@ -8,15 +8,11 @@ import {
   buildStaticPaths,
   collectGenerateParams,
 } from '../../build/utils'
-import type { GenerateParams } from '../../build/utils'
+import type { GenerateParamsResults } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
-import * as serverHooks from '../../client/components/hooks-server-context'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
-
-const { AppRouteRouteModule } =
-  require('../future/route-modules/app-route/module.compiled') as typeof import('../future/route-modules/app-route/module')
+import { isAppRouteRouteModule } from '../future/route-modules/checks'
 
 type RuntimeConfig = {
   configFileName: string
@@ -28,6 +24,7 @@ type RuntimeConfig = {
 // side-effects aren't relied on in dev that will break
 // during a production build
 export async function loadStaticPaths({
+  dir,
   distDir,
   pathname,
   config,
@@ -43,6 +40,7 @@ export async function loadStaticPaths({
   incrementalCacheHandlerPath,
   ppr,
 }: {
+  dir: string
   distDir: string
   pathname: string
   config: RuntimeConfig
@@ -85,8 +83,8 @@ export async function loadStaticPaths({
 
   if (isAppPath) {
     const { routeModule } = components
-    const generateParams: GenerateParams =
-      routeModule && AppRouteRouteModule.is(routeModule)
+    const generateParams: GenerateParamsResults =
+      routeModule && isAppRouteRouteModule(routeModule)
         ? [
             {
               config: {
@@ -101,18 +99,18 @@ export async function loadStaticPaths({
         : await collectGenerateParams(components.ComponentMod.tree)
 
     return await buildAppStaticPaths({
+      dir,
       page: pathname,
       generateParams,
       configFileName: config.configFileName,
       distDir,
       requestHeaders,
       incrementalCacheHandlerPath,
-      serverHooks,
-      staticGenerationAsyncStorage,
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
       ppr,
+      ComponentMod: components.ComponentMod,
     })
   }
 

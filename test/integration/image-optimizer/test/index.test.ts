@@ -380,6 +380,57 @@ describe('Image Optimizer', () => {
       )
     })
 
+    it('should error when assetPrefix is provided but is invalid', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          assetPrefix: 'httpbad',
+          images: {
+            formats: ['image/webp'],
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Invalid assetPrefix provided. Original error: TypeError [ERR_INVALID_URL]: Invalid URL`
+      )
+    })
+
+    it('should error when images.remotePatterns is invalid', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            remotePatterns: 'testing',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Expected array, received string at "images.remotePatterns"`
+      )
+    })
+
     it('should error when images.contentDispositionType is not valid', async () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',

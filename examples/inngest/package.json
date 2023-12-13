@@ -8,7 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "inngest": "^3.4.1",
+    "inngest": "latest",
     "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0"

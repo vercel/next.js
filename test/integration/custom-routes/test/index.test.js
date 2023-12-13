@@ -2557,9 +2557,12 @@ const runTests = (isDev = false) => {
         rsc: {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
+          didPostponeHeader: 'x-nextjs-postponed',
           varyHeader:
             'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
           prefetchHeader: 'Next-Router-Prefetch',
+          prefetchSuffix: '.prefetch.rsc',
+          suffix: '.rsc',
         },
       })
     })

@@ -99,10 +99,13 @@ impl EcmascriptClientReferenceProxyModule {
             proxy_module_content,
         );
 
-        let proxy_module = this.server_asset_context.process(
-            Vc::upcast(proxy_source),
-            Value::new(ReferenceType::Undefined),
-        );
+        let proxy_module = this
+            .server_asset_context
+            .process(
+                Vc::upcast(proxy_source),
+                Value::new(ReferenceType::Undefined),
+            )
+            .module();
 
         let Some(proxy_module) =
             Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(proxy_module).await?

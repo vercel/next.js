@@ -7,6 +7,7 @@ use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileSystem, FileSystemPath},
     turbopack::{
         core::{
+            reference_type::{CommonJsReferenceSubType, ReferenceType},
             resolve::{
                 options::{ConditionValue, ImportMap, ImportMapping, ResolveOptions, ResolvedMap},
                 parse::Request,
@@ -219,6 +220,10 @@ pub fn get_next_build_import_map() -> Vc<ImportMap> {
     import_map.insert_exact_alias("next", external);
     import_map.insert_wildcard_alias("next/", external);
     import_map.insert_exact_alias("styled-jsx", external);
+    import_map.insert_exact_alias(
+        "styled-jsx/style",
+        ImportMapping::External(Some("styled-jsx/style.js".to_string())).cell(),
+    );
     import_map.insert_wildcard_alias("styled-jsx/", external);
 
     import_map.cell()
@@ -285,12 +290,18 @@ pub async fn get_next_server_import_map(
 
     import_map.insert_exact_alias("next/dist/server/require-hook", external);
     match ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
             import_map.insert_exact_alias("react", external);
             import_map.insert_wildcard_alias("react/", external);
             import_map.insert_exact_alias("react-dom", external);
             import_map.insert_wildcard_alias("react-dom/", external);
             import_map.insert_exact_alias("styled-jsx", external);
+            import_map.insert_exact_alias(
+                "styled-jsx/style",
+                ImportMapping::External(Some("styled-jsx/style.js".to_string())).cell(),
+            );
             import_map.insert_wildcard_alias("styled-jsx/", external);
             // TODO: we should not bundle next/dist/build/utils in the pages renderer at all
             import_map.insert_wildcard_alias("next/dist/build/utils", external);
@@ -307,7 +318,7 @@ pub async fn get_next_server_import_map(
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
         }
-        ServerContextType::Middleware => {}
+        ServerContextType::Middleware | ServerContextType::Instrumentation => {}
     }
 
     insert_next_server_special_aliases(
@@ -402,7 +413,9 @@ pub async fn get_next_edge_import_map(
 
     let ty = ty.into_value();
     match ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {}
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {}
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
@@ -415,7 +428,7 @@ pub async fn get_next_edge_import_map(
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
         }
-        ServerContextType::Middleware => {}
+        ServerContextType::Middleware | ServerContextType::Instrumentation => {}
     }
 
     insert_next_server_special_aliases(
@@ -498,14 +511,16 @@ async fn insert_next_server_special_aliases(
         NextRuntime::Edge => request_to_import_mapping(context_dir, request),
         NextRuntime::NodeJs => external_request_to_import_mapping(request),
     };
+
+    import_map.insert_exact_alias(
+        "@opentelemetry/api",
+        // TODO(WEB-625) this actually need to prefer the local version of
+        // @opentelemetry/api
+        external_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
+    );
+
     match ty {
-        ServerContextType::Pages { pages_dir } => {
-            import_map.insert_exact_alias(
-                "@opentelemetry/api",
-                // TODO(WEB-625) this actually need to prefer the local version of
-                // @opentelemetry/api
-                external_if_node(pages_dir, "next/dist/compiled/@opentelemetry/api"),
-            );
+        ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
             insert_alias_to_alternatives(
                 import_map,
                 format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
@@ -537,12 +552,6 @@ async fn insert_next_server_special_aliases(
         | ServerContextType::AppRSC { app_dir, .. }
         | ServerContextType::AppRoute { app_dir } => {
             import_map.insert_exact_alias(
-                "@opentelemetry/api",
-                // TODO(WEB-625) this actually need to prefer the local version of
-                // @opentelemetry/api
-                request_to_import_mapping(app_dir, "next/dist/compiled/@opentelemetry/api"),
-            );
-            import_map.insert_exact_alias(
                 "styled-jsx",
                 request_to_import_mapping(get_next_package(app_dir), "styled-jsx"),
             );
@@ -553,12 +562,14 @@ async fn insert_next_server_special_aliases(
 
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
-        ServerContextType::Middleware => {}
+        ServerContextType::Middleware | ServerContextType::Instrumentation => {}
     }
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
     match ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. } => {
             insert_exact_alias_map(
                 import_map,
                 project_path,
@@ -573,7 +584,8 @@ async fn insert_next_server_special_aliases(
         // TODO: should include `ServerContextType::PagesApi` routes, but that type doesn't exist.
         ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware => {
+        | ServerContextType::Middleware
+        | ServerContextType::Instrumentation => {
             insert_exact_alias_map(
                 import_map,
                 project_path,
@@ -874,6 +886,7 @@ async fn package_lookup_resolve_options(
 pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<Vc<FileSystemPath>> {
     let result = resolve(
         context_directory,
+        Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
         Request::parse(Value::new(Pattern::Constant(
             "next/package.json".to_string(),
         ))),

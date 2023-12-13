@@ -44,12 +44,13 @@ pub enum Transform {
 /// Returns a rule which applies the Next.js modularize imports transform.
 pub fn get_next_modularize_imports_rule(
     modularize_imports_config: &IndexMap<String, ModularizeImportPackageConfig>,
+    enable_mdx_rs: bool,
 ) -> ModuleRule {
     let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
         ModularizeImportsTransformer::new(modularize_imports_config),
     ) as _));
     ModuleRule::new(
-        module_rule_match_js_no_url(),
+        module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
             transformer,
         ]))],

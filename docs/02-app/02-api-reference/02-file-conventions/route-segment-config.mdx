@@ -62,11 +62,7 @@ export const dynamic = 'auto'
 > **Good to know**: The new model in the `app` directory favors granular caching control at the `fetch` request level over the binary all-or-nothing model of `getServerSideProps` and `getStaticProps` at the page-level in the `pages` directory. The `dynamic` option is a way to opt back in to the previous model as a convenience and provides a simpler migration path.
 
 - **`'auto'`** (default): The default option to cache as much as possible without preventing any components from opting into dynamic behavior.
-- **`'force-dynamic'`**: Force dynamic rendering and uncached data fetching of a layout or page by disabling all caching of `fetch` requests and always revalidating. This option is equivalent to:
-
-  - `getServerSideProps()` in the `pages` directory.
-  - Setting the option of every `fetch()` request in a layout or page to `{ cache: 'no-store', next: { revalidate: 0 } }`.
-  - Setting the segment config to `export const fetchCache = 'force-no-store'`
+- **`'force-dynamic'`**: Force [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering), which will result in routes being rendered for each user at request time. This option is equivalent to `getServerSideProps()` in the `pages` directory.
 
 - **`'error'`**: Force static rendering and cache the data of a layout or page by causing an error if any components use [dynamic functions](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) or uncached data. This option is equivalent to:
   - `getStaticProps()` in the `pages` directory.

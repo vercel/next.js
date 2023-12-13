@@ -39,6 +39,9 @@ module.exports = async function collectDiffs(
         })
       )
 
+      logger('Tracking the following files:')
+      logger(curFiles)
+
       for (let file of curFiles) {
         const absPath = path.join(statsAppDir, file)
 
@@ -53,7 +56,7 @@ module.exports = async function collectDiffs(
         )
         await exec(
           `cd "${process.env.LOCAL_STATS ? process.cwd() : diffingDir}" && ` +
-            `${prettierPath} --write ${curFiles
+            `${prettierPath} --write --no-error-on-unmatched-pattern ${curFiles
               .map((f) => path.join(diffingDir, f))
               .join(' ')}`
         )
