@@ -1,4 +1,5 @@
 import type { Segment } from '../../../server/app-render/types'
+import { PAGE_SEGMENT_KEY } from '../../../shared/lib/constants'
 
 export function createRouterCacheKey(
   segment: Segment,
@@ -6,7 +7,7 @@ export function createRouterCacheKey(
 ) {
   return Array.isArray(segment)
     ? `${segment[0]}|${segment[1]}|${segment[2]}`.toLowerCase()
-    : withoutSearchParameters && segment.startsWith('__PAGE__')
-    ? '__PAGE__'
+    : withoutSearchParameters && segment.startsWith(PAGE_SEGMENT_KEY)
+    ? PAGE_SEGMENT_KEY
     : segment
 }

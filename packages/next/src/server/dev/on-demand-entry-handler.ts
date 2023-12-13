@@ -33,6 +33,7 @@ import { PageNotFoundError, stringifyError } from '../../shared/lib/utils'
 import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
+  PAGE_SEGMENT_KEY,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
@@ -130,7 +131,7 @@ function getEntrypointsFromTree(
     ? convertDynamicParamTypeToSyntax(segment[2], segment[0])
     : segment
 
-  const isPageSegment = currentSegment.startsWith('__PAGE__')
+  const isPageSegment = currentSegment.startsWith(PAGE_SEGMENT_KEY)
 
   const currentPath = [...parentPath, isPageSegment ? '' : currentSegment]
 
