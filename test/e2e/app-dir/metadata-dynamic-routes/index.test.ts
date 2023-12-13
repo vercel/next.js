@@ -567,12 +567,14 @@ createNextDescribe(
         await Promise.all(promises)
       })
 
-      it('should include default og font files in file trace', async () => {
+      it.only('should include default og font files in file trace', async () => {
         const fileTrace = JSON.parse(
           await next.readFile(
             '.next/server/app/metadata-base/unset/opengraph-image2/[[...__metadata_id__]]/route.js.nft.json'
           )
         )
+
+        console.log(fileTrace)
 
         // @vercel/og default font should be traced
         const isTraced = fileTrace.files.some((filePath) =>
