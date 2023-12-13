@@ -19,10 +19,8 @@ import type { Revalidate } from '../lib/revalidate'
 
 import React from 'react'
 
-import {
-  createServerComponentRenderer,
-  type ServerComponentRendererOptions,
-} from './create-server-components-renderer'
+import type { ServerComponentRendererOptions } from './create-server-components-renderer'
+import { useFlightResponse } from './use-flight-response'
 import RenderResult, {
   type AppPageRenderResultMetadata,
   type RenderResultOptions,
@@ -81,6 +79,7 @@ import { createStaticRenderer } from './static/static-renderer'
 import { MissingPostponeDataError } from './is-missing-postpone-error'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { DYNAMIC_ERROR_CODE } from '../../client/components/hooks-server-context'
+import AppRouter from '../../client/components/app-router'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -246,6 +245,19 @@ async function generateFlight(
     asNotFound?: boolean
   }
 ): Promise<RenderResult> {
+  return new FlightRenderResult(
+    await renderReactServerEntryForRSC(ctx, options)
+  )
+}
+
+async function renderReactServerEntryForRSC(
+  ctx: AppRenderContext,
+  options?: {
+    actionResult: ActionResult
+    skipFlight: boolean
+    asNotFound?: boolean
+  }
+): Promise<ReadableStream<Uint8Array>> {
   // Flight data that is going to be passed to the browser.
   // Currently a single item array but in the future multiple patches might be combined in a single request.
   let flightData: FlightData | null = null
@@ -295,7 +307,7 @@ async function generateFlight(
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
-  const flightReadableStream = renderToReadableStream(
+  return renderToReadableStream(
     options
       ? [options.actionResult, buildIdFlightDataPair]
       : buildIdFlightDataPair,
@@ -304,8 +316,178 @@ async function generateFlight(
       onError: ctx.flightDataRendererErrorHandler,
     }
   )
+}
 
-  return new FlightRenderResult(flightReadableStream)
+// We use the following type trick to get slightly better type inference when
+// rendering and consuming RSC data. We creat a sort of Brand on the type based
+// on the return from the render function and later when we consume this request
+// TS can infer the parsed type matches the original type.
+// @ts-ignore
+// eslint-disable-next-line
+export type BinaryStreamOf<T> = ReadableStream<Uint8Array>
+export type InitialRSCPayload = {
+  b: /* buildId */ string
+  p: /* assetPrefix */ string
+  c: /* initialCanonicalUrl */ string
+  s: /* initialStyles */ React.ReactNode
+  t: /* initialTree */ FlightRouterState
+  d: /* initialSeeData */ CacheNodeSeedData
+  h: /* initialHead */ React.ReactNode
+  G: /* GlobalError */ React.ComponentType<any>
+}
+
+async function renderReactServerEntryForSSR(
+  tree: LoaderTree,
+  ctx: AppRenderContext,
+  asNotFound: boolean
+): Promise<BinaryStreamOf<InitialRSCPayload>> {
+  // Create full component tree from root to leaf.
+  const injectedCSS = new Set<string>()
+  const injectedJS = new Set<string>()
+  const injectedFontPreloadTags = new Set<string>()
+  const {
+    getDynamicParamFromSegment,
+    query,
+    providedSearchParams,
+    appUsingSizeAdjustment,
+    componentMod: { GlobalError, renderToReadableStream },
+    staticGenerationStore: { urlPathname },
+  } = ctx
+  const initialTree = createFlightRouterStateFromLoaderTree(
+    tree,
+    getDynamicParamFromSegment,
+    query
+  )
+
+  const [MetadataTree, MetadataOutlet] = createMetadataComponents({
+    tree,
+    errorType: asNotFound ? 'not-found' : undefined,
+    pathname: urlPathname,
+    searchParams: providedSearchParams,
+    getDynamicParamFromSegment: getDynamicParamFromSegment,
+    appUsingSizeAdjustment: appUsingSizeAdjustment,
+  })
+
+  const { seedData, styles } = await createComponentTree({
+    ctx,
+    createSegmentPath: (child) => child,
+    loaderTree: tree,
+    parentParams: {},
+    firstItem: true,
+    injectedCSS,
+    injectedJS,
+    injectedFontPreloadTags,
+    rootLayoutIncluded: false,
+    asNotFound,
+    metadataOutlet: <MetadataOutlet />,
+  })
+
+  const initialHead = (
+    <>
+      {ctx.res.statusCode > 400 && <meta name="robots" content="noindex" />}
+      {/* Adding requestId as react key to make metadata remount for each render */}
+      <MetadataTree key={ctx.requestId} />
+    </>
+  )
+
+  // This type assertion is important in ensuring typescript can properly understand
+  // the parsed type when reconstructing this on the client end.
+  const payload: InitialRSCPayload = {
+    b: ctx.renderOpts.buildId,
+    p: ctx.assetPrefix,
+    c: ctx.staticGenerationStore.urlPathname,
+    s: styles,
+    t: initialTree,
+    d: seedData,
+    h: initialHead,
+    G: GlobalError,
+  }
+
+  // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
+  // which contains the subset React.
+  return renderToReadableStream(
+    payload,
+    ctx.clientReferenceManifest.clientModules,
+    {
+      onError: ctx.flightDataRendererErrorHandler,
+    }
+  )
+}
+
+async function renderReactServerErrorForSSR(
+  tree: LoaderTree,
+  ctx: AppRenderContext,
+  errorType: 'not-found' | 'redirect' | undefined
+): Promise<BinaryStreamOf<InitialRSCPayload>> {
+  const {
+    getDynamicParamFromSegment,
+    query,
+    providedSearchParams,
+    appUsingSizeAdjustment,
+    componentMod: { GlobalError, renderToReadableStream },
+    staticGenerationStore: { urlPathname },
+  } = ctx
+
+  const initialTree = createFlightRouterStateFromLoaderTree(
+    tree,
+    getDynamicParamFromSegment,
+    query
+  )
+
+  const [MetadataTree] = createMetadataComponents({
+    tree,
+    errorType,
+    pathname: urlPathname,
+    searchParams: providedSearchParams,
+    getDynamicParamFromSegment: getDynamicParamFromSegment,
+    appUsingSizeAdjustment: appUsingSizeAdjustment,
+  })
+
+  // For metadata notFound error there's no global not found boundary on top
+  // so we create a not found page with AppRouter
+  const initialSeedData: CacheNodeSeedData = [
+    initialTree[0],
+    {},
+    <html id="__next_error__">
+      <head></head>
+      <body></body>
+    </html>,
+  ]
+
+  const initialStyles = null
+  const initialHead = (
+    <>
+      {ctx.res.statusCode > 400 && <meta name="robots" content="noindex" />}
+      {/* Adding requestId as react key to make metadata remount for each render */}
+      <MetadataTree key={ctx.requestId} />
+      {/* {process.env.NODE_ENV === 'development' && (
+        <meta name="next-error" content="not-found" />
+      )} */}
+    </>
+  )
+
+  // This type assertion is important in ensuring typescript can properly understand
+  // the parsed type when reconstructing this on the client end.
+  const payload: InitialRSCPayload = {
+    b: ctx.renderOpts.buildId,
+    p: ctx.assetPrefix,
+    c: ctx.staticGenerationStore.urlPathname,
+    s: initialStyles,
+    t: initialTree,
+    d: initialSeedData,
+    h: initialHead,
+    G: GlobalError,
+  }
+
+  // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
+  // which contains the subset React.
+  return renderToReadableStream(
+    payload,
+    ctx.clientReferenceManifest.clientModules,
+    {
+      onError: ctx.flightDataRendererErrorHandler,
+    }
+  )
 }
 
 /**
@@ -336,90 +518,6 @@ function createFlightDataResolver(ctx: AppRenderContext) {
   }
 }
 
-type ServerComponentsRendererOptions = {
-  ctx: AppRenderContext
-  options: ServerComponentRendererOptions
-}
-
-/**
- * A new React Component that renders the provided React Component
- * using Flight which can then be rendered to HTML.
- */
-function createServerComponentsRenderer(
-  loaderTreeToRender: LoaderTree,
-  { ctx, options }: ServerComponentsRendererOptions
-) {
-  return createServerComponentRenderer<{
-    asNotFound: boolean
-  }>(async (props) => {
-    // Create full component tree from root to leaf.
-    const injectedCSS = new Set<string>()
-    const injectedJS = new Set<string>()
-    const injectedFontPreloadTags = new Set<string>()
-    const {
-      getDynamicParamFromSegment,
-      query,
-      providedSearchParams,
-      appUsingSizeAdjustment,
-      componentMod: { AppRouter, GlobalError },
-      staticGenerationStore: { urlPathname },
-    } = ctx
-    const initialTree = createFlightRouterStateFromLoaderTree(
-      loaderTreeToRender,
-      getDynamicParamFromSegment,
-      query
-    )
-
-    const [MetadataTree, MetadataOutlet] = createMetadataComponents({
-      tree: loaderTreeToRender,
-      errorType: props.asNotFound ? 'not-found' : undefined,
-      pathname: urlPathname,
-      searchParams: providedSearchParams,
-      getDynamicParamFromSegment: getDynamicParamFromSegment,
-      appUsingSizeAdjustment: appUsingSizeAdjustment,
-    })
-
-    const { seedData, styles } = await createComponentTree({
-      ctx,
-      createSegmentPath: (child) => child,
-      loaderTree: loaderTreeToRender,
-      parentParams: {},
-      firstItem: true,
-      injectedCSS,
-      injectedJS,
-      injectedFontPreloadTags,
-      rootLayoutIncluded: false,
-      asNotFound: props.asNotFound,
-      metadataOutlet: <MetadataOutlet />,
-    })
-
-    return (
-      <>
-        {styles}
-        <AppRouter
-          buildId={ctx.renderOpts.buildId}
-          assetPrefix={ctx.assetPrefix}
-          initialCanonicalUrl={urlPathname}
-          // This is the router state tree.
-          initialTree={initialTree}
-          // This is the tree of React nodes that are seeded into the cache
-          initialSeedData={seedData}
-          initialHead={
-            <>
-              {ctx.res.statusCode > 400 && (
-                <meta name="robots" content="noindex" />
-              )}
-              {/* Adding requestId as react key to make metadata remount for each render */}
-              <MetadataTree key={ctx.requestId} />
-            </>
-          }
-          globalErrorComponent={GlobalError}
-        />
-      </>
-    )
-  }, options)
-}
-
 async function renderToHTMLOrFlightImpl(
   req: IncomingMessage,
   res: ServerResponse,
@@ -445,7 +543,6 @@ async function renderToHTMLOrFlightImpl(
     nextFontManifest,
     supportsDynamicHTML,
     serverActions,
-    buildId,
     appDirDevErrorLogger,
     assetPrefix = '',
     enableTainting,
@@ -552,8 +649,6 @@ async function renderToHTMLOrFlightImpl(
   // Pull out the hooks/references from the component.
   const {
     createSearchParamsBailoutProxy,
-    AppRouter,
-    GlobalError,
     tree: loaderTree,
     taintObjectReference,
   } = ComponentMod
@@ -740,34 +835,13 @@ async function renderToHTMLOrFlightImpl(
             nonce,
           }))
 
-      const [PreinitScripts, bootstrapScript] = getRequiredScripts(
+      const [preinitScripts, bootstrapScript] = getRequiredScripts(
         buildManifest,
         assetPrefix,
         renderOpts.crossOrigin,
         subresourceIntegrityManifest,
         getAssetQueryString(ctx, true),
         nonce
-      )
-
-      const ServerComponentsRenderer = createServerComponentsRenderer(tree, {
-        ctx,
-        options: serverComponentsRenderOpts,
-      })
-
-      const children = (
-        <>
-          <PreinitScripts />
-          <HeadManagerContext.Provider
-            value={{
-              appDir: true,
-              nonce,
-            }}
-          >
-            <ServerInsertedHTMLProvider>
-              <ServerComponentsRenderer asNotFound={asNotFound} />
-            </ServerInsertedHTMLProvider>
-          </HeadManagerContext.Provider>
-        </>
       )
 
       const getServerInsertedHTML = makeGetServerInsertedHTML({
@@ -812,7 +886,31 @@ async function renderToHTMLOrFlightImpl(
       })
 
       try {
-        let { stream, postponed } = await renderer.render(children)
+        // We can start the stream for RSC here but we need to actually consume
+        // it from within the SSR render for certain things to function correctly
+        // such as hints for preloading
+        const pageReactServerStream = await renderReactServerEntryForSSR(
+          tree,
+          ctx,
+          asNotFound
+        )
+
+        let { stream, postponed } = await renderer.render(
+          <HeadManagerContext.Provider
+            value={{
+              appDir: true,
+              nonce,
+            }}
+          >
+            <ServerInsertedHTMLProvider>
+              <ReactServerEntrypoint
+                reactServerStream={pageReactServerStream}
+                serverComponentsRenderOpts={serverComponentsRenderOpts}
+                preinitScripts={preinitScripts}
+              />
+            </ServerInsertedHTMLProvider>
+          </HeadManagerContext.Provider>
+        )
 
         // If the stream was postponed, we need to add the result to the
         // metadata so that it can be resumed later.
@@ -910,22 +1008,7 @@ async function renderToHTMLOrFlightImpl(
             formState,
           }
 
-        const errorType = is404
-          ? 'not-found'
-          : hasRedirectError
-          ? 'redirect'
-          : undefined
-
-        const errorMeta = (
-          <>
-            {res.statusCode >= 400 && <meta name="robots" content="noindex" />}
-            {process.env.NODE_ENV === 'development' && (
-              <meta name="next-error" content="not-found" />
-            )}
-          </>
-        )
-
-        const [ErrorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
+        const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
           buildManifest,
           assetPrefix,
           renderOpts.crossOrigin,
@@ -934,69 +1017,27 @@ async function renderToHTMLOrFlightImpl(
           nonce
         )
 
-        const ErrorPage = createServerComponentRenderer(
-          async () => {
-            const [MetadataTree] = createMetadataComponents({
-              tree,
-              pathname: urlPathname,
-              errorType,
-              searchParams: providedSearchParams,
-              getDynamicParamFromSegment,
-              appUsingSizeAdjustment,
-            })
-
-            const head = (
-              <>
-                {/* Adding requestId as react key to make metadata remount for each render */}
-                <MetadataTree key={requestId} />
-                {errorMeta}
-              </>
-            )
-
-            const initialTree = createFlightRouterStateFromLoaderTree(
-              tree,
-              getDynamicParamFromSegment,
-              query
-            )
-
-            // For metadata notFound error there's no global not found boundary on top
-            // so we create a not found page with AppRouter
-            const initialSeedData: CacheNodeSeedData = [
-              initialTree[0],
-              {},
-              <html id="__next_error__">
-                <head></head>
-                <body></body>
-              </html>,
-            ]
-            return (
-              <AppRouter
-                buildId={buildId}
-                assetPrefix={assetPrefix}
-                initialCanonicalUrl={urlPathname}
-                initialTree={initialTree}
-                initialHead={head}
-                globalErrorComponent={GlobalError}
-                initialSeedData={initialSeedData}
-              />
-            )
-          },
-          {
-            ...serverErrorComponentsRenderOpts,
-            ComponentMod,
-            serverComponentsErrorHandler,
-            nonce,
-          }
-        )
+        const errorType = is404
+          ? 'not-found'
+          : hasRedirectError
+          ? 'redirect'
+          : undefined
 
         try {
+          const errorReactServerStream = await renderReactServerErrorForSSR(
+            tree,
+            ctx,
+            errorType
+          )
+
           const fizzStream = await renderToInitialFizzStream({
             ReactDOMServer: require('react-dom/server.edge'),
             element: (
-              <>
-                <ErrorPreinitScripts />
-                <ErrorPage />
-              </>
+              <ReactServerEntrypoint
+                reactServerStream={errorReactServerStream}
+                serverComponentsRenderOpts={serverErrorComponentsRenderOpts}
+                preinitScripts={errorPreinitScripts}
+              />
             ),
             streamOptions: {
               nonce,
@@ -1229,5 +1270,54 @@ export const renderToHTMLOrFlight: AppPageRender = (
             renderOpts,
           })
       )
+  )
+}
+
+function ReactServerEntrypoint({
+  reactServerStream,
+  serverComponentsRenderOpts,
+  preinitScripts,
+}: {
+  reactServerStream: BinaryStreamOf<InitialRSCPayload>
+  serverComponentsRenderOpts: ServerComponentRendererOptions
+  preinitScripts: () => unknown
+}) {
+  preinitScripts()
+
+  const writable =
+    serverComponentsRenderOpts.inlinedDataTransformStream.writable
+
+  const {
+    b: buildId,
+    p: assetPrefix,
+    c: initialCanonicalUrl,
+    s: initialStyles,
+    t: initialTree,
+    d: initialSeedData,
+    h: initialHead,
+    G: GlobalError,
+  } = useFlightResponse(
+    writable,
+    reactServerStream,
+    serverComponentsRenderOpts.clientReferenceManifest,
+    serverComponentsRenderOpts.formState,
+    serverComponentsRenderOpts.nonce
+  )
+
+  return (
+    <>
+      {initialStyles}
+      <AppRouter
+        buildId={buildId}
+        assetPrefix={assetPrefix}
+        initialCanonicalUrl={initialCanonicalUrl}
+        // This is the router state tree.
+        initialTree={initialTree}
+        // This is the tree of React nodes that are seeded into the cache
+        initialSeedData={initialSeedData}
+        initialHead={initialHead}
+        globalErrorComponent={GlobalError}
+      />
+    </>
   )
 }

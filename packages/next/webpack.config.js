@@ -46,6 +46,8 @@ function makeAppAliases(reactChannel = '') {
     // optimisations to ignore the legacy build of react-dom/server
     './cjs/react-dom-server-legacy.browser.production.min.js': `next/dist/build/noop-react-dom-server-legacy`,
     './cjs/react-dom-server-legacy.browser.development.js': `next/dist/build/noop-react-dom-server-legacy`,
+    // test
+    '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts': `next/dist/client/dev/noop-turbopack-hmr`,
   }
 }
 

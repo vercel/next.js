@@ -16,6 +16,8 @@ import {
   ActionQueueContext,
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
+import AppRouter from './components/app-router'
+import type { InitialRSCPayload } from '../server/app-render/app-render'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
@@ -118,14 +120,12 @@ const nextServerDataLoadingGlobal = ((self as any).__next_f =
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
-function createResponseCache() {
-  return new Map<string, any>()
-}
-const rscCache = createResponseCache()
+// Temporarily stores the initial RSC Payload used to Server Render the current page
+// It will be cleared to save memory after the Root commits
+let initialRSCPayload: React.Thenable<InitialRSCPayload> | null = null
 
-function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
-  const response = rscCache.get(cacheKey)
-  if (response) return response
+function useInitialServerResponse(): InitialRSCPayload {
+  if (initialRSCPayload) return use(initialRSCPayload)
 
   const readable = new ReadableStream({
     start(controller) {
@@ -133,21 +133,38 @@ function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
     },
   })
 
-  const newResponse = createFromReadableStream(readable, {
-    callServer,
-  })
-
-  rscCache.set(cacheKey, newResponse)
-  return newResponse
+  return use(
+    (initialRSCPayload = createFromReadableStream(readable, {
+      callServer,
+    }))
+  )
 }
 
-function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
-  React.useEffect(() => {
-    rscCache.delete(cacheKey)
-  })
-  const response = useInitialServerResponse(cacheKey)
-  const root = use(response)
-  return root
+function ServerRoot(): JSX.Element {
+  const {
+    b: buildId,
+    p: assetPrefix,
+    c: initialCanonicalUrl,
+    s: initialStyles,
+    t: initialTree,
+    d: initialSeedData,
+    h: initialHead,
+    G: GlobalError,
+  } = useInitialServerResponse()
+  return (
+    <>
+      {initialStyles}
+      <AppRouter
+        buildId={buildId}
+        assetPrefix={assetPrefix}
+        initialCanonicalUrl={initialCanonicalUrl}
+        initialTree={initialTree}
+        initialSeedData={initialSeedData}
+        initialHead={initialHead}
+        globalErrorComponent={GlobalError}
+      />
+    </>
+  )
 }
 
 const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP

@@ -10,10 +10,10 @@ export function getRequiredScripts(
   qs: string,
   nonce: string | undefined
 ): [
-  () => null,
+  () => void,
   { src: string; integrity?: string; crossOrigin?: string | undefined }
 ] {
-  let PreinitScripts: () => null
+  let preinitScripts: () => void
   let preinitScriptCommands: string[] = []
   const bootstrapScript: {
     src: string
@@ -39,7 +39,7 @@ export function getRequiredScripts(
       const integrity = SRIManifest[files[i]]
       preinitScriptCommands.push(src, integrity)
     }
-    PreinitScripts = () => {
+    preinitScripts = () => {
       // preinitScriptCommands is a double indexed array of src/integrity pairs
       for (let i = 0; i < preinitScriptCommands.length; i += 2) {
         ReactDOM.preinit(preinitScriptCommands[i], {
@@ -49,7 +49,6 @@ export function getRequiredScripts(
           nonce,
         })
       }
-      return null
     }
   } else {
     bootstrapScript.src = `${assetPrefix}/_next/` + files[0] + qs
@@ -58,7 +57,7 @@ export function getRequiredScripts(
       const src = `${assetPrefix}/_next/` + files[i] + qs
       preinitScriptCommands.push(src)
     }
-    PreinitScripts = () => {
+    preinitScripts = () => {
       // preinitScriptCommands is a singled indexed array of src values
       for (let i = 0; i < preinitScriptCommands.length; i++) {
         ReactDOM.preinit(preinitScriptCommands[i], {
@@ -67,9 +66,8 @@ export function getRequiredScripts(
           crossOrigin,
         })
       }
-      return null
     }
   }
 
-  return [PreinitScripts, bootstrapScript]
+  return [preinitScripts, bootstrapScript]
 }

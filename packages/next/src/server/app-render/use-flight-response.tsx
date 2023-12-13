@@ -1,6 +1,7 @@
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
-import type { FlightResponseRef } from './flight-response-ref'
+import type { BinaryStreamOf } from './app-render'
 
+import { use } from 'react'
 import { htmlEscapeJsonString } from '../htmlescape'
 import {
   createDecodeTransformStream,
@@ -12,6 +13,8 @@ const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 const INLINE_FLIGHT_PAYLOAD_BOOTSTRAP = 0
 const INLINE_FLIGHT_PAYLOAD_DATA = 1
 const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
+
+const Responses = new WeakMap()
 
 function createFlightTransformer(
   nonce: string | undefined,
@@ -46,17 +49,17 @@ function createFlightTransformer(
  * Render Flight stream.
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
-export function useFlightResponse(
+export function useFlightResponse<T>(
   writable: WritableStream<Uint8Array>,
-  flightStream: ReadableStream<Uint8Array>,
+  flightStream: BinaryStreamOf<T>,
   clientReferenceManifest: ClientReferenceManifest,
-  flightResponseRef: FlightResponseRef,
   formState: null | any,
   nonce?: string
-): Promise<JSX.Element> {
-  if (flightResponseRef.current !== null) {
-    return flightResponseRef.current
+): T {
+  if (Responses.has(flightStream)) {
+    return use(Responses.get(flightStream)!)
   }
+
   // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
   let createFromReadableStream
   // @TODO: investigate why the aliasing for turbopack doesn't pick this up, requiring this runtime check
@@ -71,6 +74,26 @@ export function useFlightResponse(
   }
 
   const [renderStream, forwardStream] = flightStream.tee()
+
+  // This stream will be transformed into client route cache seeding scripts
+  // appended to the end of the SSR stream.
+  // @TODO-APP: this hook is currently only used in SSR however React applications
+  // generally need the same shape during SSR as they will have on the client
+  // because things like useID are contextual to the tree shape. In the future
+  // we should organize this bit of code somewhere else so that we can use it
+  // in both places
+  forwardStream
+    .pipeThrough(createDecodeTransformStream())
+    .pipeThrough(createFlightTransformer(nonce, formState))
+    .pipeThrough(createEncodeTransformStream())
+    .pipeTo(writable)
+    .catch((err) => {
+      console.error('Unexpected error while rendering Flight stream', err)
+    })
+
+  // This actually constructs the RSC Response that will be rendered by React during
+  // the SSR pass. We stash it on the responseRef so we can avoid recreating
+  // it when this component rerenders
   const res = createFromReadableStream(renderStream, {
     ssrManifest: {
       moduleLoading: clientReferenceManifest.moduleLoading,
@@ -80,21 +103,7 @@ export function useFlightResponse(
     },
     nonce,
   })
-  flightResponseRef.current = res
+  Responses.set(flightStream, res)
 
-  forwardStream
-    .pipeThrough(createDecodeTransformStream())
-    .pipeThrough(createFlightTransformer(nonce, formState))
-    .pipeThrough(createEncodeTransformStream())
-    .pipeTo(writable)
-    .finally(() => {
-      // Once the last encoding stream has flushed, then unset the flight
-      // response ref.
-      flightResponseRef.current = null
-    })
-    .catch((err) => {
-      console.error('Unexpected error while rendering Flight stream', err)
-    })
-
-  return res
+  return use(res)
 }
