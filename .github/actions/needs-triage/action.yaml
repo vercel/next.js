@@ -3,4 +3,4 @@ description: 'vercel/next.js specific auto-labeling action'
 author: 'Next.js team'
 runs:
   using: 'node20'
-  main: 'index.js'
+  main: 'dist/index.js'

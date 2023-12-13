@@ -2224,8 +2224,8 @@ export default class Router implements BaseRouter {
 
   onlyAHashChange(as: string): boolean {
     if (!this.asPath) return false
-    const [oldUrlNoHash, oldHash] = this.asPath.split('#')
-    const [newUrlNoHash, newHash] = as.split('#')
+    const [oldUrlNoHash, oldHash] = this.asPath.split('#', 2)
+    const [newUrlNoHash, newHash] = as.split('#', 2)
 
     // Makes sure we scroll to the provided hash if the url/hash are the same
     if (newHash && oldUrlNoHash === newUrlNoHash && oldHash === newHash) {
@@ -2245,7 +2245,7 @@ export default class Router implements BaseRouter {
   }
 
   scrollToHash(as: string): void {
-    const [, hash = ''] = as.split('#')
+    const [, hash = ''] = as.split('#', 2)
 
     handleSmoothScroll(
       () => {

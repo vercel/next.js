@@ -3,12 +3,13 @@ import type { PrerenderManifest } from '../../../build'
 import type {
   IncrementalCacheValue,
   IncrementalCacheEntry,
+  IncrementalCache as IncrementalCacheType,
+  IncrementalCacheKindHint,
 } from '../../response-cache'
+
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
 import path from '../../../shared/lib/isomorphic/path'
-import { encodeText } from '../../stream-utils/encode-decode'
-import { encode } from '../../../shared/lib/base64-arraybuffer'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 
 import {
@@ -31,7 +32,9 @@ export interface CacheHandlerContext {
   fetchCacheKeyPrefix?: string
   prerenderManifest?: PrerenderManifest
   revalidatedTags: string[]
+  experimental: { ppr: boolean }
   _appDir: boolean
+  _pagesDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
 }
 
@@ -59,7 +62,7 @@ export class CacheHandler {
   public async revalidateTag(_tag: string): Promise<void> {}
 }
 
-export class IncrementalCache {
+export class IncrementalCache implements IncrementalCacheType {
   dev?: boolean
   cacheHandler?: CacheHandler
   prerenderManifest: PrerenderManifest
@@ -77,6 +80,7 @@ export class IncrementalCache {
     fs,
     dev,
     appDir,
+    pagesDir,
     flushToDisk,
     fetchCache,
     minimalMode,
@@ -88,10 +92,12 @@ export class IncrementalCache {
     fetchCacheKeyPrefix,
     CurCacheHandler,
     allowedRevalidateHeaderKeys,
+    experimental,
   }: {
     fs?: CacheFs
     dev: boolean
     appDir?: boolean
+    pagesDir?: boolean
     fetchCache?: boolean
     minimalMode?: boolean
     serverDistDir?: string
@@ -103,6 +109,7 @@ export class IncrementalCache {
     getPrerenderManifest: () => PrerenderManifest
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
+    experimental: { ppr: boolean }
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     if (!CurCacheHandler) {
@@ -167,9 +174,11 @@ export class IncrementalCache {
         serverDistDir,
         revalidatedTags,
         maxMemoryCacheSize,
+        _pagesDir: !!pagesDir,
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
         fetchCacheKeyPrefix,
+        experimental,
       })
     }
   }
@@ -287,45 +296,49 @@ export class IncrementalCache {
     let cacheKey: string
     const bodyChunks: string[] = []
 
+    const encoder = new TextEncoder()
+    const decoder = new TextDecoder()
+
     if (init.body) {
       // handle ReadableStream body
       if (typeof (init.body as any).getReader === 'function') {
-        const readableBody = init.body as ReadableStream
-        const reader = readableBody.getReader()
-        let arrayBuffer = new Uint8Array()
+        const readableBody = init.body as ReadableStream<Uint8Array | string>
 
-        function processValue({
-          done,
-          value,
-        }: {
-          done?: boolean
-          value?: ArrayBuffer | string
-        }): any {
-          if (done) {
-            return
-          }
-          if (value) {
-            try {
-              bodyChunks.push(typeof value === 'string' ? value : encode(value))
-              const curBuffer: Uint8Array =
-                typeof value === 'string'
-                  ? encodeText(value)
-                  : new Uint8Array(value)
+        const chunks: Uint8Array[] = []
 
-              const prevBuffer = arrayBuffer
-              arrayBuffer = new Uint8Array(
-                prevBuffer.byteLength + curBuffer.byteLength
-              )
-              arrayBuffer.set(prevBuffer)
-              arrayBuffer.set(curBuffer, prevBuffer.byteLength)
-            } catch (err) {
-              console.error(err)
-            }
+        try {
+          await readableBody.pipeTo(
+            new WritableStream({
+              write(chunk) {
+                if (typeof chunk === 'string') {
+                  chunks.push(encoder.encode(chunk))
+                  bodyChunks.push(chunk)
+                } else {
+                  chunks.push(chunk)
+                  bodyChunks.push(decoder.decode(chunk, { stream: true }))
+                }
+              },
+            })
+          )
+
+          // Flush the decoder.
+          bodyChunks.push(decoder.decode())
+
+          // Create a new buffer with all the chunks.
+          const length = chunks.reduce((total, arr) => total + arr.length, 0)
+          const arrayBuffer = new Uint8Array(length)
+
+          // Push each of the chunks into the new array buffer.
+          let offset = 0
+          for (const chunk of chunks) {
+            arrayBuffer.set(chunk, offset)
+            offset += chunk.length
           }
-          reader.read().then(processValue)
+
+          ;(init as any)._ogBody = arrayBuffer
+        } catch (err) {
+          console.error('Problem reading body', err)
         }
-        await reader.read().then(processValue)
-        ;(init as any)._ogBody = arrayBuffer
       } // handle FormData or URLSearchParams bodies
       else if (typeof (init.body as any).keys === 'function') {
         const formData = init.body as FormData
@@ -350,7 +363,7 @@ export class IncrementalCache {
       } else if (typeof (init.body as any).arrayBuffer === 'function') {
         const blob = init.body as Blob
         const arrayBuffer = await blob.arrayBuffer()
-        bodyChunks.push(encode(await (init.body as Blob).arrayBuffer()))
+        bodyChunks.push(await blob.text())
         ;(init as any)._ogBody = new Blob([arrayBuffer], { type: blob.type })
       } else if (typeof init.body === 'string') {
         bodyChunks.push(init.body)
@@ -382,7 +395,7 @@ export class IncrementalCache {
           .call(new Uint8Array(buffer), (b) => b.toString(16).padStart(2, '0'))
           .join('')
       }
-      const buffer = encodeText(cacheString)
+      const buffer = encoder.encode(cacheString)
       cacheKey = bufferToHex(await crypto.subtle.digest('SHA-256', buffer))
     } else {
       const crypto = require('crypto') as typeof import('crypto')
@@ -395,7 +408,7 @@ export class IncrementalCache {
   async get(
     cacheKey: string,
     ctx: {
-      fetchCache?: boolean
+      kindHint?: IncrementalCacheKindHint
       revalidate?: number | false
       fetchUrl?: string
       fetchIdx?: number
@@ -423,12 +436,13 @@ export class IncrementalCache {
     // so that getStaticProps is always called for easier debugging
     if (
       this.dev &&
-      (!ctx.fetchCache || this.requestHeaders['cache-control'] === 'no-cache')
+      (ctx.kindHint !== 'fetch' ||
+        this.requestHeaders['cache-control'] === 'no-cache')
     ) {
       return null
     }
 
-    cacheKey = this._getPathname(cacheKey, ctx.fetchCache)
+    cacheKey = this._getPathname(cacheKey, ctx.kindHint === 'fetch')
     let entry: IncrementalCacheEntry | null = null
     let revalidate = ctx.revalidate
 
@@ -446,9 +460,7 @@ export class IncrementalCache {
       }
 
       revalidate = revalidate || cacheData.value.revalidate
-      const age = Math.round(
-        (Date.now() - (cacheData.lastModified || 0)) / 1000
-      )
+      const age = (Date.now() - (cacheData.lastModified || 0)) / 1000
 
       const isStale = age > revalidate
       const data = cacheData.value.data
@@ -477,7 +489,7 @@ export class IncrementalCache {
       revalidateAfter = this.calculateRevalidate(
         cacheKey,
         cacheData?.lastModified || Date.now(),
-        this.dev && !ctx.fetchCache
+        this.dev && ctx.kindHint !== 'fetch'
       )
       isStale =
         revalidateAfter !== false && revalidateAfter < Date.now()
@@ -559,12 +571,15 @@ export class IncrementalCache {
       // revalidateAfter values so we update this on set
       if (typeof ctx.revalidate !== 'undefined' && !ctx.fetchCache) {
         this.prerenderManifest.routes[pathname] = {
+          experimentalPPR: undefined,
           dataRoute: path.posix.join(
             '/_next/data',
             `${normalizePagePath(pathname)}.json`
           ),
           srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
           initialRevalidateSeconds: ctx.revalidate,
+          // Pages routes do not have a prefetch data route.
+          prefetchDataRoute: undefined,
         }
       }
       await this.cacheHandler?.set(pathname, data, ctx)

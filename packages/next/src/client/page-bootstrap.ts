@@ -56,6 +56,14 @@ export function pageBootrap(assetPrefix: string) {
         if (payload.event === HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES) {
           return window.location.reload()
         } else if (
+          payload.event === HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES
+        ) {
+          const isOnErrorPage = window.next.router.pathname === '/_error'
+          // On the error page we want to reload the page when a page was changed
+          if (isOnErrorPage) {
+            return window.location.reload()
+          }
+        } else if (
           payload.event === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
         ) {
           const { pages } = payload

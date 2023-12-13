@@ -1,4 +1,4 @@
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 import { ImageResponse as ImageResponse2 } from '@vercel/og'
 
 // Node.js: Using @vercel/og external package, and should be aliased to "next/server" ImageResponse

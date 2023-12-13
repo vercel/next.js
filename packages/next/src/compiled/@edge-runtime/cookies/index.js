@@ -111,6 +111,57 @@ function parsePriority(string) {
   string = string.toLowerCase();
   return PRIORITY.includes(string) ? string : void 0;
 }
+function splitCookiesString(cookiesString) {
+  if (!cookiesString)
+    return [];
+  var cookiesStrings = [];
+  var pos = 0;
+  var start;
+  var ch;
+  var lastComma;
+  var nextStart;
+  var cookiesSeparatorFound;
+  function skipWhitespace() {
+    while (pos < cookiesString.length && /\s/.test(cookiesString.charAt(pos))) {
+      pos += 1;
+    }
+    return pos < cookiesString.length;
+  }
+  function notSpecialChar() {
+    ch = cookiesString.charAt(pos);
+    return ch !== "=" && ch !== ";" && ch !== ",";
+  }
+  while (pos < cookiesString.length) {
+    start = pos;
+    cookiesSeparatorFound = false;
+    while (skipWhitespace()) {
+      ch = cookiesString.charAt(pos);
+      if (ch === ",") {
+        lastComma = pos;
+        pos += 1;
+        skipWhitespace();
+        nextStart = pos;
+        while (pos < cookiesString.length && notSpecialChar()) {
+          pos += 1;
+        }
+        if (pos < cookiesString.length && cookiesString.charAt(pos) === "=") {
+          cookiesSeparatorFound = true;
+          pos = nextStart;
+          cookiesStrings.push(cookiesString.substring(start, lastComma));
+          start = pos;
+        } else {
+          pos = lastComma + 1;
+        }
+      } else {
+        pos += 1;
+      }
+    }
+    if (!cookiesSeparatorFound || pos >= cookiesString.length) {
+      cookiesStrings.push(cookiesString.substring(start, cookiesString.length));
+    }
+  }
+  return cookiesStrings;
+}
 
 // src/request-cookies.ts
 var RequestCookies = class {
@@ -196,8 +247,10 @@ var ResponseCookies = class {
   constructor(responseHeaders) {
     /** @internal */
     this._parsed = /* @__PURE__ */ new Map();
+    var _a, _b, _c;
     this._headers = responseHeaders;
-    const cookieStrings = responseHeaders.getSetCookie();
+    const setCookie = (_c = (_b = (_a = responseHeaders.getSetCookie) == null ? void 0 : _a.call(responseHeaders)) != null ? _b : responseHeaders.get("set-cookie")) != null ? _c : [];
+    const cookieStrings = Array.isArray(setCookie) ? setCookie : splitCookiesString(setCookie);
     for (const cookieString of cookieStrings) {
       const parsed = parseSetCookie(cookieString);
       if (parsed)

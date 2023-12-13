@@ -1,0 +1,40 @@
+# Reusable workflow to upload next.js integration test results to KV for https://areweturboyet.com/
+# This workflow assumes the `next-integration-test` workflow has been executed
+# and test reports have been uploaded to the `test-results` artifact.
+name: Update next.js integration test results
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  upload_test_results:
+    name: Upload test results
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Download test results into the `test-results` directory from the artifact created by `nextjs-integration-test`.
+      - name: Download test results artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: test-results
+          path: test-results
+
+      # Read next.js version from test results, set necessary environment variables.
+      - name: Print test results
+        run: |
+          echo "::group::Passed test paths"
+          cat ./test-results/passed-test-path-list.json
+          echo "::endgroup::"
+
+          echo "::group::Failed test paths"
+          cat ./test-results/failed-test-path-list.json
+          echo "::endgroup::"
+
+      - name: 'Upload results to "Are We Turbo Yet" KV'
+        env:
+          TURBOYET_KV_REST_API_URL: ${{ secrets.TURBOYET_KV_REST_API_URL }}
+          TURBOYET_KV_REST_API_TOKEN: ${{ secrets.TURBOYET_KV_REST_API_TOKEN }}
+        uses: ./.github/actions/upload-turboyet-data

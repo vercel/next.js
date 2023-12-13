@@ -216,7 +216,7 @@ impl VisitMut for CjsOptimizer {
         {
             if let Expr::Ident(ident) = &**callee {
                 if ident.span.ctxt == self.unresolved_ctxt && ident.sym == *"require" {
-                    if let Some(arg) = args.get(0) {
+                    if let Some(arg) = args.first() {
                         if let Expr::Lit(Lit::Str(v)) = &*arg.expr {
                             // TODO: Config
 
@@ -233,7 +233,7 @@ impl VisitMut for CjsOptimizer {
                                         self.data.imports.insert(
                                             key,
                                             ImportRecord {
-                                                module_specifier: v.value.clone().into(),
+                                                module_specifier: v.value.clone(),
                                             },
                                         );
                                     }

@@ -40,7 +40,9 @@ describe('FileSystemPublicRoutes', () => {
     const res = await fetch('/exportpathmap-route')
     expect(res.status).toBe(200)
     const body = await res.text()
-    expect(body).toMatch(/exportpathmap was here/)
+    expect(body).toMatch(
+      process.env.TURBOPACK ? /turbopack/ : /exportpathmap was here/
+    )
   })
 
   it('should still handle /_next routes', async () => {
@@ -52,7 +54,9 @@ describe('FileSystemPublicRoutes', () => {
     const res = await fetch(join('/_next', pageFile))
     expect(res.status).toBe(200)
     const body = await res.text()
-    expect(body).toMatch(/exportpathmap was here/)
+    expect(body).toMatch(
+      process.env.TURBOPACK ? /turbopack/ : /exportpathmap was here/
+    )
   })
 
   it('should route to public folder files', async () => {

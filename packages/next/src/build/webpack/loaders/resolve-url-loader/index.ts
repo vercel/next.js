@@ -97,7 +97,7 @@ export default async function resolveUrlLoader(
             (typeof exception === 'string' && exception) ||
               (exception instanceof Error && [
                 exception.message,
-                (exception as any).stack.split('\n')[1].trim(),
+                (exception as any).stack.split('\n', 2)[1].trim(),
               ]) ||
               []
           )

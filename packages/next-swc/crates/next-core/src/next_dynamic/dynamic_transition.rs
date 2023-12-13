@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::turbopack::{
-    core::{module::Module, reference_type::ReferenceType, source::Source},
+    core::{context::ProcessResult, reference_type::ReferenceType, source::Source},
     turbopack::{
         transition::{ContextTransition, Transition},
         ModuleAssetContext,
@@ -29,16 +29,31 @@ impl NextDynamicTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextDynamicTransition {
     #[turbo_tasks::function]
+    fn process_layer(self: Vc<Self>, layer: Vc<String>) -> Vc<String> {
+        layer
+    }
+
+    #[turbo_tasks::function]
     async fn process(
-        &self,
+        self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
-    ) -> Result<Vc<Box<dyn Module>>> {
-        let client_module =
-            self.client_transition
-                .process(source, context, Value::new(ReferenceType::Undefined));
+    ) -> Result<Vc<ProcessResult>> {
+        let context = self.process_context(context);
 
-        Ok(Vc::upcast(NextDynamicEntryModule::new(client_module)))
+        let this = self.await?;
+
+        Ok(match *this
+            .client_transition
+            .process(source, context, Value::new(ReferenceType::Undefined))
+            .await?
+        {
+            ProcessResult::Module(client_module) => {
+                ProcessResult::Module(Vc::upcast(NextDynamicEntryModule::new(client_module)))
+            }
+            ProcessResult::Ignore => ProcessResult::Ignore,
+        }
+        .cell())
     }
 }

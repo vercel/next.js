@@ -16,7 +16,7 @@ export default function initializeBuildWatcher(
   position = 'bottom-right'
 ) {
   const shadowHost = document.createElement('div')
-  const [verticalProperty, horizontalProperty] = position.split('-') as [
+  const [verticalProperty, horizontalProperty] = position.split('-', 2) as [
     VerticalPosition,
     HorizonalPosition
   ]
@@ -95,6 +95,7 @@ export default function initializeBuildWatcher(
         break
       case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
       case HMR_ACTIONS_SENT_TO_BROWSER.SYNC:
+      case HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING:
         hide()
         break
     }

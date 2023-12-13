@@ -5,6 +5,7 @@ use next_api::{
     route::{Endpoint, WrittenEndpoint},
     server_paths::ServerPath,
 };
+use tracing::Instrument;
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::core::error::PrettyPrintError;
 
@@ -39,8 +40,6 @@ pub struct NapiWrittenEndpoint {
     pub r#type: String,
     pub entry_path: Option<String>,
     pub server_paths: Option<Vec<NapiServerPath>>,
-    pub files: Option<Vec<String>>,
-    pub global_var_name: Option<String>,
     pub config: NapiEndpointConfig,
 }
 
@@ -56,15 +55,9 @@ impl From<&WrittenEndpoint> for NapiWrittenEndpoint {
                 server_paths: Some(server_paths.iter().map(From::from).collect()),
                 ..Default::default()
             },
-            WrittenEndpoint::Edge {
-                files,
-                global_var_name,
-                server_paths,
-            } => Self {
+            WrittenEndpoint::Edge { server_paths } => Self {
                 r#type: "edge".to_string(),
-                files: Some(files.clone()),
                 server_paths: Some(server_paths.iter().map(From::from).collect()),
-                global_var_name: Some(global_var_name.clone()),
                 ..Default::default()
             },
         }
@@ -114,6 +107,7 @@ pub async fn endpoint_write_to_disk(
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_server_changed_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+    issues: bool,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
     let turbo_tasks = endpoint.turbo_tasks().clone();
@@ -121,18 +115,26 @@ pub fn endpoint_server_changed_subscribe(
     subscribe(
         turbo_tasks,
         func,
-        move || async move {
-            let changed = endpoint.server_changed();
-            // We don't capture issues and diagonistics here since we don't want to be
-            // notified when they change
-            changed.strongly_consistent().await?;
-            Ok(())
+        move || {
+            async move {
+                let changed = endpoint.server_changed();
+                changed.strongly_consistent().await?;
+                if issues {
+                    let issues = get_issues(changed).await?;
+                    let diags = get_diagnostics(changed).await?;
+                    Ok((issues, diags))
+                } else {
+                    Ok((vec![], vec![]))
+                }
+            }
+            .instrument(tracing::info_span!("server changes subscription"))
         },
-        |_| {
+        |ctx| {
+            let (issues, diags) = ctx.value;
             Ok(vec![TurbopackResult {
                 result: (),
-                issues: vec![],
-                diagnostics: vec![],
+                issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
             }])
         },
     )
@@ -148,12 +150,15 @@ pub fn endpoint_client_changed_subscribe(
     subscribe(
         turbo_tasks,
         func,
-        move || async move {
-            let changed = endpoint.client_changed();
-            // We don't capture issues and diagonistics here since we don't want to be
-            // notified when they change
-            changed.strongly_consistent().await?;
-            Ok(())
+        move || {
+            async move {
+                let changed = endpoint.client_changed();
+                // We don't capture issues and diagonistics here since we don't want to be
+                // notified when they change
+                changed.strongly_consistent().await?;
+                Ok(())
+            }
+            .instrument(tracing::info_span!("client changes subscription"))
         },
         |_| {
             Ok(vec![TurbopackResult {

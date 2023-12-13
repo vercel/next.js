@@ -1,0 +1,33 @@
+# A workflow to run next.js integration test with turbopack for each day.
+# This runs against main branch with latest Next.js release.
+name: Daily Next.js integration test with turbopack
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Next.js version, sha, branch to test
+        type: string
+        default: 'canary'
+
+jobs:
+  # Trigger actual next.js integration tests.
+  next_js_integration:
+    name: Execute Next.js integration workflow
+    permissions:
+      pull-requests: write
+    uses: ./.github/workflows/nextjs-integration-test.yml
+    secrets: inherit
+    with:
+      diff_base: 'none'
+      version: ${{ inputs.version || 'canary' }}
+
+  # Upload test results to KV, but only for scheduled runs.
+  upload_test_results:
+    name: Upload test results
+    needs: [next_js_integration]
+    if: ${{ github.event_name == 'schedule' }} && always()
+    uses: ./.github/workflows/upload-nextjs-integration-test-results.yml
+    secrets: inherit

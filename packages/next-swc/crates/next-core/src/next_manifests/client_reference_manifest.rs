@@ -16,6 +16,7 @@ use super::{ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId};
 use crate::{
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceType, ClientReferences},
+    util::NextRuntime,
 };
 
 #[turbo_tasks::value_impl]
@@ -30,6 +31,7 @@ impl ClientReferenceManifest {
         client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         asset_prefix: Vc<Option<String>>,
+        runtime: NextRuntime,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let mut entry_manifest: ClientReferenceManifest = Default::default();
         entry_manifest.module_loading.prefix = asset_prefix
@@ -72,6 +74,11 @@ impl ClientReferenceManifest {
                     .entry(server_component_name.clone_value())
                     .or_default();
 
+                let entry_js_files = entry_manifest
+                    .entry_js_files
+                    .entry(server_component_name.clone_value())
+                    .or_default();
+
                 match app_client_reference_ty {
                     ClientReferenceType::CssClientReference(_) => {
                         entry_css_files.extend(
@@ -86,9 +93,22 @@ impl ClientReferenceManifest {
                                 })
                                 .map(ToString::to_string),
                         );
+                        entry_js_files.extend(
+                            client_chunks_paths
+                                .iter()
+                                .filter_map(|chunk_path| {
+                                    if chunk_path.extension_ref() != Some("css") {
+                                        client_relative_path.get_path_to(chunk_path)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .map(ToString::to_string),
+                        );
                     }
 
                     ClientReferenceType::EcmascriptClientReference(_) => {
+                        // TODO should this be removed? does it make sense?
                         entry_css_files.extend(
                             client_chunks_paths
                                 .iter()
@@ -140,6 +160,9 @@ impl ClientReferenceManifest {
                         .iter()
                         .filter_map(|chunk_path| client_relative_path.get_path_to(chunk_path))
                         .map(ToString::to_string)
+                        // It's possible that a chunk also emits CSS files, that will
+                        // be handled separatedly.
+                        .filter(|path| path.ends_with(".js"))
                         .collect::<Vec<_>>();
 
                     let ssr_chunks_paths = ssr_chunks
@@ -171,15 +194,31 @@ impl ClientReferenceManifest {
                         ManifestNodeEntry {
                             name: "*".to_string(),
                             id: (&*ssr_module_id).into(),
-                            chunks: ssr_chunks_paths.clone(),
+                            chunks: if runtime == NextRuntime::Edge {
+                                // the chunks get added to the middleware-manifest.json instead of
+                                // this file because the edge runtime doesn't support dynamically
+                                // loading chunks.
+                                vec![]
+                            } else {
+                                ssr_chunks_paths.clone()
+                            },
                             // TODO(WEB-434)
                             r#async: false,
                         },
                     );
 
-                    entry_manifest
-                        .ssr_module_mapping
-                        .insert((&*client_module_id).into(), ssr_manifest_node);
+                    match runtime {
+                        NextRuntime::NodeJs => {
+                            entry_manifest
+                                .ssr_module_mapping
+                                .insert((&*client_module_id).into(), ssr_manifest_node.clone());
+                        }
+                        NextRuntime::Edge => {
+                            entry_manifest
+                                .edge_ssr_module_mapping
+                                .insert((&*client_module_id).into(), ssr_manifest_node);
+                        }
+                    }
                 }
             }
         }

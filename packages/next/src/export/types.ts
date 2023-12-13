@@ -8,6 +8,7 @@ import type { FontConfig } from '../server/font-utils'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'
 import type { Revalidate } from '../server/lib/revalidate'
+import type { NextEnabledDirectories } from '../server/base-server'
 
 export interface AmpValidation {
   page: string
@@ -23,7 +24,11 @@ export interface AmpValidation {
 export type FileWriter = (
   type: string,
   path: string,
-  content: any,
+  content:
+    | string
+    | NodeJS.ArrayBufferView
+    | Iterable<string | NodeJS.ArrayBufferView>
+    | AsyncIterable<string | NodeJS.ArrayBufferView>,
   encodingOptions?: WriteFileOptions
 ) => Promise<void>
 
@@ -31,6 +36,7 @@ type PathMap = ExportPathMap[keyof ExportPathMap]
 
 export interface ExportPageInput {
   path: string
+  dir: string
   pathMap: PathMap
   distDir: string
   outDir: string
@@ -53,6 +59,7 @@ export interface ExportPageInput {
   fetchCacheKeyPrefix?: string
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
+  enabledDirectories: NextEnabledDirectories
 }
 
 export type ExportedPageFile = {
@@ -69,6 +76,8 @@ export type ExportRouteResult =
         headers?: OutgoingHttpHeaders
       }
       ssgNotFound?: boolean
+      hasEmptyPrelude?: boolean
+      hasPostponed?: boolean
     }
   | {
       error: boolean
@@ -91,8 +100,7 @@ export type ExportWorker = (
 
 export interface ExportAppOptions {
   outdir: string
-  isInvokedFromCli: boolean
-  hasAppDir: boolean
+  enabledDirectories: NextEnabledDirectories
   silent?: boolean
   threads?: number
   debugOutput?: boolean
@@ -132,6 +140,14 @@ export type ExportAppResult = {
        * The metadata for the page.
        */
       metadata?: { status?: number; headers?: OutgoingHttpHeaders }
+      /**
+       * If the page has an empty prelude when using PPR.
+       */
+      hasEmptyPrelude?: boolean
+      /**
+       * If the page has postponed when using PPR.
+       */
+      hasPostponed?: boolean
     }
   >
 

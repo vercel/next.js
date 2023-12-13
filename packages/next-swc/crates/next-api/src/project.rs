@@ -7,23 +7,25 @@ use next_core::{
     app_structure::find_app_dir,
     emit_assets, get_edge_chunking_context, get_edge_compile_time_info,
     get_edge_resolve_options_context,
+    instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
     next_config::{JsConfig, NextConfig},
     next_server::{
         get_server_chunking_context, get_server_compile_time_info,
-        get_server_module_options_context, ServerContextType,
+        get_server_module_options_context, get_server_resolve_options_context, ServerContextType,
     },
     next_telemetry::NextFeatureTelemetry,
 };
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
     Completion, Completions, IntoTraitRef, State, TaskInput, TraitRef, TransientInstance,
-    TryFlatJoinIterExt, Value, ValueToString, Vc,
+    TryFlatJoinIterExt, Value, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -34,14 +36,12 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         core::{
             changed::content_changed,
-            chunk::ChunkingContext,
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             diagnostics::DiagnosticExt,
             environment::ServerAddr,
             file_source::FileSource,
             output::{OutputAsset, OutputAssets},
-            reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
             source::Source,
             version::{Update, Version, VersionState, VersionedContent},
@@ -58,6 +58,7 @@ use crate::{
     app::{AppProject, OptionAppProject},
     build,
     entrypoints::Entrypoints,
+    instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
     route::{Endpoint, Route},
@@ -135,6 +136,12 @@ pub struct DefineEnv {
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
 pub struct Middleware {
     pub endpoint: Vc<Box<dyn Endpoint>>,
+}
+
+#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
+pub struct Instrumentation {
+    pub node_js: Vc<Box<dyn Endpoint>>,
+    pub edge: Vc<Box<dyn Endpoint>>,
 }
 
 #[turbo_tasks::value]
@@ -255,6 +262,15 @@ impl ProjectContainer {
     pub fn hmr_identifiers(self: Vc<Self>) -> Vc<Vec<String>> {
         self.project().hmr_identifiers()
     }
+
+    #[turbo_tasks::function]
+    pub async fn get_versioned_content(
+        self: Vc<Self>,
+        file_path: Vc<FileSystemPath>,
+    ) -> Result<Vc<Box<dyn VersionedContent>>> {
+        let this = self.await?;
+        Ok(this.versioned_content_map.get(file_path))
+    }
 }
 
 #[turbo_tasks::value]
@@ -267,7 +283,7 @@ pub struct Project {
     dist_dir: String,
 
     /// A path inside the root_path which contains the app/pages directories.
-    project_path: String,
+    pub project_path: String,
 
     /// Whether to watch the filesystem for file changes.
     watch: bool,
@@ -361,7 +377,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn node_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    pub async fn node_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone());
         disk_fs.await?.start_watching_with_invalidation_reason()?;
@@ -374,13 +390,18 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+    pub async fn dist_dir(self: Vc<Self>) -> Result<Vc<String>> {
+        Ok(Vc::cell(self.await?.dist_dir.to_string()))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         Ok(self.node_fs().root().join(this.dist_dir.to_string()))
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_root(self: Vc<Self>) -> Vc<FileSystemPath> {
+    pub fn client_root(self: Vc<Self>) -> Vc<FileSystemPath> {
         self.client_fs().root()
     }
 
@@ -389,17 +410,8 @@ impl Project {
         self.project_fs().root()
     }
 
-    /// Returns a path to dist_dir resolved from project root path as string.
-    /// Currently this is only for embedding process.env.__NEXT_DIST_DIR.
-    /// [Note] in webpack-config, it is being injected when
-    /// dev && (isClient || isEdgeServer)
     #[turbo_tasks::function]
-    async fn dist_root_string(self: Vc<Self>) -> Result<Vc<String>> {
-        Ok(self.node_root().to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+    pub async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let next_config = self.next_config().await?;
         Ok(self.client_root().join(format!(
             "{}/_next",
@@ -411,7 +423,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+    pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let root = self.project_root_path();
         let project_relative = this.project_path.strip_prefix(&this.root_path).unwrap();
@@ -462,7 +474,6 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn client_compile_time_info(&self) -> Result<Vc<CompileTimeInfo>> {
         Ok(get_client_compile_time_info(
-            self.mode,
             self.browserslist_query.clone(),
             self.define_env.client(),
         ))
@@ -472,11 +483,9 @@ impl Project {
     pub(super) async fn server_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
         let this = self.await?;
         Ok(get_server_compile_time_info(
-            this.mode,
             self.env(),
             self.server_addr(),
             this.define_env.nodejs(),
-            self.next_config(),
         ))
     }
 
@@ -484,10 +493,9 @@ impl Project {
     pub(super) async fn edge_compile_time_info(self: Vc<Self>) -> Result<Vc<CompileTimeInfo>> {
         let this = self.await?;
         Ok(get_edge_compile_time_info(
-            this.mode,
             self.project_path(),
             self.server_addr(),
-            this.define_env.nodejs(),
+            this.define_env.edge(),
         ))
     }
 
@@ -506,14 +514,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn app_client_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.client_chunking_context().with_layer("app".to_string())
-    }
-
-    #[turbo_tasks::function]
-    fn server_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
+    pub(super) fn server_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
         get_server_chunking_context(
             self.project_path(),
             self.node_root(),
@@ -524,11 +525,10 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn edge_chunking_context(self: Vc<Self>) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    pub(super) fn edge_chunking_context(self: Vc<Self>) -> Vc<Box<dyn EcmascriptChunkingContext>> {
         get_edge_chunking_context(
             self.project_path(),
             self.node_root(),
-            self.client_relative_path(),
             self.edge_compile_time_info().environment(),
         )
     }
@@ -611,60 +611,6 @@ impl Project {
         Ok(Default::default())
     }
 
-    #[turbo_tasks::function]
-    pub(super) fn ssr_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
-        self.server_chunking_context().with_layer("ssr".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn app_ssr_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
-        self.server_chunking_context()
-            .with_layer("app ssr".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn edge_ssr_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.edge_chunking_context()
-            .with_layer("edge ssr".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn ssr_data_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
-        self.server_chunking_context()
-            .with_layer("ssr data".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn edge_ssr_data_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.edge_chunking_context()
-            .with_layer("edge ssr data".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn rsc_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
-        self.server_chunking_context().with_layer("rsc".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn edge_rsc_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.edge_chunking_context()
-            .with_layer("edge rsc".to_string())
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn edge_middleware_chunking_context(
-        self: Vc<Self>,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.edge_chunking_context()
-            .with_layer("middleware".to_string())
-    }
-
     /// Scans the app/pages directories for entry points files (matching the
     /// provided page_extensions).
     #[turbo_tasks::function]
@@ -723,9 +669,34 @@ impl Project {
             None
         };
 
+        let instrumentation = find_context_file(
+            self.project_path(),
+            instrumentation_files(self.next_config().page_extensions()),
+        );
+        let instrumentation = if let FindContextFileResult::Found(fs_path, _) =
+            *instrumentation.await?
+        {
+            let source = Vc::upcast(FileSource::new(fs_path));
+            Some(Instrumentation {
+                node_js: TraitRef::cell(
+                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, false))
+                        .into_trait_ref()
+                        .await?,
+                ),
+                edge: TraitRef::cell(
+                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, true))
+                        .into_trait_ref()
+                        .await?,
+                ),
+            })
+        } else {
+            None
+        };
+
         Ok(Entrypoints {
             routes,
             middleware,
+            instrumentation,
             pages_document_endpoint,
             pages_app_endpoint,
             pages_error_endpoint,
@@ -752,19 +723,56 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
+            Vc::cell("middleware".to_string()),
         ))
     }
 
     #[turbo_tasks::function]
-    fn middleware_endpoint(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Vc<MiddlewareEndpoint> {
+    async fn middleware_endpoint(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+    ) -> Result<Vc<MiddlewareEndpoint>> {
         let context = self.middleware_context();
 
-        let module = context.process(
-            source,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
-        );
+        Ok(MiddlewareEndpoint::new(self, context, source))
+    }
 
-        MiddlewareEndpoint::new(self, context, module)
+    #[turbo_tasks::function]
+    fn node_instrumentation_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>> {
+        Vc::upcast(ModuleAssetContext::new(
+            Default::default(),
+            self.server_compile_time_info(),
+            get_server_module_options_context(
+                self.project_path(),
+                self.execution_context(),
+                Value::new(ServerContextType::Instrumentation),
+                NextMode::Development,
+                self.next_config(),
+            ),
+            get_server_resolve_options_context(
+                self.project_path(),
+                Value::new(ServerContextType::Instrumentation),
+                NextMode::Development,
+                self.next_config(),
+                self.execution_context(),
+            ),
+            Vc::cell("instrumentation".to_string()),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn instrumentation_endpoint(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+        is_edge: bool,
+    ) -> Vc<InstrumentationEndpoint> {
+        let context = if is_edge {
+            self.middleware_context()
+        } else {
+            self.node_instrumentation_context()
+        };
+
+        InstrumentationEndpoint::new(self, context, source, is_edge)
     }
 
     #[turbo_tasks::function]
@@ -772,19 +780,24 @@ impl Project {
         self: Vc<Self>,
         output_assets: Vc<OutputAssetsOperation>,
     ) -> Result<Vc<Completion>> {
-        let all_output_assets = all_assets_from_entries_operation(output_assets);
+        let span = tracing::info_span!("emitting");
+        async move {
+            let all_output_assets = all_assets_from_entries_operation(output_assets);
 
-        self.await?
-            .versioned_content_map
-            .insert_output_assets(all_output_assets)
-            .await?;
+            self.await?
+                .versioned_content_map
+                .insert_output_assets(all_output_assets)
+                .await?;
 
-        Ok(emit_assets(
-            *all_output_assets.await?,
-            self.node_root(),
-            self.client_relative_path(),
-            self.node_root(),
-        ))
+            Ok(emit_assets(
+                *all_output_assets.await?,
+                self.node_root(),
+                self.client_relative_path(),
+                self.node_root(),
+            ))
+        }
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]
@@ -864,7 +877,7 @@ impl Project {
     #[turbo_tasks::function]
     pub fn server_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
         let path = self.node_root();
-        any_output_changed(roots, path)
+        any_output_changed(roots, path, true)
     }
 
     /// Completion when client side changes are detected in output assets
@@ -872,7 +885,7 @@ impl Project {
     #[turbo_tasks::function]
     pub fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Vc<Completion> {
         let path = self.client_root();
-        any_output_changed(roots, path)
+        any_output_changed(roots, path, false)
     }
 }
 
@@ -880,6 +893,7 @@ impl Project {
 async fn any_output_changed(
     roots: Vc<OutputAssets>,
     path: Vc<FileSystemPath>,
+    server: bool,
 ) -> Result<Vc<Completion>> {
     let path = &path.await?;
     let completions = AdjacencyMap::new()
@@ -891,7 +905,10 @@ async fn any_output_changed(
         .into_reverse_topological()
         .map(|m| async move {
             let asset_path = m.ident().path().await?;
-            if !asset_path.path.ends_with(".map") && asset_path.is_inside_ref(path) {
+            if !asset_path.path.ends_with(".map")
+                && (!server || !asset_path.path.ends_with(".css"))
+                && asset_path.is_inside_ref(path)
+            {
                 Ok(Some(content_changed(Vc::upcast(m))))
             } else {
                 Ok(None)

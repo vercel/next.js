@@ -1,4 +1,4 @@
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 // @ts-ignore
 import { ImageResponse as ImageResponse2 } from '@vercel/og'
 

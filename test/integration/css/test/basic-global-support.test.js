@@ -229,7 +229,7 @@ describe('CSS URL via `file-loader`', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "dark.svg",
           "dark2.svg",
           "light.svg",
@@ -277,7 +277,7 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "dark.svg",
           "dark2.svg",
           "light.svg",
@@ -325,7 +325,7 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
           )
           .sort()
       ).toMatchInlineSnapshot(`
-        Array [
+        [
           "dark.svg",
           "dark2.svg",
           "light.svg",
