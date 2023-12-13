@@ -1,4 +1,4 @@
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
+import { isBailoutCSRError } from '../shared/lib/lazy-dynamic/no-ssr-error'
 
 export default function onRecoverableError(err: any) {
   // Using default react onRecoverableError
@@ -13,7 +13,7 @@ export default function onRecoverableError(err: any) {
         }
 
   // Skip certain custom errors which are not expected to be reported on client
-  if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) return
+  if (isBailoutCSRError(err)) return
 
   defaultOnRecoverableError(err)
 }
