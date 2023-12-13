@@ -272,7 +272,7 @@ function navigateReducer_noPPR(
             // Filter out the __DEFAULT__ paths as they shouldn't be scrolled to in this case.
             if (
               scrollableSegmentPath[scrollableSegmentPath.length - 1] !==
-              '__DEFAULT__'
+              DEFAULT_SEGMENT_KEY
             ) {
               scrollableSegments.push(scrollableSegmentPath)
             }
