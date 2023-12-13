@@ -1394,7 +1394,6 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
-                    exclude: codeCondition.exclude,
                     issuerLayer: [WEBPACK_LAYERS.appPagesBrowser],
                     use: swcLoaderForClientLayer,
                     resolve: {
