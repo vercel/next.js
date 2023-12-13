@@ -434,6 +434,21 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/server/app-render/csrf-protection.test.ts": {
+    "passed": [
+      "isCsrfOriginAllowed should return false when allowedOrigins contains originDomain with non-matching pattern",
+      "isCsrfOriginAllowed should return false when allowedOrigins does not contain originDomain",
+      "isCsrfOriginAllowed should return false when allowedOrigins is empty",
+      "isCsrfOriginAllowed should return false when allowedOrigins is empty string",
+      "isCsrfOriginAllowed should return false when allowedOrigins is undefined",
+      "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain",
+      "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain with matching pattern"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/server/app-render/types.test.ts": {
     "passed": [
       "flightRouterStateSchema should not validate an incorrect flight router state",
@@ -2366,6 +2381,7 @@
       "app dir - css css support client pages should support css modules inside client pages",
       "app dir - css css support client pages should support global css inside client pages",
       "app dir - css css support css ordering should have inner layers take precedence over outer layers",
+      "app dir - css css support multiple entries should deduplicate styles on the module level",
       "app dir - css css support page extensions should include css imported in MDX pages",
       "app dir - css css support server layouts should support css modules inside server layouts",
       "app dir - css css support server pages should not contain pages css in app dir page",
@@ -2393,7 +2409,6 @@
       "app dir - css HMR should not create duplicate link tags during HMR",
       "app dir - css Suspensey CSS should suspend on CSS imports if its slow on client navigation",
       "app dir - css css support chunks should bundle css resources into chunks",
-      "app dir - css css support multiple entries should deduplicate styles on the module level",
       "app dir - css css support multiple entries should only include the same style once in the flight data",
       "app dir - css css support should not preload styles twice during HMR",
       "app dir - css css support special entries should include css imported in loading.js"
@@ -2447,6 +2462,7 @@
       "app dir - external dependency should handle external css modules",
       "app dir - external dependency should handle external css modules in pages",
       "app dir - external dependency should handle external next/font",
+      "app dir - external dependency should not prefer to resolve esm over cjs for bundling optout packages",
       "app dir - external dependency should resolve 3rd party package exports based on the react-server condition",
       "app dir - external dependency should resolve the subset react in server components based on the react-server condition",
       "app dir - external dependency should support exporting multiple star re-exports",
@@ -3383,22 +3399,28 @@
   },
   "test/e2e/app-dir/logging/fetch-logging.test.ts": {
     "passed": [
+      "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with default logging should not contain trailing word page for app router routes",
       "app-dir - logging with default logging should not log fetch requests at all",
-      "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
-      "app-dir - logging with verbose logging for edge runtime should not log fetch requests at all",
-      "app-dir - logging with verbose logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
-      "app-dir - logging with verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
-      "app-dir - logging with verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
-      "app-dir - logging with verbose logging should log requests with correct indentation",
-      "app-dir - logging with verbose logging should not contain trailing word page for app router routes",
-      "app-dir - logging with verbose logging should only log requests in dev mode"
-    ],
-    "failed": [
-      "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
+      "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when revalidate: 0 is used",
+      "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
+      "app-dir - logging with fetches default logging should log requests with correct indentation",
+      "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with fetches default logging should not contain trailing word page for app router routes",
+      "app-dir - logging with fetches default logging should only log requests in dev mode",
+      "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
+      "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
+      "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
+      "app-dir - logging with fetches verbose logging should log requests with correct indentation",
+      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
+      "app-dir - logging with fetches verbose logging should only log requests in dev mode",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging should not contain metadata internal segments for dynamic metadata routes"
+      "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
+      "app-dir - logging with verbose logging for edge runtime should not log fetch requests at all"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3604,7 +3626,8 @@
       "app dir - navigation relative hashes and queries should work with a hash-only `router.push(...)`",
       "app dir - navigation relative hashes and queries should work with a hash-only href",
       "app dir - navigation relative hashes and queries should work with a query-only href",
-      "app dir - navigation relative hashes and queries should work with both relative hashes and queries"
+      "app dir - navigation relative hashes and queries should work with both relative hashes and queries",
+      "app dir - navigation scroll restoration should restore original scroll position when navigating back"
     ],
     "failed": [
       "app dir - navigation query string useParams identity between renders should be stable in pages"
@@ -3850,6 +3873,13 @@
       "ppr-full dynamic pages should resume should resume /on-demand/b",
       "ppr-full dynamic pages should resume should resume /on-demand/c"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/ppr-navigations.test.ts": {
+    "passed": ["ppr-navigations prefetching is disabled in dev"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -4132,6 +4162,7 @@
   },
   "test/e2e/app-dir/third-parties/basic.test.ts": {
     "passed": [
+      "@next/third-parties basic usage renders GA",
       "@next/third-parties basic usage renders GTM",
       "@next/third-parties basic usage renders GoogleMapsEmbed",
       "@next/third-parties basic usage renders YoutubeEmbed"
@@ -4194,8 +4225,8 @@
   },
   "test/e2e/app-dir/with-babel/with-babel.test.ts": {
     "passed": [],
-    "failed": ["with babel should support babel in app dir"],
-    "pending": [],
+    "failed": [],
+    "pending": ["with babel with babel should support babel in app dir"],
     "flakey": [],
     "runtimeError": false
   },
@@ -5838,11 +5869,8 @@
   },
   "test/e2e/swc-warnings/index.test.ts": {
     "passed": [],
-    "failed": [
-      "can force swc should not have warning",
-      "swc warnings by default should have warning"
-    ],
-    "pending": [],
+    "failed": ["can force swc should not have warning"],
+    "pending": ["swc warnings by default should have warning"],
     "flakey": [],
     "runtimeError": false
   },
@@ -5911,6 +5939,7 @@
   },
   "test/e2e/third-parties/index.test.ts": {
     "passed": [
+      "@next/third-parties basic usage renders GA",
       "@next/third-parties basic usage renders GTM",
       "@next/third-parties basic usage renders GoogleMapsEmbed",
       "@next/third-parties basic usage renders YoutubeEmbed"
@@ -6749,6 +6778,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/build-access-proxy/test/index.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "build with proxy trace production mode should build and output trace correctly"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/build-indicator/test/index.test.js": {
     "passed": [
       "Build Activity Indicator Disabled with next.config.js Does not add the build indicator container",
@@ -7043,10 +7081,10 @@
   },
   "test/integration/config-resolve-alias/test/index.test.js": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "Invalid resolve alias should show relevant error when webpack resolve alias is wrong"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7387,16 +7425,16 @@
   },
   "test/integration/css/test/css-modules.test.js": {
     "passed": [
+      "Basic CSS Modules Ordering Development Mode should have correct color on index page (on hover)",
+      "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
+      "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering)",
+      "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads",
       "Ordering with Global CSS and Modules (dev) should not execute scripts in any order"
     ],
     "failed": [
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
-      "Basic CSS Modules Ordering Development Mode should have correct color on index page (on hover)",
-      "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)",
-      "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering)",
-      "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads"
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)"
     ],
     "pending": [
       "Basic CSS Modules Ordering production mode should have correct color on index page (on hover)",
@@ -13710,19 +13748,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/production-config/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Production Config Usage production mode env should allow __ within env key",
-      "Production Config Usage production mode env should fail with NEXT_RUNTIME in env key",
-      "Production Config Usage production mode env should fail with NODE_ in env key",
-      "Production Config Usage production mode env should fail with leading __ in env key",
-      "Production Config Usage production mode with generateBuildId should add the custom buildid"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/production-nav/test/index.test.js": {
     "passed": [],
     "failed": [],
@@ -14967,10 +14992,10 @@
     "runtimeError": false
   },
   "test/integration/typescript-external-dir/project/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "TypeScript Features default behavior should render the page with external TS/TSX dependencies"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -15079,9 +15104,10 @@
   },
   "test/integration/undefined-webpack-config/test/index.test.js": {
     "passed": [],
-    "failed": ["undefined webpack config error should show in dev mode"],
+    "failed": [],
     "pending": [
-      "undefined webpack config error production mode should show in production mode"
+      "undefined webpack config error production mode should show in production mode",
+      "undefined webpack config error should show in dev mode"
     ],
     "flakey": [],
     "runtimeError": false
