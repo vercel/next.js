@@ -15,6 +15,7 @@ workspace = true
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 regex = "1.5"
+anyhow = { workspace = true }
 
 swc_core = { workspace = true }
 next-visitor-cjs-finder = { workspace = true }
