@@ -116,6 +116,9 @@ pub async fn get_server_resolve_options_context(
     )
     .await?;
 
+    let transpile_packages = next_config.transpile_packages().await?;
+    external_packages.retain(|item| !transpile_packages.contains(item));
+
     // Add the config's own list of external packages.
     external_packages.extend(
         (*next_config.server_component_externals().await?)

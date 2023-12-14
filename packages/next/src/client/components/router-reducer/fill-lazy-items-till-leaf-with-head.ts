@@ -35,9 +35,7 @@ export function fillLazyItemsTillLeafWithHead(
     // in the response format, so that we don't have to send the keys twice.
     // Then the client can convert them into separate representations.
     const parallelSeedData =
-      cacheNodeSeedData !== null &&
-      cacheNodeSeedData[1] !== null &&
-      cacheNodeSeedData[1][key] !== undefined
+      cacheNodeSeedData !== null && cacheNodeSeedData[1][key] !== undefined
         ? cacheNodeSeedData[1][key]
         : null
     if (existingCache) {
