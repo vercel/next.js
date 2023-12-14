@@ -3,9 +3,11 @@ title: sitemap.xml
 description: API Reference for the sitemap.xml file.
 ---
 
-Add or generate a `sitemap.xml` file that matches the [Sitemaps XML format](https://www.sitemaps.org/protocol.html) in the **root** of `app` directory to help search engine crawlers crawl your site more efficiently.
+`sitemap.(xml|js|ts)` is a special Next.js file that matches the [Sitemaps XML format](https://www.sitemaps.org/protocol.html) to help search engine crawlers index your site more efficiently.
 
-## Static `sitemap.xml`
+## Creating a static `sitemap.xml`
+
+For smaller applications, you can create a **static** `sitemap.xml` file and place it in the root of your `app` directory.
 
 ```xml filename="app/sitemap.xml"
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -30,9 +32,9 @@ Add or generate a `sitemap.xml` file that matches the [Sitemaps XML format](http
 </urlset>
 ```
 
-## Generate a Sitemap
+## Generating a sitemap
 
-Add a `sitemap.js` or `sitemap.ts` file that returns [`Sitemap`](#sitemap-return-type).
+You can use the `sitemap.(js|ts)` file convention to programmatically generate a sitemap. If using TypeScript, a [`Sitemap`](#sitemap-return-type) type is available.
 
 ```ts filename="app/sitemap.ts" switcher
 import { MetadataRoute } from 'next'
@@ -111,7 +113,77 @@ Output:
 </urlset>
 ```
 
+## Generating multiple sitemaps
+
+While a single sitemap will work for most applications. For large web applications, you may need to split a sitemap into multiple files.
+
+There are two ways you can create multiple sitemaps:
+
+- By nesting `sitemap.(xml|js|ts)` inside your routes. By default, the sitemaps are automatically split.
+- By using the [`generateSitemaps`](/docs/app/api-reference/functions/generate-sitemaps) function to generate multiple sitemaps.
+
+For example, to split a sitemap using `generateSitemaps`, return an array of objects with the sitemap `id`. Then, use the `id` to generate the unique sitemaps.
+
+```ts filename="app/product/sitemap.ts" switcher
+import { BASE_URL } from '@/app/lib/constants'
+
+export async function generateSitemaps() {
+  // Fetch the total number of products and calculate the number of sitemaps
+  return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }]
+}
+
+export default async function sitemap({
+  id,
+}: {
+  id: number
+}): MetadataRoute.Sitemap {
+  // Google limit is 50,000 URLs per sitemap
+  const start = id * 50000
+  const end = start + 50000
+  const products = await getProducts(
+    `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
+  )
+  return products.map((product) => ({
+    url: `${BASE_URL}/product/${id}`
+    lastModified: product.date,
+  }))
+}
+```
+
+```js filename="app/product/sitemap.js" switcher
+import { BASE_URL } from '@/app/lib/constants'
+
+export async function generateSitemaps() {
+  // Fetch the total number of products and calculate the number of sitemaps
+  return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }]
+}
+
+export default async function sitemap({ id }) {
+  // Google limit is 50,000 URLs per sitemap
+  const start = id * 50000
+  const end = start + 50000
+  const products = await getProducts(
+    `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
+  )
+  return products.map((product) => ({
+    url: `${BASE_URL}/product/${id}`
+    lastModified: product.date,
+  }))
+}
+```
+
+During development, you can view the generated sitemap on `/route/sitemap.xml/[id]`. For example, `/product/sitemap.xml/1`.
+
+> **Good to know:**
+>
+> - Sitemaps can also be split by language. E.g. `es`, `fr`, etc
+> - In the future, we will support sitemap indexes.
+
+See the [`generateSitemaps` API reference](/docs/app/api-reference/functions/generate-sitemaps) for more information.
+
 ### Sitemap Return Type
+
+The `sitemap` type is defined as an array of objects with the following properties:
 
 ```tsx
 type Sitemap = Array<{
@@ -128,10 +200,6 @@ type Sitemap = Array<{
   priority?: number
 }>
 ```
-
-> **Good to know**
->
-> - In the future, we will support multiple sitemaps and sitemap indexes.
 
 ## Version History
 
