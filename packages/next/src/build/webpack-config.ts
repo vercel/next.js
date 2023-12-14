@@ -1396,20 +1396,6 @@ export default async function getBaseWebpackConfig(
                       mainFields: getMainField(compilerType, true),
                     },
                   },
-                  // Do not apply react-refresh-loader to node_modules for app router browser layer
-                  ...(dev && isClient
-                    ? [
-                        {
-                          test: codeCondition.test,
-                          exclude: codeCondition.exclude,
-                          issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
-                          use: reactRefreshLoaders,
-                          resolve: {
-                            mainFields: getMainField(compilerType, true),
-                          },
-                        },
-                      ]
-                    : []),
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
@@ -1420,12 +1406,27 @@ export default async function getBaseWebpackConfig(
                   },
                 ]
               : []),
-            {
-              ...codeCondition,
-              use: [...reactRefreshLoaders, defaultLoaders.babel],
-            },
           ],
         },
+        {
+          ...codeCondition,
+          issuerLayer: isWebpackDefaultLayer,
+          use: [...reactRefreshLoaders, defaultLoaders.babel],
+        },
+        // Do not apply react-refresh-loader to node_modules for app router browser layer
+        ...(hasAppDir && dev && isClient
+          ? [
+              {
+                test: codeCondition.test,
+                exclude: codeCondition.exclude,
+                issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
+                use: reactRefreshLoaders,
+                resolve: {
+                  mainFields: getMainField(compilerType, true),
+                },
+              },
+            ]
+          : []),
         ...(!config.images.disableStaticImages
           ? [
               {
