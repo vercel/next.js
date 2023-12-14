@@ -9,7 +9,17 @@ related:
     - app/api-reference/file-conventions/metadata/sitemaps
 ---
 
-You can use the `generateSiteMaps` function to generate multiple sitemaps for your Next.js application.
+You can use the `generateSiteMaps` function to generate multiple sitemaps for your application.
+
+## Returns
+
+The `generateSitemaps` returns an array of objects with an `id` property.
+
+## URLs
+
+In production, your generated sitemaps will be available at `/.../sitemap/[id].xml`. For example, `/product/sitemap/1.xml`.
+
+In development, you can view the generated sitemap on `/.../sitemap.xml/[id]`. For example, `/product/sitemap.xml/1`. This difference is temporary and will follow the production format.
 
 ## Example
 
@@ -19,7 +29,7 @@ For example, to split a sitemap using `generateSitemaps`, return an array of obj
 import { BASE_URL } from '@/app/lib/constants'
 
 export async function generateSitemaps() {
-  // Fetch the total number of products and calculate the number of sitemaps
+  // Fetch the total number of products and calculate the number of sitemaps needed
   return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }]
 }
 
@@ -28,7 +38,7 @@ export default async function sitemap({
 }: {
   id: number
 }): MetadataRoute.Sitemap {
-  // Google limit is 50,000 URLs per sitemap
+  // Google's limit is 50,000 URLs per sitemap
   const start = id * 50000
   const end = start + 50000
   const products = await getProducts(
@@ -45,12 +55,12 @@ export default async function sitemap({
 import { BASE_URL } from '@/app/lib/constants'
 
 export async function generateSitemaps() {
-  // Fetch the total number of products and calculate the number of sitemaps
+  // Fetch the total number of products and calculate the number of sitemaps needed
   return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }]
 }
 
 export default async function sitemap({ id }) {
-  // Google limit is 50,000 URLs per sitemap
+  // Google's limit is 50,000 URLs per sitemap
   const start = id * 50000
   const end = start + 50000
   const products = await getProducts(
@@ -62,13 +72,3 @@ export default async function sitemap({ id }) {
   }))
 }
 ```
-
-## Returns
-
-The `generateSitemaps` returns an array of objects, each object must have an `id` property.
-
-## URLs
-
-During development, you can view the generated sitemaps on `/route/sitemap.xml/[id]`. For example, `/product/sitemap.xml/1`.
-
-During production, the sitemap is available on `/route/sitemap/[id].xml`.
