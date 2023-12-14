@@ -31,6 +31,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
     reference::ModuleReferences,
+    reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap},
@@ -427,6 +428,7 @@ pub trait ProcessCss: ParseCss {
 pub async fn parse_css(
     source: Vc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
+    import_context: Vc<ImportContext>,
     ty: CssModuleAssetType,
     use_lightningcss: bool,
 ) -> Result<Vc<ParseCssResult>> {
@@ -451,6 +453,7 @@ pub async fn parse_css(
                             ident_str,
                             source,
                             origin,
+                            import_context,
                             ty,
                             use_lightningcss,
                         )
@@ -470,6 +473,7 @@ async fn process_content(
     ident_str: &str,
     source: Vc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
+    import_context: Vc<ImportContext>,
     ty: CssModuleAssetType,
     use_lightningcss: bool,
 ) -> Result<Vc<ParseCssResult>> {
@@ -583,7 +587,8 @@ async fn process_content(
     let config = without_warnings(config);
     let mut stylesheet = stylesheet.to_static(config.clone());
 
-    let (references, url_references) = analyze_references(&mut stylesheet, source, origin)?;
+    let (references, url_references) =
+        analyze_references(&mut stylesheet, source, origin, import_context)?;
 
     Ok(ParseCssResult::Ok {
         cm,
