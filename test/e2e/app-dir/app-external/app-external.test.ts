@@ -269,19 +269,17 @@ createNextDescribe(
         }, /success/)
       })
 
-      if (!process.env.TURBOPACK) {
-        it('should compile server actions from node_modules in client components', async () => {
-          // before action there's no action log
-          expect(next.cliOutput).not.toContain('action-log:server:action1')
-          const browser = await next.browser('/action/client')
-          await browser.elementByCss('#action').click()
+      it('should compile server actions from node_modules in client components', async () => {
+        // before action there's no action log
+        expect(next.cliOutput).not.toContain('action-log:server:action1')
+        const browser = await next.browser('/action/client')
+        await browser.elementByCss('#action').click()
 
-          await check(() => {
-            expect(next.cliOutput).toContain('action-log:server:action1')
-            return 'success'
-          }, /success/)
-        })
-      }
+        await check(() => {
+          expect(next.cliOutput).toContain('action-log:server:action1')
+          return 'success'
+        }, /success/)
+      })
     })
   }
 )
