@@ -30,6 +30,7 @@ use lazy_static::lazy_static;
 use num_traits::Zero;
 use parking_lot::Mutex;
 use regex::Regex;
+use sourcemap::decode_data_url;
 use swc_core::{
     common::{
         comments::{CommentKind, Comments},
@@ -65,6 +66,7 @@ use turbopack_core::{
         resolve, FindContextFileResult, ModulePart,
     },
     source::Source,
+    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 use unreachable::Unreachable;
@@ -141,6 +143,7 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub async_module: Vc<OptionAsyncModule>,
     /// `true` when the analysis was successful.
     pub successful: bool,
+    pub source_map: Option<Vc<SourceMap>>,
 }
 
 /// A temporary analysis result builder to pass around, to be turned into an
@@ -154,6 +157,7 @@ pub(crate) struct AnalyzeEcmascriptModuleResultBuilder {
     exports: EcmascriptExports,
     async_module: Vc<OptionAsyncModule>,
     successful: bool,
+    source_maps: Vec<Vc<OptionSourceMap>>,
 }
 
 impl AnalyzeEcmascriptModuleResultBuilder {
@@ -167,6 +171,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             exports: EcmascriptExports::None,
             async_module: Vc::cell(None),
             successful: false,
+            source_maps: Vec::new(),
         }
     }
 
@@ -224,6 +229,11 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             .push(CodeGen::CodeGenerateableWithAsyncModuleInfo(Vc::upcast(
                 code_gen,
             )));
+    }
+
+    /// Sets the analysis result ES export.
+    pub fn add_source_map(&mut self, source_map: Vc<OptionSourceMap>) {
+        self.source_maps.push(source_map)
     }
 
     /// Sets the analysis result ES export.
@@ -285,6 +295,13 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 }
             }
         }
+        let mut source_map = None;
+        for map in self.source_maps {
+            if let Some(map) = &*map.await? {
+                source_map = Some(map.resolve().await?);
+                break;
+            }
+        }
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
                 references: Vc::cell(references),
@@ -295,6 +312,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 exports: self.exports.into(),
                 async_module: self.async_module,
                 successful: self.successful,
+                source_map,
             },
         ))
     }
@@ -483,18 +501,21 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             CommentKind::Line => {
                 lazy_static! {
                     static ref SOURCE_MAP_FILE_REFERENCE: Regex =
-                        Regex::new(r"# sourceMappingURL=(.*?\.map)$").unwrap();
+                        Regex::new(r"# sourceMappingURL=(.*)$").unwrap();
                 }
                 if let Some(m) = SOURCE_MAP_FILE_REFERENCE.captures(&comment.text) {
                     let path = &m[1];
-                    // TODO this probably needs to be a field in EcmascriptModuleAsset so it
-                    // knows to use that SourceMap when running code generation.
-                    // The reference is needed too for turbotrace
-                    let origin_path = origin.origin_path();
-                    analysis.add_reference(SourceMapReference::new(
-                        origin_path,
-                        origin_path.parent().join(path.to_string()),
-                    ))
+                    if path.ends_with(".map") {
+                        let origin_path = origin.origin_path();
+                        let reference = SourceMapReference::new(
+                            origin_path,
+                            origin_path.parent().join(path.to_string()),
+                        );
+                        analysis.add_source_map(reference.generate_source_map());
+                        analysis.add_reference(reference);
+                    } else if path.starts_with("data:application/json;base64,") {
+                        analysis.add_source_map(maybe_decode_data_url(path.to_string()));
+                    }
                 }
             }
             CommentKind::Block => {}
@@ -2881,4 +2902,13 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
     }
 
     false
+}
+
+#[turbo_tasks::function]
+fn maybe_decode_data_url(url: String) -> Vc<OptionSourceMap> {
+    if let Ok(map) = decode_data_url(&url) {
+        Vc::cell(Some(SourceMap::new_decoded(map).cell()))
+    } else {
+        Vc::cell(None)
+    }
 }

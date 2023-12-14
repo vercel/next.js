@@ -9,20 +9,21 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
+    source_map::GenerateSourceMap,
 };
 
 use super::EcmascriptChunkingContext;
 use crate::{
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     utils::FormatIter,
-    EcmascriptModuleContent, ParseResultSourceMap,
+    EcmascriptModuleContent,
 };
 
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
-    pub source_map: Option<Vc<ParseResultSourceMap>>,
+    pub source_map: Option<Vc<Box<dyn GenerateSourceMap>>>,
     pub options: EcmascriptChunkItemOptions,
     pub placeholder_for_future_extensions: (),
 }
@@ -133,8 +134,7 @@ impl EcmascriptChunkItemContent {
                      __turbopack_async_result__) => { try {";
         }
 
-        let source_map = this.source_map.map(Vc::upcast);
-        code.push_source(&this.inner_code, source_map);
+        code.push_source(&this.inner_code, this.source_map);
 
         if let Some(opts) = &this.options.async_module {
             write!(

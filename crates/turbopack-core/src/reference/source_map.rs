@@ -3,7 +3,12 @@ use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 
 use super::ModuleReference;
-use crate::{file_source::FileSource, raw_module::RawModule, resolve::ModuleResolveResult};
+use crate::{
+    file_source::FileSource,
+    raw_module::RawModule,
+    resolve::ModuleResolveResult,
+    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
+};
 
 #[turbo_tasks::value]
 pub struct SourceMapReference {
@@ -19,20 +24,41 @@ impl SourceMapReference {
     }
 }
 
+impl SourceMapReference {
+    async fn get_file(&self) -> Option<Vc<FileSystemPath>> {
+        let file_type = self.file.get_type().await;
+        if let Ok(file_type_result) = file_type.as_ref() {
+            if let FileSystemEntryType::File = &**file_type_result {
+                return Some(self.file);
+            }
+        }
+        None
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl ModuleReference for SourceMapReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        let file_type = self.file.get_type().await;
-        if let Ok(file_type_result) = file_type.as_ref() {
-            if let FileSystemEntryType::File = &**file_type_result {
-                return ModuleResolveResult::module(Vc::upcast(RawModule::new(Vc::upcast(
-                    FileSource::new(self.file),
-                ))))
-                .cell();
-            }
+        if let Some(file) = self.get_file().await {
+            return ModuleResolveResult::module(Vc::upcast(RawModule::new(Vc::upcast(
+                FileSource::new(file),
+            ))))
+            .cell();
         }
         ModuleResolveResult::unresolveable().into()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl GenerateSourceMap for SourceMapReference {
+    #[turbo_tasks::function]
+    async fn generate_source_map(&self) -> Result<Vc<OptionSourceMap>> {
+        let Some(file) = self.get_file().await else {
+            return Ok(Vc::cell(None));
+        };
+        let source_map = SourceMap::new_from_file(file).await?;
+        Ok(Vc::cell(source_map.map(|m| m.cell())))
     }
 }
 

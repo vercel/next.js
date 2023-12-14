@@ -390,10 +390,10 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             inner_code: code.clone().into(),
             // We generate a minimal map for runtime code so that the filename is
             // displayed in dev tools.
-            source_map: Some(generate_minimal_source_map(
+            source_map: Some(Vc::upcast(generate_minimal_source_map(
                 self.module.ident().to_string().await?.to_string(),
                 code,
-            )),
+            ))),
             ..Default::default()
         }
         .cell())
@@ -416,7 +416,7 @@ fn generate_minimal_source_map(filename: String, source: String) -> Vc<ParseResu
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename), source);
-    let map = ParseResultSourceMap::new(sm, mappings);
+    let map = ParseResultSourceMap::new(sm, mappings, None);
     map.cell()
 }
 

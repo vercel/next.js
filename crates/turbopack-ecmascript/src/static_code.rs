@@ -53,7 +53,7 @@ impl StaticEcmascriptCode {
         let mut code = CodeBuilder::default();
         code.push_source(
             &runtime_base_content.inner_code,
-            runtime_base_content.source_map.map(Vc::upcast),
+            runtime_base_content.source_map,
         );
         Ok(Code::cell(code.build()))
     }
