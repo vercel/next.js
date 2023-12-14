@@ -29,29 +29,14 @@ use turbopack_ecmascript::ParseResultSourceMap;
 
 #[turbo_tasks::function]
 pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>> {
-    let original_map = *code.generate_source_map().await?;
-    let minified_code = perform_minify(path, code);
+    let path = path.await?;
+    let original_map = code.generate_source_map().await?.clone_value();
+    let code = code.await?;
 
-    let merged = match (original_map, *minified_code.generate_source_map().await?) {
-        (Some(original_map), Some(minify_map)) => Some(Vc::upcast(original_map.trace(minify_map))),
-        _ => None,
-    };
-
-    let mut builder = CodeBuilder::default();
-    builder.push_source(minified_code.await?.source_code(), merged);
-    let path = &*path.await?;
-    let filename = path.file_name();
-    write!(builder, "\n\n//# sourceMappingURL={}.map", filename)?;
-    Ok(builder.build().cell())
-}
-
-#[turbo_tasks::function]
-async fn perform_minify(path: Vc<FileSystemPath>, code_vc: Vc<Code>) -> Result<Vc<Code>> {
-    let code = &*code_vc.await?;
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
     let compiler = Arc::new(Compiler::new(cm.clone()));
     let fm = compiler.cm.new_source_file(
-        FileName::Custom((*path.await?.path).to_string()),
+        FileName::Custom(path.path.to_string()),
         code.source_code().to_str()?.to_string(),
     );
 
@@ -112,11 +97,12 @@ async fn perform_minify(path: Vc<FileSystemPath>, code_vc: Vc<Code>) -> Result<V
     let mut builder = CodeBuilder::default();
     builder.push_source(
         &src.into(),
-        Some(*Box::new(Vc::upcast(
-            ParseResultSourceMap::new(cm, src_map_buf).cell(),
-        ))),
+        Some(Vc::upcast(
+            ParseResultSourceMap::new(cm, src_map_buf, original_map).cell(),
+        )),
     );
 
+    write!(builder, "\n\n//# sourceMappingURL={}.map", path.file_name())?;
     Ok(builder.build().cell())
 }
 

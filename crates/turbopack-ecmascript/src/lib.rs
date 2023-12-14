@@ -66,6 +66,7 @@ use turbopack_core::{
     reference_type::InnerAssets,
     resolve::{origin::ResolveOrigin, parse::Request, ModulePart},
     source::Source,
+    source_map::{GenerateSourceMap, SourceMap},
 };
 
 use self::{
@@ -163,6 +164,7 @@ struct MemoizedSuccessfulAnalysis {
     evaluation_references: ReadRef<ModuleReferences>,
     exports: ReadRef<EcmascriptExports>,
     async_module: ReadRef<OptionAsyncModule>,
+    source_map: Option<ReadRef<SourceMap>>,
 }
 
 pub struct EcmascriptModuleAssetBuilder {
@@ -329,6 +331,11 @@ impl EcmascriptModuleAsset {
                     evaluation_references: result_value.evaluation_references.await?,
                     exports: result_value.exports.await?,
                     async_module: result_value.async_module.await?,
+                    source_map: if let Some(map) = result_value.source_map {
+                        Some(map.await?)
+                    } else {
+                        None
+                    },
                 }));
         } else if let Some(MemoizedSuccessfulAnalysis {
             operation,
@@ -338,6 +345,7 @@ impl EcmascriptModuleAsset {
             evaluation_references,
             exports,
             async_module,
+            source_map,
         }) = &*this.last_successful_analysis.get()
         {
             // It's important to connect to the last operation here to keep it active, so
@@ -351,6 +359,7 @@ impl EcmascriptModuleAsset {
                 exports: ReadRef::cell(exports.clone()),
                 code_generation: result_value.code_generation,
                 async_module: ReadRef::cell(async_module.clone()),
+                source_map: source_map.clone().map(ReadRef::cell),
                 successful: false,
             }
             .cell());
@@ -399,6 +408,7 @@ impl EcmascriptModuleAsset {
             chunking_context,
             analyze.references,
             analyze.code_generation,
+            analyze.source_map,
             analyze.exports,
             async_module_info,
         ))
@@ -594,7 +604,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 #[turbo_tasks::value]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
-    pub source_map: Option<Vc<ParseResultSourceMap>>,
+    pub source_map: Option<Vc<Box<dyn GenerateSourceMap>>>,
     pub is_esm: bool,
 }
 
@@ -608,6 +618,7 @@ impl EcmascriptModuleContent {
         chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         references: Vc<ModuleReferences>,
         code_generation: Vc<CodeGenerateables>,
+        source_map: Option<Vc<SourceMap>>,
         exports: Vc<EcmascriptExports>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<Self>> {
@@ -653,7 +664,7 @@ impl EcmascriptModuleContent {
             }
         }
 
-        gen_content_with_visitors(parsed, ident, visitors, root_visitors).await
+        gen_content_with_visitors(parsed, ident, visitors, root_visitors, source_map).await
     }
 
     /// Creates a new [`Vc<EcmascriptModuleContent>`] without an analysis pass.
@@ -662,7 +673,7 @@ impl EcmascriptModuleContent {
         parsed: Vc<ParseResult>,
         ident: Vc<AssetIdent>,
     ) -> Result<Vc<Self>> {
-        gen_content_with_visitors(parsed, ident, Vec::new(), Vec::new()).await
+        gen_content_with_visitors(parsed, ident, Vec::new(), Vec::new(), None).await
     }
 }
 
@@ -674,6 +685,7 @@ async fn gen_content_with_visitors(
         &dyn VisitorFactory,
     )>,
     root_visitors: Vec<&dyn VisitorFactory>,
+    original_src_map: Option<Vc<SourceMap>>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
     let parsed = parsed.await?;
 
@@ -710,7 +722,7 @@ async fn gen_content_with_visitors(
         // TODO: Insert this as a sourceless segment so that sourcemaps aren't affected.
         // = format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
 
-        let mut srcmap = vec![];
+        let mut mappings = vec![];
 
         let comments = comments.consumable();
 
@@ -718,16 +730,17 @@ async fn gen_content_with_visitors(
             cfg: swc_core::ecma::codegen::Config::default(),
             cm: source_map.clone(),
             comments: Some(&comments),
-            wr: JsWriter::new(source_map.clone(), "\n", &mut bytes, Some(&mut srcmap)),
+            wr: JsWriter::new(source_map.clone(), "\n", &mut bytes, Some(&mut mappings)),
         };
 
         emitter.emit_program(&program)?;
 
-        let srcmap = ParseResultSourceMap::new(source_map.clone(), srcmap).cell();
+        let srcmap =
+            ParseResultSourceMap::new(source_map.clone(), mappings, original_src_map).cell();
 
         Ok(EcmascriptModuleContent {
             inner_code: bytes.into(),
-            source_map: Some(srcmap),
+            source_map: Some(Vc::upcast(srcmap)),
             is_esm: eval_context.is_esm(),
         }
         .cell())

@@ -52,6 +52,7 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             chunking_context,
             analyze_result.local_references,
             analyze_result.code_generation,
+            analyze_result.source_map,
             exports,
             async_module_info,
         );

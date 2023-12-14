@@ -55,6 +55,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             this.chunking_context,
             analyze.references,
             analyze.code_generation,
+            analyze.source_map,
             analyze.exports,
             async_module_info,
         );
