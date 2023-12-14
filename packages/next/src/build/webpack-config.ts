@@ -142,14 +142,14 @@ const devtoolRevertWarning = execOnce(
 
 let loggedSwcDisabled = false
 let loggedIgnoredCompilerOptions = false
+const reactRefreshLoaderName =
+  'next/dist/compiled/@next/react-refresh-utils/dist/loader'
 
 export function attachReactRefresh(
   webpackConfig: webpack.Configuration,
   targetLoader: webpack.RuleSetUseItem
 ) {
   let injections = 0
-  const reactRefreshLoaderName =
-    'next/dist/compiled/@next/react-refresh-utils/dist/loader'
   const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
   webpackConfig.module?.rules?.forEach((rule) => {
     if (rule && typeof rule === 'object' && 'use' in rule) {
@@ -491,15 +491,12 @@ export default async function getBaseWebpackConfig(
         }),
       ]
 
+  const reactRefreshLoaders =
+    dev && isClient ? [require.resolve(reactRefreshLoaderName)] : []
+
   // client components layers: SSR + browser
   const swcLoaderForClientLayer = [
-    ...(dev && isClient
-      ? [
-          require.resolve(
-            'next/dist/compiled/@next/react-refresh-utils/dist/loader'
-          ),
-        ]
-      : []),
+    ...reactRefreshLoaders,
     {
       // This loader handles actions and client entries
       // in the client layer.
@@ -1412,15 +1409,7 @@ export default async function getBaseWebpackConfig(
               : []),
             {
               ...codeCondition,
-              use:
-                dev && isClient
-                  ? [
-                      require.resolve(
-                        'next/dist/compiled/@next/react-refresh-utils/dist/loader'
-                      ),
-                      defaultLoaders.babel,
-                    ]
-                  : defaultLoaders.babel,
+              use: [...reactRefreshLoaders, defaultLoaders.babel],
             },
           ],
         },
