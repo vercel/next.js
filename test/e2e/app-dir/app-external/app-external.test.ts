@@ -251,21 +251,35 @@ createNextDescribe(
       expect(html).toContain('success')
     })
 
-    it('should not prefer to resolve esm over cjs for bundling optout packages', async () => {
-      const browser = await next.browser('/optout/action')
-      expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
+    describe('server actions', () => {
+      it('should not prefer to resolve esm over cjs for bundling optout packages', async () => {
+        const browser = await next.browser('/optout/action')
+        expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
 
-      browser.elementByCss('#dual-pkg-outout button').click()
-      await check(async () => {
-        const text = await browser.elementByCss('#dual-pkg-outout p').text()
-        if (process.env.TURBOPACK) {
-          // The prefer esm won't effect turbopack resolving
-          expect(text).toBe('dual-pkg-optout:mjs')
-        } else {
-          expect(text).toBe('dual-pkg-optout:cjs')
-        }
-        return 'success'
-      }, /success/)
+        browser.elementByCss('#dual-pkg-outout button').click()
+        await check(async () => {
+          const text = await browser.elementByCss('#dual-pkg-outout p').text()
+          if (process.env.TURBOPACK) {
+            // The prefer esm won't effect turbopack resolving
+            expect(text).toBe('dual-pkg-optout:mjs')
+          } else {
+            expect(text).toBe('dual-pkg-optout:cjs')
+          }
+          return 'success'
+        }, /success/)
+      })
+
+      it('should compile server actions from node_modules in client components', async () => {
+        // before action there's no action log
+        expect(next.cliOutput).not.toContain('action-log:server:action1')
+        const browser = await next.browser('/action/client')
+        await browser.elementByCss('#action').click()
+
+        await check(() => {
+          expect(next.cliOutput).toContain('action-log:server:action1')
+          return 'success'
+        }, /success/)
+      })
     })
   }
 )
