@@ -964,7 +964,7 @@ async function renderToHTMLOrFlightImpl(
             // so we create a not found page with AppRouter
             const initialSeedData: CacheNodeSeedData = [
               initialTree[0],
-              null,
+              {},
               <html id="__next_error__">
                 <head></head>
                 <body></body>

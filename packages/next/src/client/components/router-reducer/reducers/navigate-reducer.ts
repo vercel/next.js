@@ -27,6 +27,7 @@ import {
 import { prunePrefetchCache } from './prune-prefetch-cache'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
+import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -271,7 +272,7 @@ function navigateReducer_noPPR(
             // Filter out the __DEFAULT__ paths as they shouldn't be scrolled to in this case.
             if (
               scrollableSegmentPath[scrollableSegmentPath.length - 1] !==
-              '__DEFAULT__'
+              DEFAULT_SEGMENT_KEY
             ) {
               scrollableSegments.push(scrollableSegmentPath)
             }
@@ -465,7 +466,7 @@ function navigateReducer_PPR(
             // Filter out the __DEFAULT__ paths as they shouldn't be scrolled to in this case.
             if (
               scrollableSegmentPath[scrollableSegmentPath.length - 1] !==
-              '__DEFAULT__'
+              DEFAULT_SEGMENT_KEY
             ) {
               scrollableSegments.push(scrollableSegmentPath)
             }
