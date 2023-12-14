@@ -233,6 +233,29 @@ export function createServerOnlyClientOnlyAliases(
       }
 }
 
+export function createNextApiEsmAliases() {
+  const mapping = {
+    head: 'next/dist/shared/lib/head.esm',
+    image: 'next/dist/shared/lib/image-external.esm',
+    constants: 'next/dist/shared/lib/constants.esm',
+    router: 'next/dist/client/router.esm',
+    dynamic: 'next/dist/client/dynamic.esm',
+    link: 'next/dist/client/link.esm',
+    navigation: 'next/dist/client/components/navigation.esm',
+    headers: 'next/dist/client/components/headers.esm',
+    og: 'next/dist/server/og/image-response.esm',
+  }
+  const aliasMap: Record<string, string> = {}
+  // Handle fully specified imports like `next/image.js`
+  for (const [key, value] of Object.entries(mapping)) {
+    const apiPath = path.join(NEXT_PROJECT_ROOT, key)
+    aliasMap[apiPath] = value
+    aliasMap[apiPath + '.js'] = value
+  }
+
+  return {}
+}
+
 export function createRSCAliases(
   bundledReactChannel: string,
   {
