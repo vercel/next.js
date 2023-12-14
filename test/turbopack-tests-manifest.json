@@ -2452,12 +2452,12 @@
       "app dir - external dependency should support exporting multiple star re-exports",
       "app dir - external dependency should transpile specific external packages with the `transpilePackages` option",
       "app dir - external dependency should use the same async storages if imported directly",
-      "app dir - external dependency should use the same export type for packages in both ssr and client",
-      "app dir - external dependency server actions should compile server actions from node_modules in client components"
+      "app dir - external dependency should use the same export type for packages in both ssr and client"
     ],
     "failed": [
       "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components",
-      "app dir - external dependency should have proper tree-shaking for known modules in CJS"
+      "app dir - external dependency should have proper tree-shaking for known modules in CJS",
+      "app dir - external dependency server actions should compile server actions from node_modules in client components"
     ],
     "pending": [],
     "flakey": [],
