@@ -428,7 +428,7 @@ impl ModuleOptions {
                         ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),
                         // Only create a global CSS asset if not `@import`ed from CSS already.
                         ModuleRuleCondition::not(ModuleRuleCondition::ReferenceType(
-                            ReferenceType::Css(CssReferenceSubType::AtImport),
+                            ReferenceType::Css(CssReferenceSubType::AtImport(None)),
                         )),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::CssGlobal)],
@@ -440,7 +440,7 @@ impl ModuleOptions {
                         // NOTE: `composes` references should not be treated as `@import`s and
                         // should also create a module CSS asset.
                         ModuleRuleCondition::not(ModuleRuleCondition::ReferenceType(
-                            ReferenceType::Css(CssReferenceSubType::AtImport),
+                            ReferenceType::Css(CssReferenceSubType::AtImport(None)),
                         )),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule)],
@@ -450,7 +450,7 @@ impl ModuleOptions {
                         ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),
                         // Create a normal CSS asset if `@import`ed from CSS already.
                         ModuleRuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::AtImport,
+                            CssReferenceSubType::AtImport(None),
                         )),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
@@ -463,7 +463,7 @@ impl ModuleOptions {
                         ModuleRuleCondition::ResourcePathEndsWith(".module.css".to_string()),
                         // Create a normal CSS asset if `@import`ed from CSS already.
                         ModuleRuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::AtImport,
+                            CssReferenceSubType::AtImport(None),
                         )),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {

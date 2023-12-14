@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use anyhow::Result;
 use indexmap::IndexMap;
 use turbo_tasks::Vc;
 
@@ -43,10 +44,84 @@ pub enum EcmaScriptModulesReferenceSubType {
     Undefined,
 }
 
+/// The individual set of conditions present on this module through `@import`
+#[derive(Debug)]
+#[turbo_tasks::value(shared)]
+pub struct ImportAttributes {
+    pub layer: Option<String>,
+    pub supports: Option<String>,
+    pub media: Option<String>,
+}
+
+/// The accumulated list of conditions that should be applied to this module
+/// through its import path
+#[derive(Debug, Default)]
+#[turbo_tasks::value]
+pub struct ImportContext {
+    pub layers: Vec<String>,
+    pub supports: Vec<String>,
+    pub media: Vec<String>,
+}
+
+#[turbo_tasks::value_impl]
+impl ImportContext {
+    #[turbo_tasks::function]
+    pub fn new(layers: Vec<String>, media: Vec<String>, supports: Vec<String>) -> Vc<Self> {
+        ImportContext {
+            layers,
+            media,
+            supports,
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub async fn add_attributes(
+        self: Vc<Self>,
+        attr_layer: Option<String>,
+        attr_media: Option<String>,
+        attr_supports: Option<String>,
+    ) -> Result<Vc<Self>> {
+        let this = &*self.await?;
+
+        let layers = {
+            let mut layers = this.layers.clone();
+            if let Some(attr_layer) = attr_layer {
+                if !layers.contains(&attr_layer) {
+                    layers.push(attr_layer.to_owned());
+                }
+            }
+            layers
+        };
+
+        let media = {
+            let mut media = this.media.clone();
+            if let Some(attr_media) = attr_media {
+                if !media.contains(&attr_media) {
+                    media.push(attr_media.to_owned());
+                }
+            }
+            media
+        };
+
+        let supports = {
+            let mut supports = this.supports.clone();
+            if let Some(attr_supports) = attr_supports {
+                if !supports.contains(&attr_supports) {
+                    supports.push(attr_supports.to_owned());
+                }
+            }
+            supports
+        };
+
+        Ok(ImportContext::new(layers, media, supports))
+    }
+}
+
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, PartialOrd, Ord, Hash)]
 pub enum CssReferenceSubType {
-    AtImport,
+    AtImport(Option<Vc<ImportContext>>),
     Compose,
     /// Reference from any asset to a CSS-parseable asset.
     ///
@@ -142,6 +217,10 @@ impl ReferenceType {
             ReferenceType::EcmaScriptModules(sub_type) => {
                 matches!(other, ReferenceType::EcmaScriptModules(_))
                     && matches!(sub_type, EcmaScriptModulesReferenceSubType::Undefined)
+            }
+            ReferenceType::Css(CssReferenceSubType::AtImport(_)) => {
+                // For condition matching, treat any AtImport pair as identical.
+                matches!(other, ReferenceType::Css(CssReferenceSubType::AtImport(_)))
             }
             ReferenceType::Css(sub_type) => {
                 matches!(other, ReferenceType::Css(_))

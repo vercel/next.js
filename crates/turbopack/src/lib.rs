@@ -46,7 +46,9 @@ use turbopack_core::{
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
-    reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
+    reference_type::{
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType,
+    },
     resolve::{
         options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve,
         AffectingResolvingAssetReference, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
@@ -102,6 +104,7 @@ async fn apply_module_type(
     source: Vc<Box<dyn Source>>,
     module_asset_context: Vc<ModuleAssetContext>,
     module_type: Vc<ModuleType>,
+    reference_type: Value<ReferenceType>,
     part: Option<Vc<ModulePart>>,
     inner_assets: Option<Vc<InnerAssets>>,
     runtime_code: bool,
@@ -234,6 +237,13 @@ async fn apply_module_type(
             Vc::upcast(module_asset_context),
             *ty,
             *use_lightningcss,
+            if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
+                reference_type.into_value()
+            {
+                import
+            } else {
+                None
+            },
         )),
         ModuleType::Static => Vc::upcast(StaticModuleAsset::new(
             source,
@@ -532,6 +542,7 @@ async fn process_default_internal(
         current_source,
         module_asset_context,
         module_type,
+        Value::new(reference_type.clone()),
         part,
         inner_assets,
         matches!(reference_type, ReferenceType::Runtime),

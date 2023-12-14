@@ -1,6 +1,5 @@
 pub(crate) mod single_item_chunk;
 pub mod source_map;
-pub(crate) mod writer;
 
 use std::fmt::Write;
 
@@ -23,10 +22,10 @@ use turbopack_core::{
     },
     module::Module,
     output::{OutputAsset, OutputAssets},
+    reference_type::ImportContext,
     server_fs::ServerFileSystem,
     source_map::{GenerateSourceMap, OptionSourceMap},
 };
-use writer::expand_imports;
 
 use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
 use crate::{process::ParseCssResultSourceMap, util::stringify_js, ImportAssetReference};
@@ -65,21 +64,56 @@ impl CssChunk {
 
         let this = self.await?;
 
+        let mut code = CodeBuilder::default();
         let mut body = CodeBuilder::default();
         let mut external_imports = IndexSet::new();
-        for css_item in this.content.await?.chunk_items.iter() {
-            // TODO(WEB-1261)
-            for external_import in expand_imports(&mut body, *css_item).await? {
-                external_imports.insert(external_import.await?.to_owned());
+        for css_item in &this.content.await?.chunk_items {
+            let id = &*css_item.id().await?;
+
+            let content = &css_item.content().await?;
+            for import in &content.imports {
+                if let CssImport::External(external_import) = import {
+                    external_imports.insert((*external_import.await?).to_string());
+                }
             }
+
+            writeln!(body, "/* {} */", id)?;
+            let mut close: Vec<String> = vec![];
+            if let Some(import_context) = content.import_context {
+                let import_context = &*import_context.await?;
+                if !&import_context.layers.is_empty() {
+                    writeln!(body, "@layer {} {{", import_context.layers.join("."))?;
+                    close.push("}\n".to_owned());
+                }
+                if !&import_context.media.is_empty() {
+                    writeln!(body, "@media {} {{", import_context.media.join(" and "))?;
+                    close.push("}\n".to_owned());
+                }
+                if !&import_context.supports.is_empty() {
+                    writeln!(
+                        body,
+                        "@supports {} {{",
+                        import_context.supports.join(" and ")
+                    )?;
+                    close.push("}\n".to_owned());
+                }
+            }
+
+            body.push_source(&content.inner_code, content.source_map.map(Vc::upcast));
+            writeln!(body)?;
+
+            for line in &close {
+                body.push_source(&Rope::from(line.to_string()), None);
+            }
+            writeln!(body)?;
         }
 
-        let mut code = CodeBuilder::default();
         for external_import in external_imports {
             writeln!(code, "@import {};", stringify_js(&external_import))?;
         }
 
-        code.push_code(&body.build());
+        let built = &body.build();
+        code.push_code(built);
 
         if *this
             .chunking_context
@@ -88,9 +122,9 @@ impl CssChunk {
             && code.has_source_map()
         {
             let chunk_path = self.path().await?;
-            write!(
+            writeln!(
                 code,
-                "\n/*# sourceMappingURL={}.map*/",
+                "/*# sourceMappingURL={}.map*/",
                 chunk_path.file_name()
             )?;
         }
@@ -316,7 +350,7 @@ pub trait CssChunkPlaceable: ChunkableModule + Module + Asset {}
 #[turbo_tasks::value(transparent)]
 pub struct CssChunkPlaceables(Vec<Vc<Box<dyn CssChunkPlaceable>>>);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
 pub enum CssImport {
     External(Vc<String>),
@@ -324,10 +358,12 @@ pub enum CssImport {
     Composes(Vc<Box<dyn CssChunkItem>>),
 }
 
+#[derive(Debug)]
 #[turbo_tasks::value(shared)]
 pub struct CssChunkItemContent {
-    pub inner_code: Rope,
+    pub import_context: Option<Vc<ImportContext>>,
     pub imports: Vec<CssImport>,
+    pub inner_code: Rope,
     pub source_map: Option<Vc<ParseCssResultSourceMap>>,
 }
 

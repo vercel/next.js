@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/c.css"],"sourcesContent":[".imported {\n  color: red;\n}\n"],"names":[],"mappings":"AAAA,CAAC,QAAQ,CAAC,CAAC;EACT,KAAK,EAAE,GAAG;AACZ,CAAC"}},
+    {"offset": {"line": 6, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 15, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/b.css"],"sourcesContent":["@import url(\"./c.css\") layer(foo) (orientation: landscape);\n\n.imported {\n  color: orange;\n}\n"],"names":[],"mappings":"AAEA,CAAC,QAAQ,CAAC,CAAC;EACT,KAAK,EAAE,MAAM;AACf,CAAC"}},
+    {"offset": {"line": 17, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 26, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/a.css"],"sourcesContent":["@import url(\"./b.css\") supports(font-format(woff2));\n\n.imported {\n  color: cyan;\n}\n"],"names":[],"mappings":"AAEA,CAAC,QAAQ,CAAC,CAAC;EACT,KAAK,EAAE,IAAI;AACb,CAAC"}},
+    {"offset": {"line": 28, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 34, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/style.css"],"sourcesContent":["@import url(\"./a.css\") layer(layer) supports(not(display: inline-grid)) print;\n\n.style {\n  color: yellow;\n}\n"],"names":[],"mappings":"AAEA,CAAC,KAAK,CAAC,CAAC;EACN,KAAK,EAAE,MAAM;AACf,CAAC"}},
+    {"offset": {"line": 36, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
