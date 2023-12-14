@@ -1,9 +1,9 @@
-use turbopack_binding::swc::core::ecma::{
+use swc_core::ecma::{
     ast::*,
     visit::{Visit, VisitWith},
 };
 
-pub(crate) fn contains_cjs(m: &Module) -> bool {
+pub fn contains_cjs(m: &Module) -> bool {
     let mut v = CjsFinder::default();
     m.visit_with(&mut v);
     v.found

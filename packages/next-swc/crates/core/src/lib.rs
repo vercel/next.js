@@ -34,11 +34,11 @@ DEALINGS IN THE SOFTWARE.
 
 use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
-use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
 use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_font::next_font_loaders;
+use next_visitor_cjs_finder::contains_cjs;
 use serde::Deserialize;
 use turbopack_binding::swc::{
     core::{
@@ -56,7 +56,6 @@ use turbopack_binding::swc::{
 };
 
 pub mod amp_attributes;
-mod auto_cjs;
 pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
 mod import_analyzer;

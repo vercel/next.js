@@ -26,8 +26,10 @@ serde_json = "1"
 sha1 = "0.10.1"
 tracing = { version = "0.1.37" }
 
+next-visitor-cjs-finder = { workspace = true }
 next-transform-dynamic = { workspace = true }
 next-transform-font = { workspace = true }
+next-transform-react-server-components = { workspace = true }
 
 turbopack-binding = { workspace = true, features = [
   "__swc_core",

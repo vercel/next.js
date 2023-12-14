@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::PathBuf};
 use next_visitor_cjs_finder::contains_cjs;
 use regex::Regex;
 use serde::Deserialize;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
