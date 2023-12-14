@@ -496,7 +496,6 @@ export default async function getBaseWebpackConfig(
 
   // client components layers: SSR + browser
   const swcLoaderForClientLayer = [
-    ...reactRefreshLoaders,
     {
       // This loader handles actions and client entries
       // in the client layer.
@@ -1391,15 +1390,29 @@ export default async function getBaseWebpackConfig(
                   },
                   {
                     test: codeCondition.test,
-                    issuerLayer: [WEBPACK_LAYERS.appPagesBrowser],
+                    issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                     use: swcLoaderForClientLayer,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
                     },
                   },
+                  // Do not apply react-refresh-loader to node_modules for app router browser layer
+                  ...(dev && isClient
+                    ? [
+                        {
+                          test: codeCondition.test,
+                          exclude: codeCondition.exclude,
+                          issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
+                          use: reactRefreshLoaders,
+                          resolve: {
+                            mainFields: getMainField(compilerType, true),
+                          },
+                        },
+                      ]
+                    : []),
                   {
                     test: codeCondition.test,
-                    issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
+                    issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     use: swcLoaderForClientLayer,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
