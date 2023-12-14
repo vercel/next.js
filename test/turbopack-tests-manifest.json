@@ -1137,7 +1137,12 @@
       "Error overlay - RSC build errors should error when useState from react is used in server component",
       "Error overlay - RSC build errors should error when useSyncExternalStore from react is used in server component",
       "Error overlay - RSC build errors should error when useTransition from react is used in server component",
-      "Error overlay - RSC build errors should error when useOptimistic from react is used in server component"
+      "Error overlay - RSC build errors should error when useOptimistic from react is used in server component",
+      "Error overlay - RSC build errors should error when findDOMNode from react-dom is used in server component",
+      "Error overlay - RSC build errors should error when flushSync from react-dom is used in server component",
+      "Error overlay - RSC build errors should error when unstable_batchedUpdates from react-dom is used in server component",
+      "Error overlay - RSC build errors should error when useFormStatus from react-dom is used in server component",
+      "Error overlay - RSC build errors should error when useFormState from react-dom is used in server component"
     ],
     "pending": [
       "Error overlay - RSC build errors should throw an error when getStaticProps is used"
