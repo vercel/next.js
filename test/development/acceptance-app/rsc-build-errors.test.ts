@@ -263,6 +263,30 @@ describe('Error overlay - RSC build errors', () => {
     })
   }
 
+  const invalidReactDomServerApis = [
+    'findDOMNode',
+    'flushSync',
+    'unstable_batchedUpdates',
+    'useFormStatus',
+    'useFormState',
+  ]
+  for (const api of invalidReactDomServerApis) {
+    it(`should error when ${api} from react-dom is used in server component`, async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        `/server-with-errors/react-dom-apis/${api.toLowerCase()}`
+      )
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        `You're importing a component that needs ${api}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+      )
+
+      await cleanup()
+    })
+  }
+
   it('should allow to use and handle rsc poisoning server-only', async () => {
     const { session, cleanup } = await sandbox(
       next,
