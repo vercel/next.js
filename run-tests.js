@@ -555,7 +555,8 @@ ${ENDGROUP}`)
         // If environment is CI and if this test execution is failed after retry, preserve test traces
         // to upload into github actions artifacts for debugging purpose
         const shouldPreserveTracesOutput =
-          process.env.CI && isRetry && isChildExitWithNonZero
+          (process.env.CI && isRetry && isChildExitWithNonZero) ||
+          process.env.PRESERVE_TRACES_OUTPUT
         if (!shouldPreserveTracesOutput) {
           await fsp
             .rm(

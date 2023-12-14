@@ -147,11 +147,14 @@ function HistoryUpdater({
   return null
 }
 
-export const createEmptyCacheNode = () => ({
-  lazyData: null,
-  rsc: null,
-  parallelRoutes: new Map(),
-})
+export function createEmptyCacheNode(): CacheNode {
+  return {
+    lazyData: null,
+    rsc: null,
+    prefetchRsc: null,
+    parallelRoutes: new Map(),
+  }
+}
 
 function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
   const serverActionDispatcher: ServerActionDispatcher = useCallback(

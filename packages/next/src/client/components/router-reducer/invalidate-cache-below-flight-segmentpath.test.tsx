@@ -17,7 +17,7 @@ const getFlightData = (): FlightData => {
           children: ['', {}],
         },
       ],
-      ['about', null, <h1>About Page!</h1>],
+      ['about', {}, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
@@ -30,11 +30,13 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
     const cache: CacheNode = {
       lazyData: null,
       rsc: null,
+      prefetchRsc: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
       lazyData: null,
       rsc: <>Root layout</>,
+      prefetchRsc: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -44,6 +46,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
               {
                 lazyData: null,
                 rsc: <>Linking</>,
+                prefetchRsc: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -53,6 +56,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                         {
                           lazyData: null,
                           rsc: <>Page</>,
+                          prefetchRsc: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -78,6 +82,7 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
 
     // Copy rsc for the root node of the cache.
     cache.rsc = existingCache.rsc
+    cache.prefetchRsc = existingCache.prefetchRsc
     // Create a copy of the existing cache with the rsc applied.
     fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath, false)
 
@@ -108,18 +113,21 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                           lazyData: null,
                           parallelRoutes: new Map(),
                           rsc: <React.Fragment>Page</React.Fragment>,
+                          prefetchRsc: null,
                         },
                       ],
                     ]),
                   ],
                 ]),
                 rsc: <React.Fragment>Linking</React.Fragment>,
+                prefetchRsc: null,
               },
             ],
           ]),
         ],
       ]),
       rsc: <>Root layout</>,
+      prefetchRsc: null,
     }
 
     expect(cache).toMatchObject(expectedCache)

@@ -22,7 +22,7 @@ jest.mock('../fetch-server-response', () => {
           children: ['', {}],
         },
       ],
-      ['about', null, <h1>About Page!</h1>],
+      ['about', {}, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
@@ -95,6 +95,7 @@ describe('prefetchReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -103,6 +104,7 @@ describe('prefetchReducer', () => {
               ]),
               lazyData: null,
               rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -114,7 +116,7 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -187,6 +189,7 @@ describe('prefetchReducer', () => {
             <body>Root layout</body>
           </html>
         ),
+        prefetchRsc: null,
         parallelRoutes: initialParallelRoutes,
       },
       tree: [
@@ -234,6 +237,7 @@ describe('prefetchReducer', () => {
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -242,6 +246,7 @@ describe('prefetchReducer', () => {
               ]),
               lazyData: null,
               rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -253,7 +258,7 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -264,7 +269,7 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -340,6 +345,7 @@ describe('prefetchReducer', () => {
             <body>Root layout</body>
           </html>
         ),
+        prefetchRsc: null,
         parallelRoutes: initialParallelRoutes,
       },
       tree: [

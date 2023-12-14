@@ -8,11 +8,13 @@ describe('invalidateCacheByRouterState', () => {
     const cache: CacheNode = {
       lazyData: null,
       rsc: null,
+      prefetchRsc: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
       lazyData: null,
       rsc: <>Root layout</>,
+      prefetchRsc: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -22,6 +24,7 @@ describe('invalidateCacheByRouterState', () => {
               {
                 lazyData: null,
                 rsc: <>Linking</>,
+                prefetchRsc: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -31,6 +34,7 @@ describe('invalidateCacheByRouterState', () => {
                         {
                           lazyData: null,
                           rsc: <>Page</>,
+                          prefetchRsc: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -69,6 +73,7 @@ describe('invalidateCacheByRouterState', () => {
     const expectedCache: CacheNode = {
       lazyData: null,
       rsc: null,
+      prefetchRsc: null,
       parallelRoutes: new Map([['children', new Map()]]),
     }
 

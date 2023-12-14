@@ -40,6 +40,7 @@ export function fillCacheWithDataProperty(
       childSegmentMap.set(cacheKey, {
         lazyData: fetchResponse(),
         rsc: null,
+        prefetchRsc: null,
         parallelRoutes: new Map(),
       })
     }
@@ -52,6 +53,7 @@ export function fillCacheWithDataProperty(
       childSegmentMap.set(cacheKey, {
         lazyData: fetchResponse(),
         rsc: null,
+        prefetchRsc: null,
         parallelRoutes: new Map(),
       })
     }
@@ -62,6 +64,7 @@ export function fillCacheWithDataProperty(
     childCacheNode = {
       lazyData: childCacheNode.lazyData,
       rsc: childCacheNode.rsc,
+      prefetchRsc: childCacheNode.prefetchRsc,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
     } as CacheNode
     childSegmentMap.set(cacheKey, childCacheNode)

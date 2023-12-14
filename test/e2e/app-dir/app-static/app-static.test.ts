@@ -45,6 +45,14 @@ createNextDescribe(
           'unstable_cache_tag1'
         )
       })
+
+      if (!process.env.CUSTOM_CACHE_HANDLER) {
+        it('should honor force-static with fetch cache: no-store correctly', async () => {
+          const res = await next.fetch('/force-static-fetch-no-store')
+          expect(res.status).toBe(200)
+          expect(res.headers.get('x-nextjs-cache').toLowerCase()).toBe('hit')
+        })
+      }
     }
 
     it('should correctly include headers instance in cache key', async () => {
@@ -519,6 +527,10 @@ createNextDescribe(
             'default-cache/page.js',
             'fetch-no-cache/page.js',
             'force-no-store/page.js',
+            'force-static-fetch-no-store.html',
+            'force-static-fetch-no-store.rsc',
+            'force-static-fetch-no-store/page.js',
+            'force-static-fetch-no-store/page_client-reference-manifest.js',
             'force-static/first.rsc',
             'api/draft-mode/route.js',
             'blog/tim/first-post.rsc',
@@ -542,15 +554,12 @@ createNextDescribe(
             'blog/styfle/second-post.rsc',
             'force-static/[slug]/page.js',
             'hooks/use-pathname/slug.rsc',
-            'hooks/use-search-params.rsc',
             'route-handler/post/route.js',
             'blog/[author]/[slug]/page.js',
             'blog/styfle/second-post.html',
             'hooks/use-pathname/slug.html',
-            'hooks/use-search-params.html',
             'flight/[slug]/[slug2]/page.js',
             'variable-revalidate/cookie.rsc',
-            'hooks/use-search-params/page.js',
             'ssr-auto/cache-no-store/page.js',
             'variable-revalidate/cookie.html',
             'api/revalidate-tag-edge/route.js',
@@ -663,7 +672,10 @@ createNextDescribe(
             'force-static/[slug]/page_client-reference-manifest.js',
             'blog/[author]/[slug]/page_client-reference-manifest.js',
             'flight/[slug]/[slug2]/page_client-reference-manifest.js',
-            'hooks/use-search-params/page_client-reference-manifest.js',
+            'hooks/use-search-params/static-bailout.html',
+            'hooks/use-search-params/static-bailout.rsc',
+            'hooks/use-search-params/static-bailout/page.js',
+            'hooks/use-search-params/static-bailout/page_client-reference-manifest.js',
             'ssr-auto/cache-no-store/page_client-reference-manifest.js',
             'gen-params-dynamic/[slug]/page_client-reference-manifest.js',
             'hooks/use-pathname/[slug]/page_client-reference-manifest.js',
@@ -902,6 +914,22 @@ createNextDescribe(
               "initialRevalidateSeconds": 3,
               "srcRoute": "/force-cache",
             },
+            "/force-static-fetch-no-store": {
+              "dataRoute": "/force-static-fetch-no-store.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/force-static-fetch-no-store",
+            },
             "/force-static/first": {
               "dataRoute": "/force-static/first.rsc",
               "experimentalBypassFor": [
@@ -966,22 +994,6 @@ createNextDescribe(
               "initialRevalidateSeconds": false,
               "srcRoute": "/hooks/use-pathname/[slug]",
             },
-            "/hooks/use-search-params": {
-              "dataRoute": "/hooks/use-search-params.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/hooks/use-search-params",
-            },
             "/hooks/use-search-params/force-static": {
               "dataRoute": "/hooks/use-search-params/force-static.rsc",
               "experimentalBypassFor": [
@@ -997,6 +1009,22 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/hooks/use-search-params/force-static",
+            },
+            "/hooks/use-search-params/static-bailout": {
+              "dataRoute": "/hooks/use-search-params/static-bailout.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/hooks/use-search-params/static-bailout",
             },
             "/hooks/use-search-params/with-suspense": {
               "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
@@ -2838,9 +2866,9 @@ createNextDescribe(
     describe('useSearchParams', () => {
       describe('client', () => {
         it('should bailout to client rendering - without suspense boundary', async () => {
-          const browser = await next.browser(
-            '/hooks/use-search-params?first=value&second=other&third'
-          )
+          const url =
+            '/hooks/use-search-params/static-bailout?first=value&second=other&third'
+          const browser = await next.browser(url)
 
           expect(await browser.elementByCss('#params-first').text()).toBe(
             'value'
@@ -2852,12 +2880,15 @@ createNextDescribe(
           expect(await browser.elementByCss('#params-not-real').text()).toBe(
             'N/A'
           )
+
+          const $ = await next.render$(url)
+          expect($('meta[content=noindex]').length).toBe(0)
         })
 
         it('should bailout to client rendering - with suspense boundary', async () => {
-          const browser = await next.browser(
+          const url =
             '/hooks/use-search-params/with-suspense?first=value&second=other&third'
-          )
+          const browser = await next.browser(url)
 
           expect(await browser.elementByCss('#params-first').text()).toBe(
             'value'
@@ -2869,6 +2900,11 @@ createNextDescribe(
           expect(await browser.elementByCss('#params-not-real').text()).toBe(
             'N/A'
           )
+
+          const $ = await next.render$(url)
+          // dynamic page doesn't have bail out
+          expect($('html#__next_error__').length).toBe(0)
+          expect($('meta[content=noindex]').length).toBe(0)
         })
 
         it.skip('should have empty search params on force-static', async () => {
@@ -2919,7 +2955,9 @@ createNextDescribe(
       if (!isDev) {
         describe('server response', () => {
           it('should bailout to client rendering - without suspense boundary', async () => {
-            const res = await next.fetch('/hooks/use-search-params')
+            const res = await next.fetch(
+              '/hooks/use-search-params/static-bailout'
+            )
             const html = await res.text()
             expect(html).toInclude('<html id="__next_error__">')
           })

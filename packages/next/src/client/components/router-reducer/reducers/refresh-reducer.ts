@@ -96,6 +96,7 @@ export function refreshReducer(
         if (cacheNodeSeedData !== null) {
           const rsc = cacheNodeSeedData[2]
           cache.rsc = rsc
+          cache.prefetchRsc = null
           fillLazyItemsTillLeafWithHead(
             cache,
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
