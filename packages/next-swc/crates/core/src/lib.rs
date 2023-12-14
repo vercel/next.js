@@ -65,7 +65,6 @@ pub mod optimize_barrel;
 pub mod optimize_server_react;
 pub mod page_config;
 pub mod pure;
-pub mod react_server_components;
 pub mod server_actions;
 pub mod shake_exports;
 
@@ -100,7 +99,7 @@ pub struct TransformOptions {
     pub prefer_esm: bool,
 
     #[serde(default)]
-    pub server_components: Option<react_server_components::Config>,
+    pub server_components: Option<next_transform_react_server_components::Config>,
 
     #[serde(default)]
     pub styled_jsx: Option<turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config>,
@@ -193,7 +192,7 @@ where
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
         match &opts.server_components {
             Some(config) if config.truthy() =>
-                Either::Left(react_server_components::server_components(
+                Either::Left(next_transform_react_server_components::server_components(
                     file.name.clone(),
                     config.clone(),
                     comments.clone(),
@@ -235,7 +234,7 @@ where
                 Some(config) if config.truthy() => match config {
                     // Always enable the Server Components mode for both
                     // server and client layers.
-                    react_server_components::Config::WithOptions(config) => config.is_react_server_layer,
+                    next_transform_react_server_components::Config::WithOptions(config) => config.is_react_server_layer,
                     _ => false,
                 },
                 _ => false,
