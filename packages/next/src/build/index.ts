@@ -114,7 +114,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   isAppBuiltinNotFoundPage,
-  serializePageInfos,
+  collectRoutesUsingEdgeRuntime,
 } from './utils'
 import type { PageInfo, PageInfos, AppConfig } from './utils'
 import { writeBuildId } from './write-build-id'
@@ -1134,7 +1134,7 @@ export default async function build(
                 config,
                 distDir,
                 // Serialize Map as this is sent to the worker.
-                pageInfos: serializePageInfos(new Map()),
+                edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(new Map()),
                 staticPages: [],
                 hasSsrAmpPages: false,
                 buildTraceContext,
@@ -1948,7 +1948,7 @@ export default async function build(
           dir,
           config,
           distDir,
-          pageInfos,
+          edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(pageInfos),
           staticPages: [...staticPages],
           nextBuildSpan,
           hasSsrAmpPages,
