@@ -65,7 +65,7 @@ Since Next.js runs on both the client and server, there are multiple forms of lo
 
 Proper error handling is key to keeping your application stable and providing a good user experience. This is especially important with the Dynamic Route Segments and Server Actions in the App Router, as they introduce complexities like variable user requests and potential mismatches with predefined routes, requiring handling to prevent errors and ensure smooth navigation.
 
-**Use of `error.js` for Error Handling**:
+### Using `error.js` for error handling
 
 The [`error.js` file](/docs/app/building-your-application/routing/error-handling) convention is used for gracefully handling runtime errors in nested routes. It automatically wraps a route segment and its nested children in a React Error Boundary, allowing you to create a tailored error UI and isolate errors to specific segments while keeping the rest of the application functional.
 
