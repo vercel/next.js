@@ -310,6 +310,10 @@ export async function collectBuildTraces({
 
       const routesIgnores = [
         ...sharedIgnores,
+        // server chunks are provided via next-trace-entrypoints-plugin plugin
+        // as otherwise all chunks are traced here and included for all pages
+        // whether they are needed or not
+        '**/.next/server/chunks/**',
         '**/next/dist/server/optimize-amp.js',
         '**/next/dist/server/post-process.js',
       ].filter(nonNullable)

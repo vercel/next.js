@@ -4,12 +4,10 @@ import { Dynamic } from '../../../components/dynamic'
 export const dynamic = 'force-static'
 export const revalidate = 60
 
-export default ({ params: { slug } }) => {
+export default () => {
   return (
-    <Suspense
-      fallback={<Dynamic pathname={`/dynamic/force-static/${slug}`} fallback />}
-    >
-      <Dynamic pathname={`/dynamic/force-static/${slug}`} />
+    <Suspense fallback={<Dynamic pathname="/dynamic/force-static" fallback />}>
+      <Dynamic pathname="/dynamic/force-static" />
     </Suspense>
   )
 }

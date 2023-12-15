@@ -5,6 +5,7 @@ use next_api::{
     route::{Endpoint, WrittenEndpoint},
     server_paths::ServerPath,
 };
+use tracing::Instrument;
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::core::error::PrettyPrintError;
 
@@ -114,16 +115,19 @@ pub fn endpoint_server_changed_subscribe(
     subscribe(
         turbo_tasks,
         func,
-        move || async move {
-            let changed = endpoint.server_changed();
-            changed.strongly_consistent().await?;
-            if issues {
-                let issues = get_issues(changed).await?;
-                let diags = get_diagnostics(changed).await?;
-                Ok((issues, diags))
-            } else {
-                Ok((vec![], vec![]))
+        move || {
+            async move {
+                let changed = endpoint.server_changed();
+                changed.strongly_consistent().await?;
+                if issues {
+                    let issues = get_issues(changed).await?;
+                    let diags = get_diagnostics(changed).await?;
+                    Ok((issues, diags))
+                } else {
+                    Ok((vec![], vec![]))
+                }
             }
+            .instrument(tracing::info_span!("server changes subscription"))
         },
         |ctx| {
             let (issues, diags) = ctx.value;
@@ -146,12 +150,15 @@ pub fn endpoint_client_changed_subscribe(
     subscribe(
         turbo_tasks,
         func,
-        move || async move {
-            let changed = endpoint.client_changed();
-            // We don't capture issues and diagonistics here since we don't want to be
-            // notified when they change
-            changed.strongly_consistent().await?;
-            Ok(())
+        move || {
+            async move {
+                let changed = endpoint.client_changed();
+                // We don't capture issues and diagonistics here since we don't want to be
+                // notified when they change
+                changed.strongly_consistent().await?;
+                Ok(())
+            }
+            .instrument(tracing::info_span!("client changes subscription"))
         },
         |_| {
             Ok(vec![TurbopackResult {

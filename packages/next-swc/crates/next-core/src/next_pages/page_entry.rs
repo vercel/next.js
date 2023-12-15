@@ -43,7 +43,9 @@ pub async fn create_page_ssr_entry_module(
     let definition_page = &*next_original_name.await?;
     let definition_pathname = &*pathname.await?;
 
-    let ssr_module = ssr_module_context.process(source, reference_type.clone());
+    let ssr_module = ssr_module_context
+        .process(source, reference_type.clone())
+        .module();
 
     let reference_type = reference_type.into_value();
 
@@ -116,12 +118,14 @@ pub async fn create_page_ssr_entry_module(
         ));
     }
 
-    let mut ssr_module = ssr_module_context.process(
-        source,
-        Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-            INNER.to_string() => ssr_module,
-        }))),
-    );
+    let mut ssr_module = ssr_module_context
+        .process(
+            source,
+            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+                INNER.to_string() => ssr_module,
+            }))),
+        )
+        .module();
 
     if matches!(runtime, NextRuntime::Edge) {
         if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
@@ -209,10 +213,12 @@ async fn wrap_edge_page(
         INNER.to_string() => entry
     };
 
-    let wrapped = context.process(
-        Vc::upcast(source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    );
+    let wrapped = context
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
 
     Ok(wrap_edge_entry(
         context,

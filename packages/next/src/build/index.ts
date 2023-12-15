@@ -28,7 +28,6 @@ import {
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
-  NEXT_DID_POSTPONE_HEADER,
   RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
 } from '../lib/constants'
@@ -143,6 +142,7 @@ import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   RSC_VARY_HEADER,
+  NEXT_DID_POSTPONE_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
@@ -161,6 +161,7 @@ import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints
 import { formatManifest } from './manifests/formatter/format-manifest'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
+import { hasCustomExportOutput } from '../export/utils'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -397,12 +398,7 @@ export default async function build(
       NextBuildContext.config = config
 
       let configOutDir = 'out'
-      if (config.output === 'export' && config.distDir !== '.next') {
-        // In the past, a user had to run "next build" to generate
-        // ".next" (or whatever the distDir) followed by "next export"
-        // to generate "out" (or whatever the outDir). However, when
-        // "output: export" is configured, "next build" does both steps.
-        // So the user-configured distDir is actually the outDir.
+      if (hasCustomExportOutput(config)) {
         configOutDir = config.distDir
         config.distDir = '.next'
       }
@@ -953,7 +949,11 @@ export default async function build(
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
 
-      const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
+      const pagesManifestPath = path.join(
+        distDir,
+        SERVER_DIRECTORY,
+        PAGES_MANIFEST
+      )
 
       const { incrementalCacheHandlerPath } = config.experimental
 
@@ -983,7 +983,7 @@ export default async function build(
           relativeAppDir: path.relative(outputFileTracingRoot, dir),
           files: [
             ROUTES_MANIFEST,
-            path.relative(distDir, manifestPath),
+            path.relative(distDir, pagesManifestPath),
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
             PRERENDER_MANIFEST.replace(/\.json$/, '.js'),
@@ -1086,16 +1086,38 @@ export default async function build(
         })
 
         const [duration] = process.hrtime(turboNextBuildStart)
-        return { duration, buildTraceContext: null }
+        return { duration, buildTraceContext: undefined }
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
+      // If there's has a custom webpack config and disable the build worker.
+      // Otherwise respect the option if it's set.
+      const useBuildWorker =
+        config.experimental.webpackBuildWorker ||
+        (config.experimental.webpackBuildWorker === undefined &&
+          !config.webpack)
+
+      nextBuildSpan.setAttribute(
+        'has-custom-webpack-config',
+        String(!!config.webpack)
+      )
+      nextBuildSpan.setAttribute('use-build-worker', String(useBuildWorker))
+
+      if (
+        config.webpack &&
+        config.experimental.webpackBuildWorker === undefined
+      ) {
+        Log.warn(
+          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
+        )
+      }
+
       if (!isGenerateMode) {
-        if (isCompileMode && config.experimental.webpackBuildWorker) {
+        if (isCompileMode && useBuildWorker) {
           let durationInSeconds = 0
 
-          await webpackBuild(['server']).then((res) => {
+          await webpackBuild(useBuildWorker, ['server']).then((res) => {
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
             const buildTraceWorker = new Worker(
@@ -1124,11 +1146,11 @@ export default async function build(
               })
           })
 
-          await webpackBuild(['edge-server']).then((res) => {
+          await webpackBuild(useBuildWorker, ['edge-server']).then((res) => {
             durationInSeconds += res.duration
           })
 
-          await webpackBuild(['client']).then((res) => {
+          await webpackBuild(useBuildWorker, ['client']).then((res) => {
             durationInSeconds += res.duration
           })
 
@@ -1144,7 +1166,7 @@ export default async function build(
         } else {
           const { duration: webpackBuildDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
-            : await webpackBuild()
+            : await webpackBuild(useBuildWorker, null)
 
           buildTraceContext = rest.buildTraceContext
 
@@ -1188,7 +1210,7 @@ export default async function build(
       const appDefaultConfigs = new Map<string, AppConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
       const pagesManifest = JSON.parse(
-        await fs.readFile(manifestPath, 'utf8')
+        await fs.readFile(pagesManifestPath, 'utf8')
       ) as PagesManifest
       const buildManifest = JSON.parse(
         await fs.readFile(buildManifestPath, 'utf8')
@@ -2763,7 +2785,7 @@ export default async function build(
           // remove temporary export folder
           await fs.rm(exportOptions.outdir, { recursive: true, force: true })
           await fs.writeFile(
-            manifestPath,
+            pagesManifestPath,
             formatManifest(pagesManifest),
             'utf8'
           )
@@ -2806,11 +2828,15 @@ export default async function build(
         })
       )
 
-      if (NextBuildContext.telemetryPlugin) {
-        const events = eventBuildFeatureUsage(NextBuildContext.telemetryPlugin)
+      if (NextBuildContext.telemetryState) {
+        const events = eventBuildFeatureUsage(
+          NextBuildContext.telemetryState.usages
+        )
         telemetry.record(events)
         telemetry.record(
-          eventPackageUsedInGetServerSideProps(NextBuildContext.telemetryPlugin)
+          eventPackageUsedInGetServerSideProps(
+            NextBuildContext.telemetryState.packagesUsedInServerSideProps
+          )
         )
       }
 
