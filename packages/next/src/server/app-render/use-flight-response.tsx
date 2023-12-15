@@ -82,19 +82,23 @@ export function useFlightResponse(
   })
   flightResponseRef.current = res
 
-  forwardStream
+  pipeFlightDataToInlinedStream(forwardStream, writable, nonce, formState)
+
+  return res
+}
+
+export function pipeFlightDataToInlinedStream(
+  flightStream: ReadableStream<Uint8Array>,
+  writable: WritableStream<Uint8Array>,
+  nonce: string | undefined,
+  formState: unknown | null
+): void {
+  flightStream
     .pipeThrough(createDecodeTransformStream())
     .pipeThrough(createFlightTransformer(nonce, formState))
     .pipeThrough(createEncodeTransformStream())
     .pipeTo(writable)
-    .finally(() => {
-      // Once the last encoding stream has flushed, then unset the flight
-      // response ref.
-      flightResponseRef.current = null
-    })
     .catch((err) => {
       console.error('Unexpected error while rendering Flight stream', err)
     })
-
-  return res
 }
