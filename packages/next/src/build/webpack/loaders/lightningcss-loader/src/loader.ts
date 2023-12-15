@@ -55,7 +55,7 @@ function createVisitor(
     let prefix: string | undefined
 
     if (queryParts.length > 1) {
-      url = queryParts.pop()
+      url = queryParts.pop()!
       prefix = queryParts.join('!')
     }
 
