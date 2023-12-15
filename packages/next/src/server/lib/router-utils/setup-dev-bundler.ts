@@ -552,7 +552,7 @@ async function startWatcher(opts: SetupOpts) {
         hmrBuilding = true
       }
       hmrPayloads.set(`${key}:${id}`, payload)
-      hmrEventHappend = true
+      hmrEventHappened = true
       sendHmrDebounce()
     }
 
@@ -565,7 +565,7 @@ async function startWatcher(opts: SetupOpts) {
         hmrBuilding = true
       }
       turbopackUpdates.push(payload)
-      hmrEventHappend = true
+      hmrEventHappened = true
       sendHmrDebounce()
     }
 
@@ -1041,6 +1041,18 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
+    async function writeManifests(): Promise<void> {
+      await writeBuildManifest(opts.fsChecker.rewrites)
+      await writeAppBuildManifest()
+      await writePagesManifest()
+      await writeAppPathsManifest()
+      await writeMiddlewareManifest()
+      await writeActionManifest()
+      await writeFontManifest()
+      await writeLoadableManifest()
+      await writeFallbackBuildManifest()
+    }
+
     async function subscribeToHmrEvents(id: string, client: ws) {
       let mapping = clientToHmrSubscription.get(client)
       if (mapping === undefined) {
@@ -1166,6 +1178,8 @@ async function startWatcher(opts: SetupOpts) {
               'edge'
             )
             await loadMiddlewareManifest('instrumentation', 'instrumentation')
+            await writeManifests()
+
             NextBuildContext.hasInstrumentationHook = true
             serverFields.actualInstrumentationHookFile = '/instrumentation'
             await propagateServerField(
@@ -1218,7 +1232,7 @@ async function startWatcher(opts: SetupOpts) {
                   'middleware',
                   serverFields.middleware
                 )
-                await writeMiddlewareManifest()
+                await writeManifests()
 
                 finishBuilding()
                 return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
@@ -1264,26 +1278,18 @@ async function startWatcher(opts: SetupOpts) {
       )
     )
     await currentEntriesHandling
-    await writeBuildManifest(opts.fsChecker.rewrites)
-    await writeAppBuildManifest()
-    await writeFallbackBuildManifest()
-    await writePagesManifest()
-    await writeAppPathsManifest()
-    await writeMiddlewareManifest()
-    await writeActionManifest()
-    await writeFontManifest()
-    await writeLoadableManifest()
+    await writeManifests()
 
-    let hmrEventHappend = false
+    let hmrEventHappened = false
     if (process.env.NEXT_HMR_TIMING) {
       ;(async (proj: Project) => {
         for await (const updateInfo of proj.updateInfoSubscribe()) {
-          if (hmrEventHappend) {
+          if (hmrEventHappened) {
             const time = updateInfo.duration
             const timeMessage =
               time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
             Log.event(`Compiled in ${timeMessage}`)
-            hmrEventHappend = false
+            hmrEventHappened = false
           }
         }
       })(project)
@@ -1502,11 +1508,7 @@ async function startWatcher(opts: SetupOpts) {
             await loadBuildManifest('_error')
             await loadPagesManifest('_error')
 
-            await writeBuildManifest(opts.fsChecker.rewrites)
-            await writeFallbackBuildManifest()
-            await writePagesManifest()
-            await writeMiddlewareManifest()
-            await writeLoadableManifest()
+            await writeManifests()
           } finally {
             finishBuilding()
           }
@@ -1591,11 +1593,7 @@ async function startWatcher(opts: SetupOpts) {
                 }
                 await loadLoadableManifest(page, 'pages')
 
-                await writeBuildManifest(opts.fsChecker.rewrites)
-                await writeFallbackBuildManifest()
-                await writePagesManifest()
-                await writeMiddlewareManifest()
-                await writeLoadableManifest()
+                await writeManifests()
 
                 processIssues(page, writtenEndpoint)
               } finally {
@@ -1647,9 +1645,7 @@ async function startWatcher(opts: SetupOpts) {
               }
               await loadLoadableManifest(page, 'pages')
 
-              await writePagesManifest()
-              await writeMiddlewareManifest()
-              await writeLoadableManifest()
+              await writeManifests()
 
               processIssues(page, writtenEndpoint)
 
@@ -1694,13 +1690,7 @@ async function startWatcher(opts: SetupOpts) {
               await loadBuildManifest(page, 'app')
               await loadAppPathManifest(page, 'app')
               await loadActionManifest(page)
-
-              await writeAppBuildManifest()
-              await writeBuildManifest(opts.fsChecker.rewrites)
-              await writeAppPathsManifest()
-              await writeMiddlewareManifest()
-              await writeActionManifest()
-              await writeLoadableManifest()
+              await writeManifests()
 
               processIssues(page, writtenEndpoint, true)
 
@@ -1722,11 +1712,7 @@ async function startWatcher(opts: SetupOpts) {
                 middlewareManifests.delete(page)
               }
 
-              await writeAppBuildManifest()
-              await writeAppPathsManifest()
-              await writeMiddlewareManifest()
-              await writeMiddlewareManifest()
-              await writeLoadableManifest()
+              await writeManifests()
 
               processIssues(page, writtenEndpoint, true)
 
