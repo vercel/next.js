@@ -295,7 +295,7 @@ export function middleware(request) {
 You can respond from Middleware directly by returning a `Response` or `NextResponse` instance. (This is available since [Next.js v13.1.0](https://nextjs.org/blog/next-13-1#nextjs-advanced-middleware))
 
 ```ts filename="middleware.ts" switcher
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { isAuthenticated } from '@lib/auth'
 
 // Limit the middleware to paths starting with `/api/`
@@ -307,7 +307,7 @@ export function middleware(request: NextRequest) {
   // Call our authentication function to check the request
   if (!isAuthenticated(request)) {
     // Respond with JSON indicating an error message
-    return Response.json(
+    return NextResponse.json(
       { success: false, message: 'authentication failed' },
       { status: 401 }
     )
@@ -316,6 +316,7 @@ export function middleware(request: NextRequest) {
 ```
 
 ```js filename="middleware.js" switcher
+import { NextResponse } from 'next/server'
 import { isAuthenticated } from '@lib/auth'
 
 // Limit the middleware to paths starting with `/api/`
@@ -327,7 +328,7 @@ export function middleware(request) {
   // Call our authentication function to check the request
   if (!isAuthenticated(request)) {
     // Respond with JSON indicating an error message
-    return Response.json(
+    return NextResponse.json(
       { success: false, message: 'authentication failed' },
       { status: 401 }
     )
