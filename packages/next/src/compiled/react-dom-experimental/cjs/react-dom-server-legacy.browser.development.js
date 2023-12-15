@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-2c338b16f-20231116';
+var ReactVersion = '18.3.0-experimental-0cdfef19b-20231211';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -361,7 +361,11 @@ var hasReadOnlyValue = {
 function checkControlledValueProps(tagName, props) {
   {
     if (!(hasReadOnlyValue[props.type] || props.onChange || props.onInput || props.readOnly || props.disabled || props.value == null)) {
-      error('You provided a `value` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultValue`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
+      if (tagName === 'select') {
+        error('You provided a `value` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultValue`. Otherwise, set `onChange`.');
+      } else {
+        error('You provided a `value` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultValue`. Otherwise, set either `onChange` or `readOnly`.');
+      }
     }
 
     if (!(props.onChange || props.readOnly || props.disabled || props.checked == null)) {
