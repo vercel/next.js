@@ -38,7 +38,7 @@ function createVisitor(
   let urlIndex = -1
 
   function handleUrl(u: Url): Url {
-    const url = u.url
+    let url = u.url
     const needKeep = visitorOptions.urlFilter(url)
 
     if (!needKeep) {
@@ -50,6 +50,14 @@ function createVisitor(
     }
 
     const [pathname, query, hashOrQuery] = url.split(/(\?)?#/, 3)
+
+    const queryParts = url.split('!')
+    let prefix: string | undefined
+
+    if (queryParts.length > 1) {
+      url = queryParts.pop()
+      prefix = queryParts.join('!')
+    }
 
     let hash = query ? '?' : ''
     hash += hashOrQuery ? `#${hashOrQuery}` : ''
@@ -69,7 +77,6 @@ function createVisitor(
       hasUrlImportHelper = true
     }
 
-    const { prefix } = item
     const newUrl = prefix ? `${prefix}!${url}` : url
     let importName = urlToNameMap.get(newUrl)
 
@@ -84,8 +91,9 @@ function createVisitor(
         index: urlIndex,
       })
     }
+    // This should be true for string-urls in image-set
+    const needQuotes = false
 
-    const { needQuotes } = item
     const replacementKey = JSON.stringify({ newUrl, hash, needQuotes })
     let replacementName = urlToReplacementMap.get(replacementKey)
 
