@@ -68,7 +68,9 @@ function createVisitor(
       imports.push({
         type: 'get_url_import',
         importName: '___CSS_LOADER_GET_URL_IMPORT___',
-        url: require.resolve('../../css-loader/src/runtime/getUrl.js'),
+        url: JSON.stringify(
+          require.resolve('../../css-loader/src/runtime/getUrl.js')
+        ),
         index: -1,
       })
 
