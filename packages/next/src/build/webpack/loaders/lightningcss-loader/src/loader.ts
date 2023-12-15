@@ -18,6 +18,7 @@ import {
 import {
   getFilter,
   getPreRequester,
+  isDataUrl,
   isUrlRequestable,
 } from '../../css-loader/src/utils'
 import { stringifyRequest } from '../../../stringify-request'
@@ -44,6 +45,15 @@ function createVisitor(
       return u
     }
 
+    if (isDataUrl(url)) {
+      return u
+    }
+
+    const [pathname, query, hashOrQuery] = url.split(/(\?)?#/, 3)
+
+    let hash = query ? '?' : ''
+    hash += hashOrQuery ? `#${hashOrQuery}` : ''
+
     urlIndex++
 
     if (!hasUrlImportHelper) {
@@ -59,7 +69,7 @@ function createVisitor(
       hasUrlImportHelper = true
     }
 
-    const { url, prefix } = item
+    const { prefix } = item
     const newUrl = prefix ? `${prefix}!${url}` : url
     let importName = urlToNameMap.get(newUrl)
 
@@ -75,7 +85,7 @@ function createVisitor(
       })
     }
 
-    const { hash, needQuotes } = item
+    const { needQuotes } = item
     const replacementKey = JSON.stringify({ newUrl, hash, needQuotes })
     let replacementName = urlToReplacementMap.get(replacementKey)
 
