@@ -303,6 +303,11 @@ export default async function loader(
         this.emitWarning(new Warning(warning))
       }
 
+      console.log('importPluginImports', importPluginImports)
+      console.log('urlPluginImports', urlPluginImports)
+      console.log('importPluginApi', importPluginApi)
+      console.log('replacements', replacements)
+
       const imports = [
         ...icssPluginImports.sort(sort),
         ...importPluginImports.sort(sort),
