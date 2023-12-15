@@ -1561,16 +1561,6 @@ async function startWatcher(opts: SetupOpts) {
                     '_document',
                     await globalEntries.document.writeToDisk()
                   )
-
-                  changeSubscription(
-                    '_document',
-                    'server',
-                    false,
-                    globalEntries.document,
-                    () => {
-                      return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-                    }
-                  )
                   processIssues('_document', writtenEndpoint)
                 }
                 await loadPagesManifest('_document')
@@ -1622,6 +1612,17 @@ async function startWatcher(opts: SetupOpts) {
                     }
                   }
                 )
+                if (globalEntries.document) {
+                  changeSubscription(
+                    '_document',
+                    'server',
+                    false,
+                    globalEntries.document,
+                    () => {
+                      return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+                    }
+                  )
+                }
               }
 
               break
