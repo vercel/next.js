@@ -25,6 +25,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import isError from '../lib/is-error'
 import type { NodeFileTraceReasons } from '@vercel/nft'
+import type { RoutesUsingEdgeRuntime } from './worker'
 
 const debug = debugOriginal('next:build:build-traces')
 
@@ -79,7 +80,7 @@ export async function collectBuildTraces({
   hasSsrAmpPages: boolean
   outputFileTracingRoot: string
   // pageInfos is serialized when this function runs in a worker.
-  edgeRuntimeRoutes: string[]
+  edgeRuntimeRoutes: RoutesUsingEdgeRuntime
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
