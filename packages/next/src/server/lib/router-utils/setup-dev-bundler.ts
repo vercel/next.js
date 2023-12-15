@@ -1290,7 +1290,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     const overlayMiddleware = getOverlayMiddleware(project)
-    return {
+    const hotReloader: NextJsHotReloaderInterface = {
       turbopackProject: project,
       activeWebpackConfigs: undefined,
       serverStats: null,
@@ -1743,6 +1743,8 @@ async function startWatcher(opts: SetupOpts) {
         }
       },
     }
+
+    return hotReloader
   }
 
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
