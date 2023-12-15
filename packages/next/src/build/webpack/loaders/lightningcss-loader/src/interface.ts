@@ -76,6 +76,9 @@ export interface VisitorOptions {
   importFilter: (url: string, media: MediaList) => boolean
 
   urlHandler: (url: any) => string
+
+  context: string
+  urlResolver(context: string, request: string): Promise<string>
 }
 
 export interface ModulesOptions {

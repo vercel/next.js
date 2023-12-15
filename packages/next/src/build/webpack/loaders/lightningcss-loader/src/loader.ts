@@ -20,6 +20,7 @@ import {
   getPreRequester,
   isDataUrl,
   isUrlRequestable,
+  resolveRequests,
 } from '../../css-loader/src/utils'
 import { stringifyRequest } from '../../../stringify-request'
 
@@ -48,6 +49,18 @@ function createVisitor(
     if (isDataUrl(url)) {
       return u
     }
+
+    const { urlResolver, context } = visitorOptions
+
+    const resolvedUrl = resolveRequests(urlResolver, context, [
+      ...new Set([request, url]),
+    ])
+
+    if (!resolvedUrl) {
+      // eslint-disable-next-line consistent-return
+      return u
+    }
+    url = resolvedUrl
 
     const [, query, hashOrQuery] = url.split(/(\?)?#/, 3)
 
@@ -212,6 +225,13 @@ export async function LightningCssLoader(
   }
   const transform = implementation?.transformCss ?? transformCss
 
+  const urlResolver = this.getResolve({
+    conditionNames: ['asset'],
+    mainFields: ['asset'],
+    mainFiles: [],
+    extensions: [],
+  })
+
   try {
     const {
       code,
@@ -228,6 +248,9 @@ export async function LightningCssLoader(
             ),
           urlFilter: getFilter(options.url, this.resourcePath),
           importFilter: getFilter(options.import, this.resourcePath),
+
+          context: this.context,
+          urlResolver,
         },
         apis,
         imports,
