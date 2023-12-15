@@ -143,7 +143,8 @@ function createVisitor(
         console.log('isRequestable', isRequestable)
         if (!isRequestable) {
           apis.push({ url, media })
-          return { type: 'ignored' }
+          // Bug of lightningcss
+          return { type: 'ignored', value: '' }
         }
         const newUrl = prefix ? `${prefix}!${url}` : url
         let importName = importUrlToNameMap.get(newUrl)
@@ -161,9 +162,8 @@ function createVisitor(
         }
         console.log('importName', importName)
         apis.push({ importName, media })
-        return {
-          type: 'ignored',
-        }
+        // Bug of lightningcss
+        return { type: 'ignored', value: '' }
       },
     },
     Url(node) {
