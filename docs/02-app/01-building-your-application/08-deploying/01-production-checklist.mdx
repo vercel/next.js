@@ -8,15 +8,15 @@ Before taking your Next.js application to production, here are some recommendati
 ## Overview
 
 - Use [caching](/docs/app/building-your-application/caching) wherever possible.
-- Utilize logging for both the client and server.
 - Improve [loading performance](#loading-performance)
+- During the development phase, run [Lighthouse](https://developers.google.com/web/tools/lighthouse) to check performance, best practices, accessibility, and SEO. For best results, use a production build of Next.js and use incognito in your browser so results aren't affected by browser extensions.
+- Once in production, ensure you are measuring performance and collecting real user metrics (RUM) with [analytics](/docs/app/building-your-application/optimizing/analytics).
 - Leverage [Server Components](/docs/app/building-your-application/rendering/server-components) as much as possible for improved performance. Unlike [Client Components](/docs/app/building-your-application/rendering/client-components) which require JavaScript on the client, Server Components render on the server, which significantly reduces the size of your client-side JavaScript bundle. See [Composition Patterns](/docs/app/building-your-application/rendering/composition-patterns) for best practices on using Server and Client Components.
 - Ensure your database and backend are deployed in the same region.
 - Prevent sensitive data from being exposed to the client with [tainting](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client)
+- Utilize logging for both the client and server.
 - Ensure errors in nested route segments are handled gracefully with the [error.js file](/docs/app/building-your-application/routing/error-handling)
 - Customize your 404 (Not Found) responses using the [`notFound()`](/docs/app/api-reference/functions/not-found) function and [`not-found.js` file](/docs/app/api-reference/file-conventions/not-found)
-- During the development phase, run [Lighthouse](https://developers.google.com/web/tools/lighthouse) to check performance, best practices, accessibility, and SEO. For best results, use a production build of Next.js and use incognito in your browser so results aren't affected by browser extensions.
-- Once in production, ensure you are measuring performance and collecting real user metrics (RUM) with [analytics](/docs/app/building-your-application/optimizing/analytics).
 - Review [Supported Browsers and Features](/docs/architecture/supported-browsers)
 - Optimize the user experience with built-in components:
   - [Images](/docs/app/building-your-application/optimizing/images)
@@ -25,51 +25,6 @@ Before taking your Next.js application to production, here are some recommendati
   - [Link](/docs/app/building-your-application/routing/linking-and-navigating)
 - Follow the recommended [security best practices for Server Actions (/blog/security-nextjs-server-components-actions).
 - Consider adding a [Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy)
-
-## Caching
-
-Caching is essential for improving response times and reducing requests to backend services. The App Router in Next.js offers a robust [caching mechanism](/docs/app/building-your-application/caching) that allows you to leverage static and dynamic rendering, as well as [revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data).
-
-### Static assets
-
-Next.js automatically adds caching headers to immutable assets in **`/public`** or other static directories. Assets like CSS, static images, and other media are ideal candidates for long-term caching as they rarely change. The default caching headers applied are:
-
-```jsx
-Cache-Control: public, max-age=31536000, immutable
-```
-
-This ensures that these assets are cached efficiently in the browser, reducing load times for returning visitors.
-
-### Data caching
-
-Next.js's built-in [Data Cache](/docs/app/building-your-application/caching#data-cache) persists results of data fetches across server requests and deployments. By default, fetch requests are cached, allowing data to be reused in subsequent requests. This feature is particularly useful for content that doesn't change frequently.
-
-The caching behavior of data requests can be controlled through various strategies. Next.js supports [time-based revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#time-based-revalidation) (automatically refreshing the cache after a set period) and [on-demand revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#on-demand-revalidation) (refreshing the cache based on specific events).
-
-### Controlling the cache/caching with Server Actions
-
-While Server Actions in Next.js are primarily used for mutations (like POST, PUT, DELETE operations), they also play a crucial role in cache management. After a mutation, it's crucial to ensure that the cached data reflects the latest state. Next.js facilitates this by providing APIs such as [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag). These APIs can be used to purge or revalidate the cache immediately after a mutation. This capability ensures that any changes made by Server Actions are promptly reflected in the cached data, maintaining data consistency and accuracy.
-
-### Opting out of caching
-
-There are scenarios where caching might not be desirable as users need the most up-to-date content. Next.js allows [opting out of the Data Cache](/docs/app/building-your-application/caching#opting-out-1) for specific fetch requests. This can be achieved with settings such as `cache: 'no-store'` or `revalidate: 0`.
-
-## Logging
-
-Since Next.js runs on both the client and server, there are multiple forms of logging supported:
-
-- `console.log`: Works in both browser and server. In the browser, it logs to the console. On the server, it outputs to the terminal.
-  If you want a structured logging package, we recommend [Pino](https://www.npmjs.com/package/pino). If you're using Vercel, there are [pre-built logging integrations](https://vercel.com/integrations?utm_source=next-site&utm_medium=docs&utm_campaign=next-website#logging) compatible with Next.js.
-
-## Error Handling
-
-Proper error handling is key to keeping your application stable and providing a good user experience. This is especially important with the Dynamic Route Segments and Server Actions in the App Router, as they introduce complexities like variable user requests and potential mismatches with predefined routes, requiring handling to prevent errors and ensure smooth navigation.
-
-### Using `error.js` for error handling
-
-The [`error.js` file](/docs/app/building-your-application/routing/error-handling) convention is used for gracefully handling runtime errors in nested routes. It automatically wraps a route segment and its nested children in a React Error Boundary, allowing you to create a tailored error UI and isolate errors to specific segments while keeping the rest of the application functional.
-
-If an error is thrown inside a Server Component, Next.js forwards an `Error` object to the nearest `error.js` file. This object includes a generic message and a digest property in production as a security measure to prevent leaking sensitive details.
 
 ## Loading performance
 
@@ -134,3 +89,48 @@ Once you are able to measure the loading performance, use the following strategi
   - Finding alternative smaller packages
   - Dynamically loading components and dependencies
 - **Streaming**: Leverage the Loading UI and Suspense to stream chunks in parallel for improved initial load.
+
+## Caching
+
+Caching is essential for improving response times and reducing requests to backend services. The App Router in Next.js offers a robust [caching mechanism](/docs/app/building-your-application/caching) that allows you to leverage static and dynamic rendering, as well as [revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data).
+
+### Static assets
+
+Next.js automatically adds caching headers to immutable assets in **`/public`** or other static directories. Assets like CSS, static images, and other media are ideal candidates for long-term caching as they rarely change. The default caching headers applied are:
+
+```jsx
+Cache-Control: public, max-age=31536000, immutable
+```
+
+This ensures that these assets are cached efficiently in the browser, reducing load times for returning visitors.
+
+### Data caching
+
+Next.js's built-in [Data Cache](/docs/app/building-your-application/caching#data-cache) persists results of data fetches across server requests and deployments. By default, fetch requests are cached, allowing data to be reused in subsequent requests. This feature is particularly useful for content that doesn't change frequently.
+
+The caching behavior of data requests can be controlled through various strategies. Next.js supports [time-based revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#time-based-revalidation) (automatically refreshing the cache after a set period) and [on-demand revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#on-demand-revalidation) (refreshing the cache based on specific events).
+
+### Controlling the cache/caching with Server Actions
+
+While Server Actions in Next.js are primarily used for mutations (like POST, PUT, DELETE operations), they also play a crucial role in cache management. After a mutation, it's crucial to ensure that the cached data reflects the latest state. Next.js facilitates this by providing APIs such as [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag). These APIs can be used to purge or revalidate the cache immediately after a mutation. This capability ensures that any changes made by Server Actions are promptly reflected in the cached data, maintaining data consistency and accuracy.
+
+### Opting out of caching
+
+There are scenarios where caching might not be desirable as users need the most up-to-date content. Next.js allows [opting out of the Data Cache](/docs/app/building-your-application/caching#opting-out-1) for specific fetch requests. This can be achieved with settings such as `cache: 'no-store'` or `revalidate: 0`.
+
+## Logging
+
+Since Next.js runs on both the client and server, there are multiple forms of logging supported:
+
+- `console.log`: Works in both browser and server. In the browser, it logs to the console. On the server, it outputs to the terminal.
+  If you want a structured logging package, we recommend [Pino](https://www.npmjs.com/package/pino). If you're using Vercel, there are [pre-built logging integrations](https://vercel.com/integrations?utm_source=next-site&utm_medium=docs&utm_campaign=next-website#logging) compatible with Next.js.
+
+## Error Handling
+
+Proper error handling is key to keeping your application stable and providing a good user experience. This is especially important with the Dynamic Route Segments and Server Actions in the App Router, as they introduce complexities like variable user requests and potential mismatches with predefined routes, requiring handling to prevent errors and ensure smooth navigation.
+
+### Using `error.js` for error handling
+
+The [`error.js` file](/docs/app/building-your-application/routing/error-handling) convention is used for gracefully handling runtime errors in nested routes. It automatically wraps a route segment and its nested children in a React Error Boundary, allowing you to create a tailored error UI and isolate errors to specific segments while keeping the rest of the application functional.
+
+If an error is thrown inside a Server Component, Next.js forwards an `Error` object to the nearest `error.js` file. This object includes a generic message and a digest property in production as a security measure to prevent leaking sensitive details.
