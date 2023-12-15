@@ -69,6 +69,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.useLightningcss',
   'experimental.windowHistorySupport',
   'experimental.instrumentationHook',
+  'experimental.externalDir',
 
   // Experimental options that don't affect compilation
   'experimental.ppr',
@@ -131,7 +132,6 @@ const supportedTurbopackNextConfigOptions = [
   // 'experimental.craCompat',
   // 'experimental.disablePostcssPresetEnv',
   // 'experimental.esmExternals',
-  // 'experimental.externalDir',
   // This is used to force swc-loader to run regardless of finding Babel.
   // 'experimental.forceSwcTransforms',
   // 'experimental.fullySpecified',
