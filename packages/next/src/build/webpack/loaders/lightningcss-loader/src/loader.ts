@@ -173,6 +173,8 @@ export async function LightningCssLoader(
         }
       }
     }
+    console.log('imports', imports)
+    console.log('replacements', replacements)
 
     const importCode = getImportCode(imports, options)
     const moduleCode = getModuleCode(
