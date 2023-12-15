@@ -38,6 +38,7 @@ import { parseComponentStack } from './internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../server/dev/hot-reloader-types'
 import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
+import { extractModulesFromTurbopackMessage } from './internal/helpers/extract-modules-from-turbopack-message'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -50,6 +51,7 @@ interface Dispatcher {
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let reloading = false
+let startLatency: number | null = null
 
 function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
   if (hasUpdates) {
@@ -57,9 +59,29 @@ function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
   }
 }
 
-function onFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
+function onFastRefresh(
+  dispatcher: Dispatcher,
+  sendMessage: (message: string) => void,
+  updatedModules: string[]
+) {
+  let endLatency = Date.now()
   dispatcher.onBuildOk()
-  if (hasUpdates) {
+
+  sendMessage(
+    JSON.stringify({
+      event: 'client-hmr-latency',
+      id: window.__nextDevClientId,
+      startTime: startLatency,
+      endTime: endLatency,
+      page: window.location.pathname,
+      updatedModules,
+      // Whether the page (tab) was hidden at the time the event occurred.
+      // This can impact the accuracy of the event's timing.
+      isPageHidden: document.visibilityState === 'hidden',
+    })
+  )
+
+  if (updatedModules.length > 0) {
     dispatcher.onRefresh()
   }
 }
@@ -122,7 +144,7 @@ function performFullReload(err: any, sendMessage: any) {
 // Attempt to update code on the fly, fall back to a hard reload.
 function tryApplyUpdates(
   onBeforeUpdate: (hasUpdates: boolean) => void,
-  onHotUpdateSuccess: (hasUpdates: boolean) => void,
+  onHotUpdateSuccess: (updatedModules: string[]) => void,
   sendMessage: any,
   dispatcher: Dispatcher
 ) {
@@ -131,7 +153,7 @@ function tryApplyUpdates(
     return
   }
 
-  function handleApplyUpdates(err: any, updatedModules: any[] | null) {
+  function handleApplyUpdates(err: any, updatedModules: string[] | null) {
     if (err || RuntimeErrorHandler.hadRuntimeError || !updatedModules) {
       if (err) {
         console.warn(
@@ -154,7 +176,7 @@ function tryApplyUpdates(
     const hasUpdates = Boolean(updatedModules.length)
     if (typeof onHotUpdateSuccess === 'function') {
       // Maybe we want to do something.
-      onHotUpdateSuccess(hasUpdates)
+      onHotUpdateSuccess(updatedModules)
     }
 
     if (isUpdateAvailable()) {
@@ -205,12 +227,22 @@ function tryApplyUpdates(
     )
 }
 
+let lastUpdatedModules: string[] = []
+
 function processMessage(
   obj: HMR_ACTION_TYPES,
-  sendMessage: any,
+  sendMessage: (message: string) => void,
   router: ReturnType<typeof useRouter>,
   dispatcher: Dispatcher
 ) {
+  if (
+    'type' in obj &&
+    obj.type === HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
+  ) {
+    lastUpdatedModules = [...extractModulesFromTurbopackMessage(obj.data)]
+    return
+  }
+
   if (!('action' in obj)) {
     return
   }
@@ -242,16 +274,17 @@ function processMessage(
 
   function handleHotUpdate() {
     if (process.env.TURBOPACK) {
-      onFastRefresh(dispatcher, true)
+      onFastRefresh(dispatcher, sendMessage, lastUpdatedModules)
+      lastUpdatedModules = []
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {
           onBeforeFastRefresh(dispatcher, hasUpdates)
         },
-        function onSuccessfulHotUpdate(hasUpdates: any) {
+        function onSuccessfulHotUpdate(updatedModules: string[]) {
           // Only dismiss it when we're sure it's a hot update.
           // Otherwise it would flicker right before the reload.
-          onFastRefresh(dispatcher, hasUpdates)
+          onFastRefresh(dispatcher, sendMessage, updatedModules)
         },
         sendMessage,
         dispatcher
@@ -261,6 +294,7 @@ function processMessage(
 
   switch (obj.action) {
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
+      startLatency = Date.now()
       console.log('[Fast Refresh] rebuilding')
       break
     }
@@ -483,10 +517,8 @@ export default function HotReload({
     const handler = (event: MessageEvent<any>) => {
       try {
         const obj = JSON.parse(event.data)
-        const handledByTurbopack = processTurbopackMessage?.(obj)
-        if (!handledByTurbopack) {
-          processMessage(obj, sendMessage, router, dispatcher)
-        }
+        processTurbopackMessage?.(obj)
+        processMessage(obj, sendMessage, router, dispatcher)
       } catch (err: any) {
         console.warn(
           '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')

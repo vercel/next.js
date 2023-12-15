@@ -520,14 +520,6 @@ async function startWatcher(opts: SetupOpts) {
         }
       }
 
-      hotReloader.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
-        hash: String(++hmrHash),
-        errors: [...errors.values()],
-        warnings: [],
-      })
-      hmrBuilding = false
-
       if (errors.size === 0) {
         for (const payload of hmrPayloads.values()) {
           hotReloader.send(payload)
@@ -541,6 +533,14 @@ async function startWatcher(opts: SetupOpts) {
           turbopackUpdates.length = 0
         }
       }
+
+      hotReloader.send({
+        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+        hash: String(++hmrHash),
+        errors: [...errors.values()],
+        warnings: [],
+      })
+      hmrBuilding = false
     }, 2)
 
     function sendHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
@@ -1351,6 +1351,7 @@ async function startWatcher(opts: SetupOpts) {
               case 'client-warning': // { warningCount, clientId }
               case 'client-success': // { clientId }
               case 'server-component-reload-page': // { clientId }
+              case 'client-hmr-latency': // { id, startTime, endTime, page, updatedModules, isPageHidden }
               case 'client-reload-page': // { clientId }
               case 'client-removed-page': // { page }
               case 'client-full-reload': // { stackTrace, hadRuntimeError }

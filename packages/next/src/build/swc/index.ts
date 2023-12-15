@@ -545,9 +545,34 @@ export interface Entrypoints {
   pagesErrorEndpoint: Endpoint
 }
 
-export interface Update {
-  update: unknown
+interface BaseUpdate {
+  resource: {
+    headers: unknown
+    path: string
+  }
+  diagnostics: unknown[]
+  issues: unknown[]
 }
+
+interface IssuesUpdate extends BaseUpdate {
+  type: 'issues'
+}
+
+interface EcmascriptMergedUpdate {
+  type: 'EcmascriptMergedUpdate'
+  chunks: { [moduleName: string]: { type: 'partial' } }
+  entries: { [moduleName: string]: { code: string; map: string; url: string } }
+}
+
+interface PartialUpdate extends BaseUpdate {
+  type: 'partial'
+  instruction: {
+    type: 'ChunkListUpdate'
+    merged: EcmascriptMergedUpdate[]
+  }
+}
+
+export type Update = IssuesUpdate | PartialUpdate
 
 export interface HmrIdentifiers {
   identifiers: string[]

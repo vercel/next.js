@@ -40,6 +40,7 @@ import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../server/dev/hot-reloader-types'
 import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
+import { extractModulesFromTurbopackMessage } from '../../components/react-dev-overlay/internal/helpers/extract-modules-from-turbopack-message'
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
 // https://github.com/webpack/webpack/blob/webpack-1/hot/dev-server.js
@@ -67,10 +68,6 @@ export default function connect(mode: 'webpack' | 'turbopack') {
   register()
 
   addMessageListener((payload) => {
-    if (!('action' in payload)) {
-      return
-    }
-
     try {
       processMessage(payload)
     } catch (err: any) {
@@ -104,6 +101,8 @@ function clearOutdatedErrors() {
   }
 }
 
+let lastUpdatedModules: string[] = []
+
 // Successful compilation.
 function handleSuccess() {
   clearOutdatedErrors()
@@ -120,6 +119,8 @@ function handleSuccess() {
       tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
     }
   } else {
+    onFastRefresh(lastUpdatedModules)
+    lastUpdatedModules = []
     onBuildOk()
   }
 }
@@ -243,6 +244,15 @@ function handleAvailableHash(hash: string) {
 
 // Handle messages from the server.
 function processMessage(obj: HMR_ACTION_TYPES) {
+  if (
+    'type' in obj &&
+    obj.type === HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
+  ) {
+    // Extract updated modules list from this message data structure
+    lastUpdatedModules = [...extractModulesFromTurbopackMessage(obj.data)]
+    return
+  }
+
   if (!('action' in obj)) {
     return
   }
