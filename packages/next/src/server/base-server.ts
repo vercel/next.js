@@ -1789,7 +1789,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         }
         const resolvedWithoutSlash = removeTrailingSlash(resolvedUrlPathname)
-        if (!staticPaths?.includes(resolvedWithoutSlash)) {
+        if (
+          !staticPaths?.includes(resolvedWithoutSlash) &&
+          !resolvedUrlPathname.includes('sitemap')
+        ) {
           throw new Error(
             `Page "${page}" is missing param "${resolvedWithoutSlash}" in "generateStaticParams()", which is required with "output: export" config.`
           )
