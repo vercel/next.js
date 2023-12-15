@@ -1680,6 +1680,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     staticPaths?: string[]
     fallbackMode?: 'static' | 'blocking' | false
   }> {
+    console.log(
+      'this.getPrerenderManifest().dynamicRoutes:',
+      this.getPrerenderManifest().dynamicRoutes
+    )
     // Read whether or not fallback should exist from the manifest.
     const fallbackField =
       this.getPrerenderManifest().dynamicRoutes[pathname]?.fallback
@@ -1775,12 +1779,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isAppPath,
         requestHeaders: req.headers,
       })
-
+      console.log('>>>>>pathsResult:', pathsResult)
       staticPaths = pathsResult.staticPaths
       fallbackMode = pathsResult.fallbackMode
       hasFallback = typeof fallbackMode !== 'undefined'
 
-      if (this.nextConfig.output === 'export') {
+      if (
+        this.nextConfig.output === 'export' &&
+        !resolvedUrlPathname.includes('sitemap')
+      ) {
         const page = components.page
 
         if (fallbackMode !== 'static') {
@@ -1789,10 +1796,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         }
         const resolvedWithoutSlash = removeTrailingSlash(resolvedUrlPathname)
-        if (
-          !staticPaths?.includes(resolvedWithoutSlash) &&
-          !resolvedUrlPathname.includes('sitemap')
-        ) {
+        if (!staticPaths?.includes(resolvedWithoutSlash)) {
           throw new Error(
             `Page "${page}" is missing param "${resolvedWithoutSlash}" in "generateStaticParams()", which is required with "output: export" config.`
           )
