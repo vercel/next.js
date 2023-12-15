@@ -49,7 +49,7 @@ function createVisitor(
       return u
     }
 
-    const [pathname, query, hashOrQuery] = url.split(/(\?)?#/, 3)
+    const [, query, hashOrQuery] = url.split(/(\?)?#/, 3)
 
     const queryParts = url.split('!')
     let prefix: string | undefined
