@@ -201,6 +201,7 @@ export async function createComponentTree({
     }
 
     if (
+      !staticGenerationStore.forceStatic &&
       staticGenerationStore.isStaticGeneration &&
       ctx.defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
