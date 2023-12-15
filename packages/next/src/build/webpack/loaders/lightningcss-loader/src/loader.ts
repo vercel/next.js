@@ -74,6 +74,27 @@ function createVisitor(
         index: urlIndex,
       })
     }
+
+    const { hash, needQuotes } = item
+    const replacementKey = JSON.stringify({ newUrl, hash, needQuotes })
+    let replacementName = urlToReplacementMap.get(replacementKey)
+
+    if (!replacementName) {
+      replacementName = `___CSS_LOADER_URL_REPLACEMENT_${urlToReplacementMap.size}___`
+      urlToReplacementMap.set(replacementKey, replacementName)
+
+      replacements.push({
+        replacementName,
+        importName,
+        hash,
+        needQuotes,
+      })
+    }
+
+    return {
+      loc: u.loc,
+      url: replacementName,
+    }
   }
 
   return {

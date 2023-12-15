@@ -32,7 +32,7 @@ export interface ApiParam {
 
 export interface ApiReplacement {
   replacementName: string
-  localName: string
+  localName?: string
   importName: string
   needQuotes: boolean
   hash: string
