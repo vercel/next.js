@@ -118,11 +118,13 @@ function createVisitor(
   return {
     Rule: {
       import(node) {
+        console.log('import', node)
         if (visitorOptions.importFilter) {
           const needKeep = visitorOptions.importFilter(
             node.value.url,
             node.value.media
           )
+
           if (!needKeep) {
             return node
           }
@@ -139,6 +141,8 @@ function createVisitor(
             prefix = queryParts.join('!')
           }
         }
+        console.log('url', url)
+        console.log('isRequestable', isRequestable)
         if (!isRequestable) {
           apis.push({ url, media })
           return { type: 'ignored' }
@@ -148,12 +152,16 @@ function createVisitor(
         if (!importName) {
           importName = `___CSS_LOADER_AT_RULE_IMPORT_${importUrlToNameMap.size}___`
           importUrlToNameMap.set(newUrl, importName)
+
+          const importUrl = visitorOptions.urlHandler(newUrl)
+          console.log('importUrl', importUrl)
           imports.push({
             type: 'rule_import',
             importName,
-            url: visitorOptions.urlHandler(newUrl),
+            url: importUrl,
           })
         }
+        console.log('importName', importName)
         apis.push({ importName, media })
         return {
           type: 'ignored',
@@ -189,7 +197,7 @@ export async function LightningCssLoader(
 
   const exports: CssExport[] = []
   const imports: CssImport[] = []
-  const api: ApiParam[] = []
+  const apis: ApiParam[] = []
   const replacements: ApiReplacement[] = []
 
   if (options.modules?.exportOnlyLocals !== true) {
@@ -221,7 +229,7 @@ export async function LightningCssLoader(
           urlFilter: getFilter(options.url, this.resourcePath),
           importFilter: getFilter(options.import, this.resourcePath),
         },
-        api,
+        apis,
         imports,
         replacements
       ),
@@ -252,13 +260,14 @@ export async function LightningCssLoader(
         }
       }
     }
+    console.log('apis', apis)
     console.log('imports', imports)
     console.log('replacements', replacements)
 
     const importCode = getImportCode(imports, options)
     const moduleCode = getModuleCode(
       { css: cssCodeAsString, map },
-      api,
+      apis,
       replacements,
       options,
       this
