@@ -160,15 +160,8 @@ function createVisitor(
         }
       },
     },
-    Image(node) {
-      if (node.type !== 'url') {
-        return node
-      }
-
-      return {
-        type: 'url',
-        value: handleUrl(node.value),
-      }
+    Url(node) {
+      return handleUrl(node)
     },
   }
 }
