@@ -947,7 +947,11 @@ export default async function build(
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
 
-      const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
+      const pagesManifestPath = path.join(
+        distDir,
+        SERVER_DIRECTORY,
+        PAGES_MANIFEST
+      )
 
       const { incrementalCacheHandlerPath } = config.experimental
 
@@ -977,7 +981,7 @@ export default async function build(
           relativeAppDir: path.relative(outputFileTracingRoot, dir),
           files: [
             ROUTES_MANIFEST,
-            path.relative(distDir, manifestPath),
+            path.relative(distDir, pagesManifestPath),
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
             PRERENDER_MANIFEST.replace(/\.json$/, '.js'),
@@ -1203,7 +1207,7 @@ export default async function build(
       const appDefaultConfigs = new Map<string, AppConfig>()
       const pageInfos = new Map<string, PageInfo>()
       const pagesManifest = JSON.parse(
-        await fs.readFile(manifestPath, 'utf8')
+        await fs.readFile(pagesManifestPath, 'utf8')
       ) as PagesManifest
       const buildManifest = JSON.parse(
         await fs.readFile(buildManifestPath, 'utf8')
@@ -2778,7 +2782,7 @@ export default async function build(
           // remove temporary export folder
           await fs.rm(exportOptions.outdir, { recursive: true, force: true })
           await fs.writeFile(
-            manifestPath,
+            pagesManifestPath,
             formatManifest(pagesManifest),
             'utf8'
           )
