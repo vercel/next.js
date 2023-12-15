@@ -390,7 +390,9 @@ export class NextInstance {
               `next-trace`
             )
           )
-          .catch(() => {})
+          .catch((e) => {
+            require('console').error(e)
+          })
       }
 
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
