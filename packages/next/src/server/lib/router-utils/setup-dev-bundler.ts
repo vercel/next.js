@@ -407,10 +407,10 @@ async function startWatcher(opts: SetupOpts) {
         if (p.endsWith('.map')) continue
         let key = `${id}:${p}`
         const localHash = serverPathState.get(key)
-        const globaHash = serverPathState.get(p)
+        const globalHash = serverPathState.get(p)
         if (
           (localHash && localHash !== contentHash) ||
-          (globaHash && globaHash !== contentHash)
+          (globalHash && globalHash !== contentHash)
         ) {
           hasChange = true
           serverPathState.set(key, contentHash)
@@ -419,7 +419,7 @@ async function startWatcher(opts: SetupOpts) {
           if (!localHash) {
             serverPathState.set(key, contentHash)
           }
-          if (!globaHash) {
+          if (!globalHash) {
             serverPathState.set(p, contentHash)
           }
         }
