@@ -2,7 +2,7 @@ import valueParser from 'next/dist/compiled/postcss-value-parser'
 import type { LoaderContext } from 'webpack'
 import type { ILightningCssLoaderConfig, VisitorOptions } from './interface'
 import { ECacheKey } from './interface'
-import { transform as transformCss, type Visitor } from 'lightningcss'
+import { transform as transformCss, type Url, type Visitor } from 'lightningcss'
 import { Buffer } from 'buffer'
 import { getTargets } from './utils'
 import path from 'path'
@@ -30,6 +30,51 @@ function createVisitor(
   replacements: ApiReplacement[]
 ): Visitor<{}> {
   const importUrlToNameMap = new Map<string, string>()
+
+  let hasUrlImportHelper = false
+  const urlToNameMap = new Map()
+  const urlToReplacementMap = new Map()
+  let urlIndex = -1
+
+  function handleUrl(u: Url): Url {
+    const url = u.url
+    const needKeep = visitorOptions.urlFilter(url)
+
+    if (!needKeep) {
+      return u
+    }
+
+    urlIndex++
+
+    if (!hasUrlImportHelper) {
+      imports.push({
+        type: 'get_url_import',
+        importName: '___CSS_LOADER_GET_URL_IMPORT___',
+        url: visitorOptions.urlHandler(
+          require.resolve('../../css-loader/src/runtime/getUrl.js')
+        ),
+        index: -1,
+      })
+
+      hasUrlImportHelper = true
+    }
+
+    const { url, prefix } = item
+    const newUrl = prefix ? `${prefix}!${url}` : url
+    let importName = urlToNameMap.get(newUrl)
+
+    if (!importName) {
+      importName = `___CSS_LOADER_URL_IMPORT_${urlToNameMap.size}___`
+      urlToNameMap.set(newUrl, importName)
+
+      imports.push({
+        type: 'url',
+        importName,
+        url: JSON.stringify(newUrl),
+        index: urlIndex,
+      })
+    }
+  }
 
   return {
     Rule: {
@@ -76,14 +121,16 @@ function createVisitor(
         }
       },
     },
-    // Url(node) {
-    //   console.log('Url.node', node)
-    //   const { url } = node
-    //   const { urlHandler } = visitorOptions
-    //   node.url = urlHandler(url)
-    //   console.log('After: Url.node', node)
-    //   return node
-    // },
+    Image(node) {
+      if (node.type !== 'url') {
+        return node
+      }
+
+      return {
+        type: 'url',
+        value: handleUrl(node.value),
+      }
+    },
   }
 }
 

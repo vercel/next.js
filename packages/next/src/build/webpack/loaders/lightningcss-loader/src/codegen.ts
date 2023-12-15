@@ -11,6 +11,7 @@ export interface CssImport {
   importName: string
   url: string
   type?: 'url' | string
+  index?: number
 }
 
 export interface CssExport {
