@@ -68,9 +68,7 @@ function createVisitor(
       imports.push({
         type: 'get_url_import',
         importName: '___CSS_LOADER_GET_URL_IMPORT___',
-        url: visitorOptions.urlHandler(
-          require.resolve('../../css-loader/src/runtime/getUrl.js')
-        ),
+        url: require.resolve('../../css-loader/src/runtime/getUrl.js'),
         index: -1,
       })
 
@@ -260,6 +258,7 @@ export async function LightningCssLoader(
         }
       }
     }
+    console.log('code', cssCodeAsString)
     console.log('apis', apis)
     console.log('imports', imports)
     console.log('replacements', replacements)
@@ -277,6 +276,7 @@ export async function LightningCssLoader(
     const esCode = `${importCode}${moduleCode}${exportCode}`
     done(null, esCode, map && JSON.parse(map.toString()))
   } catch (error: unknown) {
+    console.log('lightningcss-loader error', error)
     done(error as Error)
   }
 }
