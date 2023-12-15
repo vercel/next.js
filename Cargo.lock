@@ -3447,6 +3447,7 @@ dependencies = [
  "next-swc",
  "next-transform-dynamic",
  "next-transform-font",
+ "next-transform-react-server-components",
  "next-transform-strip-page-exports",
  "once_cell",
  "qstring",
@@ -3543,6 +3544,7 @@ dependencies = [
 name = "next-transform-react-server-components"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "next-visitor-cjs-finder",
  "regex",
  "serde",
