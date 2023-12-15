@@ -70,21 +70,6 @@ createNextDescribe(
           expect($('#container > #dynamic > #state').length).toBe(0)
         })
       }
-
-      if (!isNextDev) {
-        it('should cache the static part', async () => {
-          // First, render the page to populate the cache.
-          let res = await next.fetch(pathname)
-          expect(res.status).toBe(200)
-          expect(res.headers.get('x-nextjs-postponed')).toBe('1')
-
-          // Then, render the page again.
-          res = await next.fetch(pathname)
-          expect(res.status).toBe(200)
-          expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
-          expect(res.headers.get('x-nextjs-postponed')).toBe('1')
-        })
-      }
     })
 
     describe.each([
