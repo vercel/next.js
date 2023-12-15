@@ -21,11 +21,13 @@ use super::module_rule_match_js_no_url;
 /// Returns a rule which applies the Next.js react server components transform.
 pub fn get_next_react_server_components_transform_rule(
     is_react_server_layer: bool,
+    is_pages_dir: bool,
     enable_mdx_rs: bool,
 ) -> ModuleRule {
     let transformer =
         EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextJsReactServerComponents {
             is_react_server_layer,
+            is_pages_dir,
         }) as _));
 
     ModuleRule::new(
@@ -39,6 +41,7 @@ pub fn get_next_react_server_components_transform_rule(
 #[derive(Debug)]
 struct NextJsReactServerComponents {
     is_react_server_layer: bool,
+    is_pages_dir: bool,
 }
 
 #[async_trait]
@@ -47,12 +50,16 @@ impl CustomTransformer for NextJsReactServerComponents {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
 
         let mut visitor = server_components(
-            FileName::Custom(ctx.file_path_str.to_string()),
+            FileName::Real(PathBuf::from(ctx.file_path_str.to_string())),
             Config::WithOptions(Options {
                 is_react_server_layer: self.is_react_server_layer,
             }),
             ctx.comments,
-            Some(PathBuf::from(ctx.file_path.parent().await?.path.clone())),
+            if self.is_pages_dir {
+                None
+            } else {
+                Some(PathBuf::from(ctx.file_path.parent().await?.path.clone()))
+            },
         );
 
         *program = p.fold_with(&mut visitor);

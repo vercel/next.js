@@ -101,8 +101,6 @@ impl<C: Comments> ReactServerComponents<C> {
                 (msg, span)
             }
             RSCErrorKind::NextRscErrClientImport((source, span)) => {
-                // [NOTE]: in turbopack currently only type of AppRsc runs this transform,
-                // so it won't hit pages_dir case
                 let is_app_dir = self
                     .app_dir
                     .as_ref()
@@ -640,6 +638,7 @@ pub fn server_components<C: Comments>(
         Config::WithOptions(x) => x.is_react_server_layer,
         _ => false,
     };
+
     as_folder(ReactServerComponents {
         is_react_server_layer,
         comments,

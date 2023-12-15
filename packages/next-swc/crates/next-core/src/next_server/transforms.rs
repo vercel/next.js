@@ -63,18 +63,26 @@ pub async fn get_next_server_transforms_rules(
                 mdx_rs,
             ));
 
-            rules.push(get_next_react_server_components_transform_rule(
-                true, mdx_rs,
-            ));
-
             if let Some(client_transition) = client_transition {
                 rules.push(get_next_css_client_reference_transforms_rule(
                     client_transition,
                 ));
+            } else {
+                // [TODO] current rsc_transform have conflict transformation for the
+                // client directive handling, raises unexpected error if specified both
+                // with clientdirectivetransformer.
+                rules.push(get_next_react_server_components_transform_rule(
+                    true, false, mdx_rs,
+                ));
             }
             (true, None)
         }
-        ServerContextType::AppRoute { .. } => (false, None),
+        ServerContextType::AppRoute { .. } => {
+            /*rules.push(get_next_react_server_components_transform_rule(
+                true, false, mdx_rs,
+            ));*/
+            (false, None)
+        }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
             (false, None)
         }

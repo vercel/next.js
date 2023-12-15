@@ -50,6 +50,7 @@ use crate::{
         },
         transforms::{
             emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
+            next_react_server_components::get_next_react_server_components_transform_rule,
             styled_components::get_styled_components_transform_plugin,
             styled_jsx::get_styled_jsx_transform_plugin,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin,
@@ -182,7 +183,19 @@ pub async fn get_client_module_options_context(
     mode: NextMode,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
-    let custom_rules = get_next_client_transforms_rules(next_config, ty.into_value(), mode).await?;
+    let mut custom_rules =
+        get_next_client_transforms_rules(next_config, ty.into_value(), mode).await?;
+
+    /*custom_rules.push(get_next_react_server_components_transform_rule(
+        false,
+        if let ClientContextType::Pages { .. } = ty.into_value() {
+            true
+        } else {
+            false
+        },
+        *next_config.mdx_rs().await?,
+    ));*/
+
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, mode, next_config, execution_context);
 
