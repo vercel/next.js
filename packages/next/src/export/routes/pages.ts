@@ -15,7 +15,7 @@ import {
   NEXT_DATA_SUFFIX,
   SERVER_PROPS_EXPORT_ERROR,
 } from '../../lib/constants'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { isBailoutCSRError } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { FileType, fileExists } from '../../lib/file-exists'
 import { lazyRenderPagesPage } from '../../server/future/route-modules/pages/module.render'
@@ -106,7 +106,7 @@ export async function exportPages(
         renderOpts
       )
     } catch (err: any) {
-      if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
+      if (!isBailoutCSRError(err)) {
         throw err
       }
     }
@@ -164,7 +164,7 @@ export async function exportPages(
           renderOpts
         )
       } catch (err: any) {
-        if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
+        if (!isBailoutCSRError(err)) {
           throw err
         }
       }

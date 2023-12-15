@@ -2,6 +2,7 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
 } from '../../../server/app-render/types'
+import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 
 /**
@@ -16,7 +17,10 @@ function applyPatch(
 
   // if the applied patch segment is __DEFAULT__ then we can ignore it and return the initial tree
   // this is because the __DEFAULT__ segment is used as a placeholder on navigation
-  if (patchSegment === '__DEFAULT__' && initialSegment !== '__DEFAULT__') {
+  if (
+    patchSegment === DEFAULT_SEGMENT_KEY &&
+    initialSegment !== DEFAULT_SEGMENT_KEY
+  ) {
     return initialTree
   }
 

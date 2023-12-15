@@ -48,5 +48,43 @@ createNextDescribe(
         'Intercepted Photo ID: 2'
       )
     })
+
+    it('should continue to show the intercepted page when revisiting it', async () => {
+      const browser = await next.browser('/')
+      await check(() => browser.elementById('children').text(), 'root')
+
+      await browser.elementByCss('[href="/photos/1"]').click()
+
+      // we should be showing the modal and not the page
+      await check(
+        () => browser.elementById('modal').text(),
+        'Intercepted Photo ID: 1'
+      )
+
+      await browser.refresh()
+
+      // page should show after reloading the browser
+      await check(
+        () => browser.elementById('children').text(),
+        'Page Photo ID: 1'
+      )
+
+      // modal should no longer be showing
+      await check(() => browser.elementById('modal').text(), '')
+
+      await browser.back()
+
+      // revisit the same page that was intercepted
+      await browser.elementByCss('[href="/photos/1"]').click()
+
+      // ensure that we're still showing the modal and not the page
+      await check(
+        () => browser.elementById('modal').text(),
+        'Intercepted Photo ID: 1'
+      )
+
+      // page content should not have changed
+      await check(() => browser.elementById('children').text(), 'root')
+    })
   }
 )

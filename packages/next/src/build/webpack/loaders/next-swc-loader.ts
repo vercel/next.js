@@ -44,6 +44,7 @@ export interface SWCLoaderOptions {
   swcCacheDir: string
   serverComponents?: boolean
   isReactServerLayer?: boolean
+  esm?: boolean
 }
 
 async function loaderTransform(
@@ -69,6 +70,7 @@ async function loaderTransform(
     swcCacheDir,
     serverComponents,
     isReactServerLayer,
+    esm,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
@@ -92,6 +94,7 @@ async function loaderTransform(
     relativeFilePathFromRoot,
     serverComponents,
     isReactServerLayer,
+    esm,
   })
 
   const programmaticOptions = {

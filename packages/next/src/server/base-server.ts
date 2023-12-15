@@ -50,9 +50,9 @@ import {
   APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
   PAGES_MANIFEST,
-  RedirectStatusCode,
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
+import { RedirectStatusCode } from '../client/components/redirect-status-code'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config.external'
@@ -83,6 +83,7 @@ import {
   RSC_VARY_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_DID_POSTPONE_HEADER,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -107,7 +108,6 @@ import {
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_TAGS_HEADER,
-  NEXT_DID_POSTPONE_HEADER,
   NEXT_QUERY_PARAM_PREFIX,
 } from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -1024,15 +1024,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           matchedPath = denormalizePagePath(matchedPath)
 
           let srcPathname = matchedPath
-          const match = await this.matchers.match(matchedPath, {
-            i18n: localeAnalysisResult,
-          })
+          let pageIsDynamic = isDynamicRoute(srcPathname)
 
-          // Update the source pathname to the matched page's pathname.
-          if (match) srcPathname = match.definition.pathname
+          if (!pageIsDynamic) {
+            const match = await this.matchers.match(srcPathname, {
+              i18n: localeAnalysisResult,
+            })
 
-          // The page is dynamic if the params are defined.
-          const pageIsDynamic = typeof match?.params !== 'undefined'
+            // Update the source pathname to the matched page's pathname.
+            if (match) {
+              srcPathname = match.definition.pathname
+              // The page is dynamic if the params are defined.
+              pageIsDynamic = typeof match.params !== 'undefined'
+            }
+          }
 
           // The rest of this function can't handle i18n properly, so ensure we
           // restore the pathname with the locale information stripped from it
@@ -1289,7 +1294,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
 
           res.statusCode = Number(req.headers['x-invoke-status'])
-          let err = null
+          let err: Error | null = null
 
           if (typeof req.headers['x-invoke-error'] === 'string') {
             const invokeError = JSON.parse(
@@ -1888,13 +1893,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
     // render.
-    let resumed: { postponed: string } | null = null
-    if (this.minimalMode) {
-      const postponed = getRequestMeta(req, 'postponed')
-      if (postponed) {
-        resumed = { postponed }
-      }
-    }
+    const minimalPostponed = getRequestMeta(req, 'postponed')
 
     // If PPR is enabled, and this is a RSC request (but not a prefetch), then
     // we can use this fact to only generate the flight data for the request
@@ -1923,7 +1922,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // Server actions can use non-GET/HEAD methods.
       !isServerAction &&
       // Resume can use non-GET/HEAD methods.
-      !resumed &&
+      !minimalPostponed &&
       !is404Page &&
       !is500Page &&
       pathname !== '/_error' &&
@@ -2081,7 +2080,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       isSSG &&
       !opts.supportsDynamicHTML &&
       !isServerAction &&
-      !resumed &&
+      !minimalPostponed &&
       !isDynamicRSCRequest
     ) {
       ssgCacheKey = `${locale ? `/${locale}` : ''}${
@@ -2144,11 +2143,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const { routeModule } = components
 
-    type Renderer = (
+    type Renderer = (context: {
+      /**
+       * The postponed data for this render. This is only provided when resuming
+       * a render that has been postponed.
+       */
       postponed: string | undefined
-    ) => Promise<ResponseCacheEntry | null>
+    }) => Promise<ResponseCacheEntry | null>
 
-    const doRender: Renderer = async (postponed) => {
+    const doRender: Renderer = async ({ postponed }) => {
       // In development, we always want to generate dynamic HTML.
       const supportsDynamicHTML: boolean =
         // If this isn't a data request and we're not in development, then we
@@ -2159,7 +2162,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         (!isSSG && !hasStaticPaths) ||
         // If this request has provided postponed data, it supports dynamic
         // HTML.
-        !!postponed ||
+        typeof postponed === 'string' ||
         // If this is a dynamic RSC request, then this render supports dynamic
         // HTML (it's dynamic).
         isDynamicRSCRequest
@@ -2188,7 +2191,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ...(isAppPath
           ? {
               incrementalCache,
-              isRevalidate: isSSG,
+              // This is a revalidation request if the request is for a static
+              // page and it is not being resumed from a postponed render and
+              // it is not a dynamic RSC request then it is a revalidation
+              // request.
+              isRevalidate: isSSG && !postponed && !isDynamicRSCRequest,
               originalPathname: components.ComponentMod.originalPathname,
               serverActions: this.nextConfig.experimental.serverActions,
             }
@@ -2314,30 +2321,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             { page: pathname, params: opts.params, query, renderOpts }
           )
         } else if (isAppPageRouteModule(routeModule)) {
-          // TODO: Re-enable once static prefetches re-land
-          // if (
-          //   !opts.experimental.ppr &&
-          //   isPrefetchRSCRequest &&
-          //   process.env.NODE_ENV === 'production' &&
-          //   !this.minimalMode
-          // ) {
-          //   try {
-          //     const prefetchRsc = await this.getPrefetchRsc(resolvedUrlPathname)
-          //     if (prefetchRsc) {
-          //       res.setHeader(
-          //         'cache-control',
-          //         'private, no-cache, no-store, max-age=0, must-revalidate'
-          //       )
-          //       res.setHeader('content-type', RSC_CONTENT_TYPE_HEADER)
-          //       res.body(prefetchRsc).send()
-          //       return null
-          //     }
-          //   } catch {
-          //     // We fallback to invoking the function if prefetch data is not
-          //     // available.
-          //   }
-          // }
-
           const module = components.routeModule as AppPageRouteModule
 
           // Due to the way we pass data by mutating `renderOpts`, we can't extend the
@@ -2388,7 +2371,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isAppPath &&
         isSSG &&
         metadata.revalidate === 0 &&
-        !this.renderOpts.dev
+        !this.renderOpts.dev &&
+        !renderOpts.experimental.ppr
       ) {
         const staticBailoutInfo = metadata.staticBailoutInfo
 
@@ -2491,12 +2475,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           isOnDemandRevalidate = true
         }
 
-        // Only requests that aren't revalidating can be resumed.
-        const postponed =
-          !isOnDemandRevalidate && !isRevalidating && resumed
-            ? resumed.postponed
-            : undefined
-
         // only allow on-demand revalidate for fallback: true/blocking
         // or for prerendered fallback: false paths
         if (
@@ -2579,7 +2557,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
               // We pass `undefined` as there cannot be a postponed state in
               // development.
-              const result = await doRender(undefined)
+              const result = await doRender({ postponed: undefined })
               if (!result) {
                 return null
               }
@@ -2590,7 +2568,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
         }
 
-        const result = await doRender(postponed)
+        const result = await doRender({
+          // Only requests that aren't revalidating can be resumed. If we have the
+          // minimal postponed data, then we should resume the render with it.
+          postponed:
+            !isOnDemandRevalidate && !isRevalidating && minimalPostponed
+              ? minimalPostponed
+              : undefined,
+        })
         if (!result) {
           return null
         }
@@ -2623,7 +2608,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return null
     }
 
-    if (isSSG && !this.minimalMode) {
+    const didPostpone =
+      cacheEntry.value?.kind === 'PAGE' && !!cacheEntry.value.postponed
+
+    if (
+      isSSG &&
+      !this.minimalMode &&
+      // We don't want to send a cache header for requests that contain dynamic
+      // data. If this is a Dynamic RSC request or wasn't a Prefetch RSC
+      // request, then we should set the cache header.
+      !isDynamicRSCRequest &&
+      (!didPostpone || isPrefetchRSCRequest)
+    ) {
       // set x-nextjs-cache header to match the header
       // we set for the image-optimizer
       res.setHeader(
@@ -2650,7 +2646,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // If this is a resume request in minimal mode it is streamed with dynamic
     // content and should not be cached.
-    if (this.minimalMode && resumed?.postponed) {
+    if (minimalPostponed) {
       revalidate = 0
     }
 
@@ -2767,7 +2763,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } else if (isAppPath) {
       // If the request has a postponed state and it's a resume request we
       // should error.
-      if (cachedData.postponed && resumed) {
+      if (cachedData.postponed && minimalPostponed) {
         throw new Error(
           'Invariant: postponed state should not be present on a resume request'
         )
@@ -2811,13 +2807,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         res.statusCode = cachedData.status
       }
 
-      // Mark that the request did postpone if this is a data request or we're
-      // testing. It's used to verify that we're actually serving a postponed
-      // request so we can trust the cache headers.
-      if (
-        cachedData.postponed &&
-        (isRSCRequest || process.env.__NEXT_TEST_MODE)
-      ) {
+      // Mark that the request did postpone if this is a data request.
+      if (cachedData.postponed && isRSCRequest) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
@@ -2835,7 +2826,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           return {
             type: 'rsc',
             body: cachedData.html,
-            revalidate: cacheEntry.revalidate,
+            // Dynamic RSC responses cannot be cached, even if they're
+            // configured with `force-static` because we have no way of
+            // distinguishing between `force-static` and pages that have no
+            // postponed state.
+            // TODO: distinguish `force-static` from pages with no postponed state (static)
+            revalidate: 0,
           }
         }
 
@@ -2877,7 +2873,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // Perform the render again, but this time, provide the postponed state.
       // We don't await because we want the result to start streaming now, and
       // we've already chained the transformer's readable to the render result.
-      doRender(cachedData.postponed)
+      doRender({ postponed: cachedData.postponed })
         .then(async (result) => {
           if (!result) {
             throw new Error('Invariant: expected a result to be returned')
@@ -2903,7 +2899,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return {
         type: 'html',
         body,
-        revalidate: cacheEntry.revalidate,
+        // We don't want to cache the response if it has postponed data because
+        // the response being sent to the client it's dynamic parts are streamed
+        // to the client on the same request.
+        revalidate: 0,
       }
     } else if (isDataReq) {
       return {

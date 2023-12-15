@@ -36,6 +36,7 @@ function getBaseSWCOptions({
   development,
   hasReactRefresh,
   globalWindow,
+  esm,
   modularizeImports,
   swcPlugins,
   compilerOptions,
@@ -50,6 +51,7 @@ function getBaseSWCOptions({
   development: boolean
   hasReactRefresh: boolean
   globalWindow: boolean
+  esm: boolean
   modularizeImports?: NextConfig['modularizeImports']
   compilerOptions: NextConfig['compiler']
   swcPlugins: ExperimentalConfig['swcPlugins']
@@ -109,7 +111,6 @@ function getBaseSWCOptions({
               ? '@emotion/react'
               : 'react'),
           runtime: 'automatic',
-          pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
           throwIfNamespace: true,
           development: !!development,
@@ -188,6 +189,9 @@ function getBaseSWCOptions({
             isReactServerLayer: !!isReactServerLayer,
           }
         : undefined,
+    // For app router we prefer to bundle ESM,
+    // On server side of pages router we prefer CJS.
+    preferEsm: esm,
   }
 }
 
@@ -207,6 +211,22 @@ function getStyledComponentsOptions(
       displayName: Boolean(development),
     }
   }
+}
+
+/*
+Output module type
+
+For app router where server components is enabled, we prefer to bundle es6 modules,
+Use output module es6 to make sure:
+- the esm module is present
+- if the module is mixed syntax, the esm + cjs code are both present
+
+For pages router will remain untouched
+*/
+function getModuleOptions(
+  esm: boolean | undefined = false
+): { module: { type: 'es6' } } | {} {
+  return esm ? { module: { type: 'es6' } } : {}
 }
 
 function getEmotionOptions(
@@ -273,6 +293,7 @@ export function getJestSWCOptions({
     compilerOptions,
     jsConfig,
     resolvedBaseUrl,
+    esm,
     // Don't apply server layer transformations for Jest
     isReactServerLayer: false,
     // Disable server / client graph assertions for Jest
@@ -319,6 +340,7 @@ export function getLoaderSWCOptions({
   relativeFilePathFromRoot,
   serverComponents,
   isReactServerLayer,
+  esm,
 }: {
   filename: string
   development: boolean
@@ -338,6 +360,7 @@ export function getLoaderSWCOptions({
   supportedBrowsers: string[] | undefined
   swcCacheDir: string
   relativeFilePathFromRoot: string
+  esm?: boolean
   serverComponents?: boolean
   isReactServerLayer?: boolean
 }) {
@@ -354,6 +377,7 @@ export function getLoaderSWCOptions({
     swcCacheDir,
     isReactServerLayer,
     serverComponents,
+    esm: !!esm,
   })
   baseOptions.fontLoaders = {
     fontLoaders: [
@@ -405,6 +429,7 @@ export function getLoaderSWCOptions({
       isServerCompiler: isServer,
       pagesDir,
       appDir,
+      preferEsm: !!esm,
       isPageFile,
       env: {
         targets: {
@@ -412,6 +437,7 @@ export function getLoaderSWCOptions({
           node: process.versions.node,
         },
       },
+      ...getModuleOptions(esm),
     }
   } else {
     const options = {
@@ -423,7 +449,7 @@ export function getLoaderSWCOptions({
               type: 'commonjs',
             },
           }
-        : {}),
+        : getModuleOptions(esm)),
       disableNextSsg: !isPageFile,
       isDevelopment: development,
       isServerCompiler: isServer,
