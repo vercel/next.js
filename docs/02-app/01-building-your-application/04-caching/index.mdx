@@ -12,12 +12,16 @@ Next.js improves your application's performance and reduces costs by caching ren
 
 Here's a high-level overview of the different caching mechanisms and their purpose:
 
+<div style="overflow-x:scroll">
+
 | Mechanism                                   | What                       | Where  | Purpose                                         | Duration                        |
 | ------------------------------------------- | -------------------------- | ------ | ----------------------------------------------- | ------------------------------- |
 | [Request Memoization](#request-memoization) | Return values of functions | Server | Re-use data in a React Component tree           | Per-request lifecycle           |
 | [Data Cache](#data-cache)                   | Data                       | Server | Store data across user requests and deployments | Persistent (can be revalidated) |
 | [Full Route Cache](#full-route-cache)       | HTML and RSC payload       | Server | Reduce rendering cost and improve performance   | Persistent (can be revalidated) |
 | [Router Cache](#router-cache)               | RSC Payload                | Client | Reduce server requests on navigation            | User session or time-based      |
+
+</div>
 
 By default, Next.js will cache as much as possible to improve performance and reduce cost. This means routes are **statically rendered** and data requests are **cached** unless you opt out. The diagram below shows the default caching behavior: when a route is statically rendered at build time and when a static route is first visited.
 
@@ -400,6 +404,8 @@ When configuring the different caching mechanisms, it's important to understand 
 
 The following table provides an overview of how different Next.js APIs affect caching:
 
+<div style="overflow-x:scroll">
+
 | API                                                                     | Router Cache               | Full Route Cache      | Data Cache            | React Cache |
 | ----------------------------------------------------------------------- | -------------------------- | --------------------- | --------------------- | ----------- |
 | [`<Link prefetch>`](#link)                                              | Cache                      |                       |                       |             |
@@ -418,6 +424,8 @@ The following table provides an overview of how different Next.js APIs affect ca
 | [`generateStaticParams`](#generatestaticparams)                         |                            | Cache                 |                       |             |
 | [`React.cache`](#react-cache-function)                                  |                            |                       |                       | Cache       |
 | [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)    |                            |                       |                       |             |
+
+</div>
 
 ### `<Link>`
 
