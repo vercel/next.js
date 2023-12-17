@@ -58,20 +58,31 @@ export function getResolveRoutes(
     match: PatchMatcher
     check?: boolean
     name?: string
+    unstable_statusCode?: number
   } & Partial<Header> &
-    Partial<Redirect>
+    Partial<Redirect> & { type?: 'rewrite' | 'redirect' }
 
   const routes: Route[] = [
     // _next/data with middleware handling
     { match: () => ({}), name: 'middleware_next_data' },
 
     ...(opts.minimalMode ? [] : fsChecker.headers),
-    ...(opts.minimalMode ? [] : fsChecker.redirects),
+    ...(opts.minimalMode
+      ? []
+      : fsChecker.redirects.map((redirect) => ({
+          ...redirect,
+          type: 'redirect' as const,
+        }))),
 
     // check middleware (using matchers)
     { match: () => ({}), name: 'middleware' },
 
-    ...(opts.minimalMode ? [] : fsChecker.rewrites.beforeFiles),
+    ...(opts.minimalMode
+      ? []
+      : fsChecker.rewrites.beforeFiles.map((rewrite) => ({
+          ...rewrite,
+          type: 'rewrite' as const,
+        }))),
 
     // check middleware (using matchers)
     { match: () => ({}), name: 'before_files_end' },
@@ -80,7 +91,12 @@ export function getResolveRoutes(
     // after files rewrites
     { match: () => ({}), name: 'check_fs' },
 
-    ...(opts.minimalMode ? [] : fsChecker.rewrites.afterFiles),
+    ...(opts.minimalMode
+      ? []
+      : fsChecker.rewrites.afterFiles.map((rewrite) => ({
+          ...rewrite,
+          type: 'rewrite' as const,
+        }))),
 
     // we always do the check: true handling before continuing to
     // fallback rewrites
@@ -90,7 +106,12 @@ export function getResolveRoutes(
       name: 'after files check: true',
     },
 
-    ...(opts.minimalMode ? [] : fsChecker.rewrites.fallback),
+    ...(opts.minimalMode
+      ? []
+      : fsChecker.rewrites.fallback.map((rewrite) => ({
+          ...rewrite,
+          type: 'rewrite' as const,
+        }))),
   ]
 
   async function resolveRoutes({
@@ -111,12 +132,15 @@ export function getResolveRoutes(
     resHeaders: Record<string, string | string[]>
     parsedUrl: NextUrlWithParsedQuery
     matchedOutput?: FsOutput | null
+    type: 'rewrite' | 'redirect' | null
   }> {
     let finished = false
     let resHeaders: Record<string, string | string[]> = {}
     let matchedOutput: FsOutput | null = null
     let parsedUrl = url.parse(req.url || '', true) as NextUrlWithParsedQuery
     let didRewrite = false
+    let statusCode = 200
+    let type: 'rewrite' | 'redirect' | null = null
 
     const urlParts = (req.url || '').split('?', 1)
     const urlNoQuery = urlParts[0]
@@ -132,6 +156,7 @@ export function getResolveRoutes(
         resHeaders,
         finished: true,
         statusCode: 308,
+        type,
       }
     }
     // TODO: inherit this from higher up
@@ -435,6 +460,8 @@ export function getResolveRoutes(
                 resHeaders,
                 finished: true,
                 matchedOutput,
+                statusCode,
+                type,
               }
             }
           }
@@ -515,6 +542,7 @@ export function getResolveRoutes(
                   parsedUrl,
                   resHeaders,
                   finished: true,
+                  type,
                 }
               }
               throw e
@@ -525,6 +553,7 @@ export function getResolveRoutes(
                 parsedUrl,
                 resHeaders,
                 finished: true,
+                type,
               }
             }
 
@@ -606,12 +635,14 @@ export function getResolveRoutes(
 
               const query = parsedUrl.query
               parsedUrl = url.parse(rel, true)
+              type = 'rewrite'
 
               if (parsedUrl.protocol) {
                 return {
                   parsedUrl,
                   resHeaders,
                   finished: true,
+                  type,
                 }
               }
 
@@ -639,12 +670,14 @@ export function getResolveRoutes(
               const rel = relativizeURL(value, initUrl)
               resHeaders['location'] = rel
               parsedUrl = url.parse(rel, true)
+              type = 'redirect'
 
               return {
                 parsedUrl,
                 resHeaders,
                 finished: true,
                 statusCode: middlewareRes.status,
+                type,
               }
             }
 
@@ -655,16 +688,14 @@ export function getResolveRoutes(
                 finished: true,
                 bodyStream,
                 statusCode: middlewareRes.status,
+                type,
               }
             }
           }
         }
 
         // handle redirect
-        if (
-          ('statusCode' in route || 'permanent' in route) &&
-          route.destination
-        ) {
+        if (route.destination && route.type === 'redirect') {
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: false,
             destination: route.destination,
@@ -680,12 +711,14 @@ export function getResolveRoutes(
           parsedDestination.pathname = normalizeRepeatedSlashes(
             parsedDestination.pathname
           )
+          type = 'redirect'
 
           return {
             finished: true,
             // @ts-expect-error custom ParsedUrl
             parsedUrl: parsedDestination,
             statusCode: getRedirectStatus(route),
+            type,
           }
         }
 
@@ -712,19 +745,26 @@ export function getResolveRoutes(
         }
 
         // handle rewrite
-        if (route.destination) {
+        if (route.destination && route.type === 'rewrite') {
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: true,
             destination: route.destination,
             params: params,
             query: parsedUrl.query,
           })
+          type = 'rewrite'
+
+          if (route.unstable_statusCode) {
+            statusCode = route.unstable_statusCode
+          }
 
           if (parsedDestination.protocol) {
             return {
               // @ts-expect-error custom ParsedUrl
               parsedUrl: parsedDestination,
               finished: true,
+              statusCode,
+              type,
             }
           }
 
@@ -753,6 +793,8 @@ export function getResolveRoutes(
               resHeaders,
               finished: true,
               matchedOutput: output,
+              statusCode,
+              type,
             }
           }
         }
@@ -771,6 +813,8 @@ export function getResolveRoutes(
       parsedUrl,
       resHeaders,
       matchedOutput,
+      statusCode,
+      type,
     }
   }
 
