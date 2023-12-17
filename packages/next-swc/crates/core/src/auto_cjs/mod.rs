@@ -44,7 +44,7 @@ impl Visit for CjsFinder {
                     (&*member_expr.obj, &member_expr.prop)
                 {
                     if &*obj.sym == "Object" && &*prop.sym == "defineProperty" {
-                        if let Some(ExprOrSpread { expr: expr0, .. }) = e.args.get(0) {
+                        if let Some(ExprOrSpread { expr: expr0, .. }) = e.args.first() {
                             if let Expr::Ident(arg0) = &**expr0 {
                                 if &*arg0.sym == "exports" {
                                     if let Some(ExprOrSpread { expr: expr1, .. }) = e.args.get(1) {

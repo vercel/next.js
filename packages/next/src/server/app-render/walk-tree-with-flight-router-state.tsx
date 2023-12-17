@@ -10,7 +10,7 @@ import {
   matchSegment,
 } from '../../client/components/match-segments'
 import type { LoaderTree } from '../lib/app-dir-module'
-import { getCssInlinedLinkTags } from './get-css-inlined-link-tags'
+import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
 import {
   addSearchParamsIfPageSegment,
@@ -21,6 +21,7 @@ import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { createComponentTree } from './create-component-tree'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -35,6 +36,7 @@ export async function walkTreeWithFlightRouterState({
   parentRendered,
   rscPayloadHead,
   injectedCSS,
+  injectedJS,
   injectedFontPreloadTags,
   rootLayoutIncluded,
   asNotFound,
@@ -49,6 +51,7 @@ export async function walkTreeWithFlightRouterState({
   parentRendered?: boolean
   rscPayloadHead: React.ReactNode
   injectedCSS: Set<string>
+  injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   rootLayoutIncluded: boolean
   asNotFound?: boolean
@@ -56,7 +59,7 @@ export async function walkTreeWithFlightRouterState({
   ctx: AppRenderContext
 }): Promise<FlightDataPath[]> {
   const {
-    renderOpts: { nextFontManifest },
+    renderOpts: { nextFontManifest, experimental },
     query,
     isPrefetch,
     getDynamicParamFromSegment,
@@ -109,6 +112,8 @@ export async function walkTreeWithFlightRouterState({
     flightRouterState[3] === 'refetch'
 
   const shouldSkipComponentTree =
+    // loading.tsx has no effect on prefetching when PPR is enabled
+    !experimental.ppr &&
     isPrefetch &&
     !Boolean(components.loading) &&
     (flightRouterState ||
@@ -120,62 +125,56 @@ export async function walkTreeWithFlightRouterState({
       flightRouterState &&
       canSegmentBeOverridden(actualSegment, flightRouterState[0])
         ? flightRouterState[0]
-        : null
+        : actualSegment
 
-    return [
-      [
-        overriddenSegment ?? actualSegment,
-        createFlightRouterStateFromLoaderTree(
-          // Create router state using the slice of the loaderTree
-          loaderTreeToFilter,
-          getDynamicParamFromSegment,
-          query
-        ),
-        shouldSkipComponentTree
-          ? null
-          : // Create component tree using the slice of the loaderTree
+    const routerState = createFlightRouterStateFromLoaderTree(
+      // Create router state using the slice of the loaderTree
+      loaderTreeToFilter,
+      getDynamicParamFromSegment,
+      query
+    )
 
-            React.createElement(async () => {
-              const { Component } = await createComponentTree(
-                // This ensures flightRouterPath is valid and filters down the tree
-                {
-                  ctx,
-                  createSegmentPath,
-                  loaderTree: loaderTreeToFilter,
-                  parentParams: currentParams,
-                  firstItem: isFirst,
-                  injectedCSS,
-                  injectedFontPreloadTags,
-                  // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
-                  rootLayoutIncluded,
-                  asNotFound,
-                  metadataOutlet,
-                }
-              )
+    if (shouldSkipComponentTree) {
+      // Send only the router state
+      return [[overriddenSegment, routerState, null, null]]
+    } else {
+      // Create component tree using the slice of the loaderTree
+      const { seedData } = await createComponentTree(
+        // This ensures flightRouterPath is valid and filters down the tree
+        {
+          ctx,
+          createSegmentPath,
+          loaderTree: loaderTreeToFilter,
+          parentParams: currentParams,
+          firstItem: isFirst,
+          injectedCSS,
+          injectedJS,
+          injectedFontPreloadTags,
+          // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+          rootLayoutIncluded,
+          asNotFound,
+          metadataOutlet,
+        }
+      )
 
-              return <Component />
-            }),
-        shouldSkipComponentTree
-          ? null
-          : (() => {
-              const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
+      // Create head
+      const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
+      const layerAssets = getLayerAssets({
+        ctx,
+        layoutOrPagePath,
+        injectedCSS: new Set(injectedCSS),
+        injectedJS: new Set(injectedJS),
+        injectedFontPreloadTags: new Set(injectedFontPreloadTags),
+      })
+      const head = (
+        <>
+          {layerAssets}
+          {rscPayloadHead}
+        </>
+      )
 
-              const styles = getLayerAssets({
-                ctx,
-                layoutOrPagePath,
-                injectedCSS: new Set(injectedCSS),
-                injectedFontPreloadTags: new Set(injectedFontPreloadTags),
-              })
-
-              return (
-                <>
-                  {styles}
-                  {rscPayloadHead}
-                </>
-              )
-            })(),
-      ],
-    ]
+      return [[overriddenSegment, routerState, seedData, head]]
+    }
   }
 
   // If we are not rendering on this level we need to check if the current
@@ -183,14 +182,16 @@ export async function walkTreeWithFlightRouterState({
   // the result consistent.
   const layoutPath = layout?.[1]
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
+  const injectedJSWithCurrentLayout = new Set(injectedJS)
   const injectedFontPreloadTagsWithCurrentLayout = new Set(
     injectedFontPreloadTags
   )
   if (layoutPath) {
-    getCssInlinedLinkTags(
+    getLinkAndScriptTags(
       ctx.clientReferenceManifest,
       layoutPath,
       injectedCSSWithCurrentLayout,
+      injectedJSWithCurrentLayout,
       true
     )
     getPreloadableFonts(
@@ -224,6 +225,7 @@ export async function walkTreeWithFlightRouterState({
           isFirst: false,
           rscPayloadHead,
           injectedCSS: injectedCSSWithCurrentLayout,
+          injectedJS: injectedJSWithCurrentLayout,
           injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
           rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           asNotFound,
@@ -235,7 +237,7 @@ export async function walkTreeWithFlightRouterState({
             // we don't need to send over default routes in the flight data
             // because they are always ignored by the client, unless it's a refetch
             if (
-              item[0] === '__DEFAULT__' &&
+              item[0] === DEFAULT_SEGMENT_KEY &&
               flightRouterState &&
               !!flightRouterState[1][parallelRouteKey][0] &&
               flightRouterState[1][parallelRouteKey][3] !== 'refetch'

@@ -233,7 +233,7 @@ function checkCustomBabelConfigDeprecation(
 
   if (isPresetReadyToDeprecate && unsupportedPlugins.length === 0) {
     Log.warn(
-      `It looks like there is a custom Babel configuration can be removed ${
+      `It looks like there is a custom Babel configuration that can be removed${
         pluginReasons.length > 0 ? ':' : '.'
       }`
     )

@@ -13,10 +13,12 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   RELOAD_PAGE = 'reloadPage',
   SERVER_COMPONENT_CHANGES = 'serverComponentChanges',
   MIDDLEWARE_CHANGES = 'middlewareChanges',
+  CLIENT_CHANGES = 'clientChanges',
   SERVER_ONLY_CHANGES = 'serverOnlyChanges',
   SYNC = 'sync',
   BUILT = 'built',
   BUILDING = 'building',
+  FINISH_BUILDING = 'finishBuilding',
   DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
   TURBOPACK_MESSAGE = 'turbopack-message',
   SERVER_ERROR = 'serverError',
@@ -37,7 +39,11 @@ interface BuildingAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING
 }
 
-interface SyncAction {
+interface FinishBuildingAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING
+}
+
+export interface SyncAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC
   hash: string
   errors: ReadonlyArray<unknown>
@@ -73,6 +79,10 @@ interface MiddlewareChangesAction {
   event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES
 }
 
+interface ClientChangesAction {
+  event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES
+}
+
 interface ServerOnlyChangesAction {
   event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
   pages: ReadonlyArray<string>
@@ -95,12 +105,14 @@ export type HMR_ACTION_TYPES =
   | TurbopackMessageAction
   | TurbopackConnectedAction
   | BuildingAction
+  | FinishBuildingAction
   | SyncAction
   | BuiltAction
   | AddedPageAction
   | RemovedPageAction
   | ReloadPageAction
   | ServerComponentChangesAction
+  | ClientChangesAction
   | MiddlewareChangesAction
   | ServerOnlyChangesAction
   | DevPagesManifestUpdateAction
@@ -136,11 +148,13 @@ export interface NextJsHotReloaderInterface {
     appPaths,
     definition,
     isApp,
+    url,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
     definition: RouteDefinition | undefined
+    url?: string
   }): Promise<void>
 }

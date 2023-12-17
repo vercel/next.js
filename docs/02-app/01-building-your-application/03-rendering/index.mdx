@@ -63,7 +63,7 @@ It may be helpful to think about module graphs as a visual representation of how
 
 {/* For example, if you have a file called `Page.jsx` that imports a file called `Button.jsx` on the server, the module graph would look something like this: - Diagram - */}
 
-You can use the React `"use client"` convention to define the boundary. There's also a `"use server"` convention, which tells React to do some computational work on the server while on the client.
+You can use the React `"use client"` convention to define the boundary. There's also a `"use server"` convention, which tells React to do some computational work on the server.
 
 > **Good to know**: `"use server"` is _not_ the opposite of `"use client"`. `"use client"` marks the boundary between server components and client components, while `"use server"` marks the functions that are executed on the server but can be called from the client. You shouldn't use `"use server"` to mark server components like you would with `"use client"` for client components: Use the [recommended composition patterns](/docs/app/building-your-application/rendering/composition-patterns#supported-pattern-passing-server-components-to-client-components-as-props) to interleave server and client components; and use `"use server"` for [server actions](/docs/app/building-your-application/data-fetching/forms-and-mutations). To mark a component as a server component (to throw a compile error if imported to a client component), you should use [`server-only`](/docs/app/building-your-application/rendering/composition-patterns#keeping-server-only-code-out-of-the-client-environment) instead.
 

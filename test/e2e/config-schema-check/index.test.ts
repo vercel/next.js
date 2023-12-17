@@ -1,5 +1,6 @@
 import stripAnsi from 'strip-ansi'
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   'next.config.js schema validating - defaultConfig',
@@ -46,13 +47,17 @@ createNextDescribe(
   },
   ({ next, isNextStart }) => {
     it('should warn the invalid next config', async () => {
-      const output = stripAnsi(next.cliOutput)
-      const warningTimes = output.split('badKey').length - 1
+      await check(() => {
+        const output = stripAnsi(next.cliOutput)
+        const warningTimes = output.split('badKey').length - 1
 
-      expect(output).toContain('Invalid next.config.js options detected')
-      expect(output).toContain('badKey')
-      // for next start and next build we both display the warnings
-      expect(warningTimes).toBe(isNextStart ? 2 : 1)
+        expect(output).toContain('Invalid next.config.js options detected')
+        expect(output).toContain('badKey')
+        // for next start and next build we both display the warnings
+        expect(warningTimes).toBe(isNextStart ? 2 : 1)
+
+        return 'success'
+      }, 'success')
     })
   }
 )

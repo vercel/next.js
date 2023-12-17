@@ -56,6 +56,7 @@ fn next_dynamic_errors(input: PathBuf) {
                 true,
                 false,
                 false,
+                false,
                 NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
@@ -94,11 +95,12 @@ fn react_server_components_server_graph_errors(input: PathBuf) {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/layout.js")),
                 next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: true },
+                    next_swc::react_server_components::Options {
+                        is_react_server_layer: true,
+                    },
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                String::from("server").into(),
             )
         },
         &input,
@@ -119,11 +121,12 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/page.js")),
                 next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options { is_server: false },
+                    next_swc::react_server_components::Options {
+                        is_react_server_layer: false,
+                    },
                 ),
                 tr.comments.as_ref().clone(),
                 None,
-                String::from("client").into(),
             )
         },
         &input,
@@ -166,16 +169,17 @@ fn react_server_actions_server_errors(input: PathBuf) {
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")),
                     next_swc::react_server_components::Config::WithOptions(
-                        next_swc::react_server_components::Options { is_server: true },
+                        next_swc::react_server_components::Options {
+                            is_react_server_layer: true
+                        },
                     ),
                     tr.comments.as_ref().clone(),
                     None,
-                    String::from("default").into(),
                 ),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
-                        is_server: true,
+                        is_react_server_layer: true,
                         enabled: true
                     },
                     tr.comments.as_ref().clone(),
@@ -202,16 +206,17 @@ fn react_server_actions_client_errors(input: PathBuf) {
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")),
                     next_swc::react_server_components::Config::WithOptions(
-                        next_swc::react_server_components::Options { is_server: false },
+                        next_swc::react_server_components::Options {
+                            is_react_server_layer: false
+                        },
                     ),
                     tr.comments.as_ref().clone(),
                     None,
-                    String::from("client").into(),
                 ),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
-                        is_server: false,
+                        is_react_server_layer: false,
                         enabled: true
                     },
                     tr.comments.as_ref().clone(),

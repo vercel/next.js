@@ -2,6 +2,7 @@ import type {
   StaticGenerationStore,
   StaticGenerationAsyncStorage,
 } from '../../../client/components/static-generation-async-storage.external'
+
 import { staticGenerationAsyncStorage as _staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import { addImplicitTags, validateTags } from '../../lib/patch-fetch'
@@ -29,6 +30,25 @@ export function unstable_cache<T extends Callback>(
     const store: undefined | StaticGenerationStore =
       staticGenerationAsyncStorage?.getStore()
 
+    if (store && typeof options.revalidate === 'number') {
+      // Revalidate 0 is a special case, it means opt-out of static generation.
+      if (options.revalidate === 0) {
+        // If postpone is supported we should postpone the render.
+        store.postpone?.('revalidate: 0')
+
+        // Set during dynamic rendering
+        store.revalidate = 0
+        // If revalidate was already set in the store before we should check if the new value is lower, set it to the lowest of the two.
+      } else if (typeof store.revalidate === 'number') {
+        if (store.revalidate > options.revalidate) {
+          store.revalidate = options.revalidate
+        }
+        // All other cases we set the value from the option.
+      } else {
+        store.revalidate = options.revalidate
+      }
+    }
+
     const incrementalCache:
       | import('../../lib/incremental-cache').IncrementalCache
       | undefined =
@@ -51,10 +71,13 @@ export function unstable_cache<T extends Callback>(
     return staticGenerationAsyncStorage.run(
       {
         ...store,
-        fetchCache: 'only-no-store',
+        // force any nested fetches to bypass cache so they revalidate
+        // when the unstable_cache call is revalidated
+        fetchCache: 'force-no-store',
         urlPathname: store?.urlPathname || '/',
-        isStaticGeneration: !!store?.isStaticGeneration,
         isUnstableCacheCallback: true,
+        isStaticGeneration: store?.isStaticGeneration === true,
+        postpone: store?.postpone,
       },
       async () => {
         const tags = validateTags(
@@ -72,16 +95,19 @@ export function unstable_cache<T extends Callback>(
             }
           }
         }
-        const implicitTags = addImplicitTags(store)
+        const implicitTags = store ? addImplicitTags(store) : []
 
         const cacheKey = await incrementalCache?.fetchCacheKey(joinedKey)
         const cacheEntry =
           cacheKey &&
+          // when we are nested inside of other unstable_cache's
+          // we should bypass cache similar to fetches
+          store?.fetchCache !== 'force-no-store' &&
           !(
             store?.isOnDemandRevalidate || incrementalCache.isOnDemandRevalidate
           ) &&
           (await incrementalCache?.get(cacheKey, {
-            fetchCache: true,
+            kindHint: 'fetch',
             revalidate: options.revalidate,
             tags,
             softTags: implicitTags,
@@ -140,12 +166,11 @@ export function unstable_cache<T extends Callback>(
             return invokeCallback()
           } else {
             if (!store.pendingRevalidates) {
-              store.pendingRevalidates = []
+              store.pendingRevalidates = {}
             }
-            store.pendingRevalidates.push(
-              invokeCallback().catch((err) =>
+            store.pendingRevalidates[joinedKey] = invokeCallback().catch(
+              (err) =>
                 console.error(`revalidating cache with key: ${joinedKey}`, err)
-              )
             )
           }
         }

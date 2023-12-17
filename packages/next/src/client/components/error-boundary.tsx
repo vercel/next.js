@@ -32,6 +32,7 @@ export interface ErrorBoundaryProps {
   children?: React.ReactNode
   errorComponent: ErrorComponent
   errorStyles?: React.ReactNode | undefined
+  errorScripts?: React.ReactNode | undefined
 }
 
 interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
@@ -41,6 +42,24 @@ interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
 interface ErrorBoundaryHandlerState {
   error: Error | null
   previousPathname: string
+}
+
+// if we are revalidating we want to re-throw the error so the
+// function crashes so we can maintain our previous cache
+// instead of caching the error page
+function HandleISRError({ error }: { error: any }) {
+  if (typeof (fetch as any).__nextGetStaticStore === 'function') {
+    const store:
+      | undefined
+      | import('./static-generation-async-storage.external').StaticGenerationStore =
+      (fetch as any).__nextGetStaticStore()?.getStore()
+
+    if (store?.isRevalidate || store?.isStaticGeneration) {
+      console.error(error)
+      throw error
+    }
+  }
+  return null
 }
 
 export class ErrorBoundaryHandler extends React.Component<
@@ -86,7 +105,9 @@ export class ErrorBoundaryHandler extends React.Component<
     if (this.state.error) {
       return (
         <>
+          <HandleISRError error={this.state.error} />
           {this.props.errorStyles}
+          {this.props.errorScripts}
           <this.props.errorComponent
             error={this.state.error}
             reset={this.reset}
@@ -105,6 +126,7 @@ export function GlobalError({ error }: { error: any }) {
     <html id="__next_error__">
       <head></head>
       <body>
+        <HandleISRError error={error} />
         <div style={styles.error}>
           <div>
             <h2 style={styles.text}>
@@ -138,6 +160,7 @@ export default GlobalError
 export function ErrorBoundary({
   errorComponent,
   errorStyles,
+  errorScripts,
   children,
 }: ErrorBoundaryProps & { children: React.ReactNode }): JSX.Element {
   const pathname = usePathname()
@@ -147,6 +170,7 @@ export function ErrorBoundary({
         pathname={pathname}
         errorComponent={errorComponent}
         errorStyles={errorStyles}
+        errorScripts={errorScripts}
       >
         {children}
       </ErrorBoundaryHandler>

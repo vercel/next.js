@@ -76,8 +76,6 @@ const externals = {
     'next/dist/build/webpack/plugins/terser-webpack-plugin',
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
-
-  undici: 'undici',
 }
 // eslint-disable-next-line camelcase
 externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
@@ -228,6 +226,7 @@ export async function copy_vercel_og(task, opts) {
     join(__dirname, 'src/compiled/@vercel/og/package.json'),
     {
       name: '@vercel/og',
+      version: require('@vercel/og/package.json').version,
       LICENSE: 'MLP-2.0',
       type: 'module',
       main: './index.node.js',
@@ -238,6 +237,7 @@ export async function copy_vercel_og(task, opts) {
           node: './index.node.js',
           default: './index.node.js',
         },
+        './package.json': './package.json',
       },
     },
     { spaces: 2 }
@@ -316,22 +316,6 @@ export async function ncc_node_platform(task, opts) {
       ),
       ''
     )
-  )
-}
-
-externals['undici'] = 'next/dist/compiled/undici'
-export async function ncc_undici(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('undici')))
-    .ncc({ packageName: 'undici', externals })
-    .target('src/compiled/undici')
-
-  const outputFile = join('src/compiled/undici/index.js')
-  await fs.writeFile(
-    outputFile,
-    (
-      await fs.readFile(outputFile, 'utf8')
-    ).replace(/process\.emitWarning/g, 'void')
   )
 }
 
@@ -500,6 +484,21 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       relative(
         __dirname,
         require.resolve('@next/react-dev-overlay/dist/middleware')
+      )
+    )
+    .ncc({
+      precompiled: false,
+      packageName: '@next/react-dev-overlay',
+      externals: overlayExternals,
+      target: 'es5',
+    })
+    .target('dist/compiled/@next/react-dev-overlay/dist')
+
+  await task
+    .source(
+      relative(
+        __dirname,
+        require.resolve('@next/react-dev-overlay/dist/middleware-turbopack')
       )
     )
     .ncc({
@@ -1391,7 +1390,13 @@ externals['jsonwebtoken'] = 'next/dist/compiled/jsonwebtoken'
 export async function ncc_jsonwebtoken(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('jsonwebtoken')))
-    .ncc({ packageName: 'jsonwebtoken', externals })
+    .ncc({
+      packageName: 'jsonwebtoken',
+      externals: {
+        ...externals,
+        semver: 'next/dist/lib/semver-noop',
+      },
+    })
     .target('src/compiled/jsonwebtoken')
 }
 // eslint-disable-next-line camelcase
@@ -2237,7 +2242,6 @@ export async function ncc(task, opts) {
         'ncc_node_cssescape',
         'ncc_node_platform',
         'ncc_node_shell_quote',
-        'ncc_undici',
         'ncc_acorn',
         'ncc_amphtml_validator',
         'ncc_arg',
@@ -2371,6 +2375,7 @@ export async function next_compile(task, opts) {
       'nextbuild',
       'nextbuildjest',
       'nextbuildstatic',
+      'nextbuildstatic_esm',
       'nextbuild_esm',
       'pages',
       'pages_esm',
@@ -2518,6 +2523,14 @@ export async function nextbuildstatic(task, opts) {
     .target('dist/export')
 }
 
+// export is a reserved keyword for functions
+export async function nextbuildstatic_esm(task, opts) {
+  await task
+    .source('src/export/**/!(*.test).+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/esm/export')
+}
+
 export async function pages_app(task, opts) {
   await task
     .source('src/pages/_app.tsx')
@@ -2637,6 +2650,7 @@ export default async function (task) {
     opts
   )
   await task.watch('src/export', 'nextbuildstatic', opts)
+  await task.watch('src/export', 'nextbuildstatic_esm', opts)
   await task.watch('src/client', 'client', opts)
   await task.watch('src/client', 'client_esm', opts)
   await task.watch('src/lib', 'lib', opts)

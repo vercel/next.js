@@ -15,31 +15,85 @@ export type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
 }
 
 export interface RequestMeta {
-  __NEXT_INIT_QUERY?: ParsedUrlQuery
-  __NEXT_INIT_URL?: string
-  __NEXT_CLONABLE_BODY?: CloneableBody
-  __nextHadTrailingSlash?: boolean
+  /**
+   * The query that was used to make the request.
+   */
+  initQuery?: ParsedUrlQuery
+
+  /**
+   * The URL that was used to make the request.
+   */
+  initURL?: string
+
+  /**
+   * The protocol that was used to make the request.
+   */
+  initProtocol?: string
+
+  /**
+   * The body that was read from the request. This is used to allow the body to
+   * be read multiple times.
+   */
+  clonableBody?: CloneableBody
 
   /**
    * True when the request matched a locale domain that was configured in the
    * next.config.js file.
    */
-  __nextIsLocaleDomain?: boolean
+  isLocaleDomain?: boolean
 
   /**
    * True when the request had locale information stripped from the pathname
    * part of the URL.
    */
-  __nextStrippedLocale?: boolean
-  _nextDidRewrite?: boolean
-  _nextHadBasePath?: boolean
-  _nextRewroteUrl?: string
-  _nextMiddlewareCookie?: string[]
-  _protocol?: string
-  _nextDataNormalizing?: boolean
-  _nextMatch?: RouteMatch
-  _nextIncrementalCache?: any
-  _nextMinimalMode?: boolean
+  didStripLocale?: boolean
+
+  /**
+   * If the request had it's URL rewritten, this is the URL it was rewritten to.
+   */
+  rewroteURL?: string
+
+  /**
+   * The cookies that were added by middleware and were added to the response.
+   */
+  middlewareCookie?: string[]
+
+  /**
+   * The match on the request for a given route.
+   */
+  match?: RouteMatch
+
+  /**
+   * The incremental cache to use for the request.
+   */
+  incrementalCache?: any
+
+  /**
+   * True when the request is for the prefetch flight data.
+   */
+  isPrefetchRSCRequest?: true
+
+  /**
+   * True when the request is for the flight data.
+   */
+  isRSCRequest?: true
+
+  /**
+   * Postponed state to use for resumption. If present it's assumed that the
+   * request is for a page that has postponed (there are no guarantees that the
+   * page actually has postponed though as it would incur an additional cache
+   * lookup).
+   */
+  postponed?: string
+
+  /**
+   * If provided, this will be called when a response cache entry was generated
+   * or looked up in the cache.
+   */
+  onCacheEntry?: (
+    cacheEntry: any,
+    requestMeta: any
+  ) => Promise<boolean | void> | boolean | void
 }
 
 /**

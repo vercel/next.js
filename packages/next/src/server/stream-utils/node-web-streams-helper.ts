@@ -1,15 +1,10 @@
 import type { FlightRouterState } from '../app-render/types'
 
-import '../node-polyfill-web-streams'
-
-import { nonNullable } from '../../lib/non-nullable'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { createDecodeTransformStream } from './encode-decode'
 import { DetachedPromise } from '../../lib/detached-promise'
-
-const queueTask =
-  process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate
+import { scheduleImmediate } from '../../lib/scheduler'
 
 export type ReactReadableStream = ReadableStream<Uint8Array> & {
   allReady?: Promise<void> | undefined
@@ -35,7 +30,7 @@ export function cloneTransformStream(source: TransformStream) {
 }
 
 export function chainStreams<T>(
-  streams: ReadableStream<T>[]
+  ...streams: ReadableStream<T>[]
 ): ReadableStream<T> {
   const { readable, writable } = new TransformStream()
 
@@ -86,37 +81,46 @@ export function createBufferedTransformStream(): TransformStream<
   Uint8Array,
   Uint8Array
 > {
-  let bufferedBytes: Uint8Array = new Uint8Array()
-  let pendingFlush: Promise<void> | null = null
+  let buffer: Uint8Array = new Uint8Array()
+  let pending: DetachedPromise<void> | undefined
 
-  const flushBuffer = (controller: TransformStreamDefaultController) => {
-    if (!pendingFlush) {
-      pendingFlush = new Promise((resolve) => {
-        queueTask(() => {
-          controller.enqueue(bufferedBytes)
-          bufferedBytes = new Uint8Array()
-          pendingFlush = null
-          resolve()
-        })
-      })
-    }
+  const flush = (controller: TransformStreamDefaultController) => {
+    // If we already have a pending flush, then return early.
+    if (pending) return
+
+    const detached = new DetachedPromise<void>()
+    pending = detached
+
+    scheduleImmediate(() => {
+      try {
+        controller.enqueue(buffer)
+        buffer = new Uint8Array()
+      } catch {
+        // If an error occurs while enqueuing it can't be due to this
+        // transformers fault. It's likely due to the controller being
+        // errored due to the stream being cancelled.
+      } finally {
+        pending = undefined
+        detached.resolve()
+      }
+    })
   }
 
   return new TransformStream({
     transform(chunk, controller) {
-      const newBufferedBytes = new Uint8Array(
-        bufferedBytes.length + chunk.byteLength
-      )
-      newBufferedBytes.set(bufferedBytes)
-      newBufferedBytes.set(chunk, bufferedBytes.length)
-      bufferedBytes = newBufferedBytes
-      flushBuffer(controller)
-    },
+      // Combine the previous buffer with the new chunk.
+      const combined = new Uint8Array(buffer.length + chunk.byteLength)
+      combined.set(buffer)
+      combined.set(chunk, buffer.length)
+      buffer = combined
 
+      // Flush the buffer to the controller.
+      flush(controller)
+    },
     flush() {
-      if (pendingFlush) {
-        return pendingFlush
-      }
+      if (!pending) return
+
+      return pending.promise
     },
   })
 }
@@ -188,7 +192,7 @@ function createHeadInsertionTransformStream(
       if (!inserted) {
         controller.enqueue(chunk)
       } else {
-        queueTask(() => {
+        scheduleImmediate(() => {
           freezing = false
         })
       }
@@ -208,32 +212,46 @@ function createHeadInsertionTransformStream(
 function createDeferredSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
-  let suffixFlushed = false
-  let suffixFlushTask: Promise<void> | null = null
+  let flushed = false
+  let pending: DetachedPromise<void> | undefined
+
   const encoder = new TextEncoder()
+
+  const flush = (controller: TransformStreamDefaultController) => {
+    const detached = new DetachedPromise<void>()
+    pending = detached
+
+    scheduleImmediate(() => {
+      try {
+        controller.enqueue(encoder.encode(suffix))
+      } catch {
+        // If an error occurs while enqueuing it can't be due to this
+        // transformers fault. It's likely due to the controller being
+        // errored due to the stream being cancelled.
+      } finally {
+        pending = undefined
+        detached.resolve()
+      }
+    })
+  }
 
   return new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk)
-      if (!suffixFlushed) {
-        suffixFlushed = true
-        suffixFlushTask = new Promise((res) => {
-          // NOTE: streaming flush
-          // Enqueue suffix part before the major chunks are enqueued so that
-          // suffix won't be flushed too early to interrupt the data stream
-          queueTask(() => {
-            controller.enqueue(encoder.encode(suffix))
-            res()
-          })
-        })
-      }
+
+      // If we've already flushed, we're done.
+      if (flushed) return
+
+      // Schedule the flush to happen.
+      flushed = true
+      flush(controller)
     },
     flush(controller) {
-      if (suffixFlushTask) return suffixFlushTask
-      if (!suffixFlushed) {
-        suffixFlushed = true
-        controller.enqueue(encoder.encode(suffix))
-      }
+      if (pending) return pending.promise
+      if (flushed) return
+
+      // Flush now.
+      controller.enqueue(encoder.encode(suffix))
     },
   })
 }
@@ -241,51 +259,59 @@ function createDeferredSuffixStream(
 // Merge two streams into one. Ensure the final transform stream is closed
 // when both are finished.
 function createMergedTransformStream(
-  dataStream: ReadableStream<Uint8Array>
+  stream: ReadableStream<Uint8Array>
 ): TransformStream<Uint8Array, Uint8Array> {
-  let dataStreamFinished: DetachedPromise<void> | null = null
+  let started = false
+  let pending: DetachedPromise<void> | null = null
+
+  const start = (controller: TransformStreamDefaultController) => {
+    const reader = stream.getReader()
+
+    // NOTE: streaming flush
+    // We are buffering here for the inlined data stream because the
+    // "shell" stream might be chunkenized again by the underlying stream
+    // implementation, e.g. with a specific high-water mark. To ensure it's
+    // the safe timing to pipe the data stream, this extra tick is
+    // necessary.
+    const detached = new DetachedPromise<void>()
+    pending = detached
+
+    // We use `setTimeout/setImmediate` here to ensure that it's inserted after
+    // flushing the shell. Note that this implementation might get stale if impl
+    // details of Fizz change in the future.
+    scheduleImmediate(async () => {
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) return
+
+          controller.enqueue(value)
+        }
+      } catch (err) {
+        controller.error(err)
+      } finally {
+        detached.resolve()
+      }
+    })
+  }
 
   return new TransformStream({
     transform(chunk, controller) {
       controller.enqueue(chunk)
 
-      if (!dataStreamFinished) {
-        const dataStreamReader = dataStream.getReader()
+      // Start the streaming if it hasn't already been started yet.
+      if (started) return
+      started = true
 
-        // NOTE: streaming flush
-        // We are buffering here for the inlined data stream because the
-        // "shell" stream might be chunkenized again by the underlying stream
-        // implementation, e.g. with a specific high-water mark. To ensure it's
-        // the safe timing to pipe the data stream, this extra tick is
-        // necessary.
-        const promise = new DetachedPromise<void>()
-        dataStreamFinished = promise
-
-        // We use `setTimeout` here to ensure that it's inserted after flushing
-        // the shell. Note that this implementation might get stale if impl
-        // details of Fizz change in the future.
-        queueTask(async () => {
-          try {
-            while (true) {
-              const { done, value } = await dataStreamReader.read()
-              if (done) return promise.resolve()
-
-              controller.enqueue(value)
-            }
-          } catch (err) {
-            controller.error(err)
-          }
-
-          promise.resolve()
-        })
-      }
+      start(controller)
     },
     flush() {
       // If the data stream promise is defined, then return it as its completion
       // will be the completion of the stream.
-      if (dataStreamFinished) {
-        return dataStreamFinished.promise
-      }
+      if (!pending) return
+      if (!started) return
+
+      return pending.promise
     },
   })
 }
@@ -401,38 +427,59 @@ export function createRootLayoutValidatorStream(
   })
 }
 
+function chainTransformers<T>(
+  readable: ReadableStream<T>,
+  transformers: ReadonlyArray<TransformStream<T, T> | null>
+): ReadableStream<T> {
+  let stream = readable
+  for (const transformer of transformers) {
+    if (!transformer) continue
+
+    stream = stream.pipeThrough(transformer)
+  }
+  return stream
+}
+
+export type ContinueStreamOptions = {
+  inlinedDataStream: ReadableStream<Uint8Array> | undefined
+  isStaticGeneration: boolean
+  getServerInsertedHTML: (() => Promise<string>) | undefined
+  serverInsertedHTMLToHead: boolean
+  validateRootLayout:
+    | {
+        assetPrefix: string | undefined
+        getTree: () => FlightRouterState
+      }
+    | undefined
+  /**
+   * Suffix to inject after the buffered data, but before the close tags.
+   */
+  suffix: string | undefined
+}
+
 export async function continueFizzStream(
   renderStream: ReactReadableStream,
   {
     suffix,
     inlinedDataStream,
-    generateStaticHTML,
+    isStaticGeneration,
     getServerInsertedHTML,
     serverInsertedHTMLToHead,
     validateRootLayout,
-  }: {
-    inlinedDataStream?: ReadableStream<Uint8Array>
-    generateStaticHTML: boolean
-    getServerInsertedHTML?: () => Promise<string>
-    serverInsertedHTMLToHead: boolean
-    validateRootLayout?: {
-      assetPrefix?: string
-      getTree: () => FlightRouterState
-    }
-    // Suffix to inject after the buffered data, but before the close tags.
-    suffix?: string
-  }
+  }: ContinueStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
   const closeTag = '</body></html>'
 
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(closeTag, 1)[0] : null
 
-  if (generateStaticHTML) {
+  // If we're generating static HTML and there's an `allReady` promise on the
+  // stream, we need to wait for it to resolve before continuing.
+  if (isStaticGeneration && 'allReady' in renderStream) {
     await renderStream.allReady
   }
 
-  const transforms: Array<TransformStream<Uint8Array, Uint8Array>> = [
+  return chainTransformers(renderStream, [
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
 
@@ -450,7 +497,7 @@ export async function continueFizzStream(
     inlinedDataStream ? createMergedTransformStream(inlinedDataStream) : null,
 
     // Close tags should always be deferred to the end
-    closeTag && createMoveSuffixStream(closeTag),
+    createMoveSuffixStream(closeTag),
 
     // Special head insertions
     // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
@@ -465,10 +512,47 @@ export async function continueFizzStream(
           validateRootLayout.getTree
         )
       : null,
-  ].filter(nonNullable)
+  ])
+}
 
-  return transforms.reduce(
-    (readable, transform) => readable.pipeThrough(transform),
-    renderStream
-  )
+type ContinuePostponedStreamOptions = Pick<
+  ContinueStreamOptions,
+  | 'inlinedDataStream'
+  | 'isStaticGeneration'
+  | 'getServerInsertedHTML'
+  | 'serverInsertedHTMLToHead'
+>
+
+export async function continuePostponedFizzStream(
+  renderStream: ReactReadableStream,
+  {
+    inlinedDataStream,
+    isStaticGeneration,
+    getServerInsertedHTML,
+    serverInsertedHTMLToHead,
+  }: ContinuePostponedStreamOptions
+) {
+  const closeTag = '</body></html>'
+
+  // If we're generating static HTML and there's an `allReady` promise on the
+  // stream, we need to wait for it to resolve before continuing.
+  if (isStaticGeneration && 'allReady' in renderStream) {
+    await renderStream.allReady
+  }
+
+  return chainTransformers(renderStream, [
+    // Buffer everything to avoid flushing too frequently
+    createBufferedTransformStream(),
+
+    // Insert generated tags to head
+    getServerInsertedHTML && !serverInsertedHTMLToHead
+      ? createInsertedHTMLStream(getServerInsertedHTML)
+      : null,
+
+    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+    inlinedDataStream ? createMergedTransformStream(inlinedDataStream) : null,
+
+    // Close tags should always be deferred to the end
+    createMoveSuffixStream(closeTag),
+  ])
 }

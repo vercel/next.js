@@ -226,6 +226,67 @@ describe('Error overlay - RSC build errors', () => {
     await cleanup()
   })
 
+  const invalidReactServerApis = [
+    'Component',
+    'createContext',
+    'createFactory',
+    'PureComponent',
+    'useDeferredValue',
+    'useEffect',
+    'useImperativeHandle',
+    'useInsertionEffect',
+    'useLayoutEffect',
+    'useReducer',
+    'useRef',
+    'useState',
+    'useSyncExternalStore',
+    'useTransition',
+    'useOptimistic',
+  ]
+  for (const api of invalidReactServerApis) {
+    it(`should error when ${api} from react is used in server component`, async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        `/server-with-errors/react-apis/${api.toLowerCase()}`
+      )
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        // `Component` has a custom error message
+        api === 'Component'
+          ? `You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+          : `You're importing a component that needs ${api}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+      )
+
+      await cleanup()
+    })
+  }
+
+  const invalidReactDomServerApis = [
+    'findDOMNode',
+    'flushSync',
+    'unstable_batchedUpdates',
+    'useFormStatus',
+    'useFormState',
+  ]
+  for (const api of invalidReactDomServerApis) {
+    it(`should error when ${api} from react-dom is used in server component`, async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        `/server-with-errors/react-dom-apis/${api.toLowerCase()}`
+      )
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        `You're importing a component that needs ${api}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+      )
+
+      await cleanup()
+    })
+  }
+
   it('should allow to use and handle rsc poisoning server-only', async () => {
     const { session, cleanup } = await sandbox(
       next,
@@ -292,20 +353,20 @@ describe('Error overlay - RSC build errors', () => {
       next.normalizeTestDirContent(await session.getRedboxSource())
     ).toMatchInlineSnapshot(
       next.normalizeSnapshot(`
-        "./app/server-with-errors/error-file/error.js
-        ReactServerComponentsError:
+      "./app/server-with-errors/error-file/error.js
+      ReactServerComponentsError:
 
-        ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
-        Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
+      ./app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
+      Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
 
-           ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
-         1 | export default function Error() {}
-           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-           \`----
+         ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
+       1 | export default function Error() {}
+         : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         \`----
 
-        Import path:
-        ./app/server-with-errors/error-file/error.js"
-      `)
+      Import path:
+      ./app/server-with-errors/error-file/error.js"
+    `)
     )
 
     await cleanup()
@@ -330,7 +391,7 @@ describe('Error overlay - RSC build errors', () => {
     //   "./app/server-with-errors/error-file/error.js
     //   ReactServerComponentsError:
 
-    //   ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
+    //   ./app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
 
     //      ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
     //    1 |

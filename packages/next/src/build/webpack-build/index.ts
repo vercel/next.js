@@ -6,6 +6,7 @@ import { Worker } from 'next/dist/compiled/jest-worker'
 import origDebug from 'next/dist/compiled/debug'
 import type { ChildProcess } from 'child_process'
 import path from 'path'
+import { exportTraceState, recordTraceEvents } from '../../trace'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -30,15 +31,11 @@ function deepMerge(target: any, source: any) {
 }
 
 async function webpackBuildWithWorker(
-  compilerNames: typeof ORDERED_COMPILER_NAMES = ORDERED_COMPILER_NAMES
+  compilerNamesArg: typeof ORDERED_COMPILER_NAMES | null
 ) {
-  const {
-    config,
-    telemetryPlugin,
-    buildSpinner,
-    nextBuildSpan,
-    ...prunedBuildContext
-  } = NextBuildContext
+  const compilerNames = compilerNamesArg || ORDERED_COMPILER_NAMES
+  const { buildSpinner, nextBuildSpan, ...prunedBuildContext } =
+    NextBuildContext
 
   prunedBuildContext.pluginState = pluginState
 
@@ -83,13 +80,25 @@ async function webpackBuildWithWorker(
     const curResult = await worker.workerMain({
       buildContext: prunedBuildContext,
       compilerName,
+      traceState: {
+        ...exportTraceState(),
+        defaultParentSpanId: nextBuildSpan?.getId(),
+        shouldSaveTraceEvents: true,
+      },
     })
+    if (nextBuildSpan && curResult.debugTraceEvents) {
+      recordTraceEvents(curResult.debugTraceEvents)
+    }
     // destroy worker so it's not sticking around using memory
     await worker.end()
 
     // Update plugin state
     pluginState = deepMerge(pluginState, curResult.pluginState)
     prunedBuildContext.pluginState = pluginState
+
+    if (curResult.telemetryState) {
+      NextBuildContext.telemetryState = curResult.telemetryState
+    }
 
     combinedResult.duration += curResult.duration
 
@@ -125,17 +134,16 @@ async function webpackBuildWithWorker(
   return combinedResult
 }
 
-export async function webpackBuild(
-  compilerNames?: typeof ORDERED_COMPILER_NAMES
-) {
-  const config = NextBuildContext.config!
-
-  if (config.experimental.webpackBuildWorker) {
+export function webpackBuild(
+  withWorker: boolean,
+  compilerNames: typeof ORDERED_COMPILER_NAMES | null
+): ReturnType<typeof webpackBuildWithWorker> {
+  if (withWorker) {
     debug('using separate compiler workers')
-    return await webpackBuildWithWorker(compilerNames)
+    return webpackBuildWithWorker(compilerNames)
   } else {
     debug('building all compilers in same process')
     const webpackBuildImpl = require('./impl').webpackBuildImpl
-    return await webpackBuildImpl()
+    return webpackBuildImpl(null, null)
   }
 }

@@ -6,24 +6,29 @@ import type { createErrorHandler } from './create-error-handler'
 import React, { use } from 'react'
 import { useFlightResponse } from './use-flight-response'
 
+export type ServerComponentRendererOptions = {
+  ComponentMod: AppPageModule
+  inlinedDataTransformStream: TransformStream<Uint8Array, Uint8Array>
+  clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
+  formState: null | any
+  serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>
+  nonce?: string
+}
+
 /**
  * Create a component that renders the Flight stream.
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
 export function createServerComponentRenderer<Props>(
   ComponentToRender: (props: Props) => any,
-  ComponentMod: AppPageModule,
   {
+    ComponentMod,
     inlinedDataTransformStream,
     clientReferenceManifest,
     formState,
-  }: {
-    inlinedDataTransformStream: TransformStream<Uint8Array, Uint8Array>
-    clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
-    formState: null | any
-  },
-  serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>,
-  nonce?: string
+    nonce,
+    serverComponentsErrorHandler,
+  }: ServerComponentRendererOptions
 ): (props: Props) => JSX.Element {
   let flightStream: ReadableStream<Uint8Array>
   const createFlightStream = (props: Props) => {

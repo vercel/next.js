@@ -37,13 +37,15 @@ export class MockedRequest extends Stream.Readable implements IncomingMessage {
   private bodyReadable?: Stream.Readable
 
   // If we don't actually have a socket, we'll just use a mock one that
-  // always returns false for the `encrypted` property.
+  // always returns false for the `encrypted` property and undefined for the
+  // `remoteAddress` property.
   public socket: Socket = new Proxy<TLSSocket>({} as TLSSocket, {
     get: (_target, prop) => {
-      if (prop !== 'encrypted') {
+      if (prop !== 'encrypted' && prop !== 'remoteAddress') {
         throw new Error('Method not implemented')
       }
 
+      if (prop === 'remoteAddress') return undefined
       // For this mock request, always ensure we just respond with the encrypted
       // set to false to ensure there's no odd leakages.
       return false

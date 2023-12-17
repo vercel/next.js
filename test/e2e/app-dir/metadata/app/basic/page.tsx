@@ -1,3 +1,4 @@
+import React from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import Client from './client'
@@ -23,15 +24,7 @@ export const metadata: Metadata = {
   referrer: 'origin-when-cross-origin',
   keywords: ['next.js', 'react', 'javascript'],
   authors: [{ name: 'huozhi' }, { name: 'tree', url: 'https://tree.com' }],
-  themeColor: { color: 'cyan', media: '(prefers-color-scheme: dark)' },
-  colorScheme: 'dark',
   manifest: '/api/manifest',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    interactiveWidget: 'resizes-visual',
-  },
   creator: 'shu',
   publisher: 'vercel',
   robots: 'index, follow',
@@ -41,4 +34,15 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
+}
+
+export const viewport = {
+  // viewport meta tag
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  interactiveWidget: 'resizes-visual',
+  // visual meta tags
+  colorScheme: 'dark',
+  themeColor: { color: 'cyan', media: '(prefers-color-scheme: dark)' },
 }

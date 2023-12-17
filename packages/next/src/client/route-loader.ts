@@ -18,6 +18,11 @@ declare global {
     __MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
     __MIDDLEWARE_MANIFEST_CB?: Function
     __PRERENDER_MANIFEST?: string
+    __REACT_LOADABLE_MANIFEST?: any
+    __RSC_MANIFEST?: any
+    __RSC_SERVER_MANIFEST?: any
+    __NEXT_FONT_MANIFEST?: any
+    __SUBRESOURCE_INTEGRITY_MANIFEST?: string
   }
 }
 

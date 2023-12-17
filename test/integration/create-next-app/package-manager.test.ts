@@ -18,18 +18,29 @@ import { projectFilesShouldExist, shouldBeJavascriptProject } from './lib/utils'
 const cli = require.resolve('create-next-app/dist/index.js')
 const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
 const examplePath = 'examples/basic-css'
-const env = { ...process.env, COREPACK_ENABLE_STRICT: '0' }
+const env = {
+  ...process.env,
+  COREPACK_ENABLE_STRICT: '0',
+  NEXT_PRIVATE_TEST_VERSION: 'canary',
+}
 
 const run = (args: string[], options: execa.Options) => {
   const conf = new Conf({ projectName: 'create-next-app' })
   conf.clear()
   console.log(`Running "create-next-app ${args.join(' ')}"`)
-  return execa('node', [cli].concat(args), { ...options, stdio: 'inherit' })
+  return execa('node', [cli].concat(args), {
+    ...options,
+    stdio: 'inherit',
+    env: options.env || env,
+  })
 }
 
 const command = (cmd: string, args: string[]) => {
   console.log(`Running command "${cmd} ${args.join(' ')}"`)
-  return execa(cmd, args, { stdio: 'inherit' })
+  return execa(cmd, args, {
+    stdio: 'inherit',
+    env,
+  })
 }
 
 it('should use npm as the package manager on supplying --use-npm', async () => {

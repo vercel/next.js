@@ -3,13 +3,14 @@ import type { PrerenderManifest } from '../../../build'
 import type {
   IncrementalCacheValue,
   IncrementalCacheEntry,
+  IncrementalCache as IncrementalCacheType,
+  IncrementalCacheKindHint,
 } from '../../response-cache'
+
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
 import path from '../../../shared/lib/isomorphic/path'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
-
-import '../../node-polyfill-web-streams'
 
 import {
   CACHE_ONE_YEAR,
@@ -31,7 +32,9 @@ export interface CacheHandlerContext {
   fetchCacheKeyPrefix?: string
   prerenderManifest?: PrerenderManifest
   revalidatedTags: string[]
+  experimental: { ppr: boolean }
   _appDir: boolean
+  _pagesDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
 }
 
@@ -59,7 +62,7 @@ export class CacheHandler {
   public async revalidateTag(_tag: string): Promise<void> {}
 }
 
-export class IncrementalCache {
+export class IncrementalCache implements IncrementalCacheType {
   dev?: boolean
   cacheHandler?: CacheHandler
   prerenderManifest: PrerenderManifest
@@ -77,6 +80,7 @@ export class IncrementalCache {
     fs,
     dev,
     appDir,
+    pagesDir,
     flushToDisk,
     fetchCache,
     minimalMode,
@@ -88,10 +92,12 @@ export class IncrementalCache {
     fetchCacheKeyPrefix,
     CurCacheHandler,
     allowedRevalidateHeaderKeys,
+    experimental,
   }: {
     fs?: CacheFs
     dev: boolean
     appDir?: boolean
+    pagesDir?: boolean
     fetchCache?: boolean
     minimalMode?: boolean
     serverDistDir?: string
@@ -103,6 +109,7 @@ export class IncrementalCache {
     getPrerenderManifest: () => PrerenderManifest
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
+    experimental: { ppr: boolean }
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     if (!CurCacheHandler) {
@@ -167,9 +174,11 @@ export class IncrementalCache {
         serverDistDir,
         revalidatedTags,
         maxMemoryCacheSize,
+        _pagesDir: !!pagesDir,
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
         fetchCacheKeyPrefix,
+        experimental,
       })
     }
   }
@@ -399,7 +408,7 @@ export class IncrementalCache {
   async get(
     cacheKey: string,
     ctx: {
-      fetchCache?: boolean
+      kindHint?: IncrementalCacheKindHint
       revalidate?: number | false
       fetchUrl?: string
       fetchIdx?: number
@@ -427,12 +436,13 @@ export class IncrementalCache {
     // so that getStaticProps is always called for easier debugging
     if (
       this.dev &&
-      (!ctx.fetchCache || this.requestHeaders['cache-control'] === 'no-cache')
+      (ctx.kindHint !== 'fetch' ||
+        this.requestHeaders['cache-control'] === 'no-cache')
     ) {
       return null
     }
 
-    cacheKey = this._getPathname(cacheKey, ctx.fetchCache)
+    cacheKey = this._getPathname(cacheKey, ctx.kindHint === 'fetch')
     let entry: IncrementalCacheEntry | null = null
     let revalidate = ctx.revalidate
 
@@ -450,9 +460,7 @@ export class IncrementalCache {
       }
 
       revalidate = revalidate || cacheData.value.revalidate
-      const age = Math.round(
-        (Date.now() - (cacheData.lastModified || 0)) / 1000
-      )
+      const age = (Date.now() - (cacheData.lastModified || 0)) / 1000
 
       const isStale = age > revalidate
       const data = cacheData.value.data
@@ -481,7 +489,7 @@ export class IncrementalCache {
       revalidateAfter = this.calculateRevalidate(
         cacheKey,
         cacheData?.lastModified || Date.now(),
-        this.dev && !ctx.fetchCache
+        this.dev && ctx.kindHint !== 'fetch'
       )
       isStale =
         revalidateAfter !== false && revalidateAfter < Date.now()
@@ -563,12 +571,15 @@ export class IncrementalCache {
       // revalidateAfter values so we update this on set
       if (typeof ctx.revalidate !== 'undefined' && !ctx.fetchCache) {
         this.prerenderManifest.routes[pathname] = {
+          experimentalPPR: undefined,
           dataRoute: path.posix.join(
             '/_next/data',
             `${normalizePagePath(pathname)}.json`
           ),
           srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
           initialRevalidateSeconds: ctx.revalidate,
+          // Pages routes do not have a prefetch data route.
+          prefetchDataRoute: undefined,
         }
       }
       await this.cacheHandler?.set(pathname, data, ctx)

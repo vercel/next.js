@@ -14,7 +14,7 @@ const cacheExports = {
 // When importing CommonJS modules, the module.exports object is provided as the default export
 module.exports = cacheExports
 
-// make import { xxx } from 'next/server' work
+// make import { xxx } from 'next/cache' work
 exports.unstable_cache = cacheExports.unstable_cache
 exports.revalidatePath = cacheExports.revalidatePath
 exports.revalidateTag = cacheExports.revalidateTag

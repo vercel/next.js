@@ -8,7 +8,7 @@ const CACHE_HEADERS = {
   REVALIDATE: 'public, max-age=0, must-revalidate',
 }
 
-const hashRegex = /\?\w+$/
+const hashRegex = /\?\w+/
 
 createNextDescribe(
   'app dir - metadata dynamic routes',
@@ -50,8 +50,8 @@ createNextDescribe(
         expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
 
         expect(text).toMatchInlineSnapshot(`
-          "<?xml version=\\"1.0\\" encoding=\\"UTF-8\\"?>
-          <urlset xmlns=\\"http://www.sitemaps.org/schemas/sitemap/0.9\\">
+          "<?xml version="1.0" encoding="UTF-8"?>
+          <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
           <url>
           <loc>https://example.com</loc>
           <lastmod>2021-01-01</lastmod>
@@ -157,15 +157,16 @@ createNextDescribe(
               type: $(el).attr('type'),
             }
           })
+
         // slug is id param from generateImageMetadata
         expect(iconUrls).toMatchObject([
           {
-            href: '/dynamic/big/icon-48jo90/small',
+            href: '/dynamic/big/icon-ahg52g/small',
             sizes: '48x48',
             type: 'image/png',
           },
           {
-            href: '/dynamic/big/icon-48jo90/medium',
+            href: '/dynamic/big/icon-ahg52g/medium',
             sizes: '72x72',
             type: 'image/png',
           },
@@ -183,12 +184,12 @@ createNextDescribe(
         // slug is index by default
         expect(appleTouchIconUrls).toEqual([
           {
-            href: '/dynamic/big/apple-icon-48jo90/0',
+            href: '/dynamic/big/apple-icon-ahg52g/0',
             sizes: '48x48',
             type: 'image/png',
           },
           {
-            href: '/dynamic/big/apple-icon-48jo90/1',
+            href: '/dynamic/big/apple-icon-ahg52g/1',
             sizes: '64x64',
             type: 'image/png',
           },
@@ -415,7 +416,7 @@ createNextDescribe(
       it('should error when id is missing in generateImageMetadata', async () => {
         const iconFilePath = 'app/metadata-base/unset/icon.tsx'
         const contentMissingIdProperty = `
-        import { ImageResponse } from 'next/server'
+        import { ImageResponse } from 'next/og'
         export async function generateImageMetadata() {
           return [
             {
@@ -497,6 +498,33 @@ createNextDescribe(
           await next.fetch('/metadata-base/unset/sitemap.xml/0')
         }
       })
+
+      it('should error if the default export of dynamic image is missing', async () => {
+        const ogImageFilePath = 'app/opengraph-image.tsx'
+        const ogImageFileContent = await next.readFile(ogImageFilePath)
+        const ogImageFileContentWithoutDefaultExport =
+          ogImageFileContent.replace(
+            'export default function',
+            'export function'
+          )
+
+        try {
+          await next.patchFile(
+            ogImageFilePath,
+            ogImageFileContentWithoutDefaultExport
+          )
+          const currentNextCliOutputLength = next.cliOutput.length
+
+          await check(async () => {
+            await next.fetch('/opengraph-image')
+            const output = next.cliOutput.slice(currentNextCliOutputLength)
+            expect(output).toContain(`Default export is missing in`)
+            return 'success'
+          }, /success/)
+        } finally {
+          await next.patchFile(ogImageFilePath, ogImageFileContent)
+        }
+      })
     }
 
     if (isNextStart) {
@@ -524,8 +552,8 @@ createNextDescribe(
           // dynamic
           '/gsp/sitemap/[__metadata_id__]/route':
             'app/gsp/sitemap/[__metadata_id__]/route.js',
-          '/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route':
-            'app/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route.js',
+          '/(group)/dynamic/[size]/apple-icon-ahg52g/[[...__metadata_id__]]/route':
+            'app/(group)/dynamic/[size]/apple-icon-ahg52g/[[...__metadata_id__]]/route.js',
         })
       })
 

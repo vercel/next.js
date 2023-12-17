@@ -59,6 +59,9 @@ function printWarning(level, format, args) {
   }
 }
 
+// -----------------------------------------------------------------------------
+var enablePostpone = true;
+
 function scheduleWork(callback) {
   setImmediate(callback);
 }
@@ -267,9 +270,20 @@ function bind() {
 
   if (this.$$typeof === SERVER_REFERENCE_TAG) {
     var args = ArraySlice.call(arguments, 1);
-    newFn.$$typeof = SERVER_REFERENCE_TAG;
-    newFn.$$id = this.$$id;
-    newFn.$$bound = this.$$bound ? this.$$bound.concat(args) : args;
+    return Object.defineProperties(newFn, {
+      $$typeof: {
+        value: SERVER_REFERENCE_TAG
+      },
+      $$id: {
+        value: this.$$id
+      },
+      $$bound: {
+        value: this.$$bound ? this.$$bound.concat(args) : args
+      },
+      bind: {
+        value: bind
+      }
+    });
   }
 
   return newFn;
@@ -1698,6 +1712,7 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix,
     writtenClientReferences: new Map(),
     writtenServerReferences: new Map(),
     writtenProviders: new Map(),
+    writtenObjects: new WeakMap(),
     identifierPrefix: identifierPrefix || '',
     identifierCount: 1,
     taintCleanupQueue: cleanupQueue,
@@ -1793,11 +1808,19 @@ function serializeThenable(request, thenable) {
     newTask.model = value;
     pingTask(request, newTask);
   }, function (reason) {
-    newTask.status = ERRORED$1;
-    request.abortableTasks.delete(newTask); // TODO: We should ideally do this inside performWork so it's scheduled
+    if (typeof reason === 'object' && reason !== null && reason.$$typeof === REACT_POSTPONE_TYPE) {
+      var _postponeInstance = reason;
+      logPostpone(request, _postponeInstance.message);
+      emitPostponeChunk(request, newTask.id, _postponeInstance);
+    } else {
+      newTask.status = ERRORED$1;
 
-    var digest = logRecoverableError(request, reason);
-    emitErrorChunk(request, newTask.id, digest, reason);
+      var _digest = logRecoverableError(request, reason);
+
+      emitErrorChunk(request, newTask.id, _digest, reason);
+    }
+
+    request.abortableTasks.delete(newTask);
 
     if (request.destination !== null) {
       flushCompletedChunks(request, request.destination);
@@ -1958,28 +1981,31 @@ function attemptResolveElement(request, type, key, ref, props, prevThenableState
 
       case REACT_PROVIDER_TYPE:
         {
-          pushProvider(type._context, props.value);
-
           {
-            var extraKeys = Object.keys(props).filter(function (value) {
-              if (value === 'children' || value === 'value') {
-                return false;
+            pushProvider(type._context, props.value);
+
+            {
+              var extraKeys = Object.keys(props).filter(function (value) {
+                if (value === 'children' || value === 'value') {
+                  return false;
+                }
+
+                return true;
+              });
+
+              if (extraKeys.length !== 0) {
+                error('ServerContext can only have a value prop and children. Found: %s', JSON.stringify(extraKeys));
               }
-
-              return true;
-            });
-
-            if (extraKeys.length !== 0) {
-              error('ServerContext can only have a value prop and children. Found: %s', JSON.stringify(extraKeys));
             }
-          }
 
-          return [REACT_ELEMENT_TYPE, type, key, // Rely on __popProvider being serialized last to pop the provider.
-          {
-            value: props.value,
-            children: props.children,
-            __pop: POP
-          }];
+            return [REACT_ELEMENT_TYPE, type, key, // Rely on __popProvider being serialized last to pop the provider.
+            {
+              value: props.value,
+              children: props.children,
+              __pop: POP
+            }];
+          } // Fallthrough
+
         }
     }
   }
@@ -2127,10 +2153,9 @@ function serializeClientReference(request, parent, key, clientReference) {
 
 function outlineModel(request, value) {
   request.pendingChunks++;
-  var outlinedId = request.nextChunkId++; // We assume that this object doesn't suspend, but a child might.
-
-  emitModelChunk(request, outlinedId, value);
-  return outlinedId;
+  var newTask = createTask(request, value, getActiveContext(), request.abortableTasks);
+  retryTask(request, newTask);
+  return newTask.id;
 }
 
 function serializeServerReference(request, parent, key, serverReference) {
@@ -2163,12 +2188,44 @@ function serializeLargeTextString(request, text) {
 }
 
 function serializeMap(request, map) {
-  var id = outlineModel(request, Array.from(map));
+  var entries = Array.from(map);
+
+  for (var i = 0; i < entries.length; i++) {
+    var key = entries[i][0];
+
+    if (typeof key === 'object' && key !== null) {
+      var writtenObjects = request.writtenObjects;
+      var existingId = writtenObjects.get(key);
+
+      if (existingId === undefined) {
+        // Mark all object keys as seen so that they're always outlined.
+        writtenObjects.set(key, -1);
+      }
+    }
+  }
+
+  var id = outlineModel(request, entries);
   return '$Q' + id.toString(16);
 }
 
 function serializeSet(request, set) {
-  var id = outlineModel(request, Array.from(set));
+  var entries = Array.from(set);
+
+  for (var i = 0; i < entries.length; i++) {
+    var key = entries[i];
+
+    if (typeof key === 'object' && key !== null) {
+      var writtenObjects = request.writtenObjects;
+      var existingId = writtenObjects.get(key);
+
+      if (existingId === undefined) {
+        // Mark all object keys as seen so that they're always outlined.
+        writtenObjects.set(key, -1);
+      }
+    }
+  }
+
+  var id = outlineModel(request, entries);
   return '$W' + id.toString(16);
 }
 
@@ -2208,6 +2265,7 @@ function escapeStringValue(value) {
 
 var insideContextProps = null;
 var isInsideContextValue = false;
+var modelRoot = false;
 
 function resolveModelToJSON(request, parent, key, value) {
   // Make sure that `parent[key]` wasn't JSONified before `value` was passed to us
@@ -2258,7 +2316,30 @@ function resolveModelToJSON(request, parent, key, value) {
       switch (value.$$typeof) {
         case REACT_ELEMENT_TYPE:
           {
-            // TODO: Concatenate keys of parents onto children.
+            var writtenObjects = request.writtenObjects;
+            var existingId = writtenObjects.get(value);
+
+            if (existingId !== undefined) {
+              if (existingId === -1) {
+                // Seen but not yet outlined.
+                var newId = outlineModel(request, value);
+                return serializeByValueID(newId);
+              } else if (modelRoot === value) {
+                // This is the ID we're currently emitting so we need to write it
+                // once but if we discover it again, we refer to it by id.
+                modelRoot = null;
+              } else {
+                // We've already emitted this as an outlined object, so we can
+                // just refer to that by its existing ID.
+                return serializeByValueID(existingId);
+              }
+            } else {
+              // This is the first time we've seen this object. We may never see it again
+              // so we'll inline it. Mark it as seen. If we see it again, we'll outline.
+              writtenObjects.set(value, -1);
+            } // TODO: Concatenate keys of parents onto children.
+
+
             var element = value; // Attempt to render the Server Component.
 
             value = attemptResolveElement(request, element.type, element.key, element.ref, element.props, null);
@@ -2328,34 +2409,80 @@ function resolveModelToJSON(request, parent, key, value) {
     }
 
     if (isClientReference(value)) {
-      return serializeClientReference(request, parent, key, value); // $FlowFixMe[method-unbinding]
-    } else if (typeof value.then === 'function') {
-      // We assume that any object with a .then property is a "Thenable" type,
+      return serializeClientReference(request, parent, key, value);
+    }
+
+    var _writtenObjects = request.writtenObjects;
+
+    var _existingId = _writtenObjects.get(value); // $FlowFixMe[method-unbinding]
+
+
+    if (typeof value.then === 'function') {
+      if (_existingId !== undefined) {
+        if (modelRoot === value) {
+          // This is the ID we're currently emitting so we need to write it
+          // once but if we discover it again, we refer to it by id.
+          modelRoot = null;
+        } else {
+          // We've seen this promise before, so we can just refer to the same result.
+          return serializePromiseID(_existingId);
+        }
+      } // We assume that any object with a .then property is a "Thenable" type,
       // or a Promise type. Either of which can be represented by a Promise.
+
+
       var promiseId = serializeThenable(request, value);
+
+      _writtenObjects.set(value, promiseId);
+
       return serializePromiseID(promiseId);
-    } else if (value.$$typeof === REACT_PROVIDER_TYPE) {
-      var providerKey = value._context._globalName;
-      var writtenProviders = request.writtenProviders;
-      var providerId = writtenProviders.get(key);
+    }
 
-      if (providerId === undefined) {
-        request.pendingChunks++;
-        providerId = request.nextChunkId++;
-        writtenProviders.set(providerKey, providerId);
-        emitProviderChunk(request, providerId, providerKey);
+    {
+      if (value.$$typeof === REACT_PROVIDER_TYPE) {
+        var providerKey = value._context._globalName;
+        var writtenProviders = request.writtenProviders;
+        var providerId = writtenProviders.get(key);
+
+        if (providerId === undefined) {
+          request.pendingChunks++;
+          providerId = request.nextChunkId++;
+          writtenProviders.set(providerKey, providerId);
+          emitProviderChunk(request, providerId, providerKey);
+        }
+
+        return serializeByValueID(providerId);
+      } else if (value === POP) {
+        popProvider();
+
+        {
+          insideContextProps = null;
+          isInsideContextValue = false;
+        }
+
+        return undefined;
       }
+    }
 
-      return serializeByValueID(providerId);
-    } else if (value === POP) {
-      popProvider();
+    if (_existingId !== undefined) {
+      if (_existingId === -1) {
+        // Seen but not yet outlined.
+        var _newId = outlineModel(request, value);
 
-      {
-        insideContextProps = null;
-        isInsideContextValue = false;
+        return serializeByValueID(_newId);
+      } else if (modelRoot === value) {
+        // This is the ID we're currently emitting so we need to write it
+        // once but if we discover it again, we refer to it by id.
+        modelRoot = null;
+      } else {
+        // We've already emitted this as an outlined object, so we can
+        // just refer to that by its existing ID.
+        return serializeByValueID(_existingId);
       }
-
-      return undefined;
+    } else {
+      // This is the first time we've seen this object. We may never see it again
+      // so we'll inline it. Mark it as seen. If we see it again, we'll outline.
+      _writtenObjects.set(value, -1);
     }
 
     if (isArray(value)) {
@@ -2536,10 +2663,11 @@ function resolveModelToJSON(request, parent, key, value) {
 
   if (typeof value === 'symbol') {
     var writtenSymbols = request.writtenSymbols;
-    var existingId = writtenSymbols.get(value);
 
-    if (existingId !== undefined) {
-      return serializeByValueID(existingId);
+    var _existingId2 = writtenSymbols.get(value);
+
+    if (_existingId2 !== undefined) {
+      return serializeByValueID(_existingId2);
     } // $FlowFixMe[incompatible-type] `description` might be undefined
 
 
@@ -2689,7 +2817,11 @@ function emitProviderChunk(request, id, contextName) {
 }
 
 function emitModelChunk(request, id, model) {
-  // $FlowFixMe[incompatible-type] stringify can return null
+  // Track the root so we know that we have to emit this object even though it
+  // already has an ID. This is needed because we might see this object twice
+  // in the same toJSON if it is cyclic.
+  modelRoot = model; // $FlowFixMe[incompatible-type] stringify can return null
+
   var json = stringify(model, request.toJSON);
   var row = id.toString(16) + ':' + json + '\n';
   var processedChunk = stringToChunk(row);
@@ -2708,7 +2840,8 @@ function retryTask(request, task) {
     var value = task.model;
 
     if (typeof value === 'object' && value !== null && value.$$typeof === REACT_ELEMENT_TYPE) {
-      // TODO: Concatenate keys of parents onto children.
+      request.writtenObjects.set(value, task.id); // TODO: Concatenate keys of parents onto children.
+
       var element = value; // When retrying a component, reuse the thenableState from the
       // previous attempt.
 
@@ -2725,11 +2858,17 @@ function retryTask(request, task) {
       // until the next time something suspends and retries.
 
       while (typeof value === 'object' && value !== null && value.$$typeof === REACT_ELEMENT_TYPE) {
-        // TODO: Concatenate keys of parents onto children.
+        request.writtenObjects.set(value, task.id); // TODO: Concatenate keys of parents onto children.
+
         var nextElement = value;
         task.model = value;
         value = attemptResolveElement(request, nextElement.type, nextElement.key, nextElement.ref, nextElement.props, null);
       }
+    } // Track that this object is outlined and has an id.
+
+
+    if (typeof value === 'object' && value !== null) {
+      request.writtenObjects.set(value, task.id);
     }
 
     emitModelChunk(request, task.id, value);
@@ -2956,11 +3095,19 @@ function abort(request, reason) {
     if (abortableTasks.size > 0) {
       // We have tasks to abort. We'll emit one error row and then emit a reference
       // to that row from every row that's still remaining.
-      var error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
-      var digest = logRecoverableError(request, error);
       request.pendingChunks++;
       var errorId = request.nextChunkId++;
-      emitErrorChunk(request, errorId, digest, error);
+
+      if (enablePostpone && typeof reason === 'object' && reason !== null && reason.$$typeof === REACT_POSTPONE_TYPE) {
+        var postponeInstance = reason;
+        logPostpone(request, postponeInstance.message);
+        emitPostponeChunk(request, errorId, postponeInstance);
+      } else {
+        var error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
+        var digest = logRecoverableError(request, error);
+        emitErrorChunk(request, errorId, digest, error);
+      }
+
       abortableTasks.forEach(function (task) {
         return abortTask(task, request, errorId);
       });
@@ -3753,8 +3900,9 @@ function decodeReply(body, turbopackMap) {
   }
 
   var response = createResponse(turbopackMap, '', body);
+  var root = getRoot(response);
   close(response);
-  return getRoot(response);
+  return root;
 }
 
 exports.createClientModuleProxy = createClientModuleProxy;

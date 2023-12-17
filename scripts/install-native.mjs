@@ -70,9 +70,12 @@ import fsp from 'fs/promises'
       pkgs.map(async (pkg) => {
         const from = path.join(tmpdir, 'node_modules/@next', pkg)
         const to = path.join(cwd, 'node_modules/@next', pkg)
-        // overwriting by removing the target first
+        // The directory from pnpm store is a symlink, which can not be overwritten,
+        // so we remove the existing directory before copying
         await fsp.rm(to, { recursive: true, force: true })
-        return fsp.rename(from, to)
+        // Renaming is flaky on Windows, and the tmpdir is going to be deleted anyway,
+        // so we use copy the directory instead
+        return fsp.cp(from, to, { force: true, recursive: true })
       })
     )
     fs.rmSync(tmpdir, { recursive: true, force: true })

@@ -4,8 +4,9 @@ import type {
   Route,
   TurbopackResult,
   WrittenEndpoint,
-  ServerClientChange,
   Issue,
+  Project,
+  StyledString,
 } from '../../../build/swc'
 import type { Socket } from 'net'
 import type { FilesystemDynamicRoute } from './filesystem'
@@ -17,16 +18,20 @@ import type { BuildManifest } from '../../get-page-files'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import type { PropagateToWorkersField } from './types'
-import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
+import type {
+  EdgeFunctionDefinition,
+  MiddlewareManifest,
+} from '../../../build/webpack/plugins/middleware-plugin'
 import type {
   HMR_ACTION_TYPES,
   NextJsHotReloaderInterface,
   ReloadPageAction,
+  SyncAction,
   TurbopackConnectedAction,
 } from '../../dev/hot-reloader-types'
 
 import ws from 'next/dist/compiled/ws'
-import { ServerClientChangeType, createDefineEnv } from '../../../build/swc'
+import { createDefineEnv } from '../../../build/swc'
 import fs from 'fs'
 import url from 'url'
 import path from 'path'
@@ -37,7 +42,7 @@ import isError from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
-import HotReloader, {
+import HotReloaderWebpack, {
   matchNextPageBundleRequest,
 } from '../../dev/hot-reloader-webpack'
 import { setGlobal } from '../../../trace/shared'
@@ -79,6 +84,8 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   SERVER_REFERENCE_MANIFEST,
   REACT_LOADABLE_MANIFEST,
+  MIDDLEWARE_REACT_LOADABLE_MANIFEST,
+  MIDDLEWARE_BUILD_MANIFEST,
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
@@ -97,7 +104,11 @@ import {
   getSourceById,
   parseStack,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import { mkdir, readFile, writeFile, rename, unlink } from 'fs/promises'
+import {
+  getOverlayMiddleware,
+  createOriginalStackFrame as createOriginalTurboStackFrame,
+} from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import {
   type ClientBuildManifest,
@@ -119,6 +130,9 @@ import { clearModuleContext } from '../render-server'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import type { LoadableManifest } from '../../load-components'
+import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
+import { bold, green, red } from '../../../lib/picocolors'
+import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -155,6 +169,8 @@ async function verifyTypeScript(opts: SetupOpts) {
   }
   return usingTypeScript
 }
+
+class ModuleBuildError extends Error {}
 
 async function startWatcher(opts: SetupOpts) {
   const { nextConfig, appDir, pagesDir, dir } = opts
@@ -199,9 +215,7 @@ async function startWatcher(opts: SetupOpts) {
     >[]
   } = {}
 
-  let hotReloader: NextJsHotReloaderInterface
-
-  if (opts.turbo) {
+  async function createHotReloaderTurbopack(): Promise<NextJsHotReloaderInterface> {
     const { loadBindings } =
       require('../../../build/swc') as typeof import('../../../build/swc')
 
@@ -231,6 +245,7 @@ async function startWatcher(opts: SetupOpts) {
       watch: true,
       env: process.env as Record<string, string>,
       defineEnv: createDefineEnv({
+        isTurbopack: true,
         allowedRevalidateHeaderKeys: undefined,
         clientRouterFilters: undefined,
         config: nextConfig,
@@ -270,82 +285,108 @@ async function startWatcher(opts: SetupOpts) {
     const issues = new Map<string, Map<string, Issue>>()
 
     function issueKey(issue: Issue): string {
-      return `${issue.severity} - ${issue.filePath} - ${issue.title}\n${issue.description}\n\n`
+      return [
+        issue.severity,
+        issue.filePath,
+        JSON.stringify(issue.title),
+        JSON.stringify(issue.description),
+      ].join('-')
     }
 
     function formatIssue(issue: Issue) {
-      const { filePath, title, description, source, detail } = issue
-      let formattedTitle = title.replace(/\n/g, '\n    ')
-      let message = ''
+      const { filePath, title, description, source } = issue
+      let { documentationLink } = issue
+      let formattedTitle = renderStyledStringToErrorAnsi(title).replace(
+        /\n/g,
+        '\n    '
+      )
+
+      // TODO: Use error codes to identify these
+      // TODO: Generalize adapting Turbopack errors to Next.js errors
+      if (formattedTitle.includes('Module not found')) {
+        // For compatiblity with webpack
+        // TODO: include columns in webpack errors.
+        documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
+      }
 
       let formattedFilePath = filePath
-        .replace('[project]/', '')
+        .replace('[project]/', './')
         .replaceAll('/./', '/')
         .replace('\\\\?\\', '')
 
+      let message
+
       if (source) {
-        const { start, end } = source
-        message = `${issue.severity} - ${formattedFilePath}:${start.line + 1}:${
-          start.column
-        }  ${formattedTitle}`
-        if (source.source.content) {
-          const {
-            codeFrameColumns,
-          } = require('next/dist/compiled/babel/code-frame')
-          message +=
-            '\n\n' +
-            codeFrameColumns(
-              source.source.content,
-              {
-                start: { line: start.line + 1, column: start.column + 1 },
-                end: { line: end.line + 1, column: end.column + 1 },
-              },
-              { forceColor: true }
-            )
+        if (source.range) {
+          const { start } = source.range
+          message = `${formattedFilePath}:${start.line + 1}:${
+            start.column
+          }\n${formattedTitle}`
+        } else {
+          message = formattedFilePath
         }
+      } else if (formattedFilePath) {
+        message = `${formattedFilePath}\n${formattedTitle}`
       } else {
-        message = `${formattedTitle}`
+        message = formattedTitle
       }
+      message += '\n'
+
+      if (source?.range && source.source.content) {
+        const { start, end } = source.range
+        const {
+          codeFrameColumns,
+        } = require('next/dist/compiled/babel/code-frame')
+
+        message +=
+          codeFrameColumns(
+            source.source.content,
+            {
+              start: {
+                line: start.line + 1,
+                column: start.column + 1,
+              },
+              end: {
+                line: end.line + 1,
+                column: end.column + 1,
+              },
+            },
+            { forceColor: true }
+          ).trim() + '\n\n'
+      }
+
       if (description) {
-        message += `\n${description.replace(/\n/g, '\n    ')}`
+        message += renderStyledStringToErrorAnsi(description) + '\n\n'
       }
-      if (detail) {
-        message += `\n${detail.replace(/\n/g, '\n    ')}`
+
+      // TODO: Include a trace from the issue.
+
+      if (documentationLink) {
+        message += documentationLink + '\n\n'
       }
 
       return message
     }
 
-    class ModuleBuildError extends Error {}
-
     function processIssues(
-      displayName: string,
       name: string,
       result: TurbopackResult,
       throwIssue = false
     ) {
-      const oldSet = issues.get(name) ?? new Map()
-      const newSet = new Map<string, Issue>()
-      issues.set(name, newSet)
+      const newIssues = new Map<string, Issue>()
+      issues.set(name, newIssues)
 
       const relevantIssues = new Set()
 
       for (const issue of result.issues) {
-        // TODO better formatting
         if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
         const key = issueKey(issue)
         const formatted = formatIssue(issue)
-        if (!oldSet.has(key) && !newSet.has(key)) {
-          console.error(`  ⚠ ${displayName} ${key} ${formatted}\n\n`)
-        }
-        newSet.set(key, issue)
-        relevantIssues.add(formatted)
-      }
+        newIssues.set(key, issue)
 
-      for (const issue of oldSet.keys()) {
-        if (!newSet.has(issue)) {
-          console.error(`✅ ${displayName} fixed ${issue}`)
-        }
+        // We show errors in node_modules to the console, but don't throw for them
+        if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
+        relevantIssues.add(formatted)
       }
 
       if (relevantIssues.size && throwIssue) {
@@ -365,10 +406,22 @@ async function startWatcher(opts: SetupOpts) {
         // We ignore source maps
         if (p.endsWith('.map')) continue
         let key = `${id}:${p}`
-        const previousHash = serverPathState.get(key)
-        if (previousHash !== contentHash) {
+        const localHash = serverPathState.get(key)
+        const globalHash = serverPathState.get(p)
+        if (
+          (localHash && localHash !== contentHash) ||
+          (globalHash && globalHash !== contentHash)
+        ) {
           hasChange = true
           serverPathState.set(key, contentHash)
+          serverPathState.set(p, contentHash)
+        } else {
+          if (!localHash) {
+            serverPathState.set(key, contentHash)
+          }
+          if (!globalHash) {
+            serverPathState.set(p, contentHash)
+          }
         }
       }
 
@@ -396,6 +449,51 @@ async function startWatcher(opts: SetupOpts) {
       return result
     }
 
+    const buildingIds = new Set()
+    const readyIds = new Set()
+
+    function startBuilding(
+      id: string,
+      requestUrl: string | undefined,
+      forceRebuild: boolean = false
+    ) {
+      if (!forceRebuild && readyIds.has(id)) {
+        return () => {}
+      }
+      if (buildingIds.size === 0) {
+        consoleStore.setState(
+          {
+            loading: true,
+            trigger: id,
+            url: requestUrl,
+          } as OutputState,
+          true
+        )
+        hotReloader.send({
+          action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING,
+        })
+      }
+      buildingIds.add(id)
+      return function finishBuilding() {
+        if (buildingIds.size === 0) {
+          return
+        }
+        readyIds.add(id)
+        buildingIds.delete(id)
+        if (buildingIds.size === 0) {
+          hotReloader.send({
+            action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING,
+          })
+          consoleStore.setState(
+            {
+              loading: false,
+            } as OutputState,
+            true
+          )
+        }
+      }
+    }
+
     let hmrHash = 0
     const sendHmrDebounce = debounce(() => {
       interface HmrError {
@@ -415,20 +513,18 @@ async function startWatcher(opts: SetupOpts) {
 
           errors.set(key, {
             message,
-            details: issue.detail,
+            details: issue.detail
+              ? renderStyledStringToErrorAnsi(issue.detail)
+              : undefined,
           })
         }
       }
 
       hotReloader.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
         hash: String(++hmrHash),
         errors: [...errors.values()],
         warnings: [],
-        versionInfo: {
-          installed: '0.0.0',
-          staleness: 'unknown',
-        },
       })
       hmrBuilding = false
 
@@ -456,6 +552,7 @@ async function startWatcher(opts: SetupOpts) {
         hmrBuilding = true
       }
       hmrPayloads.set(`${key}:${id}`, payload)
+      hmrEventHappened = true
       sendHmrDebounce()
     }
 
@@ -468,19 +565,25 @@ async function startWatcher(opts: SetupOpts) {
         hmrBuilding = true
       }
       turbopackUpdates.push(payload)
+      hmrEventHappened = true
       sendHmrDebounce()
     }
 
     async function loadPartialManifest<T>(
       name: string,
       pageName: string,
-      type: 'pages' | 'app' | 'app-route' | 'middleware' = 'pages'
+      type:
+        | 'pages'
+        | 'app'
+        | 'app-route'
+        | 'middleware'
+        | 'instrumentation' = 'pages'
     ): Promise<T> {
       const manifestPath = path.posix.join(
         distDir,
         `server`,
         type === 'app-route' ? 'app' : type,
-        type === 'middleware'
+        type === 'middleware' || type === 'instrumentation'
           ? ''
           : pageName === '/'
           ? 'index'
@@ -495,11 +598,19 @@ async function startWatcher(opts: SetupOpts) {
       ) as T
     }
 
+    type InstrumentationDefinition = {
+      files: string[]
+      name: 'instrumentation'
+    }
+    type TurbopackMiddlewareManifest = MiddlewareManifest & {
+      instrumentation?: InstrumentationDefinition
+    }
+
     const buildManifests = new Map<string, BuildManifest>()
     const appBuildManifests = new Map<string, AppBuildManifest>()
     const pagesManifests = new Map<string, PagesManifest>()
     const appPathsManifests = new Map<string, PagesManifest>()
-    const middlewareManifests = new Map<string, MiddlewareManifest>()
+    const middlewareManifests = new Map<string, TurbopackMiddlewareManifest>()
     const actionManifests = new Map<string, ActionManifest>()
     const clientToHmrSubscription = new Map<
       ws,
@@ -510,7 +621,7 @@ async function startWatcher(opts: SetupOpts) {
 
     async function loadMiddlewareManifest(
       pageName: string,
-      type: 'pages' | 'app' | 'app-route' | 'middleware'
+      type: 'pages' | 'app' | 'app-route' | 'middleware' | 'instrumentation'
     ): Promise<void> {
       middlewareManifests.set(
         pageName,
@@ -573,44 +684,41 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
-    const buildingReported = new Set<string>()
-
     async function changeSubscription(
       page: string,
+      type: 'client' | 'server',
+      includeIssues: boolean,
       endpoint: Endpoint | undefined,
       makePayload: (
         page: string,
-        change: TurbopackResult<ServerClientChange>
+        change: TurbopackResult
       ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
     ) {
-      if (!endpoint || changeSubscriptions.has(page)) return
+      const key = `${page} (${type})`
+      if (!endpoint || changeSubscriptions.has(key)) return
 
-      const changedPromise = endpoint.changed()
-      changeSubscriptions.set(page, changedPromise)
+      const changedPromise = endpoint[`${type}Changed`](includeIssues)
+      changeSubscriptions.set(key, changedPromise)
       const changed = await changedPromise
 
       for await (const change of changed) {
-        consoleStore.setState(
-          {
-            loading: true,
-            trigger: page,
-          } as OutputState,
-          true
-        )
-
-        processIssues(page, page, change)
+        processIssues(page, change)
         const payload = await makePayload(page, change)
-        if (payload) sendHmr('endpoint-change', page, payload)
+        if (payload) sendHmr('endpoint-change', key, payload)
       }
     }
 
-    async function clearChangeSubscription(page: string) {
-      const subscription = await changeSubscriptions.get(page)
+    async function clearChangeSubscription(
+      page: string,
+      type: 'server' | 'client'
+    ) {
+      const key = `${page} (${type})`
+      const subscription = await changeSubscriptions.get(key)
       if (subscription) {
         subscription.return?.()
-        changeSubscriptions.delete(page)
+        changeSubscriptions.delete(key)
       }
-      issues.delete(page)
+      issues.delete(key)
     }
 
     function mergeBuildManifests(manifests: Iterable<BuildManifest>) {
@@ -655,7 +763,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     function mergeMiddlewareManifests(
-      manifests: Iterable<MiddlewareManifest>
+      manifests: Iterable<TurbopackMiddlewareManifest>
     ): MiddlewareManifest {
       const manifest: MiddlewareManifest = {
         version: 2,
@@ -663,9 +771,29 @@ async function startWatcher(opts: SetupOpts) {
         sortedMiddleware: [],
         functions: {},
       }
+      let instrumentation: InstrumentationDefinition | undefined = undefined
       for (const m of manifests) {
         Object.assign(manifest.functions, m.functions)
         Object.assign(manifest.middleware, m.middleware)
+        if (m.instrumentation) {
+          instrumentation = m.instrumentation
+        }
+      }
+      const updateFunctionDefinition = (
+        fun: EdgeFunctionDefinition
+      ): EdgeFunctionDefinition => {
+        return {
+          ...fun,
+          files: [...(instrumentation?.files ?? []), ...fun.files],
+        }
+      }
+      for (const key of Object.keys(manifest.middleware)) {
+        const value = manifest.middleware[key]
+        manifest.middleware[key] = updateFunctionDefinition(value)
+      }
+      for (const key of Object.keys(manifest.functions)) {
+        const value = manifest.functions[key]
+        manifest.functions[key] = updateFunctionDefinition(value)
       }
       for (const fun of Object.values(manifest.functions).concat(
         Object.values(manifest.middleware)
@@ -681,14 +809,16 @@ async function startWatcher(opts: SetupOpts) {
         }
       }
       manifest.sortedMiddleware = Object.keys(manifest.middleware)
+
       return manifest
     }
 
-    function mergeActionManifests(manifests: Iterable<ActionManifest>) {
+    async function mergeActionManifests(manifests: Iterable<ActionManifest>) {
       type ActionEntries = ActionManifest['edge' | 'node']
       const manifest: ActionManifest = {
         node: {},
         edge: {},
+        encryptionKey: await generateRandomActionKeyRaw(true),
       }
 
       function mergeActionIds(
@@ -696,7 +826,10 @@ async function startWatcher(opts: SetupOpts) {
         other: ActionEntries
       ): void {
         for (const key in other) {
-          const action = (actionEntries[key] ??= { workers: {}, layer: {} })
+          const action = (actionEntries[key] ??= {
+            workers: {},
+            layer: {},
+          })
           Object.assign(action.workers, other[key].workers)
           Object.assign(action.layer, other[key].layer)
         }
@@ -718,33 +851,25 @@ async function startWatcher(opts: SetupOpts) {
       return manifest
     }
 
-    async function writeFileAtomic(
-      filePath: string,
-      content: string
-    ): Promise<void> {
-      const tempPath = filePath + '.tmp.' + Math.random().toString(36).slice(2)
-      try {
-        await writeFile(tempPath, content, 'utf-8')
-        await rename(tempPath, filePath)
-      } catch (e) {
-        try {
-          await unlink(tempPath)
-        } catch {
-          // ignore
-        }
-        throw e
-      }
-    }
-
     async function writeBuildManifest(
       rewrites: SetupOpts['fsChecker']['rewrites']
     ): Promise<void> {
       const buildManifest = mergeBuildManifests(buildManifests.values())
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
+      const middlewareBuildManifestPath = path.join(
+        distDir,
+        'server',
+        `${MIDDLEWARE_BUILD_MANIFEST}.js`
+      )
       deleteCache(buildManifestPath)
+      deleteCache(middlewareBuildManifestPath)
       await writeFileAtomic(
         buildManifestPath,
         JSON.stringify(buildManifest, null, 2)
+      )
+      await writeFileAtomic(
+        middlewareBuildManifestPath,
+        `self.__BUILD_MANIFEST=${JSON.stringify(buildManifest)}`
       )
 
       const content: ClientBuildManifest = {
@@ -831,7 +956,8 @@ async function startWatcher(opts: SetupOpts) {
       )
       const middlewareManifestPath = path.join(
         distDir,
-        'server/middleware-manifest.json'
+        'server',
+        MIDDLEWARE_MANIFEST
       )
       deleteCache(middlewareManifestPath)
       await writeFileAtomic(
@@ -841,7 +967,9 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     async function writeActionManifest(): Promise<void> {
-      const actionManifest = mergeActionManifests(actionManifests.values())
+      const actionManifest = await mergeActionManifests(
+        actionManifests.values()
+      )
       const actionManifestJsonPath = path.join(
         distDir,
         'server',
@@ -866,35 +994,63 @@ async function startWatcher(opts: SetupOpts) {
     async function writeFontManifest(): Promise<void> {
       // TODO: turbopack should write the correct
       // version of this
-      const fontManifestPath = path.join(
+      const fontManifest = {
+        pages: {},
+        app: {},
+        appUsingSizeAdjust: false,
+        pagesUsingSizeAdjust: false,
+      }
+
+      const json = JSON.stringify(fontManifest, null, 2)
+      const fontManifestJsonPath = path.join(
         distDir,
         'server',
-        NEXT_FONT_MANIFEST + '.json'
+        `${NEXT_FONT_MANIFEST}.json`
       )
-      deleteCache(fontManifestPath)
+      const fontManifestJsPath = path.join(
+        distDir,
+        'server',
+        `${NEXT_FONT_MANIFEST}.js`
+      )
+      deleteCache(fontManifestJsonPath)
+      deleteCache(fontManifestJsPath)
+      await writeFileAtomic(fontManifestJsonPath, json)
       await writeFileAtomic(
-        fontManifestPath,
-        JSON.stringify(
-          {
-            pages: {},
-            app: {},
-            appUsingSizeAdjust: false,
-            pagesUsingSizeAdjust: false,
-          },
-          null,
-          2
-        )
+        fontManifestJsPath,
+        `self.__NEXT_FONT_MANIFEST=${JSON.stringify(json)}`
       )
     }
 
     async function writeLoadableManifest(): Promise<void> {
       const loadableManifest = mergeLoadableManifests(loadbleManifests.values())
       const loadableManifestPath = path.join(distDir, REACT_LOADABLE_MANIFEST)
-      deleteCache(loadableManifestPath)
-      await writeFileAtomic(
-        loadableManifestPath,
-        JSON.stringify(loadableManifest, null, 2)
+      const middlewareloadableManifestPath = path.join(
+        distDir,
+        'server',
+        `${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
       )
+
+      const json = JSON.stringify(loadableManifest, null, 2)
+
+      deleteCache(loadableManifestPath)
+      deleteCache(middlewareloadableManifestPath)
+      await writeFileAtomic(loadableManifestPath, json)
+      await writeFileAtomic(
+        middlewareloadableManifestPath,
+        `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(json)}`
+      )
+    }
+
+    async function writeManifests(): Promise<void> {
+      await writeBuildManifest(opts.fsChecker.rewrites)
+      await writeAppBuildManifest()
+      await writePagesManifest()
+      await writeAppPathsManifest()
+      await writeMiddlewareManifest()
+      await writeActionManifest()
+      await writeFontManifest()
+      await writeLoadableManifest()
+      await writeFallbackBuildManifest()
     }
 
     async function subscribeToHmrEvents(id: string, client: ws) {
@@ -905,7 +1061,7 @@ async function startWatcher(opts: SetupOpts) {
       }
       if (mapping.has(id)) return
 
-      const subscription = project.hmrEvents(id)
+      const subscription = project!.hmrEvents(id)
       mapping.set(id, subscription)
 
       // The subscription will always emit once, which is the initial
@@ -914,7 +1070,7 @@ async function startWatcher(opts: SetupOpts) {
         await subscription.next()
 
         for await (const data of subscription) {
-          processIssues('hmr', id, data)
+          processIssues(id, data)
           sendTurbopackMessage(data)
         }
       } catch (e) {
@@ -980,13 +1136,13 @@ async function startWatcher(opts: SetupOpts) {
             }
           }
 
-          const { middleware } = entrypoints
+          const { middleware, instrumentation } = entrypoints
           // We check for explicit true/false, since it's initialized to
           // undefined during the first loop (middlewareChanges event is
           // unnecessary during the first serve)
           if (prevMiddleware === true && !middleware) {
             // Went from middleware to no middleware
-            await clearChangeSubscription('middleware')
+            await clearChangeSubscription('middleware', 'server')
             sendHmr('entrypoint-change', 'middleware', {
               event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
@@ -996,15 +1152,56 @@ async function startWatcher(opts: SetupOpts) {
               event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
           }
+          if (
+            opts.nextConfig.experimental.instrumentationHook &&
+            instrumentation
+          ) {
+            const processInstrumentation = async (
+              displayName: string,
+              name: string,
+              prop: 'nodeJs' | 'edge'
+            ) => {
+              const writtenEndpoint = await processResult(
+                displayName,
+                await instrumentation[prop].writeToDisk()
+              )
+              processIssues(name, writtenEndpoint)
+            }
+            await processInstrumentation(
+              'instrumentation (node.js)',
+              'instrumentation.nodeJs',
+              'nodeJs'
+            )
+            await processInstrumentation(
+              'instrumentation (edge)',
+              'instrumentation.edge',
+              'edge'
+            )
+            await loadMiddlewareManifest('instrumentation', 'instrumentation')
+            await writeManifests()
+
+            NextBuildContext.hasInstrumentationHook = true
+            serverFields.actualInstrumentationHookFile = '/instrumentation'
+            await propagateServerField(
+              'actualInstrumentationHookFile',
+              serverFields.actualInstrumentationHookFile
+            )
+          } else {
+            NextBuildContext.hasInstrumentationHook = false
+            serverFields.actualInstrumentationHookFile = undefined
+            await propagateServerField(
+              'actualInstrumentationHookFile',
+              serverFields.actualInstrumentationHookFile
+            )
+          }
           if (middleware) {
             const processMiddleware = async () => {
               const writtenEndpoint = await processResult(
                 'middleware',
                 await middleware.endpoint.writeToDisk()
               )
-              processIssues('middleware', 'middleware', writtenEndpoint)
+              processIssues('middleware', writtenEndpoint)
               await loadMiddlewareManifest('middleware', 'middleware')
-              serverFields.actualMiddlewareFile = 'middleware'
               serverFields.middleware = {
                 match: null as any,
                 page: '/',
@@ -1015,18 +1212,32 @@ async function startWatcher(opts: SetupOpts) {
             }
             await processMiddleware()
 
-            changeSubscription('middleware', middleware.endpoint, async () => {
-              await processMiddleware()
-              await propagateServerField(
-                'actualMiddlewareFile',
-                serverFields.actualMiddlewareFile
-              )
-              await propagateServerField('middleware', serverFields.middleware)
-              await writeMiddlewareManifest()
+            changeSubscription(
+              'middleware',
+              'server',
+              false,
+              middleware.endpoint,
+              async () => {
+                const finishBuilding = startBuilding(
+                  'middleware',
+                  undefined,
+                  true
+                )
+                await processMiddleware()
+                await propagateServerField(
+                  'actualMiddlewareFile',
+                  serverFields.actualMiddlewareFile
+                )
+                await propagateServerField(
+                  'middleware',
+                  serverFields.middleware
+                )
+                await writeManifests()
 
-              console.log('middleware changes')
-              return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
-            })
+                finishBuilding()
+                return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
+              }
+            )
             prevMiddleware = true
           } else {
             middlewareManifests.delete('middleware')
@@ -1067,22 +1278,30 @@ async function startWatcher(opts: SetupOpts) {
       )
     )
     await currentEntriesHandling
-    await writeBuildManifest(opts.fsChecker.rewrites)
-    await writeAppBuildManifest()
-    await writeFallbackBuildManifest()
-    await writePagesManifest()
-    await writeAppPathsManifest()
-    await writeMiddlewareManifest()
-    await writeActionManifest()
-    await writeFontManifest()
-    await writeLoadableManifest()
+    await writeManifests()
 
-    const turbopackHotReloader: NextJsHotReloaderInterface = {
+    let hmrEventHappened = false
+    if (process.env.NEXT_HMR_TIMING) {
+      ;(async (proj: Project) => {
+        for await (const updateInfo of proj.updateInfoSubscribe()) {
+          if (hmrEventHappened) {
+            const time = updateInfo.duration
+            const timeMessage =
+              time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
+            Log.event(`Compiled in ${timeMessage}`)
+            hmrEventHappened = false
+          }
+        }
+      })(project)
+    }
+
+    const overlayMiddleware = getOverlayMiddleware(project)
+    const hotReloader: NextJsHotReloaderInterface = {
       turbopackProject: project,
       activeWebpackConfigs: undefined,
       serverStats: null,
       edgeServerStats: null,
-      async run(req, _res, _parsedUrl) {
+      async run(req, res, _parsedUrl) {
         // intercept page chunks request and ensure them with turbopack
         if (req.url?.startsWith('/_next/static/chunks/pages/')) {
           const params = matchNextPageBundleRequest(req.url)
@@ -1099,10 +1318,14 @@ async function startWatcher(opts: SetupOpts) {
                 page: denormalizedPagePath,
                 clientOnly: false,
                 definition: undefined,
+                url: req.url,
               })
               .catch(console.error)
           }
         }
+
+        await overlayMiddleware(req, res)
+
         // Request was not finished.
         return { finished: undefined }
       },
@@ -1131,6 +1354,7 @@ async function startWatcher(opts: SetupOpts) {
               case 'client-reload-page': // { clientId }
               case 'client-removed-page': // { page }
               case 'client-full-reload': // { stackTrace, hadRuntimeError }
+              case 'client-added-page':
                 // TODO
                 break
 
@@ -1164,6 +1388,28 @@ async function startWatcher(opts: SetupOpts) {
             type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
           }
           client.send(JSON.stringify(turbopackConnected))
+
+          const errors = []
+          for (const pageIssues of issues.values()) {
+            for (const issue of pageIssues.values()) {
+              errors.push({
+                message: formatIssue(issue),
+              })
+            }
+          }
+
+          const sync: SyncAction = {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+            errors,
+            warnings: [],
+            hash: '',
+            versionInfo: {
+              installed: '0.0.0',
+              staleness: 'unknown',
+            },
+          }
+
+          this.send(sync)
         })
       },
 
@@ -1186,8 +1432,23 @@ async function startWatcher(opts: SetupOpts) {
       async stop() {
         // Not implemented yet.
       },
-      async getCompilationErrors(_page) {
-        return []
+      async getCompilationErrors(page) {
+        const thisPageIssues = issues.get(page)
+        if (thisPageIssues !== undefined && thisPageIssues.size > 0) {
+          // If there is an error related to the requesting page we display it instead of the first error
+          return [...thisPageIssues.values()].map(
+            (issue) => new Error(formatIssue(issue))
+          )
+        }
+
+        // Otherwise, return all errors across pages
+        const errors = []
+        for (const pageIssues of issues.values()) {
+          for (const issue of pageIssues.values()) {
+            errors.push(new Error(formatIssue(issue)))
+          }
+        }
+        return errors
       },
       invalidate(/* Unused parameter: { reloadAfterInvalidation } */) {
         // Not implemented yet.
@@ -1202,51 +1463,57 @@ async function startWatcher(opts: SetupOpts) {
         // appPaths,
         definition,
         isApp,
+        url: requestUrl,
       }) {
         let page = definition?.pathname ?? inputPage
 
         if (page === '/_error') {
-          if (globalEntries.app) {
-            const writtenEndpoint = await processResult(
-              '_app',
-              await globalEntries.app.writeToDisk()
-            )
-            processIssues('_app', '_app', writtenEndpoint)
+          let finishBuilding = startBuilding(page, requestUrl)
+          try {
+            if (globalEntries.app) {
+              const writtenEndpoint = await processResult(
+                '_app',
+                await globalEntries.app.writeToDisk()
+              )
+              processIssues('_app', writtenEndpoint)
+            }
+            await loadBuildManifest('_app')
+            await loadPagesManifest('_app')
+
+            if (globalEntries.document) {
+              const writtenEndpoint = await processResult(
+                '_document',
+                await globalEntries.document.writeToDisk()
+              )
+              changeSubscription(
+                '_document',
+                'server',
+                false,
+                globalEntries.document,
+                () => {
+                  return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+                }
+              )
+              processIssues('_document', writtenEndpoint)
+            }
+            await loadPagesManifest('_document')
+
+            if (globalEntries.error) {
+              const writtenEndpoint = await processResult(
+                '_error',
+                await globalEntries.error.writeToDisk()
+              )
+              processIssues(page, writtenEndpoint)
+            }
+            await loadBuildManifest('_error')
+            await loadPagesManifest('_error')
+
+            await writeManifests()
+          } finally {
+            finishBuilding()
           }
-          await loadBuildManifest('_app')
-          await loadPagesManifest('_app')
-
-          if (globalEntries.document) {
-            const writtenEndpoint = await processResult(
-              '_document',
-              await globalEntries.document.writeToDisk()
-            )
-            changeSubscription('_document', globalEntries.document, () => {
-              return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-            })
-            processIssues('_document', '_document', writtenEndpoint)
-          }
-          await loadPagesManifest('_document')
-
-          if (globalEntries.error) {
-            const writtenEndpoint = await processResult(
-              '_error',
-              await globalEntries.error.writeToDisk()
-            )
-            processIssues(page, page, writtenEndpoint)
-          }
-          await loadBuildManifest('_error')
-          await loadPagesManifest('_error')
-
-          await writeBuildManifest(opts.fsChecker.rewrites)
-          await writeFallbackBuildManifest()
-          await writePagesManifest()
-          await writeMiddlewareManifest()
-          await writeLoadableManifest()
-
           return
         }
-
         await currentEntriesHandling
         const route =
           curEntries.get(page) ??
@@ -1261,222 +1528,224 @@ async function startWatcher(opts: SetupOpts) {
           if (page === '/_app') return
           if (page === '/_document') return
           if (page === '/middleware') return
+          if (page === '/src/middleware') return
+          if (page === '/instrumentation') return
+          if (page === '/src/instrumentation') return
 
           throw new PageNotFoundError(`route not found ${page}`)
         }
 
-        if (!buildingReported.has(page)) {
-          buildingReported.add(page)
-          let suffix
+        let finishBuilding: (() => void) | undefined = undefined
+
+        try {
           switch (route.type) {
-            case 'app-page':
-              suffix = 'page'
-              break
-            case 'app-route':
-              suffix = 'route'
-              break
-            case 'page':
-            case 'page-api':
-              suffix = ''
-              break
-            default:
-              throw new Error('Unexpected route type ' + route.type)
-          }
-
-          consoleStore.setState(
-            {
-              loading: true,
-              trigger: `${page}${
-                !page.endsWith('/') && suffix.length > 0 ? '/' : ''
-              }${suffix}`,
-            } as OutputState,
-            true
-          )
-        }
-
-        switch (route.type) {
-          case 'page': {
-            if (isApp) {
-              throw new Error(
-                `mis-matched route type: isApp && page for ${page}`
-              )
-            }
-
-            if (globalEntries.app) {
-              const writtenEndpoint = await processResult(
-                '_app',
-                await globalEntries.app.writeToDisk()
-              )
-              processIssues('_app', '_app', writtenEndpoint)
-            }
-            await loadBuildManifest('_app')
-            await loadPagesManifest('_app')
-
-            if (globalEntries.document) {
-              const writtenEndpoint = await processResult(
-                '_document',
-                await globalEntries.document.writeToDisk()
-              )
-
-              changeSubscription('_document', globalEntries.document, () => {
-                return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-              })
-              processIssues('_document', '_document', writtenEndpoint)
-            }
-            await loadPagesManifest('_document')
-
-            const writtenEndpoint = await processResult(
-              page,
-              await route.htmlEndpoint.writeToDisk()
-            )
-
-            changeSubscription(page, route.dataEndpoint, (pageName, change) => {
-              switch (change.type) {
-                case ServerClientChangeType.Server:
-                case ServerClientChangeType.Both:
-                  return {
-                    event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
-                    pages: [pageName],
-                  }
-                default:
+            case 'page': {
+              if (isApp) {
+                throw new Error(
+                  `mis-matched route type: isApp && page for ${page}`
+                )
               }
-            })
 
-            const type = writtenEndpoint?.type
+              finishBuilding = startBuilding(page, requestUrl)
+              try {
+                if (globalEntries.app) {
+                  const writtenEndpoint = await processResult(
+                    '_app',
+                    await globalEntries.app.writeToDisk()
+                  )
+                  processIssues('_app', writtenEndpoint)
+                }
+                await loadBuildManifest('_app')
+                await loadPagesManifest('_app')
 
-            await loadBuildManifest(page)
-            await loadPagesManifest(page)
-            if (type === 'edge') {
-              await loadMiddlewareManifest(page, 'pages')
-            } else {
-              middlewareManifests.delete(page)
+                if (globalEntries.document) {
+                  const writtenEndpoint = await processResult(
+                    '_document',
+                    await globalEntries.document.writeToDisk()
+                  )
+                  processIssues('_document', writtenEndpoint)
+                }
+                await loadPagesManifest('_document')
+
+                const writtenEndpoint = await processResult(
+                  page,
+                  await route.htmlEndpoint.writeToDisk()
+                )
+
+                const type = writtenEndpoint?.type
+
+                await loadBuildManifest(page)
+                await loadPagesManifest(page)
+                if (type === 'edge') {
+                  await loadMiddlewareManifest(page, 'pages')
+                } else {
+                  middlewareManifests.delete(page)
+                }
+                await loadLoadableManifest(page, 'pages')
+
+                await writeManifests()
+
+                processIssues(page, writtenEndpoint)
+              } finally {
+                changeSubscription(
+                  page,
+                  'server',
+                  false,
+                  route.dataEndpoint,
+                  (pageName) => {
+                    return {
+                      event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
+                      pages: [pageName],
+                    }
+                  }
+                )
+                changeSubscription(
+                  page,
+                  'client',
+                  false,
+                  route.htmlEndpoint,
+                  () => {
+                    return {
+                      event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
+                    }
+                  }
+                )
+                if (globalEntries.document) {
+                  changeSubscription(
+                    '_document',
+                    'server',
+                    false,
+                    globalEntries.document,
+                    () => {
+                      return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+                    }
+                  )
+                }
+              }
+
+              break
             }
-            await loadLoadableManifest(page, 'pages')
+            case 'page-api': {
+              // We don't throw on ensureOpts.isApp === true here
+              // since this can happen when app pages make
+              // api requests to page API routes.
 
-            await writeBuildManifest(opts.fsChecker.rewrites)
-            await writeFallbackBuildManifest()
-            await writePagesManifest()
-            await writeMiddlewareManifest()
-            await writeLoadableManifest()
+              finishBuilding = startBuilding(page, requestUrl)
+              const writtenEndpoint = await processResult(
+                page,
+                await route.endpoint.writeToDisk()
+              )
 
-            processIssues(page, page, writtenEndpoint)
+              const type = writtenEndpoint?.type
 
-            break
-          }
-          case 'page-api': {
-            // We don't throw on ensureOpts.isApp === true here
-            // since this can happen when app pages make
-            // api requests to page API routes.
+              await loadPagesManifest(page)
+              if (type === 'edge') {
+                await loadMiddlewareManifest(page, 'pages')
+              } else {
+                middlewareManifests.delete(page)
+              }
+              await loadLoadableManifest(page, 'pages')
 
-            const writtenEndpoint = await processResult(
-              page,
-              await route.endpoint.writeToDisk()
-            )
+              await writeManifests()
 
-            const type = writtenEndpoint?.type
+              processIssues(page, writtenEndpoint)
 
-            await loadPagesManifest(page)
-            if (type === 'edge') {
-              await loadMiddlewareManifest(page, 'pages')
-            } else {
-              middlewareManifests.delete(page)
+              break
             }
-            await loadLoadableManifest(page, 'pages')
+            case 'app-page': {
+              finishBuilding = startBuilding(page, requestUrl)
+              const writtenEndpoint = await processResult(
+                page,
+                await route.htmlEndpoint.writeToDisk()
+              )
 
-            await writePagesManifest()
-            await writeMiddlewareManifest()
-            await writeLoadableManifest()
-
-            processIssues(page, page, writtenEndpoint)
-
-            break
-          }
-          case 'app-page': {
-            const writtenEndpoint = await processResult(
-              page,
-              await route.htmlEndpoint.writeToDisk()
-            )
-
-            changeSubscription(page, route.rscEndpoint, (_page, change) => {
-              switch (change.type) {
-                case ServerClientChangeType.Server:
-                case ServerClientChangeType.Both:
+              changeSubscription(
+                page,
+                'server',
+                true,
+                route.rscEndpoint,
+                (_page, change) => {
+                  if (
+                    change.issues.some((issue) => issue.severity === 'error')
+                  ) {
+                    // Ignore any updates that has errors
+                    // There will be another update without errors eventually
+                    return
+                  }
                   return {
                     action:
                       HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
                   }
-                default:
+                }
+              )
+
+              const type = writtenEndpoint?.type
+
+              if (type === 'edge') {
+                await loadMiddlewareManifest(page, 'app')
+              } else {
+                middlewareManifests.delete(page)
               }
-            })
 
-            await loadAppBuildManifest(page)
-            await loadBuildManifest(page, 'app')
-            await loadAppPathManifest(page, 'app')
-            await loadActionManifest(page)
+              await loadAppBuildManifest(page)
+              await loadBuildManifest(page, 'app')
+              await loadAppPathManifest(page, 'app')
+              await loadActionManifest(page)
+              await writeManifests()
 
-            await writeAppBuildManifest()
-            await writeBuildManifest(opts.fsChecker.rewrites)
-            await writeAppPathsManifest()
-            await writeMiddlewareManifest()
-            await writeActionManifest()
-            await writeLoadableManifest()
+              processIssues(page, writtenEndpoint, true)
 
-            processIssues(page, page, writtenEndpoint, true)
-
-            break
-          }
-          case 'app-route': {
-            const writtenEndpoint = await processResult(
-              page,
-              await route.endpoint.writeToDisk()
-            )
-
-            const type = writtenEndpoint?.type
-
-            await loadAppPathManifest(page, 'app-route')
-            if (type === 'edge') {
-              await loadMiddlewareManifest(page, 'app-route')
-            } else {
-              middlewareManifests.delete(page)
+              break
             }
+            case 'app-route': {
+              finishBuilding = startBuilding(page, requestUrl)
+              const writtenEndpoint = await processResult(
+                page,
+                await route.endpoint.writeToDisk()
+              )
 
-            await writeAppBuildManifest()
-            await writeAppPathsManifest()
-            await writeMiddlewareManifest()
-            await writeMiddlewareManifest()
-            await writeLoadableManifest()
+              const type = writtenEndpoint?.type
 
-            processIssues(page, page, writtenEndpoint, true)
+              await loadAppPathManifest(page, 'app-route')
+              if (type === 'edge') {
+                await loadMiddlewareManifest(page, 'app-route')
+              } else {
+                middlewareManifests.delete(page)
+              }
 
-            break
+              await writeManifests()
+
+              processIssues(page, writtenEndpoint, true)
+
+              break
+            }
+            default: {
+              throw new Error(
+                `unknown route type ${(route as any).type} for ${page}`
+              )
+            }
           }
-          default: {
-            throw new Error(`unknown route type ${route.type} for ${page}`)
-          }
+        } finally {
+          if (finishBuilding) finishBuilding()
         }
-
-        consoleStore.setState(
-          {
-            loading: false,
-          } as OutputState,
-          true
-        )
       },
     }
 
-    hotReloader = turbopackHotReloader
-  } else {
-    hotReloader = new HotReloader(opts.dir, {
-      appDir,
-      pagesDir,
-      distDir: distDir,
-      config: opts.nextConfig,
-      buildId: 'development',
-      telemetry: opts.telemetry,
-      rewrites: opts.fsChecker.rewrites,
-      previewProps: opts.fsChecker.prerenderManifest.preview,
-    })
+    return hotReloader
   }
+
+  const hotReloader: NextJsHotReloaderInterface = opts.turbo
+    ? await createHotReloaderTurbopack()
+    : new HotReloaderWebpack(opts.dir, {
+        appDir,
+        pagesDir,
+        distDir: distDir,
+        config: opts.nextConfig,
+        buildId: 'development',
+        telemetry: opts.telemetry,
+        rewrites: opts.fsChecker.rewrites,
+        previewProps: opts.fsChecker.prerenderManifest.preview,
+      })
 
   await hotReloader.start()
 
@@ -1862,6 +2131,7 @@ async function startWatcher(opts: SetupOpts) {
 
           await hotReloader.turbopackProject.update({
             defineEnv: createDefineEnv({
+              isTurbopack: true,
               allowedRevalidateHeaderKeys: undefined,
               clientRouterFilters,
               config: nextConfig,
@@ -1895,15 +2165,21 @@ async function startWatcher(opts: SetupOpts) {
                   (item) => item === currentResolvedBaseUrl
                 )
 
-                if (
-                  resolvedBaseUrl &&
-                  resolvedBaseUrl !== currentResolvedBaseUrl
-                ) {
-                  // remove old baseUrl and add new one
-                  if (resolvedUrlIndex && resolvedUrlIndex > -1) {
-                    config.resolve?.modules?.splice(resolvedUrlIndex, 1)
+                if (resolvedBaseUrl) {
+                  if (
+                    resolvedBaseUrl.baseUrl !== currentResolvedBaseUrl.baseUrl
+                  ) {
+                    // remove old baseUrl and add new one
+                    if (resolvedUrlIndex && resolvedUrlIndex > -1) {
+                      config.resolve?.modules?.splice(resolvedUrlIndex, 1)
+                    }
+
+                    // If the resolvedBaseUrl is implicit we only remove the previous value.
+                    // Only add the baseUrl if it's explicitly set in tsconfig/jsconfig
+                    if (!resolvedBaseUrl.isImplicit) {
+                      config.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
+                    }
                   }
-                  config.resolve?.modules?.push(resolvedBaseUrl)
                 }
 
                 if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
@@ -1927,6 +2203,7 @@ async function startWatcher(opts: SetupOpts) {
                 plugin.definitions.__NEXT_DEFINE_ENV
               ) {
                 const newDefine = getDefineEnv({
+                  isTurbopack: false,
                   allowedRevalidateHeaderKeys: undefined,
                   clientRouterFilters,
                   config: nextConfig,
@@ -2177,47 +2454,66 @@ async function startWatcher(opts: SetupOpts) {
             !file?.includes('<anonymous>')
         )
 
-        if (frame?.lineNumber && frame?.file) {
-          const moduleId = frame.file!.replace(
-            /^(webpack-internal:\/\/\/|file:\/\/)/,
-            ''
-          )
-          const modulePath = frame.file.replace(
-            /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
-            ''
-          )
+        let originalFrame, isEdgeCompiler
+        const frameFile = frame?.file
+        if (frame?.lineNumber && frameFile) {
+          if (hotReloader.turbopackProject) {
+            try {
+              originalFrame = await createOriginalTurboStackFrame(
+                hotReloader.turbopackProject,
+                {
+                  file: frameFile,
+                  methodName: frame.methodName,
+                  line: frame.lineNumber ?? 0,
+                  column: frame.column,
+                  isServer: true,
+                }
+              )
+            } catch {}
+          } else {
+            const moduleId = frameFile.replace(
+              /^(webpack-internal:\/\/\/|file:\/\/)/,
+              ''
+            )
+            const modulePath = frameFile.replace(
+              /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
+              ''
+            )
 
-          const src = getErrorSource(err as Error)
-          const isEdgeCompiler = src === COMPILER_NAMES.edgeServer
-          const compilation = (
-            isEdgeCompiler
-              ? hotReloader.edgeServerStats?.compilation
-              : hotReloader.serverStats?.compilation
-          )!
+            const src = getErrorSource(err as Error)
+            isEdgeCompiler = src === COMPILER_NAMES.edgeServer
+            const compilation = (
+              isEdgeCompiler
+                ? hotReloader.edgeServerStats?.compilation
+                : hotReloader.serverStats?.compilation
+            )!
 
-          const source = await getSourceById(
-            !!frame.file?.startsWith(path.sep) ||
-              !!frame.file?.startsWith('file:'),
-            moduleId,
-            compilation
-          )
+            const source = await getSourceById(
+              !!frame.file?.startsWith(path.sep) ||
+                !!frame.file?.startsWith('file:'),
+              moduleId,
+              compilation
+            )
 
-          const originalFrame = await createOriginalStackFrame({
-            line: frame.lineNumber,
-            column: frame.column,
-            source,
-            frame,
-            moduleId,
-            modulePath,
-            rootDirectory: opts.dir,
-            errorMessage: err.message,
-            serverCompilation: isEdgeCompiler
-              ? undefined
-              : hotReloader.serverStats?.compilation,
-            edgeCompilation: isEdgeCompiler
-              ? hotReloader.edgeServerStats?.compilation
-              : undefined,
-          }).catch(() => {})
+            try {
+              originalFrame = await createOriginalStackFrame({
+                line: frame.lineNumber,
+                column: frame.column,
+                source,
+                frame,
+                moduleId,
+                modulePath,
+                rootDirectory: opts.dir,
+                errorMessage: err.message,
+                serverCompilation: isEdgeCompiler
+                  ? undefined
+                  : hotReloader.serverStats?.compilation,
+                edgeCompilation: isEdgeCompiler
+                  ? hotReloader.edgeServerStats?.compilation
+                  : undefined,
+              })
+            } catch {}
+          }
 
           if (originalFrame) {
             const { originalCodeFrame, originalStackFrame } = originalFrame
@@ -2250,7 +2546,9 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     if (!usedOriginalStack) {
-      if (type === 'warning') {
+      if (err instanceof ModuleBuildError) {
+        Log.error(err.message)
+      } else if (type === 'warning') {
         Log.warn(err)
       } else if (type === 'app-dir') {
         logAppDirError(err)
@@ -2268,12 +2566,13 @@ async function startWatcher(opts: SetupOpts) {
     requestHandler,
     logErrorWithOriginalStack,
 
-    async ensureMiddleware() {
+    async ensureMiddleware(requestUrl?: string) {
       if (!serverFields.actualMiddlewareFile) return
       return hotReloader.ensurePage({
         page: serverFields.actualMiddlewareFile,
         clientOnly: false,
         definition: undefined,
+        url: requestUrl,
       })
     },
   }
@@ -2293,7 +2592,7 @@ export async function setupDevBundler(opts: SetupOpts) {
       {
         webpackVersion: 5,
         isSrcDir,
-        turboFlag: false,
+        turboFlag: !!opts.turbo,
         cliCommand: 'dev',
         appDir: !!opts.appDir,
         pagesDir: !!opts.pagesDir,
@@ -2306,3 +2605,20 @@ export async function setupDevBundler(opts: SetupOpts) {
 }
 
 export type DevBundler = Awaited<ReturnType<typeof setupDevBundler>>
+
+function renderStyledStringToErrorAnsi(string: StyledString): string {
+  switch (string.type) {
+    case 'text':
+      return string.value
+    case 'strong':
+      return bold(red(string.value))
+    case 'code':
+      return green(string.value)
+    case 'line':
+      return string.value.map(renderStyledStringToErrorAnsi).join('')
+    case 'stack':
+      return string.value.map(renderStyledStringToErrorAnsi).join('\n')
+    default:
+      throw new Error('Unknown StyledString type', string)
+  }
+}

@@ -26,6 +26,7 @@ jobs:
     secrets: inherit
     with:
       uploadSwcArtifact: 'yes'
+      uploadAnalyzerArtifacts: 'yes'
 
   stats:
     name: PR Stats
