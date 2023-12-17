@@ -134,7 +134,7 @@ request.headers.get('X-Forwarded-For')
 
 The `geo` property is an object that contains the geographic information of the request. This value can optionally be provided by your hosting platform.
 
-On [Vercel](https://vercel.com/docs/frameworks/nextjs?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), this value is provided by default. On other platforms, you can use the [`X-Forwarded-For`](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Forwarded-For) header to provide the IP address, then use a third-party service to lookup the geographic information.
+On [Vercel](https://vercel.com/docs/frameworks/nextjs?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), this value is provided by default. On other platforms, you can use the [`X-Forwarded-For`](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Forwarded-For) header to provide the IP address, then use a [third-party service](https://developers.google.com/maps/documentation/geolocation/overview) to lookup the geographic information.
 
 ```ts
 // Provided by Vercel
