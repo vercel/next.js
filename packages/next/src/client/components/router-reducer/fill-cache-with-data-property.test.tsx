@@ -23,12 +23,14 @@ describe('fillCacheWithDataProperty', () => {
 
     const cache: CacheNode = {
       lazyData: null,
-      subTreeData: null,
+      rsc: null,
+      prefetchRsc: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
       lazyData: null,
-      subTreeData: <>Root layout</>,
+      rsc: <>Root layout</>,
+      prefetchRsc: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -37,7 +39,8 @@ describe('fillCacheWithDataProperty', () => {
               'linking',
               {
                 lazyData: null,
-                subTreeData: <>Linking</>,
+                rsc: <>Linking</>,
+                prefetchRsc: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -46,7 +49,8 @@ describe('fillCacheWithDataProperty', () => {
                         '',
                         {
                           lazyData: null,
-                          subTreeData: <>Page</>,
+                          rsc: <>Page</>,
+                          prefetchRsc: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -76,24 +80,28 @@ describe('fillCacheWithDataProperty', () => {
                   "" => {
                     "lazyData": null,
                     "parallelRoutes": Map {},
-                    "subTreeData": <React.Fragment>
+                    "prefetchRsc": null,
+                    "rsc": <React.Fragment>
                       Page
                     </React.Fragment>,
                   },
                 },
               },
-              "subTreeData": <React.Fragment>
+              "prefetchRsc": null,
+              "rsc": <React.Fragment>
                 Linking
               </React.Fragment>,
             },
             "dashboard" => {
               "lazyData": Promise {},
               "parallelRoutes": Map {},
-              "subTreeData": null,
+              "prefetchRsc": null,
+              "rsc": null,
             },
           },
         },
-        "subTreeData": null,
+        "prefetchRsc": null,
+        "rsc": null,
       }
     `)
   })

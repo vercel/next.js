@@ -18,8 +18,14 @@ export function applyFlightData(
   }
 
   if (flightDataPath.length === 3) {
-    const subTreeData = cacheNodeSeedData[2]
-    cache.subTreeData = subTreeData
+    const rsc = cacheNodeSeedData[2]
+    cache.rsc = rsc
+    // This is a PPR-only field. When PPR is enabled, we shouldn't hit
+    // this path during a navigation, but until PPR is fully implemented
+    // yet it's possible the existing node does have a non-null
+    // `prefetchRsc`. As an incremental step, we'll just de-opt to the
+    // old behavior — no PPR value.
+    cache.prefetchRsc = null
     fillLazyItemsTillLeafWithHead(
       cache,
       existingCache,
@@ -29,10 +35,14 @@ export function applyFlightData(
       wasPrefetched
     )
   } else {
-    // Copy subTreeData for the root node of the cache.
-    cache.subTreeData = existingCache.subTreeData
+    // Copy rsc for the root node of the cache.
+    cache.rsc = existingCache.rsc
+    // This is a PPR-only field. Unlike the previous branch, since we're
+    // just cloning the existing cache node, we might as well keep the
+    // PPR value, if it exists.
+    cache.prefetchRsc = existingCache.prefetchRsc
     cache.parallelRoutes = new Map(existingCache.parallelRoutes)
-    // Create a copy of the existing cache with the subTreeData applied.
+    // Create a copy of the existing cache with the rsc applied.
     fillCacheWithNewSubTreeData(
       cache,
       existingCache,

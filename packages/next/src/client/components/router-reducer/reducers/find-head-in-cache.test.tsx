@@ -27,7 +27,8 @@ describe('findHeadInCache', () => {
 
     const cache: CacheNode = {
       lazyData: null,
-      subTreeData: null,
+      rsc: null,
+      prefetchRsc: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -36,7 +37,8 @@ describe('findHeadInCache', () => {
               'linking',
               {
                 lazyData: null,
-                subTreeData: null,
+                rsc: null,
+                prefetchRsc: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -53,7 +55,8 @@ describe('findHeadInCache', () => {
                                   '',
                                   {
                                     lazyData: null,
-                                    subTreeData: null,
+                                    rsc: null,
+                                    prefetchRsc: null,
                                     parallelRoutes: new Map(),
                                     head: (
                                       <>
@@ -65,7 +68,8 @@ describe('findHeadInCache', () => {
                               ]),
                             ],
                           ]),
-                          subTreeData: null,
+                          rsc: null,
+                          prefetchRsc: null,
                         },
                       ],
                       // TODO-APP: this segment should be preserved when creating the new cache
@@ -73,7 +77,8 @@ describe('findHeadInCache', () => {
                       //   '',
                       //   {
                       //     lazyData: null,
-                      //     subTreeData: <>Page</>,
+                      //     rsc: <>Page</>,
+                      //     prefetchRsc: null,
                       //     parallelRoutes: new Map(),
                       //   },
                       // ],

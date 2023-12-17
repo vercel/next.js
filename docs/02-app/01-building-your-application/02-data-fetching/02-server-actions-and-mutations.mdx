@@ -893,7 +893,7 @@ For large applications that use reverse proxies or multi-layered backend archite
 module.exports = {
   experimental: {
     serverActions: {
-      allowedOrigins: ['my-proxy.com'],
+      allowedOrigins: ['my-proxy.com', '*.my-proxy.com'],
     },
   },
 }

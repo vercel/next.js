@@ -20,7 +20,7 @@ export type CacheNode = ReadyCacheNode | LazyCacheNode
 
 export type LazyCacheNode = {
   /**
-   * When subtreeData is null, this is a lazily-initialized cache node.
+   * When rsc is null, this is a lazily-initialized cache node.
    *
    * If the app attempts to render it, it triggers a lazy data fetch,
    * postpones the render, and schedules an update to a new tree.
@@ -29,7 +29,18 @@ export type LazyCacheNode = {
    * currently is in some cases until we've implemented partial
    * segment fetching.
    */
-  subTreeData: null
+  rsc: null
+
+  /**
+   * A prefetched version of the segment data. See explanation in corresponding
+   * field of ReadyCacheNode (below).
+   *
+   * Since LazyCacheNode mostly only exists in the non-PPR implementation, this
+   * will usually be null, but it could have been cloned from a previous
+   * CacheNode that was created by the PPR implementation. Eventually we want
+   * to migrate everything away from LazyCacheNode entirely.
+   */
+  prefetchRsc: React.ReactNode
 
   /**
    * A pending response for the lazy data fetch. If this is not present
@@ -46,7 +57,7 @@ export type LazyCacheNode = {
 
 export type ReadyCacheNode = {
   /**
-   * When subtreeData is not null, it represents the RSC data for the
+   * When rsc is not null, it represents the RSC data for the
    * corresponding segment.
    *
    * `null` is a valid React Node but because segment data is always a
@@ -54,9 +65,23 @@ export type ReadyCacheNode = {
    *
    * TODO: For additional type safety, update this type to
    * Exclude<React.ReactNode, null>. Need to update createEmptyCacheNode to
-   * accept subTreeData as an argument, or just inline the callers.
+   * accept rsc as an argument, or just inline the callers.
    */
-  subTreeData: React.ReactNode
+  rsc: React.ReactNode
+
+  /**
+   * Represents a static version of the segment that can be shown immediately,
+   * and may or may not contain dynamic holes. It's prefetched before a
+   * navigation occurs.
+   *
+   * During rendering, we will choose whether to render `rsc` or `prefetchRsc`
+   * with `useDeferredValue`. As with the `rsc` field, a value of `null` means
+   * no value was provided. In this case, the LayoutRouter will go straight to
+   * rendering the `rsc` value; if that one is also missing, it will suspend and
+   * trigger a lazy fetch.
+   */
+  prefetchRsc: React.ReactNode
+
   /**
    * There should never be a lazy data request in this case.
    */

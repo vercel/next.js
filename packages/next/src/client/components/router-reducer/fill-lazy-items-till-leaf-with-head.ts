@@ -18,7 +18,7 @@ export function fillLazyItemsTillLeafWithHead(
     newCache.head = head
     return
   }
-  // Remove segment that we got data for so that it is filled in during rendering of subTreeData.
+  // Remove segment that we got data for so that it is filled in during rendering of rsc.
   for (const key in routerState[1]) {
     const parallelRouteState = routerState[1][key]
     const segmentForParallelRoute = parallelRouteState[0]
@@ -35,9 +35,7 @@ export function fillLazyItemsTillLeafWithHead(
     // in the response format, so that we don't have to send the keys twice.
     // Then the client can convert them into separate representations.
     const parallelSeedData =
-      cacheNodeSeedData !== null &&
-      cacheNodeSeedData[1] !== null &&
-      cacheNodeSeedData[1][key] !== undefined
+      cacheNodeSeedData !== null && cacheNodeSeedData[1][key] !== undefined
         ? cacheNodeSeedData[1][key]
         : null
     if (existingCache) {
@@ -52,7 +50,13 @@ export function fillLazyItemsTillLeafWithHead(
           const seedNode = parallelSeedData[2]
           newCacheNode = {
             lazyData: null,
-            subTreeData: seedNode,
+            rsc: seedNode,
+            // This is a PPR-only field. When PPR is enabled, we shouldn't hit
+            // this path during a navigation, but until PPR is fully implemented
+            // yet it's possible the existing node does have a non-null
+            // `prefetchRsc`. As an incremental step, we'll just de-opt to the
+            // old behavior — no PPR value.
+            prefetchRsc: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
           }
         } else if (wasPrefetched && existingCacheNode) {
@@ -60,7 +64,11 @@ export function fillLazyItemsTillLeafWithHead(
           // was prefetched, so we should reuse that.
           newCacheNode = {
             lazyData: existingCacheNode.lazyData,
-            subTreeData: existingCacheNode.subTreeData,
+            rsc: existingCacheNode.rsc,
+            // This is a PPR-only field. Unlike the previous branch, since we're
+            // just cloning the existing cache node, we might as well keep the
+            // PPR value, if it exists.
+            prefetchRsc: existingCacheNode.prefetchRsc,
             parallelRoutes: new Map(existingCacheNode.parallelRoutes),
           } as CacheNode
         } else {
@@ -68,7 +76,8 @@ export function fillLazyItemsTillLeafWithHead(
           // during render.
           newCacheNode = {
             lazyData: null,
-            subTreeData: null,
+            rsc: null,
+            prefetchRsc: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
           }
         }
@@ -96,7 +105,8 @@ export function fillLazyItemsTillLeafWithHead(
       const seedNode = parallelSeedData[2]
       newCacheNode = {
         lazyData: null,
-        subTreeData: seedNode,
+        rsc: seedNode,
+        prefetchRsc: null,
         parallelRoutes: new Map(),
       }
     } else {
@@ -104,7 +114,8 @@ export function fillLazyItemsTillLeafWithHead(
       // during render.
       newCacheNode = {
         lazyData: null,
-        subTreeData: null,
+        rsc: null,
+        prefetchRsc: null,
         parallelRoutes: new Map(),
       }
     }

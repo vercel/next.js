@@ -8,7 +8,7 @@ import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-
 import { createRouterCacheKey } from './create-router-cache-key'
 
 /**
- * Fill cache with subTreeData based on flightDataPath
+ * Fill cache with rsc based on flightDataPath
  */
 export function fillCacheWithNewSubTreeData(
   newCache: CacheNode,
@@ -46,10 +46,11 @@ export function fillCacheWithNewSubTreeData(
       childCacheNode === existingChildCacheNode
     ) {
       const seedData: CacheNodeSeedData = flightDataPath[3]
-      const subTreeData = seedData[2]
+      const rsc = seedData[2]
       childCacheNode = {
         lazyData: null,
-        subTreeData,
+        rsc,
+        prefetchRsc: null,
         // Ensure segments other than the one we got data for are preserved.
         parallelRoutes: existingChildCacheNode
           ? new Map(existingChildCacheNode.parallelRoutes)
@@ -87,7 +88,8 @@ export function fillCacheWithNewSubTreeData(
   if (childCacheNode === existingChildCacheNode) {
     childCacheNode = {
       lazyData: childCacheNode.lazyData,
-      subTreeData: childCacheNode.subTreeData,
+      rsc: childCacheNode.rsc,
+      prefetchRsc: childCacheNode.prefetchRsc,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
     } as CacheNode
     childSegmentMap.set(cacheKey, childCacheNode)

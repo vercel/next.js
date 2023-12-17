@@ -61,7 +61,8 @@ describe('serverPatchReducer', () => {
                       '',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -69,7 +70,8 @@ describe('serverPatchReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -81,7 +83,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -132,12 +134,13 @@ describe('serverPatchReducer', () => {
       nextUrl: '/linking/about',
       cache: {
         lazyData: null,
-        subTreeData: (
+        rsc: (
           <html>
             <head></head>
             <body>Root layout</body>
           </html>
         ),
+        prefetchRsc: null,
         parallelRoutes: new Map([
           [
             'children',
@@ -153,7 +156,8 @@ describe('serverPatchReducer', () => {
                           '',
                           {
                             lazyData: null,
-                            subTreeData: <>Linking page</>,
+                            rsc: <>Linking page</>,
+                            prefetchRsc: null,
                             parallelRoutes: new Map(),
                           },
                         ],
@@ -161,7 +165,8 @@ describe('serverPatchReducer', () => {
                     ],
                   ]),
                   lazyData: null,
-                  subTreeData: <>Linking layout level</>,
+                  rsc: <>Linking layout level</>,
+                  prefetchRsc: null,
                 },
               ],
             ]),
@@ -211,7 +216,8 @@ describe('serverPatchReducer', () => {
                       '',
                       {
                         lazyData: null,
-                        subTreeData: <>Linking page</>,
+                        rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -219,7 +225,8 @@ describe('serverPatchReducer', () => {
                 ],
               ]),
               lazyData: null,
-              subTreeData: <>Linking layout level</>,
+              rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -231,7 +238,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -241,7 +248,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -295,12 +302,13 @@ describe('serverPatchReducer', () => {
       nextUrl: '/linking/about',
       cache: {
         lazyData: null,
-        subTreeData: (
+        rsc: (
           <html>
             <head></head>
             <body>Root layout</body>
           </html>
         ),
+        prefetchRsc: null,
         parallelRoutes: new Map([
           [
             'children',
@@ -316,7 +324,8 @@ describe('serverPatchReducer', () => {
                           '',
                           {
                             lazyData: null,
-                            subTreeData: <>Linking page</>,
+                            rsc: <>Linking page</>,
+                            prefetchRsc: null,
                             parallelRoutes: new Map(),
                           },
                         ],
@@ -324,7 +333,8 @@ describe('serverPatchReducer', () => {
                     ],
                   ]),
                   lazyData: null,
-                  subTreeData: <>Linking layout level</>,
+                  rsc: <>Linking layout level</>,
+                  prefetchRsc: null,
                 },
               ],
             ]),

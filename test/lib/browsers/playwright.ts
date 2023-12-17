@@ -21,11 +21,23 @@ let websocketFrames: Array<{ payload: string | Buffer }> = []
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
 
+// loose global to register teardown functions before quitting the browser instance.
+// This is due to `quit` can be called anytime outside of BrowserInterface's lifecycle,
+// which can create corrupted state by terminating the context.
+// [TODO] global `quit` might need to be removed, instead should introduce per-instance teardown
+const pendingTeardown = []
 export async function quit() {
+  await Promise.all(pendingTeardown.map((fn) => fn()))
   await context?.close()
   await browser?.close()
   context = undefined
   browser = undefined
+}
+
+async function teardown(tearDownFn: () => Promise<void>) {
+  pendingTeardown.push(tearDownFn)
+  await tearDownFn()
+  pendingTeardown.splice(pendingTeardown.indexOf(tearDownFn), 1)
 }
 
 interface ElementHandleExt extends ElementHandle {
@@ -38,7 +50,6 @@ export class Playwright extends BrowserInterface {
   private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
     request: new Set(),
   }
-
   private async initContextTracing(
     url: string,
     page: Page,
@@ -50,16 +61,17 @@ export class Playwright extends BrowserInterface {
 
     try {
       // Clean up if any previous traces are still active
-      await this.teardownTracing()
+      await teardown(this.teardownTracing.bind(this))
 
       await context.tracing.start({
         screenshots: true,
         snapshots: true,
+        sources: true,
       })
       this.activeTrace = encodeURIComponent(url)
 
       page.on('close', async () => {
-        await this.teardownTracing()
+        await teardown(this.teardownTracing.bind(this))
       })
     } catch (e) {
       this.activeTrace = undefined
@@ -86,6 +98,7 @@ export class Playwright extends BrowserInterface {
         path: traceOutputPath,
       })
     } catch (e) {
+      require('console').warn('Failed to teardown playwright tracing', e)
     } finally {
       this.activeTrace = undefined
     }
@@ -127,15 +140,13 @@ export class Playwright extends BrowserInterface {
     if (browser) {
       if (contextHasJSEnabled !== javaScriptEnabled) {
         // If we have switched from having JS enable/disabled we need to recreate the context.
+        await teardown(this.teardownTracing.bind(this))
         await context?.close()
         context = await browser.newContext({
           locale,
           javaScriptEnabled,
           ignoreHTTPSErrors,
           ...device,
-        })
-        context.once('close', async () => {
-          await this.teardownTracing()
         })
         contextHasJSEnabled = javaScriptEnabled
       }
@@ -148,9 +159,6 @@ export class Playwright extends BrowserInterface {
       javaScriptEnabled,
       ignoreHTTPSErrors,
       ...device,
-    })
-    context.once('close', async () => {
-      await this.teardownTracing()
     })
     contextHasJSEnabled = javaScriptEnabled
   }

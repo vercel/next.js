@@ -17,7 +17,7 @@ const getFlightData = (): FlightData => {
           children: ['', {}],
         },
       ],
-      ['about', null, <h1>About Page!</h1>],
+      ['about', {}, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
@@ -29,12 +29,14 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
   it('should invalidate cache below flight segment path', () => {
     const cache: CacheNode = {
       lazyData: null,
-      subTreeData: null,
+      rsc: null,
+      prefetchRsc: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
       lazyData: null,
-      subTreeData: <>Root layout</>,
+      rsc: <>Root layout</>,
+      prefetchRsc: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -43,7 +45,8 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
               'linking',
               {
                 lazyData: null,
-                subTreeData: <>Linking</>,
+                rsc: <>Linking</>,
+                prefetchRsc: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -52,7 +55,8 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                         '',
                         {
                           lazyData: null,
-                          subTreeData: <>Page</>,
+                          rsc: <>Page</>,
+                          prefetchRsc: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -76,9 +80,10 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
     const flightDataPath = flightData[0]
     const flightSegmentPath = flightDataPath.slice(0, -3)
 
-    // Copy subTreeData for the root node of the cache.
-    cache.subTreeData = existingCache.subTreeData
-    // Create a copy of the existing cache with the subTreeData applied.
+    // Copy rsc for the root node of the cache.
+    cache.rsc = existingCache.rsc
+    cache.prefetchRsc = existingCache.prefetchRsc
+    // Create a copy of the existing cache with the rsc applied.
     fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath, false)
 
     // Invalidate the cache below the flight segment path. This should remove the 'about' node.
@@ -107,19 +112,22 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                         {
                           lazyData: null,
                           parallelRoutes: new Map(),
-                          subTreeData: <React.Fragment>Page</React.Fragment>,
+                          rsc: <React.Fragment>Page</React.Fragment>,
+                          prefetchRsc: null,
                         },
                       ],
                     ]),
                   ],
                 ]),
-                subTreeData: <React.Fragment>Linking</React.Fragment>,
+                rsc: <React.Fragment>Linking</React.Fragment>,
+                prefetchRsc: null,
               },
             ],
           ]),
         ],
       ]),
-      subTreeData: <>Root layout</>,
+      rsc: <>Root layout</>,
+      prefetchRsc: null,
     }
 
     expect(cache).toMatchObject(expectedCache)

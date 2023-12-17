@@ -345,7 +345,7 @@ function InnerLayoutRouter({
     // data request.
     //
     // TODO: An eventual goal of PPR is to remove this case entirely.
-    (childNode.subTreeData === null && childNode.lazyData === null)
+    (childNode.rsc === null && childNode.lazyData === null)
   ) {
     /**
      * Router state with refetch marker added
@@ -353,6 +353,9 @@ function InnerLayoutRouter({
     // TODO-APP: remove ''
     const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
 
+    // TODO: Since this case always suspends indefinitely, and the only thing
+    // we're doing here is setting `lazyData`, it would be fine to mutate the
+    // current cache node (if it exists) rather than cloning it.
     childNode = {
       lazyData: fetchServerResponse(
         new URL(url, location.origin),
@@ -360,7 +363,8 @@ function InnerLayoutRouter({
         context.nextUrl,
         buildId
       ),
-      subTreeData: null,
+      rsc: null,
+      prefetchRsc: childNode ? childNode.prefetchRsc : null,
       head: childNode ? childNode.head : undefined,
       parallelRoutes: childNode ? childNode.parallelRoutes : new Map(),
     }
@@ -377,8 +381,8 @@ function InnerLayoutRouter({
   }
 
   // This case should never happen so it throws an error. It indicates there's a bug in the Next.js.
-  if (childNode.subTreeData && childNode.lazyData) {
-    throw new Error('Child node should not have both subTreeData and lazyData')
+  if (childNode.rsc && childNode.lazyData) {
+    throw new Error('Child node should not have both rsc and lazyData')
   }
 
   // If cache node has a data request we have to unwrap response by `use` and update the cache.
@@ -402,9 +406,9 @@ function InnerLayoutRouter({
     use(createInfinitePromise())
   }
 
-  // If cache node has no subTreeData and no lazy data request we have to infinitely suspend as the data will likely flow in from another place.
+  // If cache node has no rsc and no lazy data request we have to infinitely suspend as the data will likely flow in from another place.
   // TODO-APP: double check users can't return null in a component that will kick in here.
-  if (!childNode.subTreeData) {
+  if (!childNode.rsc) {
     use(createInfinitePromise())
   }
 
@@ -418,7 +422,7 @@ function InnerLayoutRouter({
         url: url,
       }}
     >
-      {childNode.subTreeData}
+      {childNode.rsc}
     </LayoutRouterContext.Provider>
   )
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`

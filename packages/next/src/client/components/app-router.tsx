@@ -147,11 +147,14 @@ function HistoryUpdater({
   return null
 }
 
-export const createEmptyCacheNode = () => ({
-  lazyData: null,
-  subTreeData: null,
-  parallelRoutes: new Map(),
-})
+export function createEmptyCacheNode(): CacheNode {
+  return {
+    lazyData: null,
+    rsc: null,
+    prefetchRsc: null,
+    parallelRoutes: new Map(),
+  }
+}
 
 function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
   const serverActionDispatcher: ServerActionDispatcher = useCallback(
@@ -546,7 +549,7 @@ function Router({
   let content = (
     <RedirectBoundary>
       {head}
-      {cache.subTreeData}
+      {cache.rsc}
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
   )
