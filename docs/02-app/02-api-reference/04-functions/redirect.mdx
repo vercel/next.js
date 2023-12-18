@@ -1,6 +1,9 @@
 ---
 title: redirect
 description: API Reference for the redirect function.
+related:
+  links:
+    - app/api-reference/functions/permanentRedirect
 ---
 
 The `redirect` function allows you to redirect the user to another URL. `redirect` can be used in Server Components, Client Components, [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
@@ -73,8 +76,6 @@ The introduction of the `307` status code means that the request method is prese
 - `307` - Temporary redirect, will preserve the request method as `POST`
 
 The `redirect()` method uses a `307` by default, instead of a `302` temporary redirect, meaning your requests will _always_ be preserved as `POST` requests.
-
-If you want to cause a `GET` response to a `POST` request, use `303`.
 
 [Learn more](https://developer.mozilla.org/docs/Web/HTTP/Redirections) about HTTP Redirects.
 
