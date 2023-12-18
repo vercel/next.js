@@ -1,0 +1,100 @@
+---
+title: Setting up Clerk with Next.js
+nav_title: Clerk
+description: Learn how to set up Clerk with Next.js for authentication.
+---
+
+[Clerk](https://clerk.com/docs) is a comprehensive authentication and user management solution designed to work seamlessly with modern web frameworks, including Next.js. It offers a range of features like user authentication, profile management, and custom user flows.
+
+## Key Features
+
+- **Frontend-Focused Tools**: Variety of prebuilt components for quick and easy integration.
+- **Customizable User Flows**: Tailor sign-up, login, and user management experiences to your needs.
+- **Secure Authentication**: Robust methods including email verification and password recovery.
+- **Scalability**: Well-suited for both small projects and large-scale enterprise applications.
+- **Session Management**: Efficiently handles user sessions, ensuring a secure and continuous user experience.
+
+## Integration Guide
+
+1.  **Install `@clerk/nextjs`**
+
+    Begin by adding the Clerk package to your Next.js project:
+
+    ```bash filename="Terminal"
+    npm install @clerk/nextjs
+    ```
+
+2.  **Create a Clerk account**
+
+    Sign up for a Clerk account [here](https://dashboard.clerk.com/sign-in?redirect_url=https%3A%2F%2Fdashboard.clerk.com%2F). In your Clerk dashboard, create a new application to obtain two keys: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`.
+
+3.  **Set Environment Keys**
+
+    In the root directory of your Next.js project, create or update the `.env.local` file. This file will contain your Clerk keys:
+
+    ```json filename=".env.local"
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = your_publishable_key
+    CLERK_SECRET_KEY = your_secret_key
+    ```
+
+4.  **Wrap Your App with `<ClerkProvider />`**
+
+    Import `ClerkProvider` from `@clerk/nextjs` and in your root layout, use it to wrap your application. This step is crucial for providing user and session contexts:
+
+    ```jsx filename="app/layout.jsx" switcher
+    import { ClerkProvider } from '@clerk/nextjs'
+    import './globals.css'
+
+    function RootLayout({ children }) {
+      return (
+        <ClerkProvider>
+          <html lang="en">
+            <body>{children}</body>
+          </html>
+        </ClerkProvider>
+      )
+    }
+    export default RootLayout
+    ```
+
+5.  **Secure Your App with Authentication**
+
+    Implement `authMiddleware` to control access to routes in your app. This middleware helps in defining public and private pages:
+
+    ```jsx filename="middleware.js" switcher
+    import { authMiddleware } from '@clerk/nextjs'
+
+    export default authMiddleware()
+
+    export const config = {
+      matcher: ['/((?!.*\\..*|_next).*)'],
+    }
+    ```
+
+    When accessing a protected route, you'll be redirected to the sign-up page, courtesy of Clerk's [Account Portal](https://clerk.com/docs/account-portal/overview) feature. Here, users can sign up or log in.
+
+6.  **Implement the `<UserButton />` Component**
+
+    Integrate Clerk's [`<UserButton />`](https://clerk.com/docs/components/user/user-button) for user account management and sign-out functionality:
+
+    ```jsx filename="app/page.jsx" switcher
+    import { UserButton } from '@clerk/nextjs'
+
+    function Home() {
+      return (
+        <div className="h-screen">
+          <UserButton afterSignOutUrl="/" />
+        </div>
+      )
+    }
+    export default Home
+    ```
+
+7.  **Sign Out Process**
+
+    To sign out, click on your avatar and select **Sign out**. You will return to the sign-in form.
+
+## Further Reading
+
+- https://clerk.com/docs/quickstarts/nextjs
+- https://clerk.com/blog/nextjs-13-4

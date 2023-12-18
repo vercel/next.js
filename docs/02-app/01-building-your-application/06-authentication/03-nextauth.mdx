@@ -1,0 +1,137 @@
+---
+title: Setting up NextAuth.js with Next.js
+nav_title: NextAuth.js
+description: Learn how to set up NextAuth.js with Next.js for authentication.
+---
+
+[NextAuth.js](https://next-auth.js.org/getting-started/example) is a powerful authentication tool for Next.js applications. It simplifies adding login systems to your projects and works well with the latest features of Next.js, including the app router. It supports various authentication methods, including email and social logins.
+
+## Key Features
+
+- **Designed Specifically for Next.js**: Tailored integration with Next.js, enhancing the development experience within the Next.js ecosystem.
+- **Simple Setup**: Offers an easy and quick setup process for adding authentication to Next.js applications.
+- **Flexible Authentication Strategies**: Supports a wide range of providers, including social logins, email, and passwordless authentication.
+- **Session Management**: Provides built-in session management capabilities, ensuring a seamless user experience.
+- **JWT Support**: Offers JSON Web Tokens (JWT) for secure authentication.
+- **Extensible and Customizable**: Highly customizable for different authentication flows and user experiences.
+
+## Features Lacking
+
+- **Native Multi-Factor Authentication (MFA)**: NextAuth.js does not natively support multi-factor authentication, often requiring additional implementation.
+- **Direct Database Management**: NextAuth.js does not handle user data storage directly, relying on developers to integrate it with their database solution.
+
+## Integration Guide
+
+1. **Installation**
+
+   To integrate NextAuth.js, start by installing the package using the following command:
+
+   ```bash filename="Terminal"
+   npm install next-auth
+   ```
+
+2. **Configure Environment**
+
+   NextAuth.js requires a secret key for secure token handling and encryption. Generate a secret key by running this command in the terminal `openssl rand -base64 32` and update `.env.local` file:
+
+   ```json filename=".env.local"
+   AUTH_SECRET=<your-secret-key>
+   ```
+
+3. **Auth Configuration**
+
+   Create an `auth.ts` file at the root of your project for NextAuth configurations. This file will export our NextAuth configurations and will look something like this
+
+   ```js filename="auth.js" switcher
+   import NextAuth from 'next-auth'
+   import GoogleProvider from 'next-auth/providers/google'
+
+   export const authConfig = {
+     providers: [
+       GoogleProvider({
+         clientId: process.env.GOOGLE_CLIENT_ID || '',
+         clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+       }),
+     ],
+     callbacks: {
+       async signIn({ account, profile }) {
+         // Custom sign-in logic
+         return true
+       },
+     },
+   }
+   export const { handlers, auth, signOut } = NextAuth(authConfig)
+   ```
+
+   The `providers` option is an array where you list different login options and is necessary to satisfy NextAuth config. Although the Google provider is used in this example, NextAuth offers a selection of different providers options. Learn more about the different provider options [here](https://next-auth.js.org/providers/).
+
+   > Ensure to add provider-specific environment variables to your `.env` file.
+
+4. **Route Handler**
+
+   Initialize NextAuth.js with a Route Handler. Do this by creating a file at `app/api/auth/[...nextauth]/route.js` and adding the following code:
+
+   ```js filename="app/api/auth/[...nextauth]/route.js" switcher
+   import { handlers } from '@/auth'
+
+   export const { GET, POST } = handlers
+   ```
+
+   By importing `handlers` from `'@/auth'`, this route handler connects to your authentication configuration defined in `auth.ts`. This handler processes authentication requests like login and logout. It allows NextAuth.js to handle various auth endpoints under a single dynamic route, simplifying the configuration and integration within your Next.js app.
+
+5. **Use authentication session in your server rendered pages**
+
+   This step is crucial for incorporating user authentication into the server-side rendered pages of your Next.js app. By accessing the authentication session, you can personalize the user's experience on your app. The `getServerSession` method fetches the session data (if the user is logged in), which includes user information like name, email, and profile picture. You can use this session data to display personalized content, restrict access to certain pages based on user roles or permissions, or simply greet the user by name.
+
+   ```jsx filename="app/page.jsx" switcher
+   import { getServerSession } from 'next-auth/next'
+   import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+
+   export default async function Home() {
+     // Get user session token
+     const session = await getServerSession(authOptions)
+     // session = null || { user: { name, email, image } }
+
+     return (
+       <div>
+         <h2>My Amazing App</h2>
+
+         {session && (
+           <div>
+             <p>Signed in as {session.user && session.user.name}</p>
+             <a href="/api/auth/signout">Sign out by link</a>
+           </div>
+         )}
+
+         {!session && <p>Not signed in</p>}
+       </div>
+     )
+   }
+   ```
+
+6. **Adding Middleware**
+
+   Middleware in Next.js acts as a gatekeeper for your routes. It allows you to execute code before a request is completed and a response is sent. By using NextAuth.js middleware, you can efficiently manage user access across your application, ensuring that only authenticated users can access certain pages or resources.
+
+   The most simple usage is when you want to require authentication for your entire site. You can add a `middleware.js` file with the following:
+
+   ```js filename="middleware.js" switcher
+   export { default } from 'next-auth/middleware'
+   ```
+
+   If you only want to secure certain pages, export a `config` object with a `matcher`:
+
+   ```js filename="middleware.js" switcher
+   export { default } from 'next-auth/middleware'
+
+   export const config = { matcher: ['/dashboard'] }
+   ```
+
+7. **Test Authentication**
+
+   Verify the setup by navigating to `localhost:3000/api/auth/signin` and using the Google login.
+
+## Further Reading
+
+- https://next-auth.js.org/configuration/initialization#route-handlers-app
+- https://nextjs.org/learn/dashboard-app/adding-authentication

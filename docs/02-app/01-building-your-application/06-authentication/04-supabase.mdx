@@ -1,0 +1,281 @@
+---
+title: Setting up Supabase with Next.js
+nav_title: Supabase
+description: Learn how to set up Supabase with Next.js for authentication.
+---
+
+[Supabase](https://supabase.com/docs/guides/auth/quickstarts/nextjs) is a full-fledged backend service that pairs well with Next.js. It offers database storage, real-time capabilities, and user authentication. Integrating Supabase with Next.js allows you to build feature-rich applications without the need for managing a separate backend.
+
+## Key Features
+
+- **Database**: Provides a PostgreSQL database, offering robust, relational data storage.
+- **Authentication**: Supports a variety of authentication methods, including social logins and magic links.
+- **Realtime**: Enables real-time data functionalities, allowing you to stream changes to your database instantly.
+- **Storage**: Offers storage solutions for handling large files and data.
+- **Extensible**: Allows integration with various tools and services, enhancing its capabilities.
+- **Instant APIs**: Automatically generates APIs based on your database schema.
+
+## Integration Guide
+
+1. **Install Next.js Auth Helpers Library**:
+
+   To integrate Supabase authentication seamlessly with Next.js, install both the Supabase JS SDK and the Supabase Auth Helpers for Next.js. The SDK provides the necessary functions to interact with your Supabase database and authentication system, while the Auth Helpers simplify the integration process with Next.js, offering convenient functions and components tailored for Next.js applications.
+
+   ```bash filename="Terminal"
+   npm install @supabase/auth-helpers-nextjs @supabase/supabase-js
+   ```
+
+2. **Declare Environment Variables**:
+
+   Retrieve your project's URL and anon key from Supabase API settings and add them to your `.env.local` file.
+
+   ```makefile filename=".env.local"
+   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+   ```
+
+3. **Managing Session with Middleware**:
+
+   Utilize Middleware for effective session management with Supabase on the server side. Middleware plays a key role in reading and updating cookies, essential for tracking user sessions. To implement this, create a `middleware.js` file in your project. This file should include the necessary imports and configurations for setting up Middleware with Supabase. Your setup might look like the following example:
+
+   ```js filename="middleware.js" switcher
+   import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+   import { NextResponse } from 'next/server'
+
+   import type { NextRequest } from 'next/server'
+   import type { Database } from '@/lib/database.types'
+
+   export async function middleware(req: NextRequest) {
+     const res = NextResponse.next()
+
+     // Create a Supabase client configured to use cookies
+     const supabase = createMiddlewareClient < Database > { req, res }
+
+     // Refresh session if expired - required for Server Components
+     await supabase.auth.getSession()
+
+     return res
+   }
+
+   // Ensure the middleware is only called for relevant paths.
+   export const config = {
+     matcher: [
+       /*
+        * Match all request paths except for the ones starting with:
+        * - _next/static (static files)
+        * - _next/image (image optimization files)
+        * - favicon.ico (favicon file)
+        */
+       '/((?!_next/static|_next/image|favicon.ico).*)',
+     ],
+   }
+   ```
+
+4. **Managing Sign-In with Code Exchange**:
+
+   This section involves establishing a server-side authentication flow, an important part of OAuth-based authentication. The process, known as 'code exchange', involves exchanging a temporary code from an OAuth provider (such as Google or Facebook) for an access token, thereby enhancing security by preventing token exposure on the client side. For setting up a server-side Code Exchange route, a callback Route Handler is required to exchange the auth code for a user session. To do this, create a file named `app/auth/callback/route.ts` and input the following code:
+
+   ```js filename="app/auth/callback/route.ts" switcher
+   import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+   import { cookies } from 'next/headers'
+   import { NextResponse } from 'next/server'
+
+   import type { NextRequest } from 'next/server'
+   import type { Database } from '@/lib/database.types'
+
+   export async function GET(request: NextRequest) {
+     const requestUrl = new URL(request.url)
+     const code = requestUrl.searchParams.get('code')
+
+     if (code) {
+       const cookieStore = cookies()
+       const supabase =
+         createRouteHandlerClient < Database > { cookies: () => cookieStore }
+       await supabase.auth.exchangeCodeForSession(code)
+     }
+
+     // URL to redirect to after sign in process completes
+     return NextResponse.redirect(requestUrl.origin)
+   }
+   ```
+
+   In this setup, when the user is redirected back from the OAuth provider to your application (after successful authentication), the route handler will use the provided code to obtain a session token from Supabase. Once the token is received and the session is established, the user is redirected to a predefined URL, completing the sign-in process.
+
+5. **Client-Side Authentication**:
+
+   To manage authentication processes directly from the client side, start by using Client Components. First, import `createClientComponentClient` from the Supabase auth helpers. This specialized function can be implemented as shown below to facilitate client-side authentication actions:
+
+   ```jsx filename="app/ui/Login.jsx" switcher
+   'use client'
+
+   import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+   import { useRouter } from 'next/navigation'
+   import { useState } from 'react'
+
+   import type { Database } from '@/lib/database.types'
+
+   export default function Login() {
+     const [email, setEmail] = useState('')
+     const [password, setPassword] = useState('')
+     const router = useRouter()
+     const supabase = createClientComponentClient<Database>()
+
+     const handleSignUp = async () => {
+       await supabase.auth.signUp({
+         email,
+         password,
+         options: {
+           emailRedirectTo: `${location.origin}/auth/callback`,
+         },
+       })
+       router.refresh()
+     }
+
+     const handleSignIn = async () => {
+       await supabase.auth.signInWithPassword({
+         email,
+         password,
+       })
+       router.refresh()
+     }
+
+     const handleSignOut = async () => {
+       await supabase.auth.signOut()
+       router.refresh()
+     }
+
+     return (
+       <>
+         <input name="email" onChange={(e) => setEmail(e.target.value)} value={email} />
+         <input
+           type="password"
+           name="password"
+           onChange={(e) => setPassword(e.target.value)}
+           value={password}
+         />
+         <button onClick={handleSignUp}>Sign up</button>
+         <button onClick={handleSignIn}>Sign in</button>
+         <button onClick={handleSignOut}>Sign out</button>
+       </>
+     )
+   }
+   ```
+
+6. **Server Components and Route Handlers for Authentication**:
+
+   Utilize Server Components and Route Handlers for managing form submissions in server-side authentication processes. This involves setting up the necessary imports and configurations in files such as **`app/api/auth/sign-up/route.ts`**, **`app/api/auth/login/route.ts`**, and **`app/api/auth/logout/route.ts`**. Your implementation for each of these could be structured as follows:
+
+   ```js filename="app/api/auth/sign-up/route.ts" switcher
+   import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+   import { cookies } from 'next/headers'
+   import { NextResponse } from 'next/server'
+
+   import type { Database } from '@/lib/database.types'
+
+   export async function POST(request: Request) {
+     const requestUrl = new URL(request.url)
+     const formData = await request.formData()
+     const email = String(formData.get('email'))
+     const password = String(formData.get('password'))
+     const cookieStore = cookies()
+     const supabase =
+       createRouteHandlerClient < Database > { cookies: () => cookieStore }
+
+     await supabase.auth.signUp({
+       email,
+       password,
+       options: {
+         emailRedirectTo: `${requestUrl.origin}/auth/callback`,
+       },
+     })
+
+     return NextResponse.redirect(requestUrl.origin, {
+       status: 301,
+     })
+   }
+   ```
+
+   ```js filename="app/api/auth/login/route.ts" switcher
+   import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+   import { cookies } from 'next/headers'
+   import { NextResponse } from 'next/server'
+
+   import type { Database } from '@/lib/database.types'
+
+   export async function POST(request: Request) {
+     const requestUrl = new URL(request.url)
+     const formData = await request.formData()
+     const email = String(formData.get('email'))
+     const password = String(formData.get('password'))
+     const cookieStore = cookies()
+     const supabase =
+       createRouteHandlerClient < Database > { cookies: () => cookieStore }
+
+     await supabase.auth.signInWithPassword({
+       email,
+       password,
+     })
+
+     return NextResponse.redirect(requestUrl.origin, {
+       status: 301,
+     })
+   }
+   ```
+
+   ```js filename="app/api/auth/logout/route.ts" switcher
+   import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+   import { cookies } from 'next/headers'
+   import { NextResponse } from 'next/server'
+
+   import type { Database } from '@/lib/database.types'
+
+   export async function POST(request: Request) {
+     const requestUrl = new URL(request.url)
+     const cookieStore = cookies()
+     const supabase =
+       createRouteHandlerClient < Database > { cookies: () => cookieStore }
+
+     await supabase.auth.signOut()
+
+     return NextResponse.redirect(`${requestUrl.origin}/login`, {
+       status: 301,
+     })
+   }
+   ```
+
+7. **Add a Login Page**
+
+   To enable user authentication, set up a login page. Create this page at a designated path, such as `app/login/page.tsx`. The code below will generate a form where users can input their email and password. Upon submission, this information is sent to the appropriate authentication route in your application. Here’s how the login page can be structured:
+
+   ```jsx
+   export default function Login() {
+     return (
+       <form action="/auth/login" method="post">
+         <label htmlFor="email">Email</label>
+         <input name="email" />
+         <label htmlFor="password">Password</label>
+         <input type="password" name="password" />
+         <button>Sign In</button>
+         <button formAction="/auth/sign-up">Sign Up</button>
+       </form>
+     )
+   }
+   ```
+
+   This simple form provides fields for email and password and includes two buttons: one for signing in and another to redirect users to a sign-up page.
+
+8. **Creating a Supabase Client**:
+
+   The Supabase Client is the main interface for interacting with Supabase services, including authentication. In a Next.js application, there are several ways to access the Supabase Client, each tailored for different contexts and rendering methods within the app.
+
+   Supabase offers various methods to create and access the Supabase Client, ensuring optimal compatibility and functionality with different parts of your Next.js application:
+
+   - [Client Components](https://supabase.com/docs/guides/auth/auth-helpers/nextjs#client-components) — `createClientComponentClient` in Client Components
+   - [Server Components](https://supabase.com/docs/guides/auth/auth-helpers/nextjs#server-components) — `createServerComponentClient` in Server Components
+   - [Server Actions](https://supabase.com/docs/guides/auth/auth-helpers/nextjs#server-actions) — `createServerActionClient` in Server Actions
+   - [Route Handlers](https://supabase.com/docs/guides/auth/auth-helpers/nextjs#route-handlers) — `createRouteHandlerClient` in Route Handlers
+   - [Middleware](https://supabase.com/docs/guides/auth/auth-helpers/nextjs#middleware) — `createMiddlewareClient` in Middleware
+
+### Further Reading
+
+- https://supabase.com/docs/guides/auth/auth-helpers/nextjs

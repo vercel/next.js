@@ -1,0 +1,152 @@
+---
+title: Setting up Auth0 with Next.js
+nav_title: Auth0
+description: Learn how to set up Auth0 with Next.js for authentication.
+---
+
+[Auth0](https://auth0.com/docs/quickstart/webapp/nextjs/interactive) is a powerful authentication platform that simplifies user verification in your Next.js app. It handles logins, sign-ups, and security so you don't have to build these from scratch.
+
+## Key Features
+
+- **Wide Range of Identity Providers**: Supports various identity providers including social media and enterprise systems.
+- **Multifactor Authentication and Single Sign-On**: Offers robust security measures including MFA and convenient single sign-on options.
+- **Advanced Security Compliance**: Compliant with standards like OpenID Connect and OAuth 2.0, ensuring high security.
+- **Customizable Interfaces**: Provides customizable login pages and a user-friendly management dashboard.
+- **Broad Integration**: Seamlessly integrates with numerous platforms and frameworks, including Next.js.
+- **Session Management**: Effectively manages user sessions, maintaining security and continuity in the user experience.
+
+## Features Lacking
+
+- **Limited UI/UX Flexibility**: Auth0's Universal Login offers few customization options and requires domain redirection, potentially affecting user experience and conversion rates.
+- **B2B Limitations**: Challenges in B2B multi-tenancy due to a user-first data model, complicating the management of bespoke, org-specific authentication settings.
+
+## Integration Guide
+
+1.  **Set Up Auth0 Account and Application**
+
+    Begin by signing up for an Auth0 account on Auth0's website. Once registered, access your Auth0 dashboard to create a new application. During the setup, you'll need to configure your application's settings such as the callback URLs, logout URLs, and web origin URLs in the application dashboard. These settings are crucial and should be customized according to the specific requirements of your application.
+
+2.  **Install the Auth0 SDK**
+
+    Add the Auth0 SDK to your Next.js project with npm:
+
+    ```bash filename="Terminal"
+    npm install @auth0/nextjs-auth0
+    ```
+
+3.  **Configure the SDK**
+
+    In your project's root, create or update a `.env.local` file to include these environment variables:
+
+    ```json filename=".env.local"
+      AUTH0_SECRET = "your_generated_secret"
+      AUTH0_BASE_URL = "http://localhost:3000"
+      AUTH0_ISSUER_BASE_URL = "https://your_auth0_domain"
+      AUTH0_CLIENT_ID = "your_auth0_client_id"
+      AUTH0_CLIENT_SECRET = "your_auth0_client_secret"
+    ```
+
+    > **Note:** Find these values in your Auth0 dashboard under the application created in step 1. You will need to generate the `AUTH0_SECRET` variable by running `openssl rand -hex 32` in your terminal.
+
+4.  **Add Dynamic API Route Handler**
+
+    Create a file at `app/api/auth/[auth0]/route.js`. Use `handleAuth` from the SDK and set it up for the `GET` method:
+
+    ```js filename="app/api/auth/[auth0]/route.js" switcher
+    import { handleAuth } from '@auth0/nextjs-auth0'
+
+    export const GET = handleAuth()
+    ```
+
+5.  **Implement the `UserProvider` Component**
+
+    In `app/layout.jsx`, enclose the `<body>` tag with `UserProvider`:
+
+    ```jsx filename="app/layout.jsx" switcher
+    import { UserProvider } from '@auth0/nextjs-auth0/client'
+
+    function RootLayout({ children }) {
+      return (
+        <html lang="en">
+          <UserProvider>{children}</UserProvider>
+        </html>
+      )
+    }
+    export default RootLayout
+    ```
+
+6.  **Enable Login in Your Application**
+
+    Add a login link pointing to `/api/auth/login` on your page for user redirection to the Auth0 login page:
+
+    ```jsx filename="app/page.jsx" switcher
+    <a href="/api/auth/login">Login</a>
+    ```
+
+7.  **Introduce Logout Functionality**
+
+    On the same page, include a logout link to `/api/auth/logout`:
+
+    ```jsx filename="app/page.jsx" switcher
+    <a href="/api/auth/logout">Logout</a>
+    ```
+
+8.  **Display User Profile Information**
+
+        For logged-in users, show their profile in a client or server component.
+
+        Use the `useUser()` hook in a client component for user profile data:
+
+        ```jsx filename="app/ui/profile-client.jsx" switcher
+        'use client'
+
+        import { useUser } from '@auth0/nextjs-auth0/client'
+
+        function ProfileClient() {
+          const { user, error, isLoading } = useUser()
+
+          if (isLoading) return <div>Loading...</div>
+          if (error) return <div>{error.message}</div>
+
+          return (
+            user && (
+              <div>
+                <img src={user.picture} alt={user.name} />
+                <h2>{user.name}</h2>
+                <p>{user.email}</p>
+              </div>
+            )
+          )
+        }
+        export default ProfileClient
+        ```
+
+    On the server side, use `getSession` for user data:
+
+    ```jsx filename="app/page.jsx" switcher
+    import { getSession } from '@auth0/nextjs-auth0'
+
+    async function Page() {
+      const { user } = await getSession()
+
+      return (
+        user && (
+          <div>
+            <img src={user.picture} alt={user.name} />
+            <h2>{user.name}</h2>
+            <p>{user.email}</p>
+          </div>
+        )
+      )
+    }
+    export default ProfileServer
+    ```
+
+## Further Reading
+
+- https://developer.auth0.com/resources/guides/web-app/nextjs/basic-authentication
+- https://auth0.com/blog/auth0-stable-support-for-nextjs-app-router/
+
+```
+
+```

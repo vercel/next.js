@@ -1,0 +1,44 @@
+---
+title: Authentication
+description: Learn how to set up Next.js with commonly used authentication solutions including, Auth0, Clerk, NextAuth.js, Supabase, and Stych.
+---
+
+Security is essential for websites and apps, and authentication is a central part of this. It is closely linked with authorization and session management, forming a key trio. This combination not only boosts security but also ensures users access the app safely and only see what they're allowed to. In Next.js, these elements work together effectively, enhancing both the app's security and the overall user experience.
+
+- **Authentication** involves verifying a user's identity. This happens when a user logs in, either with a username and password or through a service like Google. It's all about confirming that users are really who they claim to be, protecting both the user's personal data and the application from unauthorized access or fraudulent activities.
+- **Session Management** is the process that maintains a user's state within an application after they have logged in. By tracking user activity as they navigate through different parts of your app, it eliminates the need for repeated logins on each new page. This not only maintains the user's logged-in status seamlessly but also enhances the overall user experience by providing a more fluid interaction with the application.
+- **Authorization** is about what users can do after they log in. It checks if a user is allowed to do things like view a page or change information. For example, a normal user might only be able to see data, but an admin user might be able to change it. It's important to control what different users can do in your app.
+
+These components work together to enhance the security and usability of your Next.js app. They ensure users can log in, maintain their session, and access only the features and information they have permission to use.
+
+Now, let's explore various authentication and session management solutions, guiding you towards the best approach for your specific application needs.
+
+## Authentication
+
+Authentication is essential for verifying user identities and maintaining security in web applications. It's like an ID check, ensuring only authorized users access certain areas of your app. While creating authentication from scratch is possible, it can be time-consuming, complex, and prone to errors. Fortunately, there are various authentication solutions that integrate seamlessly with Next.js, simplifying this process. Let's explore these solutions, guiding you to the one that best fits your needs, and demonstrate how to get started with its implementation.
+
+## Session-management
+
+Session management is a key part of web applications, crucial for maintaining the state of a user's interaction over time. It involves tracking the user's activity from the moment they log in until they log out. This process is important for several reasons:
+
+- **Security**: Ensures that the user's interaction with the application is secure and private.
+- **User Experience**: Provides a seamless experience, as users don't need to repeatedly log in when navigating different parts of the app.
+- **State Management**: Maintains important data about the user's current session, like authentication status or shopping cart contents.
+
+Effective session management is vital for applications that require user authentication. It enhances both the security and usability of the application, making it an indispensable component of modern web development. There are a few different tools at your disposal to seamlessly integrate session management into your Next.js applicaiton:
+
+1. **Built-In Session Management in Authentication Libraries**:
+
+   Next.js-compatible authentication solutions like NextAuth.js and Auth0 provide integrated session management. This feature is embedded within their core functionalities, streamlining the process of maintaining user states post-login. Such integration not only enhances security but also simplifies the development workflow by negating the need for additional session management packages.
+
+2. **[next-session](https://github.com/hoangvvo/next-session)**:
+
+   **`next-session`** is a session middleware tailored for Next.js, offering developers a versatile solution for custom session management. It shines in scenarios where default session management from authentication libraries doesn't meet specific needs, or when a project requires a more customized approach to session handling. This middleware is compatible with various environments, including serverless, and supports multiple storage backends such as in-memory, Redis, or databases. **`next-session`** is particularly useful for applications that require detailed control over session lifetimes, cookie settings, and session storage strategies, making it a flexible choice for complex Next.js projects.
+
+3. **[iron-session](https://github.com/vvo/iron-session)**:
+
+   **`iron-session`** is a session management tool for Next.js applications that focuses on security and simplicity. It stores session data in encrypted cookies, ensuring that the session information is secure and only accessible server-side, thereby increasing protection against client-side attacks. This tool is particularly beneficial for applications that prioritize security and require a straightforward, cookie-based session handling method. **`iron-session`** is easy to set up and use, making it a suitable choice for developers who need a reliable, server-side session management solution without the complexity of external storage systems.
+
+## Authentication Guides
+
+Explore the guides provided below to determine the most suitable authentication method for your requirements and understand how to seamlessly integrate it into your project.
