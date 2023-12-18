@@ -42,7 +42,7 @@ import isError from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
-import HotReloader, {
+import HotReloaderWebpack, {
   matchNextPageBundleRequest,
 } from '../../dev/hot-reloader-webpack'
 import { setGlobal } from '../../../trace/shared'
@@ -215,10 +215,7 @@ async function startWatcher(opts: SetupOpts) {
     >[]
   } = {}
 
-  let hotReloader: NextJsHotReloaderInterface
-  let project: Project | undefined
-
-  if (opts.turbo) {
+  async function createHotReloaderTurbopack(): Promise<NextJsHotReloaderInterface> {
     const { loadBindings } =
       require('../../../build/swc') as typeof import('../../../build/swc')
 
@@ -240,7 +237,7 @@ async function startWatcher(opts: SetupOpts) {
       opts.fsChecker.rewrites.beforeFiles.length > 0 ||
       opts.fsChecker.rewrites.fallback.length > 0
 
-    project = await bindings.turbo.createProject({
+    const project = await bindings.turbo.createProject({
       projectPath: dir,
       rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
       nextConfig: opts.nextConfig,
@@ -410,10 +407,10 @@ async function startWatcher(opts: SetupOpts) {
         if (p.endsWith('.map')) continue
         let key = `${id}:${p}`
         const localHash = serverPathState.get(key)
-        const globaHash = serverPathState.get(p)
+        const globalHash = serverPathState.get(p)
         if (
           (localHash && localHash !== contentHash) ||
-          (globaHash && globaHash !== contentHash)
+          (globalHash && globalHash !== contentHash)
         ) {
           hasChange = true
           serverPathState.set(key, contentHash)
@@ -422,7 +419,7 @@ async function startWatcher(opts: SetupOpts) {
           if (!localHash) {
             serverPathState.set(key, contentHash)
           }
-          if (!globaHash) {
+          if (!globalHash) {
             serverPathState.set(p, contentHash)
           }
         }
@@ -555,7 +552,7 @@ async function startWatcher(opts: SetupOpts) {
         hmrBuilding = true
       }
       hmrPayloads.set(`${key}:${id}`, payload)
-      hmrEventHappend = true
+      hmrEventHappened = true
       sendHmrDebounce()
     }
 
@@ -568,7 +565,7 @@ async function startWatcher(opts: SetupOpts) {
         hmrBuilding = true
       }
       turbopackUpdates.push(payload)
-      hmrEventHappend = true
+      hmrEventHappened = true
       sendHmrDebounce()
     }
 
@@ -1044,6 +1041,18 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
+    async function writeManifests(): Promise<void> {
+      await writeBuildManifest(opts.fsChecker.rewrites)
+      await writeAppBuildManifest()
+      await writePagesManifest()
+      await writeAppPathsManifest()
+      await writeMiddlewareManifest()
+      await writeActionManifest()
+      await writeFontManifest()
+      await writeLoadableManifest()
+      await writeFallbackBuildManifest()
+    }
+
     async function subscribeToHmrEvents(id: string, client: ws) {
       let mapping = clientToHmrSubscription.get(client)
       if (mapping === undefined) {
@@ -1169,6 +1178,8 @@ async function startWatcher(opts: SetupOpts) {
               'edge'
             )
             await loadMiddlewareManifest('instrumentation', 'instrumentation')
+            await writeManifests()
+
             NextBuildContext.hasInstrumentationHook = true
             serverFields.actualInstrumentationHookFile = '/instrumentation'
             await propagateServerField(
@@ -1221,7 +1232,7 @@ async function startWatcher(opts: SetupOpts) {
                   'middleware',
                   serverFields.middleware
                 )
-                await writeMiddlewareManifest()
+                await writeManifests()
 
                 finishBuilding()
                 return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
@@ -1267,33 +1278,25 @@ async function startWatcher(opts: SetupOpts) {
       )
     )
     await currentEntriesHandling
-    await writeBuildManifest(opts.fsChecker.rewrites)
-    await writeAppBuildManifest()
-    await writeFallbackBuildManifest()
-    await writePagesManifest()
-    await writeAppPathsManifest()
-    await writeMiddlewareManifest()
-    await writeActionManifest()
-    await writeFontManifest()
-    await writeLoadableManifest()
+    await writeManifests()
 
-    let hmrEventHappend = false
+    let hmrEventHappened = false
     if (process.env.NEXT_HMR_TIMING) {
       ;(async (proj: Project) => {
         for await (const updateInfo of proj.updateInfoSubscribe()) {
-          if (hmrEventHappend) {
+          if (hmrEventHappened) {
             const time = updateInfo.duration
             const timeMessage =
               time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
             Log.event(`Compiled in ${timeMessage}`)
-            hmrEventHappend = false
+            hmrEventHappened = false
           }
         }
       })(project)
     }
 
     const overlayMiddleware = getOverlayMiddleware(project)
-    hotReloader = {
+    const hotReloader: NextJsHotReloaderInterface = {
       turbopackProject: project,
       activeWebpackConfigs: undefined,
       serverStats: null,
@@ -1505,11 +1508,7 @@ async function startWatcher(opts: SetupOpts) {
             await loadBuildManifest('_error')
             await loadPagesManifest('_error')
 
-            await writeBuildManifest(opts.fsChecker.rewrites)
-            await writeFallbackBuildManifest()
-            await writePagesManifest()
-            await writeMiddlewareManifest()
-            await writeLoadableManifest()
+            await writeManifests()
           } finally {
             finishBuilding()
           }
@@ -1564,16 +1563,6 @@ async function startWatcher(opts: SetupOpts) {
                     '_document',
                     await globalEntries.document.writeToDisk()
                   )
-
-                  changeSubscription(
-                    '_document',
-                    'server',
-                    false,
-                    globalEntries.document,
-                    () => {
-                      return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-                    }
-                  )
                   processIssues('_document', writtenEndpoint)
                 }
                 await loadPagesManifest('_document')
@@ -1594,11 +1583,7 @@ async function startWatcher(opts: SetupOpts) {
                 }
                 await loadLoadableManifest(page, 'pages')
 
-                await writeBuildManifest(opts.fsChecker.rewrites)
-                await writeFallbackBuildManifest()
-                await writePagesManifest()
-                await writeMiddlewareManifest()
-                await writeLoadableManifest()
+                await writeManifests()
 
                 processIssues(page, writtenEndpoint)
               } finally {
@@ -1625,6 +1610,17 @@ async function startWatcher(opts: SetupOpts) {
                     }
                   }
                 )
+                if (globalEntries.document) {
+                  changeSubscription(
+                    '_document',
+                    'server',
+                    false,
+                    globalEntries.document,
+                    () => {
+                      return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+                    }
+                  )
+                }
               }
 
               break
@@ -1650,9 +1646,7 @@ async function startWatcher(opts: SetupOpts) {
               }
               await loadLoadableManifest(page, 'pages')
 
-              await writePagesManifest()
-              await writeMiddlewareManifest()
-              await writeLoadableManifest()
+              await writeManifests()
 
               processIssues(page, writtenEndpoint)
 
@@ -1697,13 +1691,7 @@ async function startWatcher(opts: SetupOpts) {
               await loadBuildManifest(page, 'app')
               await loadAppPathManifest(page, 'app')
               await loadActionManifest(page)
-
-              await writeAppBuildManifest()
-              await writeBuildManifest(opts.fsChecker.rewrites)
-              await writeAppPathsManifest()
-              await writeMiddlewareManifest()
-              await writeActionManifest()
-              await writeLoadableManifest()
+              await writeManifests()
 
               processIssues(page, writtenEndpoint, true)
 
@@ -1725,11 +1713,7 @@ async function startWatcher(opts: SetupOpts) {
                 middlewareManifests.delete(page)
               }
 
-              await writeAppBuildManifest()
-              await writeAppPathsManifest()
-              await writeMiddlewareManifest()
-              await writeMiddlewareManifest()
-              await writeLoadableManifest()
+              await writeManifests()
 
               processIssues(page, writtenEndpoint, true)
 
@@ -1746,18 +1730,22 @@ async function startWatcher(opts: SetupOpts) {
         }
       },
     }
-  } else {
-    hotReloader = new HotReloader(opts.dir, {
-      appDir,
-      pagesDir,
-      distDir: distDir,
-      config: opts.nextConfig,
-      buildId: 'development',
-      telemetry: opts.telemetry,
-      rewrites: opts.fsChecker.rewrites,
-      previewProps: opts.fsChecker.prerenderManifest.preview,
-    })
+
+    return hotReloader
   }
+
+  const hotReloader: NextJsHotReloaderInterface = opts.turbo
+    ? await createHotReloaderTurbopack()
+    : new HotReloaderWebpack(opts.dir, {
+        appDir,
+        pagesDir,
+        distDir: distDir,
+        config: opts.nextConfig,
+        buildId: 'development',
+        telemetry: opts.telemetry,
+        rewrites: opts.fsChecker.rewrites,
+        previewProps: opts.fsChecker.prerenderManifest.preview,
+      })
 
   await hotReloader.start()
 
@@ -2469,15 +2457,18 @@ async function startWatcher(opts: SetupOpts) {
         let originalFrame, isEdgeCompiler
         const frameFile = frame?.file
         if (frame?.lineNumber && frameFile) {
-          if (opts.turbo) {
+          if (hotReloader.turbopackProject) {
             try {
-              originalFrame = await createOriginalTurboStackFrame(project!, {
-                file: frameFile,
-                methodName: frame.methodName,
-                line: frame.lineNumber ?? 0,
-                column: frame.column,
-                isServer: true,
-              })
+              originalFrame = await createOriginalTurboStackFrame(
+                hotReloader.turbopackProject,
+                {
+                  file: frameFile,
+                  methodName: frame.methodName,
+                  line: frame.lineNumber ?? 0,
+                  column: frame.column,
+                  isServer: true,
+                }
+              )
             } catch {}
           } else {
             const moduleId = frameFile.replace(

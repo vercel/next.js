@@ -183,7 +183,7 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
-export default class HotReloader implements NextJsHotReloaderInterface {
+export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private hasAmpEntrypoints: boolean
   private hasAppRouterEntrypoints: boolean
   private hasPagesRouterEntrypoints: boolean

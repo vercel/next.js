@@ -7,7 +7,7 @@ import type {
 } from '../app-render/types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../future/route-definitions/route-definition'
-import type HotReloader from './hot-reloader-webpack'
+import type HotReloaderWebpack from './hot-reloader-webpack'
 
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
@@ -494,7 +494,7 @@ export function onDemandEntryHandler({
   rootDir,
   appDir,
 }: {
-  hotReloader: HotReloader
+  hotReloader: HotReloaderWebpack
   maxInactiveAge: number
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete

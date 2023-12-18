@@ -8,7 +8,7 @@ import type { FetchServerResponseResult } from '../fetch-server-response'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { invalidateCacheBelowFlightSegmentPath } from '../invalidate-cache-below-flight-segmentpath'
 import { fillCacheWithDataProperty } from '../fill-cache-with-data-property'
-import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToTreeSkipDefault } from '../apply-router-state-patch-to-tree'
 import { shouldHardNavigate } from '../should-hard-navigate'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import type {
@@ -187,7 +187,7 @@ function navigateReducer_noPPR(
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
 
         // Create new tree based on the flightSegmentPath and router state patch
-        let newTree = applyRouterStatePatchToTree(
+        let newTree = applyRouterStatePatchToTreeSkipDefault(
           // TODO-APP: remove ''
           flightSegmentPathWithLeadingEmpty,
           currentTree,
@@ -197,7 +197,7 @@ function navigateReducer_noPPR(
         // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
         // TODO-APP: This should instead fill in the missing pieces in `currentTree` with the data from `treeAtTimeOfPrefetch`, then apply the patch.
         if (newTree === null) {
-          newTree = applyRouterStatePatchToTree(
+          newTree = applyRouterStatePatchToTreeSkipDefault(
             // TODO-APP: remove ''
             flightSegmentPathWithLeadingEmpty,
             treeAtTimeOfPrefetch,
@@ -381,7 +381,7 @@ function navigateReducer_PPR(
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
 
         // Create new tree based on the flightSegmentPath and router state patch
-        let newTree = applyRouterStatePatchToTree(
+        let newTree = applyRouterStatePatchToTreeSkipDefault(
           // TODO-APP: remove ''
           flightSegmentPathWithLeadingEmpty,
           currentTree,
@@ -391,7 +391,7 @@ function navigateReducer_PPR(
         // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
         // TODO-APP: This should instead fill in the missing pieces in `currentTree` with the data from `treeAtTimeOfPrefetch`, then apply the patch.
         if (newTree === null) {
-          newTree = applyRouterStatePatchToTree(
+          newTree = applyRouterStatePatchToTreeSkipDefault(
             // TODO-APP: remove ''
             flightSegmentPathWithLeadingEmpty,
             treeAtTimeOfPrefetch,
