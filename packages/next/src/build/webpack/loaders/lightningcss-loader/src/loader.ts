@@ -292,12 +292,16 @@ export async function LightningCssLoader(
         ...new Set([request, url]),
       ])
 
-      cssCodeAsString = cssCodeAsString.replace(
-        `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${index}__`,
-        resolvedUrl
-      )
-
-      if (!resolvedUrl) {
+      if (resolvedUrl) {
+        cssCodeAsString = cssCodeAsString.replace(
+          `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${index}__`,
+          resolvedUrl
+        )
+      } else {
+        cssCodeAsString = cssCodeAsString.replace(
+          `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${index}__`,
+          url
+        )
       }
     }
 
