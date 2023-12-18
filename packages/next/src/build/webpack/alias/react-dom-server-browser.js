@@ -5,22 +5,19 @@ function error() {
   throw new Error(ERROR_MESSAGE)
 }
 
-// 'use strict';
+const prefix = `next/dist/compiled/react-dom/cjs/react-dom${process.env.__NEXT_EXPERIMENTAL_REACT} ? '-experimental' : ''}`
 
-var l
 var s
 if (process.env.NODE_ENV === 'production') {
-  // l = require('next/dist/compiled/react-compiled/cjs/react-dom-server-legacy.browser.production.min.js');
-  s = require('next/dist/compiled/react-compiled/cjs/react-dom-server.browser.production.min.js')
+  s = require(prefix + '/cjs/react-dom-server.browser.production.min.js')
 } else {
-  // l = require('next/dist/compiled/react-compiled/cjs/react-dom-server-legacy.browser.development.js');
-  s = require('next/dist/compiled/react-compiled/cjs/react-dom-server.browser.development.js')
+  s = require(prefix + '/cjs/react-dom-server.browser.development.js')
 }
 
-exports.renderToString = error //l.renderToString;
-exports.renderToStaticMarkup = error //l.renderToStaticMarkup;
-exports.renderToNodeStream = error //l.renderToNodeStream;
-exports.renderToStaticNodeStream = error //l.renderToStaticNodeStream;
+exports.renderToString = error
+exports.renderToStaticMarkup = error
+exports.renderToNodeStream = error
+exports.renderToStaticNodeStream = error
 
 exports.version = s.version
 exports.renderToReadableStream = s.renderToReadableStream
