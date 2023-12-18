@@ -566,6 +566,11 @@ createNextDescribe(
         expect(await hasRedbox(browser)).toBe(true)
 
         await next.patchFile(filePath, fileContent)
+
+        await check(async () => {
+          expect(await hasRedbox(browser)).toBe(false)
+          return 'success'
+        }, 'success')
       }
     })
 
