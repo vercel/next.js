@@ -4,6 +4,7 @@ module.exports = {
     maxInactiveAge: 1000 * 60 * 60,
   },
   experimental: {
+    ppr: true,
     serverComponentsExternalPackages: ['conditional-exports-optout'],
   },
   rewrites: async () => {

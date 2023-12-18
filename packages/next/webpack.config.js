@@ -25,6 +25,8 @@ const appExternals = [
   // If users are using them and imported from 'react-dom/server' they will get the external asset bundled.
   'next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.development.js',
   'next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.production.min.js',
+  'next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.development.js',
+  'next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.production.min.js',
 ]
 
 function makeAppAliases(reactChannel = '') {
@@ -41,10 +43,8 @@ function makeAppAliases(reactChannel = '') {
     'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
     'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
     // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
-    'react-dom/server.edge$':
-      'next/dist/build/webpack/alias/react-dom-server-edge.js',
-    'react-dom/server.browser$':
-      'next/dist/build/webpack/alias/react-dom-server-browser.js',
+    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${reactChannel}.js`,
+    'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${reactChannel}.js`,
     // react-server-dom-webpack alias
     'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client`,
     'react-server-dom-turbopack/client.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.edge`,

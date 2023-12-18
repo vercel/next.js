@@ -256,10 +256,8 @@ export function createRSCAliases(
     'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
     'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
     // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
-    'react-dom/server.edge$':
-      'next/dist/build/webpack/alias/react-dom-server-edge.js',
-    'react-dom/server.browser$':
-      'next/dist/build/webpack/alias/react-dom-server-browser.js',
+    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
+    'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
     // react-server-dom-webpack alias
     'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
