@@ -341,7 +341,7 @@ The `NextFetchEvent` object extends the native [`FetchEvent`](https://developer.
 
 The `waitUntil()` method takes a promise as an argument, and extends the lifetime of the Middleware until the promise settles. This is useful for performing work in the background.
 
-```typescript
+```ts filename="middleware.ts"
 import { NextResponse } from 'next/server'
 import type { NextFetchEvent, NextRequest } from 'next/server'
 
