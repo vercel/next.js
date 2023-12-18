@@ -287,12 +287,7 @@ export async function LightningCssLoader(
     for (const [index, url] of replacedUrls.entries()) {
       const [pathname, ,] = url.split(/(\?)?#/, 3)
 
-      const request = requestify(
-        pathname,
-        this.rootContext,
-        // @ts-expect-error TODO: only 2 arguments allowed.
-        needToResolveURL
-      )
+      const request = requestify(pathname, this.rootContext)
       const resolvedUrl = await resolveRequests(urlResolver, this.context, [
         ...new Set([request, url]),
       ])
