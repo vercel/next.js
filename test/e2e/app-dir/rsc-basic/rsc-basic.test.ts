@@ -1,5 +1,5 @@
 import path from 'path'
-import { check } from 'next-test-utils'
+import { check, hasRedbox } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 import cheerio from 'cheerio'
 
@@ -542,6 +542,31 @@ createNextDescribe(
       browserAppReactVersions.forEach((version) =>
         expect(version).toMatch(bundledReactVersionPattern)
       )
+    })
+
+    it('should be able to call legacy react-dom/server APIs in client components', async () => {
+      const $ = await next.render$('/app-react')
+      const content = $('#markup').text()
+      expect(content).toBe(
+        '<div class="react-static-markup">React Static Markup</div>'
+      )
+
+      if (isNextDev) {
+        const filePath = 'app/app-react/client-react.js'
+        const fileContent = await next.readFile(filePath)
+        await next.patchFile(
+          filePath,
+          fileContent.replace(
+            `import { renderToStaticMarkup } from 'react-dom/server'`,
+            `import { renderToStaticMarkup } from 'react-dom/server.browser'`
+          )
+        )
+
+        const browser = await next.browser('/app-react')
+        expect(await hasRedbox(browser)).toBe(true)
+
+        await next.patchFile(filePath, fileContent)
+      }
     })
 
     // disable this flaky test
