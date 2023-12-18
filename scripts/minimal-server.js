@@ -169,31 +169,35 @@ require('http')
   })
   .listen(3000, () => {
     console.timeEnd('next-cold-start')
-    fetch('http://localhost:3000/' + (process.argv[3] || ''))
-      .then((res) => res.text())
-      .catch((err) => {
-        console.error(err)
-      })
-      .finally(() => {
-        console.timeEnd('next-wall-time')
-        if (process.env.LOG_REQUIRE) {
-          console.log(
-            prettyPrint(currentNode, path.join(absoluteAppDir, distDir))
-          )
-          if (outliers.length > 0) {
-            console.log('Outliers:')
-            outliers.forEach((node) => {
-              console.log(
-                `  ${path.relative(
-                  path.join(absoluteAppDir, distDir),
-                  node.id
-                )} ${node.selfDuration.toFixed(
-                  2
-                )}ms / ${node.totalDuration.toFixed(2)}ms`
-              )
-            })
-          }
-        }
-        require('process').exit(0)
-      })
+    newFunction()
   })
+
+function newFunction() {
+  fetch('http://localhost:3000/' + (process.argv[3] || ''))
+    .then((res) => res.text())
+    .catch((err) => {
+      console.error(err)
+    })
+    .finally(() => {
+      console.timeEnd('next-wall-time')
+      if (process.env.LOG_REQUIRE) {
+        console.log(
+          prettyPrint(currentNode, path.join(absoluteAppDir, distDir))
+        )
+        if (outliers.length > 0) {
+          console.log('Outliers:')
+          outliers.forEach((node) => {
+            console.log(
+              `  ${path.relative(
+                path.join(absoluteAppDir, distDir),
+                node.id
+              )} ${node.selfDuration.toFixed(
+                2
+              )}ms / ${node.totalDuration.toFixed(2)}ms`
+            )
+          })
+        }
+      }
+      require('process').exit(0)
+    })
+}
