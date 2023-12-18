@@ -169,10 +169,10 @@ require('http')
   })
   .listen(3000, () => {
     console.timeEnd('next-cold-start')
-    newFunction()
+    newName()
   })
 
-function newFunction() {
+function newName() {
   fetch('http://localhost:3000/' + (process.argv[3] || ''))
     .then((res) => res.text())
     .catch((err) => {
