@@ -52,6 +52,8 @@ function createVisitor(
       return u
     }
 
+    urlIndex++
+
     replacedUrls.set(urlIndex, url)
     url = `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${urlIndex}__`
 
@@ -67,8 +69,6 @@ function createVisitor(
 
     let hash = query ? '?' : ''
     hash += hashOrQuery ? `#${hashOrQuery}` : ''
-
-    urlIndex++
 
     if (!hasUrlImportHelper) {
       imports.push({
