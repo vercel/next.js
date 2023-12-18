@@ -627,7 +627,7 @@ pub fn server_components<C: Comments>(
             JsWord::from("useState"),
             JsWord::from("useSyncExternalStore"),
             JsWord::from("useTransition"),
-            JsWord::from("experimental_useOptimistic"),
+            JsWord::from("useOptimistic"),
         ],
     })
 }
