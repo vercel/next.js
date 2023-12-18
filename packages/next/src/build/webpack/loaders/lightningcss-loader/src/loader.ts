@@ -283,6 +283,7 @@ export async function LightningCssLoader(
     console.log('apis', apis)
     console.log('imports', imports)
     console.log('replacements', replacements)
+    console.log('replacedUrls', replacedUrls)
 
     for (const [index, url] of replacedUrls.entries()) {
       const [pathname, ,] = url.split(/(\?)?#/, 3)
@@ -292,16 +293,12 @@ export async function LightningCssLoader(
         ...new Set([request, url]),
       ])
 
-      if (resolvedUrl) {
-        cssCodeAsString = cssCodeAsString.replace(
-          `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${index}__`,
-          resolvedUrl
-        )
-      } else {
-        cssCodeAsString = cssCodeAsString.replace(
-          `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${index}__`,
-          url
-        )
+      for (const importItem of imports) {
+        if (
+          importItem.url === `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${index}__`
+        ) {
+          importItem.url = resolvedUrl ?? url
+        }
       }
     }
 
@@ -316,6 +313,7 @@ export async function LightningCssLoader(
     const exportCode = getExportCode(exports, replacements, options)
 
     const esCode = `${importCode}${moduleCode}${exportCode}`
+    console.log('esCode', esCode)
     done(null, esCode, map && JSON.parse(map.toString()))
   } catch (error: unknown) {
     console.log('lightningcss-loader error', error)
