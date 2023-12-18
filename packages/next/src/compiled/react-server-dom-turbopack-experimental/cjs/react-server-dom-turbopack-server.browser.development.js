@@ -1740,11 +1740,19 @@ function serializeThenable(request, thenable) {
     newTask.model = value;
     pingTask(request, newTask);
   }, function (reason) {
-    newTask.status = ERRORED$1;
-    request.abortableTasks.delete(newTask); // TODO: We should ideally do this inside performWork so it's scheduled
+    if (typeof reason === 'object' && reason !== null && reason.$$typeof === REACT_POSTPONE_TYPE) {
+      var _postponeInstance = reason;
+      logPostpone(request, _postponeInstance.message);
+      emitPostponeChunk(request, newTask.id, _postponeInstance);
+    } else {
+      newTask.status = ERRORED$1;
 
-    var digest = logRecoverableError(request, reason);
-    emitErrorChunk(request, newTask.id, digest, reason);
+      var _digest = logRecoverableError(request, reason);
+
+      emitErrorChunk(request, newTask.id, _digest, reason);
+    }
+
+    request.abortableTasks.delete(newTask);
 
     if (request.destination !== null) {
       flushCompletedChunks(request, request.destination);
