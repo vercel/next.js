@@ -1,5 +1,5 @@
 import { createHrefFromUrl } from '../create-href-from-url'
-import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToTreeSkipDefault } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import type {
   ServerPatchAction,
@@ -41,7 +41,7 @@ export function serverPatchReducer(
     const flightSegmentPath = flightDataPath.slice(0, -4)
 
     const [treePatch] = flightDataPath.slice(-3, -2)
-    const newTree = applyRouterStatePatchToTree(
+    const newTree = applyRouterStatePatchToTreeSkipDefault(
       // TODO-APP: remove ''
       ['', ...flightSegmentPath],
       currentTree,
