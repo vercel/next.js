@@ -20,6 +20,7 @@ import {
   getPreRequester,
   isDataUrl,
   isUrlRequestable,
+  requestify,
   resolveRequests,
 } from '../../css-loader/src/utils'
 import { stringifyRequest } from '../../../stringify-request'
@@ -29,7 +30,8 @@ function createVisitor(
   visitorOptions: VisitorOptions,
   apis: ApiParam[],
   imports: CssImport[],
-  replacements: ApiReplacement[]
+  replacements: ApiReplacement[],
+  replacedUrls: Map<number, string>
 ): Visitor<{}> {
   const importUrlToNameMap = new Map<string, string>()
 
@@ -50,17 +52,8 @@ function createVisitor(
       return u
     }
 
-    const { urlResolver, context } = visitorOptions
-
-    const resolvedUrl = resolveRequests(urlResolver, context, [
-      ...new Set([request, url]),
-    ])
-
-    if (!resolvedUrl) {
-      // eslint-disable-next-line consistent-return
-      return u
-    }
-    url = resolvedUrl
+    replacedUrls.set(urlIndex, url)
+    url = `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${urlIndex}__`
 
     const [, query, hashOrQuery] = url.split(/(\?)?#/, 3)
 
@@ -232,6 +225,8 @@ export async function LightningCssLoader(
     extensions: [],
   })
 
+  const replacedUrls = new Map<number, string>()
+
   try {
     const {
       code,
@@ -254,7 +249,8 @@ export async function LightningCssLoader(
         },
         apis,
         imports,
-        replacements
+        replacements,
+        replacedUrls
       ),
       cssModules: options.modules
         ? {
@@ -271,7 +267,7 @@ export async function LightningCssLoader(
         this.sourceMap && prevMap ? JSON.stringify(prevMap) : undefined,
       ...opts,
     })
-    const cssCodeAsString = code.toString()
+    let cssCodeAsString = code.toString()
 
     if (moduleExports) {
       for (const name in moduleExports) {
@@ -287,6 +283,28 @@ export async function LightningCssLoader(
     console.log('apis', apis)
     console.log('imports', imports)
     console.log('replacements', replacements)
+
+    for (const [index, url] of replacedUrls.entries()) {
+      const [pathname, ,] = url.split(/(\?)?#/, 3)
+
+      const request = requestify(
+        pathname,
+        this.rootContext,
+        // @ts-expect-error TODO: only 2 arguments allowed.
+        needToResolveURL
+      )
+      const resolvedUrl = await resolveRequests(urlResolver, this.context, [
+        ...new Set([request, url]),
+      ])
+
+      cssCodeAsString = cssCodeAsString.replace(
+        `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${index}__`,
+        resolvedUrl
+      )
+
+      if (!resolvedUrl) {
+      }
+    }
 
     const importCode = getImportCode(imports, options)
     const moduleCode = getModuleCode(
