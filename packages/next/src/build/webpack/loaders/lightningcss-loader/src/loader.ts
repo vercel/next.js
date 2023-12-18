@@ -294,11 +294,10 @@ export async function LightningCssLoader(
       ])
 
       for (const importItem of imports) {
-        if (
-          importItem.url === `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${index}__`
-        ) {
-          importItem.url = resolvedUrl ?? url
-        }
+        importItem.url = importItem.url.replace(
+          `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${index}__`,
+          resolvedUrl ?? url
+        )
       }
     }
 
