@@ -79,6 +79,7 @@
       "test/integration/app-dir-export/**/*",
       "test/e2e/app-dir/next-font/**/*",
       "test/e2e/app-dir/ppr/**/*",
+      "test/e2e/app-dir/ppr-*/**/*",
       "test/e2e/app-dir/app-prefetch*/**/*",
       "test/e2e/app-dir/interception-middleware-rewrite/interception-middleware-rewrite.test.ts",
       "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts"

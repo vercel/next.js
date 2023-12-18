@@ -1,4 +1,4 @@
-import UseSearchParams from './search-params'
+import UseSearchParams from '../search-params'
 
 export default function Page() {
   return (

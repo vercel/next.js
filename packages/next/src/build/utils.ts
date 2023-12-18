@@ -23,7 +23,6 @@ import type { AppPageModule } from '../server/future/route-modules/app-page/modu
 import type { RouteModule } from '../server/future/route-modules/route-module'
 import type { LoaderTree } from '../server/lib/app-dir-module'
 import type { NextComponentType } from '../shared/lib/utils'
-import type { PageInfo } from './page-info'
 
 import '../server/require-hook'
 import '../server/node-polyfill-crypto'
@@ -325,6 +324,35 @@ const filterAndSortList = (
       )
   }
   return pages.sort((a, b) => a.localeCompare(b))
+}
+
+export interface PageInfo {
+  isHybridAmp?: boolean
+  size: number
+  totalSize: number
+  isStatic: boolean
+  isSSG: boolean
+  isPPR: boolean
+  ssgPageRoutes: string[] | null
+  initialRevalidateSeconds: number | false
+  pageDuration: number | undefined
+  ssgPageDurations: number[] | undefined
+  runtime: ServerRuntime
+  hasEmptyPrelude?: boolean
+  hasPostponed?: boolean
+  isDynamicAppRoute?: boolean
+}
+
+export type PageInfos = Map<string, PageInfo>
+
+export type SerializedPageInfos = [string, PageInfo][]
+
+export function serializePageInfos(input: PageInfos): SerializedPageInfos {
+  return Array.from(input.entries())
+}
+
+export function deserializePageInfos(input: SerializedPageInfos): PageInfos {
+  return new Map(input)
 }
 
 export async function printTreeView(
@@ -631,15 +659,10 @@ export async function printTreeView(
     messages.push(['', '', ''])
   }
 
-  // We should update the `isStatic` part of the pageInfo for the /404 page.
-  // When we're using experimental compile, this won't be available.
-  const pageInfo = pageInfos.get('/404') || pageInfos.get('/_error')
-  if (pageInfo) {
-    pageInfos.set('/404', {
-      ...pageInfo,
-      isStatic: useStaticPages404,
-    })
-  }
+  pageInfos.set('/404', {
+    ...(pageInfos.get('/404') || pageInfos.get('/_error'))!,
+    isStatic: useStaticPages404,
+  })
 
   // If there's no app /_notFound page present, then the 404 is still using the pages/404
   if (!lists.pages.includes('/404') && !lists.app?.includes('/_not-found')) {
