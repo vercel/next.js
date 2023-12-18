@@ -124,7 +124,6 @@ function createVisitor(
   return {
     Rule: {
       import(node) {
-        console.log('import', node)
         if (visitorOptions.importFilter) {
           const needKeep = visitorOptions.importFilter(
             node.value.url,
@@ -147,8 +146,6 @@ function createVisitor(
             prefix = queryParts.join('!')
           }
         }
-        console.log('url', url)
-        console.log('isRequestable', isRequestable)
         if (!isRequestable) {
           apis.push({ url, media })
           // Bug of lightningcss
@@ -161,14 +158,12 @@ function createVisitor(
           importUrlToNameMap.set(newUrl, importName)
 
           const importUrl = visitorOptions.urlHandler(newUrl)
-          console.log('importUrl', importUrl)
           imports.push({
             type: 'rule_import',
             importName,
             url: importUrl,
           })
         }
-        console.log('importName', importName)
         apis.push({ importName, media })
         // Bug of lightningcss
         return { type: 'ignored', value: '' }
@@ -279,11 +274,6 @@ export async function LightningCssLoader(
         }
       }
     }
-    console.log('code', cssCodeAsString)
-    console.log('apis', apis)
-    console.log('imports', imports)
-    console.log('replacements', replacements)
-    console.log('replacedUrls', replacedUrls)
 
     for (const [index, url] of replacedUrls.entries()) {
       const [pathname, ,] = url.split(/(\?)?#/, 3)
@@ -312,10 +302,9 @@ export async function LightningCssLoader(
     const exportCode = getExportCode(exports, replacements, options)
 
     const esCode = `${importCode}${moduleCode}${exportCode}`
-    console.log('esCode', esCode)
     done(null, esCode, map && JSON.parse(map.toString()))
   } catch (error: unknown) {
-    console.log('lightningcss-loader error', error)
+    console.error('lightningcss-loader error', error)
     done(error as Error)
   }
 }
