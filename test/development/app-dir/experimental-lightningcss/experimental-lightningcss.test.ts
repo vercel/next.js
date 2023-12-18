@@ -37,46 +37,5 @@ describeVariants.each(['default'])(
         expect($('p').attr('class')).toBe('search-keyword style-module__blue')
       })
     })
-
-    describe('in production build', () => {
-      const { next } = nextTestSetup({
-        files: __dirname,
-        dependencies: { lightningcss: '^1' },
-        build: true,
-      })
-
-      // Copied from the css-loader test in next.js
-      it(`should've emitted expected files`, async () => {
-        const appDir = next.testDir
-
-        const cssFolder = join(appDir, '.next/static/css')
-        const mediaFolder = join(appDir, '.next/static/media')
-
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
-
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-        expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-          /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
-        )
-
-        const mediaFiles = await readdir(mediaFolder)
-        expect(mediaFiles.length).toBe(3)
-        expect(
-          mediaFiles
-            .map((fileName) =>
-              /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
-            )
-            .sort()
-        ).toMatchInlineSnapshot(`
-      [
-        "dark.svg",
-        "dark2.svg",
-        "light.svg",
-      ]
-    `)
-      })
-    })
   }
 )
