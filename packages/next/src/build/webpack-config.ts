@@ -445,18 +445,22 @@ export default async function getBaseWebpackConfig(
   // RSC loaders, prefer ESM, set `esm` to true
   const swcServerLayerLoader = getSwcLoader({
     serverComponents: true,
-    isReactServerLayer: true,
+    bundleLayer: WEBPACK_LAYERS.reactServerComponents,
     esm: true,
   })
-  const swcClientLayerLoader = getSwcLoader({
+  const swcSSRLayerLoader = getSwcLoader({
     serverComponents: true,
-    isReactServerLayer: false,
+    bundleLayer: WEBPACK_LAYERS.serverSideRendering,
+    esm: true,
+  })
+  const swcBrowserLayerLoader = getSwcLoader({
+    serverComponents: true,
+    bundleLayer: WEBPACK_LAYERS.appPagesBrowser,
     esm: true,
   })
   // Default swc loaders for pages doesn't prefer ESM.
   const swcDefaultLoader = getSwcLoader({
     serverComponents: true,
-    isReactServerLayer: false,
     esm: false,
   })
 
@@ -475,27 +479,30 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean)
     : []
 
-  const swcLoaderForMiddlewareLayer = useSWCLoader
-    ? getSwcLoader({
-        serverComponents: false,
-        isReactServerLayer: false,
-      })
-    : // When using Babel, we will have to use SWC to do the optimization
-      // for middleware to tree shake the unused default optimized imports like "next/server".
-      // This will cause some performance overhead but
-      // acceptable as Babel will not be recommended.
-      [
-        getSwcLoader({
-          serverComponents: false,
-          isReactServerLayer: false,
-        }),
-      ]
+  const swcLoaderForMiddlewareLayer = [
+    // When using Babel, we will have to use SWC to do the optimization
+    // for middleware to tree shake the unused default optimized imports like "next/server".
+    // This will cause some performance overhead but
+    // acceptable as Babel will not be recommended.
+    getSwcLoader({
+      serverComponents: false,
+      bundleLayer: WEBPACK_LAYERS.middleware,
+    }),
+    babelLoader,
+  ].filter(Boolean)
 
   const reactRefreshLoaders =
     dev && isClient ? [require.resolve(reactRefreshLoaderName)] : []
 
-  // client components layers: SSR + browser
-  const swcLoaderForClientLayer = [
+  // client components layers: SSR or browser
+  const createSwcLoaderForClientLayer = (isBrowserLayer: boolean) => [
+    ...(dev && isClient
+      ? [
+          require.resolve(
+            'next/dist/compiled/@next/react-refresh-utils/dist/loader'
+          ),
+        ]
+      : []),
     {
       // This loader handles actions and client entries
       // in the client layer.
@@ -507,11 +514,14 @@ export default async function getBaseWebpackConfig(
           // as an additional pass to handle RSC correctly.
           // This will cause some performance overhead but
           // acceptable as Babel will not be recommended.
-          swcClientLayerLoader,
+          isBrowserLayer ? swcBrowserLayerLoader : swcSSRLayerLoader,
           babelLoader,
         ].filter(Boolean)
       : []),
   ]
+
+  const swcLoaderForBrowserLayer = createSwcLoaderForClientLayer(true)
+  const swcLoaderForSSRLayer = createSwcLoaderForClientLayer(false)
 
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
@@ -520,7 +530,7 @@ export default async function getBaseWebpackConfig(
     hasAppDir && useSWCLoader
       ? getSwcLoader({
           serverComponents: false,
-          isReactServerLayer: false,
+          bundleLayer: WEBPACK_LAYERS.api,
         })
       : defaultLoaders.babel
 
@@ -1405,7 +1415,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
-                    use: swcLoaderForClientLayer,
+                    use: swcLoaderForBrowserLayer,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
                     },
@@ -1413,7 +1423,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
-                    use: swcLoaderForClientLayer,
+                    use: swcLoaderForSSRLayer,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
                     },
