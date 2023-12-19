@@ -465,7 +465,8 @@ export async function setupFsCheck(opts: {
         let curItemPath = itemPath
         let curDecodedItemPath = decodedItemPath
 
-        const isDynamicOutput = type === 'pageFile' || type === 'appFile'
+        const isDynamicOutput =
+          type === 'pageFile' || type === 'appFile' || type === 'publicFolder'
 
         if (i18n) {
           const localeResult = handleLocale(
