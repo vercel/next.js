@@ -1,0 +1,27 @@
+---
+title: Bundle Analyzer
+description: Analyze the size of your JavaScript bundles using the @next/bundle-analyzer plugin.
+related:
+  description: Learn more about optimizing your application for production.
+  links:
+    - app/building-your-application/deploying/production-checklist
+---
+
+[`@next/bundle-analyzer`](https://www.npmjs.com/package/@next/bundle-analyzer) is a plugin for Next.js that helps manage the size of your JavaScript files. It shows you the size of each part of your webpack output. This is helpful because you can find and fix modules that are too large. For example, you might remove large dependencies, split your code, or only load some parts when needed.
+
+How to use `@next/bundle-analyzer`:
+
+1. **Install**: Run `npm install @next/bundle-analyzer webpack-bundle-analyzer`.
+2. **Configure**: Add the bundle analyzer's settings to your `next.config.js`.
+
+```js
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+})
+module.exports = withBundleAnalyzer({})
+```
+
+3. **Run Analysis**: Use `ANALYZE=true npm run build` to start looking at your file sizes.
+4. **Review Findings**: Check the report to see where you can make improvements.
+
+Doing this regularly while you develop and before deploying your site can help you identify large bundles earlier.
