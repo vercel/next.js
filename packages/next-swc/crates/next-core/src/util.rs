@@ -241,7 +241,7 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                             if let Some(init) = decl.init.as_ref() {
                                 return GLOBALS.set(&globals, || {
                                     let value = eval_context.eval(init);
-                                    return Ok(parse_config_from_js_value(module, &value).cell());
+                                    Ok(parse_config_from_js_value(module, &value).cell())
                                 });
                             } else {
                                 NextSourceConfigParsingIssue {
