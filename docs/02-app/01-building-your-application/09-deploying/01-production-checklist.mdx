@@ -3,36 +3,91 @@ title: Going to Production
 description: Before taking your Next.js application to production, here are some recommendations to ensure the best user experience.
 ---
 
-Before taking your Next.js application to production, here are some recommendations to ensure the best user experience.
+{/* TODO: better intro */}
 
-## Overview
+This page provides a checklist of recommended Next.js features, best practices, and patterns, you can use to improve your application’s performance and user experience before going to production. Use it as a reference during [development](#during-development), [before going to production](#before-going-to-production), and after your application has been [deployed](#after-deployment).
 
-- Use [caching](/docs/app/building-your-application/caching) wherever possible.
-- Improve [loading performance](#loading-performance)
-- During the development phase, run [Lighthouse](https://developers.google.com/web/tools/lighthouse) to check performance, best practices, accessibility, and SEO. For best results, use a production build of Next.js and use incognito in your browser so results aren't affected by browser extensions.
-- Once in production, ensure you are measuring performance and collecting real user metrics (RUM) with [analytics](/docs/app/building-your-application/optimizing/analytics).
-- Leverage [Server Components](/docs/app/building-your-application/rendering/server-components) as much as possible for improved performance. Unlike [Client Components](/docs/app/building-your-application/rendering/client-components) which require JavaScript on the client, Server Components render on the server, which significantly reduces the size of your client-side JavaScript bundle. See [Composition Patterns](/docs/app/building-your-application/rendering/composition-patterns) for best practices on using Server and Client Components.
-- Ensure your database and backend are deployed in the same region.
-- Prevent sensitive data from being exposed to the client with [tainting](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client)
-- Utilize logging for both the client and server.
-- Ensure errors in nested route segments are handled gracefully with the [error.js file](/docs/app/building-your-application/routing/error-handling)
-- Customize your 404 (Not Found) responses using the [`notFound()`](/docs/app/api-reference/functions/not-found) function and [`not-found.js` file](/docs/app/api-reference/file-conventions/not-found)
-- Review [Supported Browsers and Features](/docs/architecture/supported-browsers)
-- Optimize the user experience with built-in components:
-  - [Images](/docs/app/building-your-application/optimizing/images)
-  - [Fonts](/docs/app/building-your-application/optimizing/fonts)
-  - [Scripts](/docs/app/building-your-application/optimizing/scripts)
-  - [Link](/docs/app/building-your-application/routing/linking-and-navigating)
-- Follow the recommended [security best practices for Server Actions](/blog/security-nextjs-server-components-actions).
+## Automatic Optimizations
+
+Out-of-box, Next.js provides these automatic optimizations which you do not need to configure:
+
+- Automatic [code-splitting](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works) of route segments. {/* TODO: This needs a better link */}
+- [Static Rendering](/docs/app/building-your-application/rendering/server-components#static-rendering-default) by default, with [Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) as opt-in.
+- Pre-rendering React components to HTML on the server for improved SEO and initial loading performance. {/* TODO: Add link */}
+
+## During Development
+
+### Routing
+
+- Use [layouts](/docs/app/building-your-application/routing/pages-and-layouts#layouts) to share UI across pages and enable [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#3-partial-rendering) on navigation.
+- Use the [`<Link>` component](/docs/app/building-your-application/routing/linking-and-navigating#link-component) for [client-side navigation and prefetching](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works).
+- [Handle catch-all errors](/docs/app/building-your-application/routing/error-handling) and [404 errors](/docs/app/api-reference/file-conventions/not-found) gracefully.
+
+### Data Fetching and Caching
+
+- [Fetch data on the server](/docs/app/building-your-application/data-fetching/patterns#fetching-data-on-the-server) where possible.
+- Use [Loading UI and Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming) to prevent the page from blocking while data is being fetched.
+- Reduce network waterfalls by [fetching data in parallel](/docs/app/building-your-application/data-fetching/patterns#parallel-and-sequential-data-fetching), where appropriate.
+- [Cache data requests](/docs/app/building-your-application/caching#data-cache), where appropriate.
+- Mutate data using [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
+
+### Security
+
+- Prevent sensitive data from being exposed to the client with [tainting](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client).
+- Ensure users are authorized to call [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#authorization), and follow the recommended [security practices](/blog/security-nextjs-server-components-actions).
 - Consider adding a [Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy)
 
-## Loading performance
+### Rendering
 
-Reducing JavaScript bundle sizes is a key strategy for effectively improving loading performance, which can be measured using [Core Web Vitals](https://vercel.com/blog/core-web-vitals?utm_source=next-site&utm_medium=docs&utm_campaign=next-website). These metrics, developed by Google, are crucial for assessing the user experience quality on web pages and influencing search rankings.
+- Use [Server Components](/docs/app/building-your-application/rendering/server-components) when possible to reduce the size of your client-side JavaScript bundle.
+- Follow the recommended [composition patterns](/docs/app/building-your-application/rendering/composition-patterns) for Server and Client Components.
+- [Lazy load](/docs/app/building-your-application/optimizing/lazy-loading) Client Components and third-party libraries, where appropriate.
 
-### Reducing JavaScript bundle sizes
+### Optimizations
 
-Reducing the amount of JavaScript your website sends to the browser can play a role in enhancing site speed and performance. To help you understand and manage your JavaScript bundles, you can use these tools to visualize your bundles and/or identify large dependencies.
+- Optimize fonts with the [next/font](/docs/app/building-your-application/optimizing/fonts)
+- Optimize images with [next/image](/docs/app/building-your-application/optimizing/images)
+- Optimize scripts with [next/script](/docs/app/building-your-application/optimizing/scripts)
+
+### Static assets
+
+- Use the [public directory](/docs/app/api-reference/next.config.js/static-asset-optimization) to automatically cache static assets like images.
+
+### Type Safety
+
+- Use the [TypeScript IDE plugin](/docs/app/building-your-application/configuring/typescript) for better type-safety, and to help you catch errors early.
+
+### Accessibility
+
+- [Validate form fields and handle errors](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#server-side-validation-and-error-handling) appropriately.
+- Use [ESlint](/docs/architecture/accessibility) to catch accessibility issues early.
+
+### Metadata
+
+- Use the [Metadata API](/docs/app/building-your-application/optimizing/metadata) to improve SEO by adding page titles, descriptions, and more.
+- Create [OG images](/docs/app/api-reference/file-conventions/metadata/opengraph-image) for social sharing.
+- Help Search Engines crawl and index your pages with [sitemaps](/docs/app/api-reference/file-conventions/metadata/sitemap).
+
+## Before going to production
+
+Before going to production, you can run `next build` to build your application locally and catch any build errors, then run `next start` to measure the performance of your application in a production-like environment.
+
+### Core Web Vitals
+
+- Run [Lighthouse](https://developers.google.com/web/tools/lighthouse) in incognito to understand how your users will experience your site, and to identify areas for improvement.
+- Use the [`useReportWebVitals` hook](/docs/app/api-reference/functions/use-report-web-vitals) to send [Core Web Vitals](https://web.dev/articles/vitals) data to analytics tools.
+
+### Environment Variables
+
+{/* TO DO */}
+
+### Analyzing Bundles
+
+You can use the [`@next/bundle-analyzer` plugin](/docs/app/building-your-application/optimizing/bundle-analyzer) to analyze the size of your JavaScript bundles and identify large dependencies that might be impacting your application's performance.
+
+Additionally, the following tools can help you visualize your client-side JavaScript bundles:
+
+{/* TODO: Review this, and reduce the number of tools */}
 
 - [Import Cost](https://marketplace.visualstudio.com/items?itemName=wix.vscode-import-cost) – Shows the size of each package you import right in VSCode.
 - [Package Phobia](https://packagephobia.com/) – Helps you see the size impact of adding new dev dependencies to your project.
@@ -40,90 +95,25 @@ Reducing the amount of JavaScript your website sends to the browser can play a r
 - [Webpack Bundle Analyzer](https://github.com/vercel/next.js/tree/canary/packages/next-bundle-analyzer) – Creates a visual, interactive map of your webpack output files to show where space is used.
 - [bundlejs](https://bundlejs.com/) - A browser tool for bundling and minifying projects, showing compressed sizes.
 
-Additionally, make sure to implement the recommended optimization strategies.
+### Databases
 
-- Minimize Client-Side JavaScript - It's important to keep JavaScript on the client-side as small as possible for quicker website loading and a better user experience.
-- Leverage [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components) for efficient rendering – Server Components enable rendering on the server, which can significantly reduce the size of your client-side JavaScript bundle.
-- [Fetching data on the server](/docs/app/building-your-application/data-fetching/patterns#fetching-data-on-the-server)
-- [Parallel Data Fetching](https://nextjs.org/learn/dashboard-app/fetching-data#parallel-data-fetching)- Reduce waterfalls and unblock pages by fetching data in parallel.
+- Ensure your application and database are deployed in the same region to reduce [latency](https://developer.mozilla.org/en-US/docs/Web/Performance/Understanding_latency).
+- Use [caching](/docs/app/building-your-application/caching#data-cache) to reduce the number of network requests to your database.
 
-#### Optimizing with `@next/bundle-analyzer`
+## After deployment
 
-[`@next/bundle-analyzer`](https://www.npmjs.com/package/@next/bundle-analyzer) is a plugin for Next.js that helps manage the size of your JavaScript files. It shows you how big each part of your webpack output is. This is helpful because you can find and fix parts of your code that are too large. For example, you might remove large dependencies, split your code, or only load some parts when needed.
+Depending on where you deploy your application, you might have access to additional tools and integrations to help you monitor and improve your application's performance:
 
-How to use `@next/bundle-analyzer`:
+### Monitoring, Logging, and Observability (Vercel deployments)
 
-1. **Install**: Run `npm install @next/bundle-analyzer webpack-bundle-analyzer`.
-2. **Configure**: Add the bundle analyzer's settings to your `next.config.js`.
+- Ensure these are setup up to help you debug issues in production. See Vercel's integrations page for a list of available [logging](https://vercel.com/integrations#logging), [monitoring](https://vercel.com/integrations#monitoring), and [observability](https://vercel.com/integrations#observability) tools.
 
-```js
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
-})
-module.exports = withBundleAnalyzer({})
-```
+### Analytics (Vercel deployments)
 
-3. **Run Analysis**: Use `ANALYZE=true npm run build` to start looking at your file sizes.
-4. **Review Findings**: Check the report to see where you can make improvements.
+- Use [Vercel's built-in analytics dashboard](https://vercel.com/analytics) to measure Core Web Vitals. This dashboard provides real-world performance insights based on actual visitor data, offering a practical view of how your website is performing in the field.
 
-Doing this regularly while you develop and before deploying your site can help you identify large bundles earlier.
+> **Good to know:** To get a comprehensive understanding of the best practices for production deployments on Vercel, including detailed strategies for improving website performance, refer to the [Vercel Production Checklist](https://vercel.com/docs/production-checklist).
 
-### Using Lighthouse for performance analysis
+{/* TODO: Conclude */}
 
-[Google Lighthouse](https://developer.chrome.com/docs/lighthouse/overview) is a powerful tool for assessing Core Web Vitals, along with other important aspects such as performance, accessibility, best practices, and SEO. To get the most accurate results:
-
-1. Use a production build of your Next.js application.
-2. Run Lighthouse in incognito mode to prevent browser extensions from affecting the results.
-
-Lighthouse is available directly within Chrome DevTools, as a command-line tool, and online through [Google PageSpeed Insights](https://pagespeed.web.dev).
-
-### Utilizing Vercel's dashboard (for Vercel deployments)
-
-If your Next.js application is deployed on [Vercel](https://vercel.com), you can leverage [Vercel's built-in analytics dashboard](https://vercel.com/analytics) to measure Core Web Vitals. This dashboard provides real-world performance insights based on actual visitor data, offering a practical view of how your website is performing in the field.
-
-To get a comprehensive understanding of the best practices for production deployments on Vercel, including detailed strategies for improving website performance, refer to the Vercel Production Checklist. This checklist provides an extensive guide covering various aspects of deployment, optimization, and best practices to ensure your application runs smoothly and efficiently.
-
-## Caching
-
-Caching is essential for improving response times and reducing requests to backend services. The App Router in Next.js offers a robust [caching mechanism](/docs/app/building-your-application/caching) that allows you to leverage static and dynamic rendering, as well as [revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data).
-
-### Static assets
-
-Next.js automatically adds caching headers to immutable assets in **`/public`** or other static directories. Assets like CSS, static images, and other media are ideal candidates for long-term caching as they rarely change. The default caching headers applied are:
-
-```jsx
-Cache-Control: public, max-age=31536000, immutable
-```
-
-This ensures that these assets are cached efficiently in the browser, reducing load times for returning visitors.
-
-### Data caching
-
-Next.js's built-in [Data Cache](/docs/app/building-your-application/caching#data-cache) persists results of data fetches across server requests and deployments. By default, fetch requests are cached, allowing data to be reused in subsequent requests. This feature is particularly useful for content that doesn't change frequently.
-
-The caching behavior of data requests can be controlled through various strategies. Next.js supports [time-based revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#time-based-revalidation) (automatically refreshing the cache after a set period) and [on-demand revalidation](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#on-demand-revalidation) (refreshing the cache based on specific events).
-
-### Controlling the cache/caching with Server Actions
-
-While Server Actions in Next.js are primarily used for mutations (like POST, PUT, DELETE operations), they also play a crucial role in cache management. After a mutation, it's crucial to ensure that the cached data reflects the latest state. Next.js facilitates this by providing APIs such as [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag). These APIs can be used to purge or revalidate the cache immediately after a mutation. This capability ensures that any changes made by Server Actions are promptly reflected in the cached data, maintaining data consistency and accuracy.
-
-### Opting out of caching
-
-There are scenarios where caching might not be desirable as users need the most up-to-date content. Next.js allows [opting out of the Data Cache](/docs/app/building-your-application/caching#opting-out-1) for specific fetch requests. This can be achieved with settings such as `cache: 'no-store'` or `revalidate: 0`.
-
-## Logging
-
-Since Next.js runs on both the client and server, there are multiple forms of logging supported:
-
-- `console.log`: Works in both browser and server. In the browser, it logs to the console. On the server, it outputs to the terminal.
-  If you want a structured logging package, we recommend [Pino](https://www.npmjs.com/package/pino). If you're using Vercel, there are [pre-built logging integrations](https://vercel.com/integrations?utm_source=next-site&utm_medium=docs&utm_campaign=next-website#logging) compatible with Next.js.
-
-## Error Handling
-
-Proper error handling is key to keeping your application stable and providing a good user experience. This is especially important with the Dynamic Route Segments and Server Actions in the App Router, as they introduce complexities like variable user requests and potential mismatches with predefined routes, requiring handling to prevent errors and ensure smooth navigation.
-
-### Using `error.js` for error handling
-
-The [`error.js` file](/docs/app/building-your-application/routing/error-handling) convention is used for gracefully handling runtime errors in nested routes. It automatically wraps a route segment and its nested children in a React Error Boundary, allowing you to create a tailored error UI and isolate errors to specific segments while keeping the rest of the application functional.
-
-If an error is thrown inside a Server Component, Next.js forwards an `Error` object to the nearest `error.js` file. This object includes a generic message and a digest property in production as a security measure to prevent leaking sensitive details.
+Following these recommendations will help you build a fast, reliable, and accessible application.
