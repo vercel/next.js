@@ -6,7 +6,7 @@ import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 import type { ExportAppOptions, ExportAppWorker } from '../export/types'
 import type { Revalidate } from '../server/lib/revalidate'
-import { serializePageInfos, type PageInfo, type PageInfos } from './page-info'
+import type { PageInfo } from './page-info'
 
 import '../lib/setup-exception-listeners'
 
@@ -1134,8 +1134,7 @@ export default async function build(
                 dir,
                 config,
                 distDir,
-                // Serialize Map as this is sent to the worker.
-                pageInfos: serializePageInfos(new Map()),
+                edgeRoutes: undefined,
                 staticPages: [],
                 hasSsrAmpPages: false,
                 buildTraceContext,
@@ -1209,7 +1208,7 @@ export default async function build(
       const appNormalizedPaths = new Map<string, string>()
       const appDynamicParamPaths = new Set<string>()
       const appDefaultConfigs = new Map<string, AppConfig>()
-      const pageInfos: PageInfos = new Map<string, PageInfo>()
+      const pageInfos = new Map<string, PageInfo>()
       const pagesManifest = JSON.parse(
         await fs.readFile(pagesManifestPath, 'utf8')
       ) as PagesManifest
@@ -1945,12 +1944,24 @@ export default async function build(
       }
 
       if (!isGenerateMode && config.outputFileTracing && !buildTracesPromise) {
+        // Get all the edge routes from the pageInfos. If the runtime is set as
+        // edge, then we know it's an edge route.
+        const edgeRoutes: ReadonlyArray<string> = Array.from(
+          pageInfos.entries()
+        ).reduce<string[]>((acc, [route, { runtime }]) => {
+          if (runtime === 'edge') {
+            acc.push(route)
+          }
+
+          return acc
+        }, [])
+
         buildTracesPromise = collectBuildTraces({
           dir,
           config,
           distDir,
-          pageInfos,
-          staticPages: [...staticPages],
+          edgeRoutes,
+          staticPages: Array.from(staticPages),
           nextBuildSpan,
           hasSsrAmpPages,
           buildTraceContext,

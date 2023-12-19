@@ -16,15 +16,3 @@ export interface PageInfo {
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
 }
-
-export type PageInfos = Map<string, PageInfo>
-
-export type SerializedPageInfos = [string, PageInfo][]
-
-export function serializePageInfos(input: PageInfos): SerializedPageInfos {
-  return Array.from(input.entries())
-}
-
-export function deserializePageInfos(input: SerializedPageInfos): PageInfos {
-  return new Map(input)
-}

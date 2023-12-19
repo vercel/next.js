@@ -14,11 +14,6 @@ import {
 
 import path from 'path'
 import fs from 'fs/promises'
-import {
-  type PageInfos,
-  type SerializedPageInfos,
-  deserializePageInfos,
-} from './page-info'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -71,7 +66,7 @@ export async function collectBuildTraces({
   dir,
   config,
   distDir,
-  pageInfos,
+  edgeRoutes,
   staticPages,
   nextBuildSpan = new Span({ name: 'build' }),
   hasSsrAmpPages,
@@ -83,8 +78,7 @@ export async function collectBuildTraces({
   staticPages: string[]
   hasSsrAmpPages: boolean
   outputFileTracingRoot: string
-  // pageInfos is serialized when this function runs in a worker.
-  pageInfos: PageInfos | SerializedPageInfos
+  edgeRoutes: readonly string[] | undefined
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
@@ -628,8 +622,6 @@ export async function collectBuildTraces({
     }
 
     const { entryNameFilesMap } = buildTraceContext?.chunksTrace || {}
-    const infos =
-      pageInfos instanceof Map ? pageInfos : deserializePageInfos(pageInfos)
 
     await Promise.all(
       [
@@ -649,9 +641,8 @@ export async function collectBuildTraces({
           return
         }
 
-        // edge routes have no trace files
-        const pageInfo = infos.get(route)
-        if (pageInfo?.runtime === 'edge') {
+        // Edge routes have no trace files.
+        if (edgeRoutes && edgeRoutes.includes(route)) {
           return
         }
 
