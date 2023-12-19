@@ -1747,7 +1747,7 @@ export default async function getBaseWebpackConfig(
           exportRuntime: true,
           appDirEnabled: hasAppDir,
         }),
-      new ProfilingPlugin({ runWebpackSpan }),
+      new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
       config.optimizeFonts &&
         !dev &&
         isNodeServer &&
