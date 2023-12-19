@@ -21,6 +21,8 @@ import type {
 import type { WebpackLayerName } from '../lib/constants'
 import type { AppPageModule } from '../server/future/route-modules/app-page/module'
 import type { RouteModule } from '../server/future/route-modules/route-module'
+import type { LoaderTree } from '../server/lib/app-dir-module'
+import type { NextComponentType } from '../shared/lib/utils'
 
 import '../server/require-hook'
 import '../server/node-polyfill-crypto'
@@ -339,6 +341,18 @@ export interface PageInfo {
   hasEmptyPrelude?: boolean
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
+}
+
+export type PageInfos = Map<string, PageInfo>
+
+export type SerializedPageInfos = [string, PageInfo][]
+
+export function serializePageInfos(input: PageInfos): SerializedPageInfos {
+  return Array.from(input.entries())
+}
+
+export function deserializePageInfos(input: SerializedPageInfos): PageInfos {
+  return new Map(input)
 }
 
 export async function printTreeView(
@@ -1140,14 +1154,21 @@ export type AppConfig = {
   fetchCache?: 'force-cache' | 'only-cache'
   preferredRegion?: string
 }
-export type GenerateParams = Array<{
+
+type Params = Record<string, string | string[]>
+
+type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
+
+type GenerateParamsResult = {
   config?: AppConfig
   isDynamicSegment?: boolean
   segmentPath: string
   getStaticPaths?: GetStaticPaths
-  generateStaticParams?: any
+  generateStaticParams?: GenerateStaticParams
   isLayout?: boolean
-}>
+}
+
+export type GenerateParamsResults = GenerateParamsResult[]
 
 export const collectAppConfig = (mod: any): AppConfig | undefined => {
   let hasConfig = false
@@ -1177,56 +1198,81 @@ export const collectAppConfig = (mod: any): AppConfig | undefined => {
   return hasConfig ? config : undefined
 }
 
-export const collectGenerateParams = async (
-  segment: any,
-  parentSegments: string[] = [],
-  generateParams: GenerateParams = []
-): Promise<GenerateParams> => {
-  if (!Array.isArray(segment)) return generateParams
-  const isLayout = !!segment[2]?.layout
-  const mod = await (isLayout
-    ? segment[2]?.layout?.[0]?.()
-    : segment[2]?.page?.[0]?.())
-  const config = collectAppConfig(mod)
-  const page: string | undefined = segment[0]
-  const isClientComponent = isClientReference(mod)
-  const isDynamicSegment = /^\[.+\]$/.test(page || '')
-  const { generateStaticParams, getStaticPaths } = mod || {}
+/**
+ * Walks the loader tree and collects the generate parameters for each segment.
+ *
+ * @param tree the loader tree
+ * @returns the generate parameters for each segment
+ */
+export async function collectGenerateParams(tree: LoaderTree) {
+  const generateParams: GenerateParamsResults = []
+  const parentSegments: string[] = []
 
-  //console.log({parentSegments, page, isDynamicSegment, isClientComponent, generateStaticParams})
-  if (isDynamicSegment && isClientComponent && generateStaticParams) {
-    throw new Error(
-      `Page "${page}" cannot export "generateStaticParams()" because it is a client component`
-    )
-  }
+  let currentLoaderTree = tree
+  while (currentLoaderTree) {
+    const [
+      // TODO: check if this is ever undefined
+      page = '',
+      parallelRoutes,
+      components,
+    ] = currentLoaderTree
 
-  const result = {
-    isLayout,
-    isDynamicSegment,
-    segmentPath: `/${parentSegments.join('/')}${
+    // If the segment doesn't have any components, then skip it.
+    if (!components) continue
+
+    const isLayout = !!components.layout
+    const mod = await (isLayout
+      ? components.layout?.[0]?.()
+      : components.page?.[0]?.())
+
+    if (page) {
+      parentSegments.push(page)
+    }
+
+    const config = mod ? collectAppConfig(mod) : undefined
+    const isClientComponent = isClientReference(mod)
+
+    const isDynamicSegment = /^\[.+\]$/.test(page)
+
+    const { generateStaticParams, getStaticPaths } = mod || {}
+
+    if (isDynamicSegment && isClientComponent && generateStaticParams) {
+      throw new Error(
+        `Page "${page}" cannot export "generateStaticParams()" because it is a client component`
+      )
+    }
+
+    const segmentPath = `/${parentSegments.join('/')}${
       page && parentSegments.length > 0 ? '/' : ''
-    }${page}`,
-    config,
-    getStaticPaths: isClientComponent ? undefined : getStaticPaths,
-    generateStaticParams: isClientComponent ? undefined : generateStaticParams,
+    }${page}`
+
+    const result: GenerateParamsResult = {
+      isLayout,
+      isDynamicSegment,
+      segmentPath,
+      config,
+      getStaticPaths: !isClientComponent ? getStaticPaths : undefined,
+      generateStaticParams: !isClientComponent
+        ? generateStaticParams
+        : undefined,
+    }
+
+    // If the configuration contributes to the static generation, then add it
+    // to the list.
+    if (
+      result.config ||
+      result.generateStaticParams ||
+      result.getStaticPaths ||
+      isDynamicSegment
+    ) {
+      generateParams.push(result)
+    }
+
+    // Use this route's parallel route children as the next segment.
+    currentLoaderTree = parallelRoutes.children
   }
 
-  if (page) {
-    parentSegments.push(page)
-  }
-
-  if (result.config || result.generateStaticParams || result.getStaticPaths) {
-    generateParams.push(result)
-  } else if (isDynamicSegment) {
-    // It is a dynamic route, but no config was provided
-    generateParams.push(result)
-  }
-
-  return collectGenerateParams(
-    segment[1]?.children,
-    parentSegments,
-    generateParams
-  )
+  return generateParams
 }
 
 export async function buildAppStaticPaths({
@@ -1246,7 +1292,7 @@ export async function buildAppStaticPaths({
   dir: string
   page: string
   configFileName: string
-  generateParams: GenerateParams
+  generateParams: GenerateParamsResults
   incrementalCacheHandlerPath?: string
   distDir: string
   isrFlushToDisk?: boolean
@@ -1317,18 +1363,18 @@ export async function buildAppStaticPaths({
       } else {
         // if generateStaticParams is being used we iterate over them
         // collecting them from each level
-        type Params = Array<Record<string, string | string[]>>
         let hadAllParamsGenerated = false
 
         const buildParams = async (
-          paramsItems: Params = [{}],
+          paramsItems: Params[] = [{}],
           idx = 0
-        ): Promise<Params> => {
+        ): Promise<Params[]> => {
           const curGenerate = generateParams[idx]
 
           if (idx === generateParams.length) {
             return paramsItems
           }
+
           if (
             typeof curGenerate.generateStaticParams !== 'function' &&
             idx < generateParams.length
@@ -1343,22 +1389,27 @@ export async function buildAppStaticPaths({
           }
           hadAllParamsGenerated = true
 
-          const newParams = []
+          const newParams: Params[] = []
 
-          for (const params of paramsItems) {
-            const result = await curGenerate.generateStaticParams({ params })
-            // TODO: validate the result is valid here or wait for
-            // buildStaticPaths to validate?
-            for (const item of result) {
-              newParams.push({ ...params, ...item })
+          if (curGenerate.generateStaticParams) {
+            for (const params of paramsItems) {
+              const result = await curGenerate.generateStaticParams({
+                params,
+              })
+              // TODO: validate the result is valid here or wait for buildStaticPaths to validate?
+              for (const item of result) {
+                newParams.push({ ...params, ...item })
+              }
             }
           }
 
           if (idx < generateParams.length) {
             return buildParams(newParams, idx + 1)
           }
+
           return newParams
         }
+
         const builtParams = await buildParams()
         const fallback = !generateParams.some(
           // TODO: dynamic params should be allowed
@@ -1499,7 +1550,7 @@ export async function isPageStatic({
           isAppPath: pageType === 'app',
         })
       }
-      const Comp = componentsResult.Component || {}
+      const Comp = componentsResult.Component as NextComponentType | undefined
       let staticPathsResult: GetStaticPathsResult | undefined
 
       const routeModule: RouteModule =
@@ -1512,7 +1563,7 @@ export async function isPageStatic({
 
         const { tree } = ComponentMod
 
-        const generateParams: GenerateParams =
+        const generateParams: GenerateParamsResults =
           routeModule && isAppRouteRouteModule(routeModule)
             ? [
                 {
@@ -1604,7 +1655,7 @@ export async function isPageStatic({
         }
       }
 
-      const hasGetInitialProps = !!(Comp as any).getInitialProps
+      const hasGetInitialProps = !!Comp?.getInitialProps
       const hasStaticProps = !!componentsResult.getStaticProps
       const hasStaticPaths = !!componentsResult.getStaticPaths
       const hasServerProps = !!componentsResult.getServerSideProps
