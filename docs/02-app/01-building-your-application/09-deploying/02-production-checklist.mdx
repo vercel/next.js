@@ -81,15 +81,7 @@ Lighthouse is available directly within Chrome DevTools, as a command-line tool,
 
 If your Next.js application is deployed on [Vercel](https://vercel.com), you can leverage [Vercel's built-in analytics dashboard](https://vercel.com/analytics) to measure Core Web Vitals. This dashboard provides real-world performance insights based on actual visitor data, offering a practical view of how your website is performing in the field.
 
-Once you are able to measure the loading performance, use the following strategies to improve it iteratively. That is, if you apply one strategy, measure the new performance and continue tweaking until you do not see much improvement. Then, you can move on to the next strategy.
-
-- **Optimize Caching**: Use caching strategies as detailed in the caching section.
-- **Server Actions Efficiency**: Optimize server actions for quick data retrieval and minimal processing.
-- **Reduce JavaScript Bundle Sizes**: Remove unused JavaScript, and move data fetching and logic to the server.
-  - Setting up your Code Editor to view import costs and sizes
-  - Finding alternative smaller packages
-  - Dynamically loading components and dependencies
-- **Streaming**: Leverage the Loading UI and Suspense to stream chunks in parallel for improved initial load.
+To get a comprehensive understanding of the best practices for production deployments on Vercel, including detailed strategies for improving website performance, refer to the Vercel Production Checklist. This checklist provides an extensive guide covering various aspects of deployment, optimization, and best practices to ensure your application runs smoothly and efficiently.
 
 ## Caching
 
