@@ -495,14 +495,14 @@ export default async function getBaseWebpackConfig(
     dev && isClient ? [require.resolve(reactRefreshLoaderName)] : []
 
   // client components layers: SSR or browser
-  const createSwcLoaderForClientLayer = (isBrowserLayer: boolean) => [
-    ...(dev && isClient
-      ? [
-          require.resolve(
-            'next/dist/compiled/@next/react-refresh-utils/dist/loader'
-          ),
-        ]
-      : []),
+  const createSwcLoaderForClientLayer = ({
+    isBrowserLayer,
+    reactRefresh,
+  }: {
+    isBrowserLayer: boolean
+    reactRefresh: boolean
+  }) => [
+    ...(reactRefresh ? reactRefreshLoaders : []),
     {
       // This loader handles actions and client entries
       // in the client layer.
@@ -520,8 +520,15 @@ export default async function getBaseWebpackConfig(
       : []),
   ]
 
-  const swcLoaderForBrowserLayer = createSwcLoaderForClientLayer(true)
-  const swcLoaderForSSRLayer = createSwcLoaderForClientLayer(false)
+  const swcLoaderForBrowserLayer = createSwcLoaderForClientLayer({
+    isBrowserLayer: true,
+    // reactRefresh for browser layer is applied conditionally to user-land source
+    reactRefresh: false,
+  })
+  const swcLoaderForSSRLayer = createSwcLoaderForClientLayer({
+    isBrowserLayer: false,
+    reactRefresh: true,
+  })
 
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
