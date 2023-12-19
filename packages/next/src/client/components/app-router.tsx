@@ -542,9 +542,10 @@ function Router({
   const { cache, tree, nextUrl, focusAndScrollRef } =
     useUnwrapState(reducerState)
 
-  const head = useMemo(() => {
+  const headCacheNode = useMemo(() => {
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
+  const head = headCacheNode !== null ? headCacheNode.head : null
 
   let content = (
     <RedirectBoundary>

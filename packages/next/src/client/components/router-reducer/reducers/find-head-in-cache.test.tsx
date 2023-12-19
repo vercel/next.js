@@ -94,7 +94,7 @@ describe('findHeadInCache', () => {
 
     const result = findHeadInCache(cache, routerTree[1])
 
-    expect(result).toMatchObject(
+    expect(result?.head).toMatchObject(
       <>
         <title>About page!</title>
       </>
