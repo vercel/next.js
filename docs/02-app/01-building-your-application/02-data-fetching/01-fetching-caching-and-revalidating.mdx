@@ -211,7 +211,7 @@ You can also use the experimental [`unstable_cache` API](/docs/app/api-reference
 In the example below:
 
 - The React `cache` function is used to [memoize](/docs/app/building-your-application/caching#request-memoization) data requests.
-- The `revalidate` option is set to `3600` in the `layout.tsx` and `page.tsx` segments, meaning the data will be cached and revalidated at most every hour.
+- The `revalidate` option is set to `3600` in the Layout and Page segments, meaning the data will be cached and revalidated at most every hour.
 
 ```ts filename="app/utils.ts" switcher
 import { cache } from 'react'
