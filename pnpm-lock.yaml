@@ -155,9 +155,6 @@ importers:
       '@types/relay-runtime':
         specifier: 14.1.13
         version: 14.1.13
-      '@types/selenium-webdriver':
-        specifier: 4.0.15
-        version: 4.0.15
       '@types/sharp':
         specifier: 0.29.3
         version: 0.29.3
@@ -494,9 +491,6 @@ importers:
       seedrandom:
         specifier: 3.0.5
         version: 3.0.5
-      selenium-webdriver:
-        specifier: 4.0.0-beta.4
-        version: 4.0.0-beta.4
       semver:
         specifier: 7.3.7
         version: 7.3.7
@@ -6753,10 +6747,6 @@ packages:
 
   /@types/scheduler@0.16.4:
     resolution: {integrity: sha512-2L9ifAGl7wmXwP4v3pN4p2FLhD0O1qsJpvKmNin5VA8+UvNVb447UDaAEV6UdrkA+m/Xs58U1RFps44x6TFsVQ==}
-
-  /@types/selenium-webdriver@4.0.15:
-    resolution: {integrity: sha512-5760PIZkzhPejy3hsKAdCKe5LJygGdxLKOLxmZL9GEUcFlO5OgzM6G2EbdbvOnaw4xvUSa9Uip6Ipwkih12BPA==}
-    dev: true
 
   /@types/semver@7.3.1:
     resolution: {integrity: sha512-ooD/FJ8EuwlDKOI6D9HWxgIgJjMg2cuziXm/42npDC8y4NjxplBUn9loewZiBNCt44450lHAU0OSb51/UqXeag==}
@@ -13655,10 +13645,6 @@ packages:
       queue: 6.0.2
     dev: true
 
-  /immediate@3.0.6:
-    resolution: {integrity: sha1-nbHb0Pr43m++D13V5Wu2BigN5ps=}
-    dev: true
-
   /immutable@4.1.0:
     resolution: {integrity: sha512-oNkuqVTA8jqG1Q6c+UglTOD1xhC1BtjKI7XkCXRkZHrN5m18/XsnUp8Q89GkQO/z+0WjonSvl0FLhDYftp46nQ==}
 
@@ -15443,15 +15429,6 @@ packages:
       object.values: 1.1.6
     dev: false
 
-  /jszip@3.7.1:
-    resolution: {integrity: sha512-ghL0tz1XG9ZEmRMcEN2vt7xabrDdqHHeykgARpmZ0BiIctWxM47Vt63ZO2dnp4QYt/xJVLLy5Zv1l/xRdh2byg==}
-    dependencies:
-      lie: 3.3.0
-      pako: 1.0.11
-      readable-stream: 2.3.7
-      set-immediate-shim: 1.0.1
-    dev: true
-
   /junk@1.0.3:
     resolution: {integrity: sha512-3KF80UaaSSxo8jVnRYtMKNGFOoVPBdkkVPsw+Ad0y4oxKXPduS6G6iHkrf69yJVff/VAaYXkV42rtZ7daJxU3w==}
     engines: {node: '>=0.10.0'}
@@ -15664,12 +15641,6 @@ packages:
     transitivePeerDependencies:
       - bluebird
       - supports-color
-    dev: true
-
-  /lie@3.3.0:
-    resolution: {integrity: sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==}
-    dependencies:
-      immediate: 3.0.6
     dev: true
 
   /lilconfig@2.1.0:
@@ -21513,19 +21484,6 @@ packages:
     resolution: {integrity: sha512-8OwmbklUNzwezjGInmZ+2clQmExQPvomqjL7LFqOYqtmuxRgQYqOD3mHaU+MvZn5FLUeVxVfQjwLZW/n/JFuqg==}
     dev: true
 
-  /selenium-webdriver@4.0.0-beta.4:
-    resolution: {integrity: sha512-+s/CIYkWzmnC9WASBxxVj7Lm0dcyl6OaFxwIJaFCT5WCuACiimEEr4lUnOOFP/QlKfkDQ56m+aRczaq2EvJEJg==}
-    engines: {node: '>= 10.15.0'}
-    dependencies:
-      jszip: 3.7.1
-      rimraf: 3.0.2
-      tmp: 0.2.1
-      ws: 8.4.2
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-    dev: true
-
   /semver-compare@1.0.0:
     resolution: {integrity: sha1-De4hahyUGrN+nvsXiPavxf9VN/w=}
     dev: true
@@ -21646,11 +21604,6 @@ packages:
 
   /set-cookie-parser@2.6.0:
     resolution: {integrity: sha512-RVnVQxTXuerk653XfuliOxBP81Sf0+qfQE73LIYKcyMYHG94AuH0kgrQpRDuTZnSmjpysHmzxJXKNfa6PjFhyQ==}
-    dev: true
-
-  /set-immediate-shim@1.0.1:
-    resolution: {integrity: sha1-SysbJ+uAip+NzEgaWOXlb1mfP2E=}
-    engines: {node: '>=0.10.0'}
     dev: true
 
   /set-value@2.0.1:
@@ -22962,13 +22915,6 @@ packages:
     engines: {node: '>=0.6.0'}
     dependencies:
       os-tmpdir: 1.0.2
-
-  /tmp@0.2.1:
-    resolution: {integrity: sha512-76SUhtfqR2Ijn+xllcI5P1oyannHNHByD80W1q447gU3mp9G9PSpGdWmjUOHRDPiHYacIk66W7ubDTuPF3BEtQ==}
-    engines: {node: '>=8.17.0'}
-    dependencies:
-      rimraf: 3.0.2
-    dev: true
 
   /tmpl@1.0.5:
     resolution: {integrity: sha512-3f0uOEAQwIqGuWW2MVzYg8fV/QNnc/IpuJNG837rLuczAaLVHslWHZQj4IGiEl5Hs3kkbhwL9Ab7Hrsmuj+Smw==}
@@ -24492,19 +24438,6 @@ packages:
 
   /ws@8.2.3:
     resolution: {integrity: sha512-wBuoj1BDpC6ZQ1B7DWQBYVLphPWkm8i9Y0/3YdHjHKHiohOJ1ws+3OccDWtH+PoC9DZD5WOTrJvNbWvjS6JWaA==}
-    engines: {node: '>=10.0.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: ^5.0.2
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
-    dev: true
-
-  /ws@8.4.2:
-    resolution: {integrity: sha512-Kbk4Nxyq7/ZWqr/tarI9yIt/+iNNFOjBXEWgTb4ydaNHBNGgvf2QHbS9fdfsndfjFlFwEd4Al+mw83YkaD10ZA==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
