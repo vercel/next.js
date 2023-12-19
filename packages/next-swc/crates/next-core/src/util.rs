@@ -2,7 +2,10 @@ use anyhow::{bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use swc_core::ecma::ast::{Expr, Lit, Program};
+use swc_core::{
+    common::GLOBALS,
+    ecma::ast::{Expr, Lit, Program},
+};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, util::join_path, File};
 use turbopack_binding::{
@@ -215,6 +218,7 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
     {
         if let ParseResult::Ok {
             program: Program::Module(module_ast),
+            globals,
             eval_context,
             ..
         } = &*ecmascript_asset.parse().await?
@@ -235,8 +239,10 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                             .unwrap_or_default()
                         {
                             if let Some(init) = decl.init.as_ref() {
-                                let value = eval_context.eval(init);
-                                return Ok(parse_config_from_js_value(module, &value).cell());
+                                return GLOBALS.set(&globals, || {
+                                    let value = eval_context.eval(init);
+                                    return Ok(parse_config_from_js_value(module, &value).cell());
+                                });
                             } else {
                                 NextSourceConfigParsingIssue {
                                     ident: module.ident(),
