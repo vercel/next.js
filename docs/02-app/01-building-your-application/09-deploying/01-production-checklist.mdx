@@ -7,11 +7,12 @@ Before taking your application to production, there are patterns and optimizatio
 
 ## Automatic Optimizations
 
-Out-of-box, Next.js provides these automatic optimizations which you do not need to configure:
+These Next.js optimizations are enabled by default and require no configuration:
 
-- Automatic [code-splitting](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works) of route segments. {/* TODO: This needs a better link */}
-- [Static Rendering](/docs/app/building-your-application/rendering/server-components#static-rendering-default) by default, with [Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) as opt-in.
-- Pre-rendering React components to HTML on the server for improved SEO and initial loading performance. {/* TODO: Add link */}
+- [**Server Components:**](/docs/app/building-your-application/rendering/server-components) Next.js uses React Server Components by default. Server Components execute on the server, and don't require JavaScript to render on the client. As such, they have no impact on your JavaScript bundle size. You can opt into using [Client Components](/docs/app/building-your-application/rendering/client-components) when needed. For instance, to add client-side interactivity.
+- [**Code Splitting:**](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works) Server Components enable automatic code-splitting by route segments. Unlike a traditional [SPA](https://developer.mozilla.org/en-US/docs/Glossary/SPA), only the code needed for a route is loaded on navigation. While you don't need to do any code-splitting, you may still wish to [lazy load](/docs/app/building-your-application/optimizing/lazy-loading) Client Components and third-party libraries, where appropriate.
+- [**Static Rendering:**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) Next.js statically renders Server and Client Components on the server to improve your application's initial loading performance. You can opt into [Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) for specific components, where appropriate. {/* TODO: Update to say PPR in the future */}
+- [**Caching:**](/docs/app/building-your-application/caching): Next.js caches data requests, the rendering result of Server and Client Components, static assets, and more, to reduce the number of network requests to your database and backend services. You may opt out of caching, where appropriate.
 
 ## During Development
 
