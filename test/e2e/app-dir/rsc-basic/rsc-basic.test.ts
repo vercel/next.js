@@ -544,6 +544,36 @@ createNextDescribe(
       )
     })
 
+    it('should be able to call legacy react-dom/server APIs in client components', async () => {
+      const $ = await next.render$('/app-react')
+      const content = $('#markup').text()
+      expect(content).toBe(
+        '<div class="react-static-markup">React Static Markup</div>'
+      )
+
+      if (isNextDev) {
+        const filePath = 'app/app-react/client-react.js'
+        const fileContent = await next.readFile(filePath)
+        await next.patchFile(
+          filePath,
+          fileContent.replace(
+            `import { renderToStaticMarkup } from 'react-dom/server'`,
+            `import { renderToStaticMarkup } from 'react-dom/server.browser'`
+          )
+        )
+
+        const browser = await next.browser('/app-react')
+        const markupContentInBrowser = await browser
+          .elementByCss('#markup')
+          .text()
+        expect(markupContentInBrowser).toBe(
+          '<div class="react-static-markup">React Static Markup</div>'
+        )
+
+        await next.patchFile(filePath, fileContent)
+      }
+    })
+
     // disable this flaky test
     it.skip('should support partial hydration with inlined server data in browser', async () => {
       // Should end up with "next_streaming_data".
