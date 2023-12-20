@@ -1,7 +1,6 @@
 use std::{io::Write, iter::once};
 
 use anyhow::{bail, Context, Result};
-use indexmap::IndexSet;
 use indoc::writedoc;
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
@@ -71,55 +70,72 @@ impl EcmascriptClientReferenceProxyModule {
 
         let server_module_path = &*self.server_module_ident.path().to_string().await?;
 
-        writedoc!(
-            code,
-            r#"
-                import {{ createProxy }} from 'next/dist/build/webpack/loaders/next-flight-loader/module-proxy';
-
-                const proxy = createProxy({server_module_path});
-
-                // Accessing the __esModule property and exporting $$typeof are required here.
-                // The __esModule getter forces the proxy target to create the default export
-                // and the $$typeof value is for rendering logic to determine if the module
-                // is a client boundary.
-                const {{ __esModule, $$typeof }} = proxy;
-
-                export default proxy;
-            "#,
-            server_module_path = StringifyJs(server_module_path),
-        )?;
-
-        // Adapted from
-        // next.js/packages/next/src/build/webpack/loaders/next-flight-loader/index.ts
+        // Adapted from https://github.com/facebook/react/blob/c5b9375767e2c4102d7e5559d383523736f1c902/packages/react-server-dom-webpack/src/ReactFlightWebpackNodeLoader.js#L323-L354
         if let EcmascriptExports::EsmExports(exports) = &*self.client_module.get_exports().await? {
-            let mut exported_names = exports
-                .await?
-                .exports
-                .keys()
-                .cloned()
-                .collect::<IndexSet<_>>();
+            let exports = exports.expand_exports().await?;
 
-            for result in exports.expand_star_exports().await? {
-                let export_info = result.await?;
+            if !exports.dynamic_exports.is_empty() {
+                // TODO: throw? warn?
+            }
 
-                exported_names.extend(export_info.star_exports.iter().cloned());
+            writedoc!(
+                code,
+                r#"
+                    import {{ registerClientReference }} from "react-server-dom-turbopack/server.edge";
+                "#,
+            )?;
 
-                if export_info.has_dynamic_exports {
-                    // TODO: throw? warn?
+            for export_name in exports.exports.keys() {
+                if export_name == "default" {
+                    writedoc!(
+                        code,
+                        r#"
+                            export default registerClientReference(
+                                function() {{ throw new Error({call_err}); }},
+                                {server_module_path},
+                                "default",
+                            );
+                        "#,
+                        call_err = StringifyJs(&format!(
+                            "Attempted to call the default export of {server_module_path} from \
+                             the server, but it's on the client. It's not possible to invoke a \
+                             client function from the server, it can only be rendered as a \
+                             Component or passed to props of a Client Component."
+                        )),
+                        server_module_path = StringifyJs(server_module_path),
+                    )?;
+                } else {
+                    writedoc!(
+                        code,
+                        r#"
+                            export const {export_name} = registerClientReference(
+                                function() {{ throw new Error({call_err}); }},
+                                {server_module_path},
+                                {export_name_str},
+                            );
+                        "#,
+                        export_name = export_name,
+                        call_err = StringifyJs(&format!(
+                            "Attempted to call {export_name}() from the server but {export_name} \
+                             is on the client. It's not possible to invoke a client function from \
+                             the server, it can only be rendered as a Component or passed to \
+                             props of a Client Component."
+                        )),
+                        server_module_path = StringifyJs(server_module_path),
+                        export_name_str = StringifyJs(export_name),
+                    )?;
                 }
             }
+        } else {
+            writedoc!(
+                code,
+                r#"
+                    const {{ createClientModuleProxy }} = require("react-server-dom-turbopack/server.edge");
 
-            for (i, client_ref) in exported_names.into_iter().enumerate() {
-                writedoc!(
-                    code,
-                    r#"
-                        // Initialize export.
-                        const _e{cnt} = proxy[{client_ref}];
-                    "#,
-                    client_ref = StringifyJs(&client_ref),
-                    cnt = i,
-                )?;
-            }
+                    __turbopack_export_namespace__(createClientModuleProxy({server_module_path}));
+                "#,
+                server_module_path = StringifyJs(server_module_path)
+            )?;
         };
 
         let code = code.build();
@@ -127,7 +143,7 @@ impl EcmascriptClientReferenceProxyModule {
             AssetContent::file(File::from(code.source_code().clone()).into());
 
         let proxy_source = VirtualSource::new(
-            self.server_module_ident.path().join("proxy.ts".to_string()),
+            self.server_module_ident.path().join("proxy.js".to_string()),
             proxy_module_content,
         );
 
@@ -200,7 +216,7 @@ impl ChunkableModule for EcmascriptClientReferenceProxyModule {
     async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>>> {
+    ) -> Result<Vc<Box<dyn ChunkItem>>> {
         let item = self.proxy_module().as_chunk_item(chunking_context);
         let ecmascript_item = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item)
             .await?
