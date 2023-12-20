@@ -402,8 +402,6 @@ export function patchFetch({
           cacheReason = `revalidate: ${revalidate}`
         }
 
-        validateRevalidate(revalidate, staticGenerationStore.urlPathname)
-
         if (
           // when force static is configured we don't bail from
           // `revalidate: 0` values

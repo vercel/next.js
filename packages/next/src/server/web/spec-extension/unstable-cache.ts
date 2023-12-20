@@ -49,8 +49,7 @@ export function unstable_cache<T extends Callback>(
         // If revalidate was already set in the store before we should check if the new value is lower, set it to the lowest of the two.
       } else if (
         typeof store.revalidate === 'number' &&
-        typeof options.revalidate === 'number' &&
-        !isNaN(options.revalidate)
+        typeof options.revalidate === 'number'
       ) {
         if (store.revalidate > options.revalidate) {
           store.revalidate = options.revalidate
