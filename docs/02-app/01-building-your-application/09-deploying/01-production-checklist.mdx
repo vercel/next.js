@@ -14,58 +14,51 @@ These Next.js optimizations are enabled by default and require no configuration:
 - [**Static Rendering:**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) Next.js statically renders Server and Client Components on the server to improve your application's initial loading performance. You can opt into [Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) for specific components, where appropriate. {/* TODO: Update to say PPR in the future */}
 - [**Caching:**](/docs/app/building-your-application/caching): Next.js caches data requests, the rendering result of Server and Client Components, static assets, and more, to reduce the number of network requests to your database and backend services. You may opt out of caching, where appropriate.
 
+These defaults aim to improve your application's performance and reduce the amount of data transferred on each network request.
+
 ## During Development
 
-### Routing
+While building your application, we recommend using the following features to ensure the best performance and user experience:
 
-- Use [layouts](/docs/app/building-your-application/routing/pages-and-layouts#layouts) to share UI across pages and enable [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#3-partial-rendering) on navigation.
-- Use the [`<Link>` component](/docs/app/building-your-application/routing/linking-and-navigating#link-component) for [client-side navigation and prefetching](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works).
-- [Handle catch-all errors](/docs/app/building-your-application/routing/error-handling) and [404 errors](/docs/app/api-reference/file-conventions/not-found) gracefully.
+### Routing and Rendering
+
+- [**Layouts:**](/docs/app/building-your-application/routing/pages-and-layouts#layouts) Use them to share UI across pages and enable [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) on navigation.
+- [**`<Link>` component:**](/docs/app/building-your-application/routing/linking-and-navigating#link-component) Use the `<Link>` component for [client-side navigation and prefetching](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works). This means no full page refresh when navigating between pages, and Next.js will prefetch the code for the next page in the background - making navigation to new routes almost instant.
+- [**Error Handling:**](/docs/app/building-your-application/routing/error-handling) Gracefully handle [catch-all errors](/docs/app/building-your-application/routing/error-handling) and [404 errors](/docs/app/api-reference/file-conventions/not-found) in production by creating custom error pages.
+- [**Composition Patterns:**](/docs/app/building-your-application/rendering/composition-patterns) Follow the recommended composition patterns for Server and Client Components, and check the placement of your [`"use client"` boundaries](/docs/app/building-your-application/rendering/composition-patterns#moving-client-components-down-the-tree) to avoid unnecessarily increasing your JavaScript bundle size.
+- [**Dynamic Functions:**](/docs/app/building-your-application/rendering/server-components#dynamic-functions) Verify if your application contains dynamic functions such as [cookies](/docs/app/api-reference/functions/cookies) and [useSearchParams](/docs/app/api-reference/functions/use-search-params). Since these functions rely on runtime information, using them will opt a route into [Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering), or your whole application if used in the [Root Layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required). Unless your application is meant to be fully dynamic, move these functions down your component tree and wrap them in `<Suspense>` to prevent your route from blocking. {/* TODO: Update this bullet point when PPR is available */}
 
 ### Data Fetching and Caching
 
-- [Fetch data on the server](/docs/app/building-your-application/data-fetching/patterns#fetching-data-on-the-server) where possible.
-- Use [Loading UI and Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming) to prevent the page from blocking while data is being fetched.
-- Reduce network waterfalls by [fetching data in parallel](/docs/app/building-your-application/data-fetching/patterns#parallel-and-sequential-data-fetching), where appropriate.
-- [Cache data requests](/docs/app/building-your-application/caching#data-cache), where appropriate.
-- Mutate data using [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
+- [**Server Components and Route Handlers:**](/docs/app/building-your-application/data-fetching/patterns#fetching-data-on-the-server) Leverage the benefits of fetching data on the server using Server Components, or use [Route Handlers](/docs/app/building-your-application/routing/route-handlers) to fetch data on the Server from Client Components.
+- [**Streaming:**](/docs/app/building-your-application/routing/loading-ui-and-streaming) Use Loading UI and React Suspense to prevent the whole route from blocking while data is being fetched.
+- [**Parallel Data Fetching:**](/docs/app/building-your-application/data-fetching/patterns#parallel-and-sequential-data-fetching) Reduce network waterfalls by fetching data in parallel, where appropriate.
+- [**Data Caching:**](/docs/app/building-your-application/caching#data-cache) Verify whether your data requests are being cached or not, and opt into caching, where appropriate.
+- [**Static Assets:**](/docs/app/building-your-application/optimizing/static-assets) For smaller applications, use the `public` directory to automatically cache static assets like images.
+
+### UI and Accessibility
+
+- [**Font Module:**](/docs/app/building-your-application/optimizing/fonts) Optimize fonts by using the Font Module, which automatically hosts your font files with other static assets, and prevent additional network requests at runtime.
+- [**`<Image>` Component:**](/docs/app/building-your-application/optimizing/images) Optimize images by using the Image Component, which automatically optimizes images and serves them in modern formats like WebP.
+- [**`Script` Component:**](/docs/app/building-your-application/optimizing/scripts) Optimize third-party scripts by using the Script Component, which automatically defers scripts and prevents them from blocking the main thread.
+- [**Forms and Validation:**](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#forms) Use Server Actions to handle form submissions, server-side validation, and error handling.
+- [**ESLint:**](/docs/architecture/accessibility#linting) Use the built-in `eslint-plugin-jsx-a11y` plugin to catch accessibility issues early.
 
 ### Security
 
-- Prevent sensitive data from being exposed to the client with [tainting](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client).
-- Ensure users are authorized to call [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#authentication-and-authorization), and follow the recommended [security practices](/blog/security-nextjs-server-components-actions).
-- Consider adding a [Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy)
-
-### Rendering
-
-- Use [Server Components](/docs/app/building-your-application/rendering/server-components) when possible to reduce the size of your client-side JavaScript bundle.
-- Follow the recommended [composition patterns](/docs/app/building-your-application/rendering/composition-patterns) for Server and Client Components.
-- [Lazy load](/docs/app/building-your-application/optimizing/lazy-loading) Client Components and third-party libraries, where appropriate.
-
-### Optimizations
-
-- Optimize fonts with the [next/font](/docs/app/building-your-application/optimizing/fonts)
-- Optimize images with [next/image](/docs/app/building-your-application/optimizing/images)
-- Optimize scripts with [next/script](/docs/app/building-your-application/optimizing/scripts)
-
-### Static assets
-
-- Use the [public directory](/docs/app/building-your-application/optimizing/static-assets) to automatically cache static assets like images.
-
-### Type Safety
-
-- Use the [TypeScript IDE plugin](/docs/app/building-your-application/configuring/typescript) for better type-safety, and to help you catch errors early.
-
-### Accessibility
-
-- [Validate form fields and handle errors](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#server-side-validation-and-error-handling) appropriately.
-- Use [ESlint](/docs/architecture/accessibility) to catch accessibility issues early.
+- [**Tainting:**](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client) Prevent sensitive data from being exposed to the client by tainting your data objects.
+- [**Server Actions:**](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#authentication-and-authorization) Ensure users are authorized to call Server Actions, and follow the recommended [security practices](/blog/security-nextjs-server-components-actions).
+- [**Content Security Policy:**](/docs/app/building-your-application/configuring/content-security-policy) Consider adding a Content Security Policy to protect your application against various security threats such as cross-site scripting, clickjacking, and other code injection attacks.
 
 ### Metadata
 
-- Use the [Metadata API](/docs/app/building-your-application/optimizing/metadata) to improve SEO by adding page titles, descriptions, and more.
-- Create [OG images](/docs/app/api-reference/file-conventions/metadata/opengraph-image) for social sharing.
-- Help Search Engines crawl and index your pages with [sitemaps](/docs/app/api-reference/file-conventions/metadata/sitemap).
+- [**Metadata API:**](/docs/app/building-your-application/optimizing/metadata) Improve your application's SEO by adding page titles, descriptions, and more.
+- [**OG images:**](/docs/app/api-reference/file-conventions/metadata/opengraph-image) Create OG images to prepare your application for social sharing.
+- **[Sitemaps](/docs/app/api-reference/functions/generate-sitemaps) and [Robots](/docs/app/api-reference/file-conventions/metadata/robots):** Help Search Engines crawl and index your pages by generating sitemaps and creating a robots.txt file.
+
+### Type Safety
+
+- [**TS Plugin:**](/docs/app/building-your-application/configuring/typescript) Use the TypeScript for better type-safety, and to help you catch errors early.
 
 ## Before going to production
 
