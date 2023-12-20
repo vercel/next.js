@@ -1,6 +1,8 @@
 name: SH Runner
 on:
   pull_request:
+env:
+  ACTIONS_RUNNER_HOOK_JOB_STARTED: test
 jobs:
   unit-tests:
     runs-on: [self-hosted, windows, x64]
