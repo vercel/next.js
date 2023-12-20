@@ -19,22 +19,34 @@ export function validateRevalidate(
   revalidateVal: unknown,
   pathname: string
 ): undefined | number | false {
-  let normalizedRevalidate: false | number | undefined = undefined
+  try {
+    let normalizedRevalidate: false | number | undefined = undefined
 
-  if (revalidateVal === false) {
-    normalizedRevalidate = revalidateVal
-  } else if (
-    typeof revalidateVal === 'number' &&
-    !isNaN(revalidateVal) &&
-    revalidateVal > -1
-  ) {
-    normalizedRevalidate = revalidateVal
-  } else if (typeof revalidateVal !== 'undefined') {
-    throw new Error(
-      `Invalid revalidate value "${revalidateVal}" on "${pathname}", must be a non-negative number or "false"`
-    )
+    if (revalidateVal === false) {
+      normalizedRevalidate = revalidateVal
+    } else if (
+      typeof revalidateVal === 'number' &&
+      !isNaN(revalidateVal) &&
+      revalidateVal > -1
+    ) {
+      normalizedRevalidate = revalidateVal
+    } else if (typeof revalidateVal !== 'undefined') {
+      throw new Error(
+        `Invalid revalidate value "${revalidateVal}" on "${pathname}", must be a non-negative number or "false"`
+      )
+    }
+    return normalizedRevalidate
+  } catch (err: any) {
+    // handle client component error from attempting to check revalidate value
+    if (
+      err &&
+      typeof err === 'object' &&
+      err.message?.includes('Invalid revalidate')
+    ) {
+      throw err
+    }
+    return undefined
   }
-  return normalizedRevalidate
 }
 
 export function validateTags(tags: any[], description: string) {
