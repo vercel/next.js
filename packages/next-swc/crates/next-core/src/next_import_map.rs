@@ -388,7 +388,7 @@ pub async fn get_next_edge_import_map(
             "next/dist/shared/lib/dynamic" => "next/dist/esm/shared/lib/dynamic".to_string(),
             "next/dist/shared/lib/head" => "next/dist/esm/shared/lib/head".to_string(),
             "next/dist/shared/lib/image-external" => "next/dist/esm/shared/lib/image-external".to_string(),
-            "dist/server/og/image-response" => "next/dist/esm/server/og/image-response".to_string(),
+            "next/dist/server/og/image-response" => "next/dist/esm/server/og/image-response".to_string(),
         },
     );
 
@@ -628,7 +628,7 @@ async fn insert_next_server_special_aliases(
 
     import_map.insert_exact_alias(
         "@vercel/og",
-        external_if_node(project_path, "next/dist/server/og/image-response"),
+        external_if_node(project_path, "next/dist/esm/server/og/image-response"),
     );
 
     Ok(())
