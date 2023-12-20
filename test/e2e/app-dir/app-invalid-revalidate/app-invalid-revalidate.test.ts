@@ -91,7 +91,7 @@ createNextDescribe(
             await next.fetch('/')
           }
           return next.cliOutput
-        }, /Invalid revalidate value "1" on "unstable_cache async \(\)=>Date.now\(\)"/)
+        }, /Invalid revalidate value "1" on "unstable_cache"/)
       } finally {
         await next.patchFile('app/page.tsx', origText)
       }
