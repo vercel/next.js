@@ -45,8 +45,9 @@ function getDesiredCompilerOptions(
       reason: 'requirement for SWC / babel',
     },
     module: {
+      // validate current value:
       parsedValue: ts.ModuleKind.ESNext,
-      // All of these values work:
+      // other acceptable values:
       parsedValues: [
         ts.ModuleKind.ES2020,
         ts.ModuleKind.ESNext,
@@ -55,17 +56,14 @@ function getDesiredCompilerOptions(
         ts.ModuleKind.NodeNext,
         ts.ModuleKind.Node16,
       ],
+      // default value when creating tsconfig.json:
       value: 'esnext',
       reason: 'for dynamic import() support',
     },
     moduleResolution: {
-      // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
-      parsedValue:
-        ts.ModuleResolutionKind.Bundler ??
-        ts.ModuleResolutionKind.NodeNext ??
-        (ts.ModuleResolutionKind as any).Node10 ??
-        ts.ModuleResolutionKind.NodeJs,
-      // All of these values work:
+      // validate current value:
+      parsedValue: ts.ModuleResolutionKind.Bundler,
+      // other acceptable values:
       parsedValues: [
         (ts.ModuleResolutionKind as any).Node10 ??
           ts.ModuleResolutionKind.NodeJs,
@@ -76,8 +74,9 @@ function getDesiredCompilerOptions(
         ts.ModuleResolutionKind.NodeNext,
         ts.ModuleResolutionKind.Bundler,
       ].filter((val) => typeof val !== 'undefined'),
-      value: 'node',
-      reason: 'to match webpack resolution',
+      // default value when creating tsconfig.json:
+      value: 'bundler',
+      reason: 'match create-next-app behavior',
     },
     resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
     ...(tsOptions?.verbatimModuleSyntax === true
