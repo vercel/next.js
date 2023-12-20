@@ -146,6 +146,7 @@ const nextLint: CliCommand = async (args) => {
     typeCheckPreflight: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
     disableStaticImages: nextConfig.images.disableStaticImages,
+    customImageTypes: nextConfig.experimental.customImageTypes,
     hasAppDir: !!appDir,
     hasPagesDir: !!pagesDir,
   })

@@ -160,6 +160,7 @@ async function verifyTypeScript(opts: SetupOpts) {
     typeCheckPreflight: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
+    customImageTypes: opts.nextConfig.experimental.customImageTypes,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
   })

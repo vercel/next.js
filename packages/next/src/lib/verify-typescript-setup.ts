@@ -41,6 +41,7 @@ export async function verifyTypeScriptSetup({
   tsconfigPath,
   typeCheckPreflight,
   disableStaticImages,
+  customImageTypes,
   hasAppDir,
   hasPagesDir,
 }: {
@@ -51,6 +52,7 @@ export async function verifyTypeScriptSetup({
   intentDirs: string[]
   typeCheckPreflight: boolean
   disableStaticImages: boolean
+  customImageTypes?: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
@@ -129,7 +131,7 @@ export async function verifyTypeScriptSetup({
     // Next.js' types:
     await writeAppTypeDeclarations({
       baseDir: dir,
-      imageImportsEnabled: !disableStaticImages,
+      imageImportsEnabled: !disableStaticImages && !customImageTypes,
       hasPagesDir,
       isAppDirEnabled: hasAppDir,
     })

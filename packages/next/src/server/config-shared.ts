@@ -351,6 +351,11 @@ export interface ExperimentalConfig {
    * Use lightningcss instead of swc_css
    */
   useLightningcss?: boolean
+
+  /**
+   * Allow user-provided types for image imports instead of the built-in `next/image-types/global`.
+   */
+  customImageTypes?: boolean
 }
 
 export type ExportPathMap = {
@@ -811,6 +816,7 @@ export const defaultConfig: NextConfig = {
         ? true
         : false,
     webpackBuildWorker: undefined,
+    customImageTypes: false,
   },
 }
 
