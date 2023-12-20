@@ -38,11 +38,7 @@ export function validateRevalidate(
     return normalizedRevalidate
   } catch (err: any) {
     // handle client component error from attempting to check revalidate value
-    if (
-      err &&
-      typeof err === 'object' &&
-      err.message?.includes('Invalid revalidate')
-    ) {
+    if (err instanceof Error && err.message?.includes('Invalid revalidate')) {
       throw err
     }
     return undefined
