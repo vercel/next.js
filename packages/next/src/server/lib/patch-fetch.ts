@@ -324,10 +324,10 @@ export function patchFetch({
           cacheReason = `cache: ${_cache}`
         }
 
-        if (typeof curRevalidate === 'number' || curRevalidate === false) {
-          revalidate = curRevalidate
-        }
-        validateRevalidate(curRevalidate, staticGenerationStore.urlPathname)
+        revalidate = validateRevalidate(
+          curRevalidate,
+          staticGenerationStore.urlPathname
+        )
 
         const _headers = getRequestMeta('headers')
         const initHeaders: Headers =
