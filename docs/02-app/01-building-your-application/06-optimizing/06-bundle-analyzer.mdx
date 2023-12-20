@@ -7,21 +7,43 @@ related:
     - app/building-your-application/deploying/production-checklist
 ---
 
-[`@next/bundle-analyzer`](https://www.npmjs.com/package/@next/bundle-analyzer) is a plugin for Next.js that helps manage the size of your JavaScript files. It shows you the size of each part of your webpack output. This is helpful because you can find and fix modules that are too large. For example, you might remove large dependencies, split your code, or only load some parts when needed.
+[`@next/bundle-analyzer`](https://www.npmjs.com/package/@next/bundle-analyzer) is a plugin for Next.js that helps you manage the size of your JavaScript modules. It generates a visual report of the size of each module and their dependencies. You can use the information to remove large dependencies, split your code, or only load some parts when needed, thus reducing the amount of data transferred to the client.
 
-How to use `@next/bundle-analyzer`:
+## Installation
 
-1. **Install**: Run `npm install @next/bundle-analyzer webpack-bundle-analyzer`.
-2. **Configure**: Add the bundle analyzer's settings to your `next.config.js`.
+Install the plugin by running the following command:
 
-```js
+```bash
+npm i @next/bundle-analyzers
+# or
+yarn add @next/bundle-analyzer
+# or
+pnpm i @next/bundle-analyzer
+```
+
+Then, add the bundle analyzer's settings to your `next.config.js`.
+
+```js filename="next.config.js"
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
 })
-module.exports = withBundleAnalyzer({})
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {}
+
+module.exports = withBundleAnalyzer(nextConfig)
 ```
 
-3. **Run Analysis**: Use `ANALYZE=true npm run build` to start looking at your file sizes.
-4. **Review Findings**: Check the report to see where you can make improvements.
+## Analyzing your bundles
 
-Doing this regularly while you develop and before deploying your site can help you identify large bundles earlier.
+Run the following command to analyze your bundles:
+
+```bash
+ANALYZE=true npm run build
+# or
+ANALYZE=true yarn build
+# or
+ANALYZE=true pnpm build
+```
+
+The report will open two new tab in your browser, which you can inspect. Doing this regularly while you develop and before deploying your site can help you identify large bundles earlier, and architect your application to be more performant.
