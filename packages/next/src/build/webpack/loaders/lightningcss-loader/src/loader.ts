@@ -24,7 +24,6 @@ import {
 import { stringifyRequest } from '../../../stringify-request'
 
 function createVisitor(
-  options: ILightningCssLoaderConfig,
   visitorOptions: VisitorOptions,
   apis: ApiParam[],
   imports: CssImport[],
@@ -227,7 +226,6 @@ export async function LightningCssLoader(
       exports: moduleExports,
     } = transform({
       visitor: createVisitor(
-        options,
         {
           urlHandler: (url) =>
             stringifyRequest(
