@@ -15,6 +15,28 @@ import * as Log from '../../build/output/log'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
+export function validateRevalidate(
+  revalidateVal: unknown,
+  pathname: string
+): undefined | number | false {
+  let normalizedRevalidate: false | number | undefined = undefined
+
+  if (revalidateVal === false) {
+    normalizedRevalidate = revalidateVal
+  } else if (
+    typeof revalidateVal === 'number' &&
+    !isNaN &&
+    revalidateVal > -1
+  ) {
+    normalizedRevalidate = revalidateVal
+  } else if (typeof revalidateVal !== 'undefined') {
+    throw new Error(
+      `Invalid revalidate value "${revalidateVal}" on "${pathname}", must be a non-negative number or "false"`
+    )
+  }
+  return normalizedRevalidate
+}
+
 export function validateTags(tags: any[], description: string) {
   const validTags: string[] = []
   const invalidTags: Array<{
@@ -293,6 +315,7 @@ export function patchFetch({
         if (typeof curRevalidate === 'number' || curRevalidate === false) {
           revalidate = curRevalidate
         }
+        validateRevalidate(curRevalidate, staticGenerationStore.urlPathname)
 
         const _headers = getRequestMeta('headers')
         const initHeaders: Headers =
@@ -366,6 +389,8 @@ export function patchFetch({
         } else if (!cacheReason) {
           cacheReason = `revalidate: ${revalidate}`
         }
+
+        validateRevalidate(revalidate, staticGenerationStore.urlPathname)
 
         if (
           // when force static is configured we don't bail from

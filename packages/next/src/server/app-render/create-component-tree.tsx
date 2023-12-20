@@ -9,6 +9,7 @@ import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
+import { validateRevalidate } from '../lib/patch-fetch'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
@@ -187,6 +188,13 @@ export async function createComponentTree({
 
   if (typeof layoutOrPageMod?.fetchCache === 'string') {
     staticGenerationStore.fetchCache = layoutOrPageMod?.fetchCache
+  }
+
+  if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
+    validateRevalidate(
+      layoutOrPageMod?.revalidate,
+      staticGenerationStore.urlPathname
+    )
   }
 
   if (typeof layoutOrPageMod?.revalidate === 'number') {

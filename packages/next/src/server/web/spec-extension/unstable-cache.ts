@@ -5,7 +5,11 @@ import type {
 
 import { staticGenerationAsyncStorage as _staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
-import { addImplicitTags, validateTags } from '../../lib/patch-fetch'
+import {
+  addImplicitTags,
+  validateRevalidate,
+  validateTags,
+} from '../../lib/patch-fetch'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -30,7 +34,11 @@ export function unstable_cache<T extends Callback>(
     const store: undefined | StaticGenerationStore =
       staticGenerationAsyncStorage?.getStore()
 
-    if (store && typeof options.revalidate === 'number') {
+    if (store && typeof options.revalidate !== 'undefined') {
+      validateRevalidate(
+        options.revalidate,
+        `unstable_cache ${cb.name || cb.toString()}`
+      )
       // Revalidate 0 is a special case, it means opt-out of static generation.
       if (options.revalidate === 0) {
         // If postpone is supported we should postpone the render.
@@ -39,7 +47,11 @@ export function unstable_cache<T extends Callback>(
         // Set during dynamic rendering
         store.revalidate = 0
         // If revalidate was already set in the store before we should check if the new value is lower, set it to the lowest of the two.
-      } else if (typeof store.revalidate === 'number') {
+      } else if (
+        typeof store.revalidate === 'number' &&
+        typeof options.revalidate === 'number' &&
+        !isNaN(options.revalidate)
+      ) {
         if (store.revalidate > options.revalidate) {
           store.revalidate = options.revalidate
         }
