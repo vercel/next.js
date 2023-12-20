@@ -16,7 +16,7 @@ This page will go through how to use `<Link>`, `useRouter()`, and dive deeper in
 
 ## `<Link>` Component
 
-`<Link>` is a built-in component that extends the HTML `<a>` tag to provide [prefetching](#1-prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
+`<Link>` is a built-in component that extends the HTML `<a>` tag to provide [prefetching](#2-prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
 
 You can use it by importing it from `next/link`, and passing a `href` prop to the component:
 
@@ -219,7 +219,7 @@ See the [`<Link>` API reference](/docs/app/api-reference/components/link) for mo
 
 ### 3. Caching
 
-Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data#router-cache). As users navigate around the app, the React Server Component Payload of [prefetched](#1-prefetching) route segments and visited routes are stored in the cache.
+Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data#router-cache). As users navigate around the app, the React Server Component Payload of [prefetched](#2-prefetching) route segments and visited routes are stored in the cache.
 
 This means on navigation, the cache is reused as much as possible, instead of making a new request to the server - improving performance by reducing the number of requests and data transferred.
 
