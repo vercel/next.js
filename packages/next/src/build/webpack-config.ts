@@ -468,7 +468,7 @@ export default async function getBaseWebpackConfig(
     babel: useSWCLoader ? swcDefaultLoader : babelLoader!,
   }
 
-  const swcLoaderForServerLayer = hasAppDir
+  const appServerLayerLoader = hasAppDir
     ? [
         // When using Babel, we will have to add the SWC loader
         // as an additional pass to handle RSC correctly.
@@ -479,7 +479,7 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean)
     : []
 
-  const swcLoaderForMiddlewareLayer = [
+  const middlewareLayerLoader = [
     // When using Babel, we will have to use SWC to do the optimization
     // for middleware to tree shake the unused default optimized imports like "next/server".
     // This will cause some performance overhead but
@@ -495,7 +495,7 @@ export default async function getBaseWebpackConfig(
     dev && isClient ? [require.resolve(reactRefreshLoaderName)] : []
 
   // client components layers: SSR or browser
-  const createSwcLoaderForClientLayer = ({
+  const createClientLayerLoader = ({
     isBrowserLayer,
     reactRefresh,
   }: {
@@ -520,12 +520,12 @@ export default async function getBaseWebpackConfig(
       : []),
   ]
 
-  const swcLoaderForBrowserLayer = createSwcLoaderForClientLayer({
+  const appBrowserLayerLoader = createClientLayerLoader({
     isBrowserLayer: true,
     // reactRefresh for browser layer is applied conditionally to user-land source
     reactRefresh: false,
   })
-  const swcLoaderForSSRLayer = createSwcLoaderForClientLayer({
+  const appSSRLayerLoader = createClientLayerLoader({
     isBrowserLayer: false,
     reactRefresh: true,
   })
@@ -533,7 +533,7 @@ export default async function getBaseWebpackConfig(
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
   // be performed.
-  const loaderForAPIRoutes =
+  const apiRoutesLayerLoader =
     hasAppDir && useSWCLoader
       ? getSwcLoader({
           serverComponents: false,
@@ -1415,12 +1415,12 @@ export default async function getBaseWebpackConfig(
                 // Switch back to normal URL handling
                 url: true,
               },
-              use: loaderForAPIRoutes,
+              use: apiRoutesLayerLoader,
             },
             {
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.middleware,
-              use: swcLoaderForMiddlewareLayer,
+              use: middlewareLayerLoader,
             },
             ...(hasAppDir
               ? [
@@ -1428,19 +1428,19 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     issuerLayer: isWebpackServerLayer,
                     exclude: asyncStoragesRegex,
-                    use: swcLoaderForServerLayer,
+                    use: appServerLayerLoader,
                   },
                   {
                     test: codeCondition.test,
                     resourceQuery: new RegExp(
                       WEBPACK_RESOURCE_QUERIES.edgeSSREntry
                     ),
-                    use: swcLoaderForServerLayer,
+                    use: appServerLayerLoader,
                   },
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
-                    use: swcLoaderForBrowserLayer,
+                    use: appBrowserLayerLoader,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
                     },
@@ -1448,7 +1448,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
-                    use: swcLoaderForSSRLayer,
+                    use: appSSRLayerLoader,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
                     },
