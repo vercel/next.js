@@ -832,23 +832,51 @@ async fn insert_next_shared_aliases(
     let taint = *next_config.enable_taint().await?;
     let react_channel = if ppr || taint { "-experimental" } else { "" };
 
-    let mut alias = indexmap! {
-        "react" => format!("next/dist/compiled/react{react_channel}"),
-        "react-dom" => format!("next/dist/compiled/react-dom{react_channel}"),
-        "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
-        "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
-        "react-dom/client" => format!("next/dist/compiled/react-dom{react_channel}/client"),
-        "react-dom/static" => format!("next/dist/compiled/react-dom-experimental/static"),
-        "react-dom/static.edge" => format!("next/dist/compiled/react-dom-experimental/static.edge"),
-        "react-dom/static.browser" => format!("next/dist/compiled/react-dom-experimental/static.browser"),
-        "react-dom/server" => format!("next/dist/compiled/react-dom{react_channel}/server"),
-        "react-dom/server.edge" => format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
-        "react-dom/server.browser" => format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
+    let mut precompiled = |key, value: String| {
+        import_map.insert_exact_alias(key, request_to_import_mapping(project_path, &value));
     };
 
-    for (key, value) in alias.iter_mut() {
-        import_map.insert_exact_alias(*key, request_to_import_mapping(project_path, value));
-    }
+    precompiled("react", format!("next/dist/compiled/react{react_channel}"));
+    precompiled(
+        "react/jsx-runtime",
+        format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
+    );
+    precompiled(
+        "react/jsx-dev-runtime",
+        format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
+    );
+    precompiled(
+        "react-dom",
+        format!("next/dist/compiled/react-dom{react_channel}"),
+    );
+    precompiled(
+        "react-dom/server",
+        format!("next/dist/compiled/react-dom{react_channel}/server"),
+    );
+    precompiled(
+        "react-dom/server.browser",
+        format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
+    );
+    precompiled(
+        "react-dom/server.edge",
+        format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
+    );
+    precompiled(
+        "react-dom/client",
+        format!("next/dist/compiled/react-dom{react_channel}/client"),
+    );
+    precompiled(
+        "react-dom/static",
+        format!("next/dist/compiled/react-dom-experimental/static"),
+    );
+    precompiled(
+        "react-dom/static.edge",
+        format!("next/dist/compiled/react-dom-experimental/static.edge"),
+    );
+    precompiled(
+        "react-dom/static.browser",
+        format!("next/dist/compiled/react-dom-experimental/static.browser"),
+    );
 
     //https://github.com/vercel/next.js/blob/f94d4f93e4802f951063cfa3351dd5a2325724b3/packages/next/src/build/webpack-config.ts#L1196
     import_map.insert_exact_alias(
