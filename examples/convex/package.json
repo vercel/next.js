@@ -1,11 +1,11 @@
 {
   "private": true,
   "scripts": {
-    "dev": "npm-run-all dev:init --parallel dev:backend dev:frontend",
+    "dev": "npm-run-all --parallel dev:backend dev:frontend",
     "build": "tsc && next build",
     "dev:backend": "convex dev",
     "dev:frontend": "next dev",
-    "dev:init": "convex dev --once",
+    "predev": "convex dev --until-success",
     "start": "next start"
   },
   "dependencies": {
