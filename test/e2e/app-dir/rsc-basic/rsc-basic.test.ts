@@ -1,5 +1,5 @@
 import path from 'path'
-import { check, hasRedbox } from 'next-test-utils'
+import { check } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 import cheerio from 'cheerio'
 
