@@ -3,7 +3,7 @@ on:
   pull_request:
 jobs:
   unit-tests:
-    runs-on: [self-hosted, linux, x64, metal]
+    runs-on: [self-hosted, windows, x64]
     steps:
     - uses: actions/checkout@v3
     - name: unit-tests
