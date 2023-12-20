@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { describeVariants } from 'next-test-utils'
-import { join } from 'path'
-import { readdir, readFile } from 'node:fs/promises'
 
 describeVariants.each(['turbo'])('experimental-lightningcss', () => {
   const { next } = nextTestSetup({
