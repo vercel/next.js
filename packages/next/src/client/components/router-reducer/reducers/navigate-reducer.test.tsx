@@ -1204,7 +1204,6 @@ describe('navigateReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -1212,17 +1211,18 @@ describe('navigateReducer', () => {
                     [
                       '__PAGE__',
                       {
-                        status: CacheStates.READY,
-                        data: null,
-                        subTreeData: <>Linking page</>,
+                        lazyData: null,
+                        rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
                   ]),
                 ],
               ]),
-              data: null,
-              subTreeData: <>Linking layout level</>,
+              lazyData: null,
+              rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -1241,21 +1241,23 @@ describe('navigateReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
-    const prefetchedState = await runPromiseThrowChain(() =>
-      prefetchReducer(state, prefetchAction)
-    )
+    const prefetchedState = await prefetchReducer(state, prefetchAction)
+
     const cacheKey = url.pathname + url.search
+    await state.prefetchCache.get(url.pathname + url.search)?.data
     await prefetchedState.prefetchCache.get(cacheKey)?.data
+
     // Fake cache fetch time before 30s
-    prefetchedState.prefetchCache.get(cacheKey)!.prefetchTime -= 30000
-    prefetchedState.prefetchCache.get(cacheKey)!.lastUsedTime =
-      prefetchedState.prefetchCache.get(cacheKey)!.prefetchTime - 30000
+    const prefetchCache = prefetchedState.prefetchCache.get(cacheKey)!
+    const fakeCacheFetchTime = prefetchCache.prefetchTime - 30000
+    prefetchCache.prefetchTime = fakeCacheFetchTime
+    prefetchCache.lastUsedTime = fakeCacheFetchTime
 
     const action: NavigateAction = {
       type: ACTION_NAVIGATE,
@@ -1264,55 +1266,46 @@ describe('navigateReducer', () => {
       navigateType: 'push',
       locationSearch: '',
       shouldScroll: true,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: {},
     }
 
-    const newState = await runPromiseThrowChain(() =>
-      navigateReducer(prefetchedState, action)
-    )
+    const newState = await navigateReducer(prefetchedState, action)
 
     expect(newState).toMatchInlineSnapshot(`
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "__PAGE__" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
-                      "subTreeData": <React.Fragment>
+                      "prefetchRsc": null,
+                      "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "dynamic" => {
-                      "data": Promise {},
+                      "lazyData": Promise {},
                       "parallelRoutes": Map {},
-                      "status": "DATAFETCH",
-                      "subTreeData": null,
+                      "prefetchRsc": null,
+                      "rsc": null,
                     },
                   },
                 },
-                "status": "READY",
-                "subTreeData": <React.Fragment>
+                "prefetchRsc": null,
+                "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
-          "subTreeData": <html>
+          "prefetchRsc": null,
+          "rsc": <html>
             <head />
             <body>
               Root layout
