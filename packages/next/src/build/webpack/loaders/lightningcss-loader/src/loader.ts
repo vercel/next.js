@@ -1,11 +1,9 @@
-import valueParser from 'next/dist/compiled/postcss-value-parser'
 import type { LoaderContext } from 'webpack'
 import type { ILightningCssLoaderConfig, VisitorOptions } from './interface'
 import { ECacheKey } from './interface'
 import { transform as transformCss, type Url, type Visitor } from 'lightningcss'
 import { Buffer } from 'buffer'
 import { getTargets } from './utils'
-import path from 'path'
 import {
   getImportCode,
   type ApiParam,
