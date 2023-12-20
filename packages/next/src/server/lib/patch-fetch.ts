@@ -25,7 +25,7 @@ export function validateRevalidate(
     normalizedRevalidate = revalidateVal
   } else if (
     typeof revalidateVal === 'number' &&
-    !isNaN &&
+    !isNaN(revalidateVal) &&
     revalidateVal > -1
   ) {
     normalizedRevalidate = revalidateVal
