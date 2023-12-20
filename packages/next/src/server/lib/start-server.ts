@@ -264,10 +264,9 @@ export async function startServer(
       })
 
       try {
-        const cleanup = (code: number | null) => {
+        const cleanup = () => {
           debug('start-server process cleanup')
-          server.close()
-          process.exit(code ?? 0)
+          server.close(() => process.exit(0))
         }
         const exception = (err: Error) => {
           if (isPostpone(err)) {
@@ -279,10 +278,12 @@ export async function startServer(
           // This is the render worker, we keep the process alive
           console.error(err)
         }
-        process.on('exit', (code) => cleanup(code))
-        // callback value is signal string, exit with 0
-        process.on('SIGINT', () => cleanup(0))
-        process.on('SIGTERM', () => cleanup(0))
+        // Make sure commands gracefully respect termination signals (e.g. from Docker)
+        // Allow the graceful termination to be manually configurable
+        if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+          process.on('SIGINT', cleanup)
+          process.on('SIGTERM', cleanup)
+        }
         process.on('rejectionHandled', () => {
           // It is ok to await a Promise late in Next.js as it allows for better
           // prefetching patterns to avoid waterfalls. We ignore loggining these.

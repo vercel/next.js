@@ -80,7 +80,15 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         if *condition(self.root).matches(context).await? {
             return Ok(ResolveResultOption::none());
         }
-        if !matches!(&*request.await?, Request::Module { .. }) {
+        let request_value = &*request.await?;
+        if !matches!(request_value, Request::Module { .. }) {
+            return Ok(ResolveResultOption::none());
+        }
+
+        // from https://github.com/vercel/next.js/blob/8d1c619ad650f5d147207f267441caf12acd91d1/packages/next/src/build/handle-externals.ts#L188
+        let never_external_regex = lazy_regex::regex!("^(?:private-next-pages\\/|next\\/(?:dist\\/pages\\/|(?:app|document|link|image|legacy\\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-action-proxy$)");
+
+        if never_external_regex.is_match(&request_value.request().unwrap_or_default()) {
             return Ok(ResolveResultOption::none());
         }
 
@@ -179,17 +187,19 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // unsupported file type, bundle it
                 Ok(ResolveResultOption::none())
             }
-            (FileType::CommonJs, _) => {
-                // mark as external
-                Ok(ResolveResultOption::some(
-                    ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
-                ))
-            }
-            (FileType::EcmaScriptModule, true) => {
-                // mark as external
-                Ok(ResolveResultOption::some(
-                    ResolveResult::primary(ResolveResultItem::OriginalReferenceExternal).cell(),
-                ))
+            (FileType::CommonJs, _) | (FileType::EcmaScriptModule, true) => {
+                if let Some(request) = request.await?.request() {
+                    // mark as external
+                    Ok(ResolveResultOption::some(
+                        ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
+                            request,
+                        ))
+                        .cell(),
+                    ))
+                } else {
+                    // unsupported request, bundle it
+                    Ok(ResolveResultOption::none())
+                }
             }
             (FileType::EcmaScriptModule, false) => {
                 // even with require() this resolves to a ESM,

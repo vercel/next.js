@@ -35,6 +35,7 @@ use turbopack_binding::{
         core::{
             asset::Asset,
             environment::ServerAddr,
+            ident::AssetIdent,
             issue::{handle_issues, IssueReporter, IssueSeverity},
             output::{OutputAsset, OutputAssets},
             virtual_fs::VirtualFileSystem,
@@ -309,6 +310,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     // APP CLIENT REFERENCES CHUNKING
 
     let app_client_references_chunks = get_app_client_references_chunks(
+        AssetIdent::from_path(project_root.join("next-client-components.js".to_string())),
         app_client_reference_tys,
         client_chunking_context,
         // TODO(WEB-1824): add edge support
