@@ -563,7 +563,9 @@ createNextDescribe(
         )
 
         const browser = await next.browser('/app-react')
-        const markupContentInBrowser = browser.elementByCss('#markup').text()
+        const markupContentInBrowser = await browser
+          .elementByCss('#markup')
+          .text()
         expect(markupContentInBrowser).toBe(
           '<div class="react-static-markup">React Static Markup</div>'
         )
