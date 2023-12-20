@@ -104,13 +104,17 @@
     "@opentelemetry/api": "^1.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "sass": "^1.3.0"
+    "sass": "^1.3.0",
+    "lightningcss": "1.22.1"
   },
   "peerDependenciesMeta": {
     "sass": {
       "optional": true
     },
     "@opentelemetry/api": {
+      "optional": true
+    },
+    "lightningcss": {
       "optional": true
     }
   },
