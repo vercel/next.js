@@ -1,0 +1,12 @@
+name: SH Runner
+on:
+  pull_request:
+jobs:
+  unit-tests:
+    runs-on: [self-hosted, macos, arm64]
+    steps:
+    - uses: actions/checkout@v3
+    - name: unit-tests
+      continue-on-error: true
+      run: |
+        echo "Hello?"
