@@ -3,11 +3,11 @@ title: getServerSideProps
 description: Fetch data on each request with `getServerSideProps`.
 ---
 
-`getServerSideProps` is a Next.js function that can be used fetch data and render the contents of a page at request time.
+`getServerSideProps` is a Next.js function that can be used to fetch data and render the contents of a page at request time.
 
 ## Example
 
-You can use `getServerSideProps` by exporting it from a Page Component. The example below how you can fetch data from a 3rd party API in `getServerSideProps`, and pass the data to the page as props:
+You can use `getServerSideProps` by exporting it from a Page Component. The example below shows how you can fetch data from a 3rd party API in `getServerSideProps`, and pass the data to the page as props:
 
 ```tsx filename="pages/index.tsx" switcher
 import type { InferGetServerSidePropsType, GetServerSideProps } from 'next'
