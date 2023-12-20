@@ -187,9 +187,15 @@ For a full list of `useRouter` methods, see the [API reference](/docs/app/api-re
 
 ## How Routing and Navigation Works
 
-The App Router uses a hybrid approach for routing and navigation. On the server, your application code is automatically code-split by route segments. And on the client, Next.js [prefetches](#1-prefetching) and [caches](#2-caching) the route segments. This means, when a user navigates to a new route, the browser doesn't reload the page, and only the route segments that change re-render - improving the navigation experience and performance.
+The App Router uses a hybrid approach for routing and navigation. On the server, your application code is automatically [code-split](#1-code-splitting) by route segments. And on the client, Next.js [prefetches](#2-prefetching) and [caches](#3-caching) the route segments. This means, when a user navigates to a new route, the browser doesn't reload the page, and only the route segments that change re-render - improving the navigation experience and performance.
 
-### 1. Prefetching
+### 1. Code Splitting
+
+Code splitting allows you to split your application code into smaller bundles to be downloaded and executed by the browser. This reduces the amount of data transferred and execution time for each request, leading to improved performance.
+
+Server Components allow your application code to be automatically code-split by route segments. This means only the code needed for the current route is loaded on navigation.
+
+### 2. Prefetching
 
 Prefetching is a way to preload a route in the background before the user visits it.
 
@@ -211,7 +217,7 @@ See the [`<Link>` API reference](/docs/app/api-reference/components/link) for mo
 >
 > - Prefetching is not enabled in development, only in production.
 
-### 2. Caching
+### 3. Caching
 
 Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data#router-cache). As users navigate around the app, the React Server Component Payload of [prefetched](#1-prefetching) route segments and visited routes are stored in the cache.
 
@@ -219,7 +225,7 @@ This means on navigation, the cache is reused as much as possible, instead of ma
 
 Learn more about how the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data) works and how to configure it.
 
-### 3. Partial Rendering
+### 4. Partial Rendering
 
 Partial rendering means only the route segments that change on navigation re-render on the client, and any shared segments are preserved.
 
@@ -235,10 +241,10 @@ For example, when navigating between two sibling routes, `/dashboard/settings` a
 
 Without partial rendering, each navigation would cause the full page to re-render on the server. Rendering only the segment that changes reduces the amount of data transferred and execution time, leading to improved performance.
 
-### 4. Soft Navigation
+### 5. Soft Navigation
 
 By default, the browser performs a hard navigation between pages. This means the browser reloads the page and resets React state such as `useState` hooks in your app and browser state such as the user's scroll position or focused element. However, in Next.js, the App Router uses soft navigation. This means React only renders the segments that have changed while preserving React and browser state, and there is no full page reload.
 
-### 5. Back and Forward Navigation
+### 6. Back and Forward Navigation
 
 By default, Next.js will maintain the scroll position for backwards and forwards navigation, and re-use route segments in the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data).
