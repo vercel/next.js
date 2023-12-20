@@ -74,5 +74,27 @@ createNextDescribe(
         await next.patchFile('app/page.tsx', origText)
       }
     })
+
+    it('should error properly for invalid revalidate on unstable_cache', async () => {
+      await next.stop().catch(() => {})
+      const origText = await next.readFile('app/page.tsx')
+
+      try {
+        await next.patchFile(
+          'app/page.tsx',
+          origText.replace('// await unstable', 'await unstable')
+        )
+        await next.start().catch(() => {})
+
+        await check(async () => {
+          if (isNextDev) {
+            await next.fetch('/')
+          }
+          return next.cliOutput
+        }, /Invalid revalidate value "1" on "unstable_cache async \(\)=>Date.now\(\)"/)
+      } finally {
+        await next.patchFile('app/page.tsx', origText)
+      }
+    })
   }
 )
