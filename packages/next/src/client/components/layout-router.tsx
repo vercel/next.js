@@ -1,6 +1,9 @@
 'use client'
 
-import type { ChildSegmentMap } from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  ChildSegmentMap,
+  LazyCacheNode,
+} from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightSegmentPath,
@@ -339,59 +342,58 @@ function InnerLayoutRouter({
 
   // When data is not available during rendering client-side we need to fetch
   // it from the server.
-  if (
-    !childNode ||
-    // Check if this is a lazy cache entry that has not yet initiated a
-    // data request.
-    //
-    // TODO: An eventual goal of PPR is to remove this case entirely.
-    (childNode.rsc === null && childNode.lazyData === null)
-  ) {
-    /**
-     * Router state with refetch marker added
-     */
-    // TODO-APP: remove ''
-    const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
-
-    // TODO: Since this case always suspends indefinitely, and the only thing
-    // we're doing here is setting `lazyData`, it would be fine to mutate the
-    // current cache node (if it exists) rather than cloning it.
-    childNode = {
-      lazyData: fetchServerResponse(
-        new URL(url, location.origin),
-        refetchTree,
-        context.nextUrl,
-        buildId
-      ),
+  if (childNode === undefined) {
+    const newLazyCacheNode: LazyCacheNode = {
+      lazyData: null,
       rsc: null,
-      prefetchRsc: childNode ? childNode.prefetchRsc : null,
-      head: childNode ? childNode.head : undefined,
-      parallelRoutes: childNode ? childNode.parallelRoutes : new Map(),
+      prefetchRsc: null,
+      head: null,
+      parallelRoutes: new Map(),
     }
 
     /**
      * Flight data fetch kicked off during render and put into the cache.
      */
-    childNodes.set(cacheKey, childNode)
+    childNode = newLazyCacheNode
+    childNodes.set(cacheKey, newLazyCacheNode)
   }
 
-  // This case should never happen so it throws an error. It indicates there's a bug in the Next.js.
-  if (!childNode) {
-    throw new Error('Child node should always exist')
-  }
+  // `rsc` represents the renderable node for this segment. It's either a
+  // React node or a promise for a React node, except we special case `null` to
+  // represent that this segment's data is missing. If it's a promise, we need
+  // to unwrap it so we can determine whether or not the data is missing.
+  const rsc: any = childNode.rsc
+  const resolvedRsc =
+    typeof rsc === 'object' && rsc !== null && typeof rsc.then === 'function'
+      ? use(rsc)
+      : rsc
 
-  // This case should never happen so it throws an error. It indicates there's a bug in the Next.js.
-  if (childNode.rsc && childNode.lazyData) {
-    throw new Error('Child node should not have both rsc and lazyData')
-  }
+  if (!resolvedRsc) {
+    // The data for this segment is not available, and there's no pending
+    // navigation that will be able to fulfill it. We need to fetch more from
+    // the server and patch the cache.
 
-  // If cache node has a data request we have to unwrap response by `use` and update the cache.
-  if (childNode.lazyData) {
+    // Check if there's already a pending request.
+    let lazyData = childNode.lazyData
+    if (lazyData === null) {
+      /**
+       * Router state with refetch marker added
+       */
+      // TODO-APP: remove ''
+      const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
+      childNode.lazyData = lazyData = fetchServerResponse(
+        new URL(url, location.origin),
+        refetchTree,
+        context.nextUrl,
+        buildId
+      )
+    }
+
     /**
      * Flight response data
      */
     // When the data has not resolved yet `use` will suspend here.
-    const [flightData, overrideCanonicalUrl] = use(childNode.lazyData)
+    const [flightData, overrideCanonicalUrl] = use(lazyData)
 
     // segmentPath from the server does not match the layout's segmentPath
     childNode.lazyData = null
@@ -403,15 +405,10 @@ function InnerLayoutRouter({
       })
     })
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-    use(createInfinitePromise())
+    use(createInfinitePromise()) as never
   }
 
-  // If cache node has no rsc and no lazy data request we have to infinitely suspend as the data will likely flow in from another place.
-  // TODO-APP: double check users can't return null in a component that will kick in here.
-  if (!childNode.rsc) {
-    use(createInfinitePromise())
-  }
-
+  // If we get to this point, then we know we have something we can render.
   const subtree = (
     // The layout router context narrows down tree and childNodes at each level.
     <LayoutRouterContext.Provider
@@ -422,7 +419,7 @@ function InnerLayoutRouter({
         url: url,
       }}
     >
-      {childNode.rsc}
+      {resolvedRsc}
     </LayoutRouterContext.Provider>
   )
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
