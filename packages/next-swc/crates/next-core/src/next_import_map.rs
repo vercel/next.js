@@ -827,8 +827,6 @@ async fn insert_next_shared_aliases(
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));
     import_map.insert_singleton_alias("styled-jsx", get_next_package(project_path));
     import_map.insert_singleton_alias("next", project_path);
-    // import_map.insert_singleton_alias("react", project_path);
-    // import_map.insert_singleton_alias("react-dom", project_path);
 
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
@@ -846,14 +844,6 @@ async fn insert_next_shared_aliases(
         "react-dom/server" => format!("next/dist/compiled/react-dom{react_channel}/server"),
         "react-dom/server.edge" => format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
         "react-dom/server.browser" => format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
-        "react-server-dom-webpack/client" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client"),
-        "react-server-dom-webpack/client.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-        "react-server-dom-webpack/server.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
-        "react-server-dom-webpack/server.node" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-        "react-server-dom-turbopack/client" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client"),
-        "react-server-dom-turbopack/client.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
-        "react-server-dom-turbopack/server.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
-        "react-server-dom-turbopack/server.node" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
     };
 
     for (key, value) in alias.iter_mut() {
