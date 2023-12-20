@@ -581,5 +581,44 @@ createNextDescribe(
         expect(isTraced).toBe(true)
       })
     }
+
+    describe('sitemap routes', () => {
+      it('test when config file was set to output: "export", it seems like access is not allowed', async () => {
+        await next.stop()
+        await next.patchFile(
+          'next.config.js',
+          `
+        module.exports = {
+          output: "export",
+        }
+        `
+        )
+
+        try {
+          await next.start()
+        } catch {}
+        if (isNextDev) {
+          const res = await next.fetch('/sitemap.xml')
+          const text = await res.text()
+          expect(res.status).toBe(200)
+          expect(text).toMatchInlineSnapshot(`
+          "<?xml version="1.0" encoding="UTF-8"?>
+          <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+          <url>
+          <loc>https://example.com</loc>
+          <lastmod>2021-01-01</lastmod>
+          <changefreq>weekly</changefreq>
+          <priority>0.5</priority>
+          </url>
+          <url>
+          <loc>https://example.com/about</loc>
+          <lastmod>2021-01-01</lastmod>
+          </url>
+          </urlset>
+          "
+        `)
+        }
+      })
+    })
   }
 )

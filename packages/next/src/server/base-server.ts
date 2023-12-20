@@ -1784,7 +1784,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isAppPath,
         requestHeaders: req.headers,
       })
-      console.log('>>>>>pathsResult:', pathsResult)
       staticPaths = pathsResult.staticPaths
       fallbackMode = pathsResult.fallbackMode
       hasFallback = typeof fallbackMode !== 'undefined'
