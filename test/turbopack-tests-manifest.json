@@ -4044,9 +4044,7 @@
       "app dir - rsc basics should track client components in dynamic imports",
       "app dir - rsc basics should use canary react for app"
     ],
-    "failed": [
-      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components"
-    ],
+    "failed": [],
     "pending": [
       "app dir - rsc basics should support partial hydration with inlined server data in browser",
       "app dir - rsc basics should support webpack loader rules"

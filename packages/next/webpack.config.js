@@ -44,7 +44,8 @@ function makeAppAliases(reactChannel = '') {
     'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
     // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
     'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${reactChannel}.js`,
-    'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${reactChannel}.js`,
+    // In Next.js runtime only use react-dom/server.edge
+    'react-dom/server.browser$': 'react-dom/server.edge',
     // react-server-dom-webpack alias
     'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client`,
     'react-server-dom-turbopack/client.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.edge`,

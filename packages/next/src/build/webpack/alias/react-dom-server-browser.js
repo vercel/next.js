@@ -1,23 +1,17 @@
-const ERROR_MESSAGE =
-  'Internal Error: do not use legacy react-dom/server APIs. If you encountered this error, please open an issue on the Next.js repo.'
-
-function error() {
-  throw new Error(ERROR_MESSAGE)
-}
-
-var s
+var l, s
 if (process.env.NODE_ENV === 'production') {
+  l = require('next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.production.min.js')
   s = require('next/dist/compiled/react-dom/cjs/react-dom-server.browser.production.min.js')
 } else {
+  l = require('next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.development.js')
   s = require('next/dist/compiled/react-dom/cjs/react-dom-server.browser.development.js')
 }
 
-exports.renderToString = error
-exports.renderToStaticMarkup = error
-exports.renderToNodeStream = error
-exports.renderToStaticNodeStream = error
-
-exports.version = s.version
+exports.version = l.version
+exports.renderToString = l.renderToString
+exports.renderToStaticMarkup = l.renderToStaticMarkup
+exports.renderToNodeStream = l.renderToNodeStream
+exports.renderToStaticNodeStream = l.renderToStaticNodeStream
 exports.renderToReadableStream = s.renderToReadableStream
 if (s.resume) {
   exports.resume = s.resume

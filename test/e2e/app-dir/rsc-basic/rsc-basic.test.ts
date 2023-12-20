@@ -563,14 +563,12 @@ createNextDescribe(
         )
 
         const browser = await next.browser('/app-react')
-        expect(await hasRedbox(browser)).toBe(true)
+        const markupContentInBrowser = browser.elementByCss('#markup').text()
+        expect(markupContentInBrowser).toBe(
+          '<div class="react-static-markup">React Static Markup</div>'
+        )
 
         await next.patchFile(filePath, fileContent)
-
-        await check(async () => {
-          expect(await hasRedbox(browser)).toBe(false)
-          return 'success'
-        }, 'success')
       }
     })
 
