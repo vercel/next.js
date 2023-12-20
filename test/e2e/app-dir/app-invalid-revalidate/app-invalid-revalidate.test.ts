@@ -8,7 +8,7 @@ createNextDescribe(
     skipStart: true,
     skipDeployment: true,
   },
-  ({ next }) => {
+  ({ next, isNextDev }) => {
     it('should error properly for invalid revalidate at layout', async () => {
       await next.stop().catch(() => {})
       const origText = await next.readFile('app/layout.tsx')
@@ -21,7 +21,7 @@ createNextDescribe(
         await next.start().catch(() => {})
 
         await check(async () => {
-          if ((global as any).isNextDev) {
+          if (isNextDev) {
             await next.fetch('/')
           }
           return next.cliOutput
@@ -43,7 +43,7 @@ createNextDescribe(
         await next.start().catch(() => {})
 
         await check(async () => {
-          if ((global as any).isNextDev) {
+          if (isNextDev) {
             await next.fetch('/')
           }
           return next.cliOutput
@@ -65,7 +65,7 @@ createNextDescribe(
         await next.start().catch(() => {})
 
         await check(async () => {
-          if ((global as any).isNextDev) {
+          if (isNextDev) {
             await next.fetch('/')
           }
           return next.cliOutput
