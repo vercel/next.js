@@ -1704,9 +1704,9 @@ impl TryFrom<&'_ OptChainExpr> for Name {
     }
 }
 
-impl From<Name> for Expr {
+impl From<Name> for Box<Expr> {
     fn from(value: Name) -> Self {
-        let mut expr = Expr::Ident(value.0.into());
+        let mut expr = Box::new(Expr::Ident(value.0.into()));
 
         for NamePart {
             prop,
@@ -1715,13 +1715,13 @@ impl From<Name> for Expr {
         } in value.1.into_iter()
         {
             if is_member {
-                expr = Expr::Member(MemberExpr {
+                expr = Box::new(Expr::Member(MemberExpr {
                     span: DUMMY_SP,
                     obj: expr.into(),
                     prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
-                });
+                }));
             } else {
-                expr = Expr::OptChain(OptChainExpr {
+                expr = Box::new(Expr::OptChain(OptChainExpr {
                     span: DUMMY_SP,
                     base: Box::new(OptChainBase::Member(MemberExpr {
                         span: DUMMY_SP,
@@ -1729,7 +1729,7 @@ impl From<Name> for Expr {
                         prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
                     })),
                     optional,
-                });
+                }));
             }
         }
 
