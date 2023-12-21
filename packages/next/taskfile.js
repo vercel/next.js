@@ -7,30 +7,6 @@ const fs = require('fs/promises')
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
 
-export async function next_esm_api_entries(task, opts) {
-  const mapping = {
-    head: 'next/dist/shared/lib/head.esm',
-    image: 'next/dist/shared/lib/image-external.esm',
-    constants: 'next/dist/shared/lib/constants.esm',
-    router: 'next/dist/client/router.esm',
-    dynamic: 'next/dist/client/dynamic.esm',
-    link: 'next/dist/client/link.esm',
-    navigation: 'next/dist/client/components/navigation.esm',
-    headers: 'next/dist/client/components/headers.esm',
-    og: 'next/dist/server/og/image-response.esm',
-  }
-
-  for (const file of Object.keys(mapping)) {
-    const filePath = join(__dirname, `${file.slice('next/'.length)}.js`)
-    console.error('filePath', filePath)
-    // await fs.writeFile(
-    //   filePath,
-    //   'e' + `xport * from '${mapping[file]}'\n` +
-    //   'e' + `xport { default } from '${mapping[file]}'`
-    // )
-  }
-}
-
 export async function next__polyfill_nomodule(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('@next/polyfill-nomodule')))
@@ -2477,6 +2453,8 @@ export async function server_esm(task, opts) {
     .target('dist/esm/server')
 }
 
+// Provide ESM entry files for Next.js apis,
+// Remain in ESM both for dist/ and dist/esm
 export async function api_esm(task, opts) {
   await task
     .source('src/api/**/*.+(js|mts|ts|tsx)')
