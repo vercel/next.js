@@ -323,34 +323,19 @@ function navigateReducer_PPR(
   let prefetchValues = state.prefetchCache.get(createHrefFromUrl(url, false))
 
   // If we don't have a prefetch value, we need to create one
-  if (!prefetchValues) {
-    const data = fetchServerResponse(
-      url,
-      state.tree,
-      state.nextUrl,
-      state.buildId,
-      // in dev, there's never gonna be a prefetch entry so we want to prefetch here
-      // in order to simulate the behavior of the prefetch cache
-      process.env.NODE_ENV === 'development' ? PrefetchKind.AUTO : undefined
-    )
-
-    const newPrefetchValue = {
-      data,
-      // this will make sure that the entry will be discarded after 30s
-      kind:
-        process.env.NODE_ENV === 'development'
-          ? PrefetchKind.AUTO
-          : PrefetchKind.TEMPORARY,
-      prefetchTime: Date.now(),
-      treeAtTimeOfPrefetch: state.tree,
-      lastUsedTime: null,
+  if (prefetchValues) {
+    const prefetchEntryCacheStatus = getPrefetchEntryCacheStatus(prefetchValues)
+    if (prefetchEntryCacheStatus === PrefetchCacheEntryStatus.stale) {
+      // The prefetch entry is stale. Fetch again.
+      // TODO: When we don't already have a prefetch, or if the prefetch is
+      // stale, we should consider instead skipping straight to a
+      // dynamic request.
+      prefetchValues = fetchStaticPrefetchResponseForPPR(url, state)
     }
-
-    state.prefetchCache.set(createHrefFromUrl(url, false), newPrefetchValue)
-    prefetchValues = newPrefetchValue
+  } else {
+    // We don't have a static prefetch. Fetch one now.
+    prefetchValues = fetchStaticPrefetchResponseForPPR(url, state)
   }
-
-  const prefetchEntryCacheStatus = getPrefetchEntryCacheStatus(prefetchValues)
 
   // The one before last item is the router state tree patch
   const { treeAtTimeOfPrefetch, data } = prefetchValues
@@ -412,126 +397,65 @@ function navigateReducer_PPR(
             return handleExternalUrl(state, mutable, href, pendingPush)
           }
 
-          if (
-            prefetchEntryCacheStatus !== PrefetchCacheEntryStatus.stale &&
-            // This is just a paranoid check. When PPR is enabled, the server
-            // will always send back a static response that's rendered from
-            // the root. If for some reason it doesn't, we fall back to the
-            // non-PPR implementation.
-            flightDataPath.length === 3
-          ) {
-            const prefetchedTree: FlightRouterState = flightDataPath[0]
-            const seedData = flightDataPath[1]
-            const head = flightDataPath[2]
-            const task = updateCacheNodeOnNavigation(
-              currentCache,
-              currentTree,
-              prefetchedTree,
-              seedData,
-              head
-            )
-            if (task !== null && task.node !== null) {
-              // We've created a new Cache Node tree that contains a prefetched
-              // version of the next page. This can be rendered instantly.
+          const prefetchedTree: FlightRouterState = flightDataPath[0]
+          const seedData = flightDataPath[1]
+          const head = flightDataPath[2]
+          const task = updateCacheNodeOnNavigation(
+            currentCache,
+            currentTree,
+            prefetchedTree,
+            seedData,
+            head
+          )
+          if (task !== null && task.node !== null) {
+            // We've created a new Cache Node tree that contains a prefetched
+            // version of the next page. This can be rendered instantly.
 
-              // Use the tree computed by updateCacheNodeOnNavigation instead
-              // of the one computed by applyRouterStatePatchToTreeSkipDefault.
-              // TODO: We should remove applyRouterStatePatchToTreeSkipDefault
-              // from the PPR path entirely.
-              const patchedRouterState: FlightRouterState = task.route
-              newTree = patchedRouterState
+            // Use the tree computed by updateCacheNodeOnNavigation instead
+            // of the one computed by applyRouterStatePatchToTreeSkipDefault.
+            // TODO: We should remove applyRouterStatePatchToTreeSkipDefault
+            // from the PPR path entirely.
+            const patchedRouterState: FlightRouterState = task.route
+            newTree = patchedRouterState
 
-              const newCache = task.node
+            const newCache = task.node
 
-              // The prefetched tree has dynamic holes in it. We initiate a
-              // dynamic request to fill them in.
-              //
-              // Do not block on the result. We'll immediately render the Cache
-              // Node tree and suspend on the dynamic parts. When the request
-              // comes in, we'll fill in missing data and ping React to
-              // re-render. Unlike the lazy fetching model in the non-PPR
-              // implementation, this is modeled as a single React update +
-              // streaming, rather than multiple top-level updates. (However,
-              // even in the new model, we'll still need to sometimes update the
-              // root multiple times per navigation, like if the server sends us
-              // a different response than we expected. For now, we revert back
-              // to the lazy fetching mechanism in that case.)
-              listenForDynamicRequest(
-                task,
-                fetchServerResponse(
-                  url,
-                  currentTree,
-                  state.nextUrl,
-                  state.buildId
-                )
+            // The prefetched tree has dynamic holes in it. We initiate a
+            // dynamic request to fill them in.
+            //
+            // Do not block on the result. We'll immediately render the Cache
+            // Node tree and suspend on the dynamic parts. When the request
+            // comes in, we'll fill in missing data and ping React to
+            // re-render. Unlike the lazy fetching model in the non-PPR
+            // implementation, this is modeled as a single React update +
+            // streaming, rather than multiple top-level updates. (However,
+            // even in the new model, we'll still need to sometimes update the
+            // root multiple times per navigation, like if the server sends us
+            // a different response than we expected. For now, we revert back
+            // to the lazy fetching mechanism in that case.)
+            //
+            // TODO: Check if X-Nextjs-Postponed header is set. If not, we can skip
+            // the dynamic request and use the prefetched values as the final result.
+            listenForDynamicRequest(
+              task,
+              // TODO: We should initiate this request even earlier, before
+              // unwrapping the static prefetch. Need to get rid of the
+              // applyRouterStatePatchToTreeSkipDefault logic above first.
+              fetchServerResponse(
+                url,
+                currentTree,
+                state.nextUrl,
+                state.buildId
               )
+            )
 
-              mutable.cache = newCache
-            } else {
-              // Nothing changed, so reuse the old cache.
-              // TODO: What if the head changed but not any of the segment data?
-              // Is that possible? If so, we should clone the whole tree and
-              // update the head.
-              newTree = prefetchedTree
-            }
+            mutable.cache = newCache
           } else {
-            // The static response does not include any dynamic holes, so
-            // there's no need to do a second request.
-            // TODO: As an incremental step this just reverts back to the
-            // non-PPR implementation. We can simplify this branch further,
-            // given that PPR prefetches are always static and return the whole
-            // tree. Or in the meantime we could factor it out into a
-            // separate function.
-            const cache: CacheNode = createEmptyCacheNode()
-            let applied = applyFlightData(
-              currentCache,
-              cache,
-              flightDataPath,
-              prefetchValues?.kind === 'auto' &&
-                prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
-            )
-
-            if (
-              !applied &&
-              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.stale
-            ) {
-              applied = addRefetchToLeafSegments(
-                cache,
-                currentCache,
-                flightSegmentPath,
-                treePatch,
-                // eslint-disable-next-line no-loop-func
-                () =>
-                  fetchServerResponse(
-                    url,
-                    currentTree,
-                    state.nextUrl,
-                    state.buildId
-                  )
-              )
-            }
-
-            const hardNavigate = shouldHardNavigate(
-              // TODO-APP: remove ''
-              flightSegmentPathWithLeadingEmpty,
-              currentTree
-            )
-
-            if (hardNavigate) {
-              // Copy rsc for the root node of the cache.
-              cache.rsc = currentCache.rsc
-              cache.prefetchRsc = currentCache.prefetchRsc
-
-              invalidateCacheBelowFlightSegmentPath(
-                cache,
-                currentCache,
-                flightSegmentPath
-              )
-              // Ensure the existing cache value is used when the cache was not invalidated.
-              mutable.cache = cache
-            } else if (applied) {
-              mutable.cache = cache
-            }
+            // Nothing changed, so reuse the old cache.
+            // TODO: What if the head changed but not any of the segment data?
+            // Is that possible? If so, we should clone the whole tree and
+            // update the head.
+            newTree = prefetchedTree
           }
 
           currentTree = newTree
@@ -562,4 +486,31 @@ function navigateReducer_PPR(
     },
     () => state
   )
+}
+
+function fetchStaticPrefetchResponseForPPR(
+  url: URL,
+  baseState: ReadonlyReducerState
+) {
+  const prefetchKind = PrefetchKind.AUTO
+
+  const data = fetchServerResponse(
+    url,
+    baseState.tree,
+    baseState.nextUrl,
+    baseState.buildId,
+    prefetchKind
+  )
+
+  const newPrefetchValue = {
+    data,
+    kind: prefetchKind,
+    prefetchTime: Date.now(),
+    treeAtTimeOfPrefetch: baseState.tree,
+    lastUsedTime: null,
+  }
+
+  baseState.prefetchCache.set(createHrefFromUrl(url, false), newPrefetchValue)
+
+  return newPrefetchValue
 }
