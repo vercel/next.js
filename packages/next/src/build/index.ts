@@ -688,6 +688,9 @@ export default async function build(
         denormalizedAppPages = Object.keys(mappedAppPages)
         for (const appKey of denormalizedAppPages) {
           const normalizedAppPageKey = normalizeAppPath(appKey)
+          if (appPageKeys.includes(normalizedAppPageKey)) {
+            continue
+          }
           const pagePath = mappedPages[normalizedAppPageKey]
           if (pagePath) {
             const appPath = mappedAppPages[appKey]
