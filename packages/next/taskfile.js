@@ -161,29 +161,24 @@ export async function copy_babel_runtime(task, opts) {
 
 externals['@vercel/og'] = 'next/dist/compiled/@vercel/og'
 export async function copy_vercel_og(task, opts) {
-  await task
-    .source(
-      join(
-        relative(
-          __dirname,
-          dirname(require.resolve('@vercel/og/package.json'))
-        ),
-        '{./dist/*.+(js|ttf|wasm),LICENSE}'
+  function copy_og_asset(globPattern) {
+    return task
+      .source(
+        join(
+          relative(
+            __dirname,
+            dirname(require.resolve('@vercel/og/package.json'))
+          ),
+          globPattern
+        )
       )
-    )
-    .target('src/compiled/@vercel/og')
+      .target('src/compiled/@vercel/og')
+  }
 
-  await task
-    .source(
-      join(
-        relative(
-          __dirname,
-          dirname(require.resolve('@vercel/og/package.json'))
-        ),
-        './dist/index.*.js'
-      )
-    )
-    .target('src/compiled/@vercel/og')
+  await copy_og_asset('./dist/*.ttf')
+  await copy_og_asset('./dist/*.wasm')
+  await copy_og_asset('LICENSE')
+  await copy_og_asset('./dist/index.*.js')
 
   // Types are not bundled, include satori types here
   await task
