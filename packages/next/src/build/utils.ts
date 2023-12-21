@@ -1307,9 +1307,11 @@ export async function buildAppStaticPaths({
   let CacheHandler: any
 
   if (incrementalCacheHandlerPath) {
-    CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
-      ? incrementalCacheHandlerPath
-      : path.join(dir, incrementalCacheHandlerPath))
+    CacheHandler = await import(
+      path.isAbsolute(incrementalCacheHandlerPath)
+        ? incrementalCacheHandlerPath
+        : path.join(dir, incrementalCacheHandlerPath)
+    )
     CacheHandler = CacheHandler.default || CacheHandler
   }
 

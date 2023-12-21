@@ -1332,9 +1332,11 @@ export default async function build(
       if (config.experimental.staticWorkerRequestDeduping) {
         let CacheHandler
         if (incrementalCacheHandlerPath) {
-          CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
-            ? incrementalCacheHandlerPath
-            : path.join(dir, incrementalCacheHandlerPath))
+          CacheHandler = await import(
+            path.isAbsolute(incrementalCacheHandlerPath)
+              ? incrementalCacheHandlerPath
+              : path.join(dir, incrementalCacheHandlerPath)
+          )
           CacheHandler = CacheHandler.default || CacheHandler
         }
 
