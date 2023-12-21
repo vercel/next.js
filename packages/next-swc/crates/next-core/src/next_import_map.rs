@@ -836,15 +836,6 @@ async fn insert_next_shared_aliases(
         import_map.insert_exact_alias(key, request_to_import_mapping(project_path, &value));
     };
 
-    precompiled("react", format!("next/dist/compiled/react{react_channel}"));
-    precompiled(
-        "react/jsx-runtime",
-        format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
-    );
-    precompiled(
-        "react/jsx-dev-runtime",
-        format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
-    );
     precompiled(
         "react-dom",
         format!("next/dist/compiled/react-dom{react_channel}"),
