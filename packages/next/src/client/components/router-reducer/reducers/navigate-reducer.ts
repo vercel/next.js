@@ -32,6 +32,7 @@ import {
   listenForDynamicRequest,
   updateCacheNodeOnNavigation,
 } from '../ppr-navigations'
+import { createPrefetchCacheKey } from './create-prefetch-cache-key'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -126,7 +127,8 @@ function navigateReducer_noPPR(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  let prefetchValues = state.prefetchCache.get(createHrefFromUrl(url, false))
+  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
+  let prefetchValues = state.prefetchCache.get(prefetchCacheKey)
 
   // If we don't have a prefetch value, we need to create one
   if (!prefetchValues) {
@@ -152,7 +154,7 @@ function navigateReducer_noPPR(
       lastUsedTime: null,
     }
 
-    state.prefetchCache.set(createHrefFromUrl(url, false), newPrefetchValue)
+    state.prefetchCache.set(prefetchCacheKey, newPrefetchValue)
     prefetchValues = newPrefetchValue
   }
 
@@ -320,7 +322,8 @@ function navigateReducer_PPR(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  let prefetchValues = state.prefetchCache.get(createHrefFromUrl(url, false))
+  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
+  let prefetchValues = state.prefetchCache.get(prefetchCacheKey)
 
   // If we don't have a prefetch value, we need to create one
   if (!prefetchValues) {
@@ -346,7 +349,7 @@ function navigateReducer_PPR(
       lastUsedTime: null,
     }
 
-    state.prefetchCache.set(createHrefFromUrl(url, false), newPrefetchValue)
+    state.prefetchCache.set(prefetchCacheKey, newPrefetchValue)
     prefetchValues = newPrefetchValue
   }
 
