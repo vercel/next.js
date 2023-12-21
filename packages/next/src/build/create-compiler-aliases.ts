@@ -204,19 +204,31 @@ export function createNextApiEsmAliases() {
     navigation: 'next/dist/api/navigation',
     headers: 'next/dist/api/headers',
     og: 'next/dist/api/og',
+    // pages api
+    document: 'next/dist/api/document',
+    app: 'next/dist/api/app',
   }
   const aliasMap: Record<string, string> = {}
   // Handle fully specified imports like `next/image.js`
   for (const [key, value] of Object.entries(mapping)) {
     const nextApiFilePath = path.join(NEXT_PROJECT_ROOT, key)
-    // filepath alias
-    aliasMap[nextApiFilePath] = value
     aliasMap[nextApiFilePath + '.js'] = value
-    // api alias
-    aliasMap['next/' + key] = value
-    aliasMap['next/' + key + '.js'] = value
   }
 
+  return aliasMap
+}
+
+export function createAppRouterApiAliases() {
+  const mapping = {
+    head: 'next/dist/client/components/noop-head',
+    dynamic: 'next/dist/api/app-dynamic',
+  }
+
+  const aliasMap: Record<string, string> = {}
+  for (const [key, value] of Object.entries(mapping)) {
+    const nextApiFilePath = path.join(NEXT_PROJECT_ROOT, key)
+    aliasMap[nextApiFilePath + '.js'] = value
+  }
   return aliasMap
 }
 
@@ -356,16 +368,5 @@ function getBarrelOptimizationAliases(packages: string[]): CompilerAliases {
 function getReactProfilingInProduction(): CompilerAliases {
   return {
     'react-dom$': 'react-dom/profiling',
-  }
-}
-export function createServerComponentsNoopAliases(): CompilerAliases {
-  return {
-    [require.resolve('next/head')]: require.resolve(
-      'next/dist/client/components/noop-head'
-    ),
-    // Alias next/dynamic
-    [require.resolve('next/dynamic')]: require.resolve(
-      'next/dist/shared/lib/app-dynamic'
-    ),
   }
 }

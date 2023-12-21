@@ -79,12 +79,9 @@ import {
   createWebpackAliases,
   createServerOnlyClientOnlyAliases,
   createRSCAliases,
-  createServerComponentsNoopAliases,
   createNextApiEsmAliases,
+  createAppRouterApiAliases,
 } from './create-compiler-aliases'
-// import { createServerOnlyClientOnlyAliases } from './create-compiler-aliases'
-// import { createRSCAliases } from './create-compiler-aliases'
-// import { createServerComponentsNoopAliases } from './create-compiler-aliases'
 import { hasCustomExportOutput } from '../export/utils'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -1243,12 +1240,6 @@ export default async function getBaseWebpackConfig(
             or: WEBPACK_LAYERS.GROUP.nonClientServerTarget,
           },
         },
-        {
-          issuerLayer: isWebpackAppLayer,
-          resolve: {
-            alias: createNextApiEsmAliases(),
-          },
-        },
         ...(hasAppDir
           ? [
               {
@@ -1279,18 +1270,12 @@ export default async function getBaseWebpackConfig(
                 test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
-                // All app dir layers need to use this configured resolution logic
-                issuerLayer: {
-                  or: [
-                    WEBPACK_LAYERS.reactServerComponents,
-                    WEBPACK_LAYERS.serverSideRendering,
-                    WEBPACK_LAYERS.appPagesBrowser,
-                    WEBPACK_LAYERS.actionBrowser,
-                    WEBPACK_LAYERS.shared,
-                  ],
-                },
+                issuerLayer: isWebpackAppLayer,
                 resolve: {
-                  alias: createServerComponentsNoopAliases(),
+                  alias: {
+                    ...createNextApiEsmAliases(),
+                    ...createAppRouterApiAliases(),
+                  },
                 },
               },
             ]
