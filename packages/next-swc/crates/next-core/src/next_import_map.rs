@@ -55,6 +55,56 @@ pub async fn get_next_client_import_map(
     )
     .await?;
 
+    let ppr = *next_config.enable_ppr().await?;
+    let taint = *next_config.enable_taint().await?;
+    let react_channel = if ppr || taint { "-experimental" } else { "" };
+
+    let mut precompiled = |key, value: String| {
+        import_map.insert_exact_alias(key, request_to_import_mapping(project_path, &value));
+    };
+
+    precompiled("react", format!("next/dist/compiled/react{react_channel}"));
+    precompiled(
+        "react/jsx-runtime",
+        format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
+    );
+    precompiled(
+        "react/jsx-dev-runtime",
+        format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
+    );
+    precompiled(
+        "react-dom",
+        format!("next/dist/compiled/react-dom{react_channel}"),
+    );
+    precompiled(
+        "react-dom/server",
+        format!("next/dist/compiled/react-dom{react_channel}/server"),
+    );
+    precompiled(
+        "react-dom/server.browser",
+        format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
+    );
+    precompiled(
+        "react-dom/server.edge",
+        format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
+    );
+    precompiled(
+        "react-dom/client",
+        format!("next/dist/compiled/react-dom{react_channel}/client"),
+    );
+    precompiled(
+        "react-dom/static",
+        format!("next/dist/compiled/react-dom-experimental/static"),
+    );
+    precompiled(
+        "react-dom/static.edge",
+        format!("next/dist/compiled/react-dom-experimental/static.edge"),
+    );
+    precompiled(
+        "react-dom/static.browser",
+        format!("next/dist/compiled/react-dom-experimental/static.browser"),
+    );
+
     insert_optimized_module_aliases(&mut import_map, project_path).await?;
 
     insert_alias_option(
@@ -126,6 +176,13 @@ pub async fn get_next_client_import_map(
                 request_to_import_mapping(
                     app_dir,
                     "next/dist/compiled/react-dom-experimental/server",
+                ),
+            );
+            import_map.insert_exact_alias(
+                "react-dom/server.browser",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/compiled/react-dom-experimental/server.browser",
                 ),
             );
             import_map.insert_exact_alias(
@@ -827,56 +884,8 @@ async fn insert_next_shared_aliases(
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));
     import_map.insert_singleton_alias("styled-jsx", get_next_package(project_path));
     import_map.insert_singleton_alias("next", project_path);
-
-    let ppr = *next_config.enable_ppr().await?;
-    let taint = *next_config.enable_taint().await?;
-    let react_channel = if ppr || taint { "-experimental" } else { "" };
-
-    let mut precompiled = |key, value: String| {
-        import_map.insert_exact_alias(key, request_to_import_mapping(project_path, &value));
-    };
-
-    precompiled("react", format!("next/dist/compiled/react{react_channel}"));
-    precompiled(
-        "react/jsx-runtime",
-        format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
-    );
-    precompiled(
-        "react/jsx-dev-runtime",
-        format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
-    );
-    precompiled(
-        "react-dom",
-        format!("next/dist/compiled/react-dom{react_channel}"),
-    );
-    precompiled(
-        "react-dom/server",
-        format!("next/dist/compiled/react-dom{react_channel}/server"),
-    );
-    precompiled(
-        "react-dom/server.browser",
-        format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
-    );
-    precompiled(
-        "react-dom/server.edge",
-        format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
-    );
-    precompiled(
-        "react-dom/client",
-        format!("next/dist/compiled/react-dom{react_channel}/client"),
-    );
-    precompiled(
-        "react-dom/static",
-        format!("next/dist/compiled/react-dom-experimental/static"),
-    );
-    precompiled(
-        "react-dom/static.edge",
-        format!("next/dist/compiled/react-dom-experimental/static.edge"),
-    );
-    precompiled(
-        "react-dom/static.browser",
-        format!("next/dist/compiled/react-dom-experimental/static.browser"),
-    );
+    import_map.insert_singleton_alias("react", project_path);
+    import_map.insert_singleton_alias("react-dom", project_path);
 
     //https://github.com/vercel/next.js/blob/f94d4f93e4802f951063cfa3351dd5a2325724b3/packages/next/src/build/webpack-config.ts#L1196
     import_map.insert_exact_alias(
