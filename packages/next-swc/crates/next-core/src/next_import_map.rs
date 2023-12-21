@@ -390,7 +390,7 @@ pub async fn get_next_edge_import_map(
             "next/dist/shared/lib/image-external" => "next/dist/esm/shared/lib/image-external".to_string(),
             "next/dist/server/og/image-response" => "next/dist/esm/server/og/image-response".to_string(),
             // Alias built-in @vercel/og to edge bundle for edge runtime
-            "next/dist/compiled/@vercel/og" => "next/dist/compiled/@vercel/og/index.edge.js".to_string(),
+            "next/dist/compiled/@vercel/og/index.node.js" => "next/dist/compiled/@vercel/og/index.edge.js".to_string(),
         },
     );
 
