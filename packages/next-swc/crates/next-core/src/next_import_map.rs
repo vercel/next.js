@@ -96,50 +96,34 @@ pub async fn get_next_client_import_map(
             let taint = *next_config.enable_taint().await?;
             let react_channel = if ppr || taint { "-experimental" } else { "" };
 
-            let mut precompiled = |key, value: String| {
-                import_map.insert_exact_alias(key, request_to_import_mapping(project_path, &value));
-            };
+            import_map.insert_exact_alias(
+                "react",
+                request_to_import_mapping(
+                    project_path,
+                    &format!("next/dist/compiled/react{react_channel}"),
+                ),
+            );
+            import_map.insert_wildcard_alias(
+                "react/",
+                request_to_import_mapping(
+                    project_path,
+                    &format!("next/dist/compiled/react{react_channel}/*"),
+                ),
+            );
 
-            precompiled("react", format!("next/dist/compiled/react{react_channel}"));
-            precompiled(
-                "react/jsx-runtime",
-                format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
-            );
-            precompiled(
-                "react/jsx-dev-runtime",
-                format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
-            );
-            precompiled(
+            import_map.insert_exact_alias(
                 "react-dom",
-                format!("next/dist/compiled/react-dom{react_channel}"),
+                request_to_import_mapping(
+                    project_path,
+                    &format!("next/dist/compiled/react-dom{react_channel}"),
+                ),
             );
-            precompiled(
-                "react-dom/server",
-                format!("next/dist/compiled/react-dom{react_channel}/server"),
-            );
-            precompiled(
-                "react-dom/server.browser",
-                format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
-            );
-            precompiled(
-                "react-dom/server.edge",
-                format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
-            );
-            precompiled(
-                "react-dom/client",
-                format!("next/dist/compiled/react-dom{react_channel}/client"),
-            );
-            precompiled(
-                "react-dom/static",
-                format!("next/dist/compiled/react-dom-experimental/static"),
-            );
-            precompiled(
-                "react-dom/static.edge",
-                format!("next/dist/compiled/react-dom-experimental/static.edge"),
-            );
-            precompiled(
-                "react-dom/static.browser",
-                format!("next/dist/compiled/react-dom-experimental/static.browser"),
+            import_map.insert_wildcard_alias(
+                "react-dom/",
+                request_to_import_mapping(
+                    project_path,
+                    &format!("next/dist/compiled/react-dom{react_channel}/*"),
+                ),
             );
         }
         ClientContextType::App { app_dir } => {
