@@ -5,14 +5,11 @@ import { useState } from 'react'
 import {
   decrement,
   increment,
+  incrementAsync,
   incrementByAmount,
+  incrementIfOddAsync,
   selectCount,
 } from '@/lib/features/counter/counterSlice'
-
-import {
-  incrementAsync,
-  incrementIfOddAsync,
-} from '@/lib/features/counter/thunks'
 
 import { useAppDispatch, useAppSelector } from '@/lib/hooks'
 import styles from './counter.module.css'
