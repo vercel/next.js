@@ -12,11 +12,7 @@ import {
 } from '../lib/constants'
 import type { NextConfigComplete } from '../server/config-shared'
 import { defaultOverrides } from '../server/require-hook'
-import {
-  NEXT_PROJECT_ROOT,
-  NEXT_PROJECT_ROOT_DIST,
-  hasExternalOtelApiPackage,
-} from './webpack-config'
+import { NEXT_PROJECT_ROOT, hasExternalOtelApiPackage } from './webpack-config'
 import { WEBPACK_LAYERS } from '../lib/constants'
 
 interface CompilerAliases {
@@ -96,12 +92,15 @@ export function createWebpackAliases({
     // let this alias hit before `next` alias.
     ...(isEdgeServer
       ? {
+          'next/dist/api': 'next/dist/esm/api',
           'next/dist/build': 'next/dist/esm/build',
           'next/dist/client': 'next/dist/esm/client',
           'next/dist/shared': 'next/dist/esm/shared',
           'next/dist/pages': 'next/dist/esm/pages',
           'next/dist/lib': 'next/dist/esm/lib',
           'next/dist/server': 'next/dist/esm/server',
+
+          ...createNextApiEsmAliases(),
         }
       : undefined),
 

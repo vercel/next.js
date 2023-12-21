@@ -2482,6 +2482,7 @@ export async function api_esm(task, opts) {
     .source('src/api/**/*.+(js|mts|ts|tsx)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/api')
+    .target('dist/esm/api')
 }
 
 export async function nextbuild(task, opts) {
