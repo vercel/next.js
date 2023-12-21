@@ -102,45 +102,6 @@ export function createWebpackAliases({
           'next/dist/pages': 'next/dist/esm/pages',
           'next/dist/lib': 'next/dist/esm/lib',
           'next/dist/server': 'next/dist/esm/server',
-
-          // Alias the usage of next public APIs
-          [path.join(NEXT_PROJECT_ROOT, 'server')]:
-            'next/dist/esm/server/web/exports/index',
-          [path.join(NEXT_PROJECT_ROOT, 'og')]:
-            'next/dist/esm/server/og/image-response',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'link')]:
-            'next/dist/esm/client/link',
-          [path.join(
-            NEXT_PROJECT_ROOT,
-            'dist',
-            'shared',
-            'lib',
-            'image-external'
-          )]: 'next/dist/esm/shared/lib/image-external',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'script')]:
-            'next/dist/esm/client/script',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'router')]:
-            'next/dist/esm/client/router',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'head')]:
-            'next/dist/esm/shared/lib/head',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'shared', 'lib', 'dynamic')]:
-            'next/dist/esm/shared/lib/dynamic',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_document')]:
-            'next/dist/esm/pages/_document',
-          [path.join(NEXT_PROJECT_ROOT_DIST, 'pages', '_app')]:
-            'next/dist/esm/pages/_app',
-          [path.join(
-            NEXT_PROJECT_ROOT_DIST,
-            'client',
-            'components',
-            'navigation'
-          )]: 'next/dist/esm/client/components/navigation',
-          [path.join(
-            NEXT_PROJECT_ROOT_DIST,
-            'client',
-            'components',
-            'headers'
-          )]: 'next/dist/esm/client/components/headers',
         }
       : undefined),
 
@@ -235,25 +196,29 @@ export function createServerOnlyClientOnlyAliases(
 
 export function createNextApiEsmAliases() {
   const mapping = {
-    head: 'next/dist/shared/lib/head.esm',
-    image: 'next/dist/shared/lib/image-external.esm',
-    constants: 'next/dist/shared/lib/constants.esm',
-    router: 'next/dist/client/router.esm',
-    dynamic: 'next/dist/client/dynamic.esm',
-    link: 'next/dist/client/link.esm',
-    navigation: 'next/dist/client/components/navigation.esm',
-    headers: 'next/dist/client/components/headers.esm',
-    og: 'next/dist/server/og/image-response.esm',
+    head: 'next/dist/api/head',
+    image: 'next/dist/api/image',
+    constants: 'next/dist/api/constants',
+    router: 'next/dist/api/router',
+    dynamic: 'next/dist/api/dynamic',
+    link: 'next/dist/api/link',
+    navigation: 'next/dist/api/navigation',
+    headers: 'next/dist/api/headers',
+    og: 'next/dist/api/og',
   }
   const aliasMap: Record<string, string> = {}
   // Handle fully specified imports like `next/image.js`
   for (const [key, value] of Object.entries(mapping)) {
-    const apiPath = path.join(NEXT_PROJECT_ROOT, key)
-    aliasMap[apiPath] = value
-    aliasMap[apiPath + '.js'] = value
+    const nextApiFilePath = path.join(NEXT_PROJECT_ROOT, key)
+    // filepath alias
+    aliasMap[nextApiFilePath] = value
+    aliasMap[nextApiFilePath + '.js'] = value
+    // api alias
+    aliasMap['next/' + key] = value
+    aliasMap['next/' + key + '.js'] = value
   }
 
-  return {}
+  return aliasMap
 }
 
 export function createRSCAliases(
