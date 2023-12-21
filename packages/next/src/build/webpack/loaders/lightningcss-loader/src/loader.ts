@@ -2,7 +2,6 @@ import type { LoaderContext } from 'webpack'
 import type { ILightningCssLoaderConfig, VisitorOptions } from './interface'
 import { ECacheKey } from './interface'
 import { transform as transformCss, type Url, type Visitor } from 'lightningcss'
-import { Buffer } from 'buffer'
 import { getTargets } from './utils'
 import {
   getImportCode,
@@ -22,6 +21,8 @@ import {
   resolveRequests,
 } from '../../css-loader/src/utils'
 import { stringifyRequest } from '../../../stringify-request'
+
+const encoder = new TextEncoder()
 
 function createVisitor(
   visitorOptions: VisitorOptions,
@@ -251,7 +252,7 @@ export async function LightningCssLoader(
           }
         : undefined,
       filename: this.resourcePath,
-      code: Buffer.from(source),
+      code: encoder.encode(source),
       sourceMap: this.sourceMap,
       targets: getTargets({ default: userTargets, key: ECacheKey.loader }),
       inputSourceMap:
