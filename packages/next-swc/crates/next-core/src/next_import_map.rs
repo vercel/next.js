@@ -172,20 +172,6 @@ pub async fn get_next_client_import_map(
                 ),
             );
             import_map.insert_exact_alias(
-                "react-dom/server",
-                request_to_import_mapping(
-                    app_dir,
-                    "next/dist/compiled/react-dom-experimental/server",
-                ),
-            );
-            import_map.insert_exact_alias(
-                "react-dom/server.browser",
-                request_to_import_mapping(
-                    app_dir,
-                    "next/dist/compiled/react-dom-experimental/server.browser",
-                ),
-            );
-            import_map.insert_exact_alias(
                 "react-dom/static",
                 request_to_import_mapping(
                     app_dir,
