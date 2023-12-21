@@ -630,7 +630,7 @@ async fn insert_next_server_special_aliases(
 
     import_map.insert_exact_alias(
         "@vercel/og",
-        external_if_node(project_path, "next/dist/esm/server/og/image-response"),
+        external_if_node(project_path, "next/dist/server/og/image-response"),
     );
 
     Ok(())

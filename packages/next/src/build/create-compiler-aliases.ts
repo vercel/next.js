@@ -91,10 +91,6 @@ export function createWebpackAliases({
 
   return {
     '@vercel/og$': 'next/dist/server/og/image-response',
-    // avoid ESM import from directory - error code: ERR_UNSUPPORTED_DIR_IMPORT
-    'next/dist/compiled/@vercel/og$': isEdgeServer
-      ? 'next/dist/compiled/@vercel/og/index.edge.js'
-      : 'next/dist/compiled/@vercel/og/index.node.js',
 
     // Alias next/dist imports to next/dist/esm assets,
     // let this alias hit before `next` alias.
