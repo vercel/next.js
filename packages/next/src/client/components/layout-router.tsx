@@ -12,7 +12,13 @@ import type {
 import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
-import React, { useContext, use, startTransition, Suspense } from 'react'
+import React, {
+  useContext,
+  use,
+  startTransition,
+  Suspense,
+  useDeferredValue,
+} from 'react'
 import ReactDOM from 'react-dom'
 import {
   LayoutRouterContext,
@@ -358,12 +364,30 @@ function InnerLayoutRouter({
     childNodes.set(cacheKey, newLazyCacheNode)
   }
 
-  // `rsc` represents the renderable node for this segment. It's either a
-  // React node or a promise for a React node, except we special case `null` to
-  // represent that this segment's data is missing. If it's a promise, we need
-  // to unwrap it so we can determine whether or not the data is missing.
-  const rsc: any = childNode.rsc
-  const resolvedRsc =
+  // `rsc` represents the renderable node for this segment.
+
+  // If this segment has a `prefetchRsc`, it's the statically prefetched data.
+  // We should use that on initial render instead of `rsc`. Then we'll switch
+  // to `rsc` when the dynamic response streams in.
+  //
+  // If no prefetch data is available, then we go straight to rendering `rsc`.
+  const resolvedPrefetchRsc =
+    childNode.prefetchRsc !== null ? childNode.prefetchRsc : childNode.rsc
+
+  // We use `useDeferredValue` to handle switching between the prefetched and
+  // final values. The second argument is returned on initial render, then it
+  // re-renders with the first argument.
+  //
+  // @ts-expect-error The second argument to `useDeferredValue` is only
+  // available in the experimental builds. When its disabled, it will always
+  // return `rsc`.
+  const rsc: any = useDeferredValue(childNode.rsc, resolvedPrefetchRsc)
+
+  // `rsc` is either a React node or a promise for a React node, except we
+  // special case `null` to represent that this segment's data is missing. If
+  // it's a promise, we need to unwrap it so we can determine whether or not the
+  // data is missing.
+  const resolvedRsc: React.ReactNode =
     typeof rsc === 'object' && rsc !== null && typeof rsc.then === 'function'
       ? use(rsc)
       : rsc

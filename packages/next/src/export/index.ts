@@ -54,6 +54,7 @@ import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
+import { validateRevalidate } from '../server/lib/patch-fetch'
 
 function divideSegments(number: number, segments: number): number[] {
   const result = []
@@ -741,7 +742,7 @@ export async function exportAppImpl(
       // Update path info by path.
       const info = collector.byPath.get(path) ?? {}
       if (typeof result.revalidate !== 'undefined') {
-        info.revalidate = result.revalidate
+        info.revalidate = validateRevalidate(result.revalidate, path)
       }
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata

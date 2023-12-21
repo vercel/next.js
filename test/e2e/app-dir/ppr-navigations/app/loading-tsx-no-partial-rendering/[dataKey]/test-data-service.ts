@@ -1,9 +1,13 @@
+import 'server-only'
+
+import { unstable_noStore } from 'next/cache'
+
 // NOTE: I've intentionally not yet moved these helpers into a shared module, to
 // avoid early abstraction. I will if/when we start using them for other tests.
 // They are based on the testing patterns we use all over the React codebase, so
 // I'm reasonably confident in them.
 const TEST_DATA_SERVICE_URL = process.env.TEST_DATA_SERVICE_URL
-const ARTIFICIAL_DELAY = 200
+const ARTIFICIAL_DELAY = 3000
 
 async function getTestData(key: string, isStatic: boolean): Promise<string> {
   const searchParams = new URLSearchParams({
@@ -16,6 +20,9 @@ async function getTestData(key: string, isStatic: boolean): Promise<string> {
     await new Promise<void>((resolve) =>
       setTimeout(() => resolve(), ARTIFICIAL_DELAY)
     )
+    if (!isStatic) {
+      unstable_noStore()
+    }
     return key
   }
   const response = await fetch(
