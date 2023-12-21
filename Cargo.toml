@@ -36,7 +36,7 @@ next-transform-dynamic = { path = "packages/next-swc/crates/next-transform-dynam
 next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-transform-strip-page-exports" }
 
 # SWC crates
-swc_core = { version = "0.87.2", features = [
+swc_core = { version = "0.87.3", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
