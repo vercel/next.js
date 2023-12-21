@@ -1,14 +1,13 @@
-/* Components */
-import { Providers } from '@/lib/providers'
+import type { PropsWithChildren } from 'react'
+import { StoreProvider } from './StoreProvider'
 import { Nav } from './components/Nav'
 
-/* Instruments */
-import styles from './styles/layout.module.css'
 import './styles/globals.css'
+import styles from './styles/layout.module.css'
 
-export default function RootLayout(props: React.PropsWithChildren) {
+export default function RootLayout({ children }: PropsWithChildren) {
   return (
-    <Providers>
+    <StoreProvider>
       <html lang="en">
         <body>
           <section className={styles.container}>
@@ -18,7 +17,7 @@ export default function RootLayout(props: React.PropsWithChildren) {
               <img src="/logo.svg" className={styles.logo} alt="logo" />
             </header>
 
-            <main className={styles.main}>{props.children}</main>
+            <main className={styles.main}>{children}</main>
 
             <footer className={styles.footer}>
               <span>Learn </span>
@@ -61,6 +60,6 @@ export default function RootLayout(props: React.PropsWithChildren) {
           </section>
         </body>
       </html>
-    </Providers>
+    </StoreProvider>
   )
 }
