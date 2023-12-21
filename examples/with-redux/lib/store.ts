@@ -1,31 +1,23 @@
-/* Core */
-import { configureStore, type ThunkAction, type Action } from '@reduxjs/toolkit'
-import {
-  useSelector as useReduxSelector,
-  useDispatch as useReduxDispatch,
-  type TypedUseSelectorHook,
-} from 'react-redux'
+import type { Action, ThunkAction } from '@reduxjs/toolkit'
+import { configureStore } from '@reduxjs/toolkit'
+import { counterSlice } from './features/counter/counterSlice'
 
-/* Instruments */
-import { reducer } from './rootReducer'
-import { middleware } from './middleware'
+export const makeStore = () => {
+  return configureStore({
+    reducer: {
+      [counterSlice.reducerPath]: counterSlice.reducer,
+    },
+  })
+}
 
-export const reduxStore = configureStore({
-  reducer,
-  middleware: (getDefaultMiddleware) => {
-    return getDefaultMiddleware().concat(middleware)
-  },
-})
-export const useDispatch = () => useReduxDispatch<ReduxDispatch>()
-export const useSelector: TypedUseSelectorHook<ReduxState> = useReduxSelector
-
-/* Types */
-export type ReduxStore = typeof reduxStore
-export type ReduxState = ReturnType<typeof reduxStore.getState>
-export type ReduxDispatch = typeof reduxStore.dispatch
-export type ReduxThunkAction<ReturnType = void> = ThunkAction<
+// Infer the type of `makeStore`
+export type AppStore = ReturnType<typeof makeStore>
+// Infer the `RootState` and `AppDispatch` types from the store itself
+export type RootState = ReturnType<AppStore['getState']>
+export type AppDispatch = AppStore['dispatch']
+export type AppThunk<ReturnType = void> = ThunkAction<
   ReturnType,
-  ReduxState,
+  RootState,
   unknown,
   Action
 >
