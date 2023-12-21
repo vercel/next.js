@@ -1,22 +1,25 @@
 'use client'
 
-/* Core */
 import { useState } from 'react'
 
-/* Instruments */
 import {
-  counterSlice,
-  useSelector,
-  useDispatch,
+  decrement,
+  increment,
+  incrementByAmount,
   selectCount,
+} from '@/lib/features/counter/counterSlice'
+
+import {
   incrementAsync,
   incrementIfOddAsync,
-} from '@/lib/redux'
+} from '@/lib/features/counter/thunks'
+
+import { useAppDispatch, useAppSelector } from '@/lib/hooks'
 import styles from './counter.module.css'
 
 export const Counter = () => {
-  const dispatch = useDispatch()
-  const count = useSelector(selectCount)
+  const dispatch = useAppDispatch()
+  const count = useAppSelector(selectCount)
   const [incrementAmount, setIncrementAmount] = useState(2)
 
   return (
@@ -25,7 +28,7 @@ export const Counter = () => {
         <button
           className={styles.button}
           aria-label="Decrement value"
-          onClick={() => dispatch(counterSlice.actions.decrement())}
+          onClick={() => dispatch(decrement())}
         >
           -
         </button>
@@ -33,7 +36,7 @@ export const Counter = () => {
         <button
           className={styles.button}
           aria-label="Increment value"
-          onClick={() => dispatch(counterSlice.actions.increment())}
+          onClick={() => dispatch(increment())}
         >
           +
         </button>
@@ -47,9 +50,7 @@ export const Counter = () => {
         />
         <button
           className={styles.button}
-          onClick={() =>
-            dispatch(counterSlice.actions.incrementByAmount(incrementAmount))
-          }
+          onClick={() => dispatch(incrementByAmount(incrementAmount))}
         >
           Add Amount
         </button>
