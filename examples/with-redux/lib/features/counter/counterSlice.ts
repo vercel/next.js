@@ -1,8 +1,11 @@
-/* Core */
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
-
-/* Instruments */
+import type { PayloadAction } from '@reduxjs/toolkit'
+import { createSlice } from '@reduxjs/toolkit'
 import { incrementAsync } from './thunks'
+
+export interface CounterSliceState {
+  value: number
+  status: 'idle' | 'loading' | 'failed'
+}
 
 const initialState: CounterSliceState = {
   value: 0,
@@ -41,10 +44,13 @@ export const counterSlice = createSlice({
         state.value += action.payload
       })
   },
+  // You can define your selectors here. These selectors receive the slice
+  // state as their first parameter.
+  selectors: {
+    selectCount: (counter) => counter.value,
+  },
 })
 
-/* Types */
-export interface CounterSliceState {
-  value: number
-  status: 'idle' | 'loading' | 'failed'
-}
+export const { selectCount } = counterSlice.selectors
+
+export const { decrement, increment, incrementByAmount } = counterSlice.actions
