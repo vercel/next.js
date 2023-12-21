@@ -1717,7 +1717,7 @@ impl From<Name> for Box<Expr> {
             if is_member {
                 expr = Box::new(Expr::Member(MemberExpr {
                     span: DUMMY_SP,
-                    obj: expr.into(),
+                    obj: expr,
                     prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
                 }));
             } else {
@@ -1725,7 +1725,7 @@ impl From<Name> for Box<Expr> {
                     span: DUMMY_SP,
                     base: Box::new(OptChainBase::Member(MemberExpr {
                         span: DUMMY_SP,
-                        obj: expr.into(),
+                        obj: expr,
                         prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
                     })),
                     optional,
