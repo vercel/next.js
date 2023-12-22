@@ -35,7 +35,6 @@ export async function createIncrementalCache({
           : path.join(dir, incrementalCacheHandlerPath)
       )
     )
-    CacheHandler = CacheHandler.default || CacheHandler
   }
 
   const incrementalCache = new IncrementalCache({

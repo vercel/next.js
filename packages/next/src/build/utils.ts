@@ -1315,7 +1315,6 @@ export async function buildAppStaticPaths({
           : path.join(dir, incrementalCacheHandlerPath)
       )
     )
-    CacheHandler = CacheHandler.default || CacheHandler
   }
 
   const incrementalCache = new IncrementalCache({

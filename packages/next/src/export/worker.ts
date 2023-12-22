@@ -35,6 +35,7 @@ import { createIncrementalCache } from './helpers/create-incremental-cache'
 import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isMissingPostponeDataError } from '../server/app-render/is-missing-postpone-error'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
+import { interopDefault } from '../lib/interop-default'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -220,19 +221,21 @@ async function exportPageImpl(
     // cache instance for this page.
     const incrementalCache =
       isAppDir && fetchCache
-        ? await createIncrementalCache({
-            incrementalCacheHandlerPath,
-            isrMemoryCacheSize,
-            fetchCacheKeyPrefix,
-            distDir,
-            dir,
-            enabledDirectories,
-            // PPR is not available for Pages.
-            experimental: { ppr: false },
-            // skip writing to disk in minimal mode for now, pending some
-            // changes to better support it
-            flushToDisk: !hasNextSupport,
-          })
+        ? interopDefault(
+            await createIncrementalCache({
+              incrementalCacheHandlerPath,
+              isrMemoryCacheSize,
+              fetchCacheKeyPrefix,
+              distDir,
+              dir,
+              enabledDirectories,
+              // PPR is not available for Pages.
+              experimental: { ppr: false },
+              // skip writing to disk in minimal mode for now, pending some
+              // changes to better support it
+              flushToDisk: !hasNextSupport,
+            })
+          )
         : undefined
 
     // Handle App Routes.

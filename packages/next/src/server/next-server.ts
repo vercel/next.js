@@ -100,6 +100,7 @@ import { RouteModuleLoader } from './future/helpers/module-loader/route-module-l
 import { loadManifest } from './load-manifest'
 import { lazyRenderAppPage } from './future/route-modules/app-page/module.render'
 import { lazyRenderPagesPage } from './future/route-modules/pages/module.render'
+import { interopDefault } from '../lib/interop-default'
 
 export * from './base-server'
 
@@ -107,7 +108,7 @@ declare const __non_webpack_require__: NodeRequire
 
 const dynamicRequire = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
-  : (mod: string) => import(mod)
+  : async (mod: string) => interopDefault(await import(mod))
 
 function writeStdoutLine(text: string) {
   process.stdout.write(' ' + text + '\n')
@@ -306,7 +307,6 @@ export default class NextNodeServer extends BaseServer {
           ? incrementalCacheHandlerPath
           : join(this.distDir, incrementalCacheHandlerPath)
       )
-      CacheHandler = CacheHandler.default || CacheHandler
     }
 
     // incremental-cache is request specific
