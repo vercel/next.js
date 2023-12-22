@@ -106,10 +106,12 @@ export * from './base-server'
 
 declare const __non_webpack_require__: NodeRequire
 
-const dynamicRequireEsm = process.env.NEXT_MINIMAL
+// For module that can be both CJS or ESM
+const dynamicImportEsmDefault = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
-  : async (mod: string) => await import(mod)
+  : async (mod: string) => (await import(mod)).default
 
+// For module that will be compiled to CJS, e.g. instrument
 const dynamicRequire = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
   : require
@@ -307,7 +309,7 @@ export default class NextNodeServer extends BaseServer {
 
     if (incrementalCacheHandlerPath) {
       CacheHandler = interopDefault(
-        await dynamicRequireEsm(
+        await dynamicImportEsmDefault(
           isAbsolute(incrementalCacheHandlerPath)
             ? incrementalCacheHandlerPath
             : join(this.distDir, incrementalCacheHandlerPath)

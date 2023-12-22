@@ -29,11 +29,13 @@ export async function createIncrementalCache({
   let CacheHandler: any
   if (incrementalCacheHandlerPath) {
     CacheHandler = interopDefault(
-      await import(
-        path.isAbsolute(incrementalCacheHandlerPath)
-          ? incrementalCacheHandlerPath
-          : path.join(dir, incrementalCacheHandlerPath)
-      )
+      (
+        await import(
+          path.isAbsolute(incrementalCacheHandlerPath)
+            ? incrementalCacheHandlerPath
+            : path.join(dir, incrementalCacheHandlerPath)
+        )
+      ).default
     )
   }
 
