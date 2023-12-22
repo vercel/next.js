@@ -90,7 +90,7 @@ export function createWebpackAliases({
   }
 
   return {
-    '@vercel/og': 'next/dist/server/og/image-response',
+    '@vercel/og$': 'next/dist/server/og/image-response',
 
     // Alias next/dist imports to next/dist/esm assets,
     // let this alias hit before `next` alias.
