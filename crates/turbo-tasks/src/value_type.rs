@@ -192,7 +192,7 @@ impl ValueType {
         self.traits.iter().copied()
     }
 
-    pub fn register(&'static self, global_name: &str) {
+    pub fn register(&'static self, global_name: &'static str) {
         register_value_type(global_name, self)
     }
 }
@@ -251,7 +251,7 @@ impl TraitType {
         self.default_trait_methods.insert(name, native_fn);
     }
 
-    pub fn register(&'static self, global_name: &str) {
+    pub fn register(&'static self, global_name: &'static str) {
         register_trait_type(global_name, self);
     }
 }
