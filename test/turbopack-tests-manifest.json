@@ -3838,8 +3838,7 @@
     ],
     "failed": [
       "parallel-routes-and-interception parallel routes Should match the catch-all routes of the more specific path, If there is more than one catch-all route",
-      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
-      "parallel-routes-and-interception parallel routes should throw an error when a route groups causes a conflict with a parallel segment"
+      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found"
     ],
     "pending": [],
     "flakey": [],
