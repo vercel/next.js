@@ -526,7 +526,7 @@ export async function killProcess(
 // Kill a launched app
 export async function killApp(instance: ChildProcess) {
   if (instance && instance.pid) {
-    await killProcess(instance.pid, 'SIGKILL')
+    await killProcess(instance.pid)
   }
 }
 

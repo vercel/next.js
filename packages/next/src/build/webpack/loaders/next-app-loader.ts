@@ -29,6 +29,7 @@ import {
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { getFilesInDir } from '../../../lib/get-files-in-dir'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 
 export type AppLoaderOptions = {
   name: string
@@ -422,10 +423,24 @@ async function createTreeCodeFromPath(
       if (!props[normalizeParallelKey(adjacentParallelSegment)]) {
         const actualSegment =
           adjacentParallelSegment === 'children' ? '' : adjacentParallelSegment
-        const defaultPath =
-          (await resolver(
-            `${appDirPrefix}${segmentPath}/${actualSegment}/default`
-          )) ?? 'next/dist/client/components/parallel-route-default'
+        const fallbackDefault =
+          'next/dist/client/components/parallel-route-default'
+        let defaultPath = await resolver(
+          `${appDirPrefix}${segmentPath}/${actualSegment}/default`
+        )
+
+        if (!defaultPath) {
+          // no default was found at this segment. Check if the normalized segment resolves a default
+          // for example: /(level1)/(level2)/default doesn't exist, but /default does
+          const normalizedDefault = await resolver(
+            `${appDirPrefix}${normalizeAppPath(
+              segmentPath
+            )}/${actualSegment}/default`
+          )
+
+          // if a default is found, use that. Otherwise use the fallback, which will trigger a `notFound()`
+          defaultPath = normalizedDefault ?? fallbackDefault
+        }
 
         props[normalizeParallelKey(adjacentParallelSegment)] = `[
           '${DEFAULT_SEGMENT_KEY}',

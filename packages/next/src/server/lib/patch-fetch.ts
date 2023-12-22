@@ -15,6 +15,36 @@ import * as Log from '../../build/output/log'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
+export function validateRevalidate(
+  revalidateVal: unknown,
+  pathname: string
+): undefined | number | false {
+  try {
+    let normalizedRevalidate: false | number | undefined = undefined
+
+    if (revalidateVal === false) {
+      normalizedRevalidate = revalidateVal
+    } else if (
+      typeof revalidateVal === 'number' &&
+      !isNaN(revalidateVal) &&
+      revalidateVal > -1
+    ) {
+      normalizedRevalidate = revalidateVal
+    } else if (typeof revalidateVal !== 'undefined') {
+      throw new Error(
+        `Invalid revalidate value "${revalidateVal}" on "${pathname}", must be a non-negative number or "false"`
+      )
+    }
+    return normalizedRevalidate
+  } catch (err: any) {
+    // handle client component error from attempting to check revalidate value
+    if (err instanceof Error && err.message.includes('Invalid revalidate')) {
+      throw err
+    }
+    return undefined
+  }
+}
+
 export function validateTags(tags: any[], description: string) {
   const validTags: string[] = []
   const invalidTags: Array<{
@@ -290,9 +320,10 @@ export function patchFetch({
           cacheReason = `cache: ${_cache}`
         }
 
-        if (typeof curRevalidate === 'number' || curRevalidate === false) {
-          revalidate = curRevalidate
-        }
+        revalidate = validateRevalidate(
+          curRevalidate,
+          staticGenerationStore.urlPathname
+        )
 
         const _headers = getRequestMeta('headers')
         const initHeaders: Headers =
