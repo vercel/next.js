@@ -2478,13 +2478,13 @@
       "app dir - external dependency react in external esm packages should use the same react in edge server app",
       "app dir - external dependency react in external esm packages should use the same react in pages",
       "app dir - external dependency react in external esm packages should use the same react in server app",
+      "app dir - external dependency server actions should not prefer to resolve esm over cjs for bundling optout packages",
       "app dir - external dependency should correctly collect global css imports and mark them as side effects",
       "app dir - external dependency should export client module references in esm",
       "app dir - external dependency should handle external async module libraries correctly",
       "app dir - external dependency should handle external css modules",
       "app dir - external dependency should handle external css modules in pages",
       "app dir - external dependency should handle external next/font",
-      "app dir - external dependency should not prefer to resolve esm over cjs for bundling optout packages",
       "app dir - external dependency should resolve 3rd party package exports based on the react-server condition",
       "app dir - external dependency should resolve the subset react in server components based on the react-server condition",
       "app dir - external dependency should support exporting multiple star re-exports",
@@ -2493,9 +2493,9 @@
       "app dir - external dependency should use the same export type for packages in both ssr and client"
     ],
     "failed": [
+      "app dir - external dependency server actions should compile server actions from node_modules in client components",
       "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components",
-      "app dir - external dependency should have proper tree-shaking for known modules in CJS",
-      "app dir - external dependency server actions should compile server actions from node_modules in client components"
+      "app dir - external dependency should have proper tree-shaking for known modules in CJS"
     ],
     "pending": [],
     "flakey": [],
@@ -2505,6 +2505,18 @@
     "passed": [
       "app-fetch-deduping during next dev should dedupe pending revalidation requests",
       "app-fetch-deduping during next dev should dedupe requests called from the same component"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-invalid-revalidate/app-invalid-revalidate.test.ts": {
+    "passed": [
+      "app-invalid-revalidate should error properly for invalid revalidate at layout",
+      "app-invalid-revalidate should error properly for invalid revalidate at page",
+      "app-invalid-revalidate should error properly for invalid revalidate on fetch",
+      "app-invalid-revalidate should error properly for invalid revalidate on unstable_cache"
     ],
     "failed": [],
     "pending": [],
@@ -3394,6 +3406,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/interception-route-groups/interception-route-groups.test.ts": {
+    "passed": [
+      "interception route groups (no default) should use the default fallback (a 404) if there is no custom default page"
+    ],
+    "failed": [
+      "interception route groups (with default) should render the root default when a route group doesn't have a default",
+      "interception route groups (with default) should work when nested a level deeper"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/interoperability-with-pages/navigation.test.ts": {
     "passed": [
       "navigation between pages and app dir It should be able to navigate app -> pages",
@@ -4116,6 +4140,7 @@
     "passed": [
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling taint",
+      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
       "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",
       "app dir - rsc basics should correctly render component returning undefined",
@@ -4585,13 +4610,14 @@
     "runtimeError": false
   },
   "test/e2e/edge-can-use-wasm-files/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "edge api endpoints can use wasm files uses the wasm file",
       "middleware can use wasm files can be called twice",
-      "middleware can use wasm files lists the necessary wasm bindings in the manifest",
       "middleware can use wasm files uses the wasm file",
       "middleware can use wasm files with the experimental modes on uses the wasm file"
+    ],
+    "failed": [
+      "middleware can use wasm files lists the necessary wasm bindings in the manifest"
     ],
     "pending": [],
     "flakey": [],
@@ -8548,19 +8574,20 @@
     "runtimeError": false
   },
   "test/integration/edge-runtime-dynamic-code/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Edge route usage of dynamic code evaluation dev mode does not show a warning when running WebAssembly.instantiate with a module parameter",
       "Edge route usage of dynamic code evaluation dev mode does not show warning when no code uses eval",
+      "Middleware usage of dynamic code evaluation dev mode does not show a warning when running WebAssembly.instantiate with a module parameter",
+      "Middleware usage of dynamic code evaluation dev mode does not show warning when no code uses eval",
+      "Page using eval in dev mode does issue dynamic code evaluation warnings"
+    ],
+    "failed": [
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.compile",
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running code with eval",
-      "Middleware usage of dynamic code evaluation dev mode does not show a warning when running WebAssembly.instantiate with a module parameter",
-      "Middleware usage of dynamic code evaluation dev mode does not show warning when no code uses eval",
       "Middleware usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.compile",
       "Middleware usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
-      "Middleware usage of dynamic code evaluation dev mode shows a warning when running code with eval",
-      "Page using eval in dev mode does issue dynamic code evaluation warnings"
+      "Middleware usage of dynamic code evaluation dev mode shows a warning when running code with eval"
     ],
     "pending": [
       "Edge route usage of dynamic code evaluation production mode should have middleware warning during build",
