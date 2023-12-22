@@ -108,7 +108,7 @@ declare const __non_webpack_require__: NodeRequire
 
 const dynamicRequireEsm = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
-  : async (mod: string) => interopDefault(await import(mod))
+  : async (mod: string) => await import(mod)
 
 const dynamicRequire = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
@@ -306,10 +306,12 @@ export default class NextNodeServer extends BaseServer {
     const { incrementalCacheHandlerPath } = this.nextConfig.experimental
 
     if (incrementalCacheHandlerPath) {
-      CacheHandler = await dynamicRequireEsm(
-        isAbsolute(incrementalCacheHandlerPath)
-          ? incrementalCacheHandlerPath
-          : join(this.distDir, incrementalCacheHandlerPath)
+      CacheHandler = interopDefault(
+        await dynamicRequireEsm(
+          isAbsolute(incrementalCacheHandlerPath)
+            ? incrementalCacheHandlerPath
+            : join(this.distDir, incrementalCacheHandlerPath)
+        )
       )
     }
 
