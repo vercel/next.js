@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react'
 import { TriggerBadSuspenseFallback } from './client'
-import { getDynamicTestData, getStaticTestData } from './test-data-service'
+import { getDynamicTestData, getStaticTestData } from '../test-data-service'
 
 async function Dynamic({ dataKey }) {
   return (
