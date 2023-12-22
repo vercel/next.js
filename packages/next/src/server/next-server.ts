@@ -106,9 +106,13 @@ export * from './base-server'
 
 declare const __non_webpack_require__: NodeRequire
 
-const dynamicRequire = process.env.NEXT_MINIMAL
+const dynamicRequireEsm = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
   : async (mod: string) => interopDefault(await import(mod))
+
+const dynamicRequire = process.env.NEXT_MINIMAL
+  ? __non_webpack_require__
+  : require
 
 function writeStdoutLine(text: string) {
   process.stdout.write(' ' + text + '\n')
@@ -302,7 +306,7 @@ export default class NextNodeServer extends BaseServer {
     const { incrementalCacheHandlerPath } = this.nextConfig.experimental
 
     if (incrementalCacheHandlerPath) {
-      CacheHandler = await dynamicRequire(
+      CacheHandler = await dynamicRequireEsm(
         isAbsolute(incrementalCacheHandlerPath)
           ? incrementalCacheHandlerPath
           : join(this.distDir, incrementalCacheHandlerPath)
