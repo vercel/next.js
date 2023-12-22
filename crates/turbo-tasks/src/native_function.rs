@@ -70,7 +70,7 @@ impl NativeFunction {
         }
     }
 
-    pub fn register(&'static self, global_name: &str) {
+    pub fn register(&'static self, global_name: &'static str) {
         register_function(global_name, self);
     }
 }
