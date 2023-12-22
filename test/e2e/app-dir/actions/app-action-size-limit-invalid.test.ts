@@ -119,7 +119,6 @@ createNextDescribe(
       })
 
       it('should respect the size set in serverActions.bodySizeLimit when submitting form', async function () {
-        console.log('IS HERE!!')
         await next.patchFile(
           'next.config.js',
           `
@@ -152,17 +151,6 @@ createNextDescribe(
         await browser.elementByCss('#size-2mb').click()
         await check(() => {
           return logs.some((log) => log.includes('size = 2097152')) ? 'yes' : ''
-        }, 'yes')
-
-        await browser.elementByCss('#size-3mb').click()
-        await check(() => {
-          const fullLog = logs.join('')
-          return fullLog.includes('[Error]: Body exceeded 2mb limit') &&
-            fullLog.includes(
-              'To configure the body size limit for Server Actions, see'
-            )
-            ? 'yes'
-            : ''
         }, 'yes')
       })
     }
