@@ -24,6 +24,14 @@ export const Nav = () => {
       >
         Verify
       </Link>
+      <Link
+        className={`${styles.link} ${
+          pathname === '/quotes' ? styles.active : ''
+        }`}
+        href="/quotes"
+      >
+        Quotes
+      </Link>
     </nav>
   )
 }

@@ -5,6 +5,7 @@ import styles from './quotes.module.css'
 
 export const Quotes = () => {
   const [numberOfQuotes, setNumberOfQuotes] = useState(10)
+  // Using a query hook automatically fetches data and returns query values
   const { data, isError, isLoading, isSuccess } =
     useGetQuotesQuery(numberOfQuotes)
 

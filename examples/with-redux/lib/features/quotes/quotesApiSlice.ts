@@ -1,3 +1,4 @@
+// Need to use the React-specific entry point to import `createApi`
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 
 interface Quote {
@@ -13,6 +14,7 @@ interface QuotesApiResponse {
   limit: number
 }
 
+// Define a service using a base URL and expected endpoints
 export const quotesApiSlice = createApi({
   baseQuery: fetchBaseQuery({ baseUrl: 'https://dummyjson.com/quotes' }),
   reducerPath: 'quotesApi',
