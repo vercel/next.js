@@ -354,7 +354,7 @@ To do this, create a `mdx-components.tsx` file at the root of your application (
 
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
-import Image from 'next/image'
+import Image, { ImageProps } from 'next/image'
 
 // This file allows you to provide custom React components
 // to be used in MDX files. You can import and use any
@@ -369,7 +369,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
       <Image
         sizes="100vw"
         style={{ width: '100%', height: 'auto' }}
-        {...props}
+        {...(props as ImageProps)}
       />
     ),
     ...components,
