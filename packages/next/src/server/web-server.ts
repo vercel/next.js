@@ -54,7 +54,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }
 
-  protected getIncrementalCache({
+  protected async getIncrementalCache({
     requestHeaders,
   }: {
     requestHeaders: IncrementalCache['requestHeaders']
