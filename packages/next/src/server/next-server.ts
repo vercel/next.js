@@ -107,7 +107,7 @@ declare const __non_webpack_require__: NodeRequire
 
 const dynamicRequire = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
-  : require
+  : (mod: string) => import(mod)
 
 function writeStdoutLine(text: string) {
   process.stdout.write(' ' + text + '\n')
@@ -289,7 +289,7 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  protected getIncrementalCache({
+  protected async getIncrementalCache({
     requestHeaders,
     requestProtocol,
   }: {
@@ -301,7 +301,7 @@ export default class NextNodeServer extends BaseServer {
     const { incrementalCacheHandlerPath } = this.nextConfig.experimental
 
     if (incrementalCacheHandlerPath) {
-      CacheHandler = dynamicRequire(
+      CacheHandler = await dynamicRequire(
         isAbsolute(incrementalCacheHandlerPath)
           ? incrementalCacheHandlerPath
           : join(this.distDir, incrementalCacheHandlerPath)
