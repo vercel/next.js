@@ -35,7 +35,6 @@ import { createIncrementalCache } from './helpers/create-incremental-cache'
 import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isMissingPostponeDataError } from '../server/app-render/is-missing-postpone-error'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
-import { interopDefault } from '../lib/interop-default'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
