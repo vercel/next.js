@@ -1340,7 +1340,6 @@ export default async function build(
                 : path.join(dir, incrementalCacheHandlerPath)
             )
           )
-          CacheHandler = CacheHandler.default || CacheHandler
         }
 
         const cacheInitialization = await initializeIncrementalCache({
