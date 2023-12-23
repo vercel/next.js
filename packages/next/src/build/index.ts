@@ -1946,15 +1946,11 @@ export default async function build(
       if (!isGenerateMode && config.outputFileTracing && !buildTracesPromise) {
         // Get all the edge routes from the pageInfos. If the runtime is set as
         // edge, then we know it's an edge route.
-        const edgeRoutes: ReadonlyArray<string> = Array.from(
-          pageInfos.entries()
-        ).reduce<string[]>((acc, [route, { runtime }]) => {
-          if (runtime === 'edge') {
-            acc.push(route)
-          }
-
-          return acc
-        }, [])
+        const edgeRoutes: Record<string, boolean> = {}
+        pageInfos.forEach((pageInfo, route) => {
+          if (pageInfo.runtime !== 'edge') return
+          edgeRoutes[route] = true
+        })
 
         buildTracesPromise = collectBuildTraces({
           dir,

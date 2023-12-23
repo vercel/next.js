@@ -78,7 +78,7 @@ export async function collectBuildTraces({
   staticPages: string[]
   hasSsrAmpPages: boolean
   outputFileTracingRoot: string
-  edgeRoutes: readonly string[] | undefined
+  edgeRoutes: Readonly<Record<string, boolean>> | undefined
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
@@ -642,7 +642,7 @@ export async function collectBuildTraces({
         }
 
         // Edge routes have no trace files.
-        if (edgeRoutes && edgeRoutes.includes(route)) {
+        if (edgeRoutes && route in edgeRoutes) {
           return
         }
 
