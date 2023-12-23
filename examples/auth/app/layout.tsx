@@ -1,7 +1,6 @@
 import './globals.css'
-import type { Metadata } from 'next'
 
-export const metadata: Metadata = {
+export const metadata = {
   title: 'Next.js Authentication',
   description: 'Example using NextAuth.js',
 }

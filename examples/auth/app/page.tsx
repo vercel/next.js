@@ -1,13 +1,41 @@
-import Link from 'next/link'
-import SignIn from './sign-in'
+import { auth, signIn, signOut } from '@/auth'
 
-export default function Page() {
+export default async function Page() {
+  let session = await auth()
+  let user = session?.user?.email
+
   return (
     <section>
       <h1>Home</h1>
-      <p>This page does not have authentication</p>
-      <Link href="/dashboard">View dashboard</Link>
-      <SignIn />
+      <div>{user ? <SignOut>{`Welcome ${user}`}</SignOut> : <SignIn />}</div>
     </section>
+  )
+}
+
+function SignIn() {
+  return (
+    <form
+      action={async () => {
+        'use server'
+        await signIn('github')
+      }}
+    >
+      <p>You are not logged in</p>
+      <button type="submit">Sign in with GitHub</button>
+    </form>
+  )
+}
+
+function SignOut({ children }: { children: React.ReactNode }) {
+  return (
+    <form
+      action={async () => {
+        'use server'
+        await signOut()
+      }}
+    >
+      <p>{children}</p>
+      <button type="submit">Sign out</button>
+    </form>
   )
 }

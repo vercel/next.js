@@ -7,14 +7,14 @@
   },
   "dependencies": {
     "next": "latest",
-    "next-auth": "0.0.0-manual.dacbe24d",
+    "next-auth": "^5.0.0-beta.4",
     "react": "latest",
     "react-dom": "latest"
   },
   "devDependencies": {
-    "typescript": "latest",
-    "@types/react": "latest",
     "@types/node": "latest",
-    "@types/react-dom": "latest"
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "typescript": "latest"
   }
 }
