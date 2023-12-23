@@ -1,17 +1,5 @@
 import { auth, signIn, signOut } from '@/auth'
 
-export default async function Page() {
-  let session = await auth()
-  let user = session?.user?.email
-
-  return (
-    <section>
-      <h1>Home</h1>
-      <div>{user ? <SignOut>{`Welcome ${user}`}</SignOut> : <SignIn />}</div>
-    </section>
-  )
-}
-
 function SignIn() {
   return (
     <form
@@ -37,5 +25,17 @@ function SignOut({ children }: { children: React.ReactNode }) {
       <p>{children}</p>
       <button type="submit">Sign out</button>
     </form>
+  )
+}
+
+export default async function Page() {
+  let session = await auth()
+  let user = session?.user?.email
+
+  return (
+    <section>
+      <h1>Home</h1>
+      <div>{user ? <SignOut>{`Welcome ${user}`}</SignOut> : <SignIn />}</div>
+    </section>
   )
 }
