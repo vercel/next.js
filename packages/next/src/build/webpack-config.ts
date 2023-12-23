@@ -9,7 +9,11 @@ import semver from 'next/dist/compiled/semver'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
-import { isWebpackDefaultLayer, isWebpackServerLayer } from './utils'
+import {
+  isWebpackAppLayer,
+  isWebpackDefaultLayer,
+  isWebpackServerLayer,
+} from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -71,10 +75,13 @@ import {
   edgeConditionNames,
 } from './webpack-config-rules/resolve'
 import { OptionalPeerDependencyResolverPlugin } from './webpack/plugins/optional-peer-dependency-resolve-plugin'
-import { createWebpackAliases } from './create-compiler-aliases'
-import { createServerOnlyClientOnlyAliases } from './create-compiler-aliases'
-import { createRSCAliases } from './create-compiler-aliases'
-import { createServerComponentsNoopAliases } from './create-compiler-aliases'
+import {
+  createWebpackAliases,
+  createServerOnlyClientOnlyAliases,
+  createRSCAliases,
+  createNextApiEsmAliases,
+  createAppRouterApiAliases,
+} from './create-compiler-aliases'
 import { hasCustomExportOutput } from '../export/utils'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -1263,18 +1270,12 @@ export default async function getBaseWebpackConfig(
                 test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
-                // All app dir layers need to use this configured resolution logic
-                issuerLayer: {
-                  or: [
-                    WEBPACK_LAYERS.reactServerComponents,
-                    WEBPACK_LAYERS.serverSideRendering,
-                    WEBPACK_LAYERS.appPagesBrowser,
-                    WEBPACK_LAYERS.actionBrowser,
-                    WEBPACK_LAYERS.shared,
-                  ],
-                },
+                issuerLayer: isWebpackAppLayer,
                 resolve: {
-                  alias: createServerComponentsNoopAliases(),
+                  alias: {
+                    ...createNextApiEsmAliases(),
+                    ...createAppRouterApiAliases(),
+                  },
                 },
               },
             ]

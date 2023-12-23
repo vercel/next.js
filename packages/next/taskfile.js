@@ -2367,6 +2367,7 @@ export async function next_compile(task, opts) {
       'bin',
       'server',
       'server_esm',
+      'api_esm',
       'nextbuild',
       'nextbuildjest',
       'nextbuildstatic',
@@ -2450,6 +2451,16 @@ export async function server_esm(task, opts) {
     .source('src/server/**/!(*.test).+(js|mts|ts|tsx)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/server')
+}
+
+// Provide ESM entry files for Next.js apis,
+// Remain in ESM both for dist/ and dist/esm
+export async function api_esm(task, opts) {
+  await task
+    .source('src/api/**/*.+(js|mts|ts|tsx)')
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/api')
+    .target('dist/esm/api')
 }
 
 export async function nextbuild(task, opts) {
@@ -2639,6 +2650,7 @@ export default async function (task) {
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
   await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
+  await task.watch('src/api', 'api_esm', opts)
   await task.watch(
     'src/build',
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
