@@ -1,29 +1,25 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "autoprefixer": "^10.0.4",
-    "clsx": "^1.1.1",
-    "ioredis": "^4.23.0",
+    "@types/node": "20.10.3",
+    "@types/react": "18.2.42",
+    "@types/react-dom": "18.2.17",
+    "@types/uuid": "9.0.7",
+    "@vercel/kv": "^1.0.0",
+    "autoprefixer": "10.4.16",
+    "clsx": "^2.0.0",
+    "geist": "^1.2.0",
     "next": "latest",
-    "postcss": "^8.1.10",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-hot-toast": "^1.0.2",
-    "swr": "^2.0.0",
-    "tailwindcss": "^2.0.2",
-    "uuid": "^8.3.2"
-  },
-  "devDependencies": {
-    "@tailwindcss/jit": "0.1.1",
-    "@types/ioredis": "4.28.8",
-    "@types/node": "^16.11.25",
-    "@types/react": "^17.0.2",
-    "@types/uuid": "8.3.4",
-    "typescript": "^4.5.5"
+    "postcss": "^8.4.32",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "tailwindcss": "3.3.6",
+    "typescript": "5.3.2",
+    "uuid": "^9.0.1"
   }
 }
