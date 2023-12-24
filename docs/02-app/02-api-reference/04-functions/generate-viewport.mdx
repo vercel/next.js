@@ -15,13 +15,14 @@ You can customize the initial viewport of the page with the static `viewport` ob
 >
 > - The `viewport` object and `generateViewport` function exports are **only supported in Server Components**.
 > - You cannot export both the `viewport` object and `generateViewport` function from the same route segment.
+> - If you're coming from migrating `metadata` exports, you can use [metadata-to-viewport-export codemod](/docs/app/building-your-application/upgrading/codemods#metadata-to-viewport-export) to update your changes.
 
 ## The `viewport` object
 
 To define the viewport options, export a `viewport` object from a `layout.js` or `page.js` file.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-import { Viewport } from 'next'
+import type { Viewport } from 'next'
 
 export const viewport: Viewport = {
   themeColor: 'black',
@@ -61,7 +62,6 @@ export function generateViewport({ params }) {
 > **Good to know**:
 >
 > - If the viewport doesn't depend on runtime information, it should be defined using the static [`viewport` object](#the-viewport-object) rather than `generateMetadata`.
-> - Marking `generateViewport` as `async` is not yet supported. If you still require this functionality, continue using the previous `generateMetadata` option. We will be adding support for `async` in an upcoming minor release.
 
 ## Viewport Fields
 

@@ -9,6 +9,9 @@ autobenches = false
 [lib]
 bench = false
 
+[lints]
+workspace = true
+
 [dependencies]
 rustc-hash = { workspace = true }
 tracing = { workspace = true }

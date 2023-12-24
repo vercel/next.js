@@ -3,6 +3,16 @@ import fs from 'fs'
 import path from 'path'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 
+function errorOnBadHandler(resourcePath: string) {
+  return `
+  if (typeof handler !== 'function') {
+    throw new Error('Default export is missing in ${JSON.stringify(
+      resourcePath
+    )}')
+  }
+  `
+}
+
 const cacheHeader = {
   none: 'no-cache, no-store',
   longCache: 'public, immutable, no-transform, max-age=31536000',
@@ -78,6 +88,8 @@ import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resol
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
 
+${errorOnBadHandler(resourcePath)}
+
 export async function GET() {
   const data = await handler()
   const content = resolveRouteData(data, fileType)
@@ -102,6 +114,8 @@ const imageModule = { ...userland }
 
 const handler = imageModule.default
 const generateImageMetadata = imageModule.generateImageMetadata
+
+${errorOnBadHandler(resourcePath)}
 
 export async function GET(_, ctx) {
   const { __metadata_id__ = [], ...params } = ctx.params || {}
@@ -159,6 +173,8 @@ const handler = sitemapModule.default
 const generateSitemaps = sitemapModule.generateSitemaps
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
+
+${errorOnBadHandler(resourcePath)}
 
 ${'' /* re-export the userland route configs */}
 export * from ${JSON.stringify(resourcePath)}

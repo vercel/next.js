@@ -28,6 +28,8 @@ import {
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
+  RSC_PREFETCH_SUFFIX,
+  RSC_SUFFIX,
 } from '../lib/constants'
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -81,6 +83,7 @@ import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
+
 import {
   eventBuildOptimize,
   eventCliSession,
@@ -111,8 +114,9 @@ import {
   copyTracedFiles,
   isReservedPage,
   isAppBuiltinNotFoundPage,
+  serializePageInfos,
 } from './utils'
-import type { PageInfo, AppConfig } from './utils'
+import type { PageInfo, PageInfos, AppConfig } from './utils'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -129,15 +133,16 @@ import {
   createDefineEnv,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { flatReaddir } from '../lib/flat-readdir'
+import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import {
   ACTION,
-  NEXT_ROUTER_PREFETCH,
-  RSC,
+  NEXT_ROUTER_PREFETCH_HEADER,
+  RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   RSC_VARY_HEADER,
+  NEXT_DID_POSTPONE_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
@@ -155,18 +160,26 @@ import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
+import type { NextEnabledDirectories } from '../server/base-server'
+import { hasCustomExportOutput } from '../export/utils'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
 }
 
+interface ExperimentalPPRInfo {
+  experimentalPPR: boolean | undefined
+}
+
 interface DataRouteRouteInfo {
   dataRoute: string | null
+  prefetchDataRoute: string | null | undefined
 }
 
 export interface SsgRoute
   extends ExperimentalBypassForInfo,
-    DataRouteRouteInfo {
+    DataRouteRouteInfo,
+    ExperimentalPPRInfo {
   initialRevalidateSeconds: Revalidate
   srcRoute: string | null
   initialStatus?: number
@@ -175,10 +188,12 @@ export interface SsgRoute
 
 export interface DynamicSsgRoute
   extends ExperimentalBypassForInfo,
-    DataRouteRouteInfo {
-  routeRegex: string
+    DataRouteRouteInfo,
+    ExperimentalPPRInfo {
   fallback: string | null | false
+  routeRegex: string
   dataRouteRegex: string | null
+  prefetchDataRouteRegex: string | null | undefined
 }
 
 export type PrerenderManifest = {
@@ -241,9 +256,12 @@ export type RoutesManifest = {
     localeDetection?: false
   }
   rsc: {
-    header: typeof RSC
+    header: typeof RSC_HEADER
+    didPostponeHeader: typeof NEXT_DID_POSTPONE_HEADER
     varyHeader: typeof RSC_VARY_HEADER
-    prefetchHeader: typeof NEXT_ROUTER_PREFETCH
+    prefetchHeader: typeof NEXT_ROUTER_PREFETCH_HEADER
+    suffix: typeof RSC_SUFFIX
+    prefetchSuffix: typeof RSC_PREFETCH_SUFFIX
   }
   skipMiddlewareUrlNormalize?: boolean
   caseSensitive?: boolean
@@ -344,10 +362,9 @@ export default async function build(
   turboNextBuildRoot = null,
   buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
 ): Promise<void> {
-  const isCompile = buildMode === 'experimental-compile'
-  const isGenerate = buildMode === 'experimental-generate'
+  const isCompileMode = buildMode === 'experimental-compile'
+  const isGenerateMode = buildMode === 'experimental-generate'
 
-  let hasAppDir = false
   try {
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: buildMode,
@@ -381,12 +398,7 @@ export default async function build(
       NextBuildContext.config = config
 
       let configOutDir = 'out'
-      if (config.output === 'export' && config.distDir !== '.next') {
-        // In the past, a user had to run "next build" to generate
-        // ".next" (or whatever the distDir) followed by "next export"
-        // to generate "out" (or whatever the outDir). However, when
-        // "output: export" is configured, "next build" does both steps.
-        // So the user-configured distDir is actually the outDir.
+      if (hasCustomExportOutput(config)) {
         configOutDir = config.distDir
         config.distDir = '.next'
       }
@@ -396,7 +408,7 @@ export default async function build(
 
       let buildId: string = ''
 
-      if (isGenerate) {
+      if (isGenerateMode) {
         buildId = await fs.readFile(path.join(distDir, 'BUILD_ID'), 'utf8')
       } else {
         buildId = await nextBuildSpan
@@ -432,11 +444,14 @@ export default async function build(
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
-      const isAppDirEnabled = true
       const { pagesDir, appDir } = findPagesDir(dir)
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
-      hasAppDir = Boolean(appDir)
+
+      const enabledDirectories: NextEnabledDirectories = {
+        app: typeof appDir === 'string',
+        pages: typeof pagesDir === 'string',
+      }
 
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
@@ -483,7 +498,8 @@ export default async function build(
       // For app directory, we run type checking after build. That's because
       // we dynamically generate types for each layout and page in the app
       // directory.
-      if (!appDir && !isCompile) await startTypeChecking(typeCheckingOptions)
+      if (!appDir && !isCompileMode)
+        await startTypeChecking(typeCheckingOptions)
 
       if (appDir && 'exportPathMap' in config) {
         Log.error(
@@ -515,7 +531,7 @@ export default async function build(
         expFeatureInfo,
       })
 
-      if (!isGenerate) {
+      if (!isGenerateMode) {
         buildSpinner = createSpinner('Creating an optimized production build')
       }
 
@@ -549,16 +565,18 @@ export default async function build(
       const instrumentationHookEnabled = Boolean(
         config.experimental.instrumentationHook
       )
-      const rootPaths = (
-        await flatReaddir(rootDir, [
-          middlewareDetectionRegExp,
-          ...(instrumentationHookEnabled
-            ? [instrumentationHookDetectionRegExp]
-            : []),
-        ])
-      )
+
+      const includes = [
+        middlewareDetectionRegExp,
+        ...(instrumentationHookEnabled
+          ? [instrumentationHookDetectionRegExp]
+          : []),
+      ]
+
+      const rootPaths = (await getFilesInDir(rootDir))
+        .filter((file) => includes.some((include) => include.test(file)))
         .sort(sortByPageExts(config.pageExtensions))
-        .map((absoluteFile) => absoluteFile.replace(dir, ''))
+        .map((file) => path.join(rootDir, file).replace(dir, ''))
 
       const hasInstrumentationHook = rootPaths.some((p) =>
         p.includes(INSTRUMENTATION_HOOK_FILENAME)
@@ -822,13 +840,16 @@ export default async function build(
             dataRoutes: [],
             i18n: config.i18n || undefined,
             rsc: {
-              header: RSC,
+              header: RSC_HEADER,
               varyHeader: RSC_VARY_HEADER,
-              prefetchHeader: NEXT_ROUTER_PREFETCH,
+              prefetchHeader: NEXT_ROUTER_PREFETCH_HEADER,
+              didPostponeHeader: NEXT_DID_POSTPONE_HEADER,
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
+              suffix: RSC_SUFFIX,
+              prefetchSuffix: RSC_PREFETCH_SUFFIX,
             },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
-          }
+          } as RoutesManifest
         })
 
       if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
@@ -890,7 +911,7 @@ export default async function build(
         )
       }
 
-      if (config.cleanDistDir && !isGenerate) {
+      if (config.cleanDistDir && !isGenerateMode) {
         await recursiveDelete(distDir, /^cache/)
       }
 
@@ -928,7 +949,11 @@ export default async function build(
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
 
-      const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
+      const pagesManifestPath = path.join(
+        distDir,
+        SERVER_DIRECTORY,
+        PAGES_MANIFEST
+      )
 
       const { incrementalCacheHandlerPath } = config.experimental
 
@@ -951,14 +976,14 @@ export default async function build(
                 ? path.relative(distDir, incrementalCacheHandlerPath)
                 : undefined,
 
-              isExperimentalCompile: isCompile,
+              isExperimentalCompile: isCompileMode,
             },
           },
           appDir: dir,
           relativeAppDir: path.relative(outputFileTracingRoot, dir),
           files: [
             ROUTES_MANIFEST,
-            path.relative(distDir, manifestPath),
+            path.relative(distDir, pagesManifestPath),
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
             PRERENDER_MANIFEST.replace(/\.json$/, '.js'),
@@ -1026,7 +1051,7 @@ export default async function build(
         const turboJson = findUp.sync('turbo.json', { cwd: dir })
         // eslint-disable-next-line no-shadow
         const packagePath = findUp.sync('package.json', { cwd: dir })
-        let binding = await loadBindings()
+        let binding = await loadBindings(config?.experimental?.useWasmBinary)
 
         let root =
           turboNextBuildRoot ??
@@ -1066,10 +1091,18 @@ export default async function build(
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
-      // if the option is set, we respect it, otherwise we check if the user
-      // has a custom webpack config and disable the build worker by default.
+      // If there's has a custom webpack config and disable the build worker.
+      // Otherwise respect the option if it's set.
       const useBuildWorker =
-        config.experimental.webpackBuildWorker || !config.webpack
+        config.experimental.webpackBuildWorker ||
+        (config.experimental.webpackBuildWorker === undefined &&
+          !config.webpack)
+
+      nextBuildSpan.setAttribute(
+        'has-custom-webpack-config',
+        String(!!config.webpack)
+      )
+      nextBuildSpan.setAttribute('use-build-worker', String(useBuildWorker))
 
       if (
         config.webpack &&
@@ -1080,11 +1113,11 @@ export default async function build(
         )
       }
 
-      if (!isGenerate) {
-        if (isCompile && useBuildWorker) {
+      if (!isGenerateMode) {
+        if (isCompileMode && useBuildWorker) {
           let durationInSeconds = 0
 
-          await webpackBuild(true, ['server']).then((res) => {
+          await webpackBuild(useBuildWorker, ['server']).then((res) => {
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
             const buildTraceWorker = new Worker(
@@ -1100,8 +1133,8 @@ export default async function build(
                 dir,
                 config,
                 distDir,
-                pageKeys,
-                pageInfos: [],
+                // Serialize Map as this is sent to the worker.
+                pageInfos: serializePageInfos(new Map()),
                 staticPages: [],
                 hasSsrAmpPages: false,
                 buildTraceContext,
@@ -1113,11 +1146,11 @@ export default async function build(
               })
           })
 
-          await webpackBuild(true, ['edge-server']).then((res) => {
+          await webpackBuild(useBuildWorker, ['edge-server']).then((res) => {
             durationInSeconds += res.duration
           })
 
-          await webpackBuild(true, ['client']).then((res) => {
+          await webpackBuild(useBuildWorker, ['client']).then((res) => {
             durationInSeconds += res.duration
           })
 
@@ -1133,7 +1166,7 @@ export default async function build(
         } else {
           const { duration: webpackBuildDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
-            : await webpackBuild(false)
+            : await webpackBuild(useBuildWorker, null)
 
           buildTraceContext = rest.buildTraceContext
 
@@ -1147,7 +1180,7 @@ export default async function build(
       }
 
       // For app directory, we run type checking after build.
-      if (appDir && !(isCompile || isGenerate)) {
+      if (appDir && !(isCompileMode || isGenerateMode)) {
         await startTypeChecking(typeCheckingOptions)
       }
 
@@ -1175,9 +1208,9 @@ export default async function build(
       const appNormalizedPaths = new Map<string, string>()
       const appDynamicParamPaths = new Set<string>()
       const appDefaultConfigs = new Map<string, AppConfig>()
-      const pageInfos = new Map<string, PageInfo>()
+      const pageInfos: PageInfos = new Map<string, PageInfo>()
       const pagesManifest = JSON.parse(
-        await fs.readFile(manifestPath, 'utf8')
+        await fs.readFile(pagesManifestPath, 'utf8')
       ) as PagesManifest
       const buildManifest = JSON.parse(
         await fs.readFile(buildManifestPath, 'utf8')
@@ -1228,8 +1261,8 @@ export default async function build(
         : config.experimental.cpus || 4
 
       function createStaticWorker(
-        incrementalCacheIpcPort: number,
-        incrementalCacheIpcValidationKey: string
+        incrementalCacheIpcPort?: number,
+        incrementalCacheIpcValidationKey?: string
       ) {
         let infoPrinted = false
 
@@ -1269,7 +1302,9 @@ export default async function build(
           forkOptions: {
             env: {
               ...process.env,
-              __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort + '',
+              __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort
+                ? incrementalCacheIpcPort + ''
+                : undefined,
               __NEXT_INCREMENTAL_CACHE_IPC_KEY:
                 incrementalCacheIpcValidationKey,
             },
@@ -1291,47 +1326,54 @@ export default async function build(
           >
       }
 
-      let CacheHandler: any
+      let incrementalCacheIpcPort
+      let incrementalCacheIpcValidationKey
 
-      if (incrementalCacheHandlerPath) {
-        CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
-          ? incrementalCacheHandlerPath
-          : path.join(dir, incrementalCacheHandlerPath))
-        CacheHandler = CacheHandler.default || CacheHandler
+      if (config.experimental.staticWorkerRequestDeduping) {
+        let CacheHandler
+        if (incrementalCacheHandlerPath) {
+          CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
+            ? incrementalCacheHandlerPath
+            : path.join(dir, incrementalCacheHandlerPath))
+          CacheHandler = CacheHandler.default || CacheHandler
+        }
+
+        const cacheInitialization = await initializeIncrementalCache({
+          fs: nodeFs,
+          dev: false,
+          pagesDir: true,
+          appDir: true,
+          fetchCache: true,
+          flushToDisk: ciEnvironment.hasNextSupport
+            ? false
+            : config.experimental.isrFlushToDisk,
+          serverDistDir: path.join(distDir, 'server'),
+          fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+          maxMemoryCacheSize: config.experimental.isrMemoryCacheSize,
+          getPrerenderManifest: () => ({
+            version: -1 as any, // letting us know this doesn't conform to spec
+            routes: {},
+            dynamicRoutes: {},
+            notFoundRoutes: [],
+            preview: null as any, // `preview` is special case read in next-dev-server
+          }),
+          requestHeaders: {},
+          CurCacheHandler: CacheHandler,
+          minimalMode: ciEnvironment.hasNextSupport,
+          allowedRevalidateHeaderKeys:
+            config.experimental.allowedRevalidateHeaderKeys,
+          experimental: { ppr: config.experimental.ppr === true },
+        })
+
+        incrementalCacheIpcPort = cacheInitialization.ipcPort
+        incrementalCacheIpcValidationKey = cacheInitialization.ipcValidationKey
       }
-
-      const {
-        ipcPort: incrementalCacheIpcPort,
-        ipcValidationKey: incrementalCacheIpcValidationKey,
-      } = await initializeIncrementalCache({
-        fs: nodeFs,
-        dev: false,
-        appDir: isAppDirEnabled,
-        fetchCache: isAppDirEnabled,
-        flushToDisk: config.experimental.isrFlushToDisk,
-        serverDistDir: path.join(distDir, 'server'),
-        fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-        maxMemoryCacheSize: config.experimental.isrMemoryCacheSize,
-        getPrerenderManifest: () => ({
-          version: -1 as any, // letting us know this doesn't conform to spec
-          routes: {},
-          dynamicRoutes: {},
-          notFoundRoutes: [],
-          preview: null as any, // `preview` is special case read in next-dev-server
-        }),
-        requestHeaders: {},
-        CurCacheHandler: CacheHandler,
-        minimalMode: ciEnvironment.hasNextSupport,
-
-        allowedRevalidateHeaderKeys:
-          config.experimental.allowedRevalidateHeaderKeys,
-      })
 
       const pagesStaticWorkers = createStaticWorker(
         incrementalCacheIpcPort,
         incrementalCacheIpcValidationKey
       )
-      const appStaticWorkers = isAppDirEnabled
+      const appStaticWorkers = appDir
         ? createStaticWorker(
             incrementalCacheIpcPort,
             incrementalCacheIpcValidationKey
@@ -1349,7 +1391,7 @@ export default async function build(
         hasSsrAmpPages,
         hasNonStaticErrorPage,
       } = await staticCheckSpan.traceAsyncFn(async () => {
-        if (isCompile) {
+        if (isCompileMode) {
           return {
             customAppGetInitialProps: false,
             namedExports: [],
@@ -1382,6 +1424,7 @@ export default async function build(
           async () =>
             hasCustomErrorPage &&
             pagesStaticWorkers.isPageStatic({
+              dir,
               page: '/_error',
               distDir,
               configFileName,
@@ -1550,7 +1593,7 @@ export default async function build(
                   ? 'edge'
                   : staticInfo?.runtime
 
-                if (!isCompile) {
+                if (!isCompileMode) {
                   isServerComponent =
                     pageType === 'app' &&
                     staticInfo?.rsc !== RSC_MODULE_TYPES.client
@@ -1581,6 +1624,7 @@ export default async function build(
                               ? appStaticWorkers
                               : pagesStaticWorkers
                           )!.isPageStatic({
+                            dir,
                             page,
                             originalAppPath,
                             distDir,
@@ -1589,13 +1633,15 @@ export default async function build(
                             httpAgentOptions: config.httpAgentOptions,
                             locales: config.i18n?.locales,
                             defaultLocale: config.i18n?.defaultLocale,
-                            parentId: isPageStaticSpan.id,
+                            parentId: isPageStaticSpan.getId(),
                             pageRuntime,
                             edgeInfo,
                             pageType,
                             incrementalCacheHandlerPath:
                               config.experimental.incrementalCacheHandlerPath,
-                            isrFlushToDisk: config.experimental.isrFlushToDisk,
+                            isrFlushToDisk: ciEnvironment.hasNextSupport
+                              ? false
+                              : config.experimental.isrFlushToDisk,
                             maxMemoryCacheSize:
                               config.experimental.isrMemoryCacheSize,
                             nextConfigOutput: config.output,
@@ -1678,6 +1724,7 @@ export default async function build(
                               appStaticPaths.set(originalAppPath, [])
                               appStaticPathsEncoded.set(originalAppPath, [])
                               isStatic = true
+                              isPPR = false
                             }
                           }
 
@@ -1688,10 +1735,13 @@ export default async function build(
                           }
                           appDefaultConfigs.set(originalAppPath, appConfig)
 
+                          // Only generate the app prefetch rsc if the route is
+                          // an app page.
                           if (
                             !isStatic &&
                             !isAppRouteRoute(originalAppPath) &&
-                            !isDynamicRoute(originalAppPath)
+                            !isDynamicRoute(originalAppPath) &&
+                            !isPPR
                           ) {
                             appPrefetchPaths.set(originalAppPath, page)
                           }
@@ -1893,13 +1943,12 @@ export default async function build(
         )
       }
 
-      if (!isGenerate && config.outputFileTracing && !buildTracesPromise) {
+      if (!isGenerateMode && config.outputFileTracing && !buildTracesPromise) {
         buildTracesPromise = collectBuildTraces({
           dir,
           config,
           distDir,
-          pageKeys,
-          pageInfos: Object.entries(pageInfos),
+          pageInfos,
           staticPages: [...staticPages],
           nextBuildSpan,
           hasSsrAmpPages,
@@ -2040,11 +2089,11 @@ export default async function build(
       // - getStaticProps paths
       // - experimental app is enabled
       if (
-        !isCompile &&
+        !isCompileMode &&
         (combinedPages.length > 0 ||
           useStaticPages404 ||
           useDefaultStatic500 ||
-          isAppDirEnabled)
+          appDir)
       ) {
         const staticGenerationSpan =
           nextBuildSpan.traceChild('static-generation')
@@ -2097,6 +2146,7 @@ export default async function build(
                   }
                 }
               })
+
               // Append the "well-known" routes we should prerender for, e.g. blog
               // post slugs.
               additionalSsgPaths.forEach((routes, page) => {
@@ -2137,6 +2187,13 @@ export default async function build(
                   }
                 })
               })
+
+              // Ensure we don't generate explicit app prefetches while in PPR.
+              if (config.experimental.ppr && appPrefetchPaths.size > 0) {
+                throw new Error(
+                  "Invariant: explicit app prefetches shouldn't generated with PPR"
+                )
+              }
 
               for (const [originalAppPath, page] of appPrefetchPaths) {
                 defaultMap[page] = {
@@ -2184,7 +2241,7 @@ export default async function build(
 
           const exportOptions: ExportAppOptions = {
             nextConfig: exportConfig,
-            hasAppDir,
+            enabledDirectories,
             silent: false,
             buildExport: true,
             debugOutput,
@@ -2238,6 +2295,13 @@ export default async function build(
 
             const isRouteHandler = isAppRouteRoute(originalAppPath)
 
+            // When this is an app page and PPR is enabled, the route supports
+            // partial pre-rendering.
+            const experimentalPPR =
+              !isRouteHandler && config.experimental.ppr === true
+                ? true
+                : undefined
+
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
             // to enable server actions on static routes
             const bypassFor: RouteHas[] = [
@@ -2266,11 +2330,29 @@ export default async function build(
                 hasEmptyPrelude,
               })
 
+              // update the page (eg /blog/[slug]) to also have the postpone metadata
+              pageInfos.set(page, {
+                ...(pageInfos.get(page) as PageInfo),
+                hasPostponed,
+                hasEmptyPrelude,
+              })
+
               if (revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route)
-                const dataRoute = isRouteHandler
-                  ? null
-                  : path.posix.join(`${normalizedRoute}.rsc`)
+
+                let dataRoute: string | null
+                if (isRouteHandler) {
+                  dataRoute = null
+                } else {
+                  dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
+                }
+
+                let prefetchDataRoute: string | null | undefined
+                if (experimentalPPR) {
+                  prefetchDataRoute = path.posix.join(
+                    `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
+                  )
+                }
 
                 const routeMeta: Partial<SsgRoute> = {}
 
@@ -2305,10 +2387,12 @@ export default async function build(
 
                 finalPrerenderRoutes[route] = {
                   ...routeMeta,
+                  experimentalPPR,
                   experimentalBypassFor: bypassFor,
                   initialRevalidateSeconds: revalidate,
                   srcRoute: page,
                   dataRoute,
+                  prefetchDataRoute,
                 }
               } else {
                 hasDynamicData = true
@@ -2324,16 +2408,29 @@ export default async function build(
 
             if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
               const normalizedRoute = normalizePagePath(page)
-              const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+              const dataRoute = path.posix.join(
+                `${normalizedRoute}${RSC_SUFFIX}`
+              )
+
+              let prefetchDataRoute: string | null | undefined
+              if (experimentalPPR) {
+                prefetchDataRoute = path.posix.join(
+                  `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
+                )
+              }
 
               pageInfos.set(page, {
                 ...(pageInfos.get(page) as PageInfo),
                 isDynamicAppRoute: true,
+                // if PPR is turned on and the route contains a dynamic segment,
+                // we assume it'll be partially prerendered
+                hasPostponed: experimentalPPR,
               })
 
               // TODO: create a separate manifest to allow enforcing
               // dynamicParams for non-static paths?
               finalDynamicRoutes[page] = {
+                experimentalPPR,
                 experimentalBypassFor: bypassFor,
                 routeRegex: normalizeRouteRegex(
                   getNamedRouteRegex(page, false).re.source
@@ -2352,6 +2449,19 @@ export default async function build(
                         false
                       ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
                     ),
+                prefetchDataRoute,
+                prefetchDataRouteRegex:
+                  isRouteHandler || !prefetchDataRoute
+                    ? undefined
+                    : normalizeRouteRegex(
+                        getNamedRouteRegex(
+                          prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
+                          false
+                        ).re.source.replace(
+                          /\(\?:\\\/\)\?\$$/,
+                          '\\.prefetch\\.rsc$'
+                        )
+                      ),
               }
             }
           }
@@ -2568,24 +2678,29 @@ export default async function build(
                       initialRevalidateSeconds:
                         exportResult.byPath.get(localePage)?.revalidate ??
                         false,
+                      experimentalPPR: undefined,
                       srcRoute: null,
                       dataRoute: path.posix.join(
                         '/_next/data',
                         buildId,
                         `${file}.json`
                       ),
+                      prefetchDataRoute: undefined,
                     }
                   }
                 } else {
                   finalPrerenderRoutes[page] = {
                     initialRevalidateSeconds:
                       exportResult.byPath.get(page)?.revalidate ?? false,
+                    experimentalPPR: undefined,
                     srcRoute: null,
                     dataRoute: path.posix.join(
                       '/_next/data',
                       buildId,
                       `${file}.json`
                     ),
+                    // Pages does not have a prefetch data route.
+                    prefetchDataRoute: undefined,
                   }
                 }
                 // Set Page Revalidation Interval
@@ -2647,12 +2762,15 @@ export default async function build(
 
                   finalPrerenderRoutes[route] = {
                     initialRevalidateSeconds,
+                    experimentalPPR: undefined,
                     srcRoute: page,
                     dataRoute: path.posix.join(
                       '/_next/data',
                       buildId,
                       `${normalizePagePath(route)}.json`
                     ),
+                    // Pages does not have a prefetch data route.
+                    prefetchDataRoute: undefined,
                   }
 
                   // Set route Revalidation Interval
@@ -2667,7 +2785,7 @@ export default async function build(
           // remove temporary export folder
           await fs.rm(exportOptions.outdir, { recursive: true, force: true })
           await fs.writeFile(
-            manifestPath,
+            pagesManifestPath,
             formatManifest(pagesManifest),
             'utf8'
           )
@@ -2710,11 +2828,15 @@ export default async function build(
         })
       )
 
-      if (NextBuildContext.telemetryPlugin) {
-        const events = eventBuildFeatureUsage(NextBuildContext.telemetryPlugin)
+      if (NextBuildContext.telemetryState) {
+        const events = eventBuildFeatureUsage(
+          NextBuildContext.telemetryState.usages
+        )
         telemetry.record(events)
         telemetry.record(
-          eventPackageUsedInGetServerSideProps(NextBuildContext.telemetryPlugin)
+          eventPackageUsedInGetServerSideProps(
+            NextBuildContext.telemetryState.packagesUsedInServerSideProps
+          )
         )
       }
 
@@ -2731,6 +2853,7 @@ export default async function build(
             routeRegex: normalizeRouteRegex(
               getNamedRouteRegex(tbdRoute, false).re.source
             ),
+            experimentalPPR: undefined,
             dataRoute,
             fallback: ssgBlockingFallbackPages.has(tbdRoute)
               ? null
@@ -2743,9 +2866,12 @@ export default async function build(
                 false
               ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
             ),
+            // Pages does not have a prefetch data route.
+            prefetchDataRoute: undefined,
+            prefetchDataRouteRegex: undefined,
           }
         })
-        const prerenderManifest: PrerenderManifest = {
+        const prerenderManifest: Readonly<PrerenderManifest> = {
           version: 4,
           routes: finalPrerenderRoutes,
           dynamicRoutes: finalDynamicRoutes,
@@ -2776,7 +2902,7 @@ export default async function build(
           locales: config.i18n?.locales || [],
         })
       } else {
-        const prerenderManifest: PrerenderManifest = {
+        const prerenderManifest: Readonly<PrerenderManifest> = {
           version: 4,
           routes: {},
           dynamicRoutes: {},
@@ -2882,7 +3008,7 @@ export default async function build(
         const options: ExportAppOptions = {
           buildExport: false,
           nextConfig: config,
-          hasAppDir,
+          enabledDirectories,
           silent: true,
           threads: config.experimental.cpus,
           outdir: path.join(dir, configOutDir),

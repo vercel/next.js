@@ -226,6 +226,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z
       .strictObject({
+        windowHistorySupport: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
         adjustFontFallbacks: z.boolean().optional(),
         adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
@@ -251,7 +252,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
         esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
-        serverActionsBodySizeLimit: zSizeLimit.optional(),
+        serverActions: z
+          .object({
+            bodySizeLimit: zSizeLimit.optional(),
+            allowedOrigins: z.array(z.string()).optional(),
+          })
+          .optional(),
         // The original type was Record<string, any>
         extensionAlias: z.record(z.string(), z.any()).optional(),
         externalDir: z.boolean().optional(),
@@ -360,6 +366,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         serverMinification: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
         bundlePagesExternals: z.boolean().optional(),
+        staticWorkerRequestDeduping: z.boolean().optional(),
+        useWasmBinary: z.boolean().optional(),
+        useLightningcss: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

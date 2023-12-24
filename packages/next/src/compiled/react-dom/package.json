@@ -41,10 +41,10 @@
   },
   "dependencies": {
     "loose-envify": "^1.1.0",
-    "scheduler": "0.24.0-canary-8c8ee9ee6-20231026"
+    "scheduler": "0.24.0-canary-0cdfef19b-20231211"
   },
   "peerDependencies": {
-    "react": "18.3.0-canary-8c8ee9ee6-20231026"
+    "react": "18.3.0-canary-0cdfef19b-20231211"
   },
   "browser": {
     "./server.js": "./server.browser.js",
