@@ -1,5 +1,5 @@
-import { createAppAsyncThunk } from 'lib/createAppAsyncThunk'
-import type { AppThunk } from 'lib/store'
+import { createAppAsyncThunk } from '@/lib/createAppAsyncThunk'
+import type { AppThunk } from '@/lib/store'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import { createSlice } from '@reduxjs/toolkit'
 import { fetchIdentityCount } from './fetchIdentityCount'
