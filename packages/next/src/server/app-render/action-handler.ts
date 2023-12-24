@@ -6,21 +6,23 @@ import type {
 } from 'http'
 import type { WebNextRequest } from '../base-http/web'
 import type { SizeLimit } from '../../../types'
+import type { RequestStore } from '../../client/components/request-async-storage.external'
+import type { AppRenderContext, GenerateFlight } from './app-render'
+import type { AppPageModule } from '../../server/future/route-modules/app-page/module'
 
 import {
-  ACTION,
-  RSC,
+  RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
+  getRedirectStatusCodeFromError,
   getURLFromRedirectError,
   isRedirectError,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
-import type { ActionAsyncStorage } from '../../client/components/action-async-storage.external'
 import {
   filterReqHeaders,
   actionsForbiddenHeaders,
@@ -30,12 +32,15 @@ import {
   getModifiedCookieValues,
 } from '../web/spec-extension/adapters/request-cookies'
 
-import type { RequestStore } from '../../client/components/request-async-storage.external'
 import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
 } from '../../lib/constants'
-import type { AppRenderContext, GenerateFlight } from './app-render'
+import {
+  getIsServerAction,
+  getServerActionRequestMetadata,
+} from '../lib/server-action-request-meta'
+import { isCsrfOriginAllowed } from './csrf-protection'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -108,7 +113,9 @@ async function addRevalidationHeader(
     requestStore: RequestStore
   }
 ) {
-  await Promise.all(staticGenerationStore.pendingRevalidates || [])
+  await Promise.all(
+    Object.values(staticGenerationStore.pendingRevalidates || [])
+  )
 
   // If a tag was revalidated, the client router needs to invalidate all the
   // client router cache as they may be stale. And if a path was revalidated, the
@@ -146,7 +153,7 @@ async function createRedirectRenderResult(
   // if we're redirecting to a relative path, we'll try to stream the response
   if (redirectUrl.startsWith('/')) {
     const forwardedHeaders = getForwardedHeaders(req, res)
-    forwardedHeaders.set(RSC, '1')
+    forwardedHeaders.set(RSC_HEADER, '1')
 
     const host = req.headers['host']
     const proto =
@@ -205,8 +212,42 @@ async function createRedirectRenderResult(
       console.error(`failed to get redirect response`, err)
     }
   }
-  return new RenderResult(JSON.stringify({}))
+
+  return RenderResult.fromStatic('{}')
 }
+
+// Used to compare Host header and Origin header.
+const enum HostType {
+  XForwardedHost = 'x-forwarded-host',
+  Host = 'host',
+}
+type Host =
+  | {
+      type: HostType.XForwardedHost
+      value: string
+    }
+  | {
+      type: HostType.Host
+      value: string
+    }
+  | undefined
+
+/**
+ * Ensures the value of the header can't create long logs.
+ */
+function limitUntrustedHeaderValueForLogs(value: string) {
+  return value.length > 100 ? value.slice(0, 100) + '...' : value
+}
+
+type ServerModuleMap = Record<
+  string,
+  | {
+      id: string
+      chunks: string[]
+      name: string
+    }
+  | undefined
+>
 
 export async function handleAction({
   req,
@@ -221,20 +262,14 @@ export async function handleAction({
 }: {
   req: IncomingMessage
   res: ServerResponse
-  ComponentMod: any
-  serverModuleMap: {
-    [id: string]: {
-      id: string
-      chunks: string[]
-      name: string
-    }
-  }
+  ComponentMod: AppPageModule
+  serverModuleMap: ServerModuleMap
   generateFlight: GenerateFlight
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
   serverActions?: {
     bodySizeLimit?: SizeLimit
-    allowedForwardedHosts?: string[]
+    allowedOrigins?: string[]
   }
   ctx: AppRenderContext
 }): Promise<
@@ -248,60 +283,94 @@ export async function handleAction({
       formState?: any
     }
 > {
-  let actionId = req.headers[ACTION.toLowerCase()] as string
   const contentType = req.headers['content-type']
-  const isURLEncodedAction =
-    req.method === 'POST' && contentType === 'application/x-www-form-urlencoded'
-  const isMultipartAction =
-    req.method === 'POST' && contentType?.startsWith('multipart/form-data')
 
-  const isFetchAction =
-    actionId !== undefined &&
-    typeof actionId === 'string' &&
-    req.method === 'POST'
+  const { actionId, isURLEncodedAction, isMultipartAction, isFetchAction } =
+    getServerActionRequestMetadata(req)
 
   // If it's not a Server Action, skip handling.
-  if (!(isFetchAction || isURLEncodedAction || isMultipartAction)) {
+  if (!getIsServerAction(req)) {
     return
   }
 
-  const originHostname =
+  if (staticGenerationStore.isStaticGeneration) {
+    throw new Error(
+      "Invariant: server actions can't be handled during static rendering"
+    )
+  }
+
+  const originDomain =
     typeof req.headers['origin'] === 'string'
       ? new URL(req.headers['origin']).host
       : undefined
-  const host = req.headers['x-forwarded-host'] || req.headers['host']
+
+  const forwardedHostHeader = req.headers['x-forwarded-host'] as
+    | string
+    | undefined
+  const hostHeader = req.headers['host']
+  const host: Host = forwardedHostHeader
+    ? {
+        type: HostType.XForwardedHost,
+        value: forwardedHostHeader,
+      }
+    : hostHeader
+    ? {
+        type: HostType.Host,
+        value: hostHeader,
+      }
+    : undefined
 
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
-  if (!originHostname) {
+  if (!originDomain) {
     // This might be an old browser that doesn't send `host` header. We ignore
     // this case.
     console.warn(
       'Missing `origin` header from a forwarded Server Actions request.'
     )
-  } else if (!host || originHostname !== host) {
-    // If the customer sets a list of allowed hosts, we'll allow the request.
-    // These can be their reverse proxies or other safe hosts.
-    if (
-      typeof host === 'string' &&
-      serverActions?.allowedForwardedHosts?.includes(host)
-    ) {
+  } else if (!host || originDomain !== host.value) {
+    // If the customer sets a list of allowed origins, we'll allow the request.
+    // These are considered safe but might be different from forwarded host set
+    // by the infra (i.e. reverse proxies).
+    if (isCsrfOriginAllowed(originDomain, serverActions?.allowedOrigins)) {
       // Ignore it
     } else {
-      // This is an attack. We should not proceed the action.
-      console.error(
-        '`x-forwarded-host` and `host` headers do not match `origin` header from a forwarded Server Actions request. Aborting the action.'
-      )
+      if (host) {
+        // This seems to be an CSRF attack. We should not proceed the action.
+        console.error(
+          `\`${
+            host.type
+          }\` header with value \`${limitUntrustedHeaderValueForLogs(
+            host.value
+          )}\` does not match \`origin\` header with value \`${limitUntrustedHeaderValueForLogs(
+            originDomain
+          )}\` from a forwarded Server Actions request. Aborting the action.`
+        )
+      } else {
+        // This is an attack. We should not proceed the action.
+        console.error(
+          `\`x-forwarded-host\` or \`host\` headers are not provided. One of these is needed to compare the \`origin\` header from a forwarded Server Actions request. Aborting the action.`
+        )
+      }
 
       const error = new Error('Invalid Server Actions request.')
 
       if (isFetchAction) {
         res.statusCode = 500
-        await Promise.all(staticGenerationStore.pendingRevalidates || [])
+        await Promise.all(
+          Object.values(staticGenerationStore.pendingRevalidates || [])
+        )
+
         const promise = Promise.reject(error)
         try {
+          // we need to await the promise to trigger the rejection early
+          // so that it's already handled by the time we call
+          // the RSC runtime. Otherwise, it will throw an unhandled
+          // promise rejection error in the renderer.
           await promise
-        } catch {}
+        } catch {
+          // swallow error, it's gonna be handled on the client
+        }
 
         return {
           type: 'done',
@@ -324,12 +393,11 @@ export async function handleAction({
   )
   let bound = []
 
-  const { actionAsyncStorage } = ComponentMod as {
-    actionAsyncStorage: ActionAsyncStorage
-  }
+  const { actionAsyncStorage } = ComponentMod
 
   let actionResult: RenderResult | undefined
   let formState: any | undefined
+  let actionModId: string | undefined
 
   try {
     await actionAsyncStorage.run({ isAction: true }, async () => {
@@ -356,6 +424,15 @@ export async function handleAction({
             return
           }
         } else {
+          try {
+            actionModId = getActionModIdOrError(actionId, serverModuleMap)
+          } catch (err) {
+            console.error(err)
+            return {
+              type: 'not-found',
+            }
+          }
+
           let actionData = ''
 
           const reader = webRequest.body.getReader()
@@ -425,6 +502,15 @@ export async function handleAction({
             return
           }
         } else {
+          try {
+            actionModId = getActionModIdOrError(actionId, serverModuleMap)
+          } catch (err) {
+            console.error(err)
+            return {
+              type: 'not-found',
+            }
+          }
+
           const chunks = []
 
           for await (const chunk of req) {
@@ -441,7 +527,7 @@ export async function handleAction({
             throw new ApiError(
               413,
               `Body exceeded ${readableLimit} limit.
-To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/server-actions#size-limitation`
+To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation`
             )
           }
 
@@ -466,22 +552,22 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       // / -> fire action -> POST / -> appRender1 -> modId for the action file
       // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
 
-      let actionModId: string
       try {
-        actionModId = serverModuleMap[actionId].id
+        actionModId =
+          actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
       } catch (err) {
-        // When this happens, it could be a deployment skew where the action came
-        // from a different deployment. We'll just return a 404 with a message logged.
-        console.error(
-          `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.`
-        )
+        console.error(err)
         return {
           type: 'not-found',
         }
       }
 
-      const actionHandler =
-        ComponentMod.__next_app__.require(actionModId)[actionId]
+      const actionHandler = (
+        await ComponentMod.__next_app__.require(actionModId)
+      )[
+        // `actionId` must exist if we got here, as otherwise we would have thrown an error above
+        actionId!
+      ]
 
       const returnVal = await actionHandler.apply(null, bound)
 
@@ -508,13 +594,16 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
   } catch (err) {
     if (isRedirectError(err)) {
       const redirectUrl = getURLFromRedirectError(err)
+      const statusCode = getRedirectStatusCodeFromError(err)
 
-      // if it's a fetch action, we don't want to mess with the status code
-      // and we'll handle it on the client router
       await addRevalidationHeader(res, {
         staticGenerationStore,
         requestStore,
       })
+
+      // if it's a fetch action, we'll set the status code for logging/debugging purposes
+      // but we won't set a Location header, as the redirect will be handled by the client router
+      res.statusCode = statusCode
 
       if (isFetchAction) {
         return {
@@ -539,10 +628,9 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       }
 
       res.setHeader('Location', redirectUrl)
-      res.statusCode = 303
       return {
         type: 'done',
-        result: new RenderResult(''),
+        result: RenderResult.fromStatic(''),
       }
     } else if (isNotFoundError(err)) {
       res.statusCode = 404
@@ -555,8 +643,14 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       if (isFetchAction) {
         const promise = Promise.reject(err)
         try {
+          // we need to await the promise to trigger the rejection early
+          // so that it's already handled by the time we call
+          // the RSC runtime. Otherwise, it will throw an unhandled
+          // promise rejection error in the renderer.
           await promise
-        } catch {}
+        } catch {
+          // swallow error, it's gonna be handled on the client
+        }
         return {
           type: 'done',
           result: await generateFlight(ctx, {
@@ -573,11 +667,19 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
 
     if (isFetchAction) {
       res.statusCode = 500
-      await Promise.all(staticGenerationStore.pendingRevalidates || [])
+      await Promise.all(
+        Object.values(staticGenerationStore.pendingRevalidates || [])
+      )
       const promise = Promise.reject(err)
       try {
+        // we need to await the promise to trigger the rejection early
+        // so that it's already handled by the time we call
+        // the RSC runtime. Otherwise, it will throw an unhandled
+        // promise rejection error in the renderer.
         await promise
-      } catch {}
+      } catch {
+        // swallow error, it's gonna be handled on the client
+      }
 
       return {
         type: 'done',
@@ -590,5 +692,38 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
     }
 
     throw err
+  }
+}
+
+/**
+ * Attempts to find the module ID for the action from the module map. When this fails, it could be a deployment skew where
+ * the action came from a different deployment. It could also simply be an invalid POST request that is not a server action.
+ * In either case, we'll throw an error to be handled by the caller.
+ */
+function getActionModIdOrError(
+  actionId: string | null,
+  serverModuleMap: ServerModuleMap
+): string {
+  try {
+    // if we're missing the action ID header, we can't do any further processing
+    if (!actionId) {
+      throw new Error("Invariant: Missing 'next-action' header.")
+    }
+
+    const actionModId = serverModuleMap?.[actionId]?.id
+
+    if (!actionModId) {
+      throw new Error(
+        "Invariant: Couldn't find action module ID from module map."
+      )
+    }
+
+    return actionModId
+  } catch (err) {
+    throw new Error(
+      `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment. ${
+        err instanceof Error ? `Original error: ${err.message}` : ''
+      }`
+    )
   }
 }

@@ -31,7 +31,7 @@ export function EditorLink({ file, isSourceFile, location }: EditorLinkProps) {
       title={'Click to open in your editor'}
     >
       {file}
-      {location ? ` (${location.line}:${location.column})` : null}
+      {location ? `:${location.line}:${location.column}` : null}
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"

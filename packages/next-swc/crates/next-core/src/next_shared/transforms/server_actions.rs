@@ -20,11 +20,14 @@ pub enum ActionsTransform {
 }
 
 /// Returns a rule which applies the Next.js Server Actions transform.
-pub fn get_server_actions_transform_rule(transform: ActionsTransform) -> ModuleRule {
+pub fn get_server_actions_transform_rule(
+    transform: ActionsTransform,
+    enable_mdx_rs: bool,
+) -> ModuleRule {
     let transformer =
         EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextServerActions { transform }) as _));
     ModuleRule::new(
-        module_rule_match_js_no_url(),
+        module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
             transformer,
         ]))],

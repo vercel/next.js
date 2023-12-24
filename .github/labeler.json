@@ -44,7 +44,7 @@
       { "type": "user", "pattern": "s3prototype" },
       { "type": "user", "pattern": "manovotny" }
     ],
-    "created-by: web-tooling team": [
+    "created-by: turbopack team": [
       { "type": "user", "pattern": "ForsakenHarmony" },
       { "type": "user", "pattern": "jridgewell" },
       { "type": "user", "pattern": "kdy1" },
