@@ -1,8 +1,8 @@
-import { createAppAsyncThunk } from '@/lib/createAppAsyncThunk'
-import type { AppThunk } from '@/lib/store'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import { createSlice } from '@reduxjs/toolkit'
-import { fetchIdentityCount } from './fetchIdentityCount'
+import { createAppAsyncThunk } from 'lib/createAppAsyncThunk'
+import type { AppThunk } from 'lib/store'
+import { fetchCount } from './counterAPI'
 
 // The function below is called a thunk and allows us to perform async logic. It
 // can be dispatched like a regular action: `dispatch(incrementAsync(10))`. This
@@ -10,9 +10,9 @@ import { fetchIdentityCount } from './fetchIdentityCount'
 // code can then be executed and other actions can be dispatched. Thunks are
 // typically used to make async requests.
 export const incrementAsync = createAppAsyncThunk(
-  'counter/fetchIdentityCount',
+  'counter/fetchCount',
   async (amount: number) => {
-    const response = await fetchIdentityCount(amount)
+    const response = await fetchCount(amount)
 
     // The value we return becomes the `fulfilled` action payload
     return response.data
@@ -60,6 +60,9 @@ export const counterSlice = createSlice({
         state.status = 'idle'
         state.value += action.payload
       })
+      .addCase(incrementAsync.rejected, (state) => {
+        state.status = 'failed'
+      })
   },
   // You can define your selectors here. These selectors receive the slice
   // state as their first parameter.
@@ -74,12 +77,12 @@ export const { decrement, increment, incrementByAmount } = counterSlice.actions
 
 // We can also write thunks by hand, which may contain both sync and async logic.
 // Here's an example of conditionally dispatching actions based on current state.
-export const incrementIfOddAsync =
+export const incrementIfOdd =
   (amount: number): AppThunk =>
   (dispatch, getState) => {
     const currentValue = selectCount(getState())
 
-    if (currentValue % 2 === 1) {
+    if (currentValue % 2 === 1 || currentValue % 2 === -1) {
       dispatch(incrementByAmount(amount))
     }
   }
