@@ -59,6 +59,9 @@ async function getNextConfig() {
 
   return {
     output: config.output ?? 'N/A',
+    experimental: {
+      useWasmBinary: config.experimental?.useWasmBinary,
+    },
   }
 }
 
@@ -350,8 +353,11 @@ async function printVerbose() {
 
           // First, try to load next-swc via loadBindings.
           try {
+            let nextConfig = await getNextConfig()
             const { loadBindings } = require('../build/swc')
-            const bindings = await loadBindings()
+            const bindings = await loadBindings(
+              nextConfig.experimental?.useWasmBinary
+            )
             // Run arbitary function to verify the bindings are loaded correctly.
             const target = bindings.getTargetTriple()
 

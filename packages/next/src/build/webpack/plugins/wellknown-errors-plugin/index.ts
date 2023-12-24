@@ -14,7 +14,7 @@ export class WellKnownErrorsPlugin {
                 warn.name === 'ModuleDependencyWarning' &&
                 warn.module.context?.includes('node_modules')
               ) {
-                delete compilation.warnings[i]
+                compilation.warnings.splice(i, 1)
               }
             })
           )

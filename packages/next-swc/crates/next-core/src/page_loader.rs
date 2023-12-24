@@ -53,15 +53,22 @@ pub async fn create_page_loader_entry_module(
         AssetContent::file(file.into()),
     ));
 
-    Ok(client_context.process(
-        virtual_source,
-        Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-            "PAGE".to_string() => client_context.process(
-                entry_asset,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page))
-            ),
-        }))),
-    ))
+    let module = client_context
+        .process(
+            entry_asset,
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+        )
+        .module();
+
+    let module = client_context
+        .process(
+            virtual_source,
+            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+                "PAGE".to_string() => module,
+            }))),
+        )
+        .module();
+    Ok(module)
 }
 
 #[turbo_tasks::value(shared)]

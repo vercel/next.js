@@ -1,5 +1,6 @@
 ---
-title: MDX
+title: Markdown and MDX
+nav_title: MDX
 description: Learn how to configure MDX to write JSX in your markdown files.
 ---
 
@@ -70,7 +71,7 @@ const withMDX = require('@next/mdx')()
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configure `pageExtensions`` to include MDX files
+  // Configure `pageExtensions` to include MDX files
   pageExtensions: ['js', 'jsx', 'mdx', 'ts', 'tsx'],
   // Optionally, add any other Next.js config below
 }
@@ -301,12 +302,13 @@ export default withMDX(nextConfig)
 Frontmatter is a YAML like key/value pairing that can be used to store data about a page. `@next/mdx` does **not** support frontmatter by default, though there are many solutions for adding frontmatter to your MDX content, such as:
 
 - [remark-frontmatter](https://github.com/remarkjs/remark-frontmatter)
+- [remark-mdx-frontmatter](https://github.com/remcohaszing/remark-mdx-frontmatter)
 - [gray-matter](https://github.com/jonschlinkert/gray-matter).
 
-To access page metadata with `@next/mdx`, you can export a meta object from within the `.mdx` file:
+To access page metadata with `@next/mdx`, you can export a metadata object from within the `.mdx` file:
 
 ```mdx
-export const meta = {
+export const metadata = {
   author: 'John Doe',
 }
 
@@ -353,7 +355,7 @@ To do this, create a `mdx-components.tsx` file at the root of your application (
 
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
-import Image from 'next/image'
+import Image, { ImageProps } from 'next/image'
 
 // This file allows you to provide custom React components
 // to be used in MDX files. You can import and use any
@@ -368,7 +370,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
       <Image
         sizes="100vw"
         style={{ width: '100%', height: 'auto' }}
-        {...props}
+        {...(props as ImageProps)}
       />
     ),
     ...components,

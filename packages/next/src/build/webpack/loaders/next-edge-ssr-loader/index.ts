@@ -28,7 +28,7 @@ export type EdgeSSRLoaderQuery = {
   middlewareConfig: string
   serverActions?: {
     bodySizeLimit?: SizeLimit
-    allowedForwardedHosts?: string[]
+    allowedOrigins?: string[]
   }
 }
 

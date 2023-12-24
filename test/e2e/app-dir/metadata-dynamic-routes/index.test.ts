@@ -157,6 +157,7 @@ createNextDescribe(
               type: $(el).attr('type'),
             }
           })
+
         // slug is id param from generateImageMetadata
         expect(iconUrls).toMatchObject([
           {

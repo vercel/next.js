@@ -19,7 +19,7 @@ import { formatAmpMessages } from '../build/output/index'
 import type { AmpPageStatus } from '../build/output/index'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
-import { SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
+import { RSC_SUFFIX, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import {
   BUILD_ID_FILE,
@@ -54,6 +54,7 @@ import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
+import { validateRevalidate } from '../server/lib/patch-fetch'
 
 function divideSegments(number: number, segments: number): number[] {
   const result = []
@@ -214,6 +215,8 @@ export async function exportAppImpl(
 
   // attempt to load global env values so they are available in next.config.js
   span.traceChild('load-dotenv').traceFn(() => loadEnvConfig(dir, false, Log))
+
+  const { enabledDirectories } = options
 
   const nextConfig =
     options.nextConfig ||
@@ -444,7 +447,7 @@ export async function exportAppImpl(
   }
 
   let serverActionsManifest
-  if (options.hasAppDir) {
+  if (enabledDirectories.app) {
     serverActionsManifest = require(join(
       distDir,
       SERVER_DIRECTORY,
@@ -487,22 +490,22 @@ export async function exportAppImpl(
     nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
     optimizeFonts: nextConfig.optimizeFonts as FontConfig,
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
-    serverComponents: options.hasAppDir,
     serverActions: nextConfig.experimental.serverActions,
+    serverComponents: enabledDirectories.app,
     nextFontManifest: require(join(
       distDir,
       'server',
       `${NEXT_FONT_MANIFEST}.json`
     )),
     images: nextConfig.images,
-    ...(options.hasAppDir
+    ...(enabledDirectories.app
       ? {
           serverActionsManifest,
         }
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.experimental.deploymentId,
-    ppr: nextConfig.experimental.ppr === true,
+    experimental: { ppr: nextConfig.experimental.ppr === true },
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -630,10 +633,7 @@ export async function exportAppImpl(
 
   const progress =
     !options.silent &&
-    createProgress(
-      filteredPaths.length,
-      `${options.statusMessage || 'Exporting'}`
-    )
+    createProgress(filteredPaths.length, options.statusMessage || 'Exporting')
   const pagesDataDir = options.buildExport
     ? outDir
     : join(outDir, '_next/data', buildId)
@@ -689,7 +689,7 @@ export async function exportAppImpl(
           optimizeCss: nextConfig.experimental.optimizeCss,
           disableOptimizedLoading:
             nextConfig.experimental.disableOptimizedLoading,
-          parentSpanId: pageExportSpan.id,
+          parentSpanId: pageExportSpan.getId(),
           httpAgentOptions: nextConfig.httpAgentOptions,
           debugOutput: options.debugOutput,
           isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
@@ -698,6 +698,7 @@ export async function exportAppImpl(
           incrementalCacheHandlerPath:
             nextConfig.experimental.incrementalCacheHandlerPath,
           enableExperimentalReact: needsExperimentalReact(nextConfig),
+          enabledDirectories,
         })
       })
 
@@ -741,7 +742,7 @@ export async function exportAppImpl(
       // Update path info by path.
       const info = collector.byPath.get(path) ?? {}
       if (typeof result.revalidate !== 'undefined') {
-        info.revalidate = result.revalidate
+        info.revalidate = validateRevalidate(result.revalidate, path)
       }
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata
@@ -772,6 +773,12 @@ export async function exportAppImpl(
   }
 
   const endWorkerPromise = workers.end()
+
+  // Export mode provide static outputs that are not compatible with PPR mode.
+  if (!options.buildExport && nextConfig.experimental.ppr) {
+    // TODO: add message
+    throw new Error('Invariant: PPR cannot be enabled in export mode')
+  }
 
   // copy prerendered routes to outDir
   if (!options.buildExport && prerenderManifest) {
@@ -835,7 +842,7 @@ export async function exportAppImpl(
         await fs.mkdir(dirname(jsonDest), { recursive: true })
 
         const htmlSrc = `${orig}.html`
-        const jsonSrc = `${orig}${isAppPath ? '.rsc' : '.json'}`
+        const jsonSrc = `${orig}${isAppPath ? RSC_SUFFIX : '.json'}`
 
         await fs.copyFile(htmlSrc, htmlDest)
         await fs.copyFile(jsonSrc, jsonDest)

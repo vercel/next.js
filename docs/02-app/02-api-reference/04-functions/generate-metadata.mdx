@@ -729,7 +729,7 @@ export const metadata = {
 
 ### `viewport`
 
-> **Deprecated**: The `themeColor` option in `metadata` is deprecated as of Next.js 14. Please use the [`viewport` configuration](/docs/app/api-reference/functions/generate-viewport) instead.
+> **Deprecated**: The `viewport` option in `metadata` is deprecated as of Next.js 14. Please use the [`viewport` configuration](/docs/app/api-reference/functions/generate-viewport) instead.
 
 ### `verification`
 
@@ -928,6 +928,20 @@ export const metadata = {
 
 ```html filename="<head> output" hideLineNumbers
 <meta name="custom" content="meta" />
+```
+
+If you want to generate multiple same key meta tags you can use array value.
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  other: {
+    custom: ['meta1', 'meta2'],
+  },
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta name="custom" content="meta1" /> <meta name="custom" content="meta2" />
 ```
 
 ## Unsupported Metadata
