@@ -1,4 +1,5 @@
 declare class Headers extends globalThis.Headers {
+  /** @deprecated Use [`.getSetCookie()`](https://developer.mozilla.org/en-US/docs/Web/API/Headers/getSetCookie) instead. */
   getAll?(key: 'set-cookie'): string[]
 }
 
@@ -16,7 +17,7 @@ type RequestInfo = string | Request | globalThis.Request
 type RequestInit = globalThis.RequestInit
 declare const fetchImplementation: (
   info: RequestInfo,
-  init?: RequestInit
+  init?: RequestInit,
 ) => Promise<Response>
 
 declare const FileConstructor: typeof File

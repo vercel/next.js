@@ -12,9 +12,8 @@ let nextApp
 let appPort
 let buildId
 let requiredFilesManifest
-;(process.env.TURBOPACK ? describe.skip : describe)(
-  'Required Server Files',
-  () => {
+describe('Required Server Files', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir, undefined, {
@@ -550,5 +549,5 @@ let requiredFilesManifest
         expect(await res.text()).toContain('custom 404')
       }
     })
-  }
-)
+  })
+})

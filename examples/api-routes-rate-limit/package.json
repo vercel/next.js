@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "lru-cache": "^7.12.0",
+    "lru-cache": "^10.0.1",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

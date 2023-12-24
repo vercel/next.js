@@ -1,4 +1,4 @@
-import { DynamicParamTypes, DynamicParamTypesShort } from './types'
+import type { DynamicParamTypes, DynamicParamTypesShort } from './types'
 
 export const dynamicParamTypes: Record<
   DynamicParamTypes,

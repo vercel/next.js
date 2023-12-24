@@ -1,4 +1,4 @@
-const Page = async () => {
+export default function Page() {
   return (
     <>
       <h1>Next.js 13 + Grafbase</h1>
@@ -9,5 +9,3 @@ const Page = async () => {
     </>
   )
 }
-
-export default Page

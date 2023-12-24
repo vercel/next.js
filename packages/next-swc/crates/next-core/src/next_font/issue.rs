@@ -1,14 +1,14 @@
 use turbo_tasks::Vc;
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
-    turbopack::core::issue::{Issue, IssueSeverity},
+    turbopack::core::issue::{Issue, IssueSeverity, OptionStyledString, StyledString},
 };
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontIssue {
     pub(crate) path: Vc<FileSystemPath>,
-    pub(crate) title: Vc<String>,
-    pub(crate) description: Vc<String>,
+    pub(crate) title: Vc<StyledString>,
+    pub(crate) description: Vc<StyledString>,
     pub(crate) severity: Vc<IssueSeverity>,
 }
 
@@ -30,12 +30,12 @@ impl Issue for NextFontIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
+    fn title(&self) -> Vc<StyledString> {
         self.title
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        self.description
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.description))
     }
 }

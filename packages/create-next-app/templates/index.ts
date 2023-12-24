@@ -8,6 +8,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import { cyan, bold } from 'picocolors'
 import { Sema } from 'async-sema'
+import pkg from '../package.json'
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from './types'
 
@@ -166,6 +167,9 @@ export const installTemplate = async ({
     }
   }
 
+  /** Copy the version from package.json or override for tests. */
+  const version = process.env.NEXT_PRIVATE_TEST_VERSION ?? pkg.version
+
   /** Create a package.json for the new project and write it to disk. */
   const packageJson: any = {
     name: appName,
@@ -181,9 +185,9 @@ export const installTemplate = async ({
      * Default dependencies.
      */
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-      next: process.env.NEXT_PRIVATE_TEST_VERSION ?? 'latest',
+      react: '^18',
+      'react-dom': '^18',
+      next: version,
     },
     devDependencies: {},
   }
@@ -194,10 +198,10 @@ export const installTemplate = async ({
   if (mode === 'ts') {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      typescript: 'latest',
-      '@types/react': 'latest',
-      '@types/node': 'latest',
-      '@types/react-dom': 'latest',
+      typescript: '^5',
+      '@types/node': '^20',
+      '@types/react': '^18',
+      '@types/react-dom': '^18',
     }
   }
 
@@ -205,9 +209,9 @@ export const installTemplate = async ({
   if (tailwind) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      autoprefixer: 'latest',
-      postcss: 'latest',
-      tailwindcss: 'latest',
+      autoprefixer: '^10.0.1',
+      postcss: '^8',
+      tailwindcss: '^3.3.0',
     }
   }
 
@@ -215,8 +219,8 @@ export const installTemplate = async ({
   if (eslint) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      eslint: 'latest',
-      'eslint-config-next': 'latest',
+      eslint: '^8',
+      'eslint-config-next': version,
     }
   }
 

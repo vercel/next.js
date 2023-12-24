@@ -1,14 +1,14 @@
 import './globals.css'
-
 import Link from 'next/link'
-
 import { graphql } from '../gql'
 import { grafbase } from '../lib/grafbase'
+import type { Metadata } from 'next'
 
 export const revalidate = 0
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Grafbase + Next.js',
+  description: 'Grafbase + Next.js',
 }
 
 const GetAllPostsDocument = graphql(/* GraphQL */ `
@@ -25,16 +25,17 @@ const GetAllPostsDocument = graphql(/* GraphQL */ `
   }
 `)
 
-const RootLayout = async ({ children }: { children: React.ReactNode }) => {
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const { postCollection } = await grafbase.request(GetAllPostsDocument, {
     first: 50,
   })
 
   return (
     <html lang="en">
-      <head>
-        <title>Grafbase + Next.js 13</title>
-      </head>
       <body>
         <div className="flex">
           <nav className="w-[350px] flex flex-col justify-between h-screen overflow-y-auto bg-gray-100">
@@ -82,5 +83,3 @@ const RootLayout = async ({ children }: { children: React.ReactNode }) => {
     </html>
   )
 }
-
-export default RootLayout

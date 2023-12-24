@@ -32,7 +32,6 @@ import * as Log from '../../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import { getNonStaticMethods } from './helpers/get-non-static-methods'
 import { appendMutableCookies } from '../../../web/spec-extension/adapters/request-cookies'
-import { RouteKind } from '../../route-kind'
 import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
 
 import * as serverHooks from '../../../../client/components/hooks-server-context'
@@ -43,13 +42,21 @@ import { requestAsyncStorage } from '../../../../client/components/request-async
 import { staticGenerationAsyncStorage } from '../../../../client/components/static-generation-async-storage.external'
 import { actionAsyncStorage } from '../../../../client/components/action-async-storage.external'
 import * as sharedModules from './shared-modules'
+import { getIsServerAction } from '../../../lib/server-action-request-meta'
+
+/**
+ * The AppRouteModule is the type of the module exported by the bundled App
+ * Route module.
+ */
+export type AppRouteModule =
+  typeof import('../../../../build/templates/app-route')
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
  * handler for app routes.
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
-  staticGenerationContext: StaticGenerationContext['renderOpts']
+  renderOpts: StaticGenerationContext['renderOpts']
   prerenderManifest: PrerenderManifest
 }
 
@@ -155,10 +162,6 @@ export class AppRouteRouteModule extends RouteModule<
   private readonly nonStaticMethods: ReadonlyArray<HTTP_METHOD> | false
   private readonly dynamic: AppRouteUserlandModule['dynamic']
 
-  public static is(route: RouteModule): route is AppRouteRouteModule {
-    return route.definition.kind === RouteKind.APP_ROUTE
-  }
-
   constructor({
     userland,
     definition,
@@ -260,13 +263,7 @@ export class AppRouteRouteModule extends RouteModule<
     // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
       urlPathname: request.nextUrl.pathname,
-      renderOpts:
-        // If the staticGenerationContext is not provided then we default to
-        // the default values.
-        context.staticGenerationContext ?? {
-          supportsDynamicHTML: false,
-          originalPathname: this.definition.pathname,
-        },
+      renderOpts: context.renderOpts,
     }
 
     // Add the fetchCache option to the renderOpts.
@@ -278,6 +275,7 @@ export class AppRouteRouteModule extends RouteModule<
     const response: unknown = await this.actionAsyncStorage.run(
       {
         isAppRoute: true,
+        isAction: getIsServerAction(request),
       },
       () =>
         RequestAsyncStorageWrapper.wrap(
@@ -368,15 +366,17 @@ export class AppRouteRouteModule extends RouteModule<
                         `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
                       )
                     }
-                    ;(context.staticGenerationContext as any).fetchMetrics =
+                    ;(context.renderOpts as any).fetchMetrics =
                       staticGenerationStore.fetchMetrics
 
-                    context.staticGenerationContext.waitUntil = Promise.all(
-                      staticGenerationStore.pendingRevalidates || []
+                    context.renderOpts.waitUntil = Promise.all(
+                      Object.values(
+                        staticGenerationStore.pendingRevalidates || []
+                      )
                     )
 
                     addImplicitTags(staticGenerationStore)
-                    ;(context.staticGenerationContext as any).fetchTags =
+                    ;(context.renderOpts as any).fetchTags =
                       staticGenerationStore.tags?.join(',')
 
                     // It's possible cookies were set in the handler, so we need
@@ -435,7 +435,7 @@ export class AppRouteRouteModule extends RouteModule<
       // // Relativize the url so it's relative to the base url. This is so the
       // // outgoing headers upstream can be relative.
       // const rewritePath = response.headers.get('x-middleware-rewrite')!
-      // const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
+      // const initUrl = getRequestMeta(req, 'initURL')!
       // const { pathname } = parseUrl(relativizeURL(rewritePath, initUrl))
       // response.headers.set('x-middleware-rewrite', pathname)
     }

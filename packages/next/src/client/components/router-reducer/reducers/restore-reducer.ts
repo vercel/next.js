@@ -1,9 +1,10 @@
 import { createHrefFromUrl } from '../create-href-from-url'
-import {
+import type {
   ReadonlyReducerState,
   ReducerState,
   RestoreAction,
 } from '../router-reducer-types'
+import { extractPathFromFlightRouterState } from '../compute-changed-path'
 
 export function restoreReducer(
   state: ReadonlyReducerState,
@@ -16,12 +17,17 @@ export function restoreReducer(
     buildId: state.buildId,
     // Set canonical url
     canonicalUrl: href,
-    pushRef: state.pushRef,
+    pushRef: {
+      pendingPush: false,
+      mpaNavigation: false,
+      // Ensures that the custom history state that was set is preserved when applying this update.
+      preserveCustomHistoryState: true,
+    },
     focusAndScrollRef: state.focusAndScrollRef,
     cache: state.cache,
     prefetchCache: state.prefetchCache,
     // Restore provided tree
     tree: tree,
-    nextUrl: url.pathname,
+    nextUrl: extractPathFromFlightRouterState(tree) ?? url.pathname,
   }
 }

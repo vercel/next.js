@@ -2,6 +2,8 @@ import * as React from 'react'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
+} from '../error-overlay-reducer'
+import type {
   UnhandledErrorAction,
   UnhandledRejectionAction,
 } from '../error-overlay-reducer'
@@ -14,7 +16,8 @@ import {
 import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
-import { getErrorByType, ReadyRuntimeError } from '../helpers/getErrorByType'
+import { getErrorByType } from '../helpers/getErrorByType'
+import type { ReadyRuntimeError } from '../helpers/getErrorByType'
 import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'

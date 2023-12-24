@@ -1,38 +1,47 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use napi::{
     bindgen_prelude::External,
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
     JsFunction, Status,
 };
 use next_api::{
-    project::{Middleware, ProjectContainer, ProjectOptions},
+    project::{
+        DefineEnv, Instrumentation, Middleware, PartialProjectOptions, ProjectContainer,
+        ProjectOptions,
+    },
     route::{Endpoint, Route},
 };
 use next_core::tracing_presets::{
-    TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
+    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
+    TRACING_NEXT_TURBO_TASKS_TARGETS,
 };
+use tracing::Instrument;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
 };
 use turbo_tasks::{TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbopack_binding::{
-    turbo::tasks_memory::MemoryBackend,
+    turbo::{
+        tasks_fs::{FileContent, FileSystem},
+        tasks_memory::MemoryBackend,
+    },
     turbopack::{
-        cli_utils::{
-            exit::ExitGuard,
-            raw_trace::RawTraceLayer,
-            trace_writer::{TraceWriter, TraceWriterGuard},
-            tracing_presets::TRACING_OVERVIEW_TARGETS,
-        },
         core::{
             error::PrettyPrintError,
+            source_map::{GenerateSourceMap, Token},
             version::{PartialUpdate, TotalUpdate, Update},
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
+        trace_utils::{
+            exit::ExitGuard,
+            raw_trace::RawTraceLayer,
+            trace_writer::{TraceWriter, TraceWriterGuard},
+        },
     },
 };
+use url::Url;
 
 use super::{
     endpoint::ExternalEndpoint,
@@ -44,6 +53,7 @@ use super::{
 use crate::register;
 
 #[napi(object)]
+#[derive(Clone, Debug)]
 pub struct NapiEnvVar {
     pub name: String,
     pub value: String,
@@ -74,8 +84,54 @@ pub struct NapiProjectOptions {
     /// A map of environment variables to use when compiling code.
     pub env: Vec<NapiEnvVar>,
 
+    /// A map of environment variables which should get injected at compile
+    /// time.
+    pub define_env: NapiDefineEnv,
+
     /// The address of the dev server.
     pub server_addr: String,
+}
+
+/// [NapiProjectOptions] with all fields optional.
+#[napi(object)]
+pub struct NapiPartialProjectOptions {
+    /// A root path from which all files must be nested under. Trying to access
+    /// a file outside this root will fail. Think of this as a chroot.
+    pub root_path: Option<String>,
+
+    /// A path inside the root_path which contains the app/pages directories.
+    pub project_path: Option<String>,
+
+    /// next.config's distDir. Project initialization occurs eariler than
+    /// deserializing next.config, so passing it as separate option.
+    pub dist_dir: Option<Option<String>>,
+
+    /// Whether to watch he filesystem for file changes.
+    pub watch: Option<bool>,
+
+    /// The contents of next.config.js, serialized to JSON.
+    pub next_config: Option<String>,
+
+    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
+    pub js_config: Option<String>,
+
+    /// A map of environment variables to use when compiling code.
+    pub env: Option<Vec<NapiEnvVar>>,
+
+    /// A map of environment variables which should get injected at compile
+    /// time.
+    pub define_env: Option<NapiDefineEnv>,
+
+    /// The address of the dev server.
+    pub server_addr: Option<String>,
+}
+
+#[napi(object)]
+#[derive(Clone, Debug)]
+pub struct NapiDefineEnv {
+    pub client: Vec<NapiEnvVar>,
+    pub edge: Vec<NapiEnvVar>,
+    pub nodejs: Vec<NapiEnvVar>,
 }
 
 #[napi(object)]
@@ -95,9 +151,49 @@ impl From<NapiProjectOptions> for ProjectOptions {
             env: val
                 .env
                 .into_iter()
-                .map(|NapiEnvVar { name, value }| (name, value))
+                .map(|var| (var.name, var.value))
                 .collect(),
+            define_env: val.define_env.into(),
             server_addr: val.server_addr,
+        }
+    }
+}
+
+impl From<NapiPartialProjectOptions> for PartialProjectOptions {
+    fn from(val: NapiPartialProjectOptions) -> Self {
+        PartialProjectOptions {
+            root_path: val.root_path,
+            project_path: val.project_path,
+            watch: val.watch,
+            next_config: val.next_config,
+            js_config: val.js_config,
+            env: val
+                .env
+                .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
+            define_env: val.define_env.map(|env| env.into()),
+            server_addr: val.server_addr,
+        }
+    }
+}
+
+impl From<NapiDefineEnv> for DefineEnv {
+    fn from(val: NapiDefineEnv) -> Self {
+        DefineEnv {
+            client: val
+                .client
+                .into_iter()
+                .map(|var| (var.name, var.value))
+                .collect(),
+            edge: val
+                .edge
+                .into_iter()
+                .map(|var| (var.name, var.value))
+                .collect(),
+            nodejs: val
+                .nodejs
+                .into_iter()
+                .map(|var| (var.name, var.value))
+                .collect(),
         }
     }
 }
@@ -121,8 +217,8 @@ pub async fn project_new(
     let guard = if let Some(mut trace) = trace {
         // Trace presets
         match trace.as_str() {
-            "overview" => {
-                trace = TRACING_OVERVIEW_TARGETS.join(",");
+            "overview" | "1" => {
+                trace = TRACING_NEXT_OVERVIEW_TARGETS.join(",");
             }
             "next" => {
                 trace = TRACING_NEXT_TARGETS.join(",");
@@ -190,7 +286,7 @@ pub async fn project_new(
 #[napi(ts_return_type = "{ __napiType: \"Project\" }")]
 pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-    options: NapiProjectOptions,
+    options: NapiPartialProjectOptions,
 ) -> napi::Result<()> {
     let turbo_tasks = project.turbo_tasks.clone();
     let options = options.into();
@@ -293,10 +389,36 @@ impl NapiMiddleware {
         })
     }
 }
+
+#[napi(object)]
+struct NapiInstrumentation {
+    pub node_js: External<ExternalEndpoint>,
+    pub edge: External<ExternalEndpoint>,
+}
+
+impl NapiInstrumentation {
+    fn from_instrumentation(
+        value: &Instrumentation,
+        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
+    ) -> Result<Self> {
+        Ok(NapiInstrumentation {
+            node_js: External::new(ExternalEndpoint(VcArc::new(
+                turbo_tasks.clone(),
+                value.node_js,
+            ))),
+            edge: External::new(ExternalEndpoint(VcArc::new(
+                turbo_tasks.clone(),
+                value.edge,
+            ))),
+        })
+    }
+}
+
 #[napi(object)]
 struct NapiEntrypoints {
     pub routes: Vec<NapiRoute>,
     pub middleware: Option<NapiMiddleware>,
+    pub instrumentation: Option<NapiInstrumentation>,
     pub pages_document_endpoint: External<ExternalEndpoint>,
     pub pages_app_endpoint: External<ExternalEndpoint>,
     pub pages_error_endpoint: External<ExternalEndpoint>,
@@ -312,14 +434,17 @@ pub fn project_entrypoints_subscribe(
     subscribe(
         turbo_tasks.clone(),
         func,
-        move || async move {
-            let entrypoints_operation = container.entrypoints();
-            let entrypoints = entrypoints_operation.strongly_consistent().await?;
+        move || {
+            async move {
+                let entrypoints_operation = container.entrypoints();
+                let entrypoints = entrypoints_operation.strongly_consistent().await?;
 
-            let issues = get_issues(entrypoints_operation).await?;
-            let diags = get_diagnostics(entrypoints_operation).await?;
+                let issues = get_issues(entrypoints_operation).await?;
+                let diags = get_diagnostics(entrypoints_operation).await?;
 
-            Ok((entrypoints, issues, diags))
+                Ok((entrypoints, issues, diags))
+            }
+            .instrument(tracing::info_span!("entrypoints subscription"))
         },
         move |ctx| {
             let (entrypoints, issues, diags) = ctx.value;
@@ -337,6 +462,11 @@ pub fn project_entrypoints_subscribe(
                         .middleware
                         .as_ref()
                         .map(|m| NapiMiddleware::from_middleware(m, &turbo_tasks))
+                        .transpose()?,
+                    instrumentation: entrypoints
+                        .instrumentation
+                        .as_ref()
+                        .map(|m| NapiInstrumentation::from_instrumentation(m, &turbo_tasks))
                         .transpose()?,
                     pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
@@ -374,10 +504,10 @@ pub fn project_hmr_events(
         turbo_tasks.clone(),
         func,
         {
-            let identifier = identifier.clone();
+            let outer_identifier = identifier.clone();
             let session = session.clone();
             move || {
-                let identifier = identifier.clone();
+                let identifier = outer_identifier.clone();
                 let session = session.clone();
                 async move {
                     let state = project
@@ -398,6 +528,10 @@ pub fn project_hmr_events(
                     }
                     Ok((update, issues, diags))
                 }
+                .instrument(tracing::info_span!(
+                    "HMR subscription",
+                    identifier = outer_identifier
+                ))
             }
         },
         move |ctx| {
@@ -519,4 +653,127 @@ pub fn project_update_info_subscribe(
         }
     });
     Ok(())
+}
+
+#[turbo_tasks::value]
+#[derive(Debug)]
+#[napi(object)]
+pub struct StackFrame {
+    pub column: Option<u32>,
+    pub file: String,
+    pub is_server: bool,
+    pub line: u32,
+    pub method_name: Option<String>,
+}
+
+#[napi]
+pub async fn project_trace_source(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    frame: StackFrame,
+) -> napi::Result<Option<StackFrame>> {
+    let turbo_tasks = project.turbo_tasks.clone();
+    let traced_frame = turbo_tasks
+        .run_once(async move {
+            let file = match Url::parse(&frame.file) {
+                Ok(url) => match url.scheme() {
+                    "file" => urlencoding::decode(url.path())?.to_string(),
+                    _ => bail!("Unknown url scheme"),
+                },
+                Err(_) => frame.file.to_string(),
+            };
+
+            let Some(chunk_base) = file.strip_prefix(
+                &(format!(
+                    "{}/{}/",
+                    project.container.project().await?.project_path,
+                    project.container.project().dist_dir().await?
+                )),
+            ) else {
+                // File doesn't exist within the dist dir
+                return Ok(None);
+            };
+
+            let path = if frame.is_server {
+                project
+                    .container
+                    .project()
+                    .node_root()
+                    .join(chunk_base.to_owned())
+            } else {
+                project
+                    .container
+                    .project()
+                    .client_relative_path()
+                    .join(chunk_base.to_owned())
+            };
+
+            let Some(versioned) = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(
+                project.container.get_versioned_content(path),
+            )
+            .await?
+            else {
+                bail!("Could not GenerateSourceMap")
+            };
+
+            let map = versioned
+                .generate_source_map()
+                .await?
+                .context("Chunk is missing a sourcemap")?;
+
+            let token = map
+                .lookup_token(frame.line as usize, frame.column.unwrap_or(0) as usize)
+                .await?
+                .clone_value()
+                .context("Unable to trace token from sourcemap")?;
+
+            let Token::Original(token) = token else {
+                return Ok(None);
+            };
+
+            let Some(source_file) = token.original_file.strip_prefix("/turbopack/[project]/")
+            else {
+                bail!("Original file outside project")
+            };
+
+            Ok(Some(StackFrame {
+                file: source_file.to_string(),
+                method_name: token.name,
+                line: token.original_line as u32,
+                column: Some(token.original_column as u32),
+                is_server: frame.is_server,
+            }))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+    Ok(traced_frame)
+}
+
+#[napi]
+pub async fn project_get_source_for_asset(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: String,
+) -> napi::Result<Option<String>> {
+    let turbo_tasks = project.turbo_tasks.clone();
+    let source = turbo_tasks
+        .run_once(async move {
+            let source_content = &*project
+                .container
+                .project()
+                .project_path()
+                .fs()
+                .root()
+                .join(file_path.to_string())
+                .read()
+                .await?;
+
+            let FileContent::Content(source_content) = source_content else {
+                bail!("Cannot find source for asset {}", file_path);
+            };
+
+            Ok(Some(source_content.content().to_str()?.to_string()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(source)
 }

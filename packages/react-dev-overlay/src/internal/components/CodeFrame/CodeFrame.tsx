@@ -1,6 +1,6 @@
 import Anser from 'anser'
 import * as React from 'react'
-import { StackFrame } from 'stacktrace-parser'
+import type { StackFrame } from 'stacktrace-parser'
 import stripAnsi from 'strip-ansi'
 import { getFrameSource } from '../../helpers/stack-frame'
 

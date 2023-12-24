@@ -56,6 +56,16 @@ revalidatePath('/(main)/post/[slug]', 'layout')
 
 This will revalidate any URL that matches the provided `layout` file on the next page visit. This will cause pages beneath with the same layout to revalidate on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also revalidate on the next visit.
 
+### Revalidating All Data
+
+```ts
+import { revalidatePath } from 'next/cache'
+
+revalidatePath('/', 'layout')
+```
+
+This will purge the Client-side Router Cache, and revalidate the Data Cache on the next page visit.
+
 ### Server Action
 
 ```ts filename="app/actions.ts" switcher
@@ -73,17 +83,17 @@ export default async function submit() {
 
 ```ts filename="app/api/revalidate/route.ts" switcher
 import { revalidatePath } from 'next/cache'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const path = request.nextUrl.searchParams.get('path')
 
   if (path) {
     revalidatePath(path)
-    return NextResponse.json({ revalidated: true, now: Date.now() })
+    return Response.json({ revalidated: true, now: Date.now() })
   }
 
-  return NextResponse.json({
+  return Response.json({
     revalidated: false,
     now: Date.now(),
     message: 'Missing path to revalidate',
@@ -92,7 +102,6 @@ export async function GET(request: NextRequest) {
 ```
 
 ```js filename="app/api/revalidate/route.js" switcher
-import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
 export async function GET(request) {
@@ -100,10 +109,10 @@ export async function GET(request) {
 
   if (path) {
     revalidatePath(path)
-    return NextResponse.json({ revalidated: true, now: Date.now() })
+    return Response.json({ revalidated: true, now: Date.now() })
   }
 
-  return NextResponse.json({
+  return Response.json({
     revalidated: false,
     now: Date.now(),
     message: 'Missing path to revalidate',

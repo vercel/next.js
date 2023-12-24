@@ -1,8 +1,7 @@
 import { hydrate, router } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
-import initializeBuildWatcher, {
-  ShowHideHandler,
-} from './dev/dev-build-watcher'
+import initializeBuildWatcher from './dev/dev-build-watcher'
+import type { ShowHideHandler } from './dev/dev-build-watcher'
 import { displayContent } from './dev/fouc'
 import { connectHMR, addMessageListener } from './dev/error-overlay/websocket'
 import {
@@ -56,6 +55,14 @@ export function pageBootrap(assetPrefix: string) {
       } else if ('event' in payload) {
         if (payload.event === HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES) {
           return window.location.reload()
+        } else if (
+          payload.event === HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES
+        ) {
+          const isOnErrorPage = window.next.router.pathname === '/_error'
+          // On the error page we want to reload the page when a page was changed
+          if (isOnErrorPage) {
+            return window.location.reload()
+          }
         } else if (
           payload.event === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
         ) {

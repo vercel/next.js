@@ -1,7 +1,9 @@
 import type { NextServer, RequestHandler } from '../next'
+import type { DevBundlerService } from './dev-bundler-service'
+import type { PropagateToWorkersField } from './router-utils/types'
 
 import next from '../next'
-import { PropagateToWorkersField } from './router-utils/types'
+import type { Span } from '../../trace'
 
 let initializations: Record<
   string,
@@ -79,6 +81,8 @@ async function initializeImpl(opts: {
   experimentalHttpsServer: boolean
   _ipcPort?: string
   _ipcKey?: string
+  bundlerService: DevBundlerService | undefined
+  startServerSpan: Span | undefined
 }) {
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
   if (type) {

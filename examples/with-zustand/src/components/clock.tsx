@@ -1,3 +1,6 @@
+'use client'
+
+import useInterval from '../lib/useInterval'
 import { useStore } from '../lib/store'
 
 const useClock = () => {
@@ -14,6 +17,13 @@ const formatTime = (time: number) => {
 
 const Clock = () => {
   const { lastUpdate, light } = useClock()
+
+  const tick = useStore((store) => store.tick)
+
+  // Tick the time every second
+  useInterval(() => {
+    tick(Date.now(), true)
+  }, 1000)
   return (
     <div className={light ? 'light' : ''}>
       {formatTime(lastUpdate)}

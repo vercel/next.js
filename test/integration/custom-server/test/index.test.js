@@ -143,16 +143,23 @@ describe.skip.each([
   })
 
   describe('with generateEtags enabled', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      await startServer({ GENERATE_ETAGS: 'true', NODE_ENV: 'production' })
-    })
-    afterAll(() => killApp(server))
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await nextBuild(appDir)
+          await startServer({ GENERATE_ETAGS: 'true', NODE_ENV: 'production' })
+        })
+        afterAll(() => killApp(server))
 
-    it('response includes etag header', async () => {
-      const response = await fetchViaHTTP(nextUrl, '/', undefined, { agent })
-      expect(response.headers.get('etag')).toBeTruthy()
-    })
+        it('response includes etag header', async () => {
+          const response = await fetchViaHTTP(nextUrl, '/', undefined, {
+            agent,
+          })
+          expect(response.headers.get('etag')).toBeTruthy()
+        })
+      }
+    )
   })
 
   describe('with generateEtags disabled', () => {
@@ -222,28 +229,32 @@ describe.skip.each([
       expect(html).toContain('made it to dashboard')
       expect(stderr).toContain('Cannot render page with path "dashboard"')
     })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        it('should warn in production mode', async () => {
+          const { code } = await nextBuild(appDir)
+          expect(code).toBe(0)
 
-    it('should warn in production mode', async () => {
-      const { code } = await nextBuild(appDir)
-      expect(code).toBe(0)
+          let stderr = ''
 
-      let stderr = ''
+          await startServer(
+            { NODE_ENV: 'production' },
+            {
+              onStderr(msg) {
+                stderr += msg || ''
+              },
+            }
+          )
 
-      await startServer(
-        { NODE_ENV: 'production' },
-        {
-          onStderr(msg) {
-            stderr += msg || ''
-          },
-        }
-      )
-
-      const html = await renderViaHTTP(nextUrl, '/no-slash', undefined, {
-        agent,
-      })
-      expect(html).toContain('made it to dashboard')
-      expect(stderr).toContain('Cannot render page with path "dashboard"')
-    })
+          const html = await renderViaHTTP(nextUrl, '/no-slash', undefined, {
+            agent,
+          })
+          expect(html).toContain('made it to dashboard')
+          expect(stderr).toContain('Cannot render page with path "dashboard"')
+        })
+      }
+    )
   })
 
   describe('compression handling', function () {

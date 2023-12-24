@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
+  logging: {
+    fetches: {},
+  },
   experimental: {
-    logging: {
-      level: 'verbose',
-    },
     incrementalCacheHandlerPath: process.env.CUSTOM_CACHE_HANDLER,
   },
 
@@ -13,7 +13,7 @@ module.exports = {
       afterFiles: [
         {
           source: '/rewritten-use-search-params',
-          destination: '/hooks/use-search-params',
+          destination: '/hooks/use-search-params/static-bailout',
         },
         {
           source: '/rewritten-use-pathname',

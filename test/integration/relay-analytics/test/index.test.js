@@ -24,9 +24,11 @@ async function killServer() {
 }
 
 describe('Analytics relayer with exported method', () => {
-  beforeAll(async () => await buildApp())
-  afterAll(async () => await killServer())
-  runTest()
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => await buildApp())
+    afterAll(async () => await killServer())
+    runTest()
+  })
 })
 
 function runTest() {

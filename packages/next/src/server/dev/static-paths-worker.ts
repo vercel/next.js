@@ -1,30 +1,30 @@
 import type { NextConfigComplete } from '../config-shared'
 
 import '../require-hook'
-import '../node-polyfill-fetch'
 import '../node-environment'
 
 import {
   buildAppStaticPaths,
   buildStaticPaths,
   collectGenerateParams,
-  GenerateParams,
 } from '../../build/utils'
+import type { GenerateParamsResults } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
-import { IncrementalCache } from '../lib/incremental-cache'
-import * as serverHooks from '../../client/components/hooks-server-context'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import type { IncrementalCache } from '../lib/incremental-cache'
+import { isAppRouteRouteModule } from '../future/route-modules/checks'
 
-const { AppRouteRouteModule } =
-  require('../future/route-modules/app-route/module.compiled') as typeof import('../future/route-modules/app-route/module')
-
-type RuntimeConfig = any
+type RuntimeConfig = {
+  configFileName: string
+  publicRuntimeConfig: { [key: string]: any }
+  serverRuntimeConfig: { [key: string]: any }
+}
 
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break
 // during a production build
 export async function loadStaticPaths({
+  dir,
   distDir,
   pathname,
   config,
@@ -38,7 +38,9 @@ export async function loadStaticPaths({
   maxMemoryCacheSize,
   requestHeaders,
   incrementalCacheHandlerPath,
+  ppr,
 }: {
+  dir: string
   distDir: string
   pathname: string
   config: RuntimeConfig
@@ -52,6 +54,7 @@ export async function loadStaticPaths({
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   incrementalCacheHandlerPath?: string
+  ppr: boolean
 }): Promise<{
   paths?: string[]
   encodedPaths?: string[]
@@ -80,8 +83,8 @@ export async function loadStaticPaths({
 
   if (isAppPath) {
     const { routeModule } = components
-    const generateParams: GenerateParams =
-      routeModule && AppRouteRouteModule.is(routeModule)
+    const generateParams: GenerateParamsResults =
+      routeModule && isAppRouteRouteModule(routeModule)
         ? [
             {
               config: {
@@ -96,17 +99,18 @@ export async function loadStaticPaths({
         : await collectGenerateParams(components.ComponentMod.tree)
 
     return await buildAppStaticPaths({
+      dir,
       page: pathname,
       generateParams,
       configFileName: config.configFileName,
       distDir,
       requestHeaders,
       incrementalCacheHandlerPath,
-      serverHooks,
-      staticGenerationAsyncStorage,
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
+      ppr,
+      ComponentMod: components.ComponentMod,
     })
   }
 

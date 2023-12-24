@@ -14,7 +14,7 @@ function getFramework(
   if (!sourcePackage) return undefined
 
   if (
-    /^(react|react-dom|react-is|react-refresh|react-server-dom-webpack|scheduler)$/.test(
+    /^(react|react-dom|react-is|react-refresh|react-server-dom-webpack|react-server-dom-turbopack|scheduler)$/.test(
       sourcePackage
     )
   ) {

@@ -1,8 +1,8 @@
 import path from 'path'
-import { PagesAPIRouteDefinition } from '../../route-definitions/pages-api-route-definition'
+import type { PagesAPIRouteDefinition } from '../../route-definitions/pages-api-route-definition'
 import { RouteKind } from '../../route-kind'
 import { DevPagesAPIRouteMatcherProvider } from './dev-pages-api-route-matcher-provider'
-import { FileReader } from './helpers/file-reader/file-reader'
+import type { FileReader } from './helpers/file-reader/file-reader'
 
 const normalizeSlashes = (p: string) => p.replace(/\//g, path.sep)
 

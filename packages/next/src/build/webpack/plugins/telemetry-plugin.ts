@@ -1,4 +1,5 @@
-import { NormalModule, webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import { NormalModule } from 'next/dist/compiled/webpack/webpack'
 
 /**
  * List of target triples next-swc native binary supports.
@@ -110,7 +111,7 @@ const BUILD_FEATURES: Array<Feature> = [
   'modularizeImports',
 ]
 
-const ELIMINATED_PACKAGES = new Set<string>()
+const eliminatedPackages = new Set<string>()
 
 /**
  * Determine if there is a feature of interest in the specified 'module'.
@@ -159,7 +160,10 @@ function findUniqueOriginModulesInConnections(
  * they are imported.
  */
 export class TelemetryPlugin implements webpack.WebpackPluginInstance {
-  private usageTracker = new Map<Feature, FeatureUsage>()
+  private usageTracker: Map<Feature, FeatureUsage> = new Map<
+    Feature,
+    FeatureUsage
+  >()
 
   // Build feature usage is on/off and is known before the build starts
   constructor(buildFeaturesMap: Map<Feature, boolean>) {
@@ -217,7 +221,7 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
       compiler.hooks.compilation.tap(TelemetryPlugin.name, (compilation) => {
         const moduleHooks = NormalModule.getCompilationHooks(compilation)
         moduleHooks.loader.tap(TelemetryPlugin.name, (loaderContext: any) => {
-          loaderContext.eliminatedPackages = ELIMINATED_PACKAGES
+          loaderContext.eliminatedPackages = eliminatedPackages
         })
       })
     }
@@ -228,6 +232,13 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
   }
 
   packagesUsedInServerSideProps(): string[] {
-    return Array.from(ELIMINATED_PACKAGES)
+    return Array.from(eliminatedPackages)
   }
+}
+
+export type TelemetryPluginState = {
+  usages: ReturnType<TelemetryPlugin['usages']>
+  packagesUsedInServerSideProps: ReturnType<
+    TelemetryPlugin['packagesUsedInServerSideProps']
+  >
 }

@@ -1,4 +1,4 @@
-import arg from 'next/dist/compiled/arg/index.js'
+import type arg from 'next/dist/compiled/arg/index.js'
 
 const validEslintArgs: arg.Spec = {
   // Types

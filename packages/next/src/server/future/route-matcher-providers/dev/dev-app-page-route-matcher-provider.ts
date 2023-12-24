@@ -1,9 +1,10 @@
-import { FileReader } from './helpers/file-reader/file-reader'
+import type { FileReader } from './helpers/file-reader/file-reader'
 import { AppPageRouteMatcher } from '../../route-matchers/app-page-route-matcher'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 
 import { DevAppNormalizers } from '../../normalizers/built/app'
+import { normalizeCatchAllRoutes } from '../../../../build/normalize-catchall-routes'
 
 export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
   private readonly expression: RegExp
@@ -33,7 +34,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       { page: string; pathname: string; bundlePath: string }
     >()
     const routeFilenames = new Array<string>()
-    const appPaths: Record<string, string[]> = {}
+    let appPaths: Record<string, string[]> = {}
     for (const filename of files) {
       // If the file isn't a match for this matcher, then skip it.
       if (!this.expression.test(filename)) continue
@@ -55,6 +56,13 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       if (pathname in appPaths) appPaths[pathname].push(page)
       else appPaths[pathname] = [page]
     }
+
+    normalizeCatchAllRoutes(appPaths)
+
+    // Make sure to sort parallel routes to make the result deterministic.
+    appPaths = Object.fromEntries(
+      Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
+    )
 
     const matchers: Array<AppPageRouteMatcher> = []
     for (const filename of routeFilenames) {

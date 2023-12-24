@@ -27,8 +27,9 @@ DEALINGS IN THE SOFTWARE.
 */
 
 import type { NextConfig } from '../../../../types'
+import type { WebpackLayerName } from '../../../lib/constants'
 import { isWasm, transform } from '../../swc'
-import { type BundleType, getLoaderSWCOptions } from '../../swc/options'
+import { getLoaderSWCOptions } from '../../swc/options'
 import path, { isAbsolute } from 'path'
 
 export interface SWCLoaderOptions {
@@ -42,12 +43,9 @@ export interface SWCLoaderOptions {
   jsConfig: any
   supportedBrowsers: string[] | undefined
   swcCacheDir: string
-  bundleTarget: BundleType
-  hasServerComponents?: boolean
-  isServerLayer: boolean
-  optimizeBarrelExports?: {
-    wildcard: boolean
-  }
+  serverComponents?: boolean
+  bundleLayer?: WebpackLayerName
+  esm?: boolean
 }
 
 async function loaderTransform(
@@ -71,20 +69,12 @@ async function loaderTransform(
     jsConfig,
     supportedBrowsers,
     swcCacheDir,
-    hasServerComponents,
-    isServerLayer,
-    optimizeBarrelExports,
-    bundleTarget,
+    serverComponents,
+    bundleLayer,
+    esm,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
-
-  // For testing purposes
-  if (process.env.NEXT_TEST_MODE) {
-    if (loaderOptions.optimizeBarrelExports) {
-      console.log('optimizeBarrelExports:', filename)
-    }
-  }
 
   const swcOptions = getLoaderSWCOptions({
     pagesDir,
@@ -103,11 +93,9 @@ async function loaderTransform(
     supportedBrowsers,
     swcCacheDir,
     relativeFilePathFromRoot,
-    hasServerComponents,
-    isServerActionsEnabled: nextConfig?.experimental?.serverActions,
-    isServerLayer,
-    optimizeBarrelExports,
-    bundleTarget,
+    serverComponents,
+    bundleLayer,
+    esm,
   })
 
   const programmaticOptions = {

@@ -25,10 +25,12 @@ Route Handlers allow you to create custom request handlers for a given route usi
 Route Handlers are defined in a [`route.js|ts` file](/docs/app/api-reference/file-conventions/route) inside the `app` directory:
 
 ```ts filename="app/api/route.ts" switcher
+export const dynamic = 'force-dynamic' // defaults to auto
 export async function GET(request: Request) {}
 ```
 
 ```js filename="app/api/route.js" switcher
+export const dynamic = 'force-dynamic' // defaults to auto
 export async function GET(request) {}
 ```
 
@@ -50,8 +52,6 @@ In addition to supporting native [Request](https://developer.mozilla.org/docs/We
 Route Handlers are cached by default when using the `GET` method with the `Response` object.
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     headers: {
@@ -61,13 +61,11 @@ export async function GET() {
   })
   const data = await res.json()
 
-  return NextResponse.json({ data })
+  return Response.json({ data })
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     headers: {
@@ -77,11 +75,11 @@ export async function GET() {
   })
   const data = await res.json()
 
-  return NextResponse.json({ data })
+  return Response.json({ data })
 }
 ```
 
-> **TypeScript Warning:** Although `Response.json()` is valid, native TypeScript types currently shows an error, you can use [`NextResponse.json()`](/docs/app/api-reference/functions/next-response#json) for typed responses instead.
+> **TypeScript Warning:** `Response.json()` is only valid from TypeScript 5.2. If you use a lower TypeScript version, you can use [`NextResponse.json()`](/docs/app/api-reference/functions/next-response#json) for typed responses instead.
 
 ### Opting out of caching
 
@@ -95,26 +93,22 @@ You can opt out of caching by:
 For example:
 
 ```ts filename="app/products/api/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
   const res = await fetch(`https://data.mongodb-api.com/product/${id}`, {
     headers: {
       'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY,
+      'API-Key': process.env.DATA_API_KEY!,
     },
   })
   const product = await res.json()
 
-  return NextResponse.json({ product })
+  return Response.json({ product })
 }
 ```
 
 ```js filename="app/products/api/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
@@ -126,34 +120,30 @@ export async function GET(request) {
   })
   const product = await res.json()
 
-  return NextResponse.json({ product })
+  return Response.json({ product })
 }
 ```
 
 Similarly, the `POST` method will cause the Route Handler to be evaluated dynamically.
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY,
+      'API-Key': process.env.DATA_API_KEY!,
     },
     body: JSON.stringify({ time: new Date().toISOString() }),
   })
 
   const data = await res.json()
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     method: 'POST',
@@ -166,11 +156,11 @@ export async function POST() {
 
   const data = await res.json()
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }
 ```
 
-> **Good to know**: Like API Routes, Route Handlers can be used for cases like handling form submissions. A new abstraction for [handling forms and mutations](/docs/app/building-your-application/data-fetching/forms-and-mutations) that integrates deeply with React is being worked on.
+> **Good to know**: Like API Routes, Route Handlers can be used for cases like handling form submissions. A new abstraction for [handling forms and mutations](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) that integrates deeply with React is being worked on.
 
 ### Route Resolution
 
@@ -206,28 +196,24 @@ The following examples show how to combine Route Handlers with other Next.js API
 You can [revalidate cached data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) using the [`next.revalidate`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) option:
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     next: { revalidate: 60 }, // Revalidate every 60 seconds
   })
   const data = await res.json()
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     next: { revalidate: 60 }, // Revalidate every 60 seconds
   })
   const data = await res.json()
 
-  return NextResponse.json(data)
+  return Response.json(data)
 }
 ```
 
@@ -243,9 +229,9 @@ Route Handlers can be used with dynamic functions from Next.js, like [`cookies`]
 
 #### Cookies
 
-You can read cookies with [`cookies`](/docs/app/api-reference/functions/cookies) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function.
+You can read or set cookies with [`cookies`](/docs/app/api-reference/functions/cookies) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function.
 
-This `cookies` instance is read-only. To set cookies, you need to return a new `Response` using the [`Set-Cookie`](https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie) header.
+Alternatively, you can return a new `Response` using the [`Set-Cookie`](https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie) header.
 
 ```ts filename="app/api/route.ts" switcher
 import { cookies } from 'next/headers'
@@ -275,7 +261,7 @@ export async function GET(request) {
 }
 ```
 
-Alternatively, you can use abstractions on top of the underlying Web APIs to read cookies ([`NextRequest`](/docs/app/api-reference/functions/next-request)):
+You can also use the underlying Web APIs to read cookies from the request ([`NextRequest`](/docs/app/api-reference/functions/next-request)):
 
 ```ts filename="app/api/route.ts" switcher
 import { type NextRequest } from 'next/server'
@@ -325,7 +311,7 @@ export async function GET(request) {
 }
 ```
 
-Alternatively, you can use abstractions on top of the underlying Web APIs to read headers ([`NextRequest`](/docs/app/api-reference/functions/next-request)):
+You can also use the underlying Web APIs to read headers from the request ([`NextRequest`](/docs/app/api-reference/functions/next-request)):
 
 ```ts filename="app/api/route.ts" switcher
 import { type NextRequest } from 'next/server'
@@ -413,73 +399,49 @@ export function GET(request) {
 Streaming is commonly used in combination with Large Language Models (LLMs), such as OpenAI, for AI-generated content. Learn more about the [AI SDK](https://sdk.vercel.ai/docs).
 
 ```ts filename="app/api/chat/route.ts" switcher
-import { Configuration, OpenAIApi } from 'openai-edge'
+import OpenAI from 'openai'
 import { OpenAIStream, StreamingTextResponse } from 'ai'
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+})
 
 export const runtime = 'edge'
 
-const apiConfig = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY!,
-})
-
-const openai = new OpenAIApi(apiConfig)
-
 export async function POST(req: Request) {
-  // Extract the `messages` from the body of the request
   const { messages } = await req.json()
-
-  // Request the OpenAI API for the response based on the prompt
-  const response = await openai.createChatCompletion({
+  const response = await openai.chat.completions.create({
     model: 'gpt-3.5-turbo',
     stream: true,
-    messages: messages,
-    max_tokens: 500,
-    temperature: 0.7,
-    top_p: 1,
-    frequency_penalty: 1,
-    presence_penalty: 1,
+    messages,
   })
 
-  // Convert the response into a friendly text-stream
   const stream = OpenAIStream(response)
 
-  // Respond with the stream
   return new StreamingTextResponse(stream)
 }
 ```
 
 ```js filename="app/api/chat/route.js" switcher
-import { Configuration, OpenAIApi } from 'openai-edge'
+import OpenAI from 'openai'
 import { OpenAIStream, StreamingTextResponse } from 'ai'
 
-export const runtime = 'edge'
-
-const apiConfig = new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
-const openai = new OpenAIApi(apiConfig)
+export const runtime = 'edge'
 
 export async function POST(req) {
-  // Extract the `messages` from the body of the request
   const { messages } = await req.json()
-
-  // Request the OpenAI API for the response based on the prompt
-  const response = await openai.createChatCompletion({
+  const response = await openai.chat.completions.create({
     model: 'gpt-3.5-turbo',
     stream: true,
-    messages: messages,
-    max_tokens: 500,
-    temperature: 0.7,
-    top_p: 1,
-    frequency_penalty: 1,
-    presence_penalty: 1,
+    messages,
   })
 
-  // Convert the response into a friendly text-stream
   const stream = OpenAIStream(response)
 
-  // Respond with the stream
   return new StreamingTextResponse(stream)
 }
 ```
@@ -571,20 +533,16 @@ export async function GET() {
 You can read the `Request` body using the standard Web API methods:
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST(request: Request) {
   const res = await request.json()
-  return NextResponse.json({ res })
+  return Response.json({ res })
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST(request) {
   const res = await request.json()
-  return NextResponse.json({ res })
+  return Response.json({ res })
 }
 ```
 
@@ -593,24 +551,20 @@ export async function POST(request) {
 You can read the `FormData` using the `request.formData()` function:
 
 ```ts filename="app/items/route.ts" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST(request: Request) {
   const formData = await request.formData()
   const name = formData.get('name')
   const email = formData.get('email')
-  return NextResponse.json({ name, email })
+  return Response.json({ name, email })
 }
 ```
 
 ```js filename="app/items/route.js" switcher
-import { NextResponse } from 'next/server'
-
 export async function POST(request) {
   const formData = await request.formData()
   const name = formData.get('name')
   const email = formData.get('email')
-  return NextResponse.json({ name, email })
+  return Response.json({ name, email })
 }
 ```
 
@@ -621,6 +575,8 @@ Since `formData` data are all strings, you may want to use [`zod-form-data`](htt
 You can set CORS headers on a `Response` using the standard Web API methods:
 
 ```ts filename="app/api/route.ts" switcher
+export const dynamic = 'force-dynamic' // defaults to auto
+
 export async function GET(request: Request) {
   return new Response('Hello, Next.js!', {
     status: 200,
@@ -634,6 +590,8 @@ export async function GET(request: Request) {
 ```
 
 ```js filename="app/api/route.js" switcher
+export const dynamic = 'force-dynamic' // defaults to auto
+
 export async function GET(request) {
   return new Response('Hello, Next.js!', {
     status: 200,
@@ -658,9 +616,11 @@ export const runtime = 'edge' // 'nodejs' is the default
 
 ### Non-UI Responses
 
-You can use Route Handlers to return non-UI content. Note that [`sitemap.xml`](/docs/app/api-reference/file-conventions/metadata/sitemap#generate-a-sitemap), [`robots.txt`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file), [`app icons`](/docs/app/api-reference/file-conventions/metadata/app-icons#generate-icons-using-code-js-ts-tsx), and [open graph images](/docs/app/api-reference/file-conventions/metadata/opengraph-image) all have built-in support.
+You can use Route Handlers to return non-UI content. Note that [`sitemap.xml`](/docs/app/api-reference/file-conventions/metadata/sitemap#generating-a-sitemap-using-code-js-ts), [`robots.txt`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file), [`app icons`](/docs/app/api-reference/file-conventions/metadata/app-icons#generate-icons-using-code-js-ts-tsx), and [open graph images](/docs/app/api-reference/file-conventions/metadata/opengraph-image) all have built-in support.
 
 ```ts filename="app/rss.xml/route.ts" switcher
+export const dynamic = 'force-dynamic' // defaults to auto
+
 export async function GET() {
   return new Response(`<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
@@ -676,6 +636,8 @@ export async function GET() {
 ```
 
 ```js filename="app/rss.xml/route.js" switcher
+export const dynamic = 'force-dynamic' // defaults to auto
+
 export async function GET() {
   return new Response(`<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">

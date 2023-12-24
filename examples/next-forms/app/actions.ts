@@ -11,11 +11,17 @@ import { z } from 'zod'
 
 export async function createTodo(prevState: any, formData: FormData) {
   const schema = z.object({
-    todo: z.string().nonempty(),
+    todo: z.string().min(1),
   })
-  const data = schema.parse({
+  const parse = schema.safeParse({
     todo: formData.get('todo'),
   })
+
+  if (!parse.success) {
+    return { message: 'Failed to create todo' }
+  }
+
+  const data = parse.data
 
   try {
     await sql`
@@ -32,8 +38,8 @@ export async function createTodo(prevState: any, formData: FormData) {
 
 export async function deleteTodo(prevState: any, formData: FormData) {
   const schema = z.object({
-    id: z.string().nonempty(),
-    todo: z.string().nonempty(),
+    id: z.string().min(1),
+    todo: z.string().min(1),
   })
   const data = schema.parse({
     id: formData.get('id'),

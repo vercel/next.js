@@ -75,7 +75,7 @@ const runTests = () => {
   })
 }
 
-describe('Custom routes i18n', () => {
+describe('Custom routes i18n support index rewrite', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()

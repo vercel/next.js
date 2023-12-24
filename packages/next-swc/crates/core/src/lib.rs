@@ -37,17 +37,19 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
+use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
 use turbopack_binding::swc::{
     core::{
         common::{
-            chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
-            SyntaxContext,
+            chain,
+            comments::{Comments, NoopComments},
+            pass::Optional,
+            FileName, Mark, SourceFile, SourceMap, SyntaxContext,
         },
         ecma::{
-            ast::EsVersion, atoms::JsWord, parser::parse_file_as_module,
-            transforms::base::pass::noop, visit::Fold,
+            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
         },
     },
     custom_transform::modularize_imports,
@@ -57,18 +59,16 @@ pub mod amp_attributes;
 mod auto_cjs;
 pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
+mod import_analyzer;
 pub mod named_import_transform;
-pub mod next_dynamic;
 pub mod next_ssg;
 pub mod optimize_barrel;
 pub mod optimize_server_react;
 pub mod page_config;
-pub mod react_remove_properties;
+pub mod pure;
 pub mod react_server_components;
-pub mod remove_console;
 pub mod server_actions;
 pub mod shake_exports;
-mod top_level_binding_collector;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -95,10 +95,10 @@ pub struct TransformOptions {
     pub is_development: bool,
 
     #[serde(default)]
-    pub is_server: bool,
+    pub is_server_compiler: bool,
 
     #[serde(default)]
-    pub bundle_target: JsWord,
+    pub prefer_esm: bool,
 
     #[serde(default)]
     pub server_components: Option<react_server_components::Config>,
@@ -199,7 +199,6 @@ where
                     config.clone(),
                     comments.clone(),
                     opts.app_dir.clone(),
-                    opts.bundle_target.clone()
                 )),
             _ => Either::Right(noop()),
         },
@@ -220,6 +219,7 @@ where
                     file.name.clone(),
                     file.src_hash,
                     config.clone(),
+                    NoopComments
                 )
             ),
             None => Either::Right(noop()),
@@ -229,18 +229,20 @@ where
             !opts.disable_next_ssg
         ),
         amp_attributes::amp_attributes(),
-        next_dynamic::next_dynamic(
+        next_dynamic(
             opts.is_development,
-            opts.is_server,
+            opts.is_server_compiler,
             match &opts.server_components {
                 Some(config) if config.truthy() => match config {
                     // Always enable the Server Components mode for both
                     // server and client layers.
-                    react_server_components::Config::WithOptions(_) => true,
+                    react_server_components::Config::WithOptions(config) => config.is_react_server_layer,
                     _ => false,
                 },
                 _ => false,
             },
+            opts.prefer_esm,
+            NextDynamicMode::Webpack,
             file.name.clone(),
             opts.pages_dir.clone()
         ),
@@ -251,12 +253,15 @@ where
         relay_plugin,
         match &opts.remove_console {
             Some(config) if config.truthy() =>
-                Either::Left(remove_console::remove_console(config.clone())),
+                Either::Left(remove_console::remove_console(
+                    config.clone(),
+                    SyntaxContext::empty().apply_mark(unresolved_mark)
+                )),
             _ => Either::Right(noop()),
         },
         match &opts.react_remove_properties {
             Some(config) if config.truthy() =>
-                Either::Left(react_remove_properties::remove_properties(config.clone())),
+                Either::Left(react_remove_properties::react_remove_properties(config.clone())),
             _ => Either::Right(noop()),
         },
         match &opts.shake_exports {
@@ -309,7 +314,7 @@ where
             Some(config) => Either::Left(server_actions::server_actions(
                 &file.name,
                 config.clone(),
-                comments,
+                comments.clone(),
             )),
             None => Either::Right(noop()),
         },
@@ -319,6 +324,7 @@ where
             },
             None => Either::Right(noop()),
         },
+        pure::pure_magic(comments),
     )
 }
 

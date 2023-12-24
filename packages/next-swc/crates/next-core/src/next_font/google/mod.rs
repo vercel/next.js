@@ -443,24 +443,28 @@ async fn get_mock_stylesheet(
         project_path: _,
         chunking_context,
     } = *execution_context.await?;
-    let context = node_evaluate_asset_context(execution_context, None, None);
+    let context =
+        node_evaluate_asset_context(execution_context, None, None, "next_font".to_string());
     let loader_path = mock_fs.root().join("loader.js".to_string());
-    let mocked_response_asset = context.process(
-        Vc::upcast(VirtualSource::new(
-            loader_path,
-            AssetContent::file(
-                File::from(format!(
-                    "import data from './{}'; export default function load() {{ return data; }};",
-                    response_path
-                        .file_name()
-                        .context("Must exist")?
-                        .to_string_lossy(),
-                ))
-                .into(),
-            ),
-        )),
-        Value::new(ReferenceType::Internal(InnerAssets::empty())),
-    );
+    let mocked_response_asset = context
+        .process(
+            Vc::upcast(VirtualSource::new(
+                loader_path,
+                AssetContent::file(
+                    File::from(format!(
+                        "import data from './{}'; export default function load() {{ return data; \
+                         }};",
+                        response_path
+                            .file_name()
+                            .context("Must exist")?
+                            .to_string_lossy(),
+                    ))
+                    .into(),
+                ),
+            )),
+            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+        )
+        .module();
 
     let root = mock_fs.root();
     let val = evaluate(

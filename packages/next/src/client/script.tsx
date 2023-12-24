@@ -2,7 +2,7 @@
 
 import ReactDOM from 'react-dom'
 import React, { useEffect, useContext, useRef } from 'react'
-import { ScriptHTMLAttributes } from 'react'
+import type { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { DOMAttributeNames } from './head-manager'
 import { requestIdleCallback } from './request-idle-callback'
