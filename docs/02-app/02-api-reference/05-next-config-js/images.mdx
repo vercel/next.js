@@ -178,12 +178,12 @@ export default function sanityLoader({ src, width, quality }) {
 ```js
 // Docs: https://sirv.com/help/articles/dynamic-imaging/
 export default function sirvLoader({ src, width, quality }) {
-  const url = new URL(`https://example.com${src}`);
-  const params = url.searchParams;
-  params.set("format", params.getAll("format").join(",") || "optimal");
-  params.set("w", params.get("w") || width.toString());
-  params.set("q", (quality || 85).toString());
-  return url.href;
+  const url = new URL(`https://example.com${src}`)
+  const params = url.searchParams
+  params.set('format', params.getAll('format').join(',') || 'optimal')
+  params.set('w', params.get('w') || width.toString())
+  params.set('q', (quality || 85).toString())
+  return url.href
 }
 ```
 
