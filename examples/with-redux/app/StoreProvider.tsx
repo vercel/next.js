@@ -6,7 +6,7 @@ import { useRef } from 'react'
 import { Provider } from 'react-redux'
 
 interface Props {
-  children: ReactNode
+  readonly children: ReactNode
 }
 
 export const StoreProvider = ({ children }: Props) => {
