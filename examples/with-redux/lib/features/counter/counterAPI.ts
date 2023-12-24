@@ -5,7 +5,7 @@ export const fetchCount = async (amount = 1) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ amount }),
   })
-  const result = await response.json()
+  const result: { data: number } = await response.json()
 
   return result
 }
