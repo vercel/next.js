@@ -986,7 +986,7 @@ export default class Router implements BaseRouter {
 
     const needShallowlyNavigate = options.shallow && this._shallow
 
-    this._shallow = options.shallow && this._shallow
+    this._shallow = needShallowlyNavigate
 
     this.change(
       'replaceState',
