@@ -118,24 +118,11 @@ On reload, Next.js will first try to render the unmatched slot's `default.js` fi
 Both [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment) and [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments) accept a `parallelRoutesKey`, which allows you read the active route segment within that slot.
 
 ```tsx filename="app/layout.tsx" switcher
-
-export default async function Layout(props: {
-  //...
-  auth: React.ReactNode
-}) {
-
-return <SelectedLayoutSegment segment={props.auth}/>
-
-}
-```
-
-
-```tsx filename="app/layout.tsx" switcher
 'use client'
 
 import { useSelectedLayoutSegment } from 'next/navigation'
 
-export default function SelectedLayoutSegment(props: {
+export default function Layout(props: {
   //...
   auth: React.ReactNode
 }) {
@@ -145,19 +132,11 @@ export default function SelectedLayoutSegment(props: {
 ```
 
 ```jsx filename="app/layout.js" switcher
-
-export default async function Layout(props) {
-
-return <SelectedLayoutSegment segment={props.auth}/>
-}
-```
-
-```jsx filename="app/layout.js" switcher
 'use client'
 
 import { useSelectedLayoutSegment } from 'next/navigation'
 
-export default function SelectedLayoutSegment(props) {
+export default function Layout(props) {
   const loginSegments = useSelectedLayoutSegment('auth')
 
   // ...
