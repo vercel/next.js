@@ -1,11 +1,15 @@
-import type { PropsWithChildren } from 'react'
+import type { ReactNode } from 'react'
 import { StoreProvider } from './StoreProvider'
 import { Nav } from './components/Nav'
 
 import './styles/globals.css'
 import styles from './styles/layout.module.css'
 
-export default function RootLayout({ children }: PropsWithChildren) {
+interface Props {
+  readonly children: ReactNode
+}
+
+export default function RootLayout({ children }: Props) {
   return (
     <StoreProvider>
       <html lang="en">
