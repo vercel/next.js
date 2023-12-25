@@ -10,7 +10,7 @@
 
 'use strict';
 
-var ReactVersion = '18.3.0-experimental-593ecee66-20231114';
+var ReactVersion = '18.3.0-experimental-0cdfef19b-20231211';
 
 // ATTENTION
 // When adding new symbols to this file,

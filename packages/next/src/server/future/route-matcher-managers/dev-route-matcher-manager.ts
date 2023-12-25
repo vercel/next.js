@@ -9,7 +9,7 @@ import { cyan } from '../../../lib/picocolors'
 import type { RouteMatcher } from '../route-matchers/route-matcher'
 
 export interface RouteEnsurer {
-  ensure(match: RouteMatch): Promise<void>
+  ensure(match: RouteMatch, pathname: string): Promise<void>
 }
 
 export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
@@ -74,7 +74,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     for await (const development of super.matchAll(pathname, options)) {
       // We're here, which means that we haven't seen this match yet, so we
       // should try to ensure it and recompile the production matcher.
-      await this.ensurer.ensure(development)
+      await this.ensurer.ensure(development, pathname)
       await this.production.reload()
 
       // Iterate over the production matches again, this time we should be able

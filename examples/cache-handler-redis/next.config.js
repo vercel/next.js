@@ -4,8 +4,8 @@ const nextConfig = {
     incrementalCacheHandlerPath:
       process.env.NODE_ENV === 'production'
         ? require.resolve(
-            // './cache-handler-redis.js' // if you're using Redis without JSON support
-            './cache-handler-redis-stack.js'
+            // './cache-handler-redis-custom.js' // custom configuration
+            './cache-handler-redis.js'
           )
         : undefined,
   },

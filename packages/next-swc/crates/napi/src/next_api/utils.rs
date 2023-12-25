@@ -13,7 +13,7 @@ use turbopack_binding::{
     turbopack::core::{
         diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
         error::PrettyPrintError,
-        issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource},
+        issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource, StyledString},
         source_pos::SourcePos,
     },
 };
@@ -100,9 +100,9 @@ pub struct NapiIssue {
     pub severity: String,
     pub category: String,
     pub file_path: String,
-    pub title: String,
-    pub description: String,
-    pub detail: String,
+    pub title: serde_json::Value,
+    pub description: Option<serde_json::Value>,
+    pub detail: Option<serde_json::Value>,
     pub source: Option<NapiIssueSource>,
     pub documentation_link: String,
     pub sub_issues: Vec<NapiIssue>,
@@ -111,19 +111,61 @@ pub struct NapiIssue {
 impl From<&PlainIssue> for NapiIssue {
     fn from(issue: &PlainIssue) -> Self {
         Self {
-            description: issue.description.clone(),
+            description: issue
+                .description
+                .as_ref()
+                .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
             category: issue.category.clone(),
             file_path: issue.file_path.clone(),
-            detail: issue.detail.clone(),
+            detail: issue
+                .detail
+                .as_ref()
+                .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
             documentation_link: issue.documentation_link.clone(),
             severity: issue.severity.as_str().to_string(),
             source: issue.source.as_deref().map(|source| source.into()),
-            title: issue.title.clone(),
+            title: serde_json::to_value(StyledStringSerialize::from(&issue.title)).unwrap(),
             sub_issues: issue
                 .sub_issues
                 .iter()
                 .map(|issue| (&**issue).into())
                 .collect(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum StyledStringSerialize<'a> {
+    Line {
+        value: Vec<StyledStringSerialize<'a>>,
+    },
+    Stack {
+        value: Vec<StyledStringSerialize<'a>>,
+    },
+    Text {
+        value: &'a str,
+    },
+    Code {
+        value: &'a str,
+    },
+    Strong {
+        value: &'a str,
+    },
+}
+
+impl<'a> From<&'a StyledString> for StyledStringSerialize<'a> {
+    fn from(value: &'a StyledString) -> Self {
+        match value {
+            StyledString::Line(parts) => StyledStringSerialize::Line {
+                value: parts.iter().map(|p| p.into()).collect(),
+            },
+            StyledString::Stack(parts) => StyledStringSerialize::Stack {
+                value: parts.iter().map(|p| p.into()).collect(),
+            },
+            StyledString::Text(string) => StyledStringSerialize::Text { value: string },
+            StyledString::Code(string) => StyledStringSerialize::Code { value: string },
+            StyledString::Strong(string) => StyledStringSerialize::Strong { value: string },
         }
     }
 }

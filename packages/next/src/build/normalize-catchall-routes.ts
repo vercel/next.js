@@ -1,3 +1,4 @@
+import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
 import { AppPathnameNormalizer } from '../server/future/normalizers/built/app/app-pathname-normalizer'
 
 /**
@@ -21,7 +22,14 @@ export function normalizeCatchAllRoutes(
     ),
   ]
 
-  for (const appPath of Object.keys(appPaths)) {
+  // interception routes should only be matched by a single entrypoint
+  // we don't want to push a catch-all route to an interception route
+  // because it would mean the interception would be handled by the wrong page component
+  const filteredAppPaths = Object.keys(appPaths).filter(
+    (route) => !isInterceptionRouteAppPath(route)
+  )
+
+  for (const appPath of filteredAppPaths) {
     for (const catchAllRoute of catchAllRoutes) {
       const normalizedCatchAllRoute = normalizer.normalize(catchAllRoute)
       const normalizedCatchAllRouteBasePath = normalizedCatchAllRoute.slice(
@@ -30,9 +38,9 @@ export function normalizeCatchAllRoutes(
       )
 
       if (
-        // first check if the appPath could match the catch-all
+        // check if the appPath could match the catch-all
         appPath.startsWith(normalizedCatchAllRouteBasePath) &&
-        // then check if there's not already a slot value that could match the catch-all
+        // check if there's not already a slot value that could match the catch-all
         !appPaths[appPath].some((path) => hasMatchedSlots(path, catchAllRoute))
       ) {
         appPaths[appPath].push(catchAllRoute)
