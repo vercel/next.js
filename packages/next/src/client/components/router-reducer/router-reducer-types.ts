@@ -23,7 +23,8 @@ export type RouterChangeByServerResponse = (
 export type RouterNavigate = (
   href: string,
   navigateType: 'push' | 'replace',
-  shouldScroll: boolean
+  shouldScroll: boolean,
+  unstable_noStoreTransition: boolean
 ) => void
 
 export interface Mutable {
@@ -111,6 +112,7 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   shouldScroll: boolean
+  unstable_noStoreTransition: boolean
 }
 
 /**
@@ -161,6 +163,7 @@ export interface PrefetchAction {
   type: typeof ACTION_PREFETCH
   url: URL
   kind: PrefetchKind
+  unstable_noStoreTransition?: boolean
 }
 
 export interface PushRef {

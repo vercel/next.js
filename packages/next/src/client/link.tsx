@@ -57,6 +57,12 @@ type InternalLinkProps = {
    */
   scroll?: boolean
   /**
+   * Don't cache next page
+   *
+   * @defaultValue `false`
+   */
+  unstable_noStoreTransition?: boolean
+  /**
    * Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md), [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md) or [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md).
    *
    * @defaultValue `false`
@@ -199,7 +205,8 @@ function linkClicked(
   shallow?: boolean,
   scroll?: boolean,
   locale?: string | false,
-  isAppRouter?: boolean
+  isAppRouter?: boolean,
+  unstable_noStoreTransition?: boolean
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -226,10 +233,12 @@ function linkClicked(
         shallow,
         locale,
         scroll: routerScroll,
+        unstable_noStoreTransition,
       })
     } else {
       router[replace ? 'replace' : 'push'](as || href, {
         scroll: routerScroll,
+        unstable_noStoreTransition,
       })
     }
   }
@@ -270,6 +279,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       replace,
       shallow,
       scroll,
+      unstable_noStoreTransition,
       locale,
       onClick,
       onMouseEnter: onMouseEnterProp,
@@ -357,6 +367,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         onMouseEnter: true,
         onTouchStart: true,
         legacyBehavior: true,
+        unstable_noStoreTransition: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
         optionalPropsGuard
@@ -395,6 +406,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         } else if (
           key === 'replace' ||
           key === 'scroll' ||
+          key === 'unstable_noStoreTransition' ||
           key === 'shallow' ||
           key === 'passHref' ||
           key === 'prefetch' ||
@@ -571,6 +583,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         { locale },
         {
           kind: appPrefetchKind,
+          unstable_noStoreTransition,
         },
         isAppRouter
       )
@@ -584,6 +597,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       router,
       isAppRouter,
       appPrefetchKind,
+      unstable_noStoreTransition,
     ])
 
     const childProps: {
@@ -632,7 +646,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           shallow,
           scroll,
           locale,
-          isAppRouter
+          isAppRouter,
+          unstable_noStoreTransition
         )
       },
       onMouseEnter(e) {
@@ -671,6 +686,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           },
           {
             kind: appPrefetchKind,
+            unstable_noStoreTransition,
           },
           isAppRouter
         )
@@ -708,6 +724,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           },
           {
             kind: appPrefetchKind,
+            unstable_noStoreTransition,
           },
           isAppRouter
         )

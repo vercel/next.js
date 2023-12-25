@@ -199,7 +199,7 @@ function useChangeByServerResponse(
 
 function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
-    (href, navigateType, shouldScroll) => {
+    (href, navigateType, shouldScroll, unstable_noStoreTransition) => {
       const url = new URL(addBasePath(href), location.href)
 
       return dispatch({
@@ -209,6 +209,7 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         locationSearch: location.search,
         shouldScroll: shouldScroll ?? true,
         navigateType,
+        unstable_noStoreTransition,
       })
     },
     [dispatch]
@@ -336,17 +337,28 @@ function Router({
             type: ACTION_PREFETCH,
             url,
             kind: options?.kind ?? PrefetchKind.FULL,
+            unstable_noStoreTransition: options?.unstable_noStoreTransition,
           })
         })
       },
       replace: (href, options = {}) => {
         startTransition(() => {
-          navigate(href, 'replace', options.scroll ?? true)
+          navigate(
+            href,
+            'replace',
+            options.scroll ?? true,
+            Boolean(options.unstable_noStoreTransition)
+          )
         })
       },
       push: (href, options = {}) => {
         startTransition(() => {
-          navigate(href, 'push', options.scroll ?? true)
+          navigate(
+            href,
+            'push',
+            options.scroll ?? true,
+            Boolean(options.unstable_noStoreTransition)
+          )
         })
       },
       refresh: () => {

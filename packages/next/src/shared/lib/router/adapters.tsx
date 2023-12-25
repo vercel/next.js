@@ -1,6 +1,7 @@
 import type {
   AppRouterInstance,
   NavigateOptions,
+  PrefetchOptions,
 } from '../app-router-context.shared-runtime'
 import type { Params } from './utils/route-matcher'
 import type { NextRouter } from './router'
@@ -30,14 +31,26 @@ export function adaptForAppRouterInstance(
     refresh(): void {
       router.reload()
     },
-    push(href: string, { scroll }: NavigateOptions = {}): void {
-      void router.push(href, undefined, { scroll })
+    push(
+      href: string,
+      { scroll, unstable_noStoreTransition }: NavigateOptions = {}
+    ): void {
+      void router.push(href, undefined, { scroll, unstable_noStoreTransition })
     },
-    replace(href: string, { scroll }: NavigateOptions = {}): void {
-      void router.replace(href, undefined, { scroll })
+    replace(
+      href: string,
+      { scroll, unstable_noStoreTransition }: NavigateOptions = {}
+    ): void {
+      void router.replace(href, undefined, {
+        scroll,
+        unstable_noStoreTransition,
+      })
     },
-    prefetch(href: string): void {
-      void router.prefetch(href)
+    prefetch(
+      href: string,
+      { unstable_noStoreTransition }: PrefetchOptions
+    ): void {
+      void router.prefetch(href, undefined, { unstable_noStoreTransition })
     },
   }
 }

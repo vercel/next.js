@@ -98,10 +98,12 @@ export type ReadyCacheNode = {
 
 export interface NavigateOptions {
   scroll?: boolean
+  unstable_noStoreTransition?: boolean
 }
 
 export interface PrefetchOptions {
   kind: PrefetchKind
+  unstable_noStoreTransition?: boolean
 }
 
 export interface AppRouterInstance {
