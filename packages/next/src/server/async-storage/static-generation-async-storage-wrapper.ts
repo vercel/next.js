@@ -5,6 +5,7 @@ import type { IncrementalCache } from '../lib/incremental-cache'
 
 export type StaticGenerationContext = {
   urlPathname: string
+  postpone?: (reason: string) => never
   renderOpts: {
     originalPathname?: string
     incrementalCache?: IncrementalCache
@@ -37,7 +38,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 > = {
   wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
-    { urlPathname, renderOpts }: StaticGenerationContext,
+    { urlPathname, renderOpts, postpone }: StaticGenerationContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
@@ -76,7 +77,22 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
       isDraftMode: renderOpts.isDraftMode,
-      experimental: renderOpts.experimental,
+
+      postpone:
+        // If we aren't performing a static generation or we aren't using PPR then
+        // we don't need to postpone.
+        isStaticGeneration && renderOpts.experimental.ppr && postpone
+          ? (reason: string) => {
+              // Keep track of if the postpone API has been called.
+              store.postponeWasTriggered = true
+
+              return postpone(
+                `This page needs to bail out of prerendering at this point because it used ${reason}. ` +
+                  `React throws this special object to indicate where. It should not be caught by ` +
+                  `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
+              )
+            }
+          : undefined,
     }
 
     // TODO: remove this when we resolve accessing the store outside the execution context

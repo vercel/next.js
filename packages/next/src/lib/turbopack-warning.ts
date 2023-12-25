@@ -66,6 +66,10 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.useDeploymentId',
   'experimental.useDeploymentIdServerActions',
   'experimental.deploymentId',
+  'experimental.useLightningcss',
+  'experimental.windowHistorySupport',
+  'experimental.instrumentationHook',
+  'experimental.externalDir',
 
   // Experimental options that don't affect compilation
   'experimental.ppr',
@@ -76,10 +80,11 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.isrFlushToDisk',
   'experimental.logging.level',
   'experimental.logging.fullUrl',
+  'logging.fetches.fullUrl',
   'experimental.scrollRestoration',
   'experimental.forceSwcTransforms',
   'experimental.serverActions.bodySizeLimit',
-  'experimental.serverActions.allowedForwardedHosts',
+  'experimental.serverActions.allowedOrigins',
   'experimental.memoryBasedWorkersCount',
   'experimental.clientRouterFilterRedirects',
   'experimental.webpackBuildWorker',
@@ -104,7 +109,6 @@ const supportedTurbopackNextConfigOptions = [
   // 'compiler.removeConsole',
   // 'compiler.styledComponents',
   // 'experimental.fetchCacheKeyPrefix',
-  // 'experimental.instrumentationHook',
 
   // Left to be implemented
   'excludeDefaultMomentLocales',
@@ -128,7 +132,6 @@ const supportedTurbopackNextConfigOptions = [
   // 'experimental.craCompat',
   // 'experimental.disablePostcssPresetEnv',
   // 'experimental.esmExternals',
-  // 'experimental.externalDir',
   // This is used to force swc-loader to run regardless of finding Babel.
   // 'experimental.forceSwcTransforms',
   // 'experimental.fullySpecified',
@@ -253,7 +256,17 @@ export async function validateTurboNextConfig({
       }
 
       let isSupported =
-        supportedKeys.some((supportedKey) => key.startsWith(supportedKey)) ||
+        supportedKeys.some(
+          (supportedKey) =>
+            // Either the key matches (or is a more specific subkey) of
+            // supportedKey, or the key is the path to a specific subkey.
+            // | key     | supportedKey |
+            // |---------|--------------|
+            // | foo     | foo          |
+            // | foo.bar | foo          |
+            // | foo     | foo.bar      |
+            key.startsWith(supportedKey) || supportedKey.startsWith(`${key}.`)
+        ) ||
         getDeepValue(rawNextConfig, key) === getDeepValue(defaultConfig, key)
       if (!isSupported) {
         unsupportedConfig.push(key)

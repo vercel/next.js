@@ -15,23 +15,29 @@ export function middleware(request) {
     block-all-mixed-content;
     upgrade-insecure-requests;
 `
+  // Replace newline characters and spaces
+  const contentSecurityPolicyHeaderValue = cspHeader
+    .replace(/\s{2,}/g, ' ')
+    .trim()
 
   const requestHeaders = new Headers(request.headers)
-
-  // Setting request headers
   requestHeaders.set('x-nonce', nonce)
   requestHeaders.set(
     'Content-Security-Policy',
-    // Replace newline characters and spaces
-    cspHeader.replace(/\s{2,}/g, ' ').trim()
+    contentSecurityPolicyHeaderValue
   )
 
-  return NextResponse.next({
-    headers: requestHeaders,
+  const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   })
+  response.headers.set(
+    'Content-Security-Policy',
+    contentSecurityPolicyHeaderValue
+  )
+
+  return response
 }
 
 export const config = {

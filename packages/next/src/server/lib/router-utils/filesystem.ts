@@ -14,7 +14,7 @@ import fs from 'fs/promises'
 import * as Log from '../../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import loadCustomRoutes from '../../../lib/load-custom-routes'
+import loadCustomRoutes, { type Rewrite } from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { FileType, fileExists } from '../../../lib/file-exists'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
@@ -371,9 +371,13 @@ export async function setupFsCheck(opts: {
   const normalizers = {
     // Because we can't know if the app directory is enabled or not at this
     // stage, we assume that it is.
-    rsc: new RSCPathnameNormalizer(true),
-    prefetchRSC: new PrefetchRSCPathnameNormalizer(true),
-    postponed: new PostponedPathnameNormalizer(opts.config.experimental.ppr),
+    rsc: new RSCPathnameNormalizer(),
+    prefetchRSC: opts.config.experimental.ppr
+      ? new PrefetchRSCPathnameNormalizer()
+      : undefined,
+    postponed: opts.config.experimental.ppr
+      ? new PostponedPathnameNormalizer()
+      : undefined,
   }
 
   return {
@@ -391,7 +395,7 @@ export async function setupFsCheck(opts: {
 
     interceptionRoutes: undefined as
       | undefined
-      | ReturnType<typeof buildCustomRoute>[],
+      | ReturnType<typeof buildCustomRoute<Rewrite>>[],
 
     devVirtualFsItems: new Set<string>(),
 
@@ -421,11 +425,11 @@ export async function setupFsCheck(opts: {
       // Simulate minimal mode requests by normalizing RSC and postponed
       // requests.
       if (opts.minimalMode) {
-        if (normalizers.prefetchRSC.match(itemPath)) {
+        if (normalizers.prefetchRSC?.match(itemPath)) {
           itemPath = normalizers.prefetchRSC.normalize(itemPath, true)
         } else if (normalizers.rsc.match(itemPath)) {
           itemPath = normalizers.rsc.normalize(itemPath, true)
-        } else if (normalizers.postponed.match(itemPath)) {
+        } else if (normalizers.postponed?.match(itemPath)) {
           itemPath = normalizers.postponed.normalize(itemPath, true)
         }
       }

@@ -1,5 +1,6 @@
+use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::Vc;
+use turbo_tasks::{TaskInput, Vc};
 use turbopack_binding::{
     turbo::tasks::Value,
     turbopack::{
@@ -15,7 +16,7 @@ use turbopack_binding::{
 use super::source_asset::StructuredImageFileSource;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Clone, Copy, Debug, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialOrd, Ord, Hash, TaskInput)]
 pub enum BlurPlaceholderMode {
     /// Do not generate a blur placeholder at all.
     None,
@@ -37,30 +38,32 @@ pub struct StructuredImageModuleType {
     pub blur_placeholder_mode: BlurPlaceholderMode,
 }
 
+#[turbo_tasks::value_impl]
 impl StructuredImageModuleType {
-    pub(crate) fn create_module(
+    #[turbo_tasks::function]
+    pub(crate) async fn create_module(
         source: Vc<Box<dyn Source>>,
         blur_placeholder_mode: BlurPlaceholderMode,
         context: Vc<ModuleAssetContext>,
-    ) -> Vc<Box<dyn Module>> {
+    ) -> Result<Vc<Box<dyn Module>>> {
         let static_asset = StaticModuleAsset::new(source, Vc::upcast(context));
-        context.process(
-            Vc::upcast(
-                StructuredImageFileSource {
-                    image: source,
-                    blur_placeholder_mode,
-                }
-                .cell(),
-            ),
-            Value::new(ReferenceType::Internal(Vc::cell(indexmap!(
-                "IMAGE".to_string() => Vc::upcast(static_asset)
-            )))),
-        )
+        let module = context
+            .process(
+                Vc::upcast(
+                    StructuredImageFileSource {
+                        image: source,
+                        blur_placeholder_mode,
+                    }
+                    .cell(),
+                ),
+                Value::new(ReferenceType::Internal(Vc::cell(indexmap!(
+                    "IMAGE".to_string() => Vc::upcast(static_asset)
+                )))),
+            )
+            .module();
+        Ok(module)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl StructuredImageModuleType {
     #[turbo_tasks::function]
     pub fn new(blur_placeholder_mode: Value<BlurPlaceholderMode>) -> Vc<Self> {
         StructuredImageModuleType::cell(StructuredImageModuleType {

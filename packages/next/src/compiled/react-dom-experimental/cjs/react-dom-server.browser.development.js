@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-2983249dd-20231107';
+var ReactVersion = '18.3.0-experimental-0cdfef19b-20231211';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -441,7 +441,11 @@ var hasReadOnlyValue = {
 function checkControlledValueProps(tagName, props) {
   {
     if (!(hasReadOnlyValue[props.type] || props.onChange || props.onInput || props.readOnly || props.disabled || props.value == null)) {
-      error('You provided a `value` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultValue`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
+      if (tagName === 'select') {
+        error('You provided a `value` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultValue`. Otherwise, set `onChange`.');
+      } else {
+        error('You provided a `value` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultValue`. Otherwise, set either `onChange` or `readOnly`.');
+      }
     }
 
     if (!(props.onChange || props.readOnly || props.disabled || props.checked == null)) {
@@ -1816,11 +1820,14 @@ var DEFAULT_HEADERS_CAPACITY_IN_UTF16_CODE_UNITS = 2000; // Allows us to keep tr
 // if passed externalRuntimeConfig and the enableFizzExternalRuntime feature flag
 // is set, the server will send instructions via data attributes (instead of inline scripts)
 
-function createRenderState(resumableState, nonce, bootstrapScriptContent, bootstrapScripts, bootstrapModules, externalRuntimeConfig, importMap, onHeaders, maxHeadersLength) {
+function createRenderState(resumableState, nonce, externalRuntimeConfig, importMap, onHeaders, maxHeadersLength) {
   var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
   var idPrefix = resumableState.idPrefix;
   var bootstrapChunks = [];
   var externalRuntimeScript = null;
+  var bootstrapScriptContent = resumableState.bootstrapScriptContent,
+      bootstrapScripts = resumableState.bootstrapScripts,
+      bootstrapModules = resumableState.bootstrapModules;
 
   if (bootstrapScriptContent !== undefined) {
     bootstrapChunks.push(inlineScriptWithNonce, stringToChunk(escapeBootstrapAndImportMapScriptContent(bootstrapScriptContent)), endInlineScript);
@@ -2010,10 +2017,9 @@ function createRenderState(resumableState, nonce, bootstrapScriptContent, bootst
   return renderState;
 }
 function resumeRenderState(resumableState, nonce) {
-  return createRenderState(resumableState, nonce, // These should have already been flushed in the prerender.
-  undefined, undefined, undefined, undefined, undefined, undefined);
+  return createRenderState(resumableState, nonce, undefined, undefined, undefined, undefined);
 }
-function createResumableState(identifierPrefix, externalRuntimeConfig) {
+function createResumableState(identifierPrefix, externalRuntimeConfig, bootstrapScriptContent, bootstrapScripts, bootstrapModules) {
   var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
   var streamingFormat = ScriptStreamingFormat;
 
@@ -2027,6 +2033,9 @@ function createResumableState(identifierPrefix, externalRuntimeConfig) {
     idPrefix: idPrefix,
     nextFormID: 0,
     streamingFormat: streamingFormat,
+    bootstrapScriptContent: bootstrapScriptContent,
+    bootstrapScripts: bootstrapScripts,
+    bootstrapModules: bootstrapModules,
     instructions: NothingSent,
     hasBody: false,
     hasHtml: false,
@@ -2062,6 +2071,12 @@ function resetResumableState(resumableState, renderState) {
   resumableState.scriptResources = {};
   resumableState.moduleUnknownResources = {};
   resumableState.moduleScriptResources = {};
+}
+function completeResumableState(resumableState) {
+  // This function is called when we have completed a prerender and there is a shell.
+  resumableState.bootstrapScriptContent = undefined;
+  resumableState.bootstrapScripts = undefined;
+  resumableState.bootstrapModules = undefined;
 } // Constants for the insertion mode we're currently writing in. We don't encode all HTML5 insertion
 // modes. We only include the variants as they matter for the sake of our purposes.
 // We don't actually provide the namespace therefore we use constants instead of the string.
@@ -6546,6 +6561,9 @@ function emitEarlyPreloads(renderState, resumableState, shellComplete) {
     var headers = renderState.headers;
 
     if (headers) {
+      // Even if onHeaders throws we don't want to call this again so
+      // we drop the headers state from this point onwards.
+      renderState.headers = null;
       var linkHeader = headers.preconnects;
 
       if (headers.fontPreloads) {
@@ -6616,7 +6634,6 @@ function emitEarlyPreloads(renderState, resumableState, shellComplete) {
         onHeaders({});
       }
 
-      renderState.headers = null;
       return;
     }
   }
@@ -6893,6 +6910,18 @@ var componentFrameCache;
   var PossiblyWeakMap = typeof WeakMap === 'function' ? WeakMap : Map;
   componentFrameCache = new PossiblyWeakMap();
 }
+/**
+ * Leverages native browser/VM stack frames to get proper details (e.g.
+ * filename, line + col number) for a single component in a component stack. We
+ * do this by:
+ *   (1) throwing and catching an error in the function - this will be our
+ *       control error.
+ *   (2) calling the component which will eventually throw an error that we'll
+ *       catch - this will be our sample error.
+ *   (3) diffing the control and sample error stacks to find the stack frame
+ *       which represents our component.
+ */
+
 
 function describeNativeComponentFrame(fn, construct) {
   // If something asked for a stack inside a fake render, it should get ignored.
@@ -6908,7 +6937,6 @@ function describeNativeComponentFrame(fn, construct) {
     }
   }
 
-  var control;
   reentry = true;
   var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe[incompatible-type] It does accept undefined.
 
@@ -6922,81 +6950,140 @@ function describeNativeComponentFrame(fn, construct) {
     ReactCurrentDispatcher$1.current = null;
     disableLogs();
   }
+  /**
+   * Finding a common stack frame between sample and control errors can be
+   * tricky given the different types and levels of stack trace truncation from
+   * different JS VMs. So instead we'll attempt to control what that common
+   * frame should be through this object method:
+   * Having both the sample and control errors be in the function under the
+   * `DescribeNativeComponentFrameRoot` property, + setting the `name` and
+   * `displayName` properties of the function ensures that a stack
+   * frame exists that has the method name `DescribeNativeComponentFrameRoot` in
+   * it for both control and sample stacks.
+   */
+
+
+  var RunInRootFrame = {
+    DetermineComponentFrameRoot: function () {
+      var control;
+
+      try {
+        // This should throw.
+        if (construct) {
+          // Something should be setting the props in the constructor.
+          var Fake = function () {
+            throw Error();
+          }; // $FlowFixMe[prop-missing]
+
+
+          Object.defineProperty(Fake.prototype, 'props', {
+            set: function () {
+              // We use a throwing setter instead of frozen or non-writable props
+              // because that won't throw in a non-strict mode function.
+              throw Error();
+            }
+          });
+
+          if (typeof Reflect === 'object' && Reflect.construct) {
+            // We construct a different control for this case to include any extra
+            // frames added by the construct call.
+            try {
+              Reflect.construct(Fake, []);
+            } catch (x) {
+              control = x;
+            }
+
+            Reflect.construct(fn, [], Fake);
+          } else {
+            try {
+              Fake.call();
+            } catch (x) {
+              control = x;
+            } // $FlowFixMe[prop-missing] found when upgrading Flow
+
+
+            fn.call(Fake.prototype);
+          }
+        } else {
+          try {
+            throw Error();
+          } catch (x) {
+            control = x;
+          } // TODO(luna): This will currently only throw if the function component
+          // tries to access React/ReactDOM/props. We should probably make this throw
+          // in simple components too
+
+
+          var maybePromise = fn(); // If the function component returns a promise, it's likely an async
+          // component, which we don't yet support. Attach a noop catch handler to
+          // silence the error.
+          // TODO: Implement component stacks for async client components?
+
+          if (maybePromise && typeof maybePromise.catch === 'function') {
+            maybePromise.catch(function () {});
+          }
+        }
+      } catch (sample) {
+        // This is inlined manually because closure doesn't do it for us.
+        if (sample && control && typeof sample.stack === 'string') {
+          return [sample.stack, control.stack];
+        }
+      }
+
+      return [null, null];
+    }
+  }; // $FlowFixMe[prop-missing]
+
+  RunInRootFrame.DetermineComponentFrameRoot.displayName = 'DetermineComponentFrameRoot';
+  var namePropDescriptor = Object.getOwnPropertyDescriptor(RunInRootFrame.DetermineComponentFrameRoot, 'name'); // Before ES6, the `name` property was not configurable.
+
+  if (namePropDescriptor && namePropDescriptor.configurable) {
+    // V8 utilizes a function's `name` property when generating a stack trace.
+    Object.defineProperty(RunInRootFrame.DetermineComponentFrameRoot, // Configurable properties can be updated even if its writable descriptor
+    // is set to `false`.
+    // $FlowFixMe[cannot-write]
+    'name', {
+      value: 'DetermineComponentFrameRoot'
+    });
+  }
 
   try {
-    // This should throw.
-    if (construct) {
-      // Something should be setting the props in the constructor.
-      var Fake = function () {
-        throw Error();
-      }; // $FlowFixMe[prop-missing]
+    var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(),
+        sampleStack = _RunInRootFrame$Deter[0],
+        controlStack = _RunInRootFrame$Deter[1];
 
-
-      Object.defineProperty(Fake.prototype, 'props', {
-        set: function () {
-          // We use a throwing setter instead of frozen or non-writable props
-          // because that won't throw in a non-strict mode function.
-          throw Error();
-        }
-      });
-
-      if (typeof Reflect === 'object' && Reflect.construct) {
-        // We construct a different control for this case to include any extra
-        // frames added by the construct call.
-        try {
-          Reflect.construct(Fake, []);
-        } catch (x) {
-          control = x;
-        }
-
-        Reflect.construct(fn, [], Fake);
-      } else {
-        try {
-          Fake.call();
-        } catch (x) {
-          control = x;
-        } // $FlowFixMe[prop-missing] found when upgrading Flow
-
-
-        fn.call(Fake.prototype);
-      }
-    } else {
-      try {
-        throw Error();
-      } catch (x) {
-        control = x;
-      } // TODO(luna): This will currently only throw if the function component
-      // tries to access React/ReactDOM/props. We should probably make this throw
-      // in simple components too
-
-
-      var maybePromise = fn(); // If the function component returns a promise, it's likely an async
-      // component, which we don't yet support. Attach a noop catch handler to
-      // silence the error.
-      // TODO: Implement component stacks for async client components?
-
-      if (maybePromise && typeof maybePromise.catch === 'function') {
-        maybePromise.catch(function () {});
-      }
-    }
-  } catch (sample) {
-    // This is inlined manually because closure doesn't do it for us.
-    if (sample && control && typeof sample.stack === 'string') {
+    if (sampleStack && controlStack) {
       // This extracts the first frame from the sample that isn't also in the control.
       // Skipping one frame that we assume is the frame that calls the two.
-      var sampleLines = sample.stack.split('\n');
-      var controlLines = control.stack.split('\n');
-      var s = sampleLines.length - 1;
-      var c = controlLines.length - 1;
+      var sampleLines = sampleStack.split('\n');
+      var controlLines = controlStack.split('\n');
+      var s = 0;
+      var c = 0;
 
-      while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
-        // We expect at least one stack frame to be shared.
-        // Typically this will be the root most one. However, stack frames may be
-        // cut off due to maximum stack limits. In this case, one maybe cut off
-        // earlier than the other. We assume that the sample is longer or the same
-        // and there for cut off earlier. So we should find the root most frame in
-        // the sample somewhere in the control.
-        c--;
+      while (s < sampleLines.length && !sampleLines[s].includes('DetermineComponentFrameRoot')) {
+        s++;
+      }
+
+      while (c < controlLines.length && !controlLines[c].includes('DetermineComponentFrameRoot')) {
+        c++;
+      } // We couldn't find our intentionally injected common root frame, attempt
+      // to find another common root frame by search from the bottom of the
+      // control stack...
+
+
+      if (s === sampleLines.length || c === controlLines.length) {
+        s = sampleLines.length - 1;
+        c = controlLines.length - 1;
+
+        while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
+          // We expect at least one stack frame to be shared.
+          // Typically this will be the root most one. However, stack frames may be
+          // cut off due to maximum stack limits. In this case, one maybe cut off
+          // earlier than the other. We assume that the sample is longer or the same
+          // and there for cut off earlier. So we should find the root most frame in
+          // the sample somewhere in the control.
+          c--;
+        }
       }
 
       for (; s >= 1 && c >= 0; s--, c--) {
@@ -7025,7 +7112,7 @@ function describeNativeComponentFrame(fn, construct) {
                   _frame = _frame.replace('<anonymous>', fn.displayName);
                 }
 
-                {
+                if (true) {
                   if (typeof fn === 'function') {
                     componentFrameCache.set(fn, _frame);
                   }
@@ -10530,11 +10617,19 @@ function trackPostpone(request, trackedPostpones, task, segment) {
     var children = [];
 
     if (boundaryKeyPath === keyPath && task.childIndex === -1) {
-      // Since we postponed directly in the Suspense boundary we can't have written anything
-      // to its segment. Therefore this will end up becoming the root segment.
-      segment.id = boundary.rootSegmentID; // We postponed directly inside the Suspense boundary so we mark this for resuming.
+      // Assign ID
+      if (segment.id === -1) {
+        if (segment.parentFlushed) {
+          // If this segment's parent was already flushed, it means we really just
+          // skipped the parent and this segment is now the root.
+          segment.id = boundary.rootSegmentID;
+        } else {
+          segment.id = request.nextSegmentId++;
+        }
+      } // We postponed directly inside the Suspense boundary so we mark this for resuming.
 
-      var boundaryNode = [boundaryKeyPath[1], boundaryKeyPath[2], children, boundary.rootSegmentID, fallbackReplayNode, boundary.rootSegmentID];
+
+      var boundaryNode = [boundaryKeyPath[1], boundaryKeyPath[2], children, segment.id, fallbackReplayNode, boundary.rootSegmentID];
       trackedPostpones.workingMap.set(boundaryKeyPath, boundaryNode);
       addToReplayParent(boundaryNode, boundaryKeyPath[0], trackedPostpones);
       return;
@@ -11074,6 +11169,15 @@ function abortTask(task, request, error) {
   if (request.allPendingTasks === 0) {
     completeAll(request);
   }
+}
+
+function safelyEmitEarlyPreloads(request, shellComplete) {
+  try {
+    emitEarlyPreloads(request.renderState, request.resumableState, shellComplete);
+  } catch (error) {
+    // We assume preloads are optimistic and thus non-fatal if errored.
+    logRecoverableError(request, error);
+  }
 } // I extracted this function out because we want to ensure we consistently emit preloads before
 // transitioning to the next request stage and this transition can happen in multiple places in this
 // implementation.
@@ -11087,7 +11191,7 @@ function completeShell(request) {
     // we should only be calling completeShell when the shell is complete so we
     // just use a literal here
     var shellComplete = true;
-    emitEarlyPreloads(request.renderState, request.resumableState, shellComplete);
+    safelyEmitEarlyPreloads(request, shellComplete);
   } // We have completed the shell so the shell can't error anymore.
 
 
@@ -11107,13 +11211,13 @@ function completeAll(request) {
   var shellComplete = request.trackedPostpones === null ? // Render, we assume it is completed
   true : // Prerender Request, we use the state of the root segment
   request.completedRootSegment === null || request.completedRootSegment.status !== POSTPONED;
-  emitEarlyPreloads(request.renderState, request.resumableState, shellComplete);
+  safelyEmitEarlyPreloads(request, shellComplete);
   var onAllReady = request.onAllReady;
   onAllReady();
 }
 
 function queueCompletedSegment(boundary, segment) {
-  if (segment.chunks.length === 0 && segment.children.length === 1 && segment.children[0].boundary === null) {
+  if (segment.chunks.length === 0 && segment.children.length === 1 && segment.children[0].boundary === null && segment.children[0].id === -1) {
     // This is an empty segment. There's nothing to write, so we can instead transfer the ID
     // to the child. That way any existing references point to the child.
     var childSegment = segment.children[0];
@@ -11841,7 +11945,7 @@ function startWork(request) {
 
 function enqueueEarlyPreloadsAfterInitialWork(request) {
   var shellComplete = request.pendingRootTasks === 0;
-  emitEarlyPreloads(request.renderState, request.resumableState, shellComplete);
+  safelyEmitEarlyPreloads(request, shellComplete);
 }
 
 function enqueueFlush(request) {
@@ -11955,6 +12059,8 @@ function getPostponedState(request) {
   if (request.completedRootSegment !== null && request.completedRootSegment.status === POSTPONED) {
     // We postponed the root so we didn't flush anything.
     resetResumableState(request.resumableState, request.renderState);
+  } else {
+    completeResumableState(request.resumableState);
   }
 
   return {
@@ -12012,8 +12118,8 @@ function renderToReadableStream(children, options) {
       };
     }
 
-    var resumableState = createResumableState(options ? options.identifierPrefix : undefined, options ? options.unstable_externalRuntimeSrc : undefined);
-    var request = createRequest(children, resumableState, createRenderState(resumableState, options ? options.nonce : undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined, options ? options.importMap : undefined, onHeadersImpl, options ? options.maxHeadersLength : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, onShellReady, onShellError, onFatalError, options ? options.onPostpone : undefined, options ? options.formState : undefined);
+    var resumableState = createResumableState(options ? options.identifierPrefix : undefined, options ? options.unstable_externalRuntimeSrc : undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined);
+    var request = createRequest(children, resumableState, createRenderState(resumableState, options ? options.nonce : undefined, options ? options.unstable_externalRuntimeSrc : undefined, options ? options.importMap : undefined, onHeadersImpl, options ? options.maxHeadersLength : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, onShellReady, onShellError, onFatalError, options ? options.onPostpone : undefined, options ? options.formState : undefined);
 
     if (options && options.signal) {
       var signal = options.signal;
@@ -12125,9 +12231,9 @@ function prerender(children, options) {
       };
     }
 
-    var resources = createResumableState(options ? options.identifierPrefix : undefined, options ? options.unstable_externalRuntimeSrc : undefined);
+    var resources = createResumableState(options ? options.identifierPrefix : undefined, options ? options.unstable_externalRuntimeSrc : undefined, options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined);
     var request = createPrerenderRequest(children, resources, createRenderState(resources, undefined, // nonce is not compatible with prerendered bootstrap scripts
-    options ? options.bootstrapScriptContent : undefined, options ? options.bootstrapScripts : undefined, options ? options.bootstrapModules : undefined, options ? options.unstable_externalRuntimeSrc : undefined, options ? options.importMap : undefined, onHeadersImpl, options ? options.maxHeadersLength : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, undefined, undefined, onFatalError, options ? options.onPostpone : undefined);
+    options ? options.unstable_externalRuntimeSrc : undefined, options ? options.importMap : undefined, onHeadersImpl, options ? options.maxHeadersLength : undefined), createRootFormatContext(options ? options.namespaceURI : undefined), options ? options.progressiveChunkSize : undefined, options ? options.onError : undefined, onAllReady, undefined, undefined, onFatalError, options ? options.onPostpone : undefined);
 
     if (options && options.signal) {
       var signal = options.signal;

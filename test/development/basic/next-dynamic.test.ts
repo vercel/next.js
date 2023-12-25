@@ -199,6 +199,25 @@ describe.each([
                 }
               }
             })
+
+            it('should import and render the ESM module correctly on client side', async () => {
+              let browser
+              try {
+                browser = await webdriver(
+                  next.url,
+                  basePath + '/dynamic/no-ssr-esm'
+                )
+                await check(
+                  () => browser.elementByCss('body').text(),
+                  /esm.mjs/
+                )
+                expect(await hasRedbox(browser, false)).toBe(false)
+              } finally {
+                if (browser) {
+                  await browser.close()
+                }
+              }
+            })
           })
 
           describe('ssr:true option', () => {

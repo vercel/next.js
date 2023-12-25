@@ -1,12 +1,20 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   'ppr',
   {
     files: __dirname,
-    skipDeployment: true,
   },
   ({ next, isNextDev, isNextStart }) => {
+    it('should indicate the feature is experimental', async () => {
+      await check(() => {
+        return next.cliOutput.includes('Experiments (use at your own risk)') &&
+          next.cliOutput.includes('ppr')
+          ? 'success'
+          : 'fail'
+      }, 'success')
+    })
     if (isNextStart) {
       describe('build output', () => {
         it('correctly marks pages as being partially prerendered in the build output', () => {
@@ -60,21 +68,6 @@ createNextDescribe(
         it('should not have the dynamic part', async () => {
           const $ = await next.render$(pathname)
           expect($('#container > #dynamic > #state').length).toBe(0)
-        })
-      }
-
-      if (!isNextDev) {
-        it('should cache the static part', async () => {
-          // First, render the page to populate the cache.
-          let res = await next.fetch(pathname)
-          expect(res.status).toBe(200)
-          expect(res.headers.get('x-nextjs-postponed')).toBe('1')
-
-          // Then, render the page again.
-          res = await next.fetch(pathname)
-          expect(res.status).toBe(200)
-          expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
-          expect(res.headers.get('x-nextjs-postponed')).toBe('1')
         })
       }
     })
