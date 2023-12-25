@@ -10,13 +10,12 @@ export default function Layout(props) {
 
   return (
     <html lang={lang}>
-      <head />
       <body className="container">
         {props.children}
         <footer>
           <span>{t('common:powered')} </span>
           <a href="https://vercel.com" target="_blank" rel="noopener noreferrer">
-            ▲ vercel
+            ▲ Vercel
           </a>
           <span>&amp;</span>
           <a
