@@ -318,7 +318,7 @@ pub async fn get_next_server_import_map(
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
         }
-        ServerContextType::Middleware => {}
+        ServerContextType::Middleware | ServerContextType::Instrumentation => {}
     }
 
     insert_next_server_special_aliases(
@@ -388,7 +388,9 @@ pub async fn get_next_edge_import_map(
             "next/dist/shared/lib/dynamic" => "next/dist/esm/shared/lib/dynamic".to_string(),
             "next/dist/shared/lib/head" => "next/dist/esm/shared/lib/head".to_string(),
             "next/dist/shared/lib/image-external" => "next/dist/esm/shared/lib/image-external".to_string(),
-            "dist/server/og/image-response" => "next/dist/esm/server/og/image-response".to_string(),
+            "next/dist/server/og/image-response" => "next/dist/esm/server/og/image-response".to_string(),
+            // Alias built-in @vercel/og to edge bundle for edge runtime
+            "next/dist/compiled/@vercel/og/index.node.js" => "next/dist/compiled/@vercel/og/index.edge.js".to_string(),
         },
     );
 
@@ -428,7 +430,7 @@ pub async fn get_next_edge_import_map(
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
         }
-        ServerContextType::Middleware => {}
+        ServerContextType::Middleware | ServerContextType::Instrumentation => {}
     }
 
     insert_next_server_special_aliases(
@@ -562,7 +564,7 @@ async fn insert_next_server_special_aliases(
 
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
-        ServerContextType::Middleware => {}
+        ServerContextType::Middleware | ServerContextType::Instrumentation => {}
     }
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
@@ -584,7 +586,8 @@ async fn insert_next_server_special_aliases(
         // TODO: should include `ServerContextType::PagesApi` routes, but that type doesn't exist.
         ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware => {
+        | ServerContextType::Middleware
+        | ServerContextType::Instrumentation => {
             insert_exact_alias_map(
                 import_map,
                 project_path,

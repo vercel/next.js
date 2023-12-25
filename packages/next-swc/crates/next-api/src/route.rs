@@ -39,9 +39,6 @@ pub enum WrittenEndpoint {
         server_paths: Vec<ServerPath>,
     },
     Edge {
-        /// Relative to the root_path
-        files: Vec<String>,
-        global_var_name: String,
         server_paths: Vec<ServerPath>,
     },
 }

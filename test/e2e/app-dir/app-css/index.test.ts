@@ -306,6 +306,11 @@ createNextDescribe(
               `window.getComputedStyle(document.querySelector('h1')).color`
             )
           ).toBe('rgb(255, 0, 0)')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h2')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
         })
       })
 
@@ -319,6 +324,11 @@ createNextDescribe(
           expect(
             await browser.eval(
               `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h2')).color`
             )
           ).toBe('rgb(255, 0, 0)')
 
@@ -336,6 +346,11 @@ createNextDescribe(
             expect(
               await browser.eval(
                 `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h2')).color`
               )
             ).toBe('rgb(255, 0, 0)')
           } finally {

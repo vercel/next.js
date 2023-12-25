@@ -198,11 +198,12 @@ export default class DevServer extends Server {
     const { pagesDir, appDir } = findPagesDir(this.dir)
 
     const ensurer: RouteEnsurer = {
-      ensure: async (match) => {
+      ensure: async (match, pathname) => {
         await this.ensurePage({
           definition: match.definition,
           page: match.definition.page,
           clientOnly: false,
+          url: pathname,
         })
       },
     }
@@ -559,11 +560,12 @@ export default class DevServer extends Server {
     return this.hasPage(this.actualMiddlewareFile!)
   }
 
-  protected async ensureMiddleware() {
+  protected async ensureMiddleware(url: string) {
     return this.ensurePage({
       page: this.actualMiddlewareFile!,
       clientOnly: false,
       definition: undefined,
+      url,
     })
   }
 
@@ -597,15 +599,18 @@ export default class DevServer extends Server {
   protected async ensureEdgeFunction({
     page,
     appPaths,
+    url,
   }: {
     page: string
     appPaths: string[] | null
+    url: string
   }) {
     return this.ensurePage({
       page,
       appPaths,
       clientOnly: false,
       definition: undefined,
+      url,
     })
   }
 
@@ -762,6 +767,7 @@ export default class DevServer extends Server {
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
+    url?: string
   }): Promise<void> {
     await this.bundlerService.ensurePage(opts)
   }
@@ -773,6 +779,7 @@ export default class DevServer extends Server {
     isAppPath,
     appPaths = null,
     shouldEnsure,
+    url,
   }: {
     page: string
     query: NextParsedUrlQuery
@@ -781,6 +788,7 @@ export default class DevServer extends Server {
     sriEnabled?: boolean
     appPaths?: ReadonlyArray<string> | null
     shouldEnsure: boolean
+    url?: string
   }): Promise<FindComponentsResult | null> {
     await this.ready?.promise
 
@@ -796,6 +804,7 @@ export default class DevServer extends Server {
           appPaths,
           clientOnly: false,
           definition: undefined,
+          url,
         })
       }
 
@@ -812,6 +821,7 @@ export default class DevServer extends Server {
         params,
         isAppPath,
         shouldEnsure,
+        url,
       })
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
@@ -821,8 +831,10 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
-    await this.bundlerService.getFallbackErrorComponents()
+  protected async getFallbackErrorComponents(
+    url?: string
+  ): Promise<LoadComponentsReturnType | null> {
+    await this.bundlerService.getFallbackErrorComponents(url)
     return await loadDefaultErrorComponents(this.distDir)
   }
 

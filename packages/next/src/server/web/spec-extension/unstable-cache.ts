@@ -1,11 +1,15 @@
-import { maybePostpone } from '../../../client/components/maybe-postpone'
 import type {
   StaticGenerationStore,
   StaticGenerationAsyncStorage,
 } from '../../../client/components/static-generation-async-storage.external'
+
 import { staticGenerationAsyncStorage as _staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
-import { addImplicitTags, validateTags } from '../../lib/patch-fetch'
+import {
+  addImplicitTags,
+  validateRevalidate,
+  validateTags,
+} from '../../lib/patch-fetch'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -30,14 +34,23 @@ export function unstable_cache<T extends Callback>(
     const store: undefined | StaticGenerationStore =
       staticGenerationAsyncStorage?.getStore()
 
-    if (store && typeof options.revalidate === 'number') {
+    if (store && typeof options.revalidate !== 'undefined') {
+      validateRevalidate(
+        options.revalidate,
+        `unstable_cache ${cb.name || cb.toString()}`
+      )
       // Revalidate 0 is a special case, it means opt-out of static generation.
       if (options.revalidate === 0) {
-        maybePostpone(store, 'revalidate: 0')
+        // If postpone is supported we should postpone the render.
+        store.postpone?.('revalidate: 0')
+
         // Set during dynamic rendering
         store.revalidate = 0
         // If revalidate was already set in the store before we should check if the new value is lower, set it to the lowest of the two.
-      } else if (typeof store.revalidate === 'number') {
+      } else if (
+        typeof store.revalidate === 'number' &&
+        typeof options.revalidate === 'number'
+      ) {
         if (store.revalidate > options.revalidate) {
           store.revalidate = options.revalidate
         }
@@ -75,9 +88,7 @@ export function unstable_cache<T extends Callback>(
         urlPathname: store?.urlPathname || '/',
         isUnstableCacheCallback: true,
         isStaticGeneration: store?.isStaticGeneration === true,
-        experimental: {
-          ppr: store?.experimental?.ppr === true,
-        },
+        postpone: store?.postpone,
       },
       async () => {
         const tags = validateTags(
@@ -166,12 +177,11 @@ export function unstable_cache<T extends Callback>(
             return invokeCallback()
           } else {
             if (!store.pendingRevalidates) {
-              store.pendingRevalidates = []
+              store.pendingRevalidates = {}
             }
-            store.pendingRevalidates.push(
-              invokeCallback().catch((err) =>
+            store.pendingRevalidates[joinedKey] = invokeCallback().catch(
+              (err) =>
                 console.error(`revalidating cache with key: ${joinedKey}`, err)
-              )
             )
           }
         }

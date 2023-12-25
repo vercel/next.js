@@ -1,3 +1,5 @@
+import path from 'path'
+import fs from 'fs'
 import stripAnsi from 'strip-ansi'
 import { check } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
@@ -42,7 +44,13 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next, isNextDev }) => {
-    function runTests({ withFetchesLogging }: { withFetchesLogging: boolean }) {
+    function runTests({
+      withFetchesLogging,
+      withFullUrlFetches = false,
+    }: {
+      withFetchesLogging: boolean
+      withFullUrlFetches?: boolean
+    }) {
       if (withFetchesLogging) {
         it('should only log requests in dev mode', async () => {
           const outputIndex = next.cliOutput.length
@@ -74,8 +82,9 @@ createNextDescribe(
                 log.url.includes('api/random?no-cache')
               )
 
-              // expend full url
-              expect(logs.every((log) => log.url.includes('..'))).toBe(false)
+              expect(logs.some((log) => log.url.includes('..'))).toBe(
+                !withFullUrlFetches
+              )
 
               if (logEntry?.cache === 'cache: no-cache') {
                 return 'success'
@@ -114,6 +123,24 @@ createNextDescribe(
               if (
                 logEntry?.cache === 'cache-control: no-cache (hard refresh)'
               ) {
+                return 'success'
+              }
+            }, 'success')
+          })
+
+          it('should log requests with correct indentation', async () => {
+            const outputIndex = next.cliOutput.length
+            await next.fetch('/default-cache')
+
+            await check(() => {
+              const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+              const hasLogs =
+                logs.includes(' GET /default-cache') &&
+                logs.includes('  │ GET ') &&
+                logs.includes('  │  │ GET ') &&
+                logs.includes('  │  │  Cache missed reason')
+
+              if (hasLogs) {
                 return 'success'
               }
             }, 'success')
@@ -166,8 +193,28 @@ createNextDescribe(
       }
     }
 
-    describe('with verbose logging', () => {
-      runTests({ withFetchesLogging: true })
+    describe('with fetches verbose logging', () => {
+      runTests({ withFetchesLogging: true, withFullUrlFetches: true })
+    })
+
+    describe('with fetches default logging', () => {
+      const curNextConfig = fs.readFileSync(
+        path.join(__dirname, 'next.config.js'),
+        { encoding: 'utf-8' }
+      )
+      beforeAll(async () => {
+        await next.stop()
+        await next.patchFile(
+          'next.config.js',
+          curNextConfig.replace('fullUrl: true', 'fullUrl: false')
+        )
+        await next.start()
+      })
+      afterAll(async () => {
+        await next.patchFile('next.config.js', curNextConfig)
+      })
+
+      runTests({ withFetchesLogging: true, withFullUrlFetches: false })
     })
 
     describe('with verbose logging for edge runtime', () => {
@@ -185,10 +232,17 @@ createNextDescribe(
     })
 
     describe('with default logging', () => {
+      const curNextConfig = fs.readFileSync(
+        path.join(__dirname, 'next.config.js'),
+        { encoding: 'utf-8' }
+      )
       beforeAll(async () => {
         await next.stop()
         await next.deleteFile('next.config.js')
         await next.start()
+      })
+      afterAll(async () => {
+        await next.patchFile('next.config.js', curNextConfig)
       })
 
       runTests({ withFetchesLogging: false })
