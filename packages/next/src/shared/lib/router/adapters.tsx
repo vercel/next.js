@@ -45,10 +45,8 @@ export function adaptForAppRouterInstance(
         unstable_noStoreTransition,
       })
     },
-    prefetch(
-      href: string,
-    ): void {
-      void router.prefetch(href, undefined)
+    prefetch(href: string): void {
+      void router.prefetch(href)
     },
   }
 }
