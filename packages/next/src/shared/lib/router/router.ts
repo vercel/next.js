@@ -386,7 +386,6 @@ export type PrefetchOptions = {
   priority?: boolean
   locale?: string | false
   unstable_skipClientCache?: boolean
-  unstable_noStoreTransition?: boolean
 }
 
 export type PrivateRouteInfo =

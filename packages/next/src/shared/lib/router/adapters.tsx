@@ -1,7 +1,6 @@
 import type {
   AppRouterInstance,
   NavigateOptions,
-  PrefetchOptions,
 } from '../app-router-context.shared-runtime'
 import type { Params } from './utils/route-matcher'
 import type { NextRouter } from './router'
@@ -48,9 +47,8 @@ export function adaptForAppRouterInstance(
     },
     prefetch(
       href: string,
-      { unstable_noStoreTransition }: PrefetchOptions
     ): void {
-      void router.prefetch(href, undefined, { unstable_noStoreTransition })
+      void router.prefetch(href, undefined)
     },
   }
 }

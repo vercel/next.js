@@ -103,7 +103,6 @@ export interface NavigateOptions {
 
 export interface PrefetchOptions {
   kind: PrefetchKind
-  unstable_noStoreTransition?: boolean
 }
 
 export interface AppRouterInstance {
