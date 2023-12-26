@@ -163,7 +163,6 @@ export interface PrefetchAction {
   type: typeof ACTION_PREFETCH
   url: URL
   kind: PrefetchKind
-  unstable_noStoreTransition?: boolean
 }
 
 export interface PushRef {

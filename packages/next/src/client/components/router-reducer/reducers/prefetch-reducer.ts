@@ -16,12 +16,6 @@ export function prefetchReducer(
   state: ReadonlyReducerState,
   action: PrefetchAction
 ): ReducerState {
-  if (action.unstable_noStoreTransition) {
-    throw new Error(
-      "Prefetching doesn't work with the `unstable_noStoreTransition` option"
-    )
-  }
-
   // let's prune the prefetch cache before we do anything else
   prunePrefetchCache(state.prefetchCache)
 

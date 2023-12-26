@@ -133,8 +133,15 @@ function prefetch(
   as: string,
   options: PrefetchOptions,
   appOptions: AppRouterPrefetchOptions,
-  isAppRouter: boolean
+  isAppRouter: boolean,
+  unstable_noStoreTransition?: boolean
 ): void {
+  if (unstable_noStoreTransition) {
+    throw new Error(
+      "Prefetching doesn't work with the `unstable_noStoreTransition` option"
+    )
+  }
+
   if (typeof window === 'undefined') {
     return
   }
@@ -583,9 +590,9 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         { locale },
         {
           kind: appPrefetchKind,
-          unstable_noStoreTransition,
         },
-        isAppRouter
+        isAppRouter,
+        unstable_noStoreTransition
       )
     }, [
       as,
@@ -686,9 +693,9 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           },
           {
             kind: appPrefetchKind,
-            unstable_noStoreTransition,
           },
-          isAppRouter
+          isAppRouter,
+          unstable_noStoreTransition
         )
       },
       onTouchStart(e) {
@@ -724,9 +731,9 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           },
           {
             kind: appPrefetchKind,
-            unstable_noStoreTransition,
           },
-          isAppRouter
+          isAppRouter,
+          unstable_noStoreTransition
         )
       },
     }

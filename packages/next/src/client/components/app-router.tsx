@@ -337,7 +337,6 @@ function Router({
             type: ACTION_PREFETCH,
             url,
             kind: options?.kind ?? PrefetchKind.FULL,
-            unstable_noStoreTransition: options?.unstable_noStoreTransition,
           })
         })
       },
