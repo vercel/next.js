@@ -250,7 +250,7 @@ export async function createComponentTree({
               {layerAssets}
               <RootLayoutComponent>
                 {notFoundStyles}
-                <NotFoundComponent />
+                <NotFoundComponent params={currentParams} />
               </RootLayoutComponent>
             </>
           }
@@ -327,7 +327,9 @@ export async function createComponentTree({
         const parallelRoute = parallelRoutes[parallelRouteKey]
 
         const notFoundComponent =
-          NotFound && isChildrenRouteKey ? <NotFound /> : undefined
+          NotFound && isChildrenRouteKey ? (
+            <NotFound params={currentParams} />
+          ) : undefined
 
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
@@ -486,7 +488,7 @@ export async function createComponentTree({
             <meta name="next-error" content="not-found" />
           )}
           {notFoundStyles}
-          <NotFound />
+          <NotFound params={currentParams} />
         </>
       ),
     }
