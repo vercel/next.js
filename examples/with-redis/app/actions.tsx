@@ -4,11 +4,15 @@ import { kv } from '@vercel/kv'
 import { revalidatePath } from 'next/cache'
 import { Feature } from './types'
 
-export async function saveFeature(feature: Feature) {
-  await kv.hset(`item:${feature.id}`, feature)
+export async function saveFeature(feature: Feature, formData: FormData) {
+  let newFeature = {
+    ...feature,
+    title: formData.get('feature') as string,
+  }
+  await kv.hset(`item:${newFeature.id}`, newFeature)
   await kv.zadd('items_by_score', {
-    score: Number(feature.score),
-    member: feature.id,
+    score: Number(newFeature.score),
+    member: newFeature.id,
   })
 
   revalidatePath('/')
