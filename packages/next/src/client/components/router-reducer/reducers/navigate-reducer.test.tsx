@@ -174,6 +174,7 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
+      unstable_noStoreTransition: false,
     }
 
     const newState = await navigateReducer(state, action)
@@ -368,6 +369,7 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
+      unstable_noStoreTransition: false,
     }
 
     const newState = await navigateReducer(state, action)
@@ -565,6 +567,7 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
+      unstable_noStoreTransition: false,
     }
 
     const newState = await navigateReducer(state, action)
@@ -702,6 +705,7 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'replace',
       shouldScroll: true,
+      unstable_noStoreTransition: false,
     }
 
     const newState = await navigateReducer(state, action)
@@ -836,6 +840,7 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: false, // should not scroll
+      unstable_noStoreTransition: false,
     }
 
     const newState = await navigateReducer(state, action)
@@ -1008,6 +1013,7 @@ describe('navigateReducer', () => {
       navigateType: 'push',
       locationSearch: '',
       shouldScroll: true,
+      unstable_noStoreTransition: false,
     }
 
     const newState = await navigateReducer(state, action)
@@ -1269,6 +1275,7 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
+      unstable_noStoreTransition: false,
     }
 
     const newState = await navigateReducer(state, action)
@@ -1628,6 +1635,7 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
+      unstable_noStoreTransition: false,
     }
 
     const newState = await navigateReducer(state, action)
