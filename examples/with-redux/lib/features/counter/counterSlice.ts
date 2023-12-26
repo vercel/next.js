@@ -1,6 +1,6 @@
-import type { PayloadAction } from '@reduxjs/toolkit'
-import { asyncThunkCreator, buildCreateSlice } from '@reduxjs/toolkit'
+import { createSliceWithThunks } from '@/lib/createSliceWithThunks'
 import type { AppThunk } from '@/lib/store'
+import type { PayloadAction } from '@reduxjs/toolkit'
 import { fetchCount } from './counterAPI'
 
 export interface CounterSliceState {
@@ -12,12 +12,6 @@ const initialState: CounterSliceState = {
   value: 0,
   status: 'idle',
 }
-
-// `buildCreateSlice` allows us to create a slice with async thunks.
-// `asyncThunkCreator` is the same thing as `createAsyncThunk`.
-const createSliceWithThunks = buildCreateSlice({
-  creators: { asyncThunk: asyncThunkCreator },
-})
 
 // If you are not using async thunks you can use the standalone `createSlice`.
 export const counterSlice = createSliceWithThunks({

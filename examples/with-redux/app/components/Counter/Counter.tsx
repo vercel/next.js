@@ -8,8 +8,8 @@ import {
   incrementAsync,
   incrementByAmount,
   incrementIfOdd,
-  selectStatus,
   selectCount,
+  selectStatus,
 } from '@/lib/features/counter/counterSlice'
 
 import { useAppDispatch, useAppSelector } from '@/lib/hooks'
