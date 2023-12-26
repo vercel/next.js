@@ -146,6 +146,7 @@
     "find-up": "4.1.0",
     "firebase": "7.14.5",
     "flat": "5.0.2",
+    "form-data": "4.0.0",
     "fs-extra": "9.0.0",
     "get-port": "5.1.1",
     "get-port-please": "3.1.1",

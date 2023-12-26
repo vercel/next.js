@@ -409,32 +409,48 @@ createNextDescribe(
       )
     })
 
-    it('should 404 when POSTing an invalid server action', async () => {
-      const res = await next.fetch('/non-existent-route', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-        },
-        body: 'foo=bar',
+    describe('invalid server actions', () => {
+      it('should 404 when POSTing a x-www-form-urlencoded to a non-existent route', async () => {
+        const res = await next.fetch('/non-existent-route', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/x-www-form-urlencoded',
+          },
+          body: 'foo=bar',
+        })
+
+        expect(res.status).toBe(404)
       })
 
-      expect(res.status).toBe(404)
-    })
+      it('should 404 when POSTing a multipart/form-data to a non-existent route', async () => {
+        // `form-data` must be used with `node-fetch` otherwise the content-type won't be properly
+        // set as multipart/form-data
+        const FormData = require('form-data') as typeof import('form-data')
+        const data = new FormData()
+        data.append('foo', 'bar')
+        const res = await next.fetch('/non-existent-route', {
+          method: 'POST',
+          body: data,
+        })
 
-    it('should log a warning when a server action is not found but an id is provided', async () => {
-      await next.fetch('/server', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-          'next-action': 'abc123',
-        },
-        body: 'foo=bar',
+        expect(res.status).toBe(404)
       })
 
-      await check(
-        () => next.cliOutput,
-        /Failed to find Server Action "abc123". This request might be from an older or newer deployment./
-      )
+      it('should log a warning when a server action is not found but an id is provided', async () => {
+        await next.fetch('/server', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/x-www-form-urlencoded',
+            'next-action': 'abc123',
+          },
+          body: 'foo=bar',
+        })
+
+        await check(
+          () => next.cliOutput,
+          /Failed to find Server Action "abc123". This request might be from an older or newer deployment./
+        )
+      })
     })
 
     if (isNextStart) {

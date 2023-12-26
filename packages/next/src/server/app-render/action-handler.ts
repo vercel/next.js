@@ -417,6 +417,11 @@ export async function handleAction({
             bound = await decodeReply(formData, serverModuleMap)
           } else {
             const action = await decodeAction(formData, serverModuleMap)
+            if (action === null) {
+              return {
+                type: 'not-found',
+              }
+            }
             const actionReturnedState = await action()
             formState = decodeFormState(actionReturnedState, formData)
 
@@ -495,6 +500,11 @@ export async function handleAction({
             })
             const formData = await fakeRequest.formData()
             const action = await decodeAction(formData, serverModuleMap)
+            if (action === null) {
+              return {
+                type: 'not-found',
+              }
+            }
             const actionReturnedState = await action()
             formState = await decodeFormState(actionReturnedState, formData)
 
