@@ -65,6 +65,7 @@ export class CacheHandler {
 export class IncrementalCache implements IncrementalCacheType {
   dev?: boolean
   cacheHandler?: CacheHandler
+  isFetchCacherPossible: boolean
   prerenderManifest: PrerenderManifest
   requestHeaders: Record<string, undefined | string | string[]>
   requestProtocol?: 'http' | 'https'
@@ -112,6 +113,8 @@ export class IncrementalCache implements IncrementalCacheType {
     experimental: { ppr: boolean }
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
+    this.isFetchCacherPossible =
+      !CurCacheHandler || CurCacheHandler instanceof FetchCache
     if (!CurCacheHandler) {
       if (fs && serverDistDir) {
         if (debug) {
@@ -556,7 +559,11 @@ export class IncrementalCache implements IncrementalCacheType {
 
     if (this.dev && !ctx.fetchCache) return
     // fetchCache has upper limit of 2MB per-entry currently
-    if (ctx.fetchCache && JSON.stringify(data).length > 2 * 1024 * 1024) {
+    if (
+      ctx.fetchCache &&
+      this.isFetchCacherPossible &&
+      JSON.stringify(data).length > 2 * 1024 * 1024
+    ) {
       if (this.dev) {
         throw new Error(`fetch for over 2MB of data can not be cached`)
       }
