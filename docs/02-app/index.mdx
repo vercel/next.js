@@ -15,7 +15,7 @@ You intentionally cannot access the raw request object. However, you can access 
 
 [Layouts](/docs/app/building-your-application/routing/pages-and-layouts#layouts) do not rerender. They can be cached and reused to avoid unnecessary computation when navigating between pages. By restricting layouts from accessing the raw request, Next.js can prevent the execution of potentially slow or expensive user code within the layout, which could negatively impact performance.
 
-This design also enforces consistent and predictable behavior for layouts across different pages, simplify development and debugging since developers can rely on layouts behaving the same way regardless of the specific page they are applied to.
+This design also enforces consistent and predictable behavior for layouts across different pages, which simplifies development and debugging.
 
 Depending on the UI pattern you're building, [Parallel Routes](/docs/app/building-your-application/routing/parallel-routes) allow you to render multiple pages in the same layout, and pages have access to the route segments as well as the URL search params.
 
