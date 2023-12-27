@@ -111,6 +111,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/build/normalize-catchall-routes.test.ts": {
+    "passed": [
+      "normalizeCatchallRoutes should add the catch-all route to all matched paths at the root",
+      "normalizeCatchallRoutes should add the catch-all route to all matched paths when nested",
+      "normalizeCatchallRoutes should not add the catch-all to the interception route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/build/webpack/loaders/metadata/resolve-route-data.test.ts": {
     "passed": [
       "resolveRouteData resolveRobots should error with ts when specify both wildcard userAgent and specific userAgent",
@@ -2470,6 +2481,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-esm-js/index.test.ts": {
+    "passed": [
+      "app-dir - esm js extension should be able to render nextjs api in app router",
+      "app-dir - esm js extension should be able to use nextjs api in pages router"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-external/app-external.test.ts": {
     "passed": [
       "app dir - external dependency mixed syntax external modules should handle mixed module in server and client components",
@@ -2478,13 +2499,13 @@
       "app dir - external dependency react in external esm packages should use the same react in edge server app",
       "app dir - external dependency react in external esm packages should use the same react in pages",
       "app dir - external dependency react in external esm packages should use the same react in server app",
+      "app dir - external dependency server actions should not prefer to resolve esm over cjs for bundling optout packages",
       "app dir - external dependency should correctly collect global css imports and mark them as side effects",
       "app dir - external dependency should export client module references in esm",
       "app dir - external dependency should handle external async module libraries correctly",
       "app dir - external dependency should handle external css modules",
       "app dir - external dependency should handle external css modules in pages",
       "app dir - external dependency should handle external next/font",
-      "app dir - external dependency should not prefer to resolve esm over cjs for bundling optout packages",
       "app dir - external dependency should resolve 3rd party package exports based on the react-server condition",
       "app dir - external dependency should resolve the subset react in server components based on the react-server condition",
       "app dir - external dependency should support exporting multiple star re-exports",
@@ -2493,9 +2514,9 @@
       "app dir - external dependency should use the same export type for packages in both ssr and client"
     ],
     "failed": [
+      "app dir - external dependency server actions should compile server actions from node_modules in client components",
       "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components",
-      "app dir - external dependency should have proper tree-shaking for known modules in CJS",
-      "app dir - external dependency server actions should compile server actions from node_modules in client components"
+      "app dir - external dependency should have proper tree-shaking for known modules in CJS"
     ],
     "pending": [],
     "flakey": [],
@@ -2505,6 +2526,18 @@
     "passed": [
       "app-fetch-deduping during next dev should dedupe pending revalidation requests",
       "app-fetch-deduping during next dev should dedupe requests called from the same component"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-invalid-revalidate/app-invalid-revalidate.test.ts": {
+    "passed": [
+      "app-invalid-revalidate should error properly for invalid revalidate at layout",
+      "app-invalid-revalidate should error properly for invalid revalidate at page",
+      "app-invalid-revalidate should error properly for invalid revalidate on fetch",
+      "app-invalid-revalidate should error properly for invalid revalidate on unstable_cache"
     ],
     "failed": [],
     "pending": [],
@@ -3099,6 +3132,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/conflicting-page-segments/conflicting-page-segments.test.ts": {
+    "passed": [],
+    "failed": [
+      "conflicting-page-segments should throw an error when a route groups causes a conflict with a parallel segment"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/create-root-layout/create-root-layout.test.ts": {
     "passed": [],
     "failed": [
@@ -3394,6 +3436,37 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/interception-route-groups/interception-route-groups.test.ts": {
+    "passed": [
+      "interception route groups (no default) should use the default fallback (a 404) if there is no custom default page"
+    ],
+    "failed": [
+      "interception route groups (with default) should render the root default when a route group doesn't have a default",
+      "interception route groups (with default) should work when nested a level deeper"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/interception-route-prefetch-cache/interception-route-prefetch-cache.test.ts": {
+    "passed": [
+      "interception-route-prefetch-cache should render the correct interception when two distinct layouts share the same path structure"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/interception-routes-root-catchall/interception-routes-root-catchall.test.ts": {
+    "passed": [
+      "interception-routes-root-catchall should handle non-intercepted catch-all pages",
+      "interception-routes-root-catchall should support having a root catch-all and a catch-all in a parallel route group"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/interoperability-with-pages/navigation.test.ts": {
     "passed": [
       "navigation between pages and app dir It should be able to navigate app -> pages",
@@ -3634,6 +3707,7 @@
       "app dir - navigation query string should not reset shallow url updates on prefetch",
       "app dir - navigation query string should set query correctly",
       "app dir - navigation query string useParams identity between renders should be stable in app",
+      "app dir - navigation query string useParams identity between renders should be stable in pages",
       "app dir - navigation redirect components should redirect client-side",
       "app dir - navigation redirect components should redirect in a client component",
       "app dir - navigation redirect components should redirect in a server component",
@@ -3652,9 +3726,7 @@
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries",
       "app dir - navigation scroll restoration should restore original scroll position when navigating back"
     ],
-    "failed": [
-      "app dir - navigation query string useParams identity between renders should be stable in pages"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3814,6 +3886,7 @@
   "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
     "passed": [
       "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
+      "parallel-routes-and-interception parallel routes should gracefully handle when two page segments match the `children` parallel slot",
       "parallel-routes-and-interception parallel routes should match parallel routes",
       "parallel-routes-and-interception parallel routes should match parallel routes in route groups",
       "parallel-routes-and-interception parallel routes should navigate with a link with prefetch=false",
@@ -3837,8 +3910,29 @@
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
     ],
     "failed": [
-      "parallel-routes-and-interception parallel routes Should match the catch-all routes of the more specific path, If there is more than one catch-all route",
-      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found"
+      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
+      "parallel-routes-and-interception parallel routes should match the catch-all routes of the more specific path, if there is more than one catch-all route"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-catchall-groups/parallel-routes-catchall-groups.test.ts": {
+    "passed": [
+      "parallel-routes-catchall-groups should work without throwing any errors about conflicting paths"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-catchall/parallel-routes-catchall.test.ts": {
+    "passed": [],
+    "failed": [
+      "parallel-routes-catchall should match both the catch-all page & slot",
+      "parallel-routes-catchall should match correctly when defining an explicit page & slot",
+      "parallel-routes-catchall should match correctly when defining an explicit page but no slot",
+      "parallel-routes-catchall should match correctly when defining an explicit slot but no page"
     ],
     "pending": [],
     "flakey": [],
@@ -4115,6 +4209,7 @@
     "passed": [
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling taint",
+      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
       "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",
       "app dir - rsc basics should correctly render component returning undefined",
@@ -4584,13 +4679,14 @@
     "runtimeError": false
   },
   "test/e2e/edge-can-use-wasm-files/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "edge api endpoints can use wasm files uses the wasm file",
       "middleware can use wasm files can be called twice",
-      "middleware can use wasm files lists the necessary wasm bindings in the manifest",
       "middleware can use wasm files uses the wasm file",
       "middleware can use wasm files with the experimental modes on uses the wasm file"
+    ],
+    "failed": [
+      "middleware can use wasm files lists the necessary wasm bindings in the manifest"
     ],
     "pending": [],
     "flakey": [],
@@ -8547,19 +8643,20 @@
     "runtimeError": false
   },
   "test/integration/edge-runtime-dynamic-code/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Edge route usage of dynamic code evaluation dev mode does not show a warning when running WebAssembly.instantiate with a module parameter",
       "Edge route usage of dynamic code evaluation dev mode does not show warning when no code uses eval",
+      "Middleware usage of dynamic code evaluation dev mode does not show a warning when running WebAssembly.instantiate with a module parameter",
+      "Middleware usage of dynamic code evaluation dev mode does not show warning when no code uses eval",
+      "Page using eval in dev mode does issue dynamic code evaluation warnings"
+    ],
+    "failed": [
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.compile",
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running code with eval",
-      "Middleware usage of dynamic code evaluation dev mode does not show a warning when running WebAssembly.instantiate with a module parameter",
-      "Middleware usage of dynamic code evaluation dev mode does not show warning when no code uses eval",
       "Middleware usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.compile",
       "Middleware usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
-      "Middleware usage of dynamic code evaluation dev mode shows a warning when running code with eval",
-      "Page using eval in dev mode does issue dynamic code evaluation warnings"
+      "Middleware usage of dynamic code evaluation dev mode shows a warning when running code with eval"
     ],
     "pending": [
       "Edge route usage of dynamic code evaluation production mode should have middleware warning during build",
