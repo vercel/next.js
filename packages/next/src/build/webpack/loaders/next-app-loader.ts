@@ -6,7 +6,7 @@ import path from 'path'
 import { stringify } from 'querystring'
 import { bold } from '../../../lib/picocolors'
 import { getModuleBuildInfo } from './get-module-build-info'
-import { verifyRootLayout } from '../../../lib/verifyRootLayout'
+import { verifyRootLayout } from '../../../lib/verify-root-layout'
 import * as Log from '../../output/log'
 import { APP_DIR_ALIAS, WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import {
@@ -23,7 +23,13 @@ import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
 import { isAppBuiltinNotFoundPage } from '../../utils'
 import { loadEntrypoint } from '../../load-entrypoint'
-import { isGroupSegment } from '../../../shared/lib/segment'
+import {
+  isGroupSegment,
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
+import { getFilesInDir } from '../../../lib/get-files-in-dir'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 
 export type AppLoaderOptions = {
   name: string
@@ -56,6 +62,8 @@ const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
 const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
+const defaultGlobalErrorPath = 'next/dist/client/components/error-boundary'
+const defaultLayoutPath = 'next/dist/client/components/default-layout'
 
 type DirResolver = (pathToResolve: string) => string
 type PathResolver = (
@@ -176,9 +184,9 @@ async function createTreeCodeFromPath(
   treeCode: string
   pages: string
   rootLayout: string | undefined
-  globalError: string | undefined
+  globalError: string
 }> {
-  const splittedPath = pagePath.split(/[\\/]/)
+  const splittedPath = pagePath.split(/[\\/]/, 1)
   const isNotFoundRoute = page === '/_not-found'
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
@@ -188,7 +196,7 @@ async function createTreeCodeFromPath(
   const pages: string[] = []
 
   let rootLayout: string | undefined
-  let globalError: string | undefined
+  let globalError: string = defaultGlobalErrorPath
 
   async function resolveAdjacentParallelSegments(
     segmentPath: string
@@ -271,7 +279,9 @@ async function createTreeCodeFromPath(
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-        props[normalizeParallelKey(parallelKey)] = `['__PAGE__', {}, {
+        props[
+          normalizeParallelKey(parallelKey)
+        ] = `['${PAGE_SEGMENT_KEY}', {}, {
           page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
           )}), ${JSON.stringify(resolvedPagePath)}],
@@ -345,14 +355,17 @@ async function createTreeCodeFromPath(
         rootLayout = layoutPath
 
         if (isDefaultNotFound && !layoutPath) {
-          rootLayout = 'next/dist/client/components/default-layout'
+          rootLayout = defaultLayoutPath
           definedFilePaths.push(['layout', rootLayout])
         }
 
         if (layoutPath) {
-          globalError = await resolver(
+          const resolvedGlobalErrorPath = await resolver(
             `${path.dirname(layoutPath)}/${GLOBAL_ERROR_FILE_TYPE}`
           )
+          if (resolvedGlobalErrorPath) {
+            globalError = resolvedGlobalErrorPath
+          }
         }
       }
 
@@ -373,7 +386,7 @@ async function createTreeCodeFromPath(
           definedFilePaths.find(([type]) => type === 'not-found')?.[1] ??
           defaultNotFoundPath
         subtreeCode = `{
-          children: ['__PAGE__', {}, {
+          children: ['${PAGE_SEGMENT_KEY}', {}, {
             page: [
               () => import(/* webpackMode: "eager" */ ${JSON.stringify(
                 notFoundPath
@@ -410,13 +423,27 @@ async function createTreeCodeFromPath(
       if (!props[normalizeParallelKey(adjacentParallelSegment)]) {
         const actualSegment =
           adjacentParallelSegment === 'children' ? '' : adjacentParallelSegment
-        const defaultPath =
-          (await resolver(
-            `${appDirPrefix}${segmentPath}/${actualSegment}/default`
-          )) ?? 'next/dist/client/components/parallel-route-default'
+        const fallbackDefault =
+          'next/dist/client/components/parallel-route-default'
+        let defaultPath = await resolver(
+          `${appDirPrefix}${segmentPath}/${actualSegment}/default`
+        )
+
+        if (!defaultPath) {
+          // no default was found at this segment. Check if the normalized segment resolves a default
+          // for example: /(level1)/(level2)/default doesn't exist, but /default does
+          const normalizedDefault = await resolver(
+            `${appDirPrefix}${normalizeAppPath(
+              segmentPath
+            )}/${actualSegment}/default`
+          )
+
+          // if a default is found, use that. Otherwise use the fallback, which will trigger a `notFound()`
+          defaultPath = normalizedDefault ?? fallbackDefault
+        }
 
         props[normalizeParallelKey(adjacentParallelSegment)] = `[
-          '__DEFAULT__',
+          '${DEFAULT_SEGMENT_KEY}',
           {},
           {
             defaultPage: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
@@ -519,12 +546,27 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
           continue
         }
 
-        // avoid clobbering existing page segments
-        // if it's a valid parallel segment, the `children` property will be set appropriately
         if (existingChildrenPath && matched.children !== rest[0]) {
-          throw new Error(
-            `You cannot have two parallel pages that resolve to the same path. Please check ${existingChildrenPath} and ${appPath}. Refer to the route group docs for more information: https://nextjs.org/docs/app/building-your-application/routing/route-groups`
-          )
+          // If we get here, it means we already set a `page` segment earlier in the loop,
+          // meaning we already matched a page to the `children` parallel segment.
+          const isIncomingParallelPage = appPath.includes('@')
+          const hasCurrentParallelPage = existingChildrenPath.includes('@')
+
+          if (isIncomingParallelPage) {
+            // The duplicate segment was for a parallel slot. In this case,
+            // rather than throwing an error, we can ignore it since this can happen for valid reasons.
+            // For example, when we attempt to normalize catch-all routes, we'll push potential slot matches so
+            // that they are available in the loader tree when we go to render the page.
+            // We only need to throw an error if the duplicate segment was for a regular page.
+            // For example, /app/(groupa)/page & /app/(groupb)/page is an error since it corresponds
+            // with the same path.
+            continue
+          } else if (!hasCurrentParallelPage && !isIncomingParallelPage) {
+            // Both the current `children` and the incoming `children` are regular pages.
+            throw new Error(
+              `You cannot have two parallel pages that resolve to the same path. Please check ${existingChildrenPath} and ${appPath}. Refer to the route group docs for more information: https://nextjs.org/docs/app/building-your-application/routing/route-groups`
+            )
+          }
         }
 
         existingChildrenPath = appPath
@@ -553,13 +595,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       return existingFiles.has(fileName)
     }
     try {
-      const files = await fs.readdir(dirname, { withFileTypes: true })
-      const fileNames = new Set<string>()
-      for (const file of files) {
-        if (file.isFile()) {
-          fileNames.add(file.name)
-        }
-      }
+      const files = await getFilesInDir(dirname)
+      const fileNames = new Set<string>(files)
       filesInDir.set(dirname, fileNames)
       return fileNames.has(fileName)
     } catch (err) {
@@ -698,9 +735,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     {
       VAR_DEFINITION_PAGE: page,
       VAR_DEFINITION_PATHNAME: pathname,
-      VAR_MODULE_GLOBAL_ERROR: treeCodeResult.globalError
-        ? treeCodeResult.globalError
-        : 'next/dist/client/components/error-boundary',
+      VAR_MODULE_GLOBAL_ERROR: treeCodeResult.globalError,
       VAR_ORIGINAL_PATHNAME: page,
     },
     {

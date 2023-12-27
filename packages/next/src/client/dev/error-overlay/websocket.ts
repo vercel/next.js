@@ -71,7 +71,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
     }`
 
     if (assetPrefix.startsWith('http')) {
-      url = `${protocol}://${assetPrefix.split('://')[1]}`
+      url = `${protocol}://${assetPrefix.split('://', 2)[1]}`
     }
 
     source = new window.WebSocket(`${url}${options.path}`)

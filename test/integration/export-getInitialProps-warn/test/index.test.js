@@ -1,16 +1,14 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { nextBuild, nextExport } from 'next-test-utils'
+import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const outdir = join(appDir, 'out')
 
 describe('Export with getInitialProps', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('should show warning with next export', async () => {
-      await nextBuild(appDir)
-      const { stderr } = await nextExport(appDir, { outdir }, { stderr: true })
+      const { stderr } = await nextBuild(appDir, [], { stderr: true })
       expect(stderr).toContain(
         'https://nextjs.org/docs/messages/get-initial-props-export'
       )

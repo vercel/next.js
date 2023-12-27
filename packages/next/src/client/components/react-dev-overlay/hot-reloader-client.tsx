@@ -240,9 +240,31 @@ function processMessage(
     }
   }
 
+  function handleHotUpdate() {
+    if (process.env.TURBOPACK) {
+      onFastRefresh(dispatcher, true)
+    } else {
+      tryApplyUpdates(
+        function onBeforeHotUpdate(hasUpdates: boolean) {
+          onBeforeFastRefresh(dispatcher, hasUpdates)
+        },
+        function onSuccessfulHotUpdate(hasUpdates: any) {
+          // Only dismiss it when we're sure it's a hot update.
+          // Otherwise it would flicker right before the reload.
+          onFastRefresh(dispatcher, hasUpdates)
+        },
+        sendMessage,
+        dispatcher
+      )
+    }
+  }
+
   switch (obj.action) {
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       console.log('[Fast Refresh] rebuilding')
+      break
+    }
+    case HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING: {
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
@@ -304,18 +326,7 @@ function processMessage(
 
         // Attempt to apply hot updates or reload.
         if (isHotUpdate) {
-          tryApplyUpdates(
-            function onBeforeHotUpdate(hasUpdates: boolean) {
-              onBeforeFastRefresh(dispatcher, hasUpdates)
-            },
-            function onSuccessfulHotUpdate(hasUpdates: any) {
-              // Only dismiss it when we're sure it's a hot update.
-              // Otherwise it would flicker right before the reload.
-              onFastRefresh(dispatcher, hasUpdates)
-            },
-            sendMessage,
-            dispatcher
-          )
+          handleHotUpdate()
         }
         return
       }
@@ -334,18 +345,7 @@ function processMessage(
 
       // Attempt to apply hot updates or reload.
       if (isHotUpdate) {
-        tryApplyUpdates(
-          function onBeforeHotUpdate(hasUpdates: boolean) {
-            onBeforeFastRefresh(dispatcher, hasUpdates)
-          },
-          function onSuccessfulHotUpdate(hasUpdates: any) {
-            // Only dismiss it when we're sure it's a hot update.
-            // Otherwise it would flicker right before the reload.
-            onFastRefresh(dispatcher, hasUpdates)
-          },
-          sendMessage,
-          dispatcher
-        )
+        handleHotUpdate()
       }
       return
     }
@@ -414,7 +414,6 @@ function processMessage(
       return
     }
     default: {
-      throw new Error('Unexpected action ' + JSON.stringify(obj))
     }
   }
 }

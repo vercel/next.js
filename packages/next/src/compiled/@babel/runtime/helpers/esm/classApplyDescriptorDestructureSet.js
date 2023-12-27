@@ -5,16 +5,13 @@ export default function _classApplyDescriptorDestructureSet(receiver, descriptor
         set value(v) {
           descriptor.set.call(receiver, v);
         }
-
       };
     }
-
     return descriptor.__destrObj;
   } else {
     if (!descriptor.writable) {
       throw new TypeError("attempted to set read only private field");
     }
-
     return descriptor;
   }
 }

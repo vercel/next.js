@@ -33,6 +33,17 @@ export type ManifestItem = {
 
 export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
+/**
+ * A manifest entry type for the react-loadable-manifest.json.
+ *
+ * The whole manifest.json is a type of `Record<pathName, LoadableManifest>`
+ * where pathName is a string-based key points to the path of the page contains
+ * each dynamic imports.
+ */
+export interface LoadableManifest {
+  [k: string]: { id: string | number; files: string[] }
+}
+
 export type LoadComponentsReturnType<NextModule = any> = {
   Component: NextComponentType
   pageConfig: PageConfig
@@ -75,11 +86,11 @@ async function loadClientReferenceManifest(
   manifestPath: string,
   entryName: string
 ): Promise<ClientReferenceManifest | undefined> {
-  process.env.NEXT_MINIMAL
-    ? // @ts-ignore
-      __non_webpack_require__(manifestPath)
-    : require(manifestPath)
   try {
+    process.env.NEXT_MINIMAL
+      ? // @ts-ignore
+        __non_webpack_require__(manifestPath)
+      : require(manifestPath)
     return (globalThis as any).__RSC_MANIFEST[
       entryName
     ] as ClientReferenceManifest

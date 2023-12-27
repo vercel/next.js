@@ -9,7 +9,7 @@ import { Media } from './collections/Media'
 
 const adapter = s3Adapter({
   config: {
-    endpoint: process.env.NEXT_PUBLIC_S3_ENDPOINT,
+    endpoint: `https://${process.env.NEXT_PUBLIC_S3_HOSTNAME}`,
     region: process.env.S3_REGION,
     forcePathStyle: true,
     credentials: {

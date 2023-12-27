@@ -4,7 +4,8 @@ pub(crate) mod client_reference_manifest;
 
 use std::collections::HashMap;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
 use crate::next_config::Rewrites;
 
@@ -28,6 +29,7 @@ pub struct BuildManifest {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase", tag = "version")]
+#[allow(clippy::large_enum_variant)]
 pub enum MiddlewaresManifest {
     #[serde(rename = "2")]
     MiddlewaresManifestV2(MiddlewaresManifestV2),
@@ -89,14 +91,29 @@ pub struct EdgeFunctionDefinition {
     pub name: String,
     pub page: String,
     pub matchers: Vec<MiddlewareMatcher>,
-    // TODO: AssetBinding[]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub wasm: Option<Vec<()>>,
-    // TODO: AssetBinding[]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub assets: Option<Vec<()>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub wasm: Vec<AssetBinding>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub assets: Vec<AssetBinding>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regions: Option<Regions>,
+}
+
+#[derive(Serialize, Default, Debug)]
+pub struct InstrumentationDefinition {
+    pub files: Vec<String>,
+    pub name: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub wasm: Vec<AssetBinding>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub assets: Vec<AssetBinding>,
+}
+
+#[derive(Serialize, Default, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetBinding {
+    pub name: String,
+    pub file_path: String,
 }
 
 #[derive(Serialize, Debug)]
@@ -110,6 +127,7 @@ pub enum Regions {
 pub struct MiddlewaresManifestV2 {
     pub sorted_middleware: Vec<String>,
     pub middleware: HashMap<String, EdgeFunctionDefinition>,
+    pub instrumentation: Option<InstrumentationDefinition>,
     pub functions: HashMap<String, EdgeFunctionDefinition>,
 }
 
@@ -145,6 +163,17 @@ pub struct AppPathsManifest {
     pub node_server_app_paths: PagesManifest,
 }
 
+// A struct represent a single entry in react-loadable-manifest.json.
+// The manifest is in a format of:
+// { [`${origin} -> ${imported}`]: { id: `${origin} -> ${imported}`, files:
+// string[] } }
+#[derive(Serialize, Default, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct LoadableManifest {
+    pub id: String,
+    pub files: Vec<String>,
+}
+
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerReferenceManifest {
@@ -172,7 +201,20 @@ pub enum ActionManifestWorkerEntry {
     Number(f64),
 }
 
-#[derive(Serialize, Debug)]
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    Hash,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    TaskInput,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+)]
 #[serde(rename_all = "camelCase")]
 pub enum ActionLayer {
     Rsc,
@@ -195,6 +237,9 @@ pub struct ClientReferenceManifest {
     /// Mapping of server component path to required CSS client chunks.
     #[serde(rename = "entryCSSFiles")]
     pub entry_css_files: HashMap<String, Vec<String>>,
+    /// Mapping of server component path to required JS client chunks.
+    #[serde(rename = "entryJSFiles")]
+    pub entry_js_files: HashMap<String, Vec<String>>,
 }
 
 #[derive(Serialize, Default, Debug)]
@@ -204,7 +249,7 @@ pub struct ModuleLoading {
     pub cross_origin: Option<String>,
 }
 
-#[derive(Serialize, Default, Debug)]
+#[derive(Serialize, Default, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ManifestNode {
     /// Mapping of export name to manifest node entry.
@@ -212,7 +257,7 @@ pub struct ManifestNode {
     pub module_exports: HashMap<String, ManifestNodeEntry>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ManifestNodeEntry {
     /// Turbopack module ID.
@@ -225,7 +270,7 @@ pub struct ManifestNodeEntry {
     pub r#async: bool,
 }
 
-#[derive(Serialize, Debug, Eq, PartialEq, Hash)]
+#[derive(Serialize, Debug, Eq, PartialEq, Hash, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum ModuleId {

@@ -3,7 +3,11 @@ import type {
   Segment,
 } from '../../../server/app-render/types'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/future/helpers/interception-routes'
-import { isGroupSegment } from '../../../shared/lib/segment'
+import {
+  isGroupSegment,
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 
 const removeLeadingSlash = (segment: string): string => {
@@ -39,12 +43,12 @@ export function extractPathFromFlightRouterState(
     : flightRouterState[0]
 
   if (
-    segment === '__DEFAULT__' ||
+    segment === DEFAULT_SEGMENT_KEY ||
     INTERCEPTION_ROUTE_MARKERS.some((m) => segment.startsWith(m))
   )
     return undefined
 
-  if (segment.startsWith('__PAGE__')) return ''
+  if (segment.startsWith(PAGE_SEGMENT_KEY)) return ''
 
   const segments = [segment]
   const parallelRoutes = flightRouterState[1] ?? {}

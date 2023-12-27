@@ -16,16 +16,17 @@ import {
   nextBuild,
   nextStart,
   fetchViaHTTP,
+  File,
   renderViaHTTP,
   getBrowserBodyText,
   waitFor,
   normalizeRegEx,
-  nextExport,
   hasRedbox,
   check,
 } from 'next-test-utils'
 
 let appDir = join(__dirname, '..')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 const nextConfigPath = join(appDir, 'next.config.js')
 let externalServerHits = new Set()
 let nextConfigRestoreContent
@@ -2556,9 +2557,12 @@ const runTests = (isDev = false) => {
         rsc: {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
+          didPostponeHeader: 'x-nextjs-postponed',
           varyHeader:
             'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
           prefetchHeader: 'Next-Router-Prefetch',
+          prefetchSuffix: '.prefetch.rsc',
+          suffix: '.rsc',
         },
       })
     })
@@ -2707,71 +2711,6 @@ describe('Custom routes', () => {
         `rewrites, redirects, and headers are not applied when exporting your application detected`
       )
     })
-
-    it('should not show warning for experimental has usage', async () => {
-      expect(stderr).not.toContain(
-        "'has' route field support is still experimental and not covered by semver, use at your own risk."
-      )
-    })
-  })
-
-  describe('export', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
-      'production mode',
-      () => {
-        let exportStderr = ''
-        let exportVercelStderr = ''
-
-        beforeAll(async () => {
-          const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
-            appDir,
-            ['-d'],
-            {
-              stdout: true,
-              stderr: true,
-            }
-          )
-          const exportResult = await nextExport(
-            appDir,
-            { outdir: join(appDir, 'out') },
-            { stderr: true }
-          )
-          const exportVercelResult = await nextExport(
-            appDir,
-            { outdir: join(appDir, 'out') },
-            {
-              stderr: true,
-              env: {
-                NOW_BUILDER: '1',
-              },
-            }
-          )
-
-          stdout = buildStdout
-          stderr = buildStderr
-          exportStderr = exportResult.stderr
-          exportVercelStderr = exportVercelResult.stderr
-        })
-
-        it('should not show warning for custom routes when not next export', async () => {
-          expect(stderr).not.toContain(
-            `rewrites, redirects, and headers are not applied when exporting your application detected`
-          )
-        })
-
-        it('should not show warning for custom routes when next export on Vercel', async () => {
-          expect(exportVercelStderr).not.toContain(
-            `rewrites, redirects, and headers are not applied when exporting your application detected`
-          )
-        })
-
-        it('should show warning for custom routes with next export', async () => {
-          expect(exportStderr).toContain(
-            `rewrites, redirects, and headers are not applied when exporting your application, detected (rewrites, redirects, headers)`
-          )
-        })
-      }
-    )
   })
 
   describe('should load custom routes when only one type is used', () => {
@@ -2878,5 +2817,31 @@ describe('Custom routes', () => {
         runSoloTests()
       }
     )
+  })
+})
+
+describe('export', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      nextConfig.replace('// REPLACEME', `output: 'export',`)
+      const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
+        appDir,
+        ['-d'],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      stdout = buildStdout
+      stderr = buildStderr
+    })
+    afterAll(() => nextConfig.restore())
+
+    it('should not show warning for custom routes when not next export', async () => {
+      expect(stderr).not.toContain(
+        `rewrites, redirects, and headers are not applied when exporting your application detected`
+      )
+    })
   })
 })

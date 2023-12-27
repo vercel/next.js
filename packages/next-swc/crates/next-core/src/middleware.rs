@@ -36,7 +36,9 @@ pub async fn get_middleware_module(
         project_root,
         indexmap! {
             "VAR_USERLAND" => INNER.to_string(),
+            "VAR_DEFINITION_PAGE" => "/middleware".to_string(),
         },
+        indexmap! {},
         indexmap! {},
     )
     .await?;
@@ -45,10 +47,12 @@ pub async fn get_middleware_module(
         INNER.to_string() => userland_module
     };
 
-    let module = context.process(
-        source,
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    );
+    let module = context
+        .process(
+            source,
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
 
     Ok(module)
 }

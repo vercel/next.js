@@ -68,7 +68,7 @@ impl Fold for OptimizeServerReact {
             new_items.push(item.clone().fold_with(self));
 
             if let ModuleItem::ModuleDecl(ModuleDecl::Import(import_decl)) = &item {
-                if import_decl.src.value.to_string() != "react" {
+                if import_decl.src.value != "react" {
                     continue;
                 }
                 for specifier in &import_decl.specifiers {
@@ -119,9 +119,7 @@ impl Fold for OptimizeServerReact {
                         if &f.to_id() == react_ident {
                             if let MemberProp::Ident(i) = &member.prop {
                                 // Remove `React.useEffect` and `React.useLayoutEffect` calls
-                                if i.sym.to_string() == "useEffect"
-                                    || i.sym.to_string() == "useLayoutEffect"
-                                {
+                                if i.sym == "useEffect" || i.sym == "useLayoutEffect" {
                                     return Expr::Lit(Lit::Null(Null { span: DUMMY_SP }));
                                 }
                             }
@@ -131,76 +129,67 @@ impl Fold for OptimizeServerReact {
             }
         }
 
-        expr
+        expr.fold_children_with(self)
     }
 
     // const [state, setState] = useState(x);
     // const [state, setState] = React.useState(x);
-    fn fold_var_declarators(&mut self, d: Vec<VarDeclarator>) -> Vec<VarDeclarator> {
+    fn fold_var_declarator(&mut self, decl: VarDeclarator) -> VarDeclarator {
         if !self.optimize_use_state {
-            return d;
+            return decl;
         }
 
-        let mut new_d = vec![];
-        for decl in d {
-            if let Pat::Array(array_pat) = &decl.name {
-                if array_pat.elems.len() == 2 {
-                    if let (Some(array_pat_1), Some(array_pat_2)) =
-                        (&array_pat.elems[0], &array_pat.elems[1])
-                    {
-                        if let Some(box Expr::Call(call)) = &decl.init {
-                            if let Callee::Expr(box Expr::Ident(f)) = &call.callee {
-                                if let Some(use_state_ident) = &self.use_state_ident {
-                                    if &f.to_id() == use_state_ident && call.args.len() == 1 {
-                                        // We do the optimization only if the arg is a literal or a
-                                        // type that we can
-                                        // be sure is not a function (e.g. {} or [] lit).
-                                        // This is because useState allows a function as the
-                                        // initialiser.
-                                        match &call.args[0].expr {
-                                            box Expr::Lit(_)
-                                            | box Expr::Object(_)
-                                            | box Expr::Array(_) => {
-                                                // const state = x, setState = () => {};
-                                                new_d.push(VarDeclarator {
-                                                    definite: false,
-                                                    name: array_pat_1.clone(),
-                                                    init: Some(call.args[0].expr.clone()),
-                                                    span: DUMMY_SP,
-                                                });
-                                                new_d.push(VarDeclarator {
-                                                    definite: false,
-                                                    name: array_pat_2.clone(),
-                                                    init: Some(Box::new(Expr::Arrow(ArrowExpr {
-                                                        body: Box::new(BlockStmtOrExpr::Expr(
-                                                            Box::new(Expr::Lit(Lit::Null(Null {
-                                                                span: DUMMY_SP,
-                                                            }))),
-                                                        )),
-                                                        params: vec![],
-                                                        is_async: false,
-                                                        is_generator: false,
-                                                        span: DUMMY_SP,
-                                                        type_params: None,
-                                                        return_type: None,
-                                                    }))),
-                                                    span: DUMMY_SP,
-                                                });
-                                                continue;
-                                            }
-                                            _ => {}
-                                        }
+        if let Pat::Array(array_pat) = &decl.name {
+            if array_pat.elems.len() == 2 {
+                if let Some(box Expr::Call(call)) = &decl.init {
+                    if let Callee::Expr(box Expr::Ident(f)) = &call.callee {
+                        if let Some(use_state_ident) = &self.use_state_ident {
+                            if &f.to_id() == use_state_ident && call.args.len() == 1 {
+                                // We do the optimization only if the arg is a literal or a
+                                // type that we can
+                                // be sure is not a function (e.g. {} or [] lit).
+                                // This is because useState allows a function as the
+                                // initialiser.
+                                match &call.args[0].expr {
+                                    box Expr::Lit(_) | box Expr::Object(_) | box Expr::Array(_) => {
+                                        // const [state, setState] = [x, () => {}];
+                                        return VarDeclarator {
+                                            definite: false,
+                                            name: decl.name.clone(),
+                                            init: Some(Box::new(Expr::Array(ArrayLit {
+                                                elems: vec![
+                                                    Some(call.args[0].expr.clone().into()),
+                                                    Some(
+                                                        Expr::Arrow(ArrowExpr {
+                                                            span: DUMMY_SP,
+                                                            body: Box::new(BlockStmtOrExpr::Expr(
+                                                                Box::new(Expr::Lit(Lit::Null(
+                                                                    Null { span: DUMMY_SP },
+                                                                ))),
+                                                            )),
+                                                            is_async: false,
+                                                            is_generator: false,
+                                                            params: vec![],
+                                                            return_type: None,
+                                                            type_params: None,
+                                                        })
+                                                        .into(),
+                                                    ),
+                                                ],
+                                                span: DUMMY_SP,
+                                            }))),
+                                            span: DUMMY_SP,
+                                        };
                                     }
+                                    _ => {}
                                 }
                             }
                         }
                     }
                 }
             }
-
-            new_d.push(decl.fold_with(self));
         }
 
-        new_d
+        decl.fold_children_with(self)
     }
 }

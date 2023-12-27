@@ -1,10 +1,19 @@
 import type { RenderOpts } from './types'
 import type { FlightResponseRef } from './flight-response-ref'
 import type { AppPageModule } from '../future/route-modules/app-page/module'
+import type { createErrorHandler } from './create-error-handler'
 
 import React, { use } from 'react'
-import type { createErrorHandler } from './create-error-handler'
 import { useFlightResponse } from './use-flight-response'
+
+export type ServerComponentRendererOptions = {
+  ComponentMod: AppPageModule
+  inlinedDataTransformStream: TransformStream<Uint8Array, Uint8Array>
+  clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
+  formState: null | any
+  serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>
+  nonce?: string
+}
 
 /**
  * Create a component that renders the Flight stream.
@@ -12,22 +21,14 @@ import { useFlightResponse } from './use-flight-response'
  */
 export function createServerComponentRenderer<Props>(
   ComponentToRender: (props: Props) => any,
-  ComponentMod: AppPageModule,
   {
+    ComponentMod,
     inlinedDataTransformStream,
     clientReferenceManifest,
-    serverContexts,
     formState,
-  }: {
-    inlinedDataTransformStream: TransformStream<Uint8Array, Uint8Array>
-    clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
-    serverContexts: Array<
-      [ServerContextName: string, JSONValue: Object | number | string]
-    >
-    formState: null | any
-  },
-  serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>,
-  nonce?: string
+    nonce,
+    serverComponentsErrorHandler,
+  }: ServerComponentRendererOptions
 ): (props: Props) => JSX.Element {
   let flightStream: ReadableStream<Uint8Array>
   const createFlightStream = (props: Props) => {
@@ -36,7 +37,6 @@ export function createServerComponentRenderer<Props>(
         <ComponentToRender {...(props as any)} />,
         clientReferenceManifest.clientModules,
         {
-          context: serverContexts,
           onError: serverComponentsErrorHandler,
         }
       )

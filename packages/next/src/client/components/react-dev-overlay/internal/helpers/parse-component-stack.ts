@@ -26,7 +26,7 @@ export function parseComponentStack(
         /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
         ''
       )
-      const [file, lineNumber, column] = modulePath?.split(':') ?? []
+      const [file, lineNumber, column] = modulePath?.split(':', 3) ?? []
 
       componentStackFrames.push({
         component,

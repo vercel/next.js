@@ -520,45 +520,51 @@ describe.each([[''], ['/docs']])(
         }
       })
 
-      it('should show the error on all pages', async () => {
-        const aboutPage = join('pages', 'hmr', 'about2.js')
-        const aboutContent = await next.readFile(aboutPage)
-        let browser
-        try {
-          await renderViaHTTP(next.url, basePath + '/hmr/about2')
+      if (!process.env.TURBOPACK) {
+        // Turbopack doesn't have this restriction
+        it('should show the error on all pages', async () => {
+          const aboutPage = join('pages', 'hmr', 'about2.js')
+          const aboutContent = await next.readFile(aboutPage)
+          let browser
+          try {
+            await renderViaHTTP(next.url, basePath + '/hmr/about2')
 
-          await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
+            await next.patchFile(
+              aboutPage,
+              aboutContent.replace('</div>', 'div')
+            )
 
-          // Ensure dev server has time to break:
-          await new Promise((resolve) => setTimeout(resolve, 2000))
+            // Ensure dev server has time to break:
+            await new Promise((resolve) => setTimeout(resolve, 2000))
 
-          browser = await webdriver(next.url, basePath + '/hmr/contact')
+            browser = await webdriver(next.url, basePath + '/hmr/contact')
 
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
+            expect(await hasRedbox(browser, true)).toBe(true)
+            expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
-          await next.patchFile(aboutPage, aboutContent)
+            await next.patchFile(aboutPage, aboutContent)
 
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the contact page/
-          )
-        } catch (err) {
-          await next.patchFile(aboutPage, aboutContent)
-          if (browser) {
             await check(
               () => getBrowserBodyText(browser),
               /This is the contact page/
             )
-          }
+          } catch (err) {
+            await next.patchFile(aboutPage, aboutContent)
+            if (browser) {
+              await check(
+                () => getBrowserBodyText(browser),
+                /This is the contact page/
+              )
+            }
 
-          throw err
-        } finally {
-          if (browser) {
-            await browser.close()
+            throw err
+          } finally {
+            if (browser) {
+              await browser.close()
+            }
           }
-        }
-      })
+        })
+      }
 
       it('should detect runtime errors on the module scope', async () => {
         let browser
@@ -662,7 +668,7 @@ describe.each([[''], ['/docs']])(
                       " 1 of 1 unhandled error
                       Server Error
 
-                      Error: The default export is not a React Component in page: \\"/hmr/about5\\"
+                      Error: The default export is not a React Component in page: "/hmr/about5"
 
                       This error happened while generating the page. Any console logs will be displayed in the terminal window."
                   `)
@@ -765,7 +771,7 @@ describe.each([[''], ['/docs']])(
                       " 1 of 1 unhandled error
                       Server Error
 
-                      Error: The default export is not a React Component in page: \\"/hmr/about7\\"
+                      Error: The default export is not a React Component in page: "/hmr/about7"
 
                       This error happened while generating the page. Any console logs will be displayed in the terminal window."
                   `)
@@ -1116,13 +1122,15 @@ describe.each([[''], ['/docs']])(
       })
     })
 
-    it('should have client HMR events in trace file', async () => {
-      const traceData = await next.readFile('.next/trace')
-      expect(traceData).toContain('client-hmr-latency')
-      expect(traceData).toContain('client-error')
-      expect(traceData).toContain('client-success')
-      expect(traceData).toContain('client-full-reload')
-    })
+    if (!process.env.TURBOPACK) {
+      it('should have client HMR events in trace file', async () => {
+        const traceData = await next.readFile('.next/trace')
+        expect(traceData).toContain('client-hmr-latency')
+        expect(traceData).toContain('client-error')
+        expect(traceData).toContain('client-success')
+        expect(traceData).toContain('client-full-reload')
+      })
+    }
 
     it('should have correct compile timing after fixing error', async () => {
       const pageName = 'pages/auto-export-is-ready.js'

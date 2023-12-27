@@ -22,32 +22,6 @@ var ReactCurrentDispatcher$1 = {
 };
 
 /**
- * Keeps track of the current Cache dispatcher.
- */
-var ReactCurrentCache = {
-  current: null
-};
-
-/**
- * Keeps track of the current batch's configuration such as how long an update
- * should suspend for if it needs to.
- */
-var ReactCurrentBatchConfig = {
-  transition: null
-};
-
-var ReactCurrentActQueue = {
-  current: null,
-  // Used to reproduce behavior of `batchedUpdates` in legacy mode.
-  isBatchingLegacy: false,
-  didScheduleLegacyUpdate: false,
-  // Tracks whether something called `use` during the current batch of work.
-  // Determines whether we should yield to microtasks to unwrap already resolved
-  // promises without suspending.
-  didUsePromise: false
-};
-
-/**
  * Keeps track of the current owner.
  *
  * The current owner is the component who should own any components that are
@@ -108,22 +82,19 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 
 var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
 
-var ContextRegistry$1 = {};
+var ContextRegistry = {};
 
 var ReactSharedInternals = {
   ReactCurrentDispatcher: ReactCurrentDispatcher$1,
-  ReactCurrentCache: ReactCurrentCache,
-  ReactCurrentBatchConfig: ReactCurrentBatchConfig,
   ReactCurrentOwner: ReactCurrentOwner
 };
 
 {
   ReactSharedInternals.ReactDebugCurrentFrame = ReactDebugCurrentFrame$1;
-  ReactSharedInternals.ReactCurrentActQueue = ReactCurrentActQueue;
 }
 
 {
-  ReactSharedInternals.ContextRegistry = ContextRegistry$1;
+  ReactSharedInternals.ContextRegistry = ContextRegistry;
 }
 
 // by calls to these methods by a Babel plugin.
@@ -180,6 +151,13 @@ function printWarning(level, format, args) {
 }
 
 var assign = Object.assign;
+
+/**
+ * Keeps track of the current Cache dispatcher.
+ */
+var ReactCurrentCache = {
+  current: null
+};
 
 function createFetchCache() {
   return new Map();
@@ -304,7 +282,126 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-experimental-d900fadbf-20230929';
+var TaintRegistryObjects$1 = new WeakMap();
+var TaintRegistryValues$1 = new Map(); // Byte lengths of all binary values we've ever seen. We don't both refcounting this.
+// We expect to see only a few lengths here such as the length of token.
+
+var TaintRegistryByteLengths$1 = new Set(); // When a value is finalized, it means that it has been removed from any global caches.
+// No future requests can get a handle on it but any ongoing requests can still have
+// a handle on it. It's still tainted until that happens.
+
+var TaintRegistryPendingRequests$1 = new Set();
+
+var ReactServerSharedInternals = {
+  ReactCurrentCache: ReactCurrentCache
+};
+
+{
+  ReactServerSharedInternals.TaintRegistryObjects = TaintRegistryObjects$1;
+  ReactServerSharedInternals.TaintRegistryValues = TaintRegistryValues$1;
+  ReactServerSharedInternals.TaintRegistryByteLengths = TaintRegistryByteLengths$1;
+  ReactServerSharedInternals.TaintRegistryPendingRequests = TaintRegistryPendingRequests$1;
+}
+
+var getPrototypeOf = Object.getPrototypeOf;
+
+// Turns a TypedArray or ArrayBuffer into a string that can be used for comparison
+// in a Map to see if the bytes are the same.
+function binaryToComparableString(view) {
+  return String.fromCharCode.apply(String, new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
+}
+
+var TaintRegistryObjects = ReactServerSharedInternals.TaintRegistryObjects,
+    TaintRegistryValues = ReactServerSharedInternals.TaintRegistryValues,
+    TaintRegistryByteLengths = ReactServerSharedInternals.TaintRegistryByteLengths,
+    TaintRegistryPendingRequests = ReactServerSharedInternals.TaintRegistryPendingRequests; // This is the shared constructor of all typed arrays.
+
+var TypedArrayConstructor = getPrototypeOf(Uint32Array.prototype).constructor;
+var defaultMessage = 'A tainted value was attempted to be serialized to a Client Component or Action closure. ' + 'This would leak it to the client.';
+
+function cleanup(entryValue) {
+  var entry = TaintRegistryValues.get(entryValue);
+
+  if (entry !== undefined) {
+    TaintRegistryPendingRequests.forEach(function (requestQueue) {
+      requestQueue.push(entryValue);
+      entry.count++;
+    });
+
+    if (entry.count === 1) {
+      TaintRegistryValues.delete(entryValue);
+    } else {
+      entry.count--;
+    }
+  }
+} // If FinalizationRegistry doesn't exist, we assume that objects life forever.
+// E.g. the whole VM is just the lifetime of a request.
+
+
+var finalizationRegistry = typeof FinalizationRegistry === 'function' ? new FinalizationRegistry(cleanup) : null;
+function taintUniqueValue(message, lifetime, value) {
+
+
+  message = '' + (message || defaultMessage);
+
+  if (lifetime === null || typeof lifetime !== 'object' && typeof lifetime !== 'function') {
+    throw new Error('To taint a value, a lifetime must be defined by passing an object that holds ' + 'the value.');
+  }
+
+  var entryValue;
+
+  if (typeof value === 'string' || typeof value === 'bigint') {
+    // Use as is.
+    entryValue = value;
+  } else if ((value instanceof TypedArrayConstructor || value instanceof DataView)) {
+    // For now, we just convert binary data to a string so that we can just use the native
+    // hashing in the Map implementation. It doesn't really matter what form the string
+    // take as long as it's the same when we look it up.
+    // We're not too worried about collisions since this should be a high entropy value.
+    TaintRegistryByteLengths.add(value.byteLength);
+    entryValue = binaryToComparableString(value);
+  } else {
+    var kind = value === null ? 'null' : typeof value;
+
+    if (kind === 'object' || kind === 'function') {
+      throw new Error('taintUniqueValue cannot taint objects or functions. Try taintObjectReference instead.');
+    }
+
+    throw new Error('Cannot taint a ' + kind + ' because the value is too general and not unique enough to block globally.');
+  }
+
+  var existingEntry = TaintRegistryValues.get(entryValue);
+
+  if (existingEntry === undefined) {
+    TaintRegistryValues.set(entryValue, {
+      message: message,
+      count: 1
+    });
+  } else {
+    existingEntry.count++;
+  }
+
+  if (finalizationRegistry !== null) {
+    finalizationRegistry.register(lifetime, entryValue);
+  }
+}
+function taintObjectReference(message, object) {
+
+
+  message = '' + (message || defaultMessage);
+
+  if (typeof object === 'string' || typeof object === 'bigint') {
+    throw new Error('Only objects or functions can be passed to taintObjectReference. Try taintUniqueValue instead.');
+  }
+
+  if (object === null || typeof object !== 'object' && typeof object !== 'function') {
+    throw new Error('Only objects or functions can be passed to taintObjectReference.');
+  }
+
+  TaintRegistryObjects.set(object, message);
+}
+
+var ReactVersion = '18.3.0-experimental-0cdfef19b-20231211';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -635,7 +732,7 @@ function testStringCoercion(value) {
 function checkKeyStringCoercion(value) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided key is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', typeName(value));
+      error('The provided key is an unsupported type %s.' + ' This value must be coerced to a string before using it here.', typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -1294,6 +1391,7 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
 
 function mapChildren(children, func, context) {
   if (children == null) {
+    // $FlowFixMe limitation refining abstract types in Flow
     return children;
   }
 
@@ -1930,6 +2028,18 @@ var componentFrameCache;
   var PossiblyWeakMap = typeof WeakMap === 'function' ? WeakMap : Map;
   componentFrameCache = new PossiblyWeakMap();
 }
+/**
+ * Leverages native browser/VM stack frames to get proper details (e.g.
+ * filename, line + col number) for a single component in a component stack. We
+ * do this by:
+ *   (1) throwing and catching an error in the function - this will be our
+ *       control error.
+ *   (2) calling the component which will eventually throw an error that we'll
+ *       catch - this will be our sample error.
+ *   (3) diffing the control and sample error stacks to find the stack frame
+ *       which represents our component.
+ */
+
 
 function describeNativeComponentFrame(fn, construct) {
   // If something asked for a stack inside a fake render, it should get ignored.
@@ -1945,7 +2055,6 @@ function describeNativeComponentFrame(fn, construct) {
     }
   }
 
-  var control;
   reentry = true;
   var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe[incompatible-type] It does accept undefined.
 
@@ -1959,81 +2068,140 @@ function describeNativeComponentFrame(fn, construct) {
     ReactCurrentDispatcher.current = null;
     disableLogs();
   }
+  /**
+   * Finding a common stack frame between sample and control errors can be
+   * tricky given the different types and levels of stack trace truncation from
+   * different JS VMs. So instead we'll attempt to control what that common
+   * frame should be through this object method:
+   * Having both the sample and control errors be in the function under the
+   * `DescribeNativeComponentFrameRoot` property, + setting the `name` and
+   * `displayName` properties of the function ensures that a stack
+   * frame exists that has the method name `DescribeNativeComponentFrameRoot` in
+   * it for both control and sample stacks.
+   */
+
+
+  var RunInRootFrame = {
+    DetermineComponentFrameRoot: function () {
+      var control;
+
+      try {
+        // This should throw.
+        if (construct) {
+          // Something should be setting the props in the constructor.
+          var Fake = function () {
+            throw Error();
+          }; // $FlowFixMe[prop-missing]
+
+
+          Object.defineProperty(Fake.prototype, 'props', {
+            set: function () {
+              // We use a throwing setter instead of frozen or non-writable props
+              // because that won't throw in a non-strict mode function.
+              throw Error();
+            }
+          });
+
+          if (typeof Reflect === 'object' && Reflect.construct) {
+            // We construct a different control for this case to include any extra
+            // frames added by the construct call.
+            try {
+              Reflect.construct(Fake, []);
+            } catch (x) {
+              control = x;
+            }
+
+            Reflect.construct(fn, [], Fake);
+          } else {
+            try {
+              Fake.call();
+            } catch (x) {
+              control = x;
+            } // $FlowFixMe[prop-missing] found when upgrading Flow
+
+
+            fn.call(Fake.prototype);
+          }
+        } else {
+          try {
+            throw Error();
+          } catch (x) {
+            control = x;
+          } // TODO(luna): This will currently only throw if the function component
+          // tries to access React/ReactDOM/props. We should probably make this throw
+          // in simple components too
+
+
+          var maybePromise = fn(); // If the function component returns a promise, it's likely an async
+          // component, which we don't yet support. Attach a noop catch handler to
+          // silence the error.
+          // TODO: Implement component stacks for async client components?
+
+          if (maybePromise && typeof maybePromise.catch === 'function') {
+            maybePromise.catch(function () {});
+          }
+        }
+      } catch (sample) {
+        // This is inlined manually because closure doesn't do it for us.
+        if (sample && control && typeof sample.stack === 'string') {
+          return [sample.stack, control.stack];
+        }
+      }
+
+      return [null, null];
+    }
+  }; // $FlowFixMe[prop-missing]
+
+  RunInRootFrame.DetermineComponentFrameRoot.displayName = 'DetermineComponentFrameRoot';
+  var namePropDescriptor = Object.getOwnPropertyDescriptor(RunInRootFrame.DetermineComponentFrameRoot, 'name'); // Before ES6, the `name` property was not configurable.
+
+  if (namePropDescriptor && namePropDescriptor.configurable) {
+    // V8 utilizes a function's `name` property when generating a stack trace.
+    Object.defineProperty(RunInRootFrame.DetermineComponentFrameRoot, // Configurable properties can be updated even if its writable descriptor
+    // is set to `false`.
+    // $FlowFixMe[cannot-write]
+    'name', {
+      value: 'DetermineComponentFrameRoot'
+    });
+  }
 
   try {
-    // This should throw.
-    if (construct) {
-      // Something should be setting the props in the constructor.
-      var Fake = function () {
-        throw Error();
-      }; // $FlowFixMe[prop-missing]
+    var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(),
+        sampleStack = _RunInRootFrame$Deter[0],
+        controlStack = _RunInRootFrame$Deter[1];
 
-
-      Object.defineProperty(Fake.prototype, 'props', {
-        set: function () {
-          // We use a throwing setter instead of frozen or non-writable props
-          // because that won't throw in a non-strict mode function.
-          throw Error();
-        }
-      });
-
-      if (typeof Reflect === 'object' && Reflect.construct) {
-        // We construct a different control for this case to include any extra
-        // frames added by the construct call.
-        try {
-          Reflect.construct(Fake, []);
-        } catch (x) {
-          control = x;
-        }
-
-        Reflect.construct(fn, [], Fake);
-      } else {
-        try {
-          Fake.call();
-        } catch (x) {
-          control = x;
-        } // $FlowFixMe[prop-missing] found when upgrading Flow
-
-
-        fn.call(Fake.prototype);
-      }
-    } else {
-      try {
-        throw Error();
-      } catch (x) {
-        control = x;
-      } // TODO(luna): This will currently only throw if the function component
-      // tries to access React/ReactDOM/props. We should probably make this throw
-      // in simple components too
-
-
-      var maybePromise = fn(); // If the function component returns a promise, it's likely an async
-      // component, which we don't yet support. Attach a noop catch handler to
-      // silence the error.
-      // TODO: Implement component stacks for async client components?
-
-      if (maybePromise && typeof maybePromise.catch === 'function') {
-        maybePromise.catch(function () {});
-      }
-    }
-  } catch (sample) {
-    // This is inlined manually because closure doesn't do it for us.
-    if (sample && control && typeof sample.stack === 'string') {
+    if (sampleStack && controlStack) {
       // This extracts the first frame from the sample that isn't also in the control.
       // Skipping one frame that we assume is the frame that calls the two.
-      var sampleLines = sample.stack.split('\n');
-      var controlLines = control.stack.split('\n');
-      var s = sampleLines.length - 1;
-      var c = controlLines.length - 1;
+      var sampleLines = sampleStack.split('\n');
+      var controlLines = controlStack.split('\n');
+      var s = 0;
+      var c = 0;
 
-      while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
-        // We expect at least one stack frame to be shared.
-        // Typically this will be the root most one. However, stack frames may be
-        // cut off due to maximum stack limits. In this case, one maybe cut off
-        // earlier than the other. We assume that the sample is longer or the same
-        // and there for cut off earlier. So we should find the root most frame in
-        // the sample somewhere in the control.
-        c--;
+      while (s < sampleLines.length && !sampleLines[s].includes('DetermineComponentFrameRoot')) {
+        s++;
+      }
+
+      while (c < controlLines.length && !controlLines[c].includes('DetermineComponentFrameRoot')) {
+        c++;
+      } // We couldn't find our intentionally injected common root frame, attempt
+      // to find another common root frame by search from the bottom of the
+      // control stack...
+
+
+      if (s === sampleLines.length || c === controlLines.length) {
+        s = sampleLines.length - 1;
+        c = controlLines.length - 1;
+
+        while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
+          // We expect at least one stack frame to be shared.
+          // Typically this will be the root most one. However, stack frames may be
+          // cut off due to maximum stack limits. In this case, one maybe cut off
+          // earlier than the other. We assume that the sample is longer or the same
+          // and there for cut off earlier. So we should find the root most frame in
+          // the sample somewhere in the control.
+          c--;
+        }
       }
 
       for (; s >= 1 && c >= 0; s--, c--) {
@@ -2062,7 +2230,7 @@ function describeNativeComponentFrame(fn, construct) {
                   _frame = _frame.replace('<anonymous>', fn.displayName);
                 }
 
-                {
+                if (true) {
                   if (typeof fn === 'function') {
                     componentFrameCache.set(fn, _frame);
                   }
@@ -2544,7 +2712,6 @@ function cloneElementWithValidation(element, props, children) {
   return newElement;
 }
 
-var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function createServerContext(globalName, defaultValue) {
 
   {
@@ -2619,6 +2786,14 @@ function createServerContext(globalName, defaultValue) {
   return context;
 }
 
+/**
+ * Keeps track of the current batch's configuration such as how long an update
+ * should suspend for if it needs to.
+ */
+var ReactCurrentBatchConfig = {
+  transition: null
+};
+
 function startTransition(scope, options) {
   var prevTransition = ReactCurrentBatchConfig.transition;
   ReactCurrentBatchConfig.transition = {};
@@ -2663,11 +2838,14 @@ exports.Profiler = REACT_PROFILER_TYPE;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
+exports.__SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactServerSharedInternals;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
 exports.createElement = createElement;
 exports.createRef = createRef;
 exports.createServerContext = createServerContext;
+exports.experimental_taintObjectReference = taintObjectReference;
+exports.experimental_taintUniqueValue = taintUniqueValue;
 exports.forwardRef = forwardRef;
 exports.isValidElement = isValidElement;
 exports.lazy = lazy;

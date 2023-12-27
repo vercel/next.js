@@ -8,7 +8,6 @@ use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
         core::{
-            compile_time_defines,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -18,7 +17,7 @@ use turbopack_binding::{
             resolve::{parse::Request, pattern::Pattern},
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
-        ecmascript::chunk::EcmascriptChunkingContext,
+        ecmascript::{chunk::EcmascriptChunkingContext, TreeShakingMode},
         node::execution_context::ExecutionContext,
         turbopack::{
             condition::ContextCondition,
@@ -64,40 +63,34 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-fn defines(mode: NextMode, define_env: &IndexMap<String, String>) -> CompileTimeDefines {
-    // Need the empty NEXT_RUNTIME here for compile time evaluation.
-    let mut defines = compile_time_defines!(
-        process.turbopack = true,
-        process.env.NEXT_RUNTIME = "",
-        process.env.NODE_ENV = mode.node_env(),
-        process.env.TURBOPACK = true,
-    );
+fn defines(define_env: &IndexMap<String, String>) -> CompileTimeDefines {
+    let mut defines = IndexMap::new();
 
     for (k, v) in define_env {
         defines
-            .0
-            .entry(k.split('.').map(|s| s.to_string()).collect())
-            .or_insert_with(|| CompileTimeDefineValue::JSON(v.clone()));
+            .entry(k.split('.').map(|s| s.to_string()).collect::<Vec<String>>())
+            .or_insert_with(|| {
+                let val = serde_json::from_str(v);
+                match val {
+                    Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
+                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v),
+                    _ => CompileTimeDefineValue::JSON(v.clone()),
+                }
+            });
     }
 
-    defines
+    CompileTimeDefines(defines)
 }
 
 #[turbo_tasks::function]
-async fn next_client_defines(
-    mode: NextMode,
-    define_env: Vc<EnvMap>,
-) -> Result<Vc<CompileTimeDefines>> {
-    Ok(defines(mode, &*define_env.await?).cell())
+async fn next_client_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefines>> {
+    Ok(defines(&*define_env.await?).cell())
 }
 
 #[turbo_tasks::function]
-async fn next_client_free_vars(
-    mode: NextMode,
-    define_env: Vc<EnvMap>,
-) -> Result<Vc<FreeVarReferences>> {
+async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(
-        ..defines(mode, &*define_env.await?).into_iter(),
+        ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "node:buffer".to_string(),
             lookup_path: None,
@@ -114,7 +107,6 @@ async fn next_client_free_vars(
 
 #[turbo_tasks::function]
 pub fn get_client_compile_time_info(
-    mode: NextMode,
     browserslist_query: String,
     define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
@@ -127,8 +119,8 @@ pub fn get_client_compile_time_info(
         }
         .into(),
     ))))
-    .defines(next_client_defines(mode, define_env))
-    .free_var_references(next_client_free_vars(mode, define_env))
+    .defines(next_client_defines(define_env))
+    .free_var_references(next_client_free_vars(define_env))
     .cell()
 }
 
@@ -171,6 +163,7 @@ pub async fn get_client_resolve_options_context(
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
+        enable_mjs_extension: true,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             module_options_context.clone().cell(),
@@ -245,12 +238,14 @@ pub async fn get_client_module_options_context(
         .cell()
     });
 
+    let use_lightningcss = *next_config.use_lightningcss().await?;
+
     let source_transforms = vec![
         *get_swc_ecma_transform_plugin(project_path, next_config).await?,
         *get_relay_transform_plugin(next_config).await?,
         *get_emotion_transform_plugin(next_config).await?,
         *get_styled_components_transform_plugin(next_config).await?,
-        *get_styled_jsx_transform_plugin().await?,
+        *get_styled_jsx_transform_plugin(use_lightningcss).await?,
     ]
     .into_iter()
     .flatten()
@@ -272,6 +267,7 @@ pub async fn get_client_module_options_context(
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         custom_ecma_transform_plugins,
+        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         ..Default::default()
     };
 
@@ -287,8 +283,8 @@ pub async fn get_client_module_options_context(
         // we try resolve it once at the root and pass down a context to all
         // the modules.
         enable_jsx: Some(jsx_runtime_options),
-        enable_postcss_transform: postcss_transform_options,
         enable_webpack_loaders,
+        enable_postcss_transform: postcss_transform_options,
         enable_typescript_transform: Some(tsconfig),
         enable_mdx_rs,
         decorators: Some(decorators_options),
@@ -310,6 +306,7 @@ pub async fn get_client_module_options_context(
             ),
         ],
         custom_rules,
+        use_lightningcss,
         ..module_options_context
     }
     .cell();

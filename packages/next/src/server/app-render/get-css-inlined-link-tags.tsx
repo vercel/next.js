@@ -3,28 +3,43 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 /**
  * Get external stylesheet link hrefs based on server CSS manifest.
  */
-export function getCssInlinedLinkTags(
+export function getLinkAndScriptTags(
   clientReferenceManifest: ClientReferenceManifest,
   filePath: string,
   injectedCSS: Set<string>,
-  collectNewCSSImports?: boolean
-): string[] {
+  injectedScripts: Set<string>,
+  collectNewImports?: boolean
+): { styles: string[]; scripts: string[] } {
   const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
-  const chunks = new Set<string>()
+  const cssChunks = new Set<string>()
+  const jsChunks = new Set<string>()
 
   const entryCSSFiles =
     clientReferenceManifest.entryCSSFiles[filePathWithoutExt]
+  const entryJSFiles =
+    clientReferenceManifest.entryJSFiles?.[filePathWithoutExt] ?? []
 
   if (entryCSSFiles) {
     for (const file of entryCSSFiles) {
       if (!injectedCSS.has(file)) {
-        if (collectNewCSSImports) {
+        if (collectNewImports) {
           injectedCSS.add(file)
         }
-        chunks.add(file)
+        cssChunks.add(file)
       }
     }
   }
 
-  return [...chunks]
+  if (entryJSFiles) {
+    for (const file of entryJSFiles) {
+      if (!injectedScripts.has(file)) {
+        if (collectNewImports) {
+          injectedScripts.add(file)
+        }
+        jsChunks.add(file)
+      }
+    }
+  }
+
+  return { styles: [...cssChunks], scripts: [...jsChunks] }
 }

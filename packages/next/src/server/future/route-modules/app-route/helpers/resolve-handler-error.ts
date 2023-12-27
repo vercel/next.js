@@ -1,8 +1,8 @@
-import { getRedirectStatusCodeFromError } from '../../../../../client/components/get-redirect-status-code-from-error'
 import { isNotFoundError } from '../../../../../client/components/not-found'
 import {
   getURLFromRedirectError,
   isRedirectError,
+  getRedirectStatusCodeFromError,
 } from '../../../../../client/components/redirect'
 import {
   handleNotFoundResponse,

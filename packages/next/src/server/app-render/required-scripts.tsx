@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom'
 export function getRequiredScripts(
   buildManifest: BuildManifest,
   assetPrefix: string,
-  crossOrigin: string | undefined,
+  crossOrigin: undefined | '' | 'anonymous' | 'use-credentials',
   SRIManifest: undefined | Record<string, string>,
   qs: string,
   nonce: string | undefined
