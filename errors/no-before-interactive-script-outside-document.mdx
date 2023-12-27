@@ -12,7 +12,7 @@ You cannot use the `next/script` component with the `beforeInteractive` strategy
 
 ### App Router
 
-If you want a global script, and you are using the Pages router, move the script inside `pages/_document.js`.
+If you want a global script, and you are using the App Router, move the script inside `app/layout.jsx`.
 
 ```jsx filename="app/layout.jsx"
 import Script from 'next/script'
@@ -32,7 +32,7 @@ export default function RootLayout({ children }) {
 
 ### Pages Router
 
-If you want a global script, and you are using the \*\*Pages router, move the script inside `pages/_document.js`.
+If you want a global script, and you are using the Pages Router, move the script inside `pages/_document.js`.
 
 ```jsx filename="pages/_document.js"
 import { Html, Head, Main, NextScript } from 'next/document'
