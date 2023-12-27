@@ -34,17 +34,20 @@ import {
 } from '../lib/helpers/get-reserved-port'
 import os from 'os'
 
+type Child = ReturnType<typeof fork>
+type ExitCode = Parameters<Child['kill']>[0]
+
 let dir: string
-let child: undefined | ReturnType<typeof fork>
+let child: undefined | Child
 let config: NextConfigComplete
 let isTurboSession = false
 let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
-const handleSessionStop = async (signal: string | null) => {
+const handleSessionStop = async (signal: ExitCode | null) => {
   if (child) {
-    child.kill((signal as any) || 0)
+    child.kill(signal ?? 0)
   }
   if (sessionStopHandled) return
   sessionStopHandled = true
@@ -108,8 +111,11 @@ const handleSessionStop = async (signal: string | null) => {
   process.exit(0)
 }
 
-process.on('SIGINT', () => handleSessionStop('SIGINT'))
-process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
+process.on('SIGINT', () => handleSessionStop('SIGKILL'))
+process.on('SIGTERM', () => handleSessionStop('SIGKILL'))
+
+// exit event must be synchronous
+process.on('exit', () => child?.kill('SIGKILL'))
 
 const nextDev: CliCommand = async (args) => {
   if (args['--help']) {
@@ -332,17 +338,5 @@ const nextDev: CliCommand = async (args) => {
 
   await runDevServer(false)
 }
-
-function cleanup() {
-  if (!child) {
-    return
-  }
-
-  child.kill('SIGTERM')
-}
-
-process.on('exit', cleanup)
-process.on('SIGINT', cleanup)
-process.on('SIGTERM', cleanup)
 
 export { nextDev }
