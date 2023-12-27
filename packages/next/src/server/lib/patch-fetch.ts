@@ -15,6 +15,36 @@ import * as Log from '../../build/output/log'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
+export function validateRevalidate(
+  revalidateVal: unknown,
+  pathname: string
+): undefined | number | false {
+  try {
+    let normalizedRevalidate: false | number | undefined = undefined
+
+    if (revalidateVal === false) {
+      normalizedRevalidate = revalidateVal
+    } else if (
+      typeof revalidateVal === 'number' &&
+      !isNaN(revalidateVal) &&
+      revalidateVal > -1
+    ) {
+      normalizedRevalidate = revalidateVal
+    } else if (typeof revalidateVal !== 'undefined') {
+      throw new Error(
+        `Invalid revalidate value "${revalidateVal}" on "${pathname}", must be a non-negative number or "false"`
+      )
+    }
+    return normalizedRevalidate
+  } catch (err: any) {
+    // handle client component error from attempting to check revalidate value
+    if (err instanceof Error && err.message.includes('Invalid revalidate')) {
+      throw err
+    }
+    return undefined
+  }
+}
+
 export function validateTags(tags: any[], description: string) {
   const validTags: string[] = []
   const invalidTags: Array<{
@@ -290,9 +320,10 @@ export function patchFetch({
           cacheReason = `cache: ${_cache}`
         }
 
-        if (typeof curRevalidate === 'number' || curRevalidate === false) {
-          revalidate = curRevalidate
-        }
+        revalidate = validateRevalidate(
+          curRevalidate,
+          staticGenerationStore.urlPathname
+        )
 
         const _headers = getRequestMeta('headers')
         const initHeaders: Headers =
@@ -368,6 +399,9 @@ export function patchFetch({
         }
 
         if (
+          // when force static is configured we don't bail from
+          // `revalidate: 0` values
+          !(staticGenerationStore.forceStatic && revalidate === 0) &&
           // we don't consider autoNoCache to switch to dynamic during
           // revalidate although if it occurs during build we do
           !autoNoCache &&
@@ -591,7 +625,7 @@ export function patchFetch({
           // Delete `cache` property as Cloudflare Workers will throw an error
           if (isEdgeRuntime) delete init.cache
 
-          if (cache === 'no-store') {
+          if (!staticGenerationStore.forceStatic && cache === 'no-store') {
             const dynamicUsageReason = `no-store fetch ${input}${
               staticGenerationStore.urlPathname
                 ? ` ${staticGenerationStore.urlPathname}`
@@ -618,9 +652,11 @@ export function patchFetch({
               (typeof staticGenerationStore.revalidate === 'number' &&
                 next.revalidate < staticGenerationStore.revalidate))
           ) {
-            const forceDynamic = staticGenerationStore.forceDynamic
-
-            if (!forceDynamic && next.revalidate === 0) {
+            if (
+              !staticGenerationStore.forceDynamic &&
+              !staticGenerationStore.forceStatic &&
+              next.revalidate === 0
+            ) {
               const dynamicUsageReason = `revalidate: 0 fetch ${input}${
                 staticGenerationStore.urlPathname
                   ? ` ${staticGenerationStore.urlPathname}`
@@ -635,11 +671,10 @@ export function patchFetch({
               staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
             }
 
-            if (!forceDynamic || next.revalidate !== 0) {
+            if (!staticGenerationStore.forceStatic || next.revalidate !== 0) {
               staticGenerationStore.revalidate = next.revalidate
             }
           }
-
           if (hasNextConfig) delete init.next
         }
 

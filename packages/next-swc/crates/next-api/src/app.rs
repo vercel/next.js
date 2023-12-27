@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use indexmap::IndexSet;
 use next_core::{
     all_assets_from_entries,
@@ -22,7 +22,7 @@ use next_core::{
     next_client_reference::{
         ClientReferenceGraph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
     },
-    next_dynamic::{NextDynamicEntries, NextDynamicTransition},
+    next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
         AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
@@ -584,30 +584,31 @@ impl AppEndpoint {
         let client_reference_types = client_reference_graph.types();
         let client_references = client_reference_graph.entry(rsc_entry_asset);
 
-        let app_ssr_entries: Vec<_> = client_reference_types
-            .await?
-            .iter()
-            .map(|client_reference_ty| async move {
-                let ClientReferenceType::EcmascriptClientReference(entry) = client_reference_ty
-                else {
-                    return Ok(None);
-                };
-
-                Ok(Some(entry.await?.ssr_module))
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten()
-            .collect();
-
-        let app_node_entries: Vec<_> = app_ssr_entries.iter().copied().chain([rsc_entry]).collect();
-
         // TODO(alexkirsz) Handle dynamic entries and dynamic chunks.
-        let _dynamic_entries = NextDynamicEntries::from_entries(Vc::cell(
-            app_node_entries.iter().copied().map(Vc::upcast).collect(),
-        ))
-        .await?;
+        // let app_ssr_entries: Vec<_> = client_reference_types
+        //     .await?
+        //     .iter()
+        //     .map(|client_reference_ty| async move {
+        //         let ClientReferenceType::EcmascriptClientReference(entry) =
+        // client_reference_ty         else {
+        //             return Ok(None);
+        //         };
+
+        //         Ok(Some(entry.await?.ssr_module))
+        //     })
+        //     .try_join()
+        //     .await?
+        //     .into_iter()
+        //     .flatten()
+        //     .collect();
+
+        // let app_node_entries: Vec<_> =
+        // app_ssr_entries.iter().copied().chain([rsc_entry]).collect();
+
+        // let _dynamic_entries = NextDynamicEntries::from_entries(Vc::cell(
+        //     app_node_entries.iter().copied().map(Vc::upcast).collect(),
+        // ))
+        // .await?;
 
         let app_entry_client_references = client_reference_graph
             .entry(Vc::upcast(app_entry.rsc_entry))
@@ -624,6 +625,7 @@ impl AppEndpoint {
             };
 
             let client_references_chunks = get_app_client_references_chunks(
+                app_entry.rsc_entry.ident(),
                 client_reference_types,
                 this.app_project.project().client_chunking_context(),
                 ssr_chunking_context,
@@ -636,7 +638,7 @@ impl AppEndpoint {
             for client_reference in app_entry_client_references.iter() {
                 let client_reference_chunks = client_references_chunks_ref
                     .get(client_reference.ty())
-                    .expect("client reference should have corresponding chunks");
+                    .context("client reference should have corresponding chunks")?;
                 entry_client_chunks
                     .extend(client_reference_chunks.client_chunks.await?.iter().copied());
                 entry_ssr_chunks.extend(client_reference_chunks.ssr_chunks.await?.iter().copied());
@@ -650,15 +652,15 @@ impl AppEndpoint {
                 .map(|chunk| chunk.ident().path())
                 .try_join()
                 .await?;
-            let mut entry_client_chunks_paths: Vec<_> = entry_client_chunks_paths
+            let mut entry_client_chunks_paths = entry_client_chunks_paths
                 .iter()
                 .map(|path| {
-                    client_relative_path_ref
+                    Ok(client_relative_path_ref
                         .get_path_to(path)
-                        .expect("asset path should be inside client root")
-                        .to_string()
+                        .context("asset path should be inside client root")?
+                        .to_string())
                 })
-                .collect();
+                .collect::<anyhow::Result<Vec<_>>>()?;
             entry_client_chunks_paths.extend(client_shared_chunks_paths.iter().cloned());
 
             let app_build_manifest = AppBuildManifest {
@@ -822,9 +824,9 @@ impl AppEndpoint {
                     .edge_rsc_runtime_entries()
                     .await?
                     .clone_value();
-                let Some(evaluatable) = Vc::try_resolve_sidecast(app_entry.rsc_entry).await? else {
-                    bail!("Entry module must be evaluatable");
-                };
+                let evaluatable = Vc::try_resolve_sidecast(app_entry.rsc_entry)
+                    .await?
+                    .context("Entry module must be evaluatable")?;
                 evaluatable_assets.push(evaluatable);
 
                 let (loader, manifest) = create_server_actions_manifest(
@@ -996,7 +998,7 @@ impl AppEndpoint {
                     server_path
                         .await?
                         .get_path_to(&*rsc_chunk.ident().path().await?)
-                        .expect("RSC chunk path should be within app paths manifest directory")
+                        .context("RSC chunk path should be within app paths manifest directory")?
                         .to_string(),
                 )?;
                 server_assets.push(app_paths_manifest_output);

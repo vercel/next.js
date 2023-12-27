@@ -22,7 +22,7 @@ You can customize the initial viewport of the page with the static `viewport` ob
 To define the viewport options, export a `viewport` object from a `layout.js` or `page.js` file.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-import { Viewport } from 'next'
+import type { Viewport } from 'next'
 
 export const viewport: Viewport = {
   themeColor: 'black',

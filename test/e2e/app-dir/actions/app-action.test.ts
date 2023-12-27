@@ -1081,5 +1081,38 @@ createNextDescribe(
         }
       )
     })
+
+    describe('server actions render client components', () => {
+      describe('server component imported action', () => {
+        it('should support importing client components from actions', async () => {
+          const browser = await next.browser(
+            '/server/action-return-client-component'
+          )
+          expect(
+            await browser
+              .elementByCss('#trigger-component-load')
+              .click()
+              .waitForElementByCss('#client-component')
+              .text()
+          ).toBe('Hello World')
+        })
+      })
+
+      // Server Component -> Client Component -> Server Action (imported from client component) -> Import Client Component is not not supported yet.
+      describe.skip('client component imported action', () => {
+        it('should support importing client components from actions', async () => {
+          const browser = await next.browser(
+            '/client/action-return-client-component'
+          )
+          expect(
+            await browser
+              .elementByCss('#trigger-component-load')
+              .click()
+              .waitForElementByCss('#client-component')
+              .text()
+          ).toBe('Hello World')
+        })
+      })
+    })
   }
 )

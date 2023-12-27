@@ -7,8 +7,14 @@ import { FilterItem } from './item';
 export default function FilterItemDropdown({ list }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const active = '', setActive = ()=>null;
-    const openSelect = false, setOpenSelect = ()=>null;
+    const [active, setActive] = [
+        '',
+        ()=>null
+    ];
+    const [openSelect, setOpenSelect] = [
+        false,
+        ()=>null
+    ];
     const ref = useRef(null);
     null;
     null;

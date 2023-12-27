@@ -50,9 +50,9 @@ import {
   APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
   PAGES_MANIFEST,
-  RedirectStatusCode,
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
+import { RedirectStatusCode } from '../client/components/redirect-status-code'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config.external'
@@ -83,6 +83,7 @@ import {
   RSC_VARY_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_DID_POSTPONE_HEADER,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -107,7 +108,6 @@ import {
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_TAGS_HEADER,
-  NEXT_DID_POSTPONE_HEADER,
   NEXT_QUERY_PARAM_PREFIX,
 } from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -1294,7 +1294,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
 
           res.statusCode = Number(req.headers['x-invoke-status'])
-          let err = null
+          let err: Error | null = null
 
           if (typeof req.headers['x-invoke-error'] === 'string') {
             const invokeError = JSON.parse(
@@ -2601,7 +2601,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return null
     }
 
-    if (isSSG && !this.minimalMode) {
+    const didPostpone =
+      cacheEntry.value?.kind === 'PAGE' && !!cacheEntry.value.postponed
+
+    if (
+      isSSG &&
+      !this.minimalMode &&
+      // We don't want to send a cache header for requests that contain dynamic
+      // data. If this is a Dynamic RSC request or wasn't a Prefetch RSC
+      // request, then we should set the cache header.
+      !isDynamicRSCRequest &&
+      (!didPostpone || isPrefetchRSCRequest)
+    ) {
       // set x-nextjs-cache header to match the header
       // we set for the image-optimizer
       res.setHeader(
@@ -2789,13 +2800,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         res.statusCode = cachedData.status
       }
 
-      // Mark that the request did postpone if this is a data request or we're
-      // testing. It's used to verify that we're actually serving a postponed
-      // request so we can trust the cache headers.
-      if (
-        cachedData.postponed &&
-        (isRSCRequest || process.env.__NEXT_TEST_MODE)
-      ) {
+      // Mark that the request did postpone if this is a data request.
+      if (cachedData.postponed && isRSCRequest) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
@@ -2813,7 +2819,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           return {
             type: 'rsc',
             body: cachedData.html,
-            revalidate: cacheEntry.revalidate,
+            // Dynamic RSC responses cannot be cached, even if they're
+            // configured with `force-static` because we have no way of
+            // distinguishing between `force-static` and pages that have no
+            // postponed state.
+            // TODO: distinguish `force-static` from pages with no postponed state (static)
+            revalidate: 0,
           }
         }
 
@@ -2881,7 +2892,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return {
         type: 'html',
         body,
-        revalidate: cacheEntry.revalidate,
+        // We don't want to cache the response if it has postponed data because
+        // the response being sent to the client it's dynamic parts are streamed
+        // to the client on the same request.
+        revalidate: 0,
       }
     } else if (isDataReq) {
       return {
