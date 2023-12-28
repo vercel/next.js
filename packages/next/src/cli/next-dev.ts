@@ -33,6 +33,7 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import os from 'os'
+import { once } from 'node:events'
 
 type Child = ReturnType<typeof fork>
 type ExitCode = Parameters<Child['kill']>[0]
@@ -51,6 +52,10 @@ const handleSessionStop = async (signal: ExitCode | null) => {
   }
   if (sessionStopHandled) return
   sessionStopHandled = true
+
+  if (child) {
+    await once(child, 'exit').catch(() => {})
+  }
 
   try {
     const { eventCliSessionStopped } =
@@ -111,11 +116,11 @@ const handleSessionStop = async (signal: ExitCode | null) => {
   process.exit(0)
 }
 
-process.on('SIGINT', () => handleSessionStop('SIGKILL'))
-process.on('SIGTERM', () => handleSessionStop('SIGKILL'))
+process.on('SIGINT', (signal) => handleSessionStop(signal))
+process.on('SIGTERM', (signal) => handleSessionStop(signal))
 
 // exit event must be synchronous
-process.on('exit', () => child?.kill('SIGKILL'))
+process.on('exit', (code) => child?.kill(code))
 
 const nextDev: CliCommand = async (args) => {
   if (args['--help']) {

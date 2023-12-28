@@ -523,10 +523,40 @@ export async function killProcess(
   })
 }
 
+export function isAppRunning(instance: ChildProcess) {
+  if (!instance?.pid) return false
+
+  try {
+    // 0 is a special signal that tests the existence of a process
+    process.kill(instance.pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function waitForCondition(
+  condition: () => boolean | Promise<boolean>,
+  maxWait: number,
+  pollInterval: number
+) {
+  const start = Date.now()
+  while (Date.now() - start < maxWait) {
+    if (await condition()) {
+      return
+    }
+    await waitFor(pollInterval)
+  }
+  throw new Error(`Timed out after ${maxWait}ms`)
+}
+
 // Kill a launched app
-export async function killApp(instance: ChildProcess) {
+export async function killApp(instance: ChildProcess, maxWait: number = 100) {
   if (instance && instance.pid) {
-    await killProcess(instance.pid, 'SIGKILL')
+    // waits for the signal to be sent, but not for the process to exit
+    await killProcess(instance.pid)
+    // poll frequently to see if the process has exited
+    await waitForCondition(() => !isAppRunning(instance), maxWait, maxWait / 10)
   }
 }
 
