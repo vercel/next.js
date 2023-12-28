@@ -120,6 +120,7 @@ export default function ClientComponent({ updateItem }) {
 - The arguments and return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
 - Server Actions are functions. This means they can be reused anywhere in your application.
 - Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
+- Server Actions inherit the [Route Segment Config](docs/app/api-reference/file-conventions/route-segment-config) from the page or layout they are used on, including fields like `maxDuration`.
 
 ## Examples
 
