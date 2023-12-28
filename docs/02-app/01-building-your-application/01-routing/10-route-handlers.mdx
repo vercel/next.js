@@ -631,7 +631,12 @@ export async function GET() {
   <description>The React Framework for the Web</description>
 </channel>
 
-</rss>`)
+</rss>`,
+  {
+    headers: {
+      "Content-Type": "text/xml",
+    },
+  })
 }
 ```
 
