@@ -116,11 +116,11 @@ const handleSessionStop = async (signal: ExitCode | null) => {
   process.exit(0)
 }
 
-process.on('SIGINT', (signal) => handleSessionStop(signal))
-process.on('SIGTERM', (signal) => handleSessionStop(signal))
+process.on('SIGINT', () => handleSessionStop('SIGKILL'))
+process.on('SIGTERM', () => handleSessionStop('SIGKILL'))
 
 // exit event must be synchronous
-process.on('exit', (code) => child?.kill(code))
+process.on('exit', () => child?.kill('SIGKILL'))
 
 const nextDev: CliCommand = async (args) => {
   if (args['--help']) {

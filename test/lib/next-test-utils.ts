@@ -551,12 +551,12 @@ async function waitForCondition(
 }
 
 // Kill a launched app
-export async function killApp(instance: ChildProcess, maxWait: number = 100) {
+export async function killApp(instance: ChildProcess, maxWait: number = 500) {
   if (instance && instance.pid) {
     // waits for the signal to be sent, but not for the process to exit
     await killProcess(instance.pid)
     // poll frequently to see if the process has exited
-    await waitForCondition(() => !isAppRunning(instance), maxWait, maxWait / 10)
+    await waitForCondition(() => !isAppRunning(instance), maxWait, maxWait / 20)
   }
 }
 

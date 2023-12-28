@@ -15,11 +15,8 @@ import {
   getPageFileFromBuildManifest,
   getPageFileFromPagesManifest,
   check,
-  isAppRunning,
-  waitFor,
 } from 'next-test-utils'
 import json from '../big.json'
-import { LONG_RUNNING_MS } from '../pages/api/long-running'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -537,45 +534,6 @@ function runTests(dev = false) {
       )
       return 'success'
     }, 'success')
-  })
-
-  it('should wait for requests to complete before exiting', async () => {
-    // let the dev server compile the route before running the test
-    if (dev) await fetchViaHTTP(appPort, '/api/long-running')
-
-    let responseResolved = false
-    let killAppResolved = false
-    const resPromise = fetchViaHTTP(appPort, '/api/long-running')
-      .then((res) => {
-        responseResolved = true
-        return res
-      })
-      .catch(() => {})
-    const killAppPromise = killApp(app, LONG_RUNNING_MS * 2).then(() => {
-      killAppResolved = true
-    })
-    expect(isAppRunning(app)).toBe(true)
-
-    // Long running response should still be running after a bit
-    await waitFor(LONG_RUNNING_MS / 2)
-    expect(isAppRunning(app)).toBe(true)
-    expect(responseResolved).toBe(false)
-    expect(killAppResolved).toBe(false)
-
-    // App responds as expected without being interrupted
-    const res = await resPromise
-    expect(res?.status).toBe(200)
-    expect(await res?.json()).toStrictEqual({ hello: 'world' })
-
-    // App is still running briefly after response returns
-    expect(isAppRunning(app)).toBe(true)
-    expect(responseResolved).toBe(true)
-    expect(killAppResolved).toBe(false)
-
-    // App finally shuts down
-    await killAppPromise
-    expect(isAppRunning(app)).toBe(false)
-    expect(killAppResolved).toBe(true)
   })
 
   if (dev) {
