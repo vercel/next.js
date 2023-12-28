@@ -26,7 +26,7 @@ While developing:
 npm run dev
 ```
 
-This runs `next dev` and `convex dev` at the same time. This command will log you into Convex, so you'll need to create a Convex account if this is your first project.
+This command runs `next dev` and `convex dev` at the same time. This command will log you into Convex, so you'll need to create a Convex account if this is your first project.
 
 Once everything is working, commit your code and deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
