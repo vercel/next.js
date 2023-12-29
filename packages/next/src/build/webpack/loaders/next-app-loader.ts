@@ -546,12 +546,27 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
           continue
         }
 
-        // avoid clobbering existing page segments
-        // if it's a valid parallel segment, the `children` property will be set appropriately
         if (existingChildrenPath && matched.children !== rest[0]) {
-          throw new Error(
-            `You cannot have two parallel pages that resolve to the same path. Please check ${existingChildrenPath} and ${appPath}. Refer to the route group docs for more information: https://nextjs.org/docs/app/building-your-application/routing/route-groups`
-          )
+          // If we get here, it means we already set a `page` segment earlier in the loop,
+          // meaning we already matched a page to the `children` parallel segment.
+          const isIncomingParallelPage = appPath.includes('@')
+          const hasCurrentParallelPage = existingChildrenPath.includes('@')
+
+          if (isIncomingParallelPage) {
+            // The duplicate segment was for a parallel slot. In this case,
+            // rather than throwing an error, we can ignore it since this can happen for valid reasons.
+            // For example, when we attempt to normalize catch-all routes, we'll push potential slot matches so
+            // that they are available in the loader tree when we go to render the page.
+            // We only need to throw an error if the duplicate segment was for a regular page.
+            // For example, /app/(groupa)/page & /app/(groupb)/page is an error since it corresponds
+            // with the same path.
+            continue
+          } else if (!hasCurrentParallelPage && !isIncomingParallelPage) {
+            // Both the current `children` and the incoming `children` are regular pages.
+            throw new Error(
+              `You cannot have two parallel pages that resolve to the same path. Please check ${existingChildrenPath} and ${appPath}. Refer to the route group docs for more information: https://nextjs.org/docs/app/building-your-application/routing/route-groups`
+            )
+          }
         }
 
         existingChildrenPath = appPath
