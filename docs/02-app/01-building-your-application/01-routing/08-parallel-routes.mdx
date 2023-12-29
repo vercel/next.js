@@ -122,7 +122,7 @@ Both [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected
 
 import { useSelectedLayoutSegment } from 'next/navigation'
 
-export default async function Layout(props: {
+export default function Layout(props: {
   //...
   auth: React.ReactNode
 }) {
@@ -136,7 +136,7 @@ export default async function Layout(props: {
 
 import { useSelectedLayoutSegment } from 'next/navigation'
 
-export default async function Layout(props) {
+export default function Layout(props) {
   const loginSegments = useSelectedLayoutSegment('auth')
   // ...
 }
@@ -234,7 +234,7 @@ If a modal was initiated through client navigation, e.g. by using `<Link href="/
 import { useRouter } from 'next/navigation'
 import { Modal } from 'components/modal'
 
-export default async function Login() {
+export default function Login() {
   const router = useRouter()
   return (
     <Modal>
@@ -251,7 +251,7 @@ export default async function Login() {
 import { useRouter } from 'next/navigation'
 import { Modal } from 'components/modal'
 
-export default async function Login() {
+export default function Login() {
   const router = useRouter()
   return (
     <Modal>
