@@ -3,6 +3,8 @@ import { useGetQuotesQuery } from '@/lib/features/quotes/quotesApiSlice'
 import { useState } from 'react'
 import styles from './quotes.module.css'
 
+const options = [5, 10, 20, 30]
+
 export const Quotes = () => {
   const [numberOfQuotes, setNumberOfQuotes] = useState(10)
   // Using a query hook automatically fetches data and returns query values
@@ -34,10 +36,11 @@ export const Quotes = () => {
           value={numberOfQuotes}
           onChange={(e) => setNumberOfQuotes(Number(e.target.value))}
         >
-          <option value="5">5</option>
-          <option value="10">10</option>
-          <option value="20">20</option>
-          <option value="30">30</option>
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
         </select>
         {data.quotes.map(({ author, quote, id }) => (
           <blockquote key={id}>
