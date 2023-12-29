@@ -41,7 +41,7 @@ export const Quotes = () => {
         </select>
         {data.quotes.map(({ author, quote, id }) => (
           <blockquote key={id}>
-            "{quote}"
+            &ldquo;{quote}&rdquo;
             <footer>
               <cite>{author}</cite>
             </footer>
