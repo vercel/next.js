@@ -5,6 +5,7 @@ import Commander from 'commander'
 import Conf from 'conf'
 import path from 'path'
 import prompts from 'prompts'
+import type { InitialReturnValue } from 'prompts'
 import checkForUpdate from 'update-check'
 import { createApp, DownloadError } from './create-app'
 import { getPkgManager } from './helpers/get-pkg-manager'
@@ -21,7 +22,11 @@ const handleSigTerm = () => process.exit(0)
 process.on('SIGINT', handleSigTerm)
 process.on('SIGTERM', handleSigTerm)
 
-const onPromptState = (state: any) => {
+const onPromptState = (state: {
+  value: InitialReturnValue
+  aborted: boolean
+  exited: false
+}) => {
   if (state.aborted) {
     // If we don't re-enable the terminal cursor before exiting
     // the program, the cursor will remain hidden
