@@ -13,7 +13,7 @@ import {
 } from '@/lib/features/counter/counterSlice'
 
 import { useAppDispatch, useAppSelector } from '@/lib/hooks'
-import styles from './counter.module.css'
+import styles from './Counter.module.css'
 
 export const Counter = () => {
   const dispatch = useAppDispatch()
