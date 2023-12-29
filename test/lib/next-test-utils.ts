@@ -550,13 +550,16 @@ async function waitForCondition(
   throw new Error(`Timed out after ${maxWait}ms`)
 }
 
+export async function waitForAppShutdown(instance: ChildProcess) {
+  await waitForCondition(() => !isAppRunning(instance), 300, 20)
+}
+
 // Kill a launched app
-export async function killApp(instance: ChildProcess, maxWait: number = 500) {
+export async function killApp(instance: ChildProcess) {
   if (instance && instance.pid) {
     // waits for the signal to be sent, but not for the process to exit
     await killProcess(instance.pid)
-    // poll frequently to see if the process has exited
-    await waitForCondition(() => !isAppRunning(instance), maxWait, maxWait / 20)
+    await waitForAppShutdown(instance)
   }
 }
 
