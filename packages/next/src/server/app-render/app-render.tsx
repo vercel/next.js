@@ -66,7 +66,7 @@ import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-r
 import { validateURL } from './validate-url'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { isBailoutCSRError } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn, error } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
@@ -863,7 +863,8 @@ async function renderToHTMLOrFlightImpl(
           throw err
         }
 
-        if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
+        const isBailoutCSR = isBailoutCSRError(err)
+        if (isBailoutCSR) {
           warn(
             `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
             pagePath
@@ -894,7 +895,7 @@ async function renderToHTMLOrFlightImpl(
         }
 
         const is404 = res.statusCode === 404
-        if (!is404 && !hasRedirectError) {
+        if (!is404 && !hasRedirectError && !isBailoutCSR) {
           res.statusCode = 500
         }
 
@@ -963,7 +964,7 @@ async function renderToHTMLOrFlightImpl(
             // so we create a not found page with AppRouter
             const initialSeedData: CacheNodeSeedData = [
               initialTree[0],
-              null,
+              {},
               <html id="__next_error__">
                 <head></head>
                 <body></body>
@@ -1119,7 +1120,7 @@ async function renderToHTMLOrFlightImpl(
   if (
     // if PPR is enabled
     renderOpts.experimental.ppr &&
-    // and a call to `maybePostpone` happened
+    // and a call to `postpone` happened
     staticGenerationStore.postponeWasTriggered &&
     // but there's no postpone state
     !metadata.postponed

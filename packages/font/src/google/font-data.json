@@ -103,6 +103,26 @@
     ],
     "subsets": ["cyrillic", "cyrillic-ext", "greek", "latin", "latin-ext"]
   },
+  "Afacad": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": [
+      "cyrillic-ext",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols",
+      "vietnamese"
+    ]
+  },
   "Agbalumo": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -326,12 +346,12 @@
   "Alike": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin"]
+    "subsets": ["latin", "latin-ext", "math", "symbols"]
   },
   "Alike Angular": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin"]
+    "subsets": ["latin", "latin-ext", "math", "symbols"]
   },
   "Alkalami": {
     "weights": ["400"],
@@ -5328,6 +5348,25 @@
     "styles": ["normal"],
     "subsets": ["devanagari", "latin", "latin-ext"]
   },
+  "Kalnia": {
+    "weights": ["100", "200", "300", "400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 100,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "math"]
+  },
   "Kameron": {
     "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
@@ -10102,6 +10141,8 @@
       "hebrew",
       "latin",
       "latin-ext",
+      "math",
+      "symbols",
       "vietnamese"
     ]
   },
@@ -10645,7 +10686,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["latin", "latin-ext", "math", "symbols", "vietnamese"]
+    "subsets": ["emoji", "latin", "latin-ext", "math", "vietnamese"]
   },
   "Plus Jakarta Sans": {
     "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
@@ -11225,6 +11266,19 @@
     "styles": ["normal"],
     "subsets": ["cyrillic", "latin", "latin-ext"]
   },
+  "Rethink Sans": {
+    "weights": ["400", "500", "600", "700", "800", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Revalia": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -11614,6 +11668,19 @@
     "styles": ["normal"],
     "subsets": ["cyrillic", "cyrillic-ext", "hebrew", "latin", "latin-ext"]
   },
+  "Rubik Broken Fax": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "hebrew",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols"
+    ]
+  },
   "Rubik Bubbles": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -11634,6 +11701,32 @@
     "styles": ["normal"],
     "subsets": ["cyrillic", "cyrillic-ext", "hebrew", "latin", "latin-ext"]
   },
+  "Rubik Doodle Shadow": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "hebrew",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols"
+    ]
+  },
+  "Rubik Doodle Triangles": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "hebrew",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols"
+    ]
+  },
   "Rubik Gemstones": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -11648,6 +11741,32 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["cyrillic", "cyrillic-ext", "hebrew", "latin", "latin-ext"]
+  },
+  "Rubik Lines": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "hebrew",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols"
+    ]
+  },
+  "Rubik Maps": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "hebrew",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols"
+    ]
   },
   "Rubik Marker Hatch": {
     "weights": ["400"],
@@ -11683,6 +11802,19 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["cyrillic", "cyrillic-ext", "hebrew", "latin", "latin-ext"]
+  },
+  "Rubik Scribble": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": [
+      "cyrillic",
+      "cyrillic-ext",
+      "hebrew",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols"
+    ]
   },
   "Rubik Spray Paint": {
     "weights": ["400"],
