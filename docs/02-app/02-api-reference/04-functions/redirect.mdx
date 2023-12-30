@@ -68,7 +68,7 @@ export default async function Profile({ params }) {
 
 `redirect` can be used in a Client Component through a Server Action. If you need to use an event handler to redirect the user, you can use the [`useRouter`](/docs/app/api-reference/functions/use-router) hook.
 
-```tsx filename="app/client-redirect.tsx"
+```tsx filename="app/client-redirect.tsx" switcher
 'use client'
 
 import { navigate } from './actions'
@@ -83,7 +83,7 @@ export function ClientRedirect() {
 }
 ```
 
-```jsx filename="app/client-redirect.jsx"
+```jsx filename="app/client-redirect.jsx" switcher
 'use client'
 
 import { navigate } from './actions'
@@ -98,7 +98,7 @@ export function ClientRedirect() {
 }
 ```
 
-```ts filename="app/actions.ts"
+```ts filename="app/actions.ts" switcher
 'use server'
 
 import { redirect } from 'next/navigation'
@@ -108,7 +108,7 @@ export async function navigate(data: FormData) {
 }
 ```
 
-```js filename="app/actions.js"
+```js filename="app/actions.js" switcher
 'use server'
 
 import { redirect } from 'next/navigation'
