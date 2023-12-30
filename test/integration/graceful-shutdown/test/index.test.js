@@ -10,9 +10,9 @@ import {
   nextBuild,
   nextStart,
   waitFor,
-  waitForAppShutdown,
 } from 'next-test-utils'
 import { LONG_RUNNING_MS } from '../pages/api/long-running'
+import { once } from 'events'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -21,6 +21,8 @@ let app
 function runTests(dev = false) {
   if (dev) {
     it('should shut down child immediately', async () => {
+      const appKilledPromise = once(app, 'exit')
+
       // let the dev server compile the route before running the test
       await expect(
         fetchViaHTTP(appPort, '/api/long-running')
@@ -29,7 +31,7 @@ function runTests(dev = false) {
       const resPromise = fetchViaHTTP(appPort, '/api/long-running')
 
       // yield event loop to kick off request before killing the app
-      await waitFor(0)
+      await waitFor(20)
       process.kill(app.pid, 'SIGTERM')
       expect(isAppRunning(app)).toBe(true)
 
@@ -42,11 +44,13 @@ function runTests(dev = false) {
       expect(isAppRunning(app)).toBe(true)
 
       // App finally shuts down
-      await waitForAppShutdown(app)
+      await appKilledPromise
       expect(isAppRunning(app)).toBe(false)
     })
   } else {
     it('should wait for requests to complete before exiting', async () => {
+      const appKilledPromise = once(app, 'exit')
+
       let responseResolved = false
       const resPromise = fetchViaHTTP(appPort, '/api/long-running')
         .then((res) => {
@@ -56,7 +60,7 @@ function runTests(dev = false) {
         .catch(() => {})
 
       // yield event loop to kick off request before killing the app
-      await waitFor(0)
+      await waitFor(20)
       process.kill(app.pid, 'SIGTERM')
       expect(isAppRunning(app)).toBe(true)
 
@@ -75,16 +79,18 @@ function runTests(dev = false) {
       expect(responseResolved).toBe(true)
 
       // App finally shuts down
-      await waitForAppShutdown(app)
+      await appKilledPromise
       expect(isAppRunning(app)).toBe(false)
     })
 
     describe('should not accept new requests during shutdown cleanup', () => {
       it('when request is made before shutdown', async () => {
+        const appKilledPromise = once(app, 'exit')
+
         const resPromise = fetchViaHTTP(appPort, '/api/long-running')
 
         // yield event loop to kick off request before killing the app
-        await waitFor(0)
+        await waitFor(20)
         process.kill(app.pid, 'SIGTERM')
         expect(isAppRunning(app)).toBe(true)
 
@@ -107,11 +113,13 @@ function runTests(dev = false) {
         expect(isAppRunning(app)).toBe(true)
 
         // App finally shuts down
-        await waitForAppShutdown(app)
+        await appKilledPromise
         expect(isAppRunning(app)).toBe(false)
       })
 
       it('when there is no activity', async () => {
+        const appKilledPromise = once(app, 'exit')
+
         process.kill(app.pid, 'SIGTERM')
         expect(isAppRunning(app)).toBe(true)
 
@@ -123,7 +131,7 @@ function runTests(dev = false) {
         expect(isAppRunning(app)).toBe(true)
 
         // App finally shuts down
-        await waitForAppShutdown(app)
+        await appKilledPromise
         expect(isAppRunning(app)).toBe(false)
       })
     })

@@ -17,6 +17,7 @@ import { getRandomPort } from 'get-port-please'
 import fetch from 'node-fetch'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
+import { once } from 'events'
 
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
@@ -535,31 +536,12 @@ export function isAppRunning(instance: ChildProcess) {
   }
 }
 
-async function waitForCondition(
-  condition: () => boolean | Promise<boolean>,
-  maxWait: number,
-  pollInterval: number
-) {
-  const start = Date.now()
-  while (Date.now() - start < maxWait) {
-    if (await condition()) {
-      return
-    }
-    await waitFor(pollInterval)
-  }
-  throw new Error(`Timed out after ${maxWait}ms`)
-}
-
-export async function waitForAppShutdown(instance: ChildProcess) {
-  await waitForCondition(() => !isAppRunning(instance), 300, 20)
-}
-
 // Kill a launched app
 export async function killApp(instance: ChildProcess) {
-  if (instance && instance.pid) {
-    // waits for the signal to be sent, but not for the process to exit
+  if (instance?.pid && isAppRunning(instance)) {
+    const exitPromise = once(instance, 'exit')
     await killProcess(instance.pid)
-    await waitForAppShutdown(instance)
+    await exitPromise
   }
 }
 
