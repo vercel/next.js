@@ -18,6 +18,10 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 
+function assertDefined<T>(value: T | void): asserts value is T {
+  expect(value).toBeDefined()
+}
+
 function runTests(dev = false) {
   if (dev) {
     it('should shut down child immediately', async () => {
@@ -26,7 +30,7 @@ function runTests(dev = false) {
       // let the dev server compile the route before running the test
       await expect(
         fetchViaHTTP(appPort, '/api/long-running')
-      ).resolves.toBeTruthy()
+      ).resolves.toBeDefined()
 
       const resPromise = fetchViaHTTP(appPort, '/api/long-running')
 
@@ -71,8 +75,9 @@ function runTests(dev = false) {
 
       // App responds as expected without being interrupted
       const res = await resPromise
-      expect(res?.status).toBe(200)
-      expect(await res?.json()).toStrictEqual({ hello: 'world' })
+      assertDefined(res)
+      expect(res.status).toBe(200)
+      expect(await res.json()).toStrictEqual({ hello: 'world' })
 
       // App is still running briefly after response returns
       expect(isAppRunning(app)).toBe(true)
@@ -104,10 +109,10 @@ function runTests(dev = false) {
         ).rejects.toThrow()
 
         // Original request responds as expected without being interrupted
-        await expect(resPromise).resolves.toBeTruthy()
+        await expect(resPromise).resolves.toBeDefined()
         const res = await resPromise
-        expect(res?.status).toBe(200)
-        expect(await res?.json()).toStrictEqual({ hello: 'world' })
+        expect(res.status).toBe(200)
+        expect(await res.json()).toStrictEqual({ hello: 'world' })
 
         // App is still running briefly after response returns
         expect(isAppRunning(app)).toBe(true)

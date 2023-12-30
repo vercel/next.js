@@ -36,7 +36,7 @@ import os from 'os'
 import { once } from 'node:events'
 
 type Child = ReturnType<typeof fork>
-type ExitCode = Parameters<Child['kill']>[0]
+type KillSignal = Parameters<Child['kill']>[0]
 
 let dir: string
 let child: undefined | Child
@@ -46,14 +46,17 @@ let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
-const handleSessionStop = async (signal: ExitCode | null) => {
+const handleSessionStop = async (
+  signal: KillSignal | null,
+  childExited: boolean = false
+) => {
   if (child) {
     child.kill(signal ?? 0)
   }
   if (sessionStopHandled) return
   sessionStopHandled = true
 
-  if (child) {
+  if (child && !childExited) {
     await once(child, 'exit').catch(() => {})
   }
 
@@ -298,7 +301,7 @@ const nextDev: CliCommand = async (args) => {
           }
           return startServer(options)
         }
-        await handleSessionStop(signal)
+        await handleSessionStop(signal, true)
       })
     })
   }
