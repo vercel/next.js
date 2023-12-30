@@ -13,9 +13,10 @@ import {
 } from 'next-test-utils'
 import fs from 'fs-extra'
 import glob from 'glob'
-import { LONG_RUNNING_MS } from './pages/api/long-running'
+import { LONG_RUNNING_MS } from './src/pages/api/long-running'
 import { once } from 'events'
 
+const appDir = join(__dirname, './src')
 let appPort
 let app
 
@@ -27,7 +28,7 @@ describe('Graceful Shutdown', () => {
   describe('development (next dev)', () => {
     beforeEach(async () => {
       appPort = await findPort()
-      app = await launchApp(__dirname, appPort)
+      app = await launchApp(appDir, appPort)
     })
     afterEach(() => killApp(app))
 
@@ -37,11 +38,11 @@ describe('Graceful Shutdown', () => {
     'production (next start)',
     () => {
       beforeAll(async () => {
-        await nextBuild(__dirname)
+        await nextBuild(appDir)
       })
       beforeEach(async () => {
         appPort = await findPort()
-        app = await nextStart(__dirname, appPort)
+        app = await nextStart(appDir, appPort)
       })
       afterEach(() => killApp(app))
 
@@ -58,8 +59,8 @@ describe('Graceful Shutdown', () => {
         'next.config.mjs': `export default { output: 'standalone' }`,
       }
 
-      for (const file of glob.sync('*', { cwd: __dirname, dot: false })) {
-        projectFiles[file] = new FileRef(join(__dirname, file))
+      for (const file of glob.sync('*', { cwd: appDir, dot: false })) {
+        projectFiles[file] = new FileRef(join(appDir, file))
       }
 
       beforeAll(async () => {
