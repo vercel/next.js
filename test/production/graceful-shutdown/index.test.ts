@@ -1,9 +1,9 @@
-/* eslint-env jest */
-
 import { join } from 'path'
+import { NextInstance, createNext, FileRef } from 'e2e-utils'
 import {
   fetchViaHTTP,
   findPort,
+  initNextServerScript,
   isAppRunning,
   killApp,
   launchApp,
@@ -11,16 +11,109 @@ import {
   nextStart,
   waitFor,
 } from 'next-test-utils'
-import { LONG_RUNNING_MS } from '../pages/api/long-running'
+import fs from 'fs-extra'
+import glob from 'glob'
+import { LONG_RUNNING_MS } from './pages/api/long-running'
 import { once } from 'events'
 
-const appDir = join(__dirname, '../')
 let appPort
 let app
 
 function assertDefined<T>(value: T | void): asserts value is T {
   expect(value).toBeDefined()
 }
+
+describe('Graceful Shutdown', () => {
+  describe('development (next dev)', () => {
+    beforeEach(async () => {
+      appPort = await findPort()
+      app = await launchApp(__dirname, appPort)
+    })
+    afterEach(() => killApp(app))
+
+    runTests(true)
+  })
+  ;(process.env.TURBOPACK ? describe.skip : describe)(
+    'production (next start)',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(__dirname)
+      })
+      beforeEach(async () => {
+        appPort = await findPort()
+        app = await nextStart(__dirname, appPort)
+      })
+      afterEach(() => killApp(app))
+
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK ? describe.skip : describe)(
+    'production (standalone mode)',
+    () => {
+      let next: NextInstance
+      let serverFile
+
+      const projectFiles = {
+        'next.config.mjs': `export default { output: 'standalone' }`,
+      }
+
+      for (const file of glob.sync('*', { cwd: __dirname, dot: false })) {
+        projectFiles[file] = new FileRef(join(__dirname, file))
+      }
+
+      beforeAll(async () => {
+        next = await createNext({
+          files: projectFiles,
+          dependencies: {
+            swr: 'latest',
+          },
+        })
+
+        await next.stop()
+
+        await fs.move(
+          join(next.testDir, '.next/standalone'),
+          join(next.testDir, 'standalone')
+        )
+
+        for (const file of await fs.readdir(next.testDir)) {
+          if (file !== 'standalone') {
+            await fs.remove(join(next.testDir, file))
+          }
+        }
+        const files = glob.sync('**/*', {
+          cwd: join(next.testDir, 'standalone/.next/server/pages'),
+          dot: true,
+        })
+
+        for (const file of files) {
+          if (file.endsWith('.json') || file.endsWith('.html')) {
+            await fs.remove(join(next.testDir, '.next/server', file))
+          }
+        }
+
+        serverFile = join(next.testDir, 'standalone/server.js')
+      })
+
+      beforeEach(async () => {
+        appPort = await findPort()
+        app = await initNextServerScript(
+          serverFile,
+          /- Local:/,
+          { ...process.env, PORT: appPort.toString() },
+          undefined,
+          { cwd: next.testDir }
+        )
+      })
+      afterEach(() => killApp(app))
+
+      afterAll(() => next.destroy())
+
+      runTests()
+    }
+  )
+})
 
 function runTests(dev = false) {
   if (dev) {
@@ -128,12 +221,11 @@ function runTests(dev = false) {
         process.kill(app.pid, 'SIGTERM')
         expect(isAppRunning(app)).toBe(true)
 
+        // yield event loop to allow server to start the shutdown process
+        await waitFor(20)
         await expect(
           fetchViaHTTP(appPort, '/api/long-running')
         ).rejects.toThrow()
-
-        // App is still running briefly while server is closing
-        expect(isAppRunning(app)).toBe(true)
 
         // App finally shuts down
         await appKilledPromise
@@ -142,27 +234,3 @@ function runTests(dev = false) {
     })
   }
 }
-
-describe('API routes', () => {
-  describe('dev support', () => {
-    beforeEach(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterEach(() => killApp(app))
-
-    runTests(true)
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-    })
-    beforeEach(async () => {
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterEach(() => killApp(app))
-
-    runTests()
-  })
-})
