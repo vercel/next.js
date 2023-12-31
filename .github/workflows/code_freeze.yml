@@ -1,0 +1,44 @@
+on:
+  workflow_dispatch:
+    inputs:
+      type:
+        description: Enable/disable code freeze
+        required: true
+        type: choice
+        options:
+          - enable
+          - disable
+
+    secrets:
+      CODE_FREEZE_TOKEN:
+        required: true
+
+name: Code Freeze
+
+env:
+  NAPI_CLI_VERSION: 2.14.7
+  TURBO_VERSION: 1.10.9
+  NODE_LTS_VERSION: 20
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+
+    environment: release-${{ github.event.inputs.releaseType }}
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          check-latest: true
+      - run: corepack enable
+
+      - run: git clone https://github.com/vercel/next.js.git --depth=1 .
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - run: node ./scripts/code-freeze.js --type ${{ github.event.inputs.type }}
+        env:
+          CODE_FREEZE_TOKEN: ${{ secrets.CODE_FREEZE_TOKEN }}

@@ -1,11 +1,12 @@
 import React from 'react'
-import { fetchServerResponse } from './fetch-server-response'
+import type { FetchServerResponseResult } from './fetch-server-response'
 import { fillCacheWithDataProperty } from './fill-cache-with-data-property'
-import { CacheStates, CacheNode } from '../../../shared/lib/app-router-context'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+
 describe('fillCacheWithDataProperty', () => {
   it('should add data property', () => {
     const fetchServerResponseMock: jest.Mock<
-      ReturnType<typeof fetchServerResponse>
+      Promise<FetchServerResponseResult>
     > = jest.fn(() =>
       Promise.resolve([
         /* TODO-APP: replace with actual FlightData */ '',
@@ -14,19 +15,22 @@ describe('fillCacheWithDataProperty', () => {
     )
     const pathname = '/dashboard/settings'
     const segments = pathname.split('/')
-    // TODO-APP: figure out something better for index pages
-    segments.push('')
+
+    const flightSegmentPath = segments
+      .slice(1)
+      .map((segment) => ['children', segment])
+      .flat()
 
     const cache: CacheNode = {
-      status: CacheStates.LAZY_INITIALIZED,
-      data: null,
-      subTreeData: null,
+      lazyData: null,
+      rsc: null,
+      prefetchRsc: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
-      data: null,
-      status: CacheStates.READY,
-      subTreeData: <>Root layout</>,
+      lazyData: null,
+      rsc: <>Root layout</>,
+      prefetchRsc: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -34,9 +38,9 @@ describe('fillCacheWithDataProperty', () => {
             [
               'linking',
               {
-                data: null,
-                status: CacheStates.READY,
-                subTreeData: <>Linking</>,
+                lazyData: null,
+                rsc: <>Linking</>,
+                prefetchRsc: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -44,9 +48,9 @@ describe('fillCacheWithDataProperty', () => {
                       [
                         '',
                         {
-                          data: null,
-                          status: CacheStates.READY,
-                          subTreeData: <>Page</>,
+                          lazyData: null,
+                          rsc: <>Page</>,
+                          prefetchRsc: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -60,56 +64,45 @@ describe('fillCacheWithDataProperty', () => {
       ]),
     }
 
-    fillCacheWithDataProperty(cache, existingCache, segments, () =>
+    fillCacheWithDataProperty(cache, existingCache, flightSegmentPath, () =>
       fetchServerResponseMock()
     )
 
-    const expectedCache: CacheNode = {
-      data: null,
-      status: CacheStates.LAZY_INITIALIZED,
-      subTreeData: null,
-      parallelRoutes: new Map([
-        [
-          'children',
-          new Map([
-            [
-              'linking',
-              {
-                data: null,
-                status: CacheStates.READY,
-                subTreeData: <>Linking</>,
-                parallelRoutes: new Map([
-                  [
-                    'children',
-                    new Map([
-                      [
-                        '',
-                        {
-                          data: null,
-                          status: CacheStates.READY,
-                          subTreeData: <>Page</>,
-                          parallelRoutes: new Map(),
-                        },
-                      ],
-                    ]),
-                  ],
-                ]),
+    expect(cache).toMatchInlineSnapshot(`
+      {
+        "lazyData": null,
+        "parallelRoutes": Map {
+          "children" => Map {
+            "linking" => {
+              "lazyData": null,
+              "parallelRoutes": Map {
+                "children" => Map {
+                  "" => {
+                    "lazyData": null,
+                    "parallelRoutes": Map {},
+                    "prefetchRsc": null,
+                    "rsc": <React.Fragment>
+                      Page
+                    </React.Fragment>,
+                  },
+                },
               },
-            ],
-            [
-              '',
-              {
-                data: fetchServerResponseMock(),
-                parallelRoutes: new Map(),
-                status: CacheStates.DATA_FETCH,
-                subTreeData: null,
-              },
-            ],
-          ]),
-        ],
-      ]),
-    }
-
-    expect(cache).toMatchObject(expectedCache)
+              "prefetchRsc": null,
+              "rsc": <React.Fragment>
+                Linking
+              </React.Fragment>,
+            },
+            "dashboard" => {
+              "lazyData": Promise {},
+              "parallelRoutes": Map {},
+              "prefetchRsc": null,
+              "rsc": null,
+            },
+          },
+        },
+        "prefetchRsc": null,
+        "rsc": null,
+      }
+    `)
   })
 })

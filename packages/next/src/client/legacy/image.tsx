@@ -10,13 +10,15 @@ import React, {
 } from 'react'
 import Head from '../../shared/lib/head'
 import {
-  ImageConfigComplete,
   imageConfigDefault,
-  LoaderValue,
   VALID_LOADERS,
 } from '../../shared/lib/image-config'
+import type {
+  ImageConfigComplete,
+  LoaderValue,
+} from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
-import { ImageConfigContext } from '../../shared/lib/image-config-context'
+import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
 
@@ -39,7 +41,7 @@ if (typeof window === 'undefined') {
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
-type LoadingValue = typeof VALID_LOADING_VALUES[number]
+type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
 type ImageConfig = ImageConfigComplete & { allSizes: number[] }
 export type ImageLoader = (resolverProps: ImageLoaderProps) => string
 
@@ -148,7 +150,11 @@ function defaultLoader({
         )
       }
 
-      if (process.env.NODE_ENV !== 'test') {
+      if (
+        process.env.NODE_ENV !== 'test' &&
+        // micromatch isn't compatible with edge runtime
+        process.env.NEXT_RUNTIME !== 'edge'
+      ) {
         // We use dynamic require because this should only error in development
         const { hasMatch } = require('../../shared/lib/match-remote-pattern')
         if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
@@ -190,7 +196,7 @@ const VALID_LAYOUT_VALUES = [
   'responsive',
   undefined,
 ] as const
-type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
+type LayoutValue = (typeof VALID_LAYOUT_VALUES)[number]
 
 type PlaceholderValue = 'blur' | 'empty'
 
@@ -668,7 +674,7 @@ export default function Image({
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src.startsWith('data:') || src.startsWith('blob:')) {
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    // https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
     isLazy = false
   }
@@ -803,7 +809,7 @@ export default function Image({
             - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
             - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
               ','
-            )}
+            )} (animated images not supported)
             - Remove the "placeholder" property, effectively no blur effect
           Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
           )
@@ -979,6 +985,7 @@ export default function Image({
     imageSrcSet: imgAttributes.srcSet,
     imageSizes: imgAttributes.sizes,
     crossOrigin: rest.crossOrigin,
+    referrerPolicy: rest.referrerPolicy,
   }
 
   const useLayoutEffect =
@@ -1022,33 +1029,31 @@ export default function Image({
   }
   return (
     <>
-      {
-        <span style={wrapperStyle}>
-          {hasSizer ? (
-            <span style={sizerStyle}>
-              {sizerSvgUrl ? (
-                <img
-                  style={{
-                    display: 'block',
-                    maxWidth: '100%',
-                    width: 'initial',
-                    height: 'initial',
-                    background: 'none',
-                    opacity: 1,
-                    border: 0,
-                    margin: 0,
-                    padding: 0,
-                  }}
-                  alt=""
-                  aria-hidden={true}
-                  src={sizerSvgUrl}
-                />
-              ) : null}
-            </span>
-          ) : null}
-          <ImageElement {...imgElementArgs} />
-        </span>
-      }
+      <span style={wrapperStyle}>
+        {hasSizer ? (
+          <span style={sizerStyle}>
+            {sizerSvgUrl ? (
+              <img
+                style={{
+                  display: 'block',
+                  maxWidth: '100%',
+                  width: 'initial',
+                  height: 'initial',
+                  background: 'none',
+                  opacity: 1,
+                  border: 0,
+                  margin: 0,
+                  padding: 0,
+                }}
+                alt=""
+                aria-hidden={true}
+                src={sizerSvgUrl}
+              />
+            ) : null}
+          </span>
+        ) : null}
+        <ImageElement {...imgElementArgs} />
+      </span>
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases

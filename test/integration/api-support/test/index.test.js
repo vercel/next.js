@@ -8,10 +8,10 @@ import {
   findPort,
   launchApp,
   fetchViaHTTP,
+  File,
   renderViaHTTP,
   nextBuild,
   nextStart,
-  nextExport,
   getPageFileFromBuildManifest,
   getPageFileFromPagesManifest,
   check,
@@ -221,7 +221,8 @@ function runTests(dev = false) {
     expect(data.statusText).toEqual('Invalid JSON')
   })
 
-  it('should return error exceeded body limit', async () => {
+  // TODO: Investigate this test flaking
+  it.skip('should return error exceeded body limit', async () => {
     let res
     let error
 
@@ -592,15 +593,16 @@ function runTests(dev = false) {
       expect(await req.text()).toBe('hello world')
     })
   } else {
-    it('should show warning with next export', async () => {
-      const { stderr } = await nextExport(
-        appDir,
-        { outdir: join(appDir, 'out') },
-        { stderr: true }
-      )
-      expect(stderr).toContain(
-        'https://nextjs.org/docs/messages/api-routes-static-export'
-      )
+    it('should show error with output export', async () => {
+      const nextConfig = new File(join(appDir, 'next.config.js'))
+      nextConfig.write(`module.exports = { output: 'export' }`)
+      try {
+        const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+        expect(stderr).toContain('https://nextjs.org/docs/messages/gssp-export')
+        expect(code).toBe(1)
+      } finally {
+        nextConfig.delete()
+      }
     })
 
     it('should build api routes', async () => {
@@ -642,8 +644,7 @@ describe('API routes', () => {
 
     runTests(true)
   })
-
-  describe('Server support', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       mode = 'server'

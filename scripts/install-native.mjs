@@ -1,7 +1,8 @@
 import os from 'os'
 import path from 'path'
 import execa from 'execa'
-import fs from 'fs-extra'
+import fs from 'fs'
+import fsp from 'fs/promises'
 ;(async function () {
   if (process.env.NEXT_SKIP_NATIVE_POSTINSTALL) {
     console.log(
@@ -10,33 +11,34 @@ import fs from 'fs-extra'
     return
   }
   let cwd = process.cwd()
-  const { version: nextVersion } = await fs.readJSON(
-    path.join(cwd, 'packages', 'next', 'package.json')
+  const { version: nextVersion } = JSON.parse(
+    fs.readFileSync(path.join(cwd, 'packages', 'next', 'package.json'))
+  )
+  const { packageManager } = JSON.parse(
+    fs.readFileSync(path.join(cwd, 'package.json'))
   )
 
   try {
     // if installed swc package version matches monorepo version
     // we can skip re-installing
-    for (const pkg of await fs.readdir(
-      path.join(cwd, 'node_modules', '@next')
-    )) {
+    for (const pkg of fs.readdirSync(path.join(cwd, 'node_modules', '@next'))) {
       if (
         pkg.startsWith('swc-') &&
-        (
-          await fs.readJSON(
+        JSON.parse(
+          fs.readFileSync(
             path.join(cwd, 'node_modules', '@next', pkg, 'package.json')
           )
         ).version === nextVersion
       ) {
-        console.log(`@next/${pkg}@${nextVersion} already installed skipping`)
+        console.log(`@next/${pkg}@${nextVersion} already installed, skipping`)
         return
       }
     }
-  } catch (_) {}
+  } catch {}
 
   try {
     let tmpdir = path.join(os.tmpdir(), `next-swc-${Date.now()}`)
-    await fs.ensureDir(tmpdir)
+    fs.mkdirSync(tmpdir, { recursive: true })
     let pkgJson = {
       name: 'dummy-package',
       version: '1.0.0',
@@ -51,26 +53,32 @@ import fs from 'fs-extra'
         '@next/swc-win32-ia32-msvc': 'canary',
         '@next/swc-win32-x64-msvc': 'canary',
       },
+      packageManager,
     }
-    await fs.writeFile(
-      path.join(tmpdir, 'package.json'),
-      JSON.stringify(pkgJson)
-    )
-    let { stdout } = await execa('yarn', ['--force'], { cwd: tmpdir })
+    fs.writeFileSync(path.join(tmpdir, 'package.json'), JSON.stringify(pkgJson))
+    fs.writeFileSync(path.join(tmpdir, '.npmrc'), 'node-linker=hoisted')
+
+    let { stdout } = await execa('pnpm', ['add', 'next@canary'], {
+      cwd: tmpdir,
+    })
     console.log(stdout)
-    let pkgs = await fs.readdir(path.join(tmpdir, 'node_modules/@next'))
-    await fs.ensureDir(path.join(cwd, 'node_modules/@next'))
+
+    let pkgs = fs.readdirSync(path.join(tmpdir, 'node_modules/@next'))
+    fs.mkdirSync(path.join(cwd, 'node_modules/@next'), { recursive: true })
 
     await Promise.all(
-      pkgs.map((pkg) =>
-        fs.move(
-          path.join(tmpdir, 'node_modules/@next', pkg),
-          path.join(cwd, 'node_modules/@next', pkg),
-          { overwrite: true }
-        )
-      )
+      pkgs.map(async (pkg) => {
+        const from = path.join(tmpdir, 'node_modules/@next', pkg)
+        const to = path.join(cwd, 'node_modules/@next', pkg)
+        // The directory from pnpm store is a symlink, which can not be overwritten,
+        // so we remove the existing directory before copying
+        await fsp.rm(to, { recursive: true, force: true })
+        // Renaming is flaky on Windows, and the tmpdir is going to be deleted anyway,
+        // so we use copy the directory instead
+        return fsp.cp(from, to, { force: true, recursive: true })
+      })
     )
-    await fs.remove(tmpdir)
+    fs.rmSync(tmpdir, { recursive: true, force: true })
     console.log('Installed the following binary packages:', pkgs)
   } catch (e) {
     console.error(e)

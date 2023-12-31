@@ -80,7 +80,7 @@ interface CookieSerializeOptions {
      * **note** This is an attribute that has not yet been fully standardized, and may change in the future.
      * This also means many clients may ignore this attribute until they understand it.
      */
-    priority?: 'low' | 'medium' | 'high' | undefined;
+    priority?: "low" | "medium" | "high" | undefined;
     /**
      * Specifies the boolean or string to be the value for the {@link https://tools.ietf.org/html/draft-ietf-httpbis-rfc6265bis-03#section-4.1.2.7|`SameSite` `Set-Cookie` attribute}.
      *
@@ -98,7 +98,7 @@ interface CookieSerializeOptions {
      *
      * *note* This is an attribute that has not yet been fully standardized, and may change in the future. This also means many clients may ignore this attribute until they understand it.
      */
-    sameSite?: true | false | 'lax' | 'strict' | 'none' | undefined;
+    sameSite?: true | false | "lax" | "strict" | "none" | undefined;
     /**
      * Specifies the boolean value for the {@link https://tools.ietf.org/html/rfc6265#section-5.2.5|`Secure` `Set-Cookie` attribute}. When truthy, the
      * `Secure` attribute is set, otherwise it is not. By default, the `Secure` attribute is not set.
@@ -175,6 +175,7 @@ declare class ResponseCookies {
      * {@link https://wicg.github.io/cookie-store/#CookieStore-getAll CookieStore#getAll} without the Promise.
      */
     getAll(...args: [key: string] | [options: ResponseCookie] | []): ResponseCookie[];
+    has(name: string): boolean;
     /**
      * {@link https://wicg.github.io/cookie-store/#CookieStore-set CookieStore#set} without the Promise.
      */
@@ -182,8 +183,14 @@ declare class ResponseCookies {
     /**
      * {@link https://wicg.github.io/cookie-store/#CookieStore-delete CookieStore#delete} without the Promise.
      */
-    delete(...args: [key: string] | [options: ResponseCookie]): this;
+    delete(...args: [key: string] | [options: Omit<ResponseCookie, 'value' | 'expires'>]): this;
     toString(): string;
 }
 
-export { CookieListItem, RequestCookie, RequestCookies, ResponseCookie, ResponseCookies };
+declare function stringifyCookie(c: ResponseCookie | RequestCookie): string;
+/** Parse a `Cookie` header value */
+declare function parseCookie(cookie: string): Map<string, string>;
+/** Parse a `Set-Cookie` header value */
+declare function parseSetCookie(setCookie: string): undefined | ResponseCookie;
+
+export { CookieListItem, RequestCookie, RequestCookies, ResponseCookie, ResponseCookies, parseCookie, parseSetCookie, stringifyCookie };

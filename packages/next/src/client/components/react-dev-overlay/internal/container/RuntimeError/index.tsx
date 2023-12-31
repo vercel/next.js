@@ -1,8 +1,8 @@
 import * as React from 'react'
 import { CodeFrame } from '../../components/CodeFrame'
-import { ReadyRuntimeError } from '../../helpers/getErrorByType'
+import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
-import { OriginalStackFrame } from '../../helpers/stack-frame'
+import type { OriginalStackFrame } from '../../helpers/stack-frame'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { CallStackFrame } from './CallStackFrame'
 import { GroupedStackFrames } from './GroupedStackFrames'
@@ -72,7 +72,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     <React.Fragment>
       {firstFrame ? (
         <React.Fragment>
-          <h5>Source</h5>
+          <h2>Source</h2>
           {leadingFrames.map((frame, index) => (
             <CallStackFrame
               key={`leading-frame-${index}-${all}`}
@@ -88,7 +88,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
 
       {error.componentStackFrames ? (
         <>
-          <h5>Component Stack</h5>
+          <h2>Component Stack</h2>
           {error.componentStackFrames.map((componentStackFrame, index) => (
             <ComponentStackFrameRow
               key={index}
@@ -100,7 +100,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
 
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>
-          <h5>Call Stack</h5>
+          <h2>Call Stack</h2>
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
             all={all}
@@ -138,14 +138,15 @@ export const styles = css`
     margin-bottom: var(--size-gap-double);
   }
 
-  [data-nextjs-call-stack-frame] > h6,
-  [data-nextjs-component-stack-frame] > h6 {
+  [data-nextjs-call-stack-frame] > h3,
+  [data-nextjs-component-stack-frame] > h3 {
     margin-top: 0;
     margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
+    font-size: var(--size-font);
     color: #222;
   }
-  [data-nextjs-call-stack-frame] > h6[data-nextjs-frame-expanded='false'] {
+  [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
     color: #666;
   }
   [data-nextjs-call-stack-frame] > div,
@@ -161,6 +162,7 @@ export const styles = css`
     width: auto;
     height: var(--size-font-small);
     margin-left: var(--size-gap);
+    flex-shrink: 0;
 
     display: none;
   }
@@ -201,7 +203,7 @@ export const styles = css`
     display: none;
   }
 
-  [data-nextjs-collapsed-call-stack-details] h6 {
+  [data-nextjs-collapsed-call-stack-details] h3 {
     color: #666;
   }
   [data-nextjs-collapsed-call-stack-details] [data-nextjs-call-stack-frame] {

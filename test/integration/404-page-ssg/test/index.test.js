@@ -76,7 +76,7 @@ const runTests = (isDev) => {
 }
 
 describe('404 Page Support SSG', () => {
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     afterAll(() => killApp(app))
 
     it('should build successfully', async () => {

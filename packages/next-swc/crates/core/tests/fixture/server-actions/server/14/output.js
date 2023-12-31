@@ -1,11 +1,10 @@
-/* __next_internal_action_entry_do_not_use__ foo */ export async function foo() {
-  async function bar() {}
+/* __next_internal_action_entry_do_not_use__ {"ab21efdafbe611287bc25c0462b1e0510d13e48b":"foo"} */ import { createActionProxy } from "private-next-rsc-action-proxy";
+import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
+export async function foo() {
+    async function bar() {}
 }
-import ensureServerEntryExports from "private-next-rsc-action-proxy";
+import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     foo
 ]);
-foo.$$typeof = Symbol.for("react.server.reference");
-foo.$$id = "ab21efdafbe611287bc25c0462b1e0510d13e48b";
-foo.$$bound = [];
-foo.$$with_bound = false;
+createActionProxy("ab21efdafbe611287bc25c0462b1e0510d13e48b", foo);

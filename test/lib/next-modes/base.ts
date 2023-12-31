@@ -11,6 +11,7 @@ import webdriver from '../next-webdriver'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { BrowserInterface } from '../browsers/base'
+import escapeStringRegexp from 'escape-string-regexp'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -24,6 +25,7 @@ export type PackageJson = {
 export interface NextInstanceOpts {
   files: FileRef | string | { [filename: string]: string | FileRef }
   dependencies?: { [name: string]: string }
+  resolutions?: { [name: string]: string }
   packageJson?: PackageJson
   nextConfig?: NextConfig
   installCommand?: InstallCommand
@@ -32,6 +34,7 @@ export interface NextInstanceOpts {
   env?: Record<string, string>
   dirSuffix?: string
   turbo?: boolean
+  forcedPort?: string
 }
 
 /**
@@ -51,6 +54,7 @@ export class NextInstance {
   protected buildCommand?: string
   protected startCommand?: string
   protected dependencies?: PackageJson['dependencies'] = {}
+  protected resolutions?: PackageJson['resolutions']
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
   protected isStopping: boolean = false
@@ -60,11 +64,12 @@ export class NextInstance {
   protected _parsedUrl: URL
   protected packageJson?: PackageJson = {}
   protected basePath?: string
-  protected env?: Record<string, string>
+  public env: Record<string, string>
   public forcedPort?: string
   public dirSuffix: string = ''
 
   constructor(opts: NextInstanceOpts) {
+    this.env = {}
     Object.assign(this, opts)
 
     if (!(global as any).isNextDeploy) {
@@ -121,7 +126,9 @@ export class NextInstance {
     if (this.isDestroyed) {
       throw new Error('next instance already destroyed')
     }
-    require('console').log(`Creating test directory with isolated next...`)
+    require('console').log(
+      `Creating test directory with isolated next... (use NEXT_SKIP_ISOLATE=1 to opt-out)`
+    )
 
     await parentSpan
       .traceChild('createTestDir')
@@ -142,13 +149,14 @@ export class NextInstance {
           react: reactVersion,
           'react-dom': reactVersion,
           '@types/react': reactVersion,
+          '@types/react-dom': reactVersion,
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
         }
 
-        if (skipInstall) {
+        if (skipInstall || skipIsolatedNext) {
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
           await fs.ensureDir(this.testDir)
           await fs.writeFile(
@@ -162,6 +170,7 @@ export class NextInstance {
                     process.env.NEXT_TEST_VERSION ||
                     require('next/package.json').version,
                 },
+                ...(this.resolutions ? { resolutions: this.resolutions } : {}),
                 scripts: {
                   // since we can't get the build id as a build artifact, make it
                   // available under the static files
@@ -185,14 +194,16 @@ export class NextInstance {
             !(global as any).isNextDeploy
           ) {
             await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
-          } else if (!skipIsolatedNext) {
-            this.testDir = await createNextInstall({
+          } else {
+            const { installDir } = await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
+              resolutions: this.resolutions ?? null,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
               dirSuffix: this.dirSuffix,
             })
+            this.testDir = installDir
           }
           require('console').log('created next.js install, writing test files')
         }
@@ -280,6 +291,30 @@ export class NextInstance {
       })
   }
 
+  // normalize snapshots or stack traces being tested
+  // to a consistent test dir value since it's random
+  public normalizeTestDirContent(content) {
+    content = content.replace(
+      new RegExp(escapeStringRegexp(this.testDir), 'g'),
+      'TEST_DIR'
+    )
+    if (process.env.NEXT_SWC_DEV_BIN) {
+      content = content.replace(/,----/, ',-[1:1]')
+      content = content.replace(/\[\.\/.*?:/, '[')
+    }
+    return content
+  }
+
+  // the dev binary for next-swc is missing file references
+  // so this normalizes to allow snapshots to match
+  public normalizeSnapshot(content) {
+    if (process.env.NEXT_SWC_DEV_BIN) {
+      content = content.replace(/TEST_DIR.*?:/g, '')
+      content = content.replace(/\[\.\/.*?:/, '[')
+    }
+    return content
+  }
+
   public async clean() {
     if (this.childProcess) {
       throw new Error(`stop() must be called before cleaning`)
@@ -302,11 +337,7 @@ export class NextInstance {
   public async build(): Promise<{ exitCode?: number; cliOutput?: string }> {
     throw new Error('Not implemented')
   }
-  public async export(args?: {
-    outdir?: string
-  }): Promise<{ exitCode?: number; cliOutput?: string }> {
-    throw new Error('Not implemented')
-  }
+
   public async setup(parentSpan: Span): Promise<void> {}
   public async start(useDirArg: boolean = false): Promise<void> {}
   public async stop(): Promise<void> {
@@ -335,36 +366,42 @@ export class NextInstance {
   }
 
   public async destroy(): Promise<void> {
-    if (this.isDestroyed) {
-      throw new Error(`next instance already destroyed`)
-    }
-    this.isDestroyed = true
-    this.emit('destroy', [])
-    await this.stop()
+    try {
+      if (this.isDestroyed) {
+        throw new Error(`next instance already destroyed`)
+      }
+      this.isDestroyed = true
+      this.emit('destroy', [])
+      await this.stop().catch(console.error)
 
-    if (process.env.TRACE_PLAYWRIGHT) {
-      await fs
-        .copy(
-          path.join(this.testDir, '.next/trace'),
-          path.join(
-            __dirname,
-            '../../traces',
-            `${path
-              .relative(
-                path.join(__dirname, '../../'),
-                process.env.TEST_FILE_PATH
-              )
-              .replace(/\//g, '-')}`,
-            `next-trace`
+      if (process.env.TRACE_PLAYWRIGHT) {
+        await fs
+          .copy(
+            path.join(this.testDir, '.next/trace'),
+            path.join(
+              __dirname,
+              '../../traces',
+              `${path
+                .relative(
+                  path.join(__dirname, '../../'),
+                  process.env.TEST_FILE_PATH
+                )
+                .replace(/\//g, '-')}`,
+              `next-trace`
+            )
           )
-        )
-        .catch(() => {})
-    }
+          .catch((e) => {
+            require('console').error(e)
+          })
+      }
 
-    if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-      await fs.remove(this.testDir)
+      if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
+        await fs.remove(this.testDir)
+      }
+      require('console').log(`destroyed next instance`)
+    } catch (err) {
+      require('console').error('Error while destroying', err)
     }
-    require('console').log(`destroyed next instance`)
   }
 
   public get url() {
@@ -393,25 +430,68 @@ export class NextInstance {
   public async readJSON(filename: string) {
     return fs.readJSON(path.join(this.testDir, filename))
   }
+  private async handleDevWatchDelayBeforeChange(filename: string) {
+    // This is a temporary workaround for turbopack starting watching too late.
+    // So we delay file changes by 500ms to give it some time
+    // to connect the WebSocket and start watching.
+    if (process.env.TURBOPACK) {
+      require('console').log('fs dev delay before', filename)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  }
+  private async handleDevWatchDelayAfterChange(filename: string) {
+    // to help alleviate flakiness with tests that create
+    // dynamic routes // and then request it we give a buffer
+    // of 500ms to allow WatchPack to detect the changed files
+    // TODO: replace this with an event directly from WatchPack inside
+    // router-server for better accuracy
+    if (
+      (global as any).isNextDev &&
+      (filename.startsWith('app/') || filename.startsWith('pages/'))
+    ) {
+      require('console').log('fs dev delay', filename)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  }
   public async patchFile(filename: string, content: string) {
+    await this.handleDevWatchDelayBeforeChange(filename)
+
     const outputPath = path.join(this.testDir, filename)
+    const newFile = !(await fs.pathExists(outputPath))
     await fs.ensureDir(path.dirname(outputPath))
-    return fs.writeFile(outputPath, content)
+    await fs.writeFile(outputPath, content)
+
+    if (newFile) {
+      await this.handleDevWatchDelayAfterChange(filename)
+    }
+  }
+  public async patchFileFast(filename: string, content: string) {
+    const outputPath = path.join(this.testDir, filename)
+    await fs.writeFile(outputPath, content)
   }
   public async renameFile(filename: string, newFilename: string) {
-    return fs.rename(
+    await this.handleDevWatchDelayBeforeChange(filename)
+
+    await fs.rename(
       path.join(this.testDir, filename),
       path.join(this.testDir, newFilename)
     )
+    await this.handleDevWatchDelayAfterChange(filename)
   }
   public async renameFolder(foldername: string, newFoldername: string) {
-    return fs.move(
+    await this.handleDevWatchDelayBeforeChange(foldername)
+
+    await fs.move(
       path.join(this.testDir, foldername),
       path.join(this.testDir, newFoldername)
     )
+    await this.handleDevWatchDelayAfterChange(foldername)
   }
   public async deleteFile(filename: string) {
-    return fs.remove(path.join(this.testDir, filename))
+    await this.handleDevWatchDelayBeforeChange(filename)
+
+    await fs.remove(path.join(this.testDir, filename))
+    await this.handleDevWatchDelayAfterChange(filename)
   }
 
   /**

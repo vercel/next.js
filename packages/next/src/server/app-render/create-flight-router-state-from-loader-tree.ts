@@ -1,7 +1,7 @@
-import { LoaderTree } from '../lib/app-dir-module'
-import { FlightRouterState, Segment } from './types'
-import { GetDynamicParamFromSegment } from './app-render'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
+import type { LoaderTree } from '../lib/app-dir-module'
+import type { FlightRouterState, Segment } from './types'
+import type { GetDynamicParamFromSegment } from './app-render'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 
 export function addSearchParamsIfPageSegment(
   segment: Segment,

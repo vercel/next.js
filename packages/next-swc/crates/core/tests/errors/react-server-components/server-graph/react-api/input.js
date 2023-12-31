@@ -16,6 +16,8 @@ import {
   useSyncExternalStore,
 } from 'react'
 
+import { experimental_useOptimistic as useOptimistic } from 'react'
+
 export default function () {
   return null
 }

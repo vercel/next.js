@@ -1,0 +1,32 @@
+---
+title: createContext in a Server Component
+---
+
+## Why This Error Occurred
+
+You are using `createContext` in a Server Component but it only works in Client Components.
+
+## Possible Ways to Fix It
+
+Mark the component using `createContext` as a Client Component by adding `'use client'` at the top of the file.
+
+##### Before
+
+```jsx filename="app/example-component.js"
+import { createContext } from 'react'
+
+const Context = createContext()
+```
+
+##### After
+
+```jsx filename="app/example-component.js"
+'use client'
+import { createContext } from 'react'
+
+const Context = createContext()
+```
+
+## Useful Links
+
+[Server and Client Components Composition Patterns](/docs/app/building-your-application/rendering/composition-patterns)

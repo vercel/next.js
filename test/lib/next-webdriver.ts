@@ -46,10 +46,14 @@ export const USE_SELENIUM = Boolean(
  *
  * @param appPortOrUrl can either be the port or the full URL
  * @param url the path/query to append when using appPort
- * @param options.waitHydration whether to wait for react hydration to finish
+ * @param options
+ * @param options.waitHydration whether to wait for React hydration to finish
  * @param options.retryWaitHydration allow retrying hydration wait if reload occurs
  * @param options.disableCache disable cache for page load
  * @param options.beforePageLoad the callback receiving page instance before loading page
+ * @param options.locale browser locale
+ * @param options.disableJavaScript disable javascript
+ * @param options.ignoreHttpsErrors ignore https errors
  * @returns thenable browser instance
  */
 export default async function webdriver(
@@ -61,9 +65,13 @@ export default async function webdriver(
     disableCache?: boolean
     beforePageLoad?: (page: any) => void
     locale?: string
+    disableJavaScript?: boolean
+    headless?: boolean
+    ignoreHTTPSErrors?: boolean
+    cpuThrottleRate?: number
   }
 ): Promise<BrowserInterface> {
-  let CurrentInterface: typeof BrowserInterface
+  let CurrentInterface: new () => BrowserInterface
 
   const defaultOptions = {
     waitHydration: true,
@@ -77,6 +85,10 @@ export default async function webdriver(
     disableCache,
     beforePageLoad,
     locale,
+    disableJavaScript,
+    ignoreHTTPSErrors,
+    headless,
+    cpuThrottleRate,
   } = options
 
   // we import only the needed interface
@@ -96,7 +108,14 @@ export default async function webdriver(
 
   const browser = new CurrentInterface()
   const browserName = process.env.BROWSER_NAME || 'chrome'
-  await browser.setup(browserName, locale)
+  await browser.setup(
+    browserName,
+    locale,
+    !disableJavaScript,
+    ignoreHTTPSErrors,
+    // allow headless to be overwritten for a particular test
+    typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS
+  )
   ;(global as any).browserName = browserName
 
   const fullUrl = getFullUrl(
@@ -107,7 +126,11 @@ export default async function webdriver(
 
   console.log(`\n> Loading browser with ${fullUrl}\n`)
 
-  await browser.loadPage(fullUrl, { disableCache, beforePageLoad })
+  await browser.loadPage(fullUrl, {
+    disableCache,
+    cpuThrottleRate,
+    beforePageLoad,
+  })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
 
   // Wait for application to hydrate
@@ -120,7 +143,7 @@ export default async function webdriver(
 
         // if it's not a Next.js app return
         if (
-          document.documentElement.innerHTML.indexOf('__NEXT_DATA__') === -1 &&
+          !document.documentElement.innerHTML.includes('__NEXT_DATA__') &&
           // @ts-ignore next exists on window if it's a Next.js page.
           typeof ((window as any).next && (window as any).next.version) ===
             'undefined'

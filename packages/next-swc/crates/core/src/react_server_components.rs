@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use regex::Regex;
 use serde::Deserialize;
-use turbo_binding::swc::core::{
+use turbopack_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
@@ -37,11 +37,11 @@ impl Config {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Options {
-    pub is_server: bool,
+    pub is_react_server_layer: bool,
 }
 
 struct ReactServerComponents<C: Comments> {
-    is_server: bool,
+    is_react_server_layer: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
@@ -61,18 +61,31 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
     noop_visit_mut_type!();
 
     fn visit_mut_module(&mut self, module: &mut Module) {
-        let (is_client_entry, imports) = self.collect_top_level_directives_and_imports(module);
+        let (is_client_entry, is_action_file, imports) =
+            self.collect_top_level_directives_and_imports(module);
         let is_cjs = contains_cjs(module);
 
-        if self.is_server {
-            if !is_client_entry {
-                self.assert_server_graph(&imports, module);
-            } else {
+        if self.is_react_server_layer {
+            if is_client_entry {
                 self.to_module_ref(module, is_cjs);
                 return;
+            } else {
+                // Only assert server graph if file's bundle target is "server", e.g.
+                // * server components pages
+                // * pages bundles on SSR layer
+                // * middleware
+                // * app/pages api routes
+                self.assert_server_graph(&imports, module);
             }
         } else {
-            self.assert_client_graph(&imports, module);
+            // Only assert client graph if the file is not an action file,
+            // and bundle target is "client" e.g.
+            // * client components pages
+            // * pages bundles on browser layer
+            if !is_action_file {
+                self.assert_client_graph(&imports);
+                self.assert_invalid_api(module, true);
+            }
             if is_client_entry {
                 self.prepend_comment_node(module, is_cjs);
             }
@@ -87,10 +100,24 @@ impl<C: Comments> ReactServerComponents<C> {
     fn collect_top_level_directives_and_imports(
         &mut self,
         module: &mut Module,
-    ) -> (bool, Vec<ModuleImports>) {
+    ) -> (bool, bool, Vec<ModuleImports>) {
         let mut imports: Vec<ModuleImports> = vec![];
         let mut finished_directives = false;
         let mut is_client_entry = false;
+        let mut is_action_file = false;
+
+        fn panic_both_directives(span: Span) {
+            // It's not possible to have both directives in the same file.
+            HANDLER.with(|handler| {
+                handler
+                    .struct_span_err(
+                        span,
+                        "It's not possible to have both `use client` and `use server` directives \
+                         in the same file.",
+                    )
+                    .emit()
+            })
+        }
 
         let _ = &module.body.retain(|item| {
             match item {
@@ -107,6 +134,10 @@ impl<C: Comments> ReactServerComponents<C> {
                                     if &**value == "use client" {
                                         if !finished_directives {
                                             is_client_entry = true;
+
+                                            if is_action_file {
+                                                panic_both_directives(expr_stmt.span)
+                                            }
                                         } else {
                                             HANDLER.with(|handler| {
                                                 handler
@@ -120,6 +151,12 @@ impl<C: Comments> ReactServerComponents<C> {
 
                                         // Remove the directive.
                                         return false;
+                                    } else if &**value == "use server" && !finished_directives {
+                                        is_action_file = true;
+
+                                        if is_client_entry {
+                                            panic_both_directives(expr_stmt.span)
+                                        }
                                     }
                                 }
                                 // Match `ParenthesisExpression` which is some formatting tools
@@ -195,6 +232,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             },
                         })
                     }
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, .. })) => {
                     match decl {
@@ -213,12 +251,21 @@ impl<C: Comments> ReactServerComponents<C> {
                         }
                         _ => {}
                     }
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
                     decl: _,
                     ..
                 })) => {
                     self.export_names.push("default".to_string());
+                    finished_directives = true;
+                }
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
+                    expr: _,
+                    ..
+                })) => {
+                    self.export_names.push("default".to_string());
+                    finished_directives = true;
                 }
                 ModuleItem::ModuleDecl(ModuleDecl::ExportAll(_)) => {
                     self.export_names.push("*".to_string());
@@ -230,7 +277,7 @@ impl<C: Comments> ReactServerComponents<C> {
             true
         });
 
-        (is_client_entry, imports)
+        (is_client_entry, is_action_file, imports)
     }
 
     // Convert the client module to the module reference code and add a special
@@ -296,6 +343,10 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
+        // If the
+        if self.is_from_node_modules(&self.filepath) {
+            return;
+        }
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_server_imports.contains(&source) {
@@ -343,7 +394,10 @@ impl<C: Comments> ReactServerComponents<C> {
     }
 
     fn assert_server_filename(&self, module: &Module) {
-        let is_error_file = Regex::new(r"/error\.(ts|js)x?$")
+        if self.is_from_node_modules(&self.filepath) {
+            return;
+        }
+        let is_error_file = Regex::new(r"[\\/]error\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
         if is_error_file {
@@ -367,7 +421,10 @@ impl<C: Comments> ReactServerComponents<C> {
         }
     }
 
-    fn assert_client_graph(&self, imports: &[ModuleImports], module: &Module) {
+    fn assert_client_graph(&self, imports: &[ModuleImports]) {
+        if self.is_from_node_modules(&self.filepath) {
+            return;
+        }
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_client_imports.contains(&source) {
@@ -381,12 +438,13 @@ impl<C: Comments> ReactServerComponents<C> {
                 })
             }
         }
-
-        self.assert_invalid_api(module, true);
     }
 
     fn assert_invalid_api(&self, module: &Module, is_client_entry: bool) {
-        let is_layout_or_page = Regex::new(r"/(page|layout)\.(ts|js)x?$")
+        if self.is_from_node_modules(&self.filepath) {
+            return;
+        }
+        let is_layout_or_page = Regex::new(r"[\\/](page|layout)\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
 
@@ -516,6 +574,12 @@ impl<C: Comments> ReactServerComponents<C> {
             },
         );
     }
+
+    fn is_from_node_modules(&self, filepath: &str) -> bool {
+        Regex::new(r"[\\/]node_modules[\\/]")
+            .unwrap()
+            .is_match(filepath)
+    }
 }
 
 pub fn server_components<C: Comments>(
@@ -524,12 +588,12 @@ pub fn server_components<C: Comments>(
     comments: C,
     app_dir: Option<PathBuf>,
 ) -> impl Fold + VisitMut {
-    let is_server: bool = match config {
-        Config::WithOptions(x) => x.is_server,
-        _ => true,
+    let is_react_server_layer: bool = match &config {
+        Config::WithOptions(x) => x.is_react_server_layer,
+        _ => false,
     };
     as_folder(ReactServerComponents {
-        is_server,
+        is_react_server_layer,
         comments,
         filepath: filename.to_string(),
         app_dir,
@@ -545,6 +609,8 @@ pub fn server_components<C: Comments>(
             JsWord::from("findDOMNode"),
             JsWord::from("flushSync"),
             JsWord::from("unstable_batchedUpdates"),
+            JsWord::from("useFormStatus"),
+            JsWord::from("useFormState"),
         ],
         invalid_server_react_apis: vec![
             JsWord::from("Component"),
@@ -561,6 +627,7 @@ pub fn server_components<C: Comments>(
             JsWord::from("useState"),
             JsWord::from("useSyncExternalStore"),
             JsWord::from("useTransition"),
+            JsWord::from("useOptimistic"),
         ],
     })
 }

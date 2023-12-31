@@ -1,0 +1,45 @@
+---
+title: Handling "Dynamic href is not Supported in the App Router" Error in Next.js
+description: This document describes the dynamic href is not supported in the App Router error in Next.js and provides a solution to fix it.
+---
+
+## Why This Error Occurred
+
+The "Dynamic `href` is not supported in the App Router" error happens when you try to use a dynamic `href` with `next/link` in the `app` directory.
+
+The new client-side router in Next.js does not use a mapping of dynamic routes to URLs, but rather it leverages the URL directly. This means it doesn't support dynamic `href` use.
+
+## Possible Ways to Fix It
+
+You need to replace the dynamic `href` with a direct path in the `next/link` component. Here's a before and after comparison of what your code should look like:
+
+**Before**
+
+```jsx
+<Link
+  href={{
+    pathname: '/route/[slug]',
+    query: { slug: '1' },
+  }}
+>
+  link
+</Link>
+```
+
+Or
+
+```jsx
+<Link href="/route/[slug]?slug=1">link</Link>
+```
+
+**After**
+
+```jsx
+<Link href="/route/1">link</Link>
+```
+
+In the revised code, the dynamic part of the `href` (`[slug]`) is replaced directly with the actual value (`1`), which simplifies the `href` and makes it a direct path.
+
+## Useful Links
+
+- [`next/link` documentation](/docs/app/api-reference/components/link#href-required) - Learn more about the usage of `next/link` in Next.js.

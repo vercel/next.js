@@ -16,6 +16,11 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   ...props
 }) {
   const [dialog, setDialog] = React.useState<HTMLDivElement | null>(null)
+  const [role, setRole] = React.useState<string | undefined>(
+    typeof document !== 'undefined' && document.hasFocus()
+      ? 'dialog'
+      : undefined
+  )
   const onDialog = React.useCallback((node: HTMLDivElement | null) => {
     setDialog(node)
   }, [])
@@ -48,9 +53,20 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       }
     }
 
+    function handleFocus() {
+      // safari will force itself as the active application when a background page triggers any sort of autofocus
+      // this is a workaround to only set the dialog role if the document has focus
+      setRole(document.hasFocus() ? 'dialog' : undefined)
+    }
+
     shadowRoot.addEventListener('keydown', handler as EventListener)
-    return () =>
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('blur', handleFocus)
+    return () => {
       shadowRoot.removeEventListener('keydown', handler as EventListener)
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('blur', handleFocus)
+    }
   }, [dialog])
 
   return (
@@ -58,7 +74,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       ref={onDialog}
       data-nextjs-dialog
       tabIndex={-1}
-      role="dialog"
+      role={role}
       aria-labelledby={props['aria-labelledby']}
       aria-describedby={props['aria-describedby']}
       aria-modal="true"

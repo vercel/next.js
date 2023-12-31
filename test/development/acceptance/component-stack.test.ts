@@ -1,62 +1,26 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
 import { createNextDescribe } from 'e2e-utils'
+import { getRedboxComponentStack, hasRedbox } from 'next-test-utils'
+import path from 'path'
 
 createNextDescribe(
   'Component Stack in error overlay',
   {
-    files: {},
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
-    skipStart: true,
+    files: path.join(__dirname, 'fixtures', 'component-stack'),
   },
   ({ next }) => {
     it('should show a component stack on hydration error', async () => {
-      const { cleanup, session } = await sandbox(
-        next,
-        new Map([
-          [
-            'component.js',
-            `
-  const isClient = typeof window !== 'undefined'
-  export default function Component() {
-      return (
-        <div>
-          <p>{isClient ? "client" : "server"}</p>
-        </div>
-      );
-    }
-`,
-          ],
-          [
-            'index.js',
-            `
-  import Component from './component'
-  export default function Mismatch() {
-      return (
-        <main>
-          <Component />
-        </main>
-      );
-    }
-`,
-          ],
-        ])
-      )
+      const browser = await next.browser('/')
 
-      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await hasRedbox(browser, true)).toBe(true)
 
-      expect(await session.getRedboxComponentStack()).toMatchInlineSnapshot(`
+      expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
         "p
         div
         Component
         main
         Mismatch"
       `)
-
-      await cleanup()
     })
   }
 )

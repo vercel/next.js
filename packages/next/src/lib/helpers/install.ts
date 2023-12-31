@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import { yellow } from '../picocolors'
 import spawn from 'next/dist/compiled/cross-spawn'
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn'
@@ -72,9 +72,9 @@ export function install(
        */
       args = ['install']
       if (!isOnline) {
-        console.log(chalk.yellow('You appear to be offline.'))
+        console.log(yellow('You appear to be offline.'))
         if (useYarn) {
-          console.log(chalk.yellow('Falling back to the local Yarn cache.'))
+          console.log(yellow('Falling back to the local Yarn cache.'))
           console.log()
           args.push('--offline')
         } else {

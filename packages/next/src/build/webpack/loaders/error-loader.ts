@@ -1,6 +1,6 @@
-import chalk from 'next/dist/compiled/chalk'
+import { cyan } from '../../../lib/picocolors'
 import path from 'path'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 const ErrorLoader: webpack.LoaderDefinitionFunction = function () {
   // @ts-ignore exists
@@ -18,9 +18,7 @@ const ErrorLoader: webpack.LoaderDefinitionFunction = function () {
       : resource
     : null
 
-  const err = new Error(
-    reason + (issuer ? `\nLocation: ${chalk.cyan(issuer)}` : '')
-  )
+  const err = new Error(reason + (issuer ? `\nLocation: ${cyan(issuer)}` : ''))
   this.emitError(err)
 }
 

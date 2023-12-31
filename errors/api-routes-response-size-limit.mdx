@@ -1,0 +1,32 @@
+---
+title: Addressing "API Routes Response Size Limited to 4MB" Error in Next.js
+description: This document explains the "API Routes Response Size Limited to 4MB" error in Next.js and guides developers on how to modify response size limits.
+---
+
+## Why This Error Occurred
+
+The "API Routes Response Size Limited to 4MB" error arises when your API Route is trying to send a response larger than the allowed size of `4MB`. API Routes in Next.js are designed to deliver quick responses and are not built to support the transmission of large amounts of data.
+
+## Possible Ways to Fix It
+
+If you are not utilizing Next.js in a serverless environment, and you're fully aware of the performance implications, you can disable this limit in your API Route. Here is how you can set `responseLimit` to `false`:
+
+```js filename="pages/api/example.js"
+export const config = {
+  api: {
+    responseLimit: false,
+  },
+}
+```
+
+Alternatively, `responseLimit` can also accept a numeric value (in bytes) or any string format supported by the `bytes` module. This can be a value like `1000`, `'500kb'`, or `'3mb'`. This value will set the maximum response size before a warning is displayed. For example, to set the limit to 8MB:
+
+```js filename="pages/api/example.js"
+export const config = {
+  api: {
+    responseLimit: '8mb',
+  },
+}
+```
+
+**Note:** Increasing the response limit can have significant impacts on performance and should only be done after careful consideration.

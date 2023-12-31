@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CHANGED_EXAMPLES=$(node scripts/run-for-change.js --type deploy-examples --listChangedDirectories)
+#CHANGED_EXAMPLES=$(node scripts/run-for-change.js --type deploy-examples --listChangedDirectories)
+##### TODO: fix the script above so it can work for stable releases which reach back multiple commits
+CHANGED_EXAMPLES="examples/image-component" # always deploy as a workaround
+
 PROD=""
 if [ "$DEPLOY_ENVIRONMENT" = "production" ]; then
   PROD="--prod"

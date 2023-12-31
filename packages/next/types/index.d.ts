@@ -2,10 +2,14 @@
 /// <reference types="react" />
 /// <reference types="react/experimental" />
 /// <reference types="react-dom" />
+/// <reference types="react-dom/experimental" />
 
-import React from 'react'
-import { ParsedUrlQuery } from 'querystring'
-import { IncomingMessage, ServerResponse } from 'http'
+import type { Agent as HttpAgent } from 'http'
+import type { Agent as HttpsAgent } from 'https'
+
+import type React from 'react'
+import type { ParsedUrlQuery } from 'querystring'
+import type { IncomingMessage, ServerResponse } from 'http'
 
 import {
   NextPageContext,
@@ -16,7 +20,7 @@ import {
   // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/shared/lib/utils'
 
-import {
+import type {
   NextApiRequestCookies,
   // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/server/api-utils'
@@ -33,8 +37,28 @@ export type {
   Metadata,
   MetadataRoute,
   ResolvedMetadata,
-  ResolvingMetadata, // @ts-ignore This path is generated at build time and conflicts otherwise
+  ResolvingMetadata,
+  Viewport,
+  ResolvingViewport,
+  ResolvedViewport,
+  // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/lib/metadata/types/metadata-interface'
+
+/**
+ * Stub route type for typedRoutes before `next dev` or `next build` is run
+ * @link https://nextjs.org/docs/app/building-your-application/configuring/typescript#statically-typed-links
+ * @example
+ * ```ts
+ * import type { Route } from 'next'
+ * // ...
+ * router.push(returnToPath as Route)
+ * ```
+ */
+
+// `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
+// isn't generated yet. It will be replaced when the webpack plugin runs.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type Route<RouteInferType = any> = string & {}
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -63,7 +87,7 @@ export type Redirect =
     }
 
 /**
- * `Page` type, use it as a guide to create `pages`.
+ * `NextPage` type, use it as a guide to create `pages`.
  */
 export type NextPage<Props = {}, InitialProps = Props> = NextComponentType<
   NextPageContext,
@@ -116,6 +140,11 @@ export type PageConfig = {
     externalResolver?: true
   }
   env?: Array<string>
+  /**
+   * Configures the longest time in seconds a serverless function can process an HTTP
+   * request before responding.
+   */
+  maxDuration?: number
   runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
@@ -152,6 +181,7 @@ export type GetStaticPropsContext<
   params?: Params
   preview?: boolean
   previewData?: Preview
+  draftMode?: boolean
   locale?: string
   locales?: string[]
   defaultLocale?: string
@@ -237,6 +267,7 @@ export type GetServerSidePropsContext<
   query: ParsedUrlQuery
   preview?: boolean
   previewData?: Preview
+  draftMode?: boolean
   resolvedUrl: string
   locale?: string
   locales?: string[]
@@ -295,6 +326,11 @@ declare global {
     ): T
     randomUUID(): string
   }
+
+  var __NEXT_HTTP_AGENT_OPTIONS: { keepAlive?: boolean } | undefined
+  var __NEXT_UNDICI_AGENT_SET: boolean
+  var __NEXT_HTTP_AGENT: HttpAgent
+  var __NEXT_HTTPS_AGENT: HttpsAgent
 }
 
 export default next

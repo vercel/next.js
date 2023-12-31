@@ -1,7 +1,7 @@
 import curry from 'next/dist/compiled/lodash.curry'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { COMPILER_NAMES } from '../../../../shared/lib/constants'
-import { ConfigurationContext } from '../utils'
+import type { ConfigurationContext } from '../utils'
 
 export const base = curry(function base(
   ctx: ConfigurationContext,
@@ -14,9 +14,8 @@ export const base = curry(function base(
       : COMPILER_NAMES.server
     : COMPILER_NAMES.client
 
-  // @ts-ignore TODO webpack 5 typings
   config.target = !ctx.targetWeb
-    ? 'node12.22'
+    ? 'node16.14' // Same version defined in packages/next/package.json#engines
     : ctx.isEdgeRuntime
     ? ['web', 'es6']
     : ['web', 'es5']
@@ -35,6 +34,7 @@ export const base = curry(function base(
   } else {
     if (
       ctx.isEdgeRuntime ||
+      (ctx.isServer && ctx.serverSourceMaps) ||
       // Enable browser sourcemaps:
       (ctx.productionBrowserSourceMaps && ctx.isClient)
     ) {

@@ -1,12 +1,13 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import { outdent } from 'outdent'
 
 createNextDescribe(
   'parallel-routes-and-interception',
   {
     files: __dirname,
   },
-  ({ next }) => {
+  ({ next, isNextDev }) => {
     describe('parallel routes', () => {
       it('should support parallel route tab bars', async () => {
         const browser = await next.browser('/parallel-tab-bar')
@@ -166,22 +167,55 @@ createNextDescribe(
       })
 
       it('should match parallel routes', async () => {
-        const html = await next.render('/parallel/nested')
-        expect(html).toContain('parallel/layout')
-        expect(html).toContain('parallel/@foo/nested/layout')
-        expect(html).toContain('parallel/@foo/nested/@a/page')
-        expect(html).toContain('parallel/@foo/nested/@b/page')
-        expect(html).toContain('parallel/@bar/nested/layout')
-        expect(html).toContain('parallel/@bar/nested/@a/page')
-        expect(html).toContain('parallel/@bar/nested/@b/page')
-        expect(html).toContain('parallel/nested/page')
+        const $ = await next.render$('/parallel/nested')
+        const pageText = $('#parallel-layout').text()
+        expect(pageText).toContain('parallel/layout')
+        expect(pageText).toContain('parallel/@foo/nested/layout')
+        expect(pageText).toContain('parallel/@foo/nested/@a/page')
+        expect(pageText).toContain('parallel/@foo/nested/@b/page')
+        expect(pageText).toContain('parallel/@bar/nested/layout')
+        expect(pageText).toContain('parallel/@bar/nested/@a/page')
+        expect(pageText).toContain('parallel/@bar/nested/@b/page')
+        expect(pageText).toContain('parallel/nested/page')
       })
 
       it('should match parallel routes in route groups', async () => {
+        const $ = await next.render$('/parallel/nested-2')
+        const pageText = $('#parallel-layout').text()
+        expect(pageText).toContain('parallel/layout')
+        expect(pageText).toContain('parallel/(new)/layout')
+        expect(pageText).toContain('parallel/(new)/@baz/nested/page')
+      })
+
+      it('should gracefully handle when two page segments match the `children` parallel slot', async () => {
+        await next.stop()
+        await next.patchFile(
+          'app/parallel/nested-2/page.js',
+          outdent`
+              export default function Page() {
+                return 'hello world'
+              }
+            `
+        )
+
+        await next.start()
+
         const html = await next.render('/parallel/nested-2')
-        expect(html).toContain('parallel/layout')
-        expect(html).toContain('parallel/(new)/layout')
-        expect(html).toContain('parallel/(new)/@baz/nested/page')
+
+        // before adding this file, the page would have matched `/app/parallel/(new)/@baz/nested-2/page`
+        // but we've added a more specific page, so it should match that instead
+        if (process.env.TURBOPACK) {
+          // TODO: this matches differently in Turbopack because the Webpack loader does some sorting on the paths
+          // Investigate the discrepancy in a follow-up. For now, since no errors are being thrown (and since this test was previously ignored in Turbopack),
+          // we'll just verify that the page is rendered and some content was matched.
+          expect(html).toContain('parallel/(new)/@baz/nested/page')
+        } else {
+          expect(html).toContain('hello world')
+        }
+
+        await next.stop()
+        await next.deleteFile('app/parallel/nested-2/page.js')
+        await next.start()
       })
 
       it('should throw a 404 when no matching parallel route is found', async () => {
@@ -242,6 +276,25 @@ createNextDescribe(
         )
       })
 
+      it('should support layout files in parallel routes', async () => {
+        const browser = await next.browser('/parallel-layout')
+        await check(
+          () => browser.waitForElementByCss('#parallel-layout').text(),
+          'parallel layout'
+        )
+
+        // navigate to /parallel-layout/subroute
+        await browser.elementByCss('[href="/parallel-layout/subroute"]').click()
+        await check(
+          () => browser.waitForElementByCss('#parallel-layout').text(),
+          'parallel layout'
+        )
+        await check(
+          () => browser.waitForElementByCss('#parallel-subroute').text(),
+          'parallel subroute layout'
+        )
+      })
+
       it('should only scroll to the parallel route that was navigated to', async () => {
         const browser = await next.browser('/parallel-scroll')
 
@@ -260,7 +313,7 @@ createNextDescribe(
         await browser.elementByCss('[href="/parallel-catchall/bar"]').click()
         await check(
           () => browser.waitForElementByCss('#main').text(),
-          'main catchall'
+          'bar slot'
         )
         await check(
           () => browser.waitForElementByCss('#slot-content').text(),
@@ -274,14 +327,45 @@ createNextDescribe(
           'foo slot'
         )
 
-        await browser.elementByCss('[href="/parallel-catchall/bar"]').click()
+        await browser.elementByCss('[href="/parallel-catchall/baz"]').click()
         await check(
           () => browser.waitForElementByCss('#main').text(),
           'main catchall'
         )
         await check(
           () => browser.waitForElementByCss('#slot-content').text(),
+          'baz slot'
+        )
+      })
+
+      it('should match the catch-all routes of the more specific path, if there is more than one catch-all route', async () => {
+        const browser = await next.browser('/parallel-nested-catchall')
+
+        await browser
+          .elementByCss('[href="/parallel-nested-catchall/foo"]')
+          .click()
+        await check(() => browser.waitForElementByCss('#main').text(), 'foo')
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'foo slot'
+        )
+
+        await browser
+          .elementByCss('[href="/parallel-nested-catchall/bar"]')
+          .click()
+        await check(() => browser.waitForElementByCss('#main').text(), 'bar')
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
           'slot catchall'
+        )
+
+        await browser
+          .elementByCss('[href="/parallel-nested-catchall/foo/123"]')
+          .click()
+        await check(() => browser.waitForElementByCss('#main').text(), 'foo id')
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'foo id catchAll'
         )
       })
 
@@ -303,6 +387,180 @@ createNextDescribe(
               .waitForElementByCss('#parallel-foo')
               .text(),
           'parallel for foo'
+        )
+      })
+
+      it('should display all parallel route params with useParams', async () => {
+        const browser = await next.browser('/parallel-dynamic/foo/bar')
+
+        await check(
+          () => browser.waitForElementByCss('#foo').text(),
+          `{"slug":"foo","id":"bar"}`
+        )
+
+        await check(
+          () => browser.waitForElementByCss('#bar').text(),
+          `{"slug":"foo","id":"bar"}`
+        )
+      })
+
+      if (isNextDev) {
+        it('should support parallel routes with no page component', async () => {
+          const browser = await next.browser('/parallel-no-page/foo')
+          const timestamp = await browser.elementByCss('#timestamp').text()
+
+          await new Promise((resolve) => {
+            setTimeout(resolve, 3000)
+          })
+
+          await check(async () => {
+            // an invalid response triggers a fast refresh, so if the timestamp doesn't update, this behaved correctly
+            const newTimestamp = await browser.elementByCss('#timestamp').text()
+            return newTimestamp !== timestamp ? 'failure' : 'success'
+          }, 'success')
+        })
+
+        it('should support nested parallel routes', async () => {
+          const browser = await next.browser('parallel-nested/home/nested')
+          const timestamp = await browser.elementByCss('#timestamp').text()
+
+          await new Promise((resolve) => {
+            setTimeout(resolve, 3000)
+          })
+
+          await check(async () => {
+            // an invalid response triggers a fast refresh, so if the timestamp doesn't update, this behaved correctly
+            const newTimestamp = await browser.elementByCss('#timestamp').text()
+            return newTimestamp !== timestamp ? 'failure' : 'success'
+          }, 'success')
+        })
+      }
+    })
+
+    describe('route intercepting with dynamic routes', () => {
+      it('should render intercepted route', async () => {
+        const browser = await next.browser(
+          '/intercepting-routes-dynamic/photos'
+        )
+
+        // Check if navigation to modal route works
+        await check(
+          () =>
+            browser
+              .elementByCss(
+                '[href="/intercepting-routes-dynamic/photos/next/123"]'
+              )
+              .click()
+              .waitForElementByCss('#user-intercept-page')
+              .text(),
+          'Intercepted Page'
+        )
+
+        // Check if url matches even though it was intercepted.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes-dynamic/photos/next/123'
+        )
+
+        // Trigger a refresh, this should load the normal page, not the modal.
+        await check(
+          () =>
+            browser.refresh().waitForElementByCss('#user-regular-page').text(),
+          'Regular Page'
+        )
+
+        // Check if the url matches still.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes-dynamic/photos/next/123'
+        )
+      })
+    })
+
+    describe('route intercepting with dynamic optional catch-all routes', () => {
+      it('should render intercepted route', async () => {
+        const browser = await next.browser(
+          '/intercepting-routes-dynamic-catchall/photos'
+        )
+
+        // Check if navigation to modal route works
+        await check(
+          () =>
+            browser
+              .elementByCss(
+                '[href="/intercepting-routes-dynamic-catchall/photos/optional-catchall/123"]'
+              )
+              .click()
+              .waitForElementByCss('#optional-catchall-intercept-page')
+              .text(),
+          'Intercepted Page'
+        )
+
+        // Check if url matches even though it was intercepted.
+        await check(
+          () => browser.url(),
+          next.url +
+            '/intercepting-routes-dynamic-catchall/photos/optional-catchall/123'
+        )
+
+        // Trigger a refresh, this should load the normal page, not the modal.
+        await check(
+          () =>
+            browser
+              .refresh()
+              .waitForElementByCss('#optional-catchall-regular-page')
+              .text(),
+          'Regular Page'
+        )
+
+        // Check if the url matches still.
+        await check(
+          () => browser.url(),
+          next.url +
+            '/intercepting-routes-dynamic-catchall/photos/optional-catchall/123'
+        )
+      })
+    })
+
+    describe('route intercepting with dynamic catch-all routes', () => {
+      it('should render intercepted route', async () => {
+        const browser = await next.browser(
+          '/intercepting-routes-dynamic-catchall/photos'
+        )
+
+        // Check if navigation to modal route works
+        await check(
+          () =>
+            browser
+              .elementByCss(
+                '[href="/intercepting-routes-dynamic-catchall/photos/catchall/123"]'
+              )
+              .click()
+              .waitForElementByCss('#catchall-intercept-page')
+              .text(),
+          'Intercepted Page'
+        )
+
+        // Check if url matches even though it was intercepted.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes-dynamic-catchall/photos/catchall/123'
+        )
+
+        // Trigger a refresh, this should load the normal page, not the modal.
+        await check(
+          () =>
+            browser
+              .refresh()
+              .waitForElementByCss('#catchall-regular-page')
+              .text(),
+          'Regular Page'
+        )
+
+        // Check if the url matches still.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes-dynamic-catchall/photos/catchall/123'
         )
       })
     })
@@ -361,6 +619,12 @@ createNextDescribe(
               .waitForElementByCss('#interception-slot')
               .text(),
           'interception from @slot/nested'
+        )
+
+        // Check if the client component is rendered
+        await check(
+          () => browser.waitForElementByCss('#interception-slot-client').text(),
+          'client component'
         )
 
         await check(
@@ -502,6 +766,56 @@ createNextDescribe(
           () => browser.url(),
           next.url + '/intercepting-parallel-modal/photo/2'
         )
+      })
+
+      it('should support intercepting with beforeFiles rewrites', async () => {
+        const browser = await next.browser('/foo')
+
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/photos"]')
+              .click()
+              .waitForElementByCss('#intercepted')
+              .text(),
+          'intercepted'
+        )
+      })
+
+      it('should support intercepting local dynamic sibling routes', async () => {
+        const browser = await next.browser('/intercepting-siblings')
+
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/intercepting-siblings/1"]')
+              .click()
+              .waitForElementByCss('#intercepted-sibling')
+              .text(),
+          '1'
+        )
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/intercepting-siblings/2"]')
+              .click()
+              .waitForElementByCss('#intercepted-sibling')
+              .text(),
+          '2'
+        )
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/intercepting-siblings/3"]')
+              .click()
+              .waitForElementByCss('#intercepted-sibling')
+              .text(),
+          '3'
+        )
+
+        await next.browser('/intercepting-siblings/1')
+
+        await check(() => browser.waitForElementByCss('#main-slot').text(), '1')
       })
     })
   }

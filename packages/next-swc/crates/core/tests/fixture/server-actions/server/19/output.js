@@ -1,9 +1,11 @@
-/* __next_internal_action_entry_do_not_use__ $$ACTION_1 */ export function Item({ value  }) {
+/* __next_internal_action_entry_do_not_use__ {"188d5d945750dc32e2c842b93c75a65763d4a922":"$$ACTION_1"} */ import { createActionProxy } from "private-next-rsc-action-proxy";
+import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
+export function Item({ value }) {
     return <>
 
-      <Button action={$$ACTION_0 = async (value2)=>$$ACTION_1($$ACTION_0.$$bound), $$ACTION_0.$$typeof = Symbol.for("react.server.reference"), $$ACTION_0.$$id = "188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_0.$$bound = [
+      <Button action={createActionProxy("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_1).bind(null, encryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", [
         value
-    ], $$ACTION_0}>
+    ]))}>
 
         Multiple
 
@@ -11,7 +13,7 @@
 
     </>;
 }
-export const $$ACTION_1 = async (closure, value2 = closure[1])=>{
-    return closure[0] * value2;
-};
-var $$ACTION_0;
+export async function $$ACTION_1($$ACTION_CLOSURE_BOUND, value2) {
+    var [$$ACTION_ARG_0] = await decryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_CLOSURE_BOUND);
+    return $$ACTION_ARG_0 * value2;
+}

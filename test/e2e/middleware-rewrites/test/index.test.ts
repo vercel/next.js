@@ -23,6 +23,28 @@ describe('Middleware Rewrite', () => {
   })
 
   function tests() {
+    it('should handle next.config.js rewrite with body correctly', async () => {
+      const body = JSON.stringify({ hello: 'world' })
+      const res = await next.fetch('/external-rewrite-body', {
+        redirect: 'manual',
+        method: 'POST',
+        body,
+      })
+      expect(res.status).toBe(200)
+      expect(await res.text()).toEqual(body)
+    })
+
+    it('should handle middleware rewrite with body correctly', async () => {
+      const body = JSON.stringify({ hello: 'world' })
+      const res = await next.fetch('/middleware-external-rewrite-body', {
+        redirect: 'manual',
+        method: 'POST',
+        body,
+      })
+      expect(res.status).toBe(200)
+      expect(await res.text()).toEqual(body)
+    })
+
     it('should handle static dynamic rewrite from middleware correctly', async () => {
       const browser = await webdriver(next.url, '/rewrite-to-static')
 
@@ -606,8 +628,8 @@ describe('Middleware Rewrite', () => {
       // node-fetch bundles the cookies as string in the Response
       const cookieArray = res.headers.raw()['set-cookie']
       for (const cookie of cookieArray) {
-        let individualCookieParams = cookie.split(';')
-        let individualCookie = individualCookieParams[0].split('=')
+        let individualCookieParams = cookie.split(';', 1)
+        let individualCookie = individualCookieParams[0].split('=', 2)
         if (individualCookie[0] === cookieName) {
           return individualCookie[1]
         }

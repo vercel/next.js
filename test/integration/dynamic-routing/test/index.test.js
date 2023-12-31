@@ -130,7 +130,8 @@ function runTests({ dev }) {
   }
 
   if (dev) {
-    it('should not have error after pinging WebSocket', async () => {
+    // TODO: pong event not longer exist, refactor test.
+    it.skip('should not have error after pinging WebSocket', async () => {
       const browser = await webdriver(appPort, '/')
       await browser.eval(`(function() {
         window.uncaughtErrs = []
@@ -1232,6 +1233,7 @@ function runTests({ dev }) {
       expect(manifest).toEqual({
         version: 3,
         pages404: true,
+        caseSensitive: false,
         basePath: '',
         headers: [],
         rewrites: [],
@@ -1314,6 +1316,22 @@ function runTests({ dev }) {
             ),
             page: '/p1/p2/predefined-ssg/[...rest]',
             routeKeys: {
+              nxtPrest: 'nxtPrest',
+            },
+          },
+          {
+            dataRouteRegex: normalizeRegEx(
+              `^\\/_next\\/data\\/${escapeRegex(
+                buildId
+              )}\\/([^\\/]+?)\\/([^\\/]+?)\\/(.+?)\\.json$`
+            ),
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)/(?<nxtPrest>.+?)\\.json$`,
+            page: '/[name]/[comment]/[...rest]',
+            routeKeys: {
+              nxtPcomment: 'nxtPcomment',
+              nxtPname: 'nxtPname',
               nxtPrest: 'nxtPrest',
             },
           },
@@ -1457,11 +1475,29 @@ function runTests({ dev }) {
               nxtPcomment: 'nxtPcomment',
             },
           },
+          {
+            namedRegex:
+              '^/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)/(?<nxtPrest>.+?)(?:/)?$',
+            page: '/[name]/[comment]/[...rest]',
+            regex: normalizeRegEx(
+              '^\\/([^\\/]+?)\\/([^\\/]+?)\\/(.+?)(?:\\/)?$'
+            ),
+            routeKeys: {
+              nxtPcomment: 'nxtPcomment',
+              nxtPname: 'nxtPname',
+              nxtPrest: 'nxtPrest',
+            },
+          },
         ],
         rsc: {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
-          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+          didPostponeHeader: 'x-nextjs-postponed',
+          varyHeader:
+            'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
+          prefetchHeader: 'Next-Router-Prefetch',
+          prefetchSuffix: '.prefetch.rsc',
+          suffix: '.rsc',
         },
       })
     })
@@ -1473,6 +1509,7 @@ function runTests({ dev }) {
 
       expect(manifest).toEqual({
         '/[name]/[comment]': 'pages/[name]/[comment].js',
+        '/[name]/[comment]/[...rest]': 'pages/[name]/[comment]/[...rest].js',
         '/[name]/comments': 'pages/[name]/comments.js',
         '/[name]': 'pages/[name].js',
         '/[name]/on-mount-redir': 'pages/[name]/on-mount-redir.html',
@@ -1535,8 +1572,7 @@ describe('Dynamic Routing', () => {
 
     runTests({ dev: true })
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await fs.remove(nextConfig)
 

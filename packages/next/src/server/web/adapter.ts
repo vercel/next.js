@@ -1,7 +1,8 @@
 import type { NextMiddleware, RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
+import type { PrerenderManifest } from '../../build'
 import { PageSignatureError } from './error'
-import { fromNodeHeaders } from './utils'
+import { fromNodeOutgoingHttpHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
@@ -9,19 +10,18 @@ import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
-import { normalizeRscPath } from '../../shared/lib/router/utils/app-paths'
-import {
-  FETCH_CACHE_HEADER,
-  NEXT_ROUTER_PREFETCH,
-  NEXT_ROUTER_STATE_TREE,
-  RSC,
-} from '../../client/components/app-router-headers'
+import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
+import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
 import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
-
-declare const _ENTRIES: any
+import { ensureInstrumentationRegistered } from './globals'
+import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
+import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
+import { getTracer } from '../lib/trace/tracer'
+import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
+  fetchMetrics?: FetchEventResult['fetchMetrics']
 
   constructor(params: {
     init: RequestInit
@@ -45,12 +45,10 @@ class NextRequestHint extends NextRequest {
   }
 }
 
-const FLIGHT_PARAMETERS = [
-  [RSC],
-  [NEXT_ROUTER_STATE_TREE],
-  [NEXT_ROUTER_PREFETCH],
-  [FETCH_CACHE_HEADER],
-] as const
+const headersGetter: TextMapGetter<Headers> = {
+  keys: (headers) => Array.from(headers.keys()),
+  get: (headers, key) => headers.get(key) ?? undefined,
+}
 
 export type AdapterOptions = {
   handler: NextMiddleware
@@ -59,20 +57,54 @@ export type AdapterOptions = {
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
 }
 
+let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
+  request,
+  fn
+) => {
+  const tracer = getTracer()
+  return tracer.withPropagatedContext(request.headers, fn, headersGetter)
+}
+
+let testApisIntercepted = false
+
+function ensureTestApisIntercepted() {
+  if (!testApisIntercepted) {
+    testApisIntercepted = true
+    if (process.env.NEXT_PRIVATE_TEST_PROXY === 'true') {
+      const {
+        interceptTestApis,
+        wrapRequestHandler,
+      } = require('next/dist/experimental/testmode/server-edge')
+      interceptTestApis()
+      propagator = wrapRequestHandler(propagator)
+    }
+  }
+}
+
 export async function adapter(
   params: AdapterOptions
 ): Promise<FetchEventResult> {
+  ensureTestApisIntercepted()
+  await ensureInstrumentationRegistered()
+
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
+  const prerenderManifest: PrerenderManifest | undefined =
+    typeof self.__PRERENDER_MANIFEST === 'string'
+      ? JSON.parse(self.__PRERENDER_MANIFEST)
+      : undefined
 
-  params.request.url = normalizeRscPath(params.request.url, true)
+  params.request.url = normalizeRscURL(params.request.url)
 
   const requestUrl = new NextURL(params.request.url, {
     headers: params.request.headers,
     nextConfig: params.request.nextConfig,
   })
 
-  for (const key of requestUrl.searchParams.keys()) {
+  // Iterator uses an index to keep track of the current iteration. Because of deleting and appending below we can't just use the iterator.
+  // Instead we use the keys before iteration.
+  const keys = [...requestUrl.searchParams.keys()]
+  for (const key of keys) {
     const value = requestUrl.searchParams.getAll(key)
 
     if (
@@ -99,7 +131,7 @@ export async function adapter(
     requestUrl.pathname = '/'
   }
 
-  const requestHeaders = fromNodeHeaders(params.request.headers)
+  const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const flightHeaders = new Map()
   // Parameters should only be stripped for middleware
   if (!isEdgeRendering) {
@@ -113,14 +145,14 @@ export async function adapter(
     }
   }
 
-  // Strip internal query parameters off the request.
-  stripInternalSearchParams(requestUrl.searchParams, true)
+  const normalizeUrl = process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+    ? new URL(params.request.url)
+    : requestUrl
 
   const request = new NextRequestHint({
     page: params.page,
-    input: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
-      ? params.request.url
-      : String(requestUrl),
+    // Strip internal query parameters off the request.
+    input: stripInternalSearchParams(normalizeUrl, true).toString(),
     init: {
       body: params.request.body,
       geo: params.request.geo,
@@ -128,6 +160,7 @@ export async function adapter(
       ip: params.request.ip,
       method: params.request.method,
       nextConfig: params.request.nextConfig,
+      signal: params.request.signal,
     },
   })
 
@@ -152,7 +185,7 @@ export async function adapter(
     ).IncrementalCache({
       appDir: true,
       fetchCache: true,
-      minimalMode: true,
+      minimalMode: process.env.NODE_ENV !== 'development',
       fetchCacheKeyPrefix: process.env.__NEXT_FETCH_CACHE_KEY_PREFIX,
       dev: process.env.NODE_ENV === 'development',
       requestHeaders: params.request.headers as any,
@@ -172,11 +205,43 @@ export async function adapter(
   }
 
   const event = new NextFetchEvent({ request, page: params.page })
-  let response = await params.handler(request, event)
+  let response
+  let cookiesFromResponse
+
+  response = await propagator(request, () => {
+    // we only care to make async storage available for middleware
+    const isMiddleware =
+      params.page === '/middleware' || params.page === '/src/middleware'
+    if (isMiddleware) {
+      return RequestAsyncStorageWrapper.wrap(
+        requestAsyncStorage,
+        {
+          req: request,
+          renderOpts: {
+            onUpdateCookies: (cookies) => {
+              cookiesFromResponse = cookies
+            },
+            // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
+            previewProps: prerenderManifest?.preview || {
+              previewModeId: 'development-id',
+              previewModeEncryptionKey: '',
+              previewModeSigningKey: '',
+            },
+          },
+        },
+        () => params.handler(request, event)
+      )
+    }
+    return params.handler(request, event)
+  })
 
   // check if response is a Response object
   if (response && !(response instanceof Response)) {
     throw new TypeError('Expected an instance of Response to be returned')
+  }
+
+  if (response && cookiesFromResponse) {
+    response.headers.set('set-cookie', cookiesFromResponse)
   }
 
   /**
@@ -230,7 +295,7 @@ export async function adapter(
    * the incoming request was a data request.
    */
   const redirect = response?.headers.get('Location')
-  if (response && redirect) {
+  if (response && redirect && !isEdgeRendering) {
     const redirectURL = new NextURL(redirect, {
       forceLocale: false,
       headers: params.request.headers,
@@ -288,62 +353,6 @@ export async function adapter(
   return {
     response: finalResponse,
     waitUntil: Promise.all(event[waitUntilSymbol]),
-  }
-}
-
-function getUnsupportedModuleErrorMessage(module: string) {
-  // warning: if you change these messages, you must adjust how react-dev-overlay's middleware detects modules not found
-  return `The edge runtime does not support Node.js '${module}' module.
-Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`
-}
-
-function __import_unsupported(moduleName: string) {
-  const proxy: any = new Proxy(function () {}, {
-    get(_obj, prop) {
-      if (prop === 'then') {
-        return {}
-      }
-      throw new Error(getUnsupportedModuleErrorMessage(moduleName))
-    },
-    construct() {
-      throw new Error(getUnsupportedModuleErrorMessage(moduleName))
-    },
-    apply(_target, _this, args) {
-      if (typeof args[0] === 'function') {
-        return args[0](proxy)
-      }
-      throw new Error(getUnsupportedModuleErrorMessage(moduleName))
-    },
-  })
-  return new Proxy({}, { get: () => proxy })
-}
-
-export function enhanceGlobals() {
-  // The condition is true when the "process" module is provided
-  if (process !== global.process) {
-    // prefer local process but global.process has correct "env"
-    process.env = global.process.env
-    global.process = process
-  }
-
-  // to allow building code that import but does not use node.js modules,
-  // webpack will expect this function to exist in global scope
-  Object.defineProperty(globalThis, '__import_unsupported', {
-    value: __import_unsupported,
-    enumerable: false,
-    configurable: false,
-  })
-
-  if (
-    '_ENTRIES' in globalThis &&
-    _ENTRIES.middleware_instrumentation &&
-    _ENTRIES.middleware_instrumentation.register
-  ) {
-    try {
-      _ENTRIES.middleware_instrumentation.register()
-    } catch (err: any) {
-      err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-      throw err
-    }
+    fetchMetrics: request.fetchMetrics,
   }
 }

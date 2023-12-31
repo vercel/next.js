@@ -1,23 +1,18 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { sandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import path from 'path'
 
 // TODO: figure out why snapshots mismatch on GitHub actions
 // specifically but work in docker and locally
 describe.skip('ReactRefreshLogBox', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {},
-      skipStart: true,
-      dependencies: {
-        sass: 'latest',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    skipStart: true,
+    dependencies: {
+      sass: 'latest',
+    },
   })
-  afterAll(() => next.destroy())
 
   test('scss syntax errors', async () => {
     const { session, cleanup } = await sandbox(next)

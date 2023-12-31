@@ -8,7 +8,7 @@ handler
   .use(auth)
   .get((req, res) => {
     // You do not generally want to return the whole user object
-    // because it may contain sensitive field such as !!password!! Only return what needed
+    // because it may contain sensitive fields such as !!password!! Only return what is needed
     // const { name, username, favoriteColor } = req.user
     // res.json({ user: { name, username, favoriteColor } })
     res.json({ user: req.user })

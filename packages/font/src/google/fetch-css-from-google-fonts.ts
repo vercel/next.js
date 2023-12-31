@@ -2,6 +2,7 @@
 import fetch from 'next/dist/compiled/node-fetch'
 import { nextFontError } from '../next-font-error'
 import { getProxyAgent } from './get-proxy-agent'
+import { retry } from './retry'
 
 /**
  * Fetches the CSS containing the @font-face declarations from Google Fonts.
@@ -30,26 +31,40 @@ export async function fetchCSSFromGoogleFonts(
     // Just use the mocked CSS if it's set
     cssResponse = mockedResponse
   } else {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 3000)
-    const res = await fetch(url, {
-      agent: getProxyAgent(),
-      // Add a timeout in dev
-      signal: isDev ? controller.signal : undefined,
-      headers: {
-        // The file format is based off of the user agent, make sure woff2 files are fetched
-        'user-agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36',
-      },
-    }).finally(() => {
-      clearTimeout(timeoutId)
-    })
+    // Retry the fetch a few times in case of network issues as some font files
+    // are quite large:
+    // https://github.com/vercel/next.js/issues/45080
+    cssResponse = await retry(async () => {
+      const controller =
+        isDev && typeof AbortController !== 'undefined'
+          ? new AbortController()
+          : undefined
+      const signal = controller?.signal
+      const timeoutId = controller
+        ? setTimeout(() => controller.abort(), 3000)
+        : undefined
 
-    if (!res.ok) {
-      nextFontError(`Failed to fetch font  \`${fontFamily}\`.\nURL: ${url}`)
-    }
+      const res = await fetch(url, {
+        agent: getProxyAgent(),
+        // Add a timeout in dev
+        signal,
+        headers: {
+          // The file format is based off of the user agent, make sure woff2 files are fetched
+          'user-agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36',
+        },
+      }).finally(() => {
+        timeoutId && clearTimeout(timeoutId)
+      })
 
-    cssResponse = await res.text()
+      if (!res.ok) {
+        nextFontError(
+          `Failed to fetch font \`${fontFamily}\`.\nURL: ${url}\n\nPlease check if the network is available.`
+        )
+      }
+
+      return res.text()
+    }, 3)
   }
 
   return cssResponse

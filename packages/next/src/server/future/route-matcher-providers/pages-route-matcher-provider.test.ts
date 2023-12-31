@@ -1,8 +1,8 @@
 import { PAGES_MANIFEST, SERVER_DIRECTORY } from '../../../shared/lib/constants'
 import { I18NProvider } from '../helpers/i18n-provider'
-import { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
+import type { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
 import { RouteKind } from '../route-kind'
-import { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
+import type { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
 import { PagesRouteMatcherProvider } from './pages-route-matcher-provider'
 
 describe('PagesRouteMatcherProvider', () => {

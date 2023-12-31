@@ -3,7 +3,7 @@ import { optimizeImage } from '../../../../server/image-optimizer'
 
 const BLUR_IMG_SIZE = 8
 const BLUR_QUALITY = 70
-const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next/client/image.tsx
+const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match other usages
 
 export async function getBlurImage(
   content: Buffer,
@@ -37,7 +37,7 @@ export async function getBlurImage(
   let blurWidth: number = 0
   let blurHeight: number = 0
 
-  if (VALID_BLUR_EXT.includes(extension)) {
+  if (VALID_BLUR_EXT.includes(extension) && !isAnimated(content)) {
     // Shrink the image's largest dimension
     if (imageSize.width >= imageSize.height) {
       blurWidth = BLUR_IMG_SIZE
@@ -65,18 +65,15 @@ export async function getBlurImage(
       blurDataURL = url.href.slice(prefix.length)
     } else {
       const resizeImageSpan = tracing('image-resize')
-      const resizedImage = await resizeImageSpan.traceAsyncFn(() => {
-        if (isAnimated(content)) {
-          return content
-        }
-        return optimizeImage({
+      const resizedImage = await resizeImageSpan.traceAsyncFn(() =>
+        optimizeImage({
           buffer: content,
           width: blurWidth,
           height: blurHeight,
           contentType: `image/${extension}`,
           quality: BLUR_QUALITY,
         })
-      })
+      )
       const blurDataURLSpan = tracing('image-base64-tostring')
       blurDataURL = blurDataURLSpan.traceFn(
         () =>

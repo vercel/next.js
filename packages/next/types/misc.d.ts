@@ -15,11 +15,26 @@ declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
 declare module 'next/dist/compiled/react-server-dom-webpack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.browser'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.edge'
+declare module 'next/dist/compiled/react-server-dom-turbopack/client'
+declare module 'next/dist/compiled/react-server-dom-turbopack/client.edge'
+declare module 'next/dist/compiled/react-server-dom-turbopack/client.browser'
+declare module 'next/dist/compiled/react-server-dom-turbopack/server.browser'
+declare module 'next/dist/compiled/react-server-dom-turbopack/server.edge'
+declare module 'next/dist/client/app-call-server'
 declare module 'next/dist/compiled/react-dom/server'
 declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
-declare module 'react-dom/server.browser'
+
+declare module 'react-server-dom-webpack/client'
+declare module 'react-server-dom-webpack/server.edge'
+declare module 'react-server-dom-webpack/server.node'
+declare module 'react-server-dom-webpack/client.edge'
+
+declare module 'VAR_MODULE_GLOBAL_ERROR'
+declare module 'VAR_USERLAND'
+declare module 'VAR_MODULE_DOCUMENT'
+declare module 'VAR_MODULE_APP'
 
 declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
   export * from '@next/react-dev-overlay/dist/client'
@@ -29,22 +44,28 @@ declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware' {
   export * from '@next/react-dev-overlay/dist/middleware'
 }
 
+declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack' {
+  export * from '@next/react-dev-overlay/dist/middleware-turbopack'
+}
+
 declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
   import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
   export = m
+}
+
+declare module 'next/dist/compiled/node-fetch' {
+  import fetch from 'node-fetch'
+  export * from 'node-fetch'
+  export default fetch
 }
 
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }
 
-declare module 'next/dist/compiled/node-fetch' {
-  import m from 'node-fetch'
-  export default m
-  export * from 'node-fetch'
+declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
+  export * from '@mswjs/interceptors/ClientRequest'
 }
-
-declare module 'next/dist/compiled/undici' {}
 
 declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'
@@ -52,11 +73,6 @@ declare module 'next/dist/compiled/jest-worker' {
 
 declare module 'next/dist/compiled/react-is' {
   export * from 'react-is'
-}
-
-declare module 'next/dist/compiled/chalk' {
-  import m from 'chalk'
-  export = m
 }
 
 declare module 'next/dist/compiled/cssnano-simple' {
@@ -95,6 +111,11 @@ declare module 'next/dist/compiled/acorn' {
 }
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
+  export = m
+}
+
+declare module 'next/dist/compiled/superstruct' {
+  import m from 'superstruct'
   export = m
 }
 declare module 'next/dist/compiled/async-retry'
@@ -150,6 +171,10 @@ declare module 'next/dist/compiled/babel/generator' {
   export * from '@babel/generator'
 }
 declare module 'next/dist/compiled/babel/preset-env' {
+  const anyType: any
+  export default anyType
+}
+declare module 'watchpack' {
   const anyType: any
   export default anyType
 }
@@ -361,11 +386,6 @@ declare module 'next/dist/compiled/@edge-runtime/primitives' {
   export = m
 }
 
-declare module 'next/dist/compiled/@segment/ajv-human-errors' {
-  import * as m from '@segment/ajv-human-errors'
-  export = m
-}
-
 declare module 'next/dist/compiled/react' {
   import * as m from 'react'
   export = m
@@ -455,6 +475,6 @@ declare module 'next/dist/compiled/@opentelemetry/api' {
 }
 
 declare module 'next/dist/compiled/zod' {
-  import m from 'zod'
+  import * as m from 'zod'
   export = m
 }

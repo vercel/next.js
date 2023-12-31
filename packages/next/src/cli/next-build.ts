@@ -1,37 +1,15 @@
 #!/usr/bin/env node
+
+import '../server/lib/cpu-profile'
 import { existsSync } from 'fs'
-import arg from 'next/dist/compiled/arg/index.js'
 import * as Log from '../build/output/log'
-import { CliCommand } from '../lib/commands'
+import type { CliCommand } from '../lib/commands'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 
-const nextBuild: CliCommand = (argv) => {
-  const validArgs: arg.Spec = {
-    // Types
-    '--help': Boolean,
-    '--profile': Boolean,
-    '--debug': Boolean,
-    '--no-lint': Boolean,
-    '--no-mangling': Boolean,
-    '--experimental-app-only': Boolean,
-    '--experimental-turbo': Boolean,
-    // Aliases
-    '-h': '--help',
-    '-d': '--debug',
-  }
-
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg(validArgs, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+const nextBuild: CliCommand = (args) => {
   if (args['--help']) {
     printAndExit(
       `
@@ -45,10 +23,12 @@ const nextBuild: CliCommand = (argv) => {
       If no directory is provided, the current directory will be used.
 
       Options
-      --profile                 Can be used to enable React Production Profiling
-      --no-lint                 Disable linting
-      --no-mangling             Disable mangling
-      --experimental-app-only   Only build 'app' routes
+      --profile                Can be used to enable React Production Profiling
+      --no-lint                Disable linting
+      --no-mangling            Disable mangling
+      --experimental-app-only  Only build 'app' routes
+      --experimental-turbo     Enable experimental turbo mode
+      --help, -h               Displays this message
     `,
       0
     )
@@ -71,6 +51,10 @@ const nextBuild: CliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
+  if (args['--experimental-turbo']) {
+    process.env.TURBOPACK = '1'
+  }
+
   return build(
     dir,
     args['--profile'],
@@ -78,7 +62,9 @@ const nextBuild: CliCommand = (argv) => {
     !args['--no-lint'],
     args['--no-mangling'],
     args['--experimental-app-only'],
-    args['--experimental-turbo']
+    !!process.env.TURBOPACK,
+    args['--experimental-turbo-root'],
+    args['--build-mode'] || 'default'
   ).catch((err) => {
     console.error('')
     if (

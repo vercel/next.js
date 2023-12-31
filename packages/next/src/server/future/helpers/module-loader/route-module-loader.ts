@@ -8,16 +8,15 @@ export interface AppLoaderModule<M extends RouteModule = RouteModule> {
 }
 
 export class RouteModuleLoader {
-  static load<M extends RouteModule>(
+  static async load<M extends RouteModule>(
     id: string,
     loader: ModuleLoader = new NodeModuleLoader()
-  ): M {
-    if (process.env.NEXT_RUNTIME !== 'edge') {
-      const { routeModule }: AppLoaderModule<M> = loader.load(id)
-
-      return routeModule
+  ): Promise<M> {
+    const module: AppLoaderModule<M> = await loader.load(id)
+    if ('routeModule' in module) {
+      return module.routeModule
     }
 
-    throw new Error('RouteModuleLoader is not supported in edge runtime.')
+    throw new Error(`Module "${id}" does not export a routeModule.`)
   }
 }

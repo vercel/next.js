@@ -8,6 +8,7 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next }) => {
+    // TODO: revisit the error for missing parallel routes slot
     it('should not render the @children slot when the @slot is not found', async () => {
       const browser = await next.browser('/')
       // we make sure the page is available through navigating

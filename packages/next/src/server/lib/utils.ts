@@ -10,24 +10,21 @@ export function printAndExit(message: string, code = 1) {
   process.exit(code)
 }
 
-export const genExecArgv = (enabled: boolean | 'brk', debugPort: number) => {
-  const execArgv = process.execArgv.filter((localArg) => {
-    return (
-      !localArg.startsWith('--inspect') && !localArg.startsWith('--inspect-brk')
-    )
-  })
-
-  if (enabled) {
-    execArgv.push(
-      `--inspect${enabled === 'brk' ? '-brk' : ''}=${debugPort + 1}`
-    )
-  }
-
-  return execArgv
+export const getDebugPort = () => {
+  const debugPortStr =
+    process.execArgv
+      .find(
+        (localArg) =>
+          localArg.startsWith('--inspect') ||
+          localArg.startsWith('--inspect-brk')
+      )
+      ?.split('=', 2)[1] ??
+    process.env.NODE_OPTIONS?.match?.(/--inspect(-brk)?(=(\S+))?( |$)/)?.[3]
+  return debugPortStr ? parseInt(debugPortStr, 10) : 9229
 }
 
+const NODE_INSPECT_RE = /--inspect(-brk)?(=\S+)?( |$)/
 export function getNodeOptionsWithoutInspect() {
-  const NODE_INSPECT_RE = /--inspect(-brk)?(=\S+)?( |$)/
   return (process.env.NODE_OPTIONS || '').replace(NODE_INSPECT_RE, '')
 }
 
@@ -42,4 +39,34 @@ export function getPort(args: arg.Result<arg.Spec>): number {
   }
 
   return 3000
+}
+
+export const RESTART_EXIT_CODE = 77
+
+export function checkNodeDebugType() {
+  let nodeDebugType = undefined
+
+  if (
+    process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
+    process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
+  ) {
+    nodeDebugType = 'inspect'
+  }
+
+  if (
+    process.execArgv.some((localArg) => localArg.startsWith('--inspect-brk')) ||
+    process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
+  ) {
+    nodeDebugType = 'inspect-brk'
+  }
+
+  return nodeDebugType
+}
+
+export function getMaxOldSpaceSize() {
+  const maxOldSpaceSize = process.env.NODE_OPTIONS?.match(
+    /--max-old-space-size=(\d+)/
+  )?.[1]
+
+  return maxOldSpaceSize ? parseInt(maxOldSpaceSize, 10) : undefined
 }

@@ -1,9 +1,15 @@
-import type { ParsedUrlQuery } from 'node:querystring'
-import React, { useMemo, useRef } from 'react'
-import type { AppRouterInstance } from '../app-router-context'
-import { PathnameContext } from '../hooks-client-context'
+import type {
+  AppRouterInstance,
+  NavigateOptions,
+} from '../app-router-context.shared-runtime'
+import type { Params } from './utils/route-matcher'
 import type { NextRouter } from './router'
+
+import React, { useMemo, useRef } from 'react'
+import { PathnameContext } from '../hooks-client-context.shared-runtime'
 import { isDynamicRoute } from './utils'
+import { asPathToSearchParams } from './utils/as-path-to-search-params'
+import { getRouteRegex } from './utils/route-regex'
 
 /**
  * adaptForAppRouterInstance implements the AppRouterInstance with a NextRouter.
@@ -24,38 +30,16 @@ export function adaptForAppRouterInstance(
     refresh(): void {
       router.reload()
     },
-    push(href: string): void {
-      void router.push(href)
+    push(href: string, { scroll }: NavigateOptions = {}): void {
+      void router.push(href, undefined, { scroll })
     },
-    replace(href: string): void {
-      void router.replace(href)
+    replace(href: string, { scroll }: NavigateOptions = {}): void {
+      void router.replace(href, undefined, { scroll })
     },
     prefetch(href: string): void {
       void router.prefetch(href)
     },
   }
-}
-
-/**
- * transforms the ParsedUrlQuery into a URLSearchParams.
- *
- * @param query the query to transform
- * @returns URLSearchParams
- */
-function transformQuery(query: ParsedUrlQuery): URLSearchParams {
-  const params = new URLSearchParams()
-
-  for (const [name, value] of Object.entries(query)) {
-    if (Array.isArray(value)) {
-      for (const val of value) {
-        params.append(name, val)
-      }
-    } else if (typeof value !== 'undefined') {
-      params.append(name, value)
-    }
-  }
-
-  return params
 }
 
 /**
@@ -65,13 +49,28 @@ function transformQuery(query: ParsedUrlQuery): URLSearchParams {
  * @returns the search params in the URLSearchParams format
  */
 export function adaptForSearchParams(
-  router: Pick<NextRouter, 'isReady' | 'query'>
+  router: Pick<NextRouter, 'isReady' | 'query' | 'asPath'>
 ): URLSearchParams {
   if (!router.isReady || !router.query) {
     return new URLSearchParams()
   }
 
-  return transformQuery(router.query)
+  return asPathToSearchParams(router.asPath)
+}
+
+export function adaptForPathParams(
+  router: Pick<NextRouter, 'isReady' | 'pathname' | 'query' | 'asPath'>
+): Params | null {
+  if (!router.isReady || !router.query) {
+    return null
+  }
+  const pathParams: Params = {}
+  const routeRegex = getRouteRegex(router.pathname)
+  const keys = Object.keys(routeRegex.groups)
+  for (const key of keys) {
+    pathParams[key] = router.query[key]!
+  }
+  return pathParams
 }
 
 export function PathnameContextProviderAdapter({

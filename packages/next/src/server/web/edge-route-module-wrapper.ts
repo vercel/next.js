@@ -1,14 +1,19 @@
-import type { RouteHandlerManagerContext } from '../future/route-handler-managers/route-handler-manager'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
-import type { RouteModule } from '../future/route-modules/route-module'
 import type { NextRequest } from './spec-extension/request'
+import type {
+  AppRouteRouteHandlerContext,
+  AppRouteRouteModule,
+} from '../future/route-modules/app-route/module'
+import type { PrerenderManifest } from '../../build'
 
-import { adapter, enhanceGlobals, type AdapterOptions } from './adapter'
+import './globals'
+
+import { adapter, type AdapterOptions } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
-enhanceGlobals()
-
-import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
+import type { NextFetchEvent } from './spec-extension/fetch-event'
+import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
+import { getUtils } from '../server-utils'
+import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -26,9 +31,7 @@ export class EdgeRouteModuleWrapper {
    *
    * @param routeModule the route module to wrap
    */
-  private constructor(
-    private readonly routeModule: RouteModule<RouteDefinition>
-  ) {
+  private constructor(private readonly routeModule: AppRouteRouteModule) {
     // TODO: (wyattjoh) possibly allow the module to define it's own matcher
     this.matcher = new RouteMatcher(routeModule.definition)
   }
@@ -43,7 +46,7 @@ export class EdgeRouteModuleWrapper {
    * @returns a function that can be used as a handler for the edge runtime
    */
   public static wrap(
-    routeModule: RouteModule<RouteDefinition>,
+    routeModule: AppRouteRouteModule,
     options: WrapOptions = {}
   ) {
     // Create the module wrapper.
@@ -61,33 +64,60 @@ export class EdgeRouteModuleWrapper {
     }
   }
 
-  private async handler(request: NextRequest): Promise<Response> {
-    // Setup the handler if it hasn't been setup yet. It is the responsibility
-    // of the module to ensure that this is only called once.
-    this.routeModule.setup()
+  private async handler(
+    request: NextRequest,
+    evt: NextFetchEvent
+  ): Promise<Response> {
+    const utils = getUtils({
+      pageIsDynamic: this.matcher.isDynamic,
+      page: this.matcher.definition.pathname,
+      basePath: request.nextUrl.basePath,
+      // We don't need the `handleRewrite` util, so can just pass an empty object
+      rewrites: {},
+      // only used for rewrites, so setting an arbitrary default value here
+      caseSensitive: false,
+    })
 
-    // Get the pathname for the matcher. Pathnames should not have trailing
-    // slashes for matching.
-    const pathname = removeTrailingSlash(new URL(request.url).pathname)
+    const { params } = utils.normalizeDynamicRouteParams(
+      searchParamsToUrlQuery(request.nextUrl.searchParams)
+    )
 
-    // Get the match for this request.
-    const match = this.matcher.match(pathname)
-    if (!match) {
-      throw new Error(
-        `Invariant: no match found for request. Pathname '${pathname}' should have matched '${this.matcher.definition.pathname}'`
-      )
-    }
+    const prerenderManifest: PrerenderManifest | undefined =
+      typeof self.__PRERENDER_MANIFEST === 'string'
+        ? JSON.parse(self.__PRERENDER_MANIFEST)
+        : undefined
 
     // Create the context for the handler. This contains the params from the
     // match (if any).
-    const context: RouteHandlerManagerContext = {
-      params: match.params,
-      staticGenerationContext: {
+    const context: AppRouteRouteHandlerContext = {
+      params,
+      prerenderManifest: {
+        version: 4,
+        routes: {},
+        dynamicRoutes: {},
+        preview: prerenderManifest?.preview || {
+          previewModeEncryptionKey: '',
+          previewModeId: 'development-id',
+          previewModeSigningKey: '',
+        },
+        notFoundRoutes: [],
+      },
+      renderOpts: {
         supportsDynamicHTML: true,
+        // App Route's cannot be postponed.
+        experimental: { ppr: false },
       },
     }
 
     // Get the response from the handler.
-    return await this.routeModule.handle(request, context)
+    const res = await this.routeModule.handle(request, context)
+
+    const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
+    if (context.renderOpts.waitUntil) {
+      waitUntilPromises.push(context.renderOpts.waitUntil)
+    }
+    evt.waitUntil(Promise.all(waitUntilPromises))
+
+    return res
   }
 }

@@ -9,12 +9,16 @@ import type { Socket } from 'net'
 import type { TLSSocket } from 'tls'
 
 import Stream from 'stream'
-import { toNodeHeaders } from '../web/utils'
+import {
+  fromNodeOutgoingHttpHeaders,
+  toNodeOutgoingHttpHeaders,
+} from '../web/utils'
 
 interface MockedRequestOptions {
   url: string
   headers: IncomingHttpHeaders
   method: string
+  readable?: Stream.Readable
   socket?: Socket | null
 }
 
@@ -30,35 +34,66 @@ export class MockedRequest extends Stream.Readable implements IncomingMessage {
   public readonly httpVersionMajor = 1
   public readonly httpVersionMinor = 0
 
+  private bodyReadable?: Stream.Readable
+
   // If we don't actually have a socket, we'll just use a mock one that
-  // always returns false for the `encrypted` property.
+  // always returns false for the `encrypted` property and undefined for the
+  // `remoteAddress` property.
   public socket: Socket = new Proxy<TLSSocket>({} as TLSSocket, {
     get: (_target, prop) => {
-      if (prop !== 'encrypted') {
+      if (prop !== 'encrypted' && prop !== 'remoteAddress') {
         throw new Error('Method not implemented')
       }
 
+      if (prop === 'remoteAddress') return undefined
       // For this mock request, always ensure we just respond with the encrypted
       // set to false to ensure there's no odd leakages.
       return false
     },
   })
 
-  constructor({ url, headers, method, socket = null }: MockedRequestOptions) {
+  constructor({
+    url,
+    headers,
+    method,
+    socket = null,
+    readable,
+  }: MockedRequestOptions) {
     super()
 
     this.url = url
     this.headers = headers
     this.method = method
 
+    if (readable) {
+      this.bodyReadable = readable
+      this.bodyReadable.on('end', () => this.emit('end'))
+      this.bodyReadable.on('close', () => this.emit('close'))
+    }
+
     if (socket) {
       this.socket = socket
     }
   }
 
-  public _read(): void {
-    this.emit('end')
-    this.emit('close')
+  public get headersDistinct(): NodeJS.Dict<string[]> {
+    const headers: NodeJS.Dict<string[]> = {}
+    for (const [key, value] of Object.entries(this.headers)) {
+      if (!value) continue
+
+      headers[key] = Array.isArray(value) ? value : [value]
+    }
+
+    return headers
+  }
+
+  public _read(size: number): void {
+    if (this.bodyReadable) {
+      return this.bodyReadable._read(size)
+    } else {
+      this.emit('end')
+      this.emit('close')
+    }
   }
 
   /**
@@ -85,6 +120,10 @@ export class MockedRequest extends Stream.Readable implements IncomingMessage {
     throw new Error('Method not implemented')
   }
 
+  public get trailersDistinct(): NodeJS.Dict<string[]> {
+    throw new Error('Method not implemented')
+  }
+
   public get rawTrailers(): string[] {
     throw new Error('Method not implemented')
   }
@@ -98,33 +137,59 @@ export class MockedRequest extends Stream.Readable implements IncomingMessage {
   }
 }
 
-interface MockedResponseOptions {
+export interface MockedResponseOptions {
+  statusCode?: number
   socket?: Socket | null
+  headers?: OutgoingHttpHeaders
+  resWriter?: (chunk: Uint8Array | Buffer | string) => boolean
 }
 
 export class MockedResponse extends Stream.Writable implements ServerResponse {
-  public statusCode: number = 200
+  public statusCode: number
   public statusMessage: string = ''
-  public readonly finished = false
-  public readonly headersSent = false
+  public finished = false
+  public headersSent = false
   public readonly socket: Socket | null
 
   /**
    * A promise that resolves to `true` when the response has been streamed.
+   *
+   * @internal - used internally by Next.js
    */
   public readonly hasStreamed: Promise<boolean>
 
   /**
    * A list of buffers that have been written to the response.
+   *
+   * @internal - used internally by Next.js
    */
   public readonly buffers: Buffer[] = []
 
-  private readonly headers = new Headers()
+  /**
+   * The headers object that contains the headers that were initialized on the
+   * response and any that were added subsequently.
+   *
+   * @internal - used internally by Next.js
+   */
+  public readonly headers: Headers
 
-  constructor({ socket = null }: MockedResponseOptions) {
+  private resWriter: MockedResponseOptions['resWriter']
+
+  public readonly headPromise: Promise<void>
+  private headPromiseResolve?: () => void
+
+  constructor(res: MockedResponseOptions = {}) {
     super()
 
-    this.socket = socket
+    this.statusCode = res.statusCode ?? 200
+    this.socket = res.socket ?? null
+    this.headers = res.headers
+      ? fromNodeOutgoingHttpHeaders(res.headers)
+      : new Headers()
+
+    this.headPromise = new Promise<void>((resolve) => {
+      this.headPromiseResolve = resolve
+    })
 
     // Attach listeners for the `finish`, `end`, and `error` events to the
     // `MockedResponse` instance.
@@ -132,7 +197,32 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
       this.on('finish', () => resolve(true))
       this.on('end', () => resolve(true))
       this.on('error', (err) => reject(err))
+    }).then((val) => {
+      this.headPromiseResolve?.()
+      return val
     })
+
+    if (res.resWriter) {
+      this.resWriter = res.resWriter
+    }
+  }
+
+  public appendHeader(name: string, value: string | string[]): this {
+    const values = Array.isArray(value) ? value : [value]
+    for (const v of values) {
+      this.headers.append(name, v)
+    }
+
+    return this
+  }
+
+  /**
+   * Returns true if the response has been sent, false otherwise.
+   *
+   * @internal - used internally by Next.js
+   */
+  public get isSent() {
+    return this.finished || this.headersSent
   }
 
   /**
@@ -144,10 +234,18 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     return this.socket
   }
 
-  public write(chunk: Buffer | string) {
+  public write(chunk: Uint8Array | Buffer | string) {
+    if (this.resWriter) {
+      return this.resWriter(chunk)
+    }
     this.buffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
 
     return true
+  }
+
+  public end() {
+    this.finished = true
+    return super.end(...arguments)
   }
 
   /**
@@ -227,6 +325,8 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     }
 
     this.statusCode = statusCode
+    this.headersSent = true
+    this.headPromiseResolve?.()
 
     return this
   }
@@ -240,14 +340,14 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
   }
 
   public getHeaders(): OutgoingHttpHeaders {
-    return toNodeHeaders(this.headers)
+    return toNodeOutgoingHttpHeaders(this.headers)
   }
 
   public getHeaderNames(): string[] {
     return Array.from(this.headers.keys())
   }
 
-  public setHeader(name: string, value: OutgoingHttpHeader): void {
+  public setHeader(name: string, value: OutgoingHttpHeader) {
     if (Array.isArray(value)) {
       // Because `set` here should override any existing values, we need to
       // delete the existing values before setting the new ones via `append`.
@@ -261,14 +361,33 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     } else {
       this.headers.set(name, value)
     }
+
+    return this
   }
 
   public removeHeader(name: string): void {
     this.headers.delete(name)
   }
 
+  public flushHeaders(): void {
+    // This is a no-op because we don't actually have a socket to flush the
+    // headers to.
+  }
+
   // The following methods are not implemented as they are not used in the
   // Next.js codebase.
+
+  public get strictContentLength(): boolean {
+    throw new Error('Method not implemented.')
+  }
+
+  public writeEarlyHints() {
+    throw new Error('Method not implemented.')
+  }
+
+  public get req(): IncomingMessage {
+    throw new Error('Method not implemented.')
+  }
 
   public assignSocket() {
     throw new Error('Method not implemented.')
@@ -313,16 +432,14 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
   public addTrailers(): void {
     throw new Error('Method not implemented.')
   }
-
-  public flushHeaders(): void {
-    throw new Error('Method not implemented.')
-  }
 }
 
 interface RequestResponseMockerOptions {
   url: string
   headers?: IncomingHttpHeaders
   method?: string
+  bodyReadable?: Stream.Readable
+  resWriter?: (chunk: Uint8Array | Buffer | string) => boolean
   socket?: Socket | null
 }
 
@@ -330,10 +447,18 @@ export function createRequestResponseMocks({
   url,
   headers = {},
   method = 'GET',
+  bodyReadable,
+  resWriter,
   socket = null,
 }: RequestResponseMockerOptions) {
   return {
-    req: new MockedRequest({ url, headers, method, socket }),
-    res: new MockedResponse({ socket }),
+    req: new MockedRequest({
+      url,
+      headers,
+      method,
+      socket,
+      readable: bodyReadable,
+    }),
+    res: new MockedResponse({ socket, resWriter }),
   }
 }

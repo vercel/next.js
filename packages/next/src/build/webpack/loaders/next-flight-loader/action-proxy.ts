@@ -1,10 +1,6 @@
-export default function ensureServerEntryExports(actions: any[]) {
-  for (let i = 0; i < actions.length; i++) {
-    const action = actions[i]
-    if (typeof action !== 'function') {
-      throw new Error(
-        `A "use server" file can only export async functions, found ${typeof action}.`
-      )
-    }
-  }
+/* eslint-disable import/no-extraneous-dependencies */
+import { registerServerReference } from 'react-server-dom-webpack/server.edge'
+
+export function createActionProxy(id: string, action: any) {
+  return registerServerReference(action, id, null)
 }

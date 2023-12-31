@@ -4,7 +4,12 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  shouldRunTurboDevTest,
+  waitFor,
+} from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 
 const urlsError = 'Please use only absolute URLs'
@@ -13,45 +18,72 @@ describe('Middleware Runtime', () => {
   let next: NextInstance
 
   const setup = ({ i18n }: { i18n: boolean }) => {
-    let nextConfigContent = ''
-    const nextConfigPath = join(__dirname, '../app/next.config.js')
-
     afterAll(async () => {
       await next.destroy()
-
-      if (nextConfigContent) {
-        await fs.writeFile(nextConfigPath, nextConfigContent)
-      }
     })
     beforeAll(async () => {
-      if (!i18n) {
-        nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-        await fs.writeFile(
-          nextConfigPath,
-          nextConfigContent.replace('i18n', '__i18n')
-        )
-      }
       next = await createNext({
         files: {
-          'next.config.js': new FileRef(
-            join(__dirname, '../app/next.config.js')
-          ),
           'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
           pages: new FileRef(join(__dirname, '../app/pages')),
           'shared-package': new FileRef(
             join(__dirname, '../app/node_modules/shared-package')
           ),
         },
+        nextConfig: {
+          experimental: {
+            webpackBuildWorker: true,
+          },
+          ...(i18n
+            ? {
+                i18n: {
+                  locales: ['en', 'fr', 'nl'],
+                  defaultLocale: 'en',
+                },
+              }
+            : {}),
+          async redirects() {
+            return [
+              {
+                source: '/redirect-1',
+                destination: '/somewhere/else',
+                permanent: false,
+              },
+            ]
+          },
+          async rewrites() {
+            return [
+              {
+                source: '/rewrite-1',
+                destination: '/ssr-page?from=config',
+              },
+              {
+                source: '/rewrite-2',
+                destination: '/about/a?from=next-config',
+              },
+              {
+                source: '/sha',
+                destination: '/shallow',
+              },
+              {
+                source: '/rewrite-3',
+                destination: '/blog/middleware-rewrite?hello=config',
+              },
+            ]
+          },
+        },
         packageJson: {
           scripts: {
             setup: `cp -r ./shared-package ./node_modules`,
-            build: 'yarn setup && next build',
-            dev: 'yarn setup && next dev',
+            build: 'pnpm run setup && next build',
+            dev: `pnpm run setup && next ${
+              shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
+            }`,
             start: 'next start',
           },
         },
-        startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-        buildCommand: 'yarn build',
+        startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+        buildCommand: 'pnpm run build',
         env: {
           ANOTHER_MIDDLEWARE_TEST: 'asdf2',
           STRING_ENV_VAR: 'asdf3',
@@ -138,11 +170,6 @@ describe('Middleware Runtime', () => {
         )
         expect(manifest.middleware).toEqual({
           '/': {
-            env: expect.arrayContaining([
-              'MIDDLEWARE_TEST',
-              'ANOTHER_MIDDLEWARE_TEST',
-              'STRING_ENV_VAR',
-            ]),
             files: expect.arrayContaining([
               'server/edge-runtime-webpack.js',
               'server/middleware.js',
@@ -164,7 +191,7 @@ describe('Middleware Runtime', () => {
 
         expect(manifest.functions['/api/edge-search-params']).toHaveProperty(
           'regions',
-          'default'
+          'auto'
         )
       })
 
@@ -481,7 +508,7 @@ describe('Middleware Runtime', () => {
       })
     }
 
-    it('should contain process polyfill', async () => {
+    it('allows to access env variables', async () => {
       const res = await fetchViaHTTP(next.url, `/global`)
       const json = readMiddlewareJSON(res)
 

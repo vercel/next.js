@@ -1,0 +1,193 @@
+name: Build Reusable
+
+on:
+  workflow_call:
+    inputs:
+      afterBuild:
+        required: false
+        description: 'additional steps to run'
+        type: string
+      # Toggles the mold linker. The default linker is much slower and can run into OOMs.
+      # However, custom linkers won't work for wasm.
+      mold:
+        required: false
+        description: 'whether to use the mold linker'
+        type: string
+      skipInstallBuild:
+        required: false
+        description: 'whether to skip pnpm install && pnpm build'
+        type: string
+      skipNativeBuild:
+        required: false
+        description: 'whether to skip building native modules'
+        type: string
+      uploadAnalyzerArtifacts:
+        required: false
+        description: 'whether to upload analyzer artifacts'
+        type: string
+      nodeVersion:
+        required: false
+        description: 'version of Node.js to use'
+        type: string
+      needsRust:
+        required: false
+        description: 'if rust is needed'
+        type: string
+      needsNextest:
+        required: false
+        description: 'if nextest rust dep is needed'
+        type: string
+      uploadSwcArtifact:
+        required: false
+        description: 'if swc artifact needs uploading'
+        type: string
+      rustCacheKey:
+        required: false
+        description: 'rustCacheKey to cache shared target assets'
+        type: string
+
+env:
+  NAPI_CLI_VERSION: 2.14.7
+  TURBO_VERSION: 1.10.9
+  NODE_LTS_VERSION: 20.9.0
+  TEST_CONCURRENCY: 8
+  # disable backtrace for test snapshots
+  RUST_BACKTRACE: 0
+
+  TURBO_TEAM: 'vercel'
+  TURBO_REMOTE_ONLY: 'true'
+  NEXT_TELEMETRY_DISABLED: 1
+  # we build a dev binary for use in CI so skip downloading
+  # canary next-swc binaries in the monorepo
+  NEXT_SKIP_NATIVE_POSTINSTALL: 1
+  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  NEXT_JUNIT_TEST_REPORT: 'true'
+  DD_ENV: 'ci'
+  TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+  NEXT_TEST_JOB: 1
+
+jobs:
+  build:
+    timeout-minutes: 15
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
+
+    steps:
+      - run: fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+      - run: node -v
+      - run: corepack enable
+      - run: pwd
+
+      - run: rm -rf .git
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 25
+
+      # local action -> needs to run after checkout
+      - name: Install Rust
+        uses: ./.github/actions/setup-rust
+        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        with:
+          components: rustfmt, clippy
+
+      - name: 'Install mold linker'
+        if: ${{ inputs.mold == 'yes' }}
+        run: |
+          sudo apt update
+          sudo apt install -y mold
+          echo RUSTFLAGS=${RUSTFLAGS}\ -C\ link-arg=-fuse-ld=mold >> $GITHUB_ENV
+
+      - name: Install nextest
+        if: ${{ inputs.needsNextest == 'yes' }}
+        uses: taiki-e/install-action@nextest
+
+      - run: rustc --version
+        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+
+      - run: corepack prepare --activate yarn@1.22.19 && npm i -g "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
+
+      - name: Cache on ${{ github.ref_name }}
+        uses: ijjk/rust-cache@turbo-cache-v1.0.7
+        if: ${{ inputs.rustCacheKey }}
+        with:
+          cache-provider: 'turbo'
+          save-if: ${{ github.ref_name == 'canary' }}
+          shared-key: ${{ inputs.rustCacheKey }}-x86_64-unknown-linux-gnu-build-${{ hashFiles('.cargo/config.toml') }}
+
+      # clean up any previous artifacts to avoid hitting disk space limits
+      - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
+
+      - run: cargo clean
+        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+
+      # normalize versions before build-native for better cache hits
+      - run: node scripts/normalize-version-bump.js
+        name: normalize versions
+
+      - run: turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
+        if: ${{ inputs.skipNativeBuild != 'yes' }}
+
+      - name: Upload next-swc artifact
+        if: ${{ inputs.uploadSwcArtifact == 'yes' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: next-swc-binary
+          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
+
+      # undo normalize version changes for install/build
+      - run: git checkout .
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: pnpm install
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: ANALYZE=1 pnpm build
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: pnpm playwright install-deps
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: pnpm playwright install chromium
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - run: turbo run get-test-timings -- --build ${{ github.sha }}
+
+      - run: /bin/bash -c "${{ inputs.afterBuild }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: turbo run summary
+          path: .turbo/runs
+          if-no-files-found: ignore
+
+      - name: Upload bundle analyzer artifacts
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
+        with:
+          name: webpack bundle analysis stats
+          path: packages/next/dist/compiled/next-server/report.*.html
+
+      - name: Upload test report artifacts
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.afterBuild && always() }}
+        with:
+          name: test-reports
+          path: |
+            test/test-junit-report
+            test/turbopack-test-junit-report
+          if-no-files-found: ignore
+
+      # upload playwright snapshots from failed tests
+      - name: Upload test report artifacts
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.afterBuild && always() }}
+        with:
+          name: test-playwright-snapshots
+          path: |
+            test/traces
+          if-no-files-found: ignore

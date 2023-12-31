@@ -1,16 +1,16 @@
 import { createNextDescribe } from 'e2e-utils'
-import webdriver from 'next-webdriver'
-import { check } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
+import type { Request } from 'playwright-chromium'
 
 createNextDescribe(
   'app dir - navigation',
   {
     files: __dirname,
   },
-  ({ next, isNextDeploy }) => {
+  ({ next, isNextDev, isNextDeploy }) => {
     describe('query string', () => {
       it('should set query correctly', async () => {
-        const browser = await webdriver(next.url, '/')
+        const browser = await next.browser('/')
         expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
           `""`
         )
@@ -24,6 +24,94 @@ createNextDescribe(
 
         const url = new URL(await browser.url())
         expect(url.searchParams.toString()).toMatchInlineSnapshot(`"a=b&c=d"`)
+      })
+
+      it('should handle unicode search params', async () => {
+        const requests = []
+
+        const browser = await next.browser('/search-params?name=名')
+        browser.on('request', async (req: Request) => {
+          const res = await req.response()
+          requests.push([
+            new URL(req.url()).pathname,
+            res.ok(),
+            await res.headers(),
+          ])
+        })
+        expect(await browser.elementById('name').text()).toBe('名')
+        await browser.elementById('link').click()
+
+        await check(async () => {
+          return requests.some((requestPair) => {
+            const [pathname, ok, headers] = requestPair
+            return (
+              pathname === '/' &&
+              ok &&
+              headers['content-type'] === 'text/x-component'
+            )
+          })
+            ? 'success'
+            : JSON.stringify(requests)
+        }, 'success')
+      })
+
+      it('should not reset shallow url updates on prefetch', async () => {
+        const browser = await next.browser('/search-params/shallow')
+        const button = await browser.elementByCss('button')
+        await button.click()
+        expect(await browser.url()).toMatch(/\?foo=bar$/)
+        const link = await browser.elementByCss('a')
+        await link.hover()
+        // Hovering a prefetch link should keep the URL intact
+        expect(await browser.url()).toMatch(/\?foo=bar$/)
+      })
+
+      describe('useParams identity between renders', () => {
+        async function runTests(page: string) {
+          const browser = await next.browser(page)
+
+          await check(
+            async () => JSON.stringify(await browser.log()),
+            /params changed/
+          )
+
+          let outputIndex = (await browser.log()).length
+
+          await browser.elementById('rerender-button').click()
+          await browser.elementById('rerender-button').click()
+          await browser.elementById('rerender-button').click()
+
+          await check(async () => {
+            return browser.elementById('rerender-button').text()
+          }, 'Re-Render 3')
+
+          await check(async () => {
+            const logs = await browser.log()
+            return JSON.stringify(logs.slice(outputIndex)).includes(
+              'params changed'
+            )
+              ? 'fail'
+              : 'success'
+          }, 'success')
+
+          outputIndex = (await browser.log()).length
+
+          await browser.elementById('change-params-button').click()
+
+          await check(
+            async () =>
+              JSON.stringify((await browser.log()).slice(outputIndex)),
+            /params changed/
+          )
+        }
+
+        it('should be stable in app', async () => {
+          await runTests('/search-params/foo')
+        })
+
+        it('should be stable in pages', async () => {
+          await runTests('/search-params-pages/foo')
+        })
       })
     })
 
@@ -39,7 +127,6 @@ createNextDescribe(
           await check(
             async () => {
               const val = await browser.eval('window.pageYOffset')
-              require('console').error({ val })
               return val.toString()
             },
             expectedScroll.toString(),
@@ -53,8 +140,154 @@ createNextDescribe(
         await checkLink(50, 730)
         await checkLink(160, 2270)
         await checkLink(300, 4230)
+        await checkLink(500, 7030) // this one is hash only (`href="#hash-500"`)
         await checkLink('top', 0)
         await checkLink('non-existent', 0)
+      })
+
+      it('should not scroll to hash when scroll={false} is set', async () => {
+        const browser = await next.browser('/hash-changes')
+        const curScroll = await browser.eval(
+          'document.documentElement.scrollTop'
+        )
+        await browser.elementByCss('#scroll-to-name-item-400-no-scroll').click()
+        expect(curScroll).toBe(
+          await browser.eval('document.documentElement.scrollTop')
+        )
+      })
+    })
+
+    describe('hash-with-scroll-offset', () => {
+      it('should scroll to the specified hash', async () => {
+        const browser = await next.browser('/hash-with-scroll-offset')
+
+        const checkLink = async (
+          val: number | string,
+          expectedScroll: number
+        ) => {
+          await browser.elementByCss(`#link-to-${val.toString()}`).click()
+          await check(
+            async () => {
+              const val = await browser.eval('window.pageYOffset')
+              return val.toString()
+            },
+            expectedScroll.toString(),
+            true,
+            // Try maximum of 15 seconds
+            15
+          )
+        }
+
+        await checkLink(6, 94)
+        await checkLink(50, 710)
+        await checkLink(160, 2250)
+        await checkLink(300, 4210)
+        await checkLink(500, 7010) // this one is hash only (`href="#hash-500"`)
+        await checkLink('top', 0)
+        await checkLink('non-existent', 0)
+      })
+    })
+
+    describe('hash-link-back-to-same-page', () => {
+      it('should scroll to the specified hash', async () => {
+        const browser = await next.browser('/hash-link-back-to-same-page')
+
+        const checkLink = async (
+          val: number | string,
+          expectedScroll: number
+        ) => {
+          await browser.elementByCss(`#link-to-${val.toString()}`).click()
+          await check(
+            async () => {
+              const val = await browser.eval('window.pageYOffset')
+              return val.toString()
+            },
+            expectedScroll.toString(),
+            true,
+            // Try maximum of 15 seconds
+            15
+          )
+        }
+
+        await checkLink(6, 114)
+        await checkLink(50, 730)
+        await checkLink(160, 2270)
+
+        await browser
+          .elementByCss('#to-other-page')
+          // Navigate to other
+          .click()
+          // Wait for other ot load
+          .waitForElementByCss('#link-to-home')
+          // Navigate back to hash-link-back-to-same-page
+          .click()
+          // Wait for hash-link-back-to-same-page to load
+          .waitForElementByCss('#to-other-page')
+
+        await check(
+          async () => {
+            const val = await browser.eval('window.pageYOffset')
+            return val.toString()
+          },
+          (0).toString(),
+          true,
+          // Try maximum of 15 seconds
+          15
+        )
+      })
+    })
+
+    describe('relative hashes and queries', () => {
+      const pathname = '/nested-relative-query-and-hash'
+
+      it('should work with a hash-only href', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#link-to-h1-hash-only').click()
+
+        await check(() => browser.url(), next.url + pathname + '#h1')
+      })
+
+      it('should work with a hash-only `router.push(...)`', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#button-to-h3-hash-only').click()
+
+        await check(() => browser.url(), next.url + pathname + '#h3')
+      })
+
+      it('should work with a query-only href', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#link-to-dummy-query').click()
+
+        await check(() => browser.url(), next.url + pathname + '?foo=1&bar=2')
+      })
+
+      it('should work with both relative hashes and queries', async () => {
+        const browser = await next.browser(pathname)
+        await browser.elementByCss('#link-to-h2-with-hash-and-query').click()
+
+        await check(() => browser.url(), next.url + pathname + '?here=ok#h2')
+
+        // Only update hash
+        await browser.elementByCss('#link-to-h1-hash-only').click()
+        await check(() => browser.url(), next.url + pathname + '?here=ok#h1')
+
+        // Replace all with new query
+        await browser.elementByCss('#link-to-dummy-query').click()
+        await check(() => browser.url(), next.url + pathname + '?foo=1&bar=2')
+
+        // Add hash to existing query
+        await browser.elementByCss('#link-to-h1-hash-only').click()
+        await check(
+          () => browser.url(),
+          next.url + pathname + '?foo=1&bar=2#h1'
+        )
+
+        // Update hash again via `router.push(...)`
+        await browser.elementByCss('#button-to-h3-hash-only').click()
+        await check(
+          () => browser.url(),
+          next.url + pathname + '?foo=1&bar=2#h3'
+        )
       })
     })
 
@@ -162,6 +395,36 @@ createNextDescribe(
             'Example Domain'
           )
         })
+
+        it('should redirect to external url, initiating only once', async () => {
+          const storageKey = Math.random()
+          const browser = await next.browser(
+            `/redirect/external-log/${storageKey}`
+          )
+          expect(await browser.waitForElementByCss('h1').text()).toBe(
+            'Example Domain'
+          )
+
+          // Now check the logs...
+          await browser.get(
+            `${next.url}/redirect/external-log/${storageKey}?read=1`
+          )
+          const stored = JSON.parse(await browser.elementByCss('pre').text())
+
+          if (stored['navigation-supported'] === 'false') {
+            // Old browser. Can't know how many times we navigated. Oh well.
+            return
+          }
+
+          expect(stored['navigation-supported']).toEqual('true')
+
+          // This one is a bit flaky during dev, original notes by @sophiebits:
+          // > Not actually sure why this is '2' in dev. Possibly something
+          // > related to an update triggered by <HotReload>?
+          expect(stored['navigate-https://example.vercel.sh/']).toBeOneOf(
+            isNextDev ? ['1', '2'] : ['1']
+          )
+        })
       })
 
       describe('next.config.js redirects', () => {
@@ -217,7 +480,118 @@ createNextDescribe(
           })
           expect(res.status).toBe(307)
         })
+        it('should respond with 308 status code if permanent flag is set', async () => {
+          const res = await next.fetch('/redirect/servercomponent-2', {
+            redirect: 'manual',
+          })
+          expect(res.status).toBe(308)
+        })
       })
+    })
+
+    describe('external push', () => {
+      it('should push external url without affecting hooks', async () => {
+        // Log with sessionStorage to persist across navigations
+        const storageKey = Math.random()
+        const browser = await next.browser(`/external-push/${storageKey}`)
+        await browser.elementByCss('#go').click()
+        await browser.waitForCondition(
+          'window.location.origin === "https://example.vercel.sh"'
+        )
+
+        // Now check the logs...
+        await browser.get(`${next.url}/external-push/${storageKey}`)
+        const stored = JSON.parse(await browser.elementByCss('pre').text())
+        let expected = {
+          // Only one navigation
+          'navigate-https://example.vercel.sh/stuff?abc=123': '1',
+          'navigation-supported': 'true',
+          // Make sure /stuff?abc=123 is not logged here
+          [`path-/external-push/${storageKey}`]: 'true',
+          // isPending should have been true until the page unloads
+          lastIsPending: 'true',
+        }
+
+        if (stored['navigation-supported'] !== 'true') {
+          // Old browser. Can't know how many times we navigated. Oh well.
+          expected['navigation-supported'] = 'false'
+          for (const key in expected) {
+            if (key.startsWith('navigate-')) {
+              delete expected[key]
+            }
+          }
+        }
+
+        expect(stored).toEqual(expected)
+      })
+    })
+
+    describe('navigation between pages and app', () => {
+      it('should not contain _rsc query while navigating from app to pages', async () => {
+        // Initiate with app
+        const browser = await next.browser('/assertion/page')
+        await browser
+          .elementByCss('#link-to-pages')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        expect(await browser.url()).toBe(next.url + '/some')
+        await browser
+          .elementByCss('#link-to-app')
+          .click()
+          .waitForElementByCss('#link-to-pages')
+        expect(await browser.url()).toBe(next.url + '/assertion/page')
+      })
+
+      it('should not contain _rsc query while navigating from pages to app', async () => {
+        // Initiate with pages
+        const browser = await next.browser('/some')
+        await browser
+          .elementByCss('#link-to-app')
+          .click()
+          .waitForElementByCss('#link-to-pages')
+        expect(await browser.url()).toBe(next.url + '/assertion/page')
+        await browser
+          .elementByCss('#link-to-pages')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        expect(await browser.url()).toBe(next.url + '/some')
+      })
+
+      it('should not omit the hash while navigating from app to pages', async () => {
+        const browser = await next.browser('/hash-link-to-pages-router')
+        await browser
+          .elementByCss('#link-to-pages-router')
+          .click()
+          .waitForElementByCss('#link-to-app')
+        await check(() => browser.url(), next.url + '/some#non-existent')
+      })
+
+      if (!isNextDev) {
+        // this test is pretty hard to test in playwright, so most of the heavy lifting is in the page component itself
+        // it triggers a hover on a link to initiate a prefetch request every second, and so we check that
+        // it doesn't repeatedly initiate the mpa navigation request
+        it('should not continously initiate a mpa navigation to the same URL when router state changes', async () => {
+          let requestCount = 0
+          const browser = await next.browser('/mpa-nav-test', {
+            beforePageLoad(page) {
+              page.on('request', (request) => {
+                const url = new URL(request.url())
+                // skip rsc prefetches
+                if (url.pathname === '/slow-page' && !url.search) {
+                  requestCount++
+                }
+              })
+            },
+          })
+
+          await browser.waitForElementByCss('#link-to-slow-page')
+
+          // wait a few seconds since prefetches are triggered in 1s intervals in the page component
+          await waitFor(5000)
+
+          expect(requestCount).toBe(1)
+        })
+      }
     })
 
     describe('nested navigation', () => {
@@ -255,6 +629,19 @@ createNextDescribe(
           }
         }
       })
+
+      it('should load chunks correctly without double encoding of url', async () => {
+        const browser = await next.browser('/router')
+
+        await browser
+          .elementByCss('#dynamic-link')
+          .click()
+          .waitForElementByCss('#dynamic-gsp-content')
+
+        expect(await browser.elementByCss('#dynamic-gsp-content').text()).toBe(
+          'slug:1'
+        )
+      })
     })
 
     describe('SEO', () => {
@@ -262,15 +649,29 @@ createNextDescribe(
         const noIndexTag = '<meta name="robots" content="noindex"/>'
         const defaultViewportTag =
           '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
+        const devErrorMetadataTag =
+          '<meta name="next-error" content="not-found"/>'
         const html = await next.render('/not-found/suspense')
+
         expect(html).toContain(noIndexTag)
         // only contain once
         expect(html.split(noIndexTag).length).toBe(2)
         expect(html.split(defaultViewportTag).length).toBe(2)
+        if (isNextDev) {
+          // only contain dev error tag once
+          expect(html.split(devErrorMetadataTag).length).toBe(2)
+        }
       })
 
       it('should emit refresh meta tag for redirect page when streaming', async () => {
         const html = await next.render('/redirect/suspense')
+        expect(html).toContain(
+          '<meta http-equiv="refresh" content="1;url=/redirect/result"/>'
+        )
+      })
+
+      it('should emit refresh meta tag (permanent) for redirect page when streaming', async () => {
+        const html = await next.render('/redirect/suspense-2')
         expect(html).toContain(
           '<meta http-equiv="refresh" content="0;url=/redirect/result"/>'
         )
@@ -289,6 +690,75 @@ createNextDescribe(
         expect(next.cliOutput).not.toInclude(
           'PageNotFoundError: Cannot find module for page'
         )
+      })
+    })
+
+    describe('navigations when attaching a Proxy to `window.Promise`', () => {
+      it('should navigate without issue', async () => {
+        const browser = await next.browser('/nested-navigation')
+        await browser.eval(`window.Promise = new Proxy(window.Promise, {})`)
+
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+        const pages = [
+          ['Electronics', ['Phones', 'Tablets', 'Laptops']],
+          ['Clothing', ['Tops', 'Shorts', 'Shoes']],
+          ['Books', ['Fiction', 'Biography', 'Education']],
+          ['Shoes', []],
+        ] as const
+
+        for (const [category, subCategories] of pages) {
+          expect(
+            await browser
+              .elementByCss(
+                `a[href="/nested-navigation/${category.toLowerCase()}"]`
+              )
+              .click()
+              .waitForElementByCss(`#all-${category.toLowerCase()}`)
+              .text()
+          ).toBe(`All ${category}`)
+
+          for (const subcategory of subCategories) {
+            expect(
+              await browser
+                .elementByCss(
+                  `a[href="/nested-navigation/${category.toLowerCase()}/${subcategory.toLowerCase()}"]`
+                )
+                .click()
+                .waitForElementByCss(`#${subcategory.toLowerCase()}`)
+                .text()
+            ).toBe(`${subcategory}`)
+          }
+        }
+      })
+    })
+
+    describe('scroll restoration', () => {
+      it('should restore original scroll position when navigating back', async () => {
+        const browser = await next.browser('/scroll-restoration', {
+          // throttling the CPU to rule out flakiness based on how quickly the page loads
+          cpuThrottleRate: 6,
+        })
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain('Item 50')
+        await browser.elementById('load-more').click()
+        await browser.elementById('load-more').click()
+        await browser.elementById('load-more').click()
+        expect(await body.text()).toContain('Item 200')
+
+        // scroll to the bottom of the page
+        await browser.eval('window.scrollTo(0, document.body.scrollHeight)')
+
+        // grab the current position
+        const scrollPosition = await browser.eval('window.pageYOffset')
+
+        await browser.elementByCss("[href='/scroll-restoration/other']").click()
+        await browser.elementById('back-button').click()
+
+        const newScrollPosition = await browser.eval('window.pageYOffset')
+
+        // confirm that the scroll position was restored
+        await check(() => scrollPosition === newScrollPosition, true)
       })
     })
   }

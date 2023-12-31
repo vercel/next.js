@@ -4,6 +4,7 @@ import type { NextFetchEvent } from './spec-extension/fetch-event'
 import type { NextResponse } from './spec-extension/response'
 import type { CloneableBody } from '../body-streams'
 import type { OutgoingHttpHeaders } from 'http'
+import type { FetchMetrics } from '../base-http'
 
 export interface RequestData {
   geo?: {
@@ -27,6 +28,7 @@ export interface RequestData {
   }
   url: string
   body?: ReadableStream<Uint8Array>
+  signal: AbortSignal
 }
 
 export type NodejsRequestData = Omit<RequestData, 'body'> & {
@@ -36,6 +38,7 @@ export type NodejsRequestData = Omit<RequestData, 'body'> & {
 export interface FetchEventResult {
   response: Response
   waitUntil: Promise<any>
+  fetchMetrics?: FetchMetrics
 }
 
 export type NextMiddlewareResult =

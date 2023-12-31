@@ -24,7 +24,7 @@ function _getInitialProps({
   return { statusCode }
 }
 
-const styles: { [k: string]: React.CSSProperties } = {
+const styles: Record<string, React.CSSProperties> = {
   error: {
     // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
     fontFamily:
@@ -36,12 +36,9 @@ const styles: { [k: string]: React.CSSProperties } = {
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   desc: {
-    display: 'inline-block',
-    textAlign: 'left',
+    lineHeight: '48px',
   },
-
   h1: {
     display: 'inline-block',
     margin: '0 20px 0 0',
@@ -49,14 +46,14 @@ const styles: { [k: string]: React.CSSProperties } = {
     fontSize: 24,
     fontWeight: 500,
     verticalAlign: 'top',
-    lineHeight: '49px',
   },
-
   h2: {
     fontSize: 14,
     fontWeight: 400,
-    lineHeight: '49px',
-    margin: 0,
+    lineHeight: '28px',
+  },
+  wrap: {
+    display: 'inline-block',
   },
 }
 
@@ -85,7 +82,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
               : 'Application error: a client-side exception has occurred'}
           </title>
         </Head>
-        <div>
+        <div style={styles.desc}>
           <style
             dangerouslySetInnerHTML={{
               /* CSS minified from
@@ -118,7 +115,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
               {statusCode}
             </h1>
           ) : null}
-          <div style={styles.desc}>
+          <div style={styles.wrap}>
             <h2 style={styles.h2}>
               {this.props.title || statusCode ? (
                 title

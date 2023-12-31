@@ -1,13 +1,13 @@
 import { loadEnvConfig } from '@next/env'
 import { resolve, join } from 'path'
 import loadConfig from '../../server/config'
-import type { NextConfigComplete } from '../../server/config-shared'
 import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { loadBindings, lockfilePatchPromise } from '../swc'
 import type { JestTransformerConfig } from '../swc/jest-transformer'
+import type { Config } from '@jest/types'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -30,13 +30,9 @@ function loadClosestPackageJson(dir: string, attempts = 1): any {
 }
 
 /** Loads dotenv files and sets environment variables based on next config. */
-function setUpEnv(dir: string, nextConfig: NextConfigComplete) {
+function setUpEnv(dir: string) {
   const dev = false
   loadEnvConfig(dir, dev, Log)
-
-  if (nextConfig.experimental.newNextLinkBehavior) {
-    process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
-  }
 }
 
 /*
@@ -56,16 +52,20 @@ module.exports = createJestConfig(customJestConfig)
 */
 export default function nextJest(options: { dir?: string } = {}) {
   // createJestConfig
-  return (customJestConfig?: any) => {
+  return (
+    customJestConfig?:
+      | Config.InitialProjectOptions
+      | (() => Promise<Config.InitialProjectOptions>)
+  ) => {
     // Function that is provided as the module.exports of jest.config.js
     // Will be called and awaited by Jest
-    return async () => {
+    return async (): Promise<Config.InitialProjectOptions> => {
       let nextConfig
       let jsConfig
       let resolvedBaseUrl
       let isEsmProject = false
       let pagesDir: string | undefined
-      let hasServerComponents: boolean | undefined
+      let serverComponents: boolean | undefined
 
       if (options.dir) {
         const resolvedDir = resolve(options.dir)
@@ -73,11 +73,10 @@ export default function nextJest(options: { dir?: string } = {}) {
         isEsmProject = packageConfig.type === 'module'
 
         nextConfig = await getConfig(resolvedDir)
-        const isAppDirEnabled = !!nextConfig.experimental.appDir
-        const findPagesDirResult = findPagesDir(resolvedDir, isAppDirEnabled)
-        hasServerComponents = !!findPagesDirResult.appDir
+        const findPagesDirResult = findPagesDir(resolvedDir)
+        serverComponents = !!findPagesDirResult.appDir
         pagesDir = findPagesDirResult.pagesDir
-        setUpEnv(resolvedDir, nextConfig)
+        setUpEnv(resolvedDir)
         // TODO: revisit when bug in SWC is fixed that strips `.css`
         const result = await loadJsConfig(resolvedDir, nextConfig)
         jsConfig = result.jsConfig
@@ -90,7 +89,7 @@ export default function nextJest(options: { dir?: string } = {}) {
           : customJestConfig) ?? {}
 
       // eagerly load swc bindings instead of waiting for transform calls
-      await loadBindings()
+      await loadBindings(nextConfig?.experimental?.useWasmBinary)
 
       if (lockfilePatchPromise.cur) {
         await lockfilePatchPromise.cur
@@ -104,7 +103,7 @@ export default function nextJest(options: { dir?: string } = {}) {
         compilerOptions: nextConfig?.compiler,
         jsConfig,
         resolvedBaseUrl,
-        hasServerComponents,
+        serverComponents,
         isEsmProject,
         pagesDir,
       }
@@ -132,6 +131,8 @@ export default function nextJest(options: { dir?: string } = {}) {
           '@next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
           // Handle next/font
           'next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
+          // Disable server-only
+          'server-only': require.resolve('./__mocks__/empty.js'),
 
           // custom config comes last to ensure the above rules are matched,
           // fixes the case where @pages/(.*) -> src/pages/$! doesn't break

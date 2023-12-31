@@ -24,7 +24,7 @@ const expectStatus = async (path) => {
     if (res.status === 308) {
       const redirectDest = res.headers.get('location')
       const parsedUrl = url.parse(redirectDest, true)
-      expect(parsedUrl.hostname).toBe('localhost')
+      expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
     } else {
       try {
         expect(res.status === 400 || res.status === 404).toBe(true)
@@ -4482,8 +4482,7 @@ describe('File Serving', () => {
 
     runTests(true)
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       const { code } = await nextBuild(appDir)
 

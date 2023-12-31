@@ -1,9 +1,9 @@
 import type { NodejsRequestData, FetchEventResult, RequestData } from '../types'
-import { getServerError } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import { getModuleContext } from './context'
-import { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
-import { requestToBodyStream } from '../../body-streams'
+import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
+import { getModuleContext } from './context'
+import { requestToBodyStream } from '../../body-streams'
+import { NEXT_RSC_UNION_QUERY } from '../../../client/components/app-router-headers'
 
 export const ErrorSource = Symbol('SandboxError')
 
@@ -15,7 +15,6 @@ const FORBIDDEN_HEADERS = [
 
 type RunnerFn = (params: {
   name: string
-  env: string[]
   onWarning?: (warn: Error) => void
   paths: string[]
   request: NodejsRequestData
@@ -30,40 +29,48 @@ type RunnerFn = (params: {
  * tagged with `edge-server` so they can properly be rendered in dev.
  */
 function withTaggedErrors(fn: RunnerFn): RunnerFn {
-  return (params) =>
-    fn(params)
-      .then((result) => ({
-        ...result,
-        waitUntil: result?.waitUntil?.catch((error) => {
-          // TODO: used COMPILER_NAMES.edgeServer instead. Verify that it does not increase the runtime size.
+  if (process.env.NODE_ENV === 'development') {
+    const { getServerError } =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+
+    return (params) =>
+      fn(params)
+        .then((result) => ({
+          ...result,
+          waitUntil: result?.waitUntil?.catch((error) => {
+            // TODO: used COMPILER_NAMES.edgeServer instead. Verify that it does not increase the runtime size.
+            throw getServerError(error, 'edge-server')
+          }),
+        }))
+        .catch((error) => {
+          // TODO: used COMPILER_NAMES.edgeServer instead
           throw getServerError(error, 'edge-server')
-        }),
-      }))
-      .catch((error) => {
-        // TODO: used COMPILER_NAMES.edgeServer instead
-        throw getServerError(error, 'edge-server')
-      })
+        })
+  }
+
+  return fn
 }
 
-export const getRuntimeContext = async (params: {
+export async function getRuntimeContext(params: {
   name: string
   onWarning?: any
   useCache: boolean
-  env: string[]
   edgeFunctionEntry: any
   distDir: string
   paths: string[]
   incrementalCache?: any
-}): Promise<EdgeRuntime<any>> => {
+}): Promise<EdgeRuntime<any>> {
   const { runtime, evaluateInContext } = await getModuleContext({
     moduleName: params.name,
     onWarning: params.onWarning ?? (() => {}),
     useCache: params.useCache !== false,
-    env: params.env,
     edgeFunctionEntry: params.edgeFunctionEntry,
     distDir: params.distDir,
   })
-  runtime.context.globalThis.__incrementalCache = params.incrementalCache
+
+  if (params.incrementalCache) {
+    runtime.context.globalThis.__incrementalCache = params.incrementalCache
+  }
 
   for (const paramPath of params.paths) {
     evaluateInContext(paramPath)
@@ -71,7 +78,7 @@ export const getRuntimeContext = async (params: {
   return runtime
 }
 
-export const run = withTaggedErrors(async (params) => {
+export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
   const runtime = await getRuntimeContext(params)
   const subreq = params.request.headers[`x-middleware-subrequest`]
   const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
@@ -96,6 +103,10 @@ export const run = withTaggedErrors(async (params) => {
     : undefined
 
   const KUint8Array = runtime.evaluate('Uint8Array')
+  const urlInstance = new URL(params.request.url)
+  urlInstance.searchParams.delete(NEXT_RSC_UNION_QUERY)
+
+  params.request.url = urlInstance.toString()
 
   try {
     const result = await edgeFunction({

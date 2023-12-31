@@ -1,4 +1,5 @@
-import { NextVanillaSpanAllowlist, SpanTypes } from './constants'
+import type { SpanTypes } from './constants'
+import { NextVanillaSpanAllowlist } from './constants'
 
 import type {
   ContextAPI,
@@ -6,6 +7,7 @@ import type {
   SpanOptions,
   Tracer,
   AttributeValue,
+  TextMapGetter,
 } from 'next/dist/compiled/@opentelemetry/api'
 
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
@@ -17,23 +19,34 @@ let api: typeof import('next/dist/compiled/@opentelemetry/api')
 // @opentelemetry/tracing that is used, and we don't want to force users to use
 // the version that is bundled with Next.js.
 // the API is ~stable, so this should be fine
-try {
+if (process.env.NEXT_RUNTIME === 'edge') {
   api = require('@opentelemetry/api')
-} catch (err) {
-  api = require('next/dist/compiled/@opentelemetry/api')
+} else {
+  try {
+    api = require('@opentelemetry/api')
+  } catch (err) {
+    api = require('next/dist/compiled/@opentelemetry/api')
+  }
 }
 
-const { context, trace, SpanStatusCode, SpanKind } = api
+const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } =
+  api
 
 const isPromise = <T>(p: any): p is Promise<T> => {
   return p !== null && typeof p === 'object' && typeof p.then === 'function'
 }
 
+type BubbledError = Error & { bubble?: boolean }
+
 const closeSpanWithError = (span: Span, error?: Error) => {
-  if (error) {
-    span.recordException(error)
+  if ((error as BubbledError | undefined)?.bubble === true) {
+    span.setAttribute('next.bubble', true)
+  } else {
+    if (error) {
+      span.recordException(error)
+    }
+    span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   }
-  span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   span.end()
 }
 
@@ -160,6 +173,20 @@ class NextTracerImpl implements NextTracer {
     return trace.getSpan(context?.active())
   }
 
+  public withPropagatedContext<T, C>(
+    carrier: C,
+    fn: () => T,
+    getter?: TextMapGetter<C>
+  ): T {
+    const activeContext = context.active()
+    if (trace.getSpanContext(activeContext)) {
+      // Active span is already set, too late to propagate.
+      return fn()
+    }
+    const remoteContext = propagation.extract(activeContext, carrier, getter)
+    return context.with(remoteContext, fn)
+  }
+
   // Trace, wrap implementation is inspired by datadog trace implementation
   // (https://datadoghq.dev/dd-trace-js/interfaces/tracer.html#trace).
   public trace<T>(
@@ -218,7 +245,9 @@ class NextTracerImpl implements NextTracer {
     let isRootSpan = false
 
     if (!spanContext) {
-      spanContext = api.ROOT_CONTEXT
+      spanContext = ROOT_CONTEXT
+      isRootSpan = true
+    } else if (trace.getSpanContext(spanContext)?.isRemote) {
       isRootSpan = true
     }
 
@@ -230,7 +259,7 @@ class NextTracerImpl implements NextTracer {
       ...options.attributes,
     }
 
-    return api.context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
+    return context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
       this.getTracerInstance().startActiveSpan(
         spanName,
         options,
@@ -358,13 +387,5 @@ const getTracer = (() => {
   return () => tracer
 })()
 
-export {
-  NextTracer,
-  getTracer,
-  Span,
-  SpanOptions,
-  ContextAPI,
-  SpanStatusCode,
-  TracerSpanOptions,
-  SpanKind,
-}
+export { getTracer, SpanStatusCode, SpanKind }
+export type { NextTracer, Span, SpanOptions, ContextAPI, TracerSpanOptions }

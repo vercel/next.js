@@ -11,7 +11,7 @@ export default function Home() {
   return (
     <Box as="main" padding="space70">
       <Head>
-        <title>Paste NextJS App</title>
+        <title>Paste Next.js App</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
@@ -50,7 +50,7 @@ export default function Home() {
           <Heading as="h3" variant="heading30">
             <Anchor href="https://nextjs.org/docs">
               <Box as="span" display="flex" alignItems="center">
-                NextJS Documentation{' '}
+                Next.js Documentation{' '}
                 <ArrowForwardIcon decorative size="sizeIcon60" />
               </Box>
             </Anchor>

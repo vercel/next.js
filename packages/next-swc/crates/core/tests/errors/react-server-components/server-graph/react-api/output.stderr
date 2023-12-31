@@ -97,3 +97,10 @@
     :   ^^^^^^^^^^^^^^^^^^^^
  17 | } from 'react'
     `----
+
+  x NEXT_RSC_ERR_REACT_API: experimental_useOptimistic
+    ,-[input.js:18:1]
+ 18 | 
+ 19 | import { experimental_useOptimistic as useOptimistic } from 'react'
+    :          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    `----

@@ -70,7 +70,7 @@ function runTests() {
 }
 
 describe('Fetch polyfill', () => {
-  describe('dev support', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
       await startApiServer()
@@ -87,8 +87,7 @@ describe('Fetch polyfill', () => {
 
     runTests()
   })
-
-  describe('Server support', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await startApiServer()
       await nextBuild(appDir, [], {

@@ -1,7 +1,7 @@
 import type { NextConfig } from '../server/config'
 import type { Token } from 'next/dist/compiled/path-to-regexp'
 
-import chalk from './chalk'
+import { bold, yellow } from './picocolors'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { tryToParsePath } from './try-to-parse-path'
 import { allowedStatusCodes } from './redirect-status'
@@ -25,6 +25,11 @@ export type Rewrite = {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+
+  /**
+   * @internal - used internally for routing
+   */
+  internal?: boolean
 }
 
 export type Header = {
@@ -34,6 +39,11 @@ export type Header = {
   headers: Array<{ key: string; value: string }>
   has?: RouteHas[]
   missing?: RouteHas[]
+
+  /**
+   * @internal - used internally for routing
+   */
+  internal?: boolean
 }
 
 // internal type used for validation (not user facing)
@@ -44,6 +54,11 @@ export type Redirect = {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+
+  /**
+   * @internal - used internally for routing
+   */
+  internal?: boolean
 } & (
   | {
       statusCode?: never
@@ -77,11 +92,11 @@ function checkRedirect(route: Redirect): {
   const invalidParts: string[] = []
   let hadInvalidStatus: boolean = false
 
-  if (route.statusCode && !allowedStatusCodes.has(route.statusCode)) {
+  if (route.statusCode && !allowedStatusCodes.has(route['statusCode'])) {
     hadInvalidStatus = true
     invalidParts.push(`\`statusCode\` is not undefined or valid statusCode`)
   }
-  if (typeof route.permanent !== 'boolean' && !route.statusCode) {
+  if (typeof route.permanent !== 'boolean' && !route['statusCode']) {
     invalidParts.push(`\`permanent\` is not set to \`true\` or \`false\``)
   }
 
@@ -569,7 +584,7 @@ async function loadRedirects(config: NextConfig) {
 
   // save original redirects before transforms
   if (Array.isArray(redirects)) {
-    ;(config as any)._originalRedirects = redirects.map((r) => ({ ...r }))
+    config._originalRedirects = redirects.map((r) => ({ ...r }))
   }
   redirects = processRoutes(redirects, config, 'redirect')
   checkCustomRoutes(redirects, 'redirect')
@@ -610,7 +625,7 @@ async function loadRewrites(config: NextConfig) {
   checkCustomRoutes(fallback, 'rewrite')
 
   // save original rewrites before transforms
-  ;(config as any)._originalRewrites = {
+  config._originalRewrites = {
     beforeFiles: beforeFiles.map((r) => ({ ...r })),
     afterFiles: afterFiles.map((r) => ({ ...r })),
     fallback: fallback.map((r) => ({ ...r })),
@@ -663,7 +678,7 @@ export default async function loadCustomRoutes(
 
   if (totalRoutes > 1000) {
     console.warn(
-      chalk.bold.yellow(`Warning: `) +
+      bold(yellow(`Warning: `)) +
         `total number of custom routes exceeds 1000, this can reduce performance. Route counts:\n` +
         `headers: ${headers.length}\n` +
         `rewrites: ${totalRewrites}\n` +
@@ -688,14 +703,14 @@ export default async function loadCustomRoutes(
               key: 'x-nextjs-data',
             },
           ],
-        } as Redirect,
+        },
         {
           source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
           destination: '/:notfile/',
           permanent: true,
           locale: config.i18n ? false : undefined,
           internal: true,
-        } as Redirect
+        }
       )
       if (config.basePath) {
         redirects.unshift({
@@ -705,7 +720,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
-        } as Redirect)
+        })
       }
     } else {
       redirects.unshift({
@@ -714,7 +729,7 @@ export default async function loadCustomRoutes(
         permanent: true,
         locale: config.i18n ? false : undefined,
         internal: true,
-      } as Redirect)
+      })
       if (config.basePath) {
         redirects.unshift({
           source: config.basePath + '/',
@@ -723,7 +738,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
-        } as Redirect)
+        })
       }
     }
   }

@@ -8,3 +8,17 @@ export async function POST(request: NextRequest) {
     headers: withRequestMeta({ body }),
   })
 }
+
+export async function DELETE(request: NextRequest) {
+  const body = await request.json()
+  return new Response('delete ' + body.name, {
+    status: 200,
+  })
+}
+
+export async function OPTIONS(request: NextRequest) {
+  const body = await request.json()
+  return new Response('options ' + body.name, {
+    status: 200,
+  })
+}

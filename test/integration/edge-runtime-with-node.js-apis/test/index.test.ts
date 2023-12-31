@@ -69,7 +69,7 @@ describe.each([
       output = ''
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
-        env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+        env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
         onStdout(msg) {
           output += msg
         },
@@ -110,8 +110,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
       expect(stripAnsi(output)).toInclude(errorHighlight)
     })
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     let buildResult
 
     beforeAll(async () => {

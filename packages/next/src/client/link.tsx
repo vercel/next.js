@@ -6,18 +6,18 @@ import type {
 } from '../shared/lib/router/router'
 
 import React from 'react'
-import { UrlObject } from 'url'
-import { resolveHref } from '../shared/lib/router/utils/resolve-href'
+import type { UrlObject } from 'url'
+import { resolveHref } from './resolve-href'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { isAbsoluteUrl } from '../shared/lib/utils'
 import { addLocale } from './add-locale'
-import { RouterContext } from '../shared/lib/router-context'
-import {
-  AppRouterContext,
+import { RouterContext } from '../shared/lib/router-context.shared-runtime'
+import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
+import type {
   AppRouterInstance,
   PrefetchOptions as AppRouterPrefetchOptions,
-} from '../shared/lib/app-router-context'
+} from '../shared/lib/app-router-context.shared-runtime'
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
@@ -39,7 +39,7 @@ type InternalLinkProps = {
    */
   href: Url
   /**
-   * Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked. Note: when this path differs from the one provided in `href` the previous `href`/`as` behavior is used as shown in the [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes).
+   * Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://github.com/vercel/next.js/blob/v9.5.2/docs/api-reference/next/link.md#dynamic-routes) to see how it worked. Note: when this path differs from the one provided in `href` the previous `href`/`as` behavior is used as shown in the [previous docs](https://github.com/vercel/next.js/blob/v9.5.2/docs/api-reference/next/link.md#dynamic-routes).
    */
   as?: Url
   /**
@@ -103,7 +103,11 @@ type InternalLinkProps = {
 
 // TODO-APP: Include the full set of Anchor props
 // adding this to the publicly exported type currently breaks existing apps
-export type LinkProps = InternalLinkProps
+
+// `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
+// isn't generated yet. It will be replaced when the webpack plugin runs.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type LinkProps<RouteInferType = any> = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
@@ -195,8 +199,7 @@ function linkClicked(
   shallow?: boolean,
   scroll?: boolean,
   locale?: string | false,
-  isAppRouter?: boolean,
-  prefetchEnabled?: boolean
+  isAppRouter?: boolean
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -217,15 +220,16 @@ function linkClicked(
 
   const navigate = () => {
     // If the router is an NextRouter instance it will have `beforePopState`
+    const routerScroll = scroll ?? true
     if ('beforePopState' in router) {
       router[replace ? 'replace' : 'push'](href, as, {
         shallow,
         locale,
-        scroll,
+        scroll: routerScroll,
       })
     } else {
       router[replace ? 'replace' : 'push'](as || href, {
-        forceOptimisticNavigation: !prefetchEnabled,
+        scroll: routerScroll,
       })
     }
   }
@@ -270,8 +274,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onClick,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
-      // @ts-expect-error this is inlined as a literal boolean not a string
-      legacyBehavior = process.env.__NEXT_NEW_LINK_BEHAVIOR === false,
+      legacyBehavior = false,
       ...restProps
     } = props
 
@@ -284,6 +287,13 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       children = <a>{children}</a>
     }
 
+    const pagesRouter = React.useContext(RouterContext)
+    const appRouter = React.useContext(AppRouterContext)
+    const router = pagesRouter ?? appRouter
+
+    // We're in the app directory if there is no pages router.
+    const isAppRouter = !pagesRouter
+
     const prefetchEnabled = prefetchProp !== false
     /**
      * The possible states for prefetch are:
@@ -294,12 +304,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     const appPrefetchKind =
       prefetchProp === null ? PrefetchKind.AUTO : PrefetchKind.FULL
 
-    const pagesRouter = React.useContext(RouterContext)
-    const appRouter = React.useContext(AppRouterContext)
-    const router = pagesRouter ?? appRouter
-
-    // We're in the app directory if there is no pages router.
-    const isAppRouter = !pagesRouter
     if (process.env.NODE_ENV !== 'production') {
       function createPropError(args: {
         key: string
@@ -628,8 +632,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           shallow,
           scroll,
           locale,
-          isAppRouter,
-          prefetchEnabled
+          isAppRouter
         )
       },
       onMouseEnter(e) {
@@ -649,7 +652,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        if (!prefetchEnabled && isAppRouter) {
+        if (
+          (!prefetchEnabled || process.env.NODE_ENV === 'development') &&
+          isAppRouter
+        ) {
           return
         }
 

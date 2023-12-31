@@ -27,6 +27,12 @@ module.exports = {
       `git add ${escapedFileNames}`,
     ]
   },
+  '**/*.rs': (filenames) => {
+    const escapedFileNames = filenames
+      .map((filename) => (isWin ? filename : escape([filename])))
+      .join(' ')
+    return [`cargo fmt -- ${escapedFileNames}`, `git add ${escapedFileNames}`]
+  },
 }
 
 function escape(str) {

@@ -15,7 +15,7 @@ jobs:
         name: 'Close stale issues with no reproduction'
         with:
           repo-token: ${{ secrets.STALE_TOKEN }}
-          only-labels: 'please add a complete reproduction'
+          only-labels: 'please add a complete reproduction,please simplify reproduction'
           close-issue-message: 'This issue has been automatically closed because it received no activity for a month and had no reproduction to investigate. If you think it was closed by accident, please leave a comment. If you are running into a similar issue, please open a new issue with a reproduction. Thank you.'
           days-before-issue-close: 1
           days-before-issue-stale: 30

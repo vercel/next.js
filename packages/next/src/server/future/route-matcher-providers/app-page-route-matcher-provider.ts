@@ -4,7 +4,7 @@ import { APP_PATHS_MANIFEST } from '../../../shared/lib/constants'
 import { AppNormalizers } from '../normalizers/built/app'
 import { RouteKind } from '../route-kind'
 import { AppPageRouteMatcher } from '../route-matchers/app-page-route-matcher'
-import {
+import type {
   Manifest,
   ManifestLoader,
 } from './helpers/manifest-loaders/manifest-loader'

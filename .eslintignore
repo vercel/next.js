@@ -20,8 +20,6 @@ packages/react-refresh-utils/**/*.js
 packages/react-dev-overlay/lib/**
 **/__tmp__/**
 .github/actions/next-stats-action/.work
-.github/actions/issue-validator/index.mjs
-.github/actions/issue-labeler/lib/index.js
 packages/next-codemod/transforms/__testfixtures__/**/*
 packages/next-codemod/transforms/__tests__/**/*
 packages/next-codemod/**/*.js
@@ -35,8 +33,8 @@ test/production/emit-decorator-metadata/**/*.js
 test/e2e/app-dir/rsc-errors/app/swc/use-client/page.js
 test-timings.json
 packages/next-swc/crates/**
-bench/nested-deps/pages/**
-bench/nested-deps/components/**
+bench/nested-deps/**
+bench/nested-deps-app-router/**
 packages/next-bundle-analyzer/index.d.ts
 examples/with-typescript-graphql/lib/gql/
 test/development/basic/hmr/components/parse-error.js

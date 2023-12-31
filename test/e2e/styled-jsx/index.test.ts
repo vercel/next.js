@@ -1,7 +1,7 @@
 import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 const appDir = path.join(__dirname, 'app')
@@ -11,6 +11,8 @@ function runTest() {
     let next: NextInstance
 
     beforeAll(async () => {
+      const devCommand = shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
+
       next = await createNext({
         files: {
           node_modules_bak: new FileRef(path.join(appDir, 'node_modules_bak')),
@@ -21,7 +23,7 @@ function runTest() {
           scripts: {
             setup: `cp -r ./node_modules_bak/my-comps ./node_modules;`,
             build: `yarn setup && next build`,
-            dev: `yarn setup && next dev`,
+            dev: `yarn setup && next ${devCommand}`,
             start: 'next start',
           },
         },

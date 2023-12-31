@@ -1,4 +1,4 @@
-import { unstable_cache } from 'next/server'
+import { unstable_cache } from 'next/cache'
 
 export default async function Page() {
   const data = await fetch(
@@ -28,7 +28,7 @@ export default async function Page() {
     },
     ['random'],
     {
-      tags: ['thankyounext'],
+      tags: ['thankyounext', 'unstable_cache_tag1'],
       revalidate: 10,
     }
   )()

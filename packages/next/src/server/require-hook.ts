@@ -3,12 +3,26 @@
 // Individually compiled modules are as defined for the compilation in bundles/webpack/packages/*.
 
 // This module will only be loaded once per process.
-
+const path = require('path')
 const mod = require('module')
+const originalRequire = mod.prototype.require
 const resolveFilename = mod._resolveFilename
-const hookPropertyMap = new Map()
 
-let aliasedPrebundledReact = false
+let resolve: typeof require.resolve = process.env.NEXT_MINIMAL
+  ? // @ts-ignore
+    __non_webpack_require__.resolve
+  : require.resolve
+
+export const hookPropertyMap = new Map()
+
+export const defaultOverrides = {
+  'styled-jsx': path.dirname(resolve('styled-jsx/package.json')),
+  'styled-jsx/style': resolve('styled-jsx/style'),
+  'styled-jsx/style.js': resolve('styled-jsx/style'),
+}
+
+const toResolveMap = (map: Record<string, string>): [string, string][] =>
+  Object.entries(map).map(([key, value]) => [key, resolve(value)])
 
 export function addHookAliases(aliases: [string, string][] = []) {
   for (const [key, value] of aliases) {
@@ -16,73 +30,42 @@ export function addHookAliases(aliases: [string, string][] = []) {
   }
 }
 
-// Add default aliases
-addHookAliases([
-  // Use `require.resolve` explicitly to make them statically analyzable
-  // styled-jsx needs to be resolved as the external dependency.
-  ['styled-jsx', require.resolve('styled-jsx')],
-  ['styled-jsx/style', require.resolve('styled-jsx/style')],
-  ['styled-jsx/style', require.resolve('styled-jsx/style')],
-  ['server-only', require.resolve('next/dist/compiled/server-only')],
-  ['client-only', require.resolve('next/dist/compiled/client-only')],
-])
-
-// Override built-in React packages if necessary
-function overrideReact() {
-  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT) {
-    aliasedPrebundledReact = true
-    addHookAliases([
-      ['react', require.resolve(`next/dist/compiled/react`)],
-      [
-        'react/jsx-runtime',
-        require.resolve(`next/dist/compiled/react/jsx-runtime`),
-      ],
-      [
-        'react/jsx-dev-runtime',
-        require.resolve(`next/dist/compiled/react/jsx-dev-runtime`),
-      ],
-      [
-        'react-dom',
-        require.resolve(`next/dist/compiled/react-dom/server-rendering-stub`),
-      ],
-      [
-        'react-dom/client',
-        require.resolve(`next/dist/compiled/react-dom/client`),
-      ],
-      [
-        'react-dom/server',
-        require.resolve(`next/dist/compiled/react-dom/server`),
-      ],
-      [
-        'react-dom/server.browser',
-        require.resolve(`next/dist/compiled/react-dom/server.browser`),
-      ],
-    ])
-  } else {
-    addHookAliases([
-      ['react/jsx-runtime', require.resolve(`react/jsx-runtime`)],
-      ['react/jsx-dev-runtime', require.resolve(`react/jsx-dev-runtime`)],
-    ])
-  }
-}
-overrideReact()
+addHookAliases(toResolveMap(defaultOverrides))
 
 mod._resolveFilename = function (
-  originalResolveFilename: typeof resolveFilename,
+  originalResolveFilename: (
+    request: string,
+    parent: string,
+    isMain: boolean,
+    opts: any
+  ) => string,
   requestMap: Map<string, string>,
   request: string,
-  parent: any,
+  parent: string,
   isMain: boolean,
   options: any
 ) {
-  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT && !aliasedPrebundledReact) {
-    // In case the environment variable is set after the module is loaded.
-    overrideReact()
-  }
-
   const hookResolved = requestMap.get(request)
   if (hookResolved) request = hookResolved
+
   return originalResolveFilename.call(mod, request, parent, isMain, options)
 
   // We use `bind` here to avoid referencing outside variables to create potential memory leaks.
 }.bind(null, resolveFilename, hookPropertyMap)
+
+// This is a hack to make sure that if a user requires a Next.js module that wasn't bundled
+// that needs to point to the rendering runtime version, it will point to the correct one.
+// This can happen on `pages` when a user requires a dependency that uses next/image for example.
+mod.prototype.require = function (request: string) {
+  if (request.endsWith('.shared-runtime')) {
+    return originalRequire.call(
+      this,
+      `next/dist/server/future/route-modules/pages/vendored/contexts/${path.basename(
+        request,
+        '.shared-runtime'
+      )}`
+    )
+  }
+
+  return originalRequire.call(this, request)
+}

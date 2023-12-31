@@ -1,7 +1,7 @@
-import { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
+import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import { RouteKind } from '../../route-kind'
 import { DevAppRouteRouteMatcherProvider } from './dev-app-route-route-matcher-provider'
-import { FileReader } from './helpers/file-reader/file-reader'
+import type { FileReader } from './helpers/file-reader/file-reader'
 
 describe('DevAppRouteRouteMatcher', () => {
   const dir = '<root>'

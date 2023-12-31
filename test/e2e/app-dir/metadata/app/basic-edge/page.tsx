@@ -25,17 +25,7 @@ export const metadata: Metadata = {
   referrer: 'origin-when-cross-origin',
   keywords: ['next.js', 'react', 'javascript'],
   authors: [{ name: 'huozhi' }, { name: 'tree', url: 'https://tree.com' }],
-  themeColor: { color: 'cyan', media: '(prefers-color-scheme: dark)' },
-  colorScheme: 'dark',
-  manifest: 'https://www.google.com/manifest',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    interactiveWidget: 'resizes-visual',
-  },
-  creator: 'shu',
-  publisher: 'vercel',
+  manifest: '/api/manifest',
   robots: 'index, follow',
   alternates: {},
   formatDetection: {

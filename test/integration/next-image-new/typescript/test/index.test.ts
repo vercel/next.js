@@ -21,7 +21,7 @@ const handleOutput = (msg) => {
 }
 
 describe('TypeScript Image Component', () => {
-  describe('next build', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('should fail to build invalid usage of the Image component', async () => {
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
       expect(stderr).toMatch(/Failed to compile/)
@@ -47,7 +47,7 @@ describe('TypeScript Image Component', () => {
     })
   })
 
-  describe('next dev', () => {
+  describe('development mode', () => {
     beforeAll(async () => {
       output = ''
       appPort = await findPort()
@@ -81,7 +81,7 @@ describe('TypeScript Image Component', () => {
       nextConfig,
       content.replace('// disableStaticImages', 'disableStaticImages')
     )
-    const app = await launchApp(appDir, await findPort(), [])
+    const app = await launchApp(appDir, await findPort())
     await killApp(app)
     await fs.writeFile(nextConfig, content)
     const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')

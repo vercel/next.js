@@ -2,12 +2,12 @@ import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 createNextDescribe(
-  'router autoscrolling on navigation',
+  'router autoscrolling on navigation with css modules',
   {
     files: __dirname,
   },
   ({ next }) => {
-    type BrowserInterface = Awaited<ReturnType<typeof next['browser']>>
+    type BrowserInterface = Awaited<ReturnType<(typeof next)['browser']>>
 
     const getTopScroll = async (browser: BrowserInterface) =>
       await browser.eval('document.documentElement.scrollTop')

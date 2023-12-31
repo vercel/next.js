@@ -1,35 +1,33 @@
 const path = require('path')
-const fs = require('fs-extra')
+const fs = require('fs')
+const { existsSync } = require('fs')
 const exec = require('../util/exec')
-const { remove } = require('fs-extra')
 const logger = require('../util/logger')
-const semver = require('semver')
 const execa = require('execa')
 
 module.exports = (actionInfo) => {
   return {
-    async cloneRepo(repoPath = '', dest = '') {
-      await remove(dest)
-      await exec(`git clone ${actionInfo.gitRoot}${repoPath} ${dest}`)
+    async cloneRepo(repoPath = '', dest = '', branch = '', depth = '20') {
+      await fs.promises.rm(dest, { recursive: true, force: true })
+      await exec(
+        `git clone ${actionInfo.gitRoot}${repoPath} --single-branch --branch ${branch} --depth=${depth} ${dest}`
+      )
     },
-    async checkoutRef(ref = '', repoDir = '') {
-      await exec(`cd ${repoDir} && git fetch && git checkout ${ref}`)
-    },
-    async getLastStable(repoDir = '', ref) {
-      const { stdout } = await exec(`cd ${repoDir} && git tag -l`)
-      const tags = stdout.trim().split('\n')
-      let lastStableTag
+    async getLastStable(repoDir = '') {
+      const { stdout } = await exec(`cd ${repoDir} && git describe`)
+      const tag = stdout.trim()
 
-      for (let i = tags.length - 1; i >= 0; i--) {
-        const curTag = tags[i]
-        // stable doesn't include `-canary` or `-beta`
-        if (!curTag.includes('-') && !ref.includes(curTag)) {
-          if (!lastStableTag || semver.gt(curTag, lastStableTag)) {
-            lastStableTag = curTag
-          }
-        }
+      if (!tag || !tag.startsWith('v')) {
+        throw new Error(`Failed to get tag info: "${stdout}"`)
       }
-      return lastStableTag
+      const [major, minor, patch] = tag.split('-canary')[0].split('.')
+      if (!major || !minor || !patch) {
+        throw new Error(
+          `Failed to split tag into major/minor/patch: "${stdout}"`
+        )
+      }
+      // last stable tag will always be 1 patch less than canary
+      return `${major}.${minor}.${Number(patch) - 1}`
     },
     async getCommitId(repoDir = '') {
       const { stdout } = await exec(`cd ${repoDir} && git rev-parse HEAD`)
@@ -54,13 +52,23 @@ module.exports = (actionInfo) => {
         }
       }
     },
+    /**
+     * Runs `pnpm pack` on each package in the `packages` folder of the provided `repoDir`
+     * @param {{ repoDir: string, nextSwcVersion: null | string }} options Required options
+     * @returns {Promise<Map<string, string>>} List packages key is the package name, value is the path to the packed tar file.'
+     */
     async linkPackages({ repoDir, nextSwcVersion }) {
+      /** @type {Map<string, string>} */
       const pkgPaths = new Map()
+      /** @type {Map<string, { packageJsonPath: string, packagePath: string, packageJson: any, packedPackageTarPath: string }>} */
       const pkgDatas = new Map()
-      let pkgs
+
+      let packageFolders
 
       try {
-        pkgs = await fs.readdir(path.join(repoDir, 'packages'))
+        packageFolders = await fs.promises.readdir(
+          path.join(repoDir, 'packages')
+        )
       } catch (err) {
         if (err.code === 'ENOENT') {
           require('console').log('no packages to link')
@@ -69,73 +77,92 @@ module.exports = (actionInfo) => {
         throw err
       }
 
-      for (const pkg of pkgs) {
-        const pkgPath = path.join(repoDir, 'packages', pkg)
-        const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
+      for (const packageFolder of packageFolders) {
+        const packagePath = path.join(repoDir, 'packages', packageFolder)
+        const packedPackageTarPath = path.join(
+          packagePath,
+          `${packageFolder}-packed.tgz`
+        )
+        const packageJsonPath = path.join(packagePath, 'package.json')
 
-        const pkgDataPath = path.join(pkgPath, 'package.json')
-        if (!fs.existsSync(pkgDataPath)) {
-          require('console').log(`Skipping ${pkgDataPath}`)
+        if (!existsSync(packageJsonPath)) {
+          require('console').log(`Skipping ${packageFolder}, no package.json`)
           continue
         }
-        const pkgData = require(pkgDataPath)
-        const { name } = pkgData
-        pkgDatas.set(name, {
-          pkgDataPath,
-          pkg,
-          pkgPath,
-          pkgData,
-          packedPkgPath,
+
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath))
+        const { name: packageName } = packageJson
+
+        pkgDatas.set(packageName, {
+          packageJsonPath,
+          packagePath,
+          packageJson,
+          packedPackageTarPath,
         })
-        pkgPaths.set(name, packedPkgPath)
+        pkgPaths.set(packageName, packedPackageTarPath)
       }
 
-      for (const pkg of pkgDatas.keys()) {
-        const { pkgDataPath, pkgData } = pkgDatas.get(pkg)
-
-        for (const pkg of pkgDatas.keys()) {
-          const { packedPkgPath } = pkgDatas.get(pkg)
-          if (!pkgData.dependencies || !pkgData.dependencies[pkg]) continue
-          pkgData.dependencies[pkg] = packedPkgPath
+      for (const [
+        packageName,
+        { packageJsonPath, packagePath, packageJson },
+      ] of pkgDatas.entries()) {
+        // This loops through all items to get the packagedPkgPath of each item and add it to pkgData.dependencies
+        for (const [
+          packageName,
+          { packedPackageTarPath },
+        ] of pkgDatas.entries()) {
+          if (
+            !packageJson.dependencies ||
+            !packageJson.dependencies[packageName]
+          )
+            continue
+          // Edit the pkgData of the current item to point to the packed tgz
+          packageJson.dependencies[packageName] = packedPackageTarPath
         }
 
         // make sure native binaries are included in local linking
-        if (pkg === '@next/swc') {
-          if (!pkgData.files) {
-            pkgData.files = []
-          }
-          pkgData.files.push('native/*')
-          require('console').log(
-            'using swc binaries: ',
-            await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
-          )
-        }
+        if (packageName === '@next/swc') {
+          packageJson.files ||= []
 
-        if (pkg === 'next') {
+          packageJson.files.push('native')
+
+          try {
+            const swcBinariesDirContents = (
+              await fs.promises.readdir(path.join(packagePath, 'native'))
+            ).filter((file) => file !== '.gitignore' && file !== 'index.d.ts')
+
+            require('console').log(
+              'using swc binaries: ',
+              swcBinariesDirContents.join(', ')
+            )
+          } catch (err) {
+            if (err.code === 'ENOENT') {
+              require('console').log('swc binaries dir is missing!')
+            }
+            throw err
+          }
+        } else if (packageName === 'next') {
+          const nextSwcPkg = pkgDatas.get('@next/swc')
+
+          console.log('using swc dep', {
+            nextSwcVersion,
+            nextSwcPkg,
+          })
           if (nextSwcVersion) {
-            Object.assign(pkgData.dependencies, {
+            Object.assign(packageJson.dependencies, {
               '@next/swc-linux-x64-gnu': nextSwcVersion,
             })
           } else {
-            if (pkgDatas.get('@next/swc')) {
-              pkgData.dependencies['@next/swc'] =
-                pkgDatas.get('@next/swc').packedPkgPath
-            } else {
-              pkgData.files.push('native/*')
+            if (nextSwcPkg) {
+              packageJson.dependencies['@next/swc'] =
+                nextSwcPkg.packedPackageTarPath
             }
           }
         }
 
-        if (pkgData?.scripts?.prepublishOnly) {
-          // There's a bug in `pnpm pack` where it will run
-          // the prepublishOnly script and that will fail.
-          // See https://github.com/pnpm/pnpm/issues/2941
-          delete pkgData.scripts.prepublishOnly
-        }
-
-        await fs.writeFile(
-          pkgDataPath,
-          JSON.stringify(pkgData, null, 2),
+        await fs.promises.writeFile(
+          packageJsonPath,
+          JSON.stringify(packageJson, null, 2),
           'utf8'
         )
       }
@@ -143,20 +170,61 @@ module.exports = (actionInfo) => {
       // wait to pack packages until after dependency paths have been updated
       // to the correct versions
       await Promise.all(
-        Array.from(pkgDatas.keys()).map(async (pkgName) => {
-          const { pkg, pkgPath, pkgData, packedPkgPath } = pkgDatas.get(pkgName)
-          // Copied from pnpm source: https://github.com/pnpm/pnpm/blob/5a5512f14c47f4778b8d2b6d957fb12c7ef40127/releasing/plugin-commands-publishing/src/pack.ts#L96
-          const tmpTarball = path.join(
-            pkgPath,
-            `${pkgData.name.replace('@', '').replace('/', '-')}-${
-              pkgData.version
-            }.tgz`
-          )
-          await execa('pnpm', ['pack'], {
-            cwd: pkgPath,
-          })
-          await fs.copyFile(tmpTarball, packedPkgPath)
-        })
+        Array.from(pkgDatas.entries()).map(
+          async ([
+            packageName,
+            { packagePath: pkgPath, packedPackageTarPath: packedPkgPath },
+          ]) => {
+            /** @type {null | () => Promise<void>} */
+            let cleanup = null
+
+            if (packageName === '@next/swc') {
+              // next-swc uses a gitignore to prevent the committing of native builds but it doesn't
+              // use files in package.json because it publishes to individual packages based on architecture.
+              // When we used yarn to pack these packages the gitignore was ignored so the native builds were packed
+              // however npm does respect gitignore when packing so we need to remove it in this specific case
+              // to ensure the native builds are packed for use in gh actions and related scripts
+
+              const nativeGitignorePath = path.join(
+                pkgPath,
+                'native/.gitignore'
+              )
+              const renamedGitignorePath = path.join(
+                pkgPath,
+                'disabled-native-gitignore'
+              )
+
+              await fs.promises.rename(
+                nativeGitignorePath,
+                renamedGitignorePath
+              )
+              cleanup = async () => {
+                await fs.promises.rename(
+                  renamedGitignorePath,
+                  nativeGitignorePath
+                )
+              }
+            }
+
+            const { stdout } = await execa('pnpm', ['pack'], {
+              cwd: pkgPath,
+              env: {
+                ...process.env,
+                COREPACK_ENABLE_STRICT: '0',
+              },
+            })
+
+            const packedFileName = stdout.trim()
+
+            await Promise.all([
+              fs.promises.rename(
+                path.join(pkgPath, packedFileName),
+                packedPkgPath
+              ),
+              cleanup?.(),
+            ])
+          }
+        )
       )
 
       return pkgPaths

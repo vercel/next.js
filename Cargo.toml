@@ -1,52 +1,53 @@
 [workspace]
+resolver = "2"
 
 members = [
+  "scripts/send-trace-to-jaeger",
   "packages/next-swc/crates/core",
   "packages/next-swc/crates/napi",
   "packages/next-swc/crates/wasm",
+  "packages/next-swc/crates/next-api",
   "packages/next-swc/crates/next-build",
   "packages/next-swc/crates/next-core",
-  "packages/next-swc/crates/next-dev",
-  "packages/next-swc/crates/next-dev-tests",
   "packages/next-swc/crates/next-transform-font",
   "packages/next-swc/crates/next-transform-dynamic",
   "packages/next-swc/crates/next-transform-strip-page-exports",
 ]
 
-[profile.dev.package.swc_css_prefixer]
-opt-level = 2
+[workspace.lints.clippy]
+too_many_arguments = "allow"
 
 # This is a workaround for wasm timeout issue
 [profile.dev.package."*"]
 debug-assertions = false
 
-[profile.release]
-lto = true
+# Set the settings for build scripts and proc-macros.
+[profile.dev.build-override]
+opt-level = 3
 
 [workspace.dependencies]
 # Workspace crates
-next-build = { path = "packages/next-swc/crates/next-build" }
+next-api = { path = "packages/next-swc/crates/next-api", default-features = false }
+next-build = { path = "packages/next-swc/crates/next-build", default-features = false }
 next-core = { path = "packages/next-swc/crates/next-core", default-features = false }
-next-dev = { path = "packages/next-swc/crates/next-dev", default-features = false, features = [
-  "serializable",
-] }
-next-dev-tests = { path = "packages/next-swc/crates/next-dev-tests" }
+next-swc = { path = "packages/next-swc/crates/core" }
 next-transform-font = { path = "packages/next-swc/crates/next-transform-font" }
 next-transform-dynamic = { path = "packages/next-swc/crates/next-transform-dynamic" }
 next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-transform-strip-page-exports" }
 
 # SWC crates
-# Keep consistent with preset_env_base through swc_core
-swc_core = { version = "0.75.23" }
-swc_relay = { version = "0.2.5" }
-testing = { version = "0.33.4" }
+swc_core = { version = "0.86.98", features = [
+  "ecma_loader_lru",
+  "ecma_loader_parking_lot",
+] }
+testing = { version = "0.35.13" }
 
 # Turbo crates
-turbo-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230420.2" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-231213.2" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230420.2" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-231213.2" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230420.2" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-231213.2" }
 
 # General Deps
 
@@ -56,12 +57,12 @@ turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack
 # and some aren't buildable with rustls.
 reqwest = { version = "0.11.14", default-features = false }
 
-chromiumoxide = { version = "0.4.0", features = [
+chromiumoxide = { version = "0.5.0", features = [
   "tokio-runtime",
 ], default-features = false }
 # For matching on errors from chromiumoxide. Keep in
 # sync with chromiumoxide's tungstenite requirement.
-tungstenite = "0.17.3"
+tungstenite = "0.18.0"
 
 # flate2_zlib requires zlib, use flate2_rust
 allsorts = { version = "0.14.0", default_features = false, features = [
@@ -74,6 +75,7 @@ async-compression = { version = "0.3.13", default-features = false, features = [
   "gzip",
   "tokio",
 ] }
+async-recursion = "1.0.2"
 async-trait = "0.1.64"
 atty = "0.2.14"
 chrono = "0.4.23"
@@ -83,12 +85,13 @@ concurrent-queue = "2.1.0"
 console = "0.15.5"
 console-subscriber = "0.1.8"
 criterion = "0.4.0"
+crossbeam-channel = "0.5.8"
 dashmap = "5.4.0"
 dialoguer = "0.10.3"
 dunce = "1.0.3"
 futures = "0.3.26"
 futures-retry = "0.6.0"
-httpmock = { version = "0.6.7", default-features = false }
+httpmock = { version = "0.6.8", default-features = false }
 indexmap = "1.9.2"
 indicatif = "0.17.3"
 indoc = "2.0.0"
@@ -102,6 +105,7 @@ owo-colors = "3.5.0"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
 pin-project-lite = "0.2.9"
+postcard = "1.0.4"
 predicates = "2.1.5"
 pretty_assertions = "1.3.0"
 proc-macro2 = "1.0.51"
@@ -116,14 +120,19 @@ serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.93"
 serde_qs = "0.11.0"
 serde_yaml = "0.9.17"
+shadow-rs = { version = "0.23.0", default-features = false, features = [
+  "tzdb",
+] }
 syn = "1.0.107"
 tempfile = "3.3.0"
-thiserror = "1.0.38"
+thiserror = "1.0.48"
 tiny-gradient = "0.1.0"
 tokio = "1.25.0"
 tokio-util = { version = "0.7.7", features = ["io"] }
 tracing = "0.1.37"
+tracing-subscriber = "0.3.16"
 url = "2.2.2"
 urlencoding = "2.1.2"
 webbrowser = "0.8.7"
 dhat = { version = "0.3.2" }
+

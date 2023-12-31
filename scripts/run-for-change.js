@@ -41,6 +41,7 @@ const CHANGE_ITEM_GROUPS = {
     'packages/next-swc',
     'scripts/normalize-version-bump.js',
     'test/integration/create-next-app',
+    'scripts/send-trace-to-jaeger',
   ],
 }
 
@@ -59,15 +60,16 @@ async function main() {
   const remoteUrl =
     eventData?.head?.repo?.full_name ||
     process.env.GITHUB_REPOSITORY ||
-    (await exec('git remote get-url origin').stdout)
+    (await exec('git remote get-url origin')).stdout
 
-  let changedFilesOutput = ''
   const isCanary =
     branchName.trim() === 'canary' && remoteUrl.includes('vercel/next.js')
 
   try {
-    await exec('git fetch origin canary')
+    await exec('git remote set-branches --add origin canary')
+    await exec('git fetch origin canary --depth=20')
   } catch (err) {
+    console.error(await exec('git remote -v'))
     console.error(`Failed to fetch origin/canary`, err)
   }
   // if we are on the canary branch only diff current commit
@@ -82,7 +84,7 @@ async function main() {
     }
   )
   console.error({ branchName, remoteUrl, isCanary, changesResult })
-  changedFilesOutput = changesResult.stdout
+  const changedFilesOutput = changesResult.stdout
 
   const typeIndex = process.argv.indexOf('--type')
   const type = typeIndex > -1 && process.argv[typeIndex + 1]

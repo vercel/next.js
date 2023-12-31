@@ -1,8 +1,13 @@
 'use client'
 import React, { useEffect } from 'react'
-import { AppRouterInstance } from '../../shared/lib/app-router-context'
+import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { useRouter } from './navigation'
-import { getURLFromRedirectError, isRedirectError } from './redirect'
+import {
+  RedirectType,
+  getRedirectTypeFromError,
+  getURLFromRedirectError,
+  isRedirectError,
+} from './redirect'
 
 interface RedirectBoundaryProps {
   router: AppRouterInstance
@@ -12,47 +17,54 @@ interface RedirectBoundaryProps {
 function HandleRedirect({
   redirect,
   reset,
+  redirectType,
 }: {
   redirect: string
+  redirectType: RedirectType
   reset: () => void
 }) {
   const router = useRouter()
 
   useEffect(() => {
-    // @ts-ignore startTransition exists
     React.startTransition(() => {
-      router.replace(redirect, {})
+      if (redirectType === RedirectType.push) {
+        router.push(redirect, {})
+      } else {
+        router.replace(redirect, {})
+      }
       reset()
     })
-  }, [redirect, reset, router])
+  }, [redirect, redirectType, reset, router])
 
   return null
 }
 
 export class RedirectErrorBoundary extends React.Component<
   RedirectBoundaryProps,
-  { redirect: string | null }
+  { redirect: string | null; redirectType: RedirectType | null }
 > {
   constructor(props: RedirectBoundaryProps) {
     super(props)
-    this.state = { redirect: null }
+    this.state = { redirect: null, redirectType: null }
   }
 
   static getDerivedStateFromError(error: any) {
     if (isRedirectError(error)) {
       const url = getURLFromRedirectError(error)
-      return { redirect: url }
+      const redirectType = getRedirectTypeFromError(error)
+      return { redirect: url, redirectType }
     }
     // Re-throw if error is not for redirect
     throw error
   }
 
   render() {
-    const redirect = this.state.redirect
-    if (redirect !== null) {
+    const { redirect, redirectType } = this.state
+    if (redirect !== null && redirectType !== null) {
       return (
         <HandleRedirect
           redirect={redirect}
+          redirectType={redirectType}
           reset={() => this.setState({ redirect: null })}
         />
       )

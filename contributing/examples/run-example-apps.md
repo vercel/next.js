@@ -6,6 +6,8 @@ Running examples can be done with:
 pnpm next-with-deps ./examples/basic-css/
 ```
 
+> Before running any of the examples, you need to install dependencies via `pnpm install` and build the repository packages by running `pnpm build` in the root directory.
+
 To figure out which pages are available for the given example, you can run:
 
 ```sh

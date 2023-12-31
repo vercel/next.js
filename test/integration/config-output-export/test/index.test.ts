@@ -11,6 +11,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import fs from 'fs'
+import type { Response } from 'node-fetch'
 
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
@@ -63,39 +64,86 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should error with "rewrites" config', async () => {
-    const { stderr } = await runDev({
-      output: 'export',
-      rewrites: [{ source: '/from', destination: '/to' }],
+  describe('when hasNextSupport = false', () => {
+    it('should error with "rewrites" config', async () => {
+      const { stderr } = await runDev({
+        output: 'export',
+        rewrites: [{ source: '/from', destination: '/to' }],
+      })
+      expect(stderr).toContain(
+        'Specified "rewrites" will not automatically work with "output: export".'
+      )
     })
-    expect(stderr).toContain(
-      'Specified "rewrites" cannot be used with "output: export".'
-    )
+
+    it('should error with "redirects" config', async () => {
+      const { stderr } = await runDev({
+        output: 'export',
+        redirects: [{ source: '/from', destination: '/to', permanent: true }],
+      })
+      expect(stderr).toContain(
+        'Specified "redirects" will not automatically work with "output: export".'
+      )
+    })
+
+    it('should error with "headers" config', async () => {
+      const { stderr } = await runDev({
+        output: 'export',
+        headers: [
+          {
+            source: '/foo',
+            headers: [{ key: 'x-foo', value: 'val' }],
+          },
+        ],
+      })
+      expect(stderr).toContain(
+        'Specified "headers" will not automatically work with "output: export".'
+      )
+    })
   })
 
-  it('should error with "redirects" config', async () => {
-    const { stderr } = await runDev({
-      output: 'export',
-      redirects: [{ source: '/from', destination: '/to', permanent: true }],
+  describe('when hasNextSupport = true', () => {
+    beforeAll(() => {
+      process.env.NOW_BUILDER = '1'
     })
-    expect(stderr).toContain(
-      'Specified "redirects" cannot be used with "output: export".'
-    )
-  })
 
-  it('should error with "headers" config', async () => {
-    const { stderr } = await runDev({
-      output: 'export',
-      headers: [
-        {
-          source: '/foo',
-          headers: [{ key: 'x-foo', value: 'val' }],
-        },
-      ],
+    afterAll(() => {
+      delete process.env.NOW_BUILDER
     })
-    expect(stderr).toContain(
-      'Specified "headers" cannot be used with "output: export".'
-    )
+
+    it('should error with "rewrites" config', async () => {
+      const { stderr } = await runDev({
+        output: 'export',
+        rewrites: [{ source: '/from', destination: '/to' }],
+      })
+      expect(stderr).not.toContain(
+        'Specified "rewrites" will not automatically work with "output: export".'
+      )
+    })
+
+    it('should error with "redirects" config', async () => {
+      const { stderr } = await runDev({
+        output: 'export',
+        redirects: [{ source: '/from', destination: '/to', permanent: true }],
+      })
+      expect(stderr).not.toContain(
+        'Specified "redirects" will not automatically work with "output: export".'
+      )
+    })
+
+    it('should error with "headers" config', async () => {
+      const { stderr } = await runDev({
+        output: 'export',
+        headers: [
+          {
+            source: '/foo',
+            headers: [{ key: 'x-foo', value: 'val' }],
+          },
+        ],
+      })
+      expect(stderr).not.toContain(
+        'Specified "headers" will not automatically work with "output: export".'
+      )
+    })
   })
 
   it('should error with api routes function', async () => {

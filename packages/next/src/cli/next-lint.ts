@@ -1,14 +1,11 @@
 #!/usr/bin/env node
+import type arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
-import arg from 'next/dist/compiled/arg/index.js'
 import { join } from 'path'
-import chalk from 'next/dist/compiled/chalk'
+import { green } from '../lib/picocolors'
 
-import { CliCommand } from '../lib/commands'
-import {
-  ESLINT_DEFAULT_DIRS,
-  ESLINT_DEFAULT_DIRS_WITH_APP,
-} from '../lib/constants'
+import type { CliCommand } from '../lib/commands'
+import { ESLINT_DEFAULT_DIRS } from '../lib/constants'
 import { runLintCheck } from '../lib/eslint/runLintCheck'
 import { printAndExit } from '../server/lib/utils'
 import { Telemetry } from '../telemetry/storage'
@@ -16,10 +13,9 @@ import loadConfig from '../server/config'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from '../lib/compile-error'
-import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { findPagesDir } from '../lib/find-pages-dir'
-import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
+import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
 
 const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
   overrideConfigFile: args['--config'] || null,
@@ -50,58 +46,7 @@ const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
     : false,
 })
 
-const nextLint: CliCommand = async (argv) => {
-  const validArgs: arg.Spec = {
-    // Types
-    '--help': Boolean,
-    '--base-dir': String,
-    '--dir': [String],
-    '--file': [String],
-    '--strict': Boolean,
-
-    // Aliases
-    '-h': '--help',
-    '-b': '--base-dir',
-    '-d': '--dir',
-  }
-
-  const validEslintArgs: arg.Spec = {
-    // Types
-    '--config': String,
-    '--ext': [String],
-    '--resolve-plugins-relative-to': String,
-    '--rulesdir': [String],
-    '--fix': Boolean,
-    '--fix-type': [String],
-    '--ignore-path': String,
-    '--no-ignore': Boolean,
-    '--quiet': Boolean,
-    '--max-warnings': Number,
-    '--no-inline-config': Boolean,
-    '--report-unused-disable-directives': String,
-    '--cache': Boolean, // Although cache is enabled by default, this dummy flag still exists to not cause any breaking changes
-    '--no-cache': Boolean,
-    '--cache-location': String,
-    '--cache-strategy': String,
-    '--error-on-unmatched-pattern': Boolean,
-    '--format': String,
-    '--output-file': String,
-
-    // Aliases
-    '-c': '--config',
-    '-f': '--format',
-    '-o': '--output-file',
-  }
-
-  let args: arg.Result<arg.Spec>
-  try {
-    args = arg({ ...validArgs, ...validEslintArgs }, { argv })
-  } catch (error) {
-    if (isError(error) && error.code === 'ARG_UNKNOWN_OPTION') {
-      return printAndExit(error.message, 1)
-    }
-    throw error
-  }
+const nextLint: CliCommand = async (args) => {
   if (args['--help']) {
     printAndExit(
       `
@@ -175,13 +120,8 @@ const nextLint: CliCommand = async (argv) => {
   const dirs: string[] = args['--dir'] ?? nextConfig.eslint?.dirs
   const filesToLint = [...(dirs ?? []), ...files]
 
-  // Remove that when the `appDir` will be stable.
-  const directoriesToLint = !!nextConfig.experimental.appDir
-    ? ESLINT_DEFAULT_DIRS_WITH_APP
-    : ESLINT_DEFAULT_DIRS
-
   const pathsToLint = (
-    filesToLint.length ? filesToLint : directoriesToLint
+    filesToLint.length ? filesToLint : ESLINT_DEFAULT_DIRS
   ).reduce((res: string[], d: string) => {
     const currDir = join(baseDir, d)
     if (!existsSync(currDir)) return res
@@ -197,11 +137,7 @@ const nextLint: CliCommand = async (argv) => {
 
   const distDir = join(baseDir, nextConfig.distDir)
   const defaultCacheLocation = join(distDir, 'cache', 'eslint/')
-  const hasAppDir = !!nextConfig.experimental.appDir
-  const { pagesDir, appDir } = findPagesDir(
-    baseDir,
-    !!nextConfig.experimental.appDir
-  )
+  const { pagesDir, appDir } = findPagesDir(baseDir)
 
   await verifyTypeScriptSetup({
     dir: baseDir,
@@ -210,11 +146,11 @@ const nextLint: CliCommand = async (argv) => {
     typeCheckPreflight: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
     disableStaticImages: nextConfig.images.disableStaticImages,
-    isAppDirEnabled: !!appDir,
+    hasAppDir: !!appDir,
     hasPagesDir: !!pagesDir,
   })
 
-  runLintCheck(baseDir, pathsToLint, hasAppDir, {
+  runLintCheck(baseDir, pathsToLint, {
     lintDuringBuild: false,
     eslintOptions: eslintOptions(args, defaultCacheLocation),
     reportErrorsOnly: reportErrorsOnly,
@@ -251,7 +187,7 @@ const nextLint: CliCommand = async (argv) => {
       if (lintOutput) {
         printAndExit(lintOutput, 0)
       } else if (lintResults && !lintOutput) {
-        printAndExit(chalk.green('✔ No ESLint warnings or errors'), 0)
+        printAndExit(green('✔ No ESLint warnings or errors'), 0)
       }
     })
     .catch((err) => {

@@ -1,0 +1,19 @@
+{
+  "name": "bench-nested-deps-app-router",
+  "scripts": {
+    "prepare-bench": "rimraf components && fuzzponent -d 2 -s 206 -o components",
+    "dev-application": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK=1 next dev",
+    "build-application": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK=1 next build",
+    "start": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK=1 next start",
+    "dev-nocache": "rimraf .next && pnpm dev-application",
+    "dev-cpuprofile-nocache": "rimraf .next && cross-env NEXT_PRIVATE_LOCAL_WEBPACK=1 node --cpu-prof ../../node_modules/next/dist/bin/next",
+    "build-nocache": "rimraf .next && pnpm build-application"
+  },
+  "devDependencies": {
+    "fuzzponent": "workspace:*",
+    "cross-env": "^7.0.3",
+    "pretty-ms": "^7.0.1",
+    "rimraf": "^3.0.2",
+    "next": "workspace:*"
+  }
+}

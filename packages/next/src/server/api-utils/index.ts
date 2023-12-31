@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'http'
 import type { BaseNextRequest } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
+import type { NextApiResponse } from '../../shared/lib/utils'
 
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import {
@@ -16,25 +16,6 @@ export type __ApiPreviewProps = {
   previewModeId: string
   previewModeEncryptionKey: string
   previewModeSigningKey: string
-}
-
-/**
- * Parse cookies from the `headers` of request
- * @param req request object
- */
-export function getCookieParser(headers: {
-  [key: string]: string | string[] | null | undefined
-}): () => NextApiRequestCookies {
-  return function parseCookie(): NextApiRequestCookies {
-    const { cookie } = headers
-
-    if (!cookie) {
-      return {}
-    }
-
-    const { parse: parseCookieFn } = require('next/dist/compiled/cookie')
-    return parseCookieFn(Array.isArray(cookie) ? cookie.join('; ') : cookie)
-  }
 }
 
 /**
@@ -186,7 +167,7 @@ export function sendError(
 }
 
 interface LazyProps {
-  req: NextApiRequest
+  req: IncomingMessage
 }
 
 /**

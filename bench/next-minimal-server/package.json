@@ -1,0 +1,8 @@
+{
+  "name": "next-minimal-server",
+  "description": "Minimal server for Next.js for benchmarking/perf analysis purposes.",
+  "bin": "./bin/minimal-server.js",
+  "peerDependencies": {
+    "next": "workspace:*"
+  }
+}

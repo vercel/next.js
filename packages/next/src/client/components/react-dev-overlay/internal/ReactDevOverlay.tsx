@@ -1,13 +1,14 @@
 import * as React from 'react'
-import {
-  ACTION_UNHANDLED_ERROR,
+import { ACTION_UNHANDLED_ERROR } from './error-overlay-reducer'
+import type {
   OverlayState,
   UnhandledErrorAction,
 } from './error-overlay-reducer'
 
 import { ShadowPortal } from './components/ShadowPortal'
 import { BuildError } from './container/BuildError'
-import { Errors, SupportedErrorEvent } from './container/Errors'
+import { Errors } from './container/Errors'
+import type { SupportedErrorEvent } from './container/Errors'
 import { RootLayoutError } from './container/RootLayoutError'
 import { parseStack } from './helpers/parseStack'
 import { Base } from './styles/Base'

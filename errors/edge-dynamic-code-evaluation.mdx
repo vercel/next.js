@@ -1,0 +1,48 @@
+---
+title: Dynamic code evaluation is not available in Middlewares or Edge API Routes
+---
+
+## Why This Error Occurred
+
+`eval()`, `new Function()` or compiling WASM binaries dynamically is not allowed in Middlewares or Edge API Routes.
+Specifically, the following APIs are not supported:
+
+- `eval()`
+- `new Function()`
+- `WebAssembly.compile`
+- `WebAssembly.instantiate` with [a buffer parameter](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code)
+
+## Possible Ways to Fix It
+
+You can bundle your WASM binaries using `import`:
+
+```ts filename="middleware.ts"
+import { NextResponse } from 'next/server'
+import squareWasm from './square.wasm?module'
+
+export default async function middleware() {
+  const m = await WebAssembly.instantiate(squareWasm)
+  const answer = m.exports.square(9)
+
+  const response = NextResponse.next()
+  response.headers.set('x-square', answer.toString())
+  return response
+}
+```
+
+In rare cases, your code could contain (or import) some dynamic code evaluation statements which _can not be reached at runtime_ and which can not be removed by tree-shaking.
+You can relax the check to allow specific files with your Middleware or Edge API Route exported [configuration](/docs/pages/api-reference/edge#unsupported-apis):
+
+```tsx filename="pages/api/example.ts"
+export const config = {
+  runtime: 'edge', // for Edge API Routes only
+  unstable_allowDynamic: [
+    '/lib/utilities.js', // allows a single file
+    '/node_modules/function-bind/**', // use a glob to allow anything in the function-bind 3rd party module
+  ],
+}
+```
+
+`unstable_allowDynamic` is a glob, or an array of globs, ignoring dynamic code evaluation for specific files. The globs are relative to your application root folder.
+
+Be warned that if these statements are executed on the Edge, _they will throw and cause a runtime error_.

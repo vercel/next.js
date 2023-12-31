@@ -17,18 +17,27 @@ const Page = () => {
         priority
         id="basic-image-crossorigin"
         alt="basic-image-crossorigin"
-        src="/test.jpg"
+        src="/test.webp"
         width="400"
         height="400"
-        crossOrigin="anonymous"
+        crossOrigin="use-credentials"
+      ></Image>
+      <Image
+        priority
+        id="basic-image-referrerpolicy"
+        alt="basic-image-referrerpolicy"
+        src="/test.png"
+        width="400"
+        height="400"
+        referrerPolicy="no-referrer"
       ></Image>
       <Image
         loading="eager"
         id="load-eager"
         alt="load-eager"
         src="/test.png"
-        width="400"
-        height="400"
+        width="200"
+        height="200"
       ></Image>
       <Image
         priority

@@ -6,6 +6,22 @@ export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
 
+export const RSC_PREFETCH_SUFFIX = '.prefetch.rsc'
+export const RSC_SUFFIX = '.rsc'
+export const NEXT_DATA_SUFFIX = '.json'
+export const NEXT_META_SUFFIX = '.meta'
+export const NEXT_BODY_SUFFIX = '.body'
+
+export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
+export const NEXT_CACHE_SOFT_TAGS_HEADER = 'x-next-cache-soft-tags'
+export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
+export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
+  'x-next-revalidate-tag-token'
+
+export const NEXT_CACHE_TAG_MAX_LENGTH = 256
+export const NEXT_CACHE_SOFT_TAG_MAX_LENGTH = 1024
+export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
+
 // in seconds
 export const CACHE_ONE_YEAR = 31536000
 
@@ -15,7 +31,6 @@ export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
 
 // Pattern to detect instrumentation hooks file
 export const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'
-export const INSTRUMENTATION_HOOKS_LOCATION_REGEXP = `(?:src/)?${INSTRUMENTATION_HOOK_FILENAME}`
 
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
 // we have to use a private alias
@@ -24,7 +39,11 @@ export const DOT_NEXT_ALIAS = 'private-dot-next'
 export const ROOT_DIR_ALIAS = 'private-next-root-dir'
 export const APP_DIR_ALIAS = 'private-next-app-dir'
 export const RSC_MOD_REF_PROXY_ALIAS = 'private-next-rsc-mod-ref-proxy'
+export const RSC_ACTION_VALIDATE_ALIAS = 'private-next-rsc-action-validate'
 export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-action-proxy'
+export const RSC_ACTION_ENCRYPTION_ALIAS = 'private-next-rsc-action-encryption'
+export const RSC_ACTION_CLIENT_WRAPPER_ALIAS =
+  'private-next-rsc-action-client-wrapper'
 
 export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder inside of your public folder. This conflicts with the internal '/_next' route. https://nextjs.org/docs/messages/public-next-folder-conflict`
 
@@ -53,9 +72,7 @@ export const NON_STANDARD_NODE_ENV = `You are using a non-standard "NODE_ENV" va
 
 export const SSG_FALLBACK_EXPORT_ERROR = `Pages with \`fallback\` enabled in \`getStaticPaths\` can not be exported. See more info here: https://nextjs.org/docs/messages/ssg-fallback-true-export`
 
-// Consolidate this consts when the `appDir` will be stable.
-export const ESLINT_DEFAULT_DIRS = ['pages', 'components', 'lib', 'src']
-export const ESLINT_DEFAULT_DIRS_WITH_APP = ['app', ...ESLINT_DEFAULT_DIRS]
+export const ESLINT_DEFAULT_DIRS = ['app', 'pages', 'components', 'lib', 'src']
 
 export const ESLINT_PROMPT_VALUES = [
   {
@@ -83,13 +100,87 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   nodejs: 'nodejs',
 }
 
-export const WEBPACK_LAYERS = {
-  shared: 'sc_shared',
-  server: 'sc_server',
-  client: 'sc_client',
-  action: 'sc_action',
+/**
+ * The names of the webpack layers. These layers are the primitives for the
+ * webpack chunks.
+ */
+const WEBPACK_LAYERS_NAMES = {
+  /**
+   * The layer for the shared code between the client and server bundles.
+   */
+  shared: 'shared',
+  /**
+   * React Server Components layer (rsc).
+   */
+  reactServerComponents: 'rsc',
+  /**
+   * Server Side Rendering layer for app (ssr).
+   */
+  serverSideRendering: 'ssr',
+  /**
+   * The browser client bundle layer for actions.
+   */
+  actionBrowser: 'action-browser',
+  /**
+   * The layer for the API routes.
+   */
   api: 'api',
+  /**
+   * The layer for the middleware code.
+   */
   middleware: 'middleware',
+  /**
+   * The layer for assets on the edge.
+   */
   edgeAsset: 'edge-asset',
-  appClient: 'app-client',
+  /**
+   * The browser client bundle layer for App directory.
+   */
+  appPagesBrowser: 'app-pages-browser',
+  /**
+   * The server bundle layer for metadata routes.
+   */
+  appMetadataRoute: 'app-metadata-route',
+  /**
+   * The layer for the server bundle for App Route handlers.
+   */
+  appRouteHandler: 'app-route-handler',
+} as const
+
+export type WebpackLayerName =
+  (typeof WEBPACK_LAYERS_NAMES)[keyof typeof WEBPACK_LAYERS_NAMES]
+
+const WEBPACK_LAYERS = {
+  ...WEBPACK_LAYERS_NAMES,
+  GROUP: {
+    server: [
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
+      WEBPACK_LAYERS_NAMES.appMetadataRoute,
+      WEBPACK_LAYERS_NAMES.appRouteHandler,
+    ],
+    nonClientServerTarget: [
+      // plus middleware and pages api
+      WEBPACK_LAYERS_NAMES.middleware,
+      WEBPACK_LAYERS_NAMES.api,
+    ],
+    app: [
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
+      WEBPACK_LAYERS_NAMES.appMetadataRoute,
+      WEBPACK_LAYERS_NAMES.appRouteHandler,
+      WEBPACK_LAYERS_NAMES.serverSideRendering,
+      WEBPACK_LAYERS_NAMES.appPagesBrowser,
+      WEBPACK_LAYERS_NAMES.shared,
+    ],
+  },
 }
+
+const WEBPACK_RESOURCE_QUERIES = {
+  edgeSSREntry: '__next_edge_ssr_entry__',
+  metadata: '__next_metadata__',
+  metadataRoute: '__next_metadata_route__',
+  metadataImageMeta: '__next_metadata_image_meta__',
+}
+
+export { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES }

@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "description": "Notify Next.js team about pending PRs",
+  "exports": "./index.mjs",
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "build": "ncc build src/index.mjs -m -o dist --license licenses.txt"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "0.34.0"
+  },
+  "dependencies": {
+    "@actions/core": "1.10.0",
+    "@actions/github": "5.1.1",
+    "@slack/web-api": "^6.9.0"
+  }
+}

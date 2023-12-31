@@ -29,14 +29,16 @@ export async function hasEslintConfiguration(
       content === '---' ||
       content === 'module.exports = {}'
     ) {
-      return { ...configObject, emptyEslintrc: true }
+      configObject.emptyEslintrc = true
+    } else {
+      configObject.exists = true
     }
-    return { ...configObject, exists: true }
   } else if (packageJsonConfig?.eslintConfig) {
-    if (Object.keys(packageJsonConfig?.eslintConfig).length) {
-      return { ...configObject, exists: true }
+    if (Object.keys(packageJsonConfig.eslintConfig).length) {
+      configObject.exists = true
+    } else {
+      configObject.emptyPkgJsonConfig = true
     }
-    return { ...configObject, emptyPkgJsonConfig: true }
   }
   return configObject
 }

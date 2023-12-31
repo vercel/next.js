@@ -1,62 +1,59 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { sandbox } from 'development-sandbox'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import { outdent } from 'outdent'
+import path from 'path'
 
 describe('ReactRefreshRegression', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {},
-      skipStart: true,
-      dependencies: {
-        'styled-components': '5.1.0',
-        '@next/mdx': 'canary',
-        '@mdx-js/loader': '0.18.0',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    skipStart: true,
+    dependencies: {
+      'styled-components': '5.1.0',
+      '@next/mdx': 'canary',
+      '@mdx-js/loader': '0.18.0',
+    },
   })
-  afterAll(() => next.destroy())
 
   // https://github.com/vercel/next.js/issues/12422
   test('styled-components hydration mismatch', async () => {
-    const files = new Map()
-    files.set(
-      'pages/_document.js',
-      `
-        import Document from 'next/document'
-        import { ServerStyleSheet } from 'styled-components'
-
-        export default class MyDocument extends Document {
-          static async getInitialProps(ctx) {
-            const sheet = new ServerStyleSheet()
-            const originalRenderPage = ctx.renderPage
-
-            try {
-              ctx.renderPage = () =>
-                originalRenderPage({
-                  enhanceApp: App => props => sheet.collectStyles(<App {...props} />),
-                })
-
-              const initialProps = await Document.getInitialProps(ctx)
-              return {
-                ...initialProps,
-                styles: (
-                  <>
-                    {initialProps.styles}
-                    {sheet.getStyleElement()}
-                  </>
-                ),
+    const files = new Map([
+      [
+        'pages/_document.js',
+        outdent`
+          import Document from 'next/document'
+          import { ServerStyleSheet } from 'styled-components'
+  
+          export default class MyDocument extends Document {
+            static async getInitialProps(ctx) {
+              const sheet = new ServerStyleSheet()
+              const originalRenderPage = ctx.renderPage
+  
+              try {
+                ctx.renderPage = () =>
+                  originalRenderPage({
+                    enhanceApp: App => props => sheet.collectStyles(<App {...props} />),
+                  })
+  
+                const initialProps = await Document.getInitialProps(ctx)
+                return {
+                  ...initialProps,
+                  styles: (
+                    <>
+                      {initialProps.styles}
+                      {sheet.getStyleElement()}
+                    </>
+                  ),
+                }
+              } finally {
+                sheet.seal()
               }
-            } finally {
-              sheet.seal()
             }
           }
-        }
-      `
-    )
+        `,
+      ],
+    ])
 
     const { session, cleanup } = await sandbox(next, files)
 
@@ -299,28 +296,31 @@ describe('ReactRefreshRegression', () => {
 
   // https://github.com/vercel/next.js/issues/13574
   test('custom loader (mdx) should have Fast Refresh enabled', async () => {
-    const files = new Map()
-    files.set(
-      'next.config.js',
-      `
-        const withMDX = require("@next/mdx")({
-          extension: /\\.mdx?$/,
-        });
-        module.exports = withMDX({
-          pageExtensions: ["js", "mdx"],
-        });
-      `
+    const { session, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'next.config.js',
+          outdent`
+            const withMDX = require("@next/mdx")({
+              extension: /\\.mdx?$/,
+            });
+            module.exports = withMDX({
+              pageExtensions: ["js", "mdx"],
+            });
+          `,
+        ],
+        ['pages/mdx.mdx', `Hello World!`],
+      ]),
+      '/mdx'
     )
-    files.set('pages/index.mdx', `Hello World!`)
-
-    const { session, cleanup } = await sandbox(next, files, false)
     expect(
       await session.evaluate(
         () => document.querySelector('#__next').textContent
       )
     ).toBe('Hello World!')
 
-    let didNotReload = await session.patch('pages/index.mdx', `Hello Foo!`)
+    let didNotReload = await session.patch('pages/mdx.mdx', `Hello Foo!`)
     expect(didNotReload).toBe(true)
     expect(await session.hasRedbox(false)).toBe(false)
     expect(
@@ -329,7 +329,7 @@ describe('ReactRefreshRegression', () => {
       )
     ).toBe('Hello Foo!')
 
-    didNotReload = await session.patch('pages/index.mdx', `Hello Bar!`)
+    didNotReload = await session.patch('pages/mdx.mdx', `Hello Bar!`)
     expect(didNotReload).toBe(true)
     expect(await session.hasRedbox(false)).toBe(false)
     expect(

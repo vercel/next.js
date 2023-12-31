@@ -8,8 +8,16 @@ export default function Page() {
       <h2>next/script</h2>
       <Client />
       <Script strategy="lazyOnload" src="/test4.js" />
-      <Script strategy="afterInteractive" src="/test3.js" />
-      <Script strategy="beforeInteractive" src="/test1.js" />
+      <Script
+        strategy="afterInteractive"
+        src="/test3.js"
+        stylesheets={['/style3.css']}
+      />
+      <Script
+        strategy="beforeInteractive"
+        src="/test1.js"
+        stylesheets={['/style1a.css', '/style1b.css']}
+      />
       <Script strategy="beforeInteractive" id="1.5">{`
         ;(window._script_order = window._script_order || []).push(1.5)
         console.log(window._script_order)

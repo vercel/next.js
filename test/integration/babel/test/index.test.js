@@ -14,7 +14,7 @@ import rendering from './rendering'
 
 const context = {}
 
-describe('Babel', () => {
+;(process.env.TURBOPACK ? describe.skip : describe)('Babel', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
     context.server = await launchApp(join(__dirname, '../'), context.appPort)

@@ -47,11 +47,6 @@ describe('app-dir edge runtime with wasm', () => {
         react: 'experimental',
         'react-dom': 'experimental',
       },
-      nextConfig: {
-        experimental: {
-          appDir: true,
-        },
-      },
     })
   })
   afterAll(() => next.destroy())

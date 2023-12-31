@@ -1,63 +1,45 @@
-import {
-  ClientCSSReferenceManifest,
-  ClientReferenceManifest,
-} from '../../build/webpack/plugins/flight-manifest-plugin'
-import { getClientReferenceModuleKey } from '../../lib/client-reference'
+import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 /**
- * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
+ * Get external stylesheet link hrefs based on server CSS manifest.
  */
-export function getCssInlinedLinkTags(
+export function getLinkAndScriptTags(
   clientReferenceManifest: ClientReferenceManifest,
-  serverCSSManifest: ClientCSSReferenceManifest,
   filePath: string,
-  serverCSSForEntries: string[],
   injectedCSS: Set<string>,
-  collectNewCSSImports?: boolean
-): string[] {
-  const layoutOrPageCssModules = serverCSSManifest.cssImports[filePath]
-
+  injectedScripts: Set<string>,
+  collectNewImports?: boolean
+): { styles: string[]; scripts: string[] } {
   const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
-  const cssFilesForEntry = new Set(
-    clientReferenceManifest.cssFiles?.[filePathWithoutExt] || []
-  )
+  const cssChunks = new Set<string>()
+  const jsChunks = new Set<string>()
 
-  if (!layoutOrPageCssModules || !cssFilesForEntry.size) {
-    return []
-  }
-  const chunks = new Set<string>()
+  const entryCSSFiles =
+    clientReferenceManifest.entryCSSFiles[filePathWithoutExt]
+  const entryJSFiles =
+    clientReferenceManifest.entryJSFiles?.[filePathWithoutExt] ?? []
 
-  for (const mod of layoutOrPageCssModules) {
-    // We only include the CSS if it's a global CSS, or it is used by this
-    // entrypoint.
-    if (
-      serverCSSForEntries.includes(mod) ||
-      !/\.module\.(css|sass|scss)$/.test(mod)
-    ) {
-      // If the CSS is already injected by a parent layer, we don't need
-      // to inject it again.
-      if (!injectedCSS.has(mod)) {
-        const modData =
-          clientReferenceManifest.clientModules[
-            getClientReferenceModuleKey(mod, '')
-          ]
-        if (modData) {
-          for (const chunk of modData.chunks) {
-            // If the current entry in the final tree-shaked bundle has that CSS
-            // chunk, it means that it's actually used. We should include it.
-            if (cssFilesForEntry.has(chunk)) {
-              chunks.add(chunk)
-              // This might be a new layout, and to make it more efficient and
-              // not introducing another loop, we mutate the set directly.
-              if (collectNewCSSImports) {
-                injectedCSS.add(mod)
-              }
-            }
-          }
+  if (entryCSSFiles) {
+    for (const file of entryCSSFiles) {
+      if (!injectedCSS.has(file)) {
+        if (collectNewImports) {
+          injectedCSS.add(file)
         }
+        cssChunks.add(file)
       }
     }
   }
 
-  return [...chunks]
+  if (entryJSFiles) {
+    for (const file of entryJSFiles) {
+      if (!injectedScripts.has(file)) {
+        if (collectNewImports) {
+          injectedScripts.add(file)
+        }
+        jsChunks.add(file)
+      }
+    }
+  }
+
+  return { styles: [...cssChunks], scripts: [...jsChunks] }
 }

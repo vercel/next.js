@@ -23,12 +23,140 @@ createNextDescribe(
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     let prerenderManifest
+    let buildCliOutputIndex = 0
 
     beforeAll(async () => {
       if (isNextStart) {
         prerenderManifest = JSON.parse(
           await next.readFile('.next/prerender-manifest.json')
         )
+        buildCliOutputIndex = next.cliOutput.length
+      }
+    })
+
+    if (isNextStart) {
+      it('should propagate unstable_cache tags correctly', async () => {
+        const meta = JSON.parse(
+          await next.readFile(
+            '.next/server/app/variable-revalidate/revalidate-360-isr.meta'
+          )
+        )
+        expect(meta.headers['x-next-cache-tags']).toContain(
+          'unstable_cache_tag1'
+        )
+      })
+
+      if (!process.env.CUSTOM_CACHE_HANDLER) {
+        it('should honor force-static with fetch cache: no-store correctly', async () => {
+          const res = await next.fetch('/force-static-fetch-no-store')
+          expect(res.status).toBe(200)
+          expect(res.headers.get('x-nextjs-cache').toLowerCase()).toBe('hit')
+        })
+      }
+    }
+
+    it('should correctly include headers instance in cache key', async () => {
+      const res = await next.fetch('/variable-revalidate/headers-instance')
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const data1 = $('#page-data').text()
+      const data2 = $('#page-data2').text()
+      expect(data1).not.toBe(data2)
+
+      expect(data1).toBeTruthy()
+      expect(data2).toBeTruthy()
+    })
+
+    it.skip.each([
+      {
+        path: '/react-fetch-deduping-node',
+      },
+      {
+        path: '/react-fetch-deduping-edge',
+      },
+    ])(
+      'should correctly de-dupe fetch without next cache $path',
+      async ({ path }) => {
+        for (let i = 0; i < 5; i++) {
+          const res = await next.fetch(path, {
+            redirect: 'manual',
+          })
+
+          expect(res.status).toBe(200)
+          const html = await res.text()
+          const $ = cheerio.load(html)
+
+          const data1 = $('#data-1').text()
+          const data2 = $('#data-2').text()
+
+          expect(data1).toBeTruthy()
+          expect(data1).toBe(data2)
+
+          await waitFor(250)
+        }
+      }
+    )
+
+    it.each([
+      { pathname: '/unstable-cache-node' },
+      { pathname: '/unstable-cache-edge' },
+      { pathname: '/api/unstable-cache-node' },
+      { pathname: '/api/unstable-cache-edge' },
+    ])('unstable-cache should work in pages$pathname', async ({ pathname }) => {
+      let res = await next.fetch(pathname)
+      expect(res.status).toBe(200)
+      const isApi = pathname.startsWith('/api')
+      let prevData
+
+      if (isApi) {
+        prevData = await res.json()
+      } else {
+        const initialHtml = await res.text()
+        const initial$ = isApi ? undefined : cheerio.load(initialHtml)
+        prevData = JSON.parse(initial$('#props').text())
+      }
+
+      expect(prevData.data.random).toBeTruthy()
+
+      await check(async () => {
+        res = await next.fetch(pathname)
+        expect(res.status).toBe(200)
+        let curData
+
+        if (isApi) {
+          curData = await res.json()
+        } else {
+          const curHtml = await res.text()
+          const cur$ = cheerio.load(curHtml)
+          curData = JSON.parse(cur$('#props').text())
+        }
+
+        try {
+          expect(curData.data.random).toBeTruthy()
+          expect(curData.data.random).toBe(prevData.data.random)
+        } finally {
+          prevData = curData
+        }
+        return 'success'
+      }, 'success')
+    })
+
+    it('should not have cache tags header for non-minimal mode', async () => {
+      for (const path of [
+        '/ssr-forced',
+        '/ssr-forced',
+        '/variable-revalidate/revalidate-3',
+        '/variable-revalidate/revalidate-360',
+        '/variable-revalidate/revalidate-360-isr',
+      ]) {
+        const res = await fetchViaHTTP(next.url, path, undefined, {
+          redirect: 'manual',
+        })
+        expect(res.status).toBe(200)
+        expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
       }
     })
 
@@ -42,11 +170,13 @@ createNextDescribe(
             }
           `
         )
-        const html = await next.render('/invalid/first')
+
+        // The page may take a moment to compile, so try it a few times.
+        await check(async () => {
+          return next.render('/invalid/first')
+        }, /A required parameter \(slug\) was not provided as a string received object/)
+
         await next.deleteFile('app/invalid/[slug]/page.js')
-        expect(html).toContain(
-          'A required parameter (slug) was not provided as a string received object'
-        )
       })
 
       it('should correctly handle multi-level generateStaticParams when some levels are missing', async () => {
@@ -100,6 +230,7 @@ createNextDescribe(
           const $ = cheerio.load(html)
           const initLayoutData = $('#layout-data').text()
           const initPageData = $('#page-data').text()
+          const initNestedCacheData = $('#nested-cache').text()
 
           const routeHandlerRes = await next.fetch(
             '/route-handler/revalidate-360'
@@ -123,10 +254,16 @@ createNextDescribe(
             const newRes = await next.fetch(
               '/variable-revalidate/revalidate-360'
             )
+            const cacheHeader = newRes.headers.get('x-nextjs-cache')
+
+            if ((global as any).isNextStart && cacheHeader) {
+              expect(cacheHeader).toBe('MISS')
+            }
             const newHtml = await newRes.text()
             const new$ = cheerio.load(newHtml)
             const newLayoutData = new$('#layout-data').text()
             const newPageData = new$('#page-data').text()
+            const newNestedCacheData = new$('#nested-cache').text()
 
             const newRouteHandlerRes = await next.fetch(
               '/route-handler/revalidate-360'
@@ -144,6 +281,7 @@ createNextDescribe(
             expect(newEdgeRouteHandlerData).toBeTruthy()
             expect(newLayoutData).not.toBe(initLayoutData)
             expect(newPageData).not.toBe(initPageData)
+            expect(newNestedCacheData).not.toBe(initNestedCacheData)
             expect(newRouteHandlerData).not.toEqual(initRouteHandlerData)
             expect(newEdgeRouteHandlerData).not.toEqual(initEdgeRouteHandlerRes)
             return 'success'
@@ -154,7 +292,32 @@ createNextDescribe(
 
     // On-Demand Revalidate has not effect in dev since app routes
     // aren't considered static until prerendering
-    if (!(global as any).isNextDev) {
+    if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
+      it('should not revalidate / when revalidate is not used', async () => {
+        let prevData
+
+        for (let i = 0; i < 5; i++) {
+          const res = await next.fetch('/')
+          const html = await res.text()
+          const $ = cheerio.load(html)
+          const data = $('#page-data').text()
+
+          expect(res.status).toBe(200)
+
+          if (prevData) {
+            expect(prevData).toBe(data)
+            prevData = data
+          }
+          await waitFor(500)
+        }
+
+        if (isNextStart) {
+          expect(next.cliOutput.substring(buildCliOutputIndex)).not.toContain(
+            'rendering index'
+          )
+        }
+      })
+
       it.each([
         {
           type: 'edge route handler',
@@ -205,7 +368,9 @@ createNextDescribe(
     // On-Demand Revalidate has not effect in dev
     if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
       it('should revalidate all fetches during on-demand revalidate', async () => {
-        const initRes = await next.fetch('/variable-revalidate/revalidate-360')
+        const initRes = await next.fetch(
+          '/variable-revalidate/revalidate-360-isr'
+        )
         const html = await initRes.text()
         const $ = cheerio.load(html)
         const initLayoutData = $('#layout-data').text()
@@ -329,132 +494,232 @@ createNextDescribe(
             )
           })
 
-        expect(files).toEqual([
-          '(new)/custom/page.js',
-          'api/revalidate-path-edge/route.js',
-          'api/revalidate-path-node/route.js',
-          'api/revalidate-tag-edge/route.js',
-          'api/revalidate-tag-node/route.js',
-          'blog/[author]/[slug]/page.js',
-          'blog/[author]/page.js',
-          'blog/seb.html',
-          'blog/seb.rsc',
-          'blog/seb/second-post.html',
-          'blog/seb/second-post.rsc',
-          'blog/styfle.html',
-          'blog/styfle.rsc',
-          'blog/styfle/first-post.html',
-          'blog/styfle/first-post.rsc',
-          'blog/styfle/second-post.html',
-          'blog/styfle/second-post.rsc',
-          'blog/tim.html',
-          'blog/tim.rsc',
-          'blog/tim/first-post.html',
-          'blog/tim/first-post.rsc',
-          'dynamic-error/[id]/page.js',
-          'dynamic-no-gen-params-ssr/[slug]/page.js',
-          'dynamic-no-gen-params/[slug]/page.js',
-          'flight/[slug]/[slug2]/page.js',
-          'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
-          'force-dynamic-no-prerender/[id]/page.js',
-          'force-dynamic-prerender/[slug]/page.js',
-          'force-no-store/page.js',
-          'force-static/[slug]/page.js',
-          'force-static/first.html',
-          'force-static/first.rsc',
-          'force-static/page.js',
-          'force-static/second.html',
-          'force-static/second.rsc',
-          'gen-params-dynamic-revalidate/[slug]/page.js',
-          'gen-params-dynamic-revalidate/one.html',
-          'gen-params-dynamic-revalidate/one.rsc',
-          'gen-params-dynamic/[slug]/page.js',
-          'hooks/use-pathname/[slug]/page.js',
-          'hooks/use-pathname/slug.html',
-          'hooks/use-pathname/slug.rsc',
-          'hooks/use-search-params.html',
-          'hooks/use-search-params.rsc',
-          'hooks/use-search-params/force-static.html',
-          'hooks/use-search-params/force-static.rsc',
-          'hooks/use-search-params/force-static/page.js',
-          'hooks/use-search-params/page.js',
-          'hooks/use-search-params/with-suspense.html',
-          'hooks/use-search-params/with-suspense.rsc',
-          'hooks/use-search-params/with-suspense/page.js',
-          'partial-gen-params-no-additional-lang/[lang]/[slug]/page.js',
-          'partial-gen-params-no-additional-lang/en/RAND.html',
-          'partial-gen-params-no-additional-lang/en/RAND.rsc',
-          'partial-gen-params-no-additional-lang/en/first.html',
-          'partial-gen-params-no-additional-lang/en/first.rsc',
-          'partial-gen-params-no-additional-lang/en/second.html',
-          'partial-gen-params-no-additional-lang/en/second.rsc',
-          'partial-gen-params-no-additional-lang/fr/RAND.html',
-          'partial-gen-params-no-additional-lang/fr/RAND.rsc',
-          'partial-gen-params-no-additional-lang/fr/first.html',
-          'partial-gen-params-no-additional-lang/fr/first.rsc',
-          'partial-gen-params-no-additional-lang/fr/second.html',
-          'partial-gen-params-no-additional-lang/fr/second.rsc',
-          'partial-gen-params-no-additional-slug/[lang]/[slug]/page.js',
-          'partial-gen-params-no-additional-slug/en/RAND.html',
-          'partial-gen-params-no-additional-slug/en/RAND.rsc',
-          'partial-gen-params-no-additional-slug/en/first.html',
-          'partial-gen-params-no-additional-slug/en/first.rsc',
-          'partial-gen-params-no-additional-slug/en/second.html',
-          'partial-gen-params-no-additional-slug/en/second.rsc',
-          'partial-gen-params-no-additional-slug/fr/RAND.html',
-          'partial-gen-params-no-additional-slug/fr/RAND.rsc',
-          'partial-gen-params-no-additional-slug/fr/first.html',
-          'partial-gen-params-no-additional-slug/fr/first.rsc',
-          'partial-gen-params-no-additional-slug/fr/second.html',
-          'partial-gen-params-no-additional-slug/fr/second.rsc',
-          'partial-gen-params/[lang]/[slug]/page.js',
-          'route-handler-edge/revalidate-360/route.js',
-          'route-handler/post/route.js',
-          'route-handler/revalidate-360/route.js',
-          'ssg-preview.html',
-          'ssg-preview.rsc',
-          'ssg-preview/[[...route]]/page.js',
-          'ssg-preview/test-2.html',
-          'ssg-preview/test-2.rsc',
-          'ssg-preview/test.html',
-          'ssg-preview/test.rsc',
-          'ssr-auto/cache-no-store/page.js',
-          'ssr-auto/fetch-revalidate-zero/page.js',
-          'ssr-forced/page.js',
-          'static-to-dynamic-error-forced/[id]/page.js',
-          'static-to-dynamic-error/[id]/page.js',
-          'variable-config-revalidate/revalidate-3.html',
-          'variable-config-revalidate/revalidate-3.rsc',
-          'variable-config-revalidate/revalidate-3/page.js',
-          'variable-revalidate-edge/body/page.js',
-          'variable-revalidate-edge/encoding/page.js',
-          'variable-revalidate-edge/no-store/page.js',
-          'variable-revalidate-edge/post-method-request/page.js',
-          'variable-revalidate-edge/post-method/page.js',
-          'variable-revalidate-edge/revalidate-3/page.js',
-          'variable-revalidate/authorization.html',
-          'variable-revalidate/authorization.rsc',
-          'variable-revalidate/authorization/page.js',
-          'variable-revalidate/cookie.html',
-          'variable-revalidate/cookie.rsc',
-          'variable-revalidate/cookie/page.js',
-          'variable-revalidate/encoding.html',
-          'variable-revalidate/encoding.rsc',
-          'variable-revalidate/encoding/page.js',
-          'variable-revalidate/no-store/page.js',
-          'variable-revalidate/post-method-request/page.js',
-          'variable-revalidate/post-method.html',
-          'variable-revalidate/post-method.rsc',
-          'variable-revalidate/post-method/page.js',
-          'variable-revalidate/revalidate-3.html',
-          'variable-revalidate/revalidate-3.rsc',
-          'variable-revalidate/revalidate-3/page.js',
-          'variable-revalidate/revalidate-360-isr.html',
-          'variable-revalidate/revalidate-360-isr.rsc',
-          'variable-revalidate/revalidate-360-isr/page.js',
-          'variable-revalidate/revalidate-360/page.js',
-          'variable-revalidate/status-code/page.js',
-        ])
+        expect(files.sort()).toEqual(
+          [
+            'page.js',
+            'index.rsc',
+            'index.html',
+            'blog/seb.rsc',
+            'blog/tim.rsc',
+            '_not-found.js',
+            'blog/seb.html',
+            'blog/tim.html',
+            'isr-error-handling.rsc',
+            '_not-found.rsc',
+            '_not-found.html',
+            'blog/styfle.rsc',
+            'force-cache.rsc',
+            'blog/styfle.html',
+            'force-cache.html',
+            'isr-error-handling/page.js',
+            'ssg-draft-mode.rsc',
+            'ssr-forced/page.js',
+            'articles/works.rsc',
+            'force-cache/page.js',
+            'ssg-draft-mode.html',
+            'articles/works.html',
+            'no-store/static.rsc',
+            '(new)/custom/page.js',
+            'force-static/page.js',
+            'response-url/page.js',
+            'no-store/static.html',
+            'blog/[author]/page.js',
+            'default-cache/page.js',
+            'fetch-no-cache/page.js',
+            'force-no-store/page.js',
+            'force-static-fetch-no-store.html',
+            'force-static-fetch-no-store.rsc',
+            'force-static-fetch-no-store/page.js',
+            'force-static-fetch-no-store/page_client-reference-manifest.js',
+            'force-static/first.rsc',
+            'api/draft-mode/route.js',
+            'blog/tim/first-post.rsc',
+            'force-static/first.html',
+            'force-static/second.rsc',
+            'ssg-draft-mode/test.rsc',
+            'isr-error-handling.html',
+            'articles/[slug]/page.js',
+            'no-store/static/page.js',
+            'blog/seb/second-post.rsc',
+            'blog/tim/first-post.html',
+            'force-static/second.html',
+            'ssg-draft-mode/test.html',
+            'no-store/dynamic/page.js',
+            'blog/seb/second-post.html',
+            'ssg-draft-mode/test-2.rsc',
+            'blog/styfle/first-post.rsc',
+            'dynamic-error/[id]/page.js',
+            'ssg-draft-mode/test-2.html',
+            'blog/styfle/first-post.html',
+            'blog/styfle/second-post.rsc',
+            'force-static/[slug]/page.js',
+            'hooks/use-pathname/slug.rsc',
+            'route-handler/post/route.js',
+            'blog/[author]/[slug]/page.js',
+            'blog/styfle/second-post.html',
+            'hooks/use-pathname/slug.html',
+            'flight/[slug]/[slug2]/page.js',
+            'variable-revalidate/cookie.rsc',
+            'ssr-auto/cache-no-store/page.js',
+            'variable-revalidate/cookie.html',
+            'api/revalidate-tag-edge/route.js',
+            'api/revalidate-tag-node/route.js',
+            'variable-revalidate/encoding.rsc',
+            'api/revalidate-path-edge/route.js',
+            'api/revalidate-path-node/route.js',
+            'gen-params-dynamic/[slug]/page.js',
+            'hooks/use-pathname/[slug]/page.js',
+            'page_client-reference-manifest.js',
+            'react-fetch-deduping-edge/page.js',
+            'react-fetch-deduping-node/page.js',
+            'variable-revalidate/encoding.html',
+            'variable-revalidate/cookie/page.js',
+            'ssg-draft-mode/[[...route]]/page.js',
+            'variable-revalidate/post-method.rsc',
+            'stale-cache-serving/app-page/page.js',
+            'dynamic-no-gen-params/[slug]/page.js',
+            'static-to-dynamic-error/[id]/page.js',
+            'variable-revalidate/encoding/page.js',
+            'variable-revalidate/no-store/page.js',
+            'variable-revalidate/post-method.html',
+            'variable-revalidate/revalidate-3.rsc',
+            'gen-params-dynamic-revalidate/one.rsc',
+            'route-handler/revalidate-360/route.js',
+            'route-handler/static-cookies/route.js',
+            'variable-revalidate-edge/body/page.js',
+            'variable-revalidate/authorization.rsc',
+            'variable-revalidate/revalidate-3.html',
+            'force-dynamic-prerender/[slug]/page.js',
+            'gen-params-dynamic-revalidate/one.html',
+            'ssr-auto/fetch-revalidate-zero/page.js',
+            'variable-revalidate/authorization.html',
+            '_not-found_client-reference-manifest.js',
+            'force-dynamic-no-prerender/[id]/page.js',
+            'variable-revalidate/post-method/page.js',
+            'variable-revalidate/status-code/page.js',
+            'dynamic-no-gen-params-ssr/[slug]/page.js',
+            'hooks/use-search-params/force-static.rsc',
+            'partial-gen-params/[lang]/[slug]/page.js',
+            'variable-revalidate/headers-instance.rsc',
+            'variable-revalidate/revalidate-3/page.js',
+            'stale-cache-serving-edge/app-page/page.js',
+            'hooks/use-search-params/force-static.html',
+            'hooks/use-search-params/with-suspense.rsc',
+            'route-handler/revalidate-360-isr/route.js',
+            'variable-revalidate-edge/encoding/page.js',
+            'variable-revalidate-edge/no-store/page.js',
+            'variable-revalidate/authorization/page.js',
+            'variable-revalidate/headers-instance.html',
+            'stale-cache-serving/route-handler/route.js',
+            'hooks/use-search-params/with-suspense.html',
+            'route-handler-edge/revalidate-360/route.js',
+            'variable-revalidate/revalidate-360-isr.rsc',
+            'variable-revalidate/revalidate-360/page.js',
+            'static-to-dynamic-error-forced/[id]/page.js',
+            'variable-config-revalidate/revalidate-3.rsc',
+            'variable-revalidate/revalidate-360-isr.html',
+            'isr-error-handling/page_client-reference-manifest.js',
+            'gen-params-dynamic-revalidate/[slug]/page.js',
+            'hooks/use-search-params/force-static/page.js',
+            'ssr-forced/page_client-reference-manifest.js',
+            'variable-config-revalidate/revalidate-3.html',
+            'variable-revalidate-edge/post-method/page.js',
+            'variable-revalidate/headers-instance/page.js',
+            'force-cache/page_client-reference-manifest.js',
+            'hooks/use-search-params/with-suspense/page.js',
+            'variable-revalidate-edge/revalidate-3/page.js',
+            '(new)/custom/page_client-reference-manifest.js',
+            'force-static/page_client-reference-manifest.js',
+            'response-url/page_client-reference-manifest.js',
+            'variable-revalidate/revalidate-360-isr/page.js',
+            'stale-cache-serving-edge/route-handler/route.js',
+            'blog/[author]/page_client-reference-manifest.js',
+            'default-cache/page_client-reference-manifest.js',
+            'variable-config-revalidate/revalidate-3/page.js',
+            'variable-revalidate/post-method-request/page.js',
+            'fetch-no-cache/page_client-reference-manifest.js',
+            'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
+            'force-no-store/page_client-reference-manifest.js',
+            'partial-gen-params-no-additional-lang/en/RAND.rsc',
+            'partial-gen-params-no-additional-lang/fr/RAND.rsc',
+            'partial-gen-params-no-additional-slug/en/RAND.rsc',
+            'partial-gen-params-no-additional-slug/fr/RAND.rsc',
+            'articles/[slug]/page_client-reference-manifest.js',
+            'no-store/static/page_client-reference-manifest.js',
+            'partial-gen-params-no-additional-lang/en/RAND.html',
+            'partial-gen-params-no-additional-lang/en/first.rsc',
+            'partial-gen-params-no-additional-lang/fr/RAND.html',
+            'partial-gen-params-no-additional-lang/fr/first.rsc',
+            'partial-gen-params-no-additional-slug/en/RAND.html',
+            'partial-gen-params-no-additional-slug/en/first.rsc',
+            'partial-gen-params-no-additional-slug/fr/RAND.html',
+            'partial-gen-params-no-additional-slug/fr/first.rsc',
+            'no-store/dynamic/page_client-reference-manifest.js',
+            'partial-gen-params-no-additional-lang/en/first.html',
+            'partial-gen-params-no-additional-lang/en/second.rsc',
+            'partial-gen-params-no-additional-lang/fr/first.html',
+            'partial-gen-params-no-additional-lang/fr/second.rsc',
+            'partial-gen-params-no-additional-slug/en/first.html',
+            'partial-gen-params-no-additional-slug/en/second.rsc',
+            'partial-gen-params-no-additional-slug/fr/first.html',
+            'partial-gen-params-no-additional-slug/fr/second.rsc',
+            'dynamic-error/[id]/page_client-reference-manifest.js',
+            'partial-gen-params-no-additional-lang/en/second.html',
+            'partial-gen-params-no-additional-lang/fr/second.html',
+            'partial-gen-params-no-additional-slug/en/second.html',
+            'partial-gen-params-no-additional-slug/fr/second.html',
+            'variable-revalidate-edge/post-method-request/page.js',
+            'force-static/[slug]/page_client-reference-manifest.js',
+            'blog/[author]/[slug]/page_client-reference-manifest.js',
+            'flight/[slug]/[slug2]/page_client-reference-manifest.js',
+            'hooks/use-search-params/static-bailout.html',
+            'hooks/use-search-params/static-bailout.rsc',
+            'hooks/use-search-params/static-bailout/page.js',
+            'hooks/use-search-params/static-bailout/page_client-reference-manifest.js',
+            'ssr-auto/cache-no-store/page_client-reference-manifest.js',
+            'gen-params-dynamic/[slug]/page_client-reference-manifest.js',
+            'hooks/use-pathname/[slug]/page_client-reference-manifest.js',
+            'partial-gen-params-no-additional-lang/[lang]/[slug]/page.js',
+            'partial-gen-params-no-additional-slug/[lang]/[slug]/page.js',
+            'react-fetch-deduping-edge/page_client-reference-manifest.js',
+            'react-fetch-deduping-node/page_client-reference-manifest.js',
+            'variable-revalidate/cookie/page_client-reference-manifest.js',
+            'ssg-draft-mode/[[...route]]/page_client-reference-manifest.js',
+            'stale-cache-serving/app-page/page_client-reference-manifest.js',
+            'dynamic-no-gen-params/[slug]/page_client-reference-manifest.js',
+            'static-to-dynamic-error/[id]/page_client-reference-manifest.js',
+            'variable-revalidate/encoding/page_client-reference-manifest.js',
+            'variable-revalidate/no-store/page_client-reference-manifest.js',
+            'variable-revalidate-edge/body/page_client-reference-manifest.js',
+            'force-dynamic-prerender/[slug]/page_client-reference-manifest.js',
+            'ssr-auto/fetch-revalidate-zero/page_client-reference-manifest.js',
+            'force-dynamic-no-prerender/[id]/page_client-reference-manifest.js',
+            'variable-revalidate/post-method/page_client-reference-manifest.js',
+            'variable-revalidate/status-code/page_client-reference-manifest.js',
+            'dynamic-no-gen-params-ssr/[slug]/page_client-reference-manifest.js',
+            'partial-gen-params/[lang]/[slug]/page_client-reference-manifest.js',
+            'variable-revalidate/revalidate-3/page_client-reference-manifest.js',
+            'stale-cache-serving-edge/app-page/page_client-reference-manifest.js',
+            'variable-revalidate-edge/encoding/page_client-reference-manifest.js',
+            'variable-revalidate-edge/no-store/page_client-reference-manifest.js',
+            'variable-revalidate/authorization/page_client-reference-manifest.js',
+            'variable-revalidate/revalidate-360/page_client-reference-manifest.js',
+            'static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js',
+            'gen-params-dynamic-revalidate/[slug]/page_client-reference-manifest.js',
+            'hooks/use-search-params/force-static/page_client-reference-manifest.js',
+            'variable-revalidate-edge/post-method/page_client-reference-manifest.js',
+            'variable-revalidate/headers-instance/page_client-reference-manifest.js',
+            'hooks/use-search-params/with-suspense/page_client-reference-manifest.js',
+            'variable-revalidate-edge/revalidate-3/page_client-reference-manifest.js',
+            'variable-revalidate/revalidate-360-isr/page_client-reference-manifest.js',
+            'variable-config-revalidate/revalidate-3/page_client-reference-manifest.js',
+            'variable-revalidate/post-method-request/page_client-reference-manifest.js',
+            'force-dynamic-catch-all/[slug]/[[...id]]/page_client-reference-manifest.js',
+            'variable-revalidate-edge/post-method-request/page_client-reference-manifest.js',
+            'partial-gen-params-no-additional-lang/[lang]/[slug]/page_client-reference-manifest.js',
+            'partial-gen-params-no-additional-slug/[lang]/[slug]/page_client-reference-manifest.js',
+          ].sort()
+        )
       })
 
       it('should have correct prerender-manifest entries', async () => {
@@ -487,284 +752,929 @@ createNextDescribe(
         }
 
         expect(curManifest.version).toBe(4)
-        expect(curManifest.routes).toEqual({
-          '/blog/tim': {
-            initialRevalidateSeconds: 10,
-            srcRoute: '/blog/[author]',
-            dataRoute: '/blog/tim.rsc',
-          },
-          '/blog/seb': {
-            initialRevalidateSeconds: 10,
-            srcRoute: '/blog/[author]',
-            dataRoute: '/blog/seb.rsc',
-          },
-          '/blog/styfle': {
-            initialRevalidateSeconds: 10,
-            srcRoute: '/blog/[author]',
-            dataRoute: '/blog/styfle.rsc',
-          },
-          '/blog/tim/first-post': {
-            initialRevalidateSeconds: false,
-            srcRoute: '/blog/[author]/[slug]',
-            dataRoute: '/blog/tim/first-post.rsc',
-          },
-          '/blog/seb/second-post': {
-            initialRevalidateSeconds: false,
-            srcRoute: '/blog/[author]/[slug]',
-            dataRoute: '/blog/seb/second-post.rsc',
-          },
-          '/blog/styfle/first-post': {
-            initialRevalidateSeconds: false,
-            srcRoute: '/blog/[author]/[slug]',
-            dataRoute: '/blog/styfle/first-post.rsc',
-          },
-          '/blog/styfle/second-post': {
-            initialRevalidateSeconds: false,
-            srcRoute: '/blog/[author]/[slug]',
-            dataRoute: '/blog/styfle/second-post.rsc',
-          },
-          '/hooks/use-pathname/slug': {
-            dataRoute: '/hooks/use-pathname/slug.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/hooks/use-pathname/[slug]',
-          },
-          '/hooks/use-search-params': {
-            dataRoute: '/hooks/use-search-params.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/hooks/use-search-params',
-          },
-          '/hooks/use-search-params/force-static': {
-            dataRoute: '/hooks/use-search-params/force-static.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/hooks/use-search-params/force-static',
-          },
-          '/hooks/use-search-params/with-suspense': {
-            dataRoute: '/hooks/use-search-params/with-suspense.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/hooks/use-search-params/with-suspense',
-          },
-          '/partial-gen-params-no-additional-lang/en/RAND': {
-            dataRoute: '/partial-gen-params-no-additional-lang/en/RAND.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
-          },
-          '/partial-gen-params-no-additional-lang/en/first': {
-            dataRoute: '/partial-gen-params-no-additional-lang/en/first.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
-          },
-          '/partial-gen-params-no-additional-lang/en/second': {
-            dataRoute: '/partial-gen-params-no-additional-lang/en/second.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
-          },
-          '/partial-gen-params-no-additional-lang/fr/RAND': {
-            dataRoute: '/partial-gen-params-no-additional-lang/fr/RAND.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
-          },
-          '/partial-gen-params-no-additional-lang/fr/first': {
-            dataRoute: '/partial-gen-params-no-additional-lang/fr/first.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
-          },
-          '/partial-gen-params-no-additional-lang/fr/second': {
-            dataRoute: '/partial-gen-params-no-additional-lang/fr/second.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
-          },
-          '/partial-gen-params-no-additional-slug/en/RAND': {
-            dataRoute: '/partial-gen-params-no-additional-slug/en/RAND.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
-          },
-          '/partial-gen-params-no-additional-slug/en/first': {
-            dataRoute: '/partial-gen-params-no-additional-slug/en/first.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
-          },
-          '/partial-gen-params-no-additional-slug/en/second': {
-            dataRoute: '/partial-gen-params-no-additional-slug/en/second.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
-          },
-          '/partial-gen-params-no-additional-slug/fr/RAND': {
-            dataRoute: '/partial-gen-params-no-additional-slug/fr/RAND.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
-          },
-          '/partial-gen-params-no-additional-slug/fr/first': {
-            dataRoute: '/partial-gen-params-no-additional-slug/fr/first.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
-          },
-          '/partial-gen-params-no-additional-slug/fr/second': {
-            dataRoute: '/partial-gen-params-no-additional-slug/fr/second.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
-          },
-          '/force-static/first': {
-            dataRoute: '/force-static/first.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/force-static/[slug]',
-          },
-          '/force-static/second': {
-            dataRoute: '/force-static/second.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/force-static/[slug]',
-          },
-          '/gen-params-dynamic-revalidate/one': {
-            dataRoute: '/gen-params-dynamic-revalidate/one.rsc',
-            initialRevalidateSeconds: 3,
-            srcRoute: '/gen-params-dynamic-revalidate/[slug]',
-          },
-          '/ssg-preview': {
-            dataRoute: '/ssg-preview.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
-          },
-          '/ssg-preview/test': {
-            dataRoute: '/ssg-preview/test.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
-          },
-          '/ssg-preview/test-2': {
-            dataRoute: '/ssg-preview/test-2.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/ssg-preview/[[...route]]',
-          },
-          '/variable-config-revalidate/revalidate-3': {
-            dataRoute: '/variable-config-revalidate/revalidate-3.rsc',
-            initialRevalidateSeconds: 3,
-            srcRoute: '/variable-config-revalidate/revalidate-3',
-          },
-          '/variable-revalidate/authorization': {
-            dataRoute: '/variable-revalidate/authorization.rsc',
-            initialRevalidateSeconds: 10,
-            srcRoute: '/variable-revalidate/authorization',
-          },
-          '/variable-revalidate/cookie': {
-            dataRoute: '/variable-revalidate/cookie.rsc',
-            initialRevalidateSeconds: 3,
-            srcRoute: '/variable-revalidate/cookie',
-          },
-          '/variable-revalidate/encoding': {
-            dataRoute: '/variable-revalidate/encoding.rsc',
-            initialRevalidateSeconds: 3,
-            srcRoute: '/variable-revalidate/encoding',
-          },
-          '/variable-revalidate/post-method': {
-            dataRoute: '/variable-revalidate/post-method.rsc',
-            initialRevalidateSeconds: 10,
-            srcRoute: '/variable-revalidate/post-method',
-          },
-          '/variable-revalidate/revalidate-3': {
-            dataRoute: '/variable-revalidate/revalidate-3.rsc',
-            initialRevalidateSeconds: 3,
-            srcRoute: '/variable-revalidate/revalidate-3',
-          },
-          '/variable-revalidate/revalidate-360-isr': {
-            dataRoute: '/variable-revalidate/revalidate-360-isr.rsc',
-            initialRevalidateSeconds: 10,
-            srcRoute: '/variable-revalidate/revalidate-360-isr',
-          },
-        })
-        expect(curManifest.dynamicRoutes).toEqual({
-          '/blog/[author]/[slug]': {
-            routeRegex: normalizeRegEx('^/blog/([^/]+?)/([^/]+?)(?:/)?$'),
-            dataRoute: '/blog/[author]/[slug].rsc',
-            fallback: null,
-            dataRouteRegex: normalizeRegEx('^/blog/([^/]+?)/([^/]+?)\\.rsc$'),
-          },
-          '/blog/[author]': {
-            dataRoute: '/blog/[author].rsc',
-            dataRouteRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)\\.rsc$'),
-            fallback: false,
-            routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
-          },
-          '/dynamic-error/[id]': {
-            dataRoute: '/dynamic-error/[id].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/gen-params-dynamic-revalidate/[slug]': {
-            dataRoute: '/gen-params-dynamic-revalidate/[slug].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/hooks/use-pathname/[slug]': {
-            dataRoute: '/hooks/use-pathname/[slug].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/partial-gen-params-no-additional-lang/[lang]/[slug]': {
-            dataRoute:
-              '/partial-gen-params-no-additional-lang/[lang]/[slug].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$'
-            ),
-            fallback: false,
-            routeRegex: normalizeRegEx(
-              '^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/partial-gen-params-no-additional-slug/[lang]/[slug]': {
-            dataRoute:
-              '/partial-gen-params-no-additional-slug/[lang]/[slug].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$'
-            ),
-            fallback: false,
-            routeRegex: normalizeRegEx(
-              '^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/force-static/[slug]': {
-            dataRoute: '/force-static/[slug].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/force\\-static\\/([^\\/]+?)\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/ssg-preview/[[...route]]': {
-            dataRoute: '/ssg-preview/[[...route]].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/ssg\\-preview(?:\\/(.+?))?\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/ssg\\-preview(?:\\/(.+?))?(?:\\/)?$'
-            ),
-          },
-          '/static-to-dynamic-error-forced/[id]': {
-            dataRoute: '/static-to-dynamic-error-forced/[id].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-        })
+        expect(curManifest.routes).toMatchInlineSnapshot(`
+          {
+            "/": {
+              "dataRoute": "/index.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/",
+            },
+            "/articles/works": {
+              "dataRoute": "/articles/works.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 1,
+              "srcRoute": "/articles/[slug]",
+            },
+            "/blog/seb": {
+              "dataRoute": "/blog/seb.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 10,
+              "srcRoute": "/blog/[author]",
+            },
+            "/blog/seb/second-post": {
+              "dataRoute": "/blog/seb/second-post.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/blog/[author]/[slug]",
+            },
+            "/blog/styfle": {
+              "dataRoute": "/blog/styfle.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 10,
+              "srcRoute": "/blog/[author]",
+            },
+            "/blog/styfle/first-post": {
+              "dataRoute": "/blog/styfle/first-post.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/blog/[author]/[slug]",
+            },
+            "/blog/styfle/second-post": {
+              "dataRoute": "/blog/styfle/second-post.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/blog/[author]/[slug]",
+            },
+            "/blog/tim": {
+              "dataRoute": "/blog/tim.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 10,
+              "srcRoute": "/blog/[author]",
+            },
+            "/blog/tim/first-post": {
+              "dataRoute": "/blog/tim/first-post.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/blog/[author]/[slug]",
+            },
+            "/force-cache": {
+              "dataRoute": "/force-cache.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/force-cache",
+            },
+            "/force-static-fetch-no-store": {
+              "dataRoute": "/force-static-fetch-no-store.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/force-static-fetch-no-store",
+            },
+            "/force-static/first": {
+              "dataRoute": "/force-static/first.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/force-static/[slug]",
+            },
+            "/force-static/second": {
+              "dataRoute": "/force-static/second.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/force-static/[slug]",
+            },
+            "/gen-params-dynamic-revalidate/one": {
+              "dataRoute": "/gen-params-dynamic-revalidate/one.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/gen-params-dynamic-revalidate/[slug]",
+            },
+            "/hooks/use-pathname/slug": {
+              "dataRoute": "/hooks/use-pathname/slug.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/hooks/use-pathname/[slug]",
+            },
+            "/hooks/use-search-params/force-static": {
+              "dataRoute": "/hooks/use-search-params/force-static.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/hooks/use-search-params/force-static",
+            },
+            "/hooks/use-search-params/static-bailout": {
+              "dataRoute": "/hooks/use-search-params/static-bailout.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/hooks/use-search-params/static-bailout",
+            },
+            "/hooks/use-search-params/with-suspense": {
+              "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/hooks/use-search-params/with-suspense",
+            },
+            "/isr-error-handling": {
+              "dataRoute": "/isr-error-handling.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/isr-error-handling",
+            },
+            "/no-store/static": {
+              "dataRoute": "/no-store/static.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/no-store/static",
+            },
+            "/partial-gen-params-no-additional-lang/en/RAND": {
+              "dataRoute": "/partial-gen-params-no-additional-lang/en/RAND.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+            },
+            "/partial-gen-params-no-additional-lang/en/first": {
+              "dataRoute": "/partial-gen-params-no-additional-lang/en/first.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+            },
+            "/partial-gen-params-no-additional-lang/en/second": {
+              "dataRoute": "/partial-gen-params-no-additional-lang/en/second.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+            },
+            "/partial-gen-params-no-additional-lang/fr/RAND": {
+              "dataRoute": "/partial-gen-params-no-additional-lang/fr/RAND.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+            },
+            "/partial-gen-params-no-additional-lang/fr/first": {
+              "dataRoute": "/partial-gen-params-no-additional-lang/fr/first.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+            },
+            "/partial-gen-params-no-additional-lang/fr/second": {
+              "dataRoute": "/partial-gen-params-no-additional-lang/fr/second.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug]",
+            },
+            "/partial-gen-params-no-additional-slug/en/RAND": {
+              "dataRoute": "/partial-gen-params-no-additional-slug/en/RAND.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+            },
+            "/partial-gen-params-no-additional-slug/en/first": {
+              "dataRoute": "/partial-gen-params-no-additional-slug/en/first.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+            },
+            "/partial-gen-params-no-additional-slug/en/second": {
+              "dataRoute": "/partial-gen-params-no-additional-slug/en/second.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+            },
+            "/partial-gen-params-no-additional-slug/fr/RAND": {
+              "dataRoute": "/partial-gen-params-no-additional-slug/fr/RAND.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+            },
+            "/partial-gen-params-no-additional-slug/fr/first": {
+              "dataRoute": "/partial-gen-params-no-additional-slug/fr/first.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+            },
+            "/partial-gen-params-no-additional-slug/fr/second": {
+              "dataRoute": "/partial-gen-params-no-additional-slug/fr/second.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+            },
+            "/route-handler/revalidate-360-isr": {
+              "dataRoute": null,
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialHeaders": {
+                "content-type": "application/json",
+                "x-next-cache-tags": "thankyounext,_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr",
+              },
+              "initialRevalidateSeconds": 10,
+              "srcRoute": "/route-handler/revalidate-360-isr",
+            },
+            "/route-handler/static-cookies": {
+              "dataRoute": null,
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialHeaders": {
+                "set-cookie": "theme=light; Path=/,my_company=ACME; Path=/",
+                "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/static-cookies/layout,_N_T_/route-handler/static-cookies/route,_N_T_/route-handler/static-cookies",
+              },
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/route-handler/static-cookies",
+            },
+            "/ssg-draft-mode": {
+              "dataRoute": "/ssg-draft-mode.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/ssg-draft-mode/[[...route]]",
+            },
+            "/ssg-draft-mode/test": {
+              "dataRoute": "/ssg-draft-mode/test.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/ssg-draft-mode/[[...route]]",
+            },
+            "/ssg-draft-mode/test-2": {
+              "dataRoute": "/ssg-draft-mode/test-2.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/ssg-draft-mode/[[...route]]",
+            },
+            "/variable-config-revalidate/revalidate-3": {
+              "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/variable-config-revalidate/revalidate-3",
+            },
+            "/variable-revalidate/authorization": {
+              "dataRoute": "/variable-revalidate/authorization.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 10,
+              "srcRoute": "/variable-revalidate/authorization",
+            },
+            "/variable-revalidate/cookie": {
+              "dataRoute": "/variable-revalidate/cookie.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/variable-revalidate/cookie",
+            },
+            "/variable-revalidate/encoding": {
+              "dataRoute": "/variable-revalidate/encoding.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/variable-revalidate/encoding",
+            },
+            "/variable-revalidate/headers-instance": {
+              "dataRoute": "/variable-revalidate/headers-instance.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 10,
+              "srcRoute": "/variable-revalidate/headers-instance",
+            },
+            "/variable-revalidate/post-method": {
+              "dataRoute": "/variable-revalidate/post-method.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 10,
+              "srcRoute": "/variable-revalidate/post-method",
+            },
+            "/variable-revalidate/revalidate-3": {
+              "dataRoute": "/variable-revalidate/revalidate-3.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 3,
+              "srcRoute": "/variable-revalidate/revalidate-3",
+            },
+            "/variable-revalidate/revalidate-360-isr": {
+              "dataRoute": "/variable-revalidate/revalidate-360-isr.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": 10,
+              "srcRoute": "/variable-revalidate/revalidate-360-isr",
+            },
+          }
+        `)
+        expect(curManifest.dynamicRoutes).toMatchInlineSnapshot(`
+          {
+            "/articles/[slug]": {
+              "dataRoute": "/articles/[slug].rsc",
+              "dataRouteRegex": "^\\/articles\\/([^\\/]+?)\\.rsc$",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": null,
+              "routeRegex": "^\\/articles\\/([^\\/]+?)(?:\\/)?$",
+            },
+            "/blog/[author]": {
+              "dataRoute": "/blog/[author].rsc",
+              "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\.rsc$",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": false,
+              "routeRegex": "^\\/blog\\/([^\\/]+?)(?:\\/)?$",
+            },
+            "/blog/[author]/[slug]": {
+              "dataRoute": "/blog/[author]/[slug].rsc",
+              "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": null,
+              "routeRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+            },
+            "/dynamic-error/[id]": {
+              "dataRoute": "/dynamic-error/[id].rsc",
+              "dataRouteRegex": "^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": null,
+              "routeRegex": "^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$",
+            },
+            "/force-static/[slug]": {
+              "dataRoute": "/force-static/[slug].rsc",
+              "dataRouteRegex": "^\\/force\\-static\\/([^\\/]+?)\\.rsc$",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": null,
+              "routeRegex": "^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$",
+            },
+            "/gen-params-dynamic-revalidate/[slug]": {
+              "dataRoute": "/gen-params-dynamic-revalidate/[slug].rsc",
+              "dataRouteRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)\\.rsc$",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": null,
+              "routeRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)(?:\\/)?$",
+            },
+            "/hooks/use-pathname/[slug]": {
+              "dataRoute": "/hooks/use-pathname/[slug].rsc",
+              "dataRouteRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": null,
+              "routeRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$",
+            },
+            "/partial-gen-params-no-additional-lang/[lang]/[slug]": {
+              "dataRoute": "/partial-gen-params-no-additional-lang/[lang]/[slug].rsc",
+              "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": false,
+              "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+            },
+            "/partial-gen-params-no-additional-slug/[lang]/[slug]": {
+              "dataRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug].rsc",
+              "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": false,
+              "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+            },
+            "/ssg-draft-mode/[[...route]]": {
+              "dataRoute": "/ssg-draft-mode/[[...route]].rsc",
+              "dataRouteRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?\\.rsc$",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": null,
+              "routeRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$",
+            },
+            "/static-to-dynamic-error-forced/[id]": {
+              "dataRoute": "/static-to-dynamic-error-forced/[id].rsc",
+              "dataRouteRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)\\.rsc$",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "fallback": null,
+              "routeRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)(?:\\/)?$",
+            },
+          }
+        `)
       })
 
       it('should output debug info for static bailouts', async () => {
@@ -777,7 +1687,194 @@ createNextDescribe(
           'Static generation failed due to dynamic usage on /ssr-auto/cache-no-store, reason: no-store fetch'
         )
       })
+
+      // build cache not leveraged for custom cache handler so not seeded
+      if (!process.env.CUSTOM_CACHE_HANDLER) {
+        it('should correctly error and not update cache for ISR', async () => {
+          await next.patchFile('app/isr-error-handling/error.txt', 'yes')
+
+          for (let i = 0; i < 3; i++) {
+            const res = await next.fetch('/isr-error-handling')
+            const html = await res.text()
+            const $ = cheerio.load(html)
+            const now = $('#now').text()
+
+            expect(res.status).toBe(200)
+            expect(now).toBeTruthy()
+
+            // wait revalidate period
+            await waitFor(3000)
+          }
+          expect(next.cliOutput).toContain('intentional error')
+        })
+      }
     }
+
+    it.each([
+      { path: '/stale-cache-serving/app-page' },
+      { path: '/stale-cache-serving/route-handler' },
+      { path: '/stale-cache-serving-edge/app-page' },
+      { path: '/stale-cache-serving-edge/route-handler' },
+    ])('should stream properly for $path', async ({ path }) => {
+      // Prime the cache.
+      let res = await next.fetch(path)
+      expect(res.status).toBe(200)
+
+      // Consume the cache, the revalidations are completed on the end of the
+      // stream so we need to wait for that to complete.
+      await res.text()
+
+      for (let i = 0; i < 6; i++) {
+        await waitFor(1000)
+
+        const timings = {
+          start: Date.now(),
+          startedStreaming: 0,
+        }
+
+        res = await next.fetch(path)
+
+        // eslint-disable-next-line no-loop-func
+        await new Promise<void>((resolve) => {
+          res.body.on('data', () => {
+            if (!timings.startedStreaming) {
+              timings.startedStreaming = Date.now()
+            }
+          })
+
+          res.body.on('end', () => {
+            resolve()
+          })
+        })
+
+        expect(timings.startedStreaming - timings.start).toBeLessThan(3000)
+      }
+    })
+
+    it('should correctly handle statusCode with notFound + ISR', async () => {
+      for (let i = 0; i < 5; i++) {
+        const res = await next.fetch('/articles/non-existent')
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('This page could not be found')
+        await waitFor(500)
+      }
+    })
+
+    it('should cache correctly for fetchCache = default-cache', async () => {
+      const res = await next.fetch('/default-cache')
+      expect(res.status).toBe(200)
+
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      await check(async () => {
+        const curRes = await next.fetch('/default-cache')
+        expect(curRes.status).toBe(200)
+
+        const curHtml = await curRes.text()
+        const cur$ = cheerio.load(curHtml)
+
+        try {
+          expect(cur$('#data-no-cache').text()).not.toBe(
+            prev$('#data-no-cache').text()
+          )
+          expect(cur$('#data-force-cache').text()).toBe(
+            prev$('#data-force-cache').text()
+          )
+          expect(cur$('#data-revalidate-cache').text()).toBe(
+            prev$('#data-revalidate-cache').text()
+          )
+          expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+            prev$('#data-revalidate-and-fetch-cache').text()
+          )
+          expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+            prev$('#data-revalidate-and-fetch-cache').text()
+          )
+        } finally {
+          prevHtml = curHtml
+          prev$ = cur$
+        }
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly for fetchCache = force-cache', async () => {
+      const res = await next.fetch('/force-cache')
+      expect(res.status).toBe(200)
+
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      await check(async () => {
+        const curRes = await next.fetch('/force-cache')
+        expect(curRes.status).toBe(200)
+
+        const curHtml = await curRes.text()
+        const cur$ = cheerio.load(curHtml)
+
+        expect(cur$('#data-no-cache').text()).toBe(
+          prev$('#data-no-cache').text()
+        )
+        expect(cur$('#data-force-cache').text()).toBe(
+          prev$('#data-force-cache').text()
+        )
+        expect(cur$('#data-revalidate-cache').text()).toBe(
+          prev$('#data-revalidate-cache').text()
+        )
+        expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+          prev$('#data-revalidate-and-fetch-cache').text()
+        )
+        expect(cur$('#data-auto-cache').text()).toBe(
+          prev$('#data-auto-cache').text()
+        )
+
+        return 'success'
+      }, 'success')
+
+      if (!isNextDeploy) {
+        expect(next.cliOutput).toContain(
+          'fetch for https://next-data-api-endpoint.vercel.app/api/random?d4 on /force-cache specified "cache: force-cache" and "revalidate: 3", only one should be specified.'
+        )
+      }
+    })
+
+    it('should cache correctly for cache: no-store', async () => {
+      const res = await next.fetch('/fetch-no-cache')
+      expect(res.status).toBe(200)
+
+      let prevHtml = await res.text()
+      let prev$ = cheerio.load(prevHtml)
+
+      await check(async () => {
+        const curRes = await next.fetch('/fetch-no-cache')
+        expect(curRes.status).toBe(200)
+
+        const curHtml = await curRes.text()
+        const cur$ = cheerio.load(curHtml)
+
+        try {
+          expect(cur$('#data-no-cache').text()).not.toBe(
+            prev$('#data-no-cache').text()
+          )
+          expect(cur$('#data-force-cache').text()).toBe(
+            prev$('#data-force-cache').text()
+          )
+          expect(cur$('#data-revalidate-cache').text()).toBe(
+            prev$('#data-revalidate-cache').text()
+          )
+          expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
+            prev$('#data-revalidate-and-fetch-cache').text()
+          )
+          expect(cur$('#data-auto-cache').text()).not.toBe(
+            prev$('#data-auto-cache').text()
+          )
+        } finally {
+          prevHtml = curHtml
+          prev$ = cur$
+        }
+        return 'success'
+      }, 'success')
+    })
 
     if (isDev) {
       it('should bypass fetch cache with cache-control: no-cache', async () => {
@@ -829,6 +1926,27 @@ createNextDescribe(
         }
       })
 
+      it('should produce response with url from fetch', async () => {
+        const res = await next.fetch('/response-url')
+        expect(res.status).toBe(200)
+
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        expect($('#data-url-default-cache').text()).toBe(
+          'https://next-data-api-endpoint.vercel.app/api/random?a1'
+        )
+        expect($('#data-url-no-cache').text()).toBe(
+          'https://next-data-api-endpoint.vercel.app/api/random?b2'
+        )
+        expect($('#data-url-cached').text()).toBe(
+          'https://next-data-api-endpoint.vercel.app/api/random?a1'
+        )
+        expect($('#data-value-default-cache').text()).toBe(
+          $('#data-value-cached').text()
+        )
+      })
+
       it('should properly error when dynamic = "error" page uses dynamic', async () => {
         const res = await next.fetch('/dynamic-error/static-bailout-1')
         const outputIndex = next.cliOutput.length
@@ -842,6 +1960,37 @@ createNextDescribe(
         }
       })
     }
+
+    it('should skip cache in draft mode', async () => {
+      const draftRes = await next.fetch('/api/draft-mode?status=enable')
+      const setCookie = draftRes.headers.get('set-cookie')
+      const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
+
+      expect(cookieHeader.Cookie).toBeTruthy()
+
+      const res = await next.fetch('/ssg-draft-mode/test-1', {
+        headers: cookieHeader,
+      })
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      const data1 = $('#data').text()
+
+      expect(data1).toBeTruthy()
+      expect(JSON.parse($('#draft-mode').text())).toEqual({ isEnabled: true })
+
+      const res2 = await next.fetch('/ssg-draft-mode/test-1', {
+        headers: cookieHeader,
+      })
+
+      const html2 = await res2.text()
+      const $2 = cheerio.load(html2)
+      const data2 = $2('#data').text()
+
+      expect(data2).toBeTruthy()
+      expect(data1).not.toBe(data2)
+      expect(JSON.parse($2('#draft-mode').text())).toEqual({ isEnabled: true })
+    })
 
     it('should handle partial-gen-params with default dynamicParams correctly', async () => {
       const res = await next.fetch('/partial-gen-params/en/first')
@@ -1028,6 +2177,12 @@ createNextDescribe(
         expect($2('#page-data').text()).toBe(pageData)
         return 'success'
       }, 'success')
+
+      if (isNextStart) {
+        expect(next.cliOutput).toContain(
+          `Page "/variable-revalidate-edge/revalidate-3" is using runtime = 'edge' which is currently incompatible with dynamic = 'force-static'. Please remove either "runtime" or "force-static" for correct behavior`
+        )
+      }
     })
 
     it('should honor fetch cache correctly (edge)', async () => {
@@ -1324,14 +2479,14 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
-      const browserOnIndexPage = await next.browser('/ssg-preview')
+    it('should not throw Dynamic Server Usage error when using generateStaticParams with draftMode', async () => {
+      const browserOnIndexPage = await next.browser('/ssg-draft-mode')
 
       const content = await browserOnIndexPage
-        .elementByCss('#preview-data')
+        .elementByCss('#draft-mode')
         .text()
 
-      expect(content).toContain('previewData')
+      expect(content).toBe('{"isEnabled":false}')
     })
 
     it('should force SSR correctly for headers usage', async () => {
@@ -1711,9 +2866,9 @@ createNextDescribe(
     describe('useSearchParams', () => {
       describe('client', () => {
         it('should bailout to client rendering - without suspense boundary', async () => {
-          const browser = await next.browser(
-            '/hooks/use-search-params?first=value&second=other&third'
-          )
+          const url =
+            '/hooks/use-search-params/static-bailout?first=value&second=other&third'
+          const browser = await next.browser(url)
 
           expect(await browser.elementByCss('#params-first').text()).toBe(
             'value'
@@ -1725,12 +2880,15 @@ createNextDescribe(
           expect(await browser.elementByCss('#params-not-real').text()).toBe(
             'N/A'
           )
+
+          const $ = await next.render$(url)
+          expect($('meta[content=noindex]').length).toBe(0)
         })
 
         it('should bailout to client rendering - with suspense boundary', async () => {
-          const browser = await next.browser(
+          const url =
             '/hooks/use-search-params/with-suspense?first=value&second=other&third'
-          )
+          const browser = await next.browser(url)
 
           expect(await browser.elementByCss('#params-first').text()).toBe(
             'value'
@@ -1742,6 +2900,11 @@ createNextDescribe(
           expect(await browser.elementByCss('#params-not-real').text()).toBe(
             'N/A'
           )
+
+          const $ = await next.render$(url)
+          // dynamic page doesn't have bail out
+          expect($('html#__next_error__').length).toBe(0)
+          expect($('meta[content=noindex]').length).toBe(0)
         })
 
         it.skip('should have empty search params on force-static', async () => {
@@ -1792,7 +2955,9 @@ createNextDescribe(
       if (!isDev) {
         describe('server response', () => {
           it('should bailout to client rendering - without suspense boundary', async () => {
-            const res = await next.fetch('/hooks/use-search-params')
+            const res = await next.fetch(
+              '/hooks/use-search-params/static-bailout'
+            )
             const html = await res.text()
             expect(html).toInclude('<html id="__next_error__">')
           })
@@ -1811,7 +2976,7 @@ createNextDescribe(
             )
             const html = await res.text()
 
-            // Shouild not bail out to client rendering
+            // Should not bail out to client rendering
             expect(html).not.toInclude('<p>search params suspense</p>')
 
             // Use empty search params instead
@@ -1825,17 +2990,11 @@ createNextDescribe(
       }
     })
 
-    // TODO: needs updating as usePathname should not bail
-    describe.skip('usePathname', () => {
-      if (isDev) {
-        it('should bail out to client rendering during SSG', async () => {
-          const res = await next.fetch('/hooks/use-pathname/slug')
-          const html = await res.text()
-          expect(html).toInclude('<html id="__next_error__">')
-        })
-      }
-
+    describe('usePathname', () => {
       it('should have the correct values', async () => {
+        const $ = await next.render$('/hooks/use-pathname/slug')
+        expect($('#pathname').text()).toContain('/hooks/use-pathname/slug')
+
         const browser = await next.browser('/hooks/use-pathname/slug')
 
         expect(await browser.elementByCss('#pathname').text()).toBe(
@@ -1852,13 +3011,29 @@ createNextDescribe(
       })
     })
 
-    if (!(global as any).isNextDeploy) {
-      it('should show a message to leave feedback for `appDir`', async () => {
-        expect(next.cliOutput).toContain(
-          `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-        )
+    describe('unstable_noStore', () => {
+      it('should opt-out of static optimization', async () => {
+        const res = await next.fetch('/no-store/dynamic')
+        const html = await res.text()
+        const data = cheerio.load(html)('#uncached-data').text()
+        const res2 = await next.fetch('/no-store/dynamic')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#uncached-data').text()
+
+        expect(data).not.toEqual(data2)
       })
-    }
+
+      it('should not opt-out of static optimization when used in next/cache', async () => {
+        const res = await next.fetch('/no-store/static')
+        const html = await res.text()
+        const data = cheerio.load(html)('#data').text()
+        const res2 = await next.fetch('/no-store/static')
+        const html2 = await res2.text()
+        const data2 = cheerio.load(html2)('#data').text()
+
+        expect(data).toEqual(data2)
+      })
+    })
 
     it('should keep querystring on static page', async () => {
       const browser = await next.browser('/blog/tim?message=hello-world')
