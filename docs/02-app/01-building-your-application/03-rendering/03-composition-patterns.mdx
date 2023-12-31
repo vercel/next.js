@@ -32,7 +32,7 @@ Here are some common patterns when working with Server Components:
 
 When fetching data on the server, there may be cases where you need to share data across different components. For example, you may have a layout and a page that depend on the same data.
 
-Instead of using [React Context](https://react.dev/learn/passing-data-deeply-with-context) (which is not available on the server) or passing data as props, you can use [`fetch`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#fetching-data-on-the-server-with-fetch) or React's `cache` function to fetch the same data in the components that need it, without worrying about making duplicate requests for the same data. This is because React extends `fetch` to automatically memoize data requests, and the `cache` function can be used when `fetch` is not available.
+Instead of using [React Context](https://react.dev/learn/passing-data-deeply-with-context) (which is not available on the server) or passing data as props, you can use [`fetch`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#fetching-data-on-the-server-with-fetch) or React's `cache` function to fetch the same data in the components that need it, without worrying about making duplicate requests for the same data. This is because React extends `fetch` to automatically memorize data requests, and the `cache` function can be used when `fetch` is not available.
 
 Learn more about [memoization](/docs/app/building-your-application/caching#request-memoization) in React.
 
