@@ -40,6 +40,7 @@ import {
   getIsServerAction,
   getServerActionRequestMetadata,
 } from '../lib/server-action-request-meta'
+import { isCsrfOriginAllowed } from './csrf-protection'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -238,6 +239,16 @@ function limitUntrustedHeaderValueForLogs(value: string) {
   return value.length > 100 ? value.slice(0, 100) + '...' : value
 }
 
+type ServerModuleMap = Record<
+  string,
+  | {
+      id: string
+      chunks: string[]
+      name: string
+    }
+  | undefined
+>
+
 export async function handleAction({
   req,
   res,
@@ -252,13 +263,7 @@ export async function handleAction({
   req: IncomingMessage
   res: ServerResponse
   ComponentMod: AppPageModule
-  serverModuleMap: {
-    [id: string]: {
-      id: string
-      chunks: string[]
-      name: string
-    }
-  }
+  serverModuleMap: ServerModuleMap
   generateFlight: GenerateFlight
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
@@ -327,7 +332,7 @@ export async function handleAction({
     // If the customer sets a list of allowed origins, we'll allow the request.
     // These are considered safe but might be different from forwarded host set
     // by the infra (i.e. reverse proxies).
-    if (serverActions?.allowedOrigins?.includes(originDomain)) {
+    if (isCsrfOriginAllowed(originDomain, serverActions?.allowedOrigins)) {
       // Ignore it
     } else {
       if (host) {
@@ -392,6 +397,7 @@ export async function handleAction({
 
   let actionResult: RenderResult | undefined
   let formState: any | undefined
+  let actionModId: string | undefined
 
   try {
     await actionAsyncStorage.run({ isAction: true }, async () => {
@@ -418,6 +424,15 @@ export async function handleAction({
             return
           }
         } else {
+          try {
+            actionModId = getActionModIdOrError(actionId, serverModuleMap)
+          } catch (err) {
+            console.error(err)
+            return {
+              type: 'not-found',
+            }
+          }
+
           let actionData = ''
 
           const reader = webRequest.body.getReader()
@@ -487,6 +502,15 @@ export async function handleAction({
             return
           }
         } else {
+          try {
+            actionModId = getActionModIdOrError(actionId, serverModuleMap)
+          } catch (err) {
+            console.error(err)
+            return {
+              type: 'not-found',
+            }
+          }
+
           const chunks = []
 
           for await (const chunk of req) {
@@ -528,19 +552,11 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       // / -> fire action -> POST / -> appRender1 -> modId for the action file
       // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
 
-      let actionModId: string
       try {
-        if (!actionId) {
-          throw new Error('Invariant: actionId should be set')
-        }
-
-        actionModId = serverModuleMap[actionId].id
+        actionModId =
+          actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
       } catch (err) {
-        // When this happens, it could be a deployment skew where the action came
-        // from a different deployment. We'll just return a 404 with a message logged.
-        console.error(
-          `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.`
-        )
+        console.error(err)
         return {
           type: 'not-found',
         }
@@ -548,7 +564,10 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
 
       const actionHandler = (
         await ComponentMod.__next_app__.require(actionModId)
-      )[actionId]
+      )[
+        // `actionId` must exist if we got here, as otherwise we would have thrown an error above
+        actionId!
+      ]
 
       const returnVal = await actionHandler.apply(null, bound)
 
@@ -577,12 +596,14 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       const redirectUrl = getURLFromRedirectError(err)
       const statusCode = getRedirectStatusCodeFromError(err)
 
-      // if it's a fetch action, we don't want to mess with the status code
-      // and we'll handle it on the client router
       await addRevalidationHeader(res, {
         staticGenerationStore,
         requestStore,
       })
+
+      // if it's a fetch action, we'll set the status code for logging/debugging purposes
+      // but we won't set a Location header, as the redirect will be handled by the client router
+      res.statusCode = statusCode
 
       if (isFetchAction) {
         return {
@@ -607,7 +628,6 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
       }
 
       res.setHeader('Location', redirectUrl)
-      res.statusCode = statusCode
       return {
         type: 'done',
         result: RenderResult.fromStatic(''),
@@ -672,5 +692,38 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
     }
 
     throw err
+  }
+}
+
+/**
+ * Attempts to find the module ID for the action from the module map. When this fails, it could be a deployment skew where
+ * the action came from a different deployment. It could also simply be an invalid POST request that is not a server action.
+ * In either case, we'll throw an error to be handled by the caller.
+ */
+function getActionModIdOrError(
+  actionId: string | null,
+  serverModuleMap: ServerModuleMap
+): string {
+  try {
+    // if we're missing the action ID header, we can't do any further processing
+    if (!actionId) {
+      throw new Error("Invariant: Missing 'next-action' header.")
+    }
+
+    const actionModId = serverModuleMap?.[actionId]?.id
+
+    if (!actionModId) {
+      throw new Error(
+        "Invariant: Couldn't find action module ID from module map."
+      )
+    }
+
+    return actionModId
+  } catch (err) {
+    throw new Error(
+      `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment. ${
+        err instanceof Error ? `Original error: ${err.message}` : ''
+      }`
+    )
   }
 }

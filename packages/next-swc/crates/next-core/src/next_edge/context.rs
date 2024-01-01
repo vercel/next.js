@@ -117,11 +117,13 @@ pub async fn get_edge_resolve_options_context(
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppSSR { .. }
-        | ServerContextType::Middleware { .. } => {}
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. } => {}
     };
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
+        enable_edge_node_externals: true,
         custom_conditions,
         import_map: Some(next_edge_import_map),
         module: true,

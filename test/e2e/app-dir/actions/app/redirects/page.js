@@ -13,6 +13,14 @@ export default function Home() {
           id="submit-api-redirect-permanent"
         />
       </form>
+      <h1>POST /api-reponse-redirect-307</h1>
+      <form action="/redirects/api-redirect-307" method="POST">
+        <input type="submit" value="Submit" id="submit-api-redirect-307" />
+      </form>
+      <h1>POST /api-reponse-redirect-308</h1>
+      <form action="/redirects/api-redirect-308" method="POST">
+        <input type="submit" value="Submit" id="submit-api-redirect-308" />
+      </form>
     </main>
   )
 }
