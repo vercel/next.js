@@ -345,15 +345,17 @@ export interface PageInfo {
 
 export type PageInfos = Map<string, PageInfo>
 
-export type RoutesUsingEdgeRuntime = string[]
+export interface RoutesUsingEdgeRuntime {
+  [route: string]: 0
+}
 
 export function collectRoutesUsingEdgeRuntime(
   input: PageInfos
 ): RoutesUsingEdgeRuntime {
-  const routesUsingEdgeRuntime = []
+  const routesUsingEdgeRuntime: RoutesUsingEdgeRuntime = {}
   for (const [route, info] of input.entries()) {
     if (isEdgeRuntime(info.runtime)) {
-      routesUsingEdgeRuntime.push(route)
+      routesUsingEdgeRuntime[route] = 0
     }
   }
 

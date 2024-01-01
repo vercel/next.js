@@ -644,7 +644,7 @@ export async function collectBuildTraces({
         }
 
         // edge routes have no trace files
-        if (edgeRuntimeRoutes.includes(route)) {
+        if (edgeRuntimeRoutes.hasOwnProperty(route)) {
           return
         }
 
