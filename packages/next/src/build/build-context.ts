@@ -41,6 +41,10 @@ export function getPluginState() {
   return pluginState
 }
 
+export interface MappedPages {
+  [page: string]: string
+}
+
 // a global object to store context for the current build
 // this is used to pass data between different steps of the build without having
 // to pass it through function arguments.
@@ -67,19 +71,9 @@ export const NextBuildContext: Partial<{
   originalRedirects: Redirect[]
   loadedEnvFiles: LoadedEnvFiles
   previewProps: __ApiPreviewProps
-  mappedPages:
-    | {
-        [page: string]: string
-      }
-    | undefined
-  mappedAppPages:
-    | {
-        [page: string]: string
-      }
-    | undefined
-  mappedRootPaths: {
-    [page: string]: string
-  }
+  mappedPages: MappedPages | undefined
+  mappedAppPages: MappedPages | undefined
+  mappedRootPaths: MappedPages
   hasInstrumentationHook: boolean
 
   // misc fields
