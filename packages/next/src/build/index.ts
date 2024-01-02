@@ -581,6 +581,10 @@ export default async function build(
       const hasInstrumentationHook = rootPaths.some((p) =>
         p.includes(INSTRUMENTATION_HOOK_FILENAME)
       )
+      const hasMiddlewareFile = rootPaths.some((p) =>
+        p.includes(MIDDLEWARE_FILENAME)
+      )
+
       NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
 
       const previewProps: __ApiPreviewProps = {
@@ -2819,7 +2823,7 @@ export default async function build(
           rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
             .length,
           redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
-          middlewareCount: Object.keys(rootPaths).length > 0 ? 1 : 0,
+          middlewareCount: hasMiddlewareFile ? 1 : 0,
           totalAppPagesCount,
           staticAppPagesCount,
           serverAppPagesCount,
