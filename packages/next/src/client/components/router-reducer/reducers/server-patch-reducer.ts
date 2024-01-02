@@ -12,6 +12,7 @@ import { applyFlightData } from '../apply-flight-data'
 import { handleMutable } from '../handle-mutable'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createEmptyCacheNode } from '../../app-router'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
@@ -49,7 +50,7 @@ export function serverPatchReducer(
     )
 
     if (newTree === null) {
-      throw new Error('SEGMENT MISMATCH')
+      return handleSegmentMismatch(state, action, treePatch)
     }
 
     if (isNavigatingToNewRootLayout(currentTree, newTree)) {
