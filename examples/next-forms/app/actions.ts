@@ -1,15 +1,24 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { sql } from '@vercel/postgres'
+import postgres from 'postgres'
 import { z } from 'zod'
+
+let sql = postgres(process.env.DATABASE_URL || process.env.POSTGRES_URL!, {
+  ssl: 'allow',
+})
 
 // CREATE TABLE todos (
 //   id SERIAL PRIMARY KEY,
 //   text TEXT NOT NULL
 // );
 
-export async function createTodo(prevState: any, formData: FormData) {
+export async function createTodo(
+  prevState: {
+    message: string
+  },
+  formData: FormData
+) {
   const schema = z.object({
     todo: z.string().min(1),
   })
@@ -25,9 +34,9 @@ export async function createTodo(prevState: any, formData: FormData) {
 
   try {
     await sql`
-    INSERT INTO todos (text)
-    VALUES (${data.todo})
-  `
+      INSERT INTO todos (text)
+      VALUES (${data.todo})
+    `
 
     revalidatePath('/')
     return { message: `Added todo ${data.todo}` }
@@ -36,7 +45,12 @@ export async function createTodo(prevState: any, formData: FormData) {
   }
 }
 
-export async function deleteTodo(prevState: any, formData: FormData) {
+export async function deleteTodo(
+  prevState: {
+    message: string
+  },
+  formData: FormData
+) {
   const schema = z.object({
     id: z.string().min(1),
     todo: z.string().min(1),

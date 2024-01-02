@@ -171,6 +171,7 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.appRouteHandler,
       WEBPACK_LAYERS_NAMES.serverSideRendering,
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
+      WEBPACK_LAYERS_NAMES.shared,
     ],
   },
 }
