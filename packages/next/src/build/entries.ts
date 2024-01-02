@@ -61,8 +61,9 @@ import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/future/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
+import type { PageExtensions } from './page-extensions-type'
 
-export function sortByPageExts(pageExtensions: string[]) {
+export function sortByPageExts(pageExtensions: PageExtensions) {
   return (a: string, b: string) => {
     // prioritize entries according to pageExtensions order
     // for consistency as fs order can differ across systems
@@ -94,7 +95,7 @@ export async function getStaticInfoIncludingLayouts({
   page,
 }: {
   isInsideAppDir: boolean
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   pageFilePath: string
   appDir: string | undefined
   config: NextConfigComplete
@@ -173,7 +174,10 @@ type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 /**
  * For a given page path removes the provided extensions.
  */
-export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
+export function getPageFromPath(
+  pagePath: string,
+  pageExtensions: PageExtensions
+) {
   let page = normalizePathSep(
     pagePath.replace(new RegExp(`\\.+(${pageExtensions.join('|')})$`), '')
   )
@@ -217,7 +221,7 @@ export function createPagesMapping({
   pagesDir,
 }: {
   isDev: boolean
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   pagePaths: string[]
   pagesType: 'pages' | 'root' | 'app'
   pagesDir: string | undefined
@@ -315,7 +319,7 @@ export interface CreateEntrypointsParams {
   rootPaths?: Record<string, string>
   appDir?: string
   appPaths?: Record<string, string>
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   hasInstrumentationHook?: boolean
 }
 
