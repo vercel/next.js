@@ -518,11 +518,6 @@ export default async function build(
         eventName: EVENT_BUILD_FEATURE_USAGE,
         payload: buildLintEvent,
       })
-      let buildSpinner: ReturnType<typeof createSpinner> = {
-        stopAndPersist() {
-          return this
-        },
-      } as any
 
       const { envInfo, expFeatureInfo } = await getStartServerInfo(dir)
       logStartInfo({
@@ -531,12 +526,6 @@ export default async function build(
         envInfo,
         expFeatureInfo,
       })
-
-      if (!isGenerateMode) {
-        buildSpinner = createSpinner('Creating an optimized production build')
-      }
-
-      NextBuildContext.buildSpinner = buildSpinner
 
       const validFileMatcher = createValidFileMatcher(
         config.pageExtensions,
@@ -1115,6 +1104,8 @@ export default async function build(
         )
       }
 
+      Log.info('Creating an optimized production build ...')
+
       if (!isGenerateMode) {
         if (isCompileMode && useBuildWorker) {
           let durationInSeconds = 0
@@ -1156,7 +1147,6 @@ export default async function build(
             durationInSeconds += res.duration
           })
 
-          buildSpinner?.stopAndPersist()
           Log.event('Compiled successfully')
 
           telemetry.record(
