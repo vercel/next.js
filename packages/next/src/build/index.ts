@@ -685,7 +685,7 @@ export default async function build(
       const pagesPageKeys = Object.keys(mappedPages)
 
       const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
-      const appPageKeys: string[] = []
+      const appPageKeys = new Set<string>()
       if (mappedAppPages) {
         denormalizedAppPages = Object.keys(mappedAppPages)
         for (const appKey of denormalizedAppPages) {
@@ -698,20 +698,19 @@ export default async function build(
               appPath.replace(/^private-next-app-dir/, 'app'),
             ])
           }
-          appPageKeys.push(normalizedAppPageKey)
+          appPageKeys.add(normalizedAppPageKey)
         }
       }
 
+      const appPaths = Array.from(appPageKeys)
       // Interception routes are modelled as beforeFiles rewrites
-      rewrites.beforeFiles.push(
-        ...generateInterceptionRoutesRewrites(appPageKeys)
-      )
+      rewrites.beforeFiles.push(...generateInterceptionRoutesRewrites(appPaths))
 
-      const totalAppPagesCount = appPageKeys.length
+      const totalAppPagesCount = appPaths.length
 
       const pageKeys = {
         pages: pagesPageKeys,
-        app: appPageKeys.length > 0 ? appPageKeys : undefined,
+        app: appPaths.length > 0 ? appPaths : undefined,
       }
 
       if (turboNextBuild) {
@@ -883,7 +882,7 @@ export default async function build(
           (r: any) => !r.internal
         )
         const clientRouterFilters = createClientRouterFilter(
-          appPageKeys,
+          appPaths,
           config.experimental.clientRouterFilterRedirects
             ? nonInternalRedirects
             : [],
