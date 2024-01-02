@@ -12,7 +12,7 @@ import type { NextConfigComplete, TurboRule } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
-import type { PageExtensions } from '../entries'
+import type { PageExtensions } from '../page-extensions-type'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 

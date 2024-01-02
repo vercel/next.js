@@ -7,7 +7,7 @@ import { stringify } from 'querystring'
 import { STATIC_METADATA_IMAGES } from '../../../../lib/metadata/is-metadata-route'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import type { MetadataResolver } from '../next-app-loader'
-import type { PageExtensions } from '../../../entries'
+import type { PageExtensions } from '../../../page-extensions-type'
 
 const METADATA_TYPE = 'metadata'
 

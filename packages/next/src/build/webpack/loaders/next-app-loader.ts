@@ -30,7 +30,7 @@ import {
 } from '../../../shared/lib/segment'
 import { getFilesInDir } from '../../../lib/get-files-in-dir'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
-import type { PageExtensions } from '../../entries'
+import type { PageExtensions } from '../../page-extensions-type'
 
 export type AppLoaderOptions = {
   name: string

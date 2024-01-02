@@ -61,8 +61,7 @@ import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/future/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
-
-export type PageExtensions = string[]
+import type { PageExtensions } from './page-extensions-type'
 
 export function sortByPageExts(pageExtensions: PageExtensions) {
   return (a: string, b: string) => {

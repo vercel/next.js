@@ -6,7 +6,7 @@ import { promises as fsPromises } from 'fs'
 import { warn } from '../../build/output/log'
 import { cyan } from '../../lib/picocolors'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
-import type { PageExtensions } from '../../build/entries'
+import type { PageExtensions } from '../../build/page-extensions-type'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   const pageSegments = normalize(pagePath).split(sep).filter(Boolean)

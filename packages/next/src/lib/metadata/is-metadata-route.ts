@@ -1,4 +1,4 @@
-import type { PageExtensions } from '../../build/entries'
+import type { PageExtensions } from '../../build/page-extensions-type'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 
 export const STATIC_METADATA_IMAGES = {

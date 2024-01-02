@@ -13,7 +13,8 @@ import { normalizePathSep } from '../../../../shared/lib/page-path/normalize-pat
 import { HTTP_METHODS } from '../../../../server/web/http'
 import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
-import { getPageFromPath, type PageExtensions } from '../../../entries'
+import { getPageFromPath } from '../../../entries'
+import type { PageExtensions } from '../../../page-extensions-type'
 import { devPageFiles } from './shared'
 import { getProxiedPluginState } from '../../../build-context'
 
