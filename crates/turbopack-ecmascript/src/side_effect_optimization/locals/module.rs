@@ -64,8 +64,7 @@ impl Asset for EcmascriptModuleLocalsModule {
 impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let result = self.module.failsafe_analyze().await?;
-        let EcmascriptExports::EsmExports(exports) = *result.exports.await? else {
+        let EcmascriptExports::EsmExports(exports) = *self.module.get_exports().await? else {
             bail!("EcmascriptModuleLocalsModule must only be used on modules with EsmExports");
         };
         let esm_exports = exports.await?;
@@ -76,8 +75,8 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
                 EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(..) => {
                     // not included in locals module
                 }
-                EsmExport::LocalBinding(name) => {
-                    exports.insert(name.clone(), EsmExport::LocalBinding(name.clone()));
+                EsmExport::LocalBinding(local_name) => {
+                    exports.insert(name.clone(), EsmExport::LocalBinding(local_name.clone()));
                 }
                 EsmExport::Error => {
                     exports.insert(name.clone(), EsmExport::Error);

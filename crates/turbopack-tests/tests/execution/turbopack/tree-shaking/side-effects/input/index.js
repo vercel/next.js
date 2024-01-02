@@ -5,6 +5,8 @@ import {
   d as d1,
   e as e1,
   local as local1,
+  default as default1,
+  def as def1,
 } from "package-named";
 it("should optimize named reexports from side effect free module", () => {
   expect(a1).toBe("a");
@@ -13,6 +15,8 @@ it("should optimize named reexports from side effect free module", () => {
   expect(d1).toBe("y");
   expect(e1).toBe("x");
   expect(local1).toBe("local");
+  expect(default1).toBe("local-default");
+  expect(def1).toBe("default");
 });
 
 import { a as a2, b as b2, local as local2 } from "package-star";
@@ -48,6 +52,8 @@ it("should allow to import the whole module and pick without duplicating the mod
   expect(fullModule.b).toEqual("b");
   expect(fullModule.c).toEqual({ c: 1 });
   expect(fullModule.local).toEqual("local");
+  expect(fullModule.default).toEqual("local-default");
+  expect(fullModule.def).toEqual("default");
 
   // Check for identity
   expect(fullModule.c).toBe(c5);
