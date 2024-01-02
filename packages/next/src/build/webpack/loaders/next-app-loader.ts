@@ -30,6 +30,7 @@ import {
 } from '../../../shared/lib/segment'
 import { getFilesInDir } from '../../../lib/get-files-in-dir'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import type { PageExtensions } from '../../entries'
 
 export type AppLoaderOptions = {
   name: string
@@ -38,7 +39,7 @@ export type AppLoaderOptions = {
   appDir: string
   appPaths: readonly string[] | null
   preferredRegion: string | string[] | undefined
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   assetPrefix: string
   rootDir?: string
   tsconfigPath?: string
@@ -97,7 +98,7 @@ async function createAppRouteCode({
   page: string
   pagePath: string
   resolveAppRoute: PathResolver
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   nextConfigOutput: NextConfig['output']
 }): Promise<string> {
   // routePath is the path to the route handler file,
@@ -177,7 +178,7 @@ async function createTreeCodeFromPath(
       pathname: string
     ) => [key: string, segment: string | string[]][]
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
-    pageExtensions: string[]
+    pageExtensions: PageExtensions
     basePath: string
   }
 ): Promise<{
