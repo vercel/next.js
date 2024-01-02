@@ -557,10 +557,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (this.dev && !ctx.fetchCache) return
     // fetchCache has upper limit of 2MB per-entry currently
     if (ctx.fetchCache && JSON.stringify(data).length > 2 * 1024 * 1024) {
-      if (this.dev) {
-        throw new Error(`fetch for over 2MB of data can not be cached`)
-      }
-      return
+      throw new Error(`fetch for over 2MB of data can not be cached`)
     }
 
     pathname = this._getPathname(pathname, ctx.fetchCache)

@@ -28,6 +28,7 @@ export interface CachedFetchValue {
     body: string
     url: string
     status?: number
+    archived?: boolean
   }
   // tags are only present with file-system-cache
   // fetch cache stores tags outside of cache entry

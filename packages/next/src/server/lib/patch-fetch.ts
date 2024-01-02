@@ -12,6 +12,7 @@ import {
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
 import * as Log from '../../build/output/log'
+import type { CachedFetchValue, IncrementalCacheEntry } from '../response-cache'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -169,6 +170,17 @@ function trackFetchMetric(
     end: Date.now(),
     idx: staticGenerationStore.nextFetchId || 0,
   })
+}
+
+function restoreFromCache(resData: CachedFetchValue['data']) {
+  const response = new Response(Buffer.from(resData.body, 'base64'), {
+    headers: resData.headers,
+    status: resData.status,
+  })
+  Object.defineProperty(response, 'url', {
+    value: resData.url,
+  })
+  return response
 }
 
 interface PatchableModule {
@@ -448,6 +460,7 @@ export function patchFetch({
 
         const doOriginalFetch = async (
           isStale?: boolean,
+          lastCache?: CachedFetchValue | null,
           cacheReasonOverride?: string
         ) => {
           const requestInputFields = [
@@ -538,7 +551,30 @@ export function patchFetch({
                   }
                 )
               } catch (err) {
-                console.warn(`Failed to set fetch cache`, input, err)
+                if (lastCache) {
+                  await staticGenerationStore.incrementalCache.set(
+                    cacheKey,
+                    {
+                      ...lastCache,
+                      data: {
+                        ...lastCache.data,
+                        archived: true,
+                      },
+                    },
+                    {
+                      fetchCache: true,
+                      revalidate,
+                      fetchUrl,
+                      fetchIdx,
+                      tags,
+                    }
+                  )
+                }
+                console.warn(
+                  `Failed to save cache, mark last saved data as irrelevant...`,
+                  input,
+                  err
+                )
               }
 
               const response = new Response(bodyBuffer, {
@@ -554,22 +590,23 @@ export function patchFetch({
 
         let handleUnlock = () => Promise.resolve()
         let cacheReasonOverride
+        let entry: IncrementalCacheEntry | null = null
 
         if (cacheKey && staticGenerationStore.incrementalCache) {
           handleUnlock = await staticGenerationStore.incrementalCache.lock(
             cacheKey
           )
 
-          const entry = staticGenerationStore.isOnDemandRevalidate
-            ? null
-            : await staticGenerationStore.incrementalCache.get(cacheKey, {
-                kindHint: 'fetch',
-                revalidate,
-                fetchUrl,
-                fetchIdx,
-                tags,
-                softTags: implicitTags,
-              })
+          if (!staticGenerationStore.isOnDemandRevalidate) {
+            entry = await staticGenerationStore.incrementalCache.get(cacheKey, {
+              kindHint: 'fetch',
+              revalidate,
+              fetchUrl,
+              fetchIdx,
+              tags,
+              softTags: implicitTags,
+            })
+          }
 
           if (entry) {
             await handleUnlock()
@@ -578,7 +615,11 @@ export function patchFetch({
             cacheReasonOverride = 'cache-control: no-cache (hard refresh)'
           }
 
-          if (entry?.value && entry.value.kind === 'FETCH') {
+          if (
+            entry?.value &&
+            entry.value.kind === 'FETCH' &&
+            !entry.value.data?.archived
+          ) {
             // when stale and is revalidating we wait for fresh data
             // so the revalidated entry has the updated data
             if (!(staticGenerationStore.isRevalidate && entry.isStale)) {
@@ -586,7 +627,7 @@ export function patchFetch({
                 staticGenerationStore.pendingRevalidates ??= {}
                 if (!staticGenerationStore.pendingRevalidates[cacheKey]) {
                   staticGenerationStore.pendingRevalidates[cacheKey] =
-                    doOriginalFetch(true).catch(console.error)
+                    doOriginalFetch(true, entry.value).catch(console.error)
                 }
               }
               const resData = entry.value.data
@@ -600,16 +641,7 @@ export function patchFetch({
                 method: init?.method || 'GET',
               })
 
-              const response = new Response(
-                Buffer.from(resData.body, 'base64'),
-                {
-                  headers: resData.headers,
-                  status: resData.status,
-                }
-              )
-              Object.defineProperty(response, 'url', {
-                value: entry.value.data.url,
-              })
+              const response = restoreFromCache(resData)
               return response
             }
           }
@@ -678,7 +710,20 @@ export function patchFetch({
           if (hasNextConfig) delete init.next
         }
 
-        return doOriginalFetch(false, cacheReasonOverride).finally(handleUnlock)
+        return doOriginalFetch(
+          false,
+          entry?.value as CachedFetchValue,
+          cacheReasonOverride
+        )
+          .catch((e) => {
+            if (entry?.value?.kind === 'FETCH' && entry.value.data) {
+              console.warn("Can't load data. Reading archived data...")
+              return restoreFromCache(entry?.value.data)
+            }
+
+            throw e
+          })
+          .finally(handleUnlock)
       }
     )
   }
