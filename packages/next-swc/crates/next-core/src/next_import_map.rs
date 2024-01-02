@@ -7,7 +7,6 @@ use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileSystem, FileSystemPath},
     turbopack::{
         core::{
-            chunk::ChunkingContext,
             reference_type::{CommonJsReferenceSubType, ReferenceType},
             resolve::{
                 options::{ConditionValue, ImportMap, ImportMapping, ResolveOptions, ResolvedMap},
