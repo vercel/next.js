@@ -229,6 +229,10 @@ export function createPagesMapping({
   pagesType: 'pages' | 'root' | 'app'
   pagesDir: string | undefined
 }): MappedPages {
+  if (pagePaths.length === 0) {
+    return {}
+  }
+
   const isAppRoute = pagesType === 'app'
   const pages = pagePaths.reduce<{ [key: string]: string }>(
     (result, pagePath) => {
