@@ -90,6 +90,7 @@ body:
         - 'MDX (@next/mdx)'
         - 'Metadata (metadata, generateMetadata, next/head)'
         - 'Middleware / Edge (API routes, runtime)'
+        - 'Module resolution (CJS / ESM, module resolving)'
         - 'Operating System (Windows, MacOS, Linux)'
         - 'Package manager (npm, pnpm, Yarn)'
         - 'Routing (next/router, next/navigation, next/link)'
