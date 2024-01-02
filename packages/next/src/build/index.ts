@@ -585,7 +585,6 @@ export default async function build(
         p.includes(MIDDLEWARE_FILENAME)
       )
 
-      console.log({ rootPaths, hasInstrumentationHook })
       NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
 
       const previewProps: __ApiPreviewProps = {
