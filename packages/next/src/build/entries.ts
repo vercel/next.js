@@ -264,6 +264,9 @@ export function createPagesMapping({
   )
 
   switch (pagesType) {
+    case PAGE_TYPES.ROOT: {
+      return pages
+    }
     case PAGE_TYPES.APP: {
       const hasAppPages = Object.keys(pages).some((page) =>
         page.endsWith('/page')
@@ -276,9 +279,6 @@ export function createPagesMapping({
         }),
         ...pages,
       }
-    }
-    case PAGE_TYPES.ROOT: {
-      return pages
     }
     case PAGE_TYPES.PAGES: {
       if (isDev) {
