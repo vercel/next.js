@@ -132,6 +132,7 @@ import type { LoadableManifest } from '../../load-components'
 import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
 import { bold, green, red } from '../../../lib/picocolors'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
+import { PAGE_TYPES } from '../../../lib/page-types'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -1912,7 +1913,7 @@ async function startWatcher(opts: SetupOpts) {
           dir: dir,
           extensions: nextConfig.pageExtensions,
           keepIndex: false,
-          pagesType: 'root',
+          pagesType: PAGE_TYPES.ROOT,
         })
 
         if (isMiddlewareFile(rootFile)) {
@@ -1968,7 +1969,7 @@ async function startWatcher(opts: SetupOpts) {
           dir: isAppPath ? appDir! : pagesDir!,
           extensions: nextConfig.pageExtensions,
           keepIndex: isAppPath,
-          pagesType: isAppPath ? 'app' : 'pages',
+          pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
         })
 
         if (
