@@ -60,6 +60,7 @@ import { RouteKind } from '../server/future/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import type { PageExtensions } from './page-extensions-type'
+import type { MappedPages } from './build-context'
 
 export function sortByPageExts(pageExtensions: PageExtensions) {
   return (a: string, b: string) => {
@@ -211,6 +212,10 @@ export function getPageFilePath({
   return require.resolve(absolutePagePath)
 }
 
+/**
+ * Creates a mapping of route to page file path for a given list of page paths.
+ * For example ['/middleware.ts'] is turned into  { '/middleware': `${ROOT_DIR_ALIAS}/middleware.ts` }
+ */
 export function createPagesMapping({
   isDev,
   pageExtensions,
@@ -223,7 +228,7 @@ export function createPagesMapping({
   pagePaths: string[]
   pagesType: 'pages' | 'root' | 'app'
   pagesDir: string | undefined
-}): { [page: string]: string } {
+}): MappedPages {
   const isAppRoute = pagesType === 'app'
   const pages = pagePaths.reduce<{ [key: string]: string }>(
     (result, pagePath) => {
@@ -297,13 +302,13 @@ export interface CreateEntrypointsParams {
   config: NextConfigComplete
   envFiles: LoadedEnvFiles
   isDev?: boolean
-  pages: { [page: string]: string }
+  pages: MappedPages
   pagesDir?: string
   previewMode: __ApiPreviewProps
   rootDir: string
-  rootPaths?: Record<string, string>
+  rootPaths?: MappedPages
   appDir?: string
-  appPaths?: Record<string, string>
+  appPaths?: MappedPages
   pageExtensions: PageExtensions
   hasInstrumentationHook?: boolean
 }
@@ -317,7 +322,7 @@ export function getEdgeServerEntry(opts: {
   isDev: boolean
   isServerComponent: boolean
   page: string
-  pages: { [page: string]: string }
+  pages: MappedPages
   middleware?: Partial<MiddlewareConfig>
   pagesType: 'app' | 'pages' | 'root'
   appDirLoader?: string
@@ -546,7 +551,7 @@ export async function createEntrypoints(
 
   const getEntryHandler =
     (
-      mappings: Record<string, string>,
+      mappings: MappedPages,
       pagesType: 'app' | 'pages' | 'root'
     ): ((page: string) => void) =>
     async (page) => {
