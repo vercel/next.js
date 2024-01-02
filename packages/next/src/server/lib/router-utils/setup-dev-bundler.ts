@@ -89,7 +89,6 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
-import { NextBuildContext } from '../../../build/build-context'
 
 import {
   isMiddlewareFile,
@@ -1180,14 +1179,12 @@ async function startWatcher(opts: SetupOpts) {
             await loadMiddlewareManifest('instrumentation', 'instrumentation')
             await writeManifests()
 
-            NextBuildContext.hasInstrumentationHook = true
             serverFields.actualInstrumentationHookFile = '/instrumentation'
             await propagateServerField(
               'actualInstrumentationHookFile',
               serverFields.actualInstrumentationHookFile
             )
           } else {
-            NextBuildContext.hasInstrumentationHook = false
             serverFields.actualInstrumentationHookFile = undefined
             await propagateServerField(
               'actualInstrumentationHookFile',
@@ -1948,7 +1945,6 @@ async function startWatcher(opts: SetupOpts) {
           isInstrumentationHookFile(rootFile) &&
           nextConfig.experimental.instrumentationHook
         ) {
-          NextBuildContext.hasInstrumentationHook = true
           serverFields.actualInstrumentationHookFile = rootFile
           await propagateServerField(
             'actualInstrumentationHookFile',
