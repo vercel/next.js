@@ -200,8 +200,10 @@ Support for `preferredRegion`, and regions supported, is dependent on your deplo
 
 ### `maxDuration`
 
-Based on your deployment platform, you may be able to use a higher default execution time for your function.
-This setting allows you to opt into a higher execution time within your plans limit.
+By default, Next.js does not limit the execution of server-side logic (rendering a page or handling an API).
+Deployment platforms can use `maxDuration` from the Next.js build output to add specific execution limits.
+For example, on [Vercel](https://vercel.com/docs/functions/serverless-functions/runtimes#max-duration).
+
 **Note**: This settings requires Next.js `13.4.10` or higher.
 
 ```tsx filename="layout.tsx | page.tsx | route.ts" switcher
@@ -211,10 +213,6 @@ export const maxDuration = 5
 ```js filename="layout.js | page.js | route.js" switcher
 export const maxDuration = 5
 ```
-
-> **Good to know**:
->
-> - If a `maxDuration` is not specified, the default value is dependent on your deployment platform and plan.
 
 ### `generateStaticParams`
 
