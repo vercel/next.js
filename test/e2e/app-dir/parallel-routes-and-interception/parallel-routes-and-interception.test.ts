@@ -187,7 +187,7 @@ createNextDescribe(
         expect(pageText).toContain('parallel/(new)/@baz/nested/page')
       })
 
-      it('should throw an error when a route groups causes a conflict with a parallel segment', async () => {
+      it('should gracefully handle when two page segments match the `children` parallel slot', async () => {
         await next.stop()
         await next.patchFile(
           'app/parallel/nested-2/page.js',
@@ -198,22 +198,21 @@ createNextDescribe(
             `
         )
 
-        if (isNextDev) {
-          await next.start()
+        await next.start()
 
-          const html = await next.render('/parallel/nested-2')
+        const html = await next.render('/parallel/nested-2')
 
-          expect(html).toContain(
-            'You cannot have two parallel pages that resolve to the same path.'
-          )
+        // before adding this file, the page would have matched `/app/parallel/(new)/@baz/nested-2/page`
+        // but we've added a more specific page, so it should match that instead
+        if (process.env.TURBOPACK) {
+          // TODO: this matches differently in Turbopack because the Webpack loader does some sorting on the paths
+          // Investigate the discrepancy in a follow-up. For now, since no errors are being thrown (and since this test was previously ignored in Turbopack),
+          // we'll just verify that the page is rendered and some content was matched.
+          expect(html).toContain('parallel/(new)/@baz/nested/page')
         } else {
-          await expect(next.start()).rejects.toThrow('next build failed')
-
-          await check(
-            () => next.cliOutput,
-            /You cannot have two parallel pages that resolve to the same path\. Please check \/parallel\/\(new\)\/@baz\/nested-2\/page and \/parallel\/nested-2\/page\./i
-          )
+          expect(html).toContain('hello world')
         }
+
         await next.stop()
         await next.deleteFile('app/parallel/nested-2/page.js')
         await next.start()
@@ -336,6 +335,37 @@ createNextDescribe(
         await check(
           () => browser.waitForElementByCss('#slot-content').text(),
           'baz slot'
+        )
+      })
+
+      it('should match the catch-all routes of the more specific path, if there is more than one catch-all route', async () => {
+        const browser = await next.browser('/parallel-nested-catchall')
+
+        await browser
+          .elementByCss('[href="/parallel-nested-catchall/foo"]')
+          .click()
+        await check(() => browser.waitForElementByCss('#main').text(), 'foo')
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'foo slot'
+        )
+
+        await browser
+          .elementByCss('[href="/parallel-nested-catchall/bar"]')
+          .click()
+        await check(() => browser.waitForElementByCss('#main').text(), 'bar')
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'slot catchall'
+        )
+
+        await browser
+          .elementByCss('[href="/parallel-nested-catchall/foo/123"]')
+          .click()
+        await check(() => browser.waitForElementByCss('#main').text(), 'foo id')
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'foo id catchAll'
         )
       })
 

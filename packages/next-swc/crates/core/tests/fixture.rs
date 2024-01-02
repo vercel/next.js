@@ -65,6 +65,7 @@ fn next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 false,
+                false,
                 NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
@@ -78,6 +79,7 @@ fn next_dynamic_fixture(input: PathBuf) {
         syntax(),
         &|_tr| {
             next_dynamic(
+                false,
                 false,
                 false,
                 false,
@@ -96,6 +98,7 @@ fn next_dynamic_fixture(input: PathBuf) {
             next_dynamic(
                 false,
                 true,
+                false,
                 false,
                 NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
@@ -112,7 +115,11 @@ fn next_dynamic_fixture(input: PathBuf) {
 fn app_dir_next_dynamic_fixture(input: PathBuf) {
     let output_dev = input.parent().unwrap().join("output-dev.js");
     let output_prod = input.parent().unwrap().join("output-prod.js");
-    let output_server = input.parent().unwrap().join("output-server.js");
+    let output_server: PathBuf = input.parent().unwrap().join("output-server.js");
+    let output_server_client_layer = input
+        .parent()
+        .unwrap()
+        .join("output-server-client-layer.js");
     test_fixture(
         syntax(),
         &|_tr| {
@@ -120,6 +127,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 true,
+                false,
                 NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
@@ -136,6 +144,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 true,
+                false,
                 NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
@@ -152,6 +161,7 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 true,
                 true,
+                false,
                 NextDynamicMode::Webpack,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
@@ -159,6 +169,23 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
         },
         &input,
         &output_server,
+        Default::default(),
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                false,
+                true,
+                false,
+                false,
+                NextDynamicMode::Webpack,
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_server_client_layer,
         Default::default(),
     );
 }

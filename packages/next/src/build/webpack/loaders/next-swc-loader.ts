@@ -27,6 +27,7 @@ DEALINGS IN THE SOFTWARE.
 */
 
 import type { NextConfig } from '../../../../types'
+import type { WebpackLayerName } from '../../../lib/constants'
 import { isWasm, transform } from '../../swc'
 import { getLoaderSWCOptions } from '../../swc/options'
 import path, { isAbsolute } from 'path'
@@ -43,7 +44,8 @@ export interface SWCLoaderOptions {
   supportedBrowsers: string[] | undefined
   swcCacheDir: string
   serverComponents?: boolean
-  isReactServerLayer?: boolean
+  bundleLayer?: WebpackLayerName
+  esm?: boolean
 }
 
 async function loaderTransform(
@@ -68,7 +70,8 @@ async function loaderTransform(
     supportedBrowsers,
     swcCacheDir,
     serverComponents,
-    isReactServerLayer,
+    bundleLayer,
+    esm,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
@@ -91,7 +94,8 @@ async function loaderTransform(
     swcCacheDir,
     relativeFilePathFromRoot,
     serverComponents,
-    isReactServerLayer,
+    bundleLayer,
+    esm,
   })
 
   const programmaticOptions = {

@@ -12,7 +12,6 @@ import type {
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import { cyan } from '../lib/picocolors'
 import { posix, join, dirname, extname } from 'path'
 import { stringify } from 'querystring'
 import fs from 'fs'
@@ -37,7 +36,6 @@ import {
 } from '../shared/lib/constants'
 import type { CompilerNameValues } from '../shared/lib/constants'
 import type { __ApiPreviewProps } from '../server/api-utils'
-import { warn } from './output/log'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
@@ -61,8 +59,10 @@ import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/future/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
+import type { PageExtensions } from './page-extensions-type'
+import type { MappedPages } from './build-context'
 
-export function sortByPageExts(pageExtensions: string[]) {
+export function sortByPageExts(pageExtensions: PageExtensions) {
   return (a: string, b: string) => {
     // prioritize entries according to pageExtensions order
     // for consistency as fs order can differ across systems
@@ -94,7 +94,7 @@ export async function getStaticInfoIncludingLayouts({
   page,
 }: {
   isInsideAppDir: boolean
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   pageFilePath: string
   appDir: string | undefined
   config: NextConfigComplete
@@ -173,7 +173,10 @@ type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 /**
  * For a given page path removes the provided extensions.
  */
-export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
+export function getPageFromPath(
+  pagePath: string,
+  pageExtensions: PageExtensions
+) {
   let page = normalizePathSep(
     pagePath.replace(new RegExp(`\\.+(${pageExtensions.join('|')})$`), '')
   )
@@ -209,6 +212,10 @@ export function getPageFilePath({
   return require.resolve(absolutePagePath)
 }
 
+/**
+ * Creates a mapping of route to page file path for a given list of page paths.
+ * For example ['/middleware.ts'] is turned into  { '/middleware': `${ROOT_DIR_ALIAS}/middleware.ts` }
+ */
 export function createPagesMapping({
   isDev,
   pageExtensions,
@@ -217,13 +224,12 @@ export function createPagesMapping({
   pagesDir,
 }: {
   isDev: boolean
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   pagePaths: string[]
   pagesType: 'pages' | 'root' | 'app'
   pagesDir: string | undefined
-}): { [page: string]: string } {
+}): MappedPages {
   const isAppRoute = pagesType === 'app'
-  const previousPages: { [key: string]: string } = {}
   const pages = pagePaths.reduce<{ [key: string]: string }>(
     (result, pagePath) => {
       // Do not process .d.ts files inside the `pages` folder
@@ -235,18 +241,6 @@ export function createPagesMapping({
       if (isAppRoute) {
         pageKey = pageKey.replace(/%5F/g, '_')
         pageKey = pageKey.replace(/^\/not-found$/g, '/_not-found')
-      }
-
-      if (pageKey in result) {
-        warn(
-          `Duplicate page detected. ${cyan(
-            join('pages', previousPages[pageKey])
-          )} and ${cyan(join('pages', pagePath))} both resolve to ${cyan(
-            pageKey
-          )}.`
-        )
-      } else {
-        previousPages[pageKey] = pagePath
       }
 
       const normalizedPath = normalizePathSep(
@@ -308,14 +302,14 @@ export interface CreateEntrypointsParams {
   config: NextConfigComplete
   envFiles: LoadedEnvFiles
   isDev?: boolean
-  pages: { [page: string]: string }
+  pages: MappedPages
   pagesDir?: string
   previewMode: __ApiPreviewProps
   rootDir: string
-  rootPaths?: Record<string, string>
+  rootPaths?: MappedPages
   appDir?: string
-  appPaths?: Record<string, string>
-  pageExtensions: string[]
+  appPaths?: MappedPages
+  pageExtensions: PageExtensions
   hasInstrumentationHook?: boolean
 }
 
@@ -328,7 +322,7 @@ export function getEdgeServerEntry(opts: {
   isDev: boolean
   isServerComponent: boolean
   page: string
-  pages: { [page: string]: string }
+  pages: MappedPages
   middleware?: Partial<MiddlewareConfig>
   pagesType: 'app' | 'pages' | 'root'
   appDirLoader?: string
@@ -557,7 +551,7 @@ export async function createEntrypoints(
 
   const getEntryHandler =
     (
-      mappings: Record<string, string>,
+      mappings: MappedPages,
       pagesType: 'app' | 'pages' | 'root'
     ): ((page: string) => void) =>
     async (page) => {

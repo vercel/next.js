@@ -24,7 +24,7 @@ You can view your images created with `docker images`.
 
 ### In existing projects
 
-To add support for Docker to an existing project, just copy the `Dockerfile` into the root of the project and add the following to the `next.config.js` file:
+To add support for Docker to an existing project, just copy the [`Dockerfile`](https://github.com/vercel/next.js/blob/canary/examples/with-docker/Dockerfile) into the root of the project and add the following to the `next.config.js` file:
 
 ```js
 // next.config.js
@@ -47,10 +47,6 @@ This will build the project as a standalone app inside the Docker image.
    - You will be prompted for the service name: press Enter to accept the default name, `helloworld`.
    - You will be prompted for [region](https://cloud.google.com/run/docs/quickstarts/build-and-deploy#follow-cloud-run): select the region of your choice, for example `us-central1`.
    - You will be prompted to **allow unauthenticated invocations**: respond `y`.
-
-Or click the button below, authorize the script, and select the project and region when prompted:
-
-[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run/?git_repo=https://github.com/vercel/next.js.git&dir=examples/with-docker)
 
 ## Running Locally
 

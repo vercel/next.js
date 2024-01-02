@@ -3,6 +3,7 @@ import * as Log from '../build/output/log'
 import { promises as fs } from 'fs'
 import { bold } from './picocolors'
 import { APP_DIR_ALIAS } from './constants'
+import type { PageExtensions } from '../build/page-extensions-type'
 
 const globOrig =
   require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
@@ -64,7 +65,7 @@ export async function verifyRootLayout({
   appDir: string
   tsconfigPath: string
   pagePath: string
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
 }): Promise<[boolean, string | undefined]> {
   let rootLayoutPath: string | undefined
   try {
