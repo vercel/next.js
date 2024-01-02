@@ -233,7 +233,7 @@ export function createPagesMapping({
   const isAppRoute = pagesType === 'app'
   const pages = pagePaths.reduce<{ [key: string]: string }>(
     (result, pagePath) => {
-      // Do not process .d.ts files inside the `pages` folder
+      // Do not process .d.ts files as routes
       if (pagePath.endsWith('.d.ts') && pageExtensions.includes('ts')) {
         return result
       }
@@ -263,38 +263,45 @@ export function createPagesMapping({
     {}
   )
 
-  if (pagesType === PAGE_TYPES.APP) {
-    const hasAppPages = Object.keys(pages).some((page) =>
-      page.endsWith('/page')
-    )
-    return {
-      // If there's any app pages existed, add a default not-found page.
-      // If there's any custom not-found page existed, it will override the default one.
-      ...(hasAppPages && {
-        '/_not-found': 'next/dist/client/components/not-found-error',
-      }),
-      ...pages,
+  switch (pagesType) {
+    case PAGE_TYPES.APP: {
+      const hasAppPages = Object.keys(pages).some((page) =>
+        page.endsWith('/page')
+      )
+      return {
+        // If there's any app pages existed, add a default not-found page.
+        // If there's any custom not-found page existed, it will override the default one.
+        ...(hasAppPages && {
+          '/_not-found': 'next/dist/client/components/not-found-error',
+        }),
+        ...pages,
+      }
     }
-  } else if (pagesType === PAGE_TYPES.ROOT) {
-    return pages
-  }
+    case PAGE_TYPES.ROOT: {
+      return pages
+    }
+    case PAGE_TYPES.PAGES: {
+      if (isDev) {
+        delete pages['/_app']
+        delete pages['/_error']
+        delete pages['/_document']
+      }
 
-  if (isDev) {
-    delete pages['/_app']
-    delete pages['/_error']
-    delete pages['/_document']
-  }
+      // In development we always alias these to allow Webpack to fallback to
+      // the correct source file so that HMR can work properly when a file is
+      // added or removed.
+      const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
 
-  // In development we always alias these to allow Webpack to fallback to
-  // the correct source file so that HMR can work properly when a file is
-  // added or removed.
-  const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
-
-  return {
-    '/_app': `${root}/_app`,
-    '/_error': `${root}/_error`,
-    '/_document': `${root}/_document`,
-    ...pages,
+      return {
+        '/_app': `${root}/_app`,
+        '/_error': `${root}/_error`,
+        '/_document': `${root}/_document`,
+        ...pages,
+      }
+    }
+    default: {
+      return {}
+    }
   }
 }
 
