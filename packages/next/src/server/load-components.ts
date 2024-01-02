@@ -86,11 +86,11 @@ async function loadClientReferenceManifest(
   manifestPath: string,
   entryName: string
 ): Promise<ClientReferenceManifest | undefined> {
-  process.env.NEXT_MINIMAL
-    ? // @ts-ignore
-      __non_webpack_require__(manifestPath)
-    : require(manifestPath)
   try {
+    process.env.NEXT_MINIMAL
+      ? // @ts-ignore
+        __non_webpack_require__(manifestPath)
+      : require(manifestPath)
     return (globalThis as any).__RSC_MANIFEST[
       entryName
     ] as ClientReferenceManifest

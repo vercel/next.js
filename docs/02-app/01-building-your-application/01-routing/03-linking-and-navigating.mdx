@@ -161,9 +161,7 @@ router.push('/dashboard', { scroll: false })
 
 ## `useRouter()` Hook
 
-The `useRouter` hook allows you to programmatically change routes.
-
-This hook can only be used inside Client Components and is imported from `next/navigation`.
+The `useRouter` hook allows you to programmatically change routes from Client Components. For Server Components, you would [`redirect()`](/docs/app/api-reference/functions/redirect) instead.
 
 ```jsx filename="app/page.js"
 'use client'
@@ -243,7 +241,7 @@ Without partial rendering, each navigation would cause the full page to re-rende
 
 ### 5. Soft Navigation
 
-By default, the browser performs a hard navigation between pages. This means the browser reloads the page and resets React state such as `useState` hooks in your app and browser state such as the user's scroll position or focused element. However, in Next.js, the App Router uses soft navigation. This means React only renders the segments that have changed while preserving React and browser state, and there is no full page reload.
+Browsers perform a "hard navigation" when navigating between pages. The Next.js App Router enables "soft navigation" between pages, ensuring only the route segments that have changed are re-rendered (partial rendering). This enables client React state to be preserved during navigation.
 
 ### 6. Back and Forward Navigation
 

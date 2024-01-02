@@ -18,7 +18,7 @@ export const myQueryFunction = query({
   },
 
   // Function implementation.
-  hander: async (ctx, args) => {
+  handler: async (ctx, args) => {
     // Read the database as many times as you need here.
     // See https://docs.convex.dev/database/reading-data.
     const documents = await ctx.db.query('tablename').collect()
@@ -57,7 +57,7 @@ export const myMutationFunction = mutation({
   },
 
   // Function implementation.
-  hander: async (ctx, args) => {
+  handler: async (ctx, args) => {
     // Insert or modify documents in the database here.
     // Mutations can also read from the database like queries.
     // See https://docs.convex.dev/database/writing-data.
