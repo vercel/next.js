@@ -7,6 +7,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
+
 'use strict';
 
 var React = require("next/dist/compiled/react-experimental");
@@ -954,7 +955,7 @@ function findAllInRenderedFiberTreeInternal(fiber, test) {
   const ret = [];
 
   while (true) {
-    if (node.tag === HostComponent || node.tag === HostText || node.tag === ClassComponent || node.tag === FunctionComponent || (node.tag === HostHoistable ) || (node.tag === HostSingleton )) {
+    if (node.tag === HostComponent || node.tag === HostText || node.tag === ClassComponent || node.tag === FunctionComponent || (node.tag === HostHoistable ) || node.tag === HostSingleton) {
       const publicInst = node.stateNode;
 
       if (test(publicInst)) {
@@ -1298,7 +1299,7 @@ function getParent(inst) {
     // events to their parent. We could also go through parentNode on the
     // host node but that wouldn't work for React Native and doesn't let us
     // do the portal feature.
-  } while (inst && inst.tag !== HostComponent && (inst.tag !== HostSingleton));
+  } while (inst && inst.tag !== HostComponent && inst.tag !== HostSingleton);
 
   if (inst) {
     return inst;

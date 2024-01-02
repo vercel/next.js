@@ -1,3 +1,4 @@
+import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
 import { AppPathnameNormalizer } from '../server/future/normalizers/built/app/app-pathname-normalizer'
 
 /**
@@ -12,21 +13,34 @@ export function normalizeCatchAllRoutes(
   normalizer = new AppPathnameNormalizer()
 ) {
   const catchAllRoutes = [
-    ...new Set(Object.values(appPaths).flat().filter(isCatchAllRoute)),
+    ...new Set(
+      Object.values(appPaths)
+        .flat()
+        .filter(isCatchAllRoute)
+        // Sorting is important because we want to match the most specific path.
+        .sort((a, b) => b.split('/').length - a.split('/').length)
+    ),
   ]
 
-  for (const appPath of Object.keys(appPaths)) {
+  // interception routes should only be matched by a single entrypoint
+  // we don't want to push a catch-all route to an interception route
+  // because it would mean the interception would be handled by the wrong page component
+  const filteredAppPaths = Object.keys(appPaths).filter(
+    (route) => !isInterceptionRouteAppPath(route)
+  )
+
+  for (const appPath of filteredAppPaths) {
     for (const catchAllRoute of catchAllRoutes) {
       const normalizedCatchAllRoute = normalizer.normalize(catchAllRoute)
       const normalizedCatchAllRouteBasePath = normalizedCatchAllRoute.slice(
         0,
-        normalizedCatchAllRoute.indexOf('[')
+        normalizedCatchAllRoute.search(catchAllRouteRegex)
       )
 
       if (
-        // first check if the appPath could match the catch-all
+        // check if the appPath could match the catch-all
         appPath.startsWith(normalizedCatchAllRouteBasePath) &&
-        // then check if there's not already a slot value that could match the catch-all
+        // check if there's not already a slot value that could match the catch-all
         !appPaths[appPath].some((path) => hasMatchedSlots(path, catchAllRoute))
       ) {
         appPaths[appPath].push(catchAllRoute)
@@ -47,6 +61,8 @@ function hasMatchedSlots(path1: string, path2: string): boolean {
 
   return true
 }
+
+const catchAllRouteRegex = /\[?\[\.\.\./
 
 function isCatchAllRoute(pathname: string): boolean {
   return pathname.includes('[...') || pathname.includes('[[...')

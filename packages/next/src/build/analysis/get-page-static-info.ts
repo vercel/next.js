@@ -18,6 +18,7 @@ import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
+import { PAGE_TYPES } from '../../lib/page-types'
 
 // TODO: migrate preferredRegion here
 // Don't forget to update the next-types-plugin file as well
@@ -478,13 +479,13 @@ export async function getPageStaticInfo(params: {
   nextConfig: Partial<NextConfig>
   isDev?: boolean
   page?: string
-  pageType: 'pages' | 'app' | 'root'
+  pageType: PAGE_TYPES
 }): Promise<PageStaticInfo> {
   const { isDev, pageFilePath, nextConfig, page, pageType } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
+    /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
       fileContent
     )
   ) {
@@ -514,7 +515,7 @@ export async function getPageStaticInfo(params: {
 
     const extraConfig: Record<string, any> = {}
 
-    if (extraProperties && pageType === 'app') {
+    if (extraProperties && pageType === PAGE_TYPES.APP) {
       for (const prop of extraProperties) {
         if (!AUTHORIZED_EXTRA_ROUTER_PROPS.includes(prop)) continue
         try {
@@ -525,14 +526,14 @@ export async function getPageStaticInfo(params: {
           }
         }
       }
-    } else if (pageType === 'pages') {
+    } else if (pageType === PAGE_TYPES.PAGES) {
       for (const key in config) {
         if (!AUTHORIZED_EXTRA_ROUTER_PROPS.includes(key)) continue
         extraConfig[key] = config[key]
       }
     }
 
-    if (pageType === 'app') {
+    if (pageType === PAGE_TYPES.APP) {
       if (config) {
         let message = `Page config in ${pageFilePath} is deprecated. Replace \`export const config=…\` with the following:`
 
@@ -565,7 +566,7 @@ export async function getPageStaticInfo(params: {
     // and deprecate the old way. To prevent breaking changes for `pages`, we use the exported config
     // as the fallback value.
     let resolvedRuntime
-    if (pageType === 'app') {
+    if (pageType === PAGE_TYPES.APP) {
       resolvedRuntime = runtime
     } else {
       resolvedRuntime = runtime || config.runtime
@@ -588,7 +589,7 @@ export async function getPageStaticInfo(params: {
       }
     }
 
-    const requiresServerRuntime = ssr || ssg || pageType === 'app'
+    const requiresServerRuntime = ssr || ssg || pageType === PAGE_TYPES.APP
 
     const isAnAPIRoute = isAPIRoute(page?.replace(/^(?:\/src)?\/pages\//, '/'))
 
@@ -603,7 +604,7 @@ export async function getPageStaticInfo(params: {
 
     if (
       resolvedRuntime === SERVER_RUNTIME.edge &&
-      pageType === 'pages' &&
+      pageType === PAGE_TYPES.PAGES &&
       page &&
       !isAnAPIRoute
     ) {
@@ -622,7 +623,7 @@ export async function getPageStaticInfo(params: {
     )
 
     if (
-      pageType === 'app' &&
+      pageType === PAGE_TYPES.APP &&
       directives?.has('client') &&
       generateStaticParams
     ) {

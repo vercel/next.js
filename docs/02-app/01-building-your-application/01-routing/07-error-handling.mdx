@@ -159,7 +159,7 @@ The nested component hierarchy has implications for the behavior of `error.js` f
 
 `error.js` boundaries do **not** catch errors thrown in `layout.js` or `template.js` components of the **same segment**. This [intentional hierarchy](#nested-routes) keeps important UI that is shared between sibling routes (such as navigation) visible and functional when an error occurs.
 
-To handle errors within a specific layout or template, place an `error.js` file in the layouts parent segment.
+To handle errors within a specific layout or template, place an `error.js` file in the layout's parent segment.
 
 To handle errors within the root layout or template, use a variation of `error.js` called `global-error.js`.
 

@@ -8,6 +8,7 @@ import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import { RouteKind } from '../../../../server/future/route-kind'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 import { loadEntrypoint } from '../../../load-entrypoint'
+import type { PAGE_TYPES } from '../../../../lib/page-types'
 
 export type EdgeSSRLoaderQuery = {
   absolute500Path: string
@@ -21,7 +22,7 @@ export type EdgeSSRLoaderQuery = {
   page: string
   stringifiedConfig: string
   appDirLoader?: string
-  pagesType: 'app' | 'pages' | 'root'
+  pagesType: PAGE_TYPES
   sriEnabled: boolean
   incrementalCacheHandlerPath?: string
   preferredRegion: string | string[] | undefined

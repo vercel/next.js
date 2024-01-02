@@ -10,6 +10,7 @@ use turbopack_binding::{
         diagnostics::DiagnosticExt,
         file_source::FileSource,
         issue::{unsupported_module::UnsupportedModuleIssue, IssueExt},
+        reference_type::ReferenceType,
         resolve::{
             parse::Request,
             pattern::Pattern,
@@ -67,6 +68,7 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
         &self,
         _fs_path: Vc<FileSystemPath>,
         file_path: Vc<FileSystemPath>,
+        _reference_type: Value<ReferenceType>,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         if let Request::Module {
@@ -131,6 +133,7 @@ impl ResolvePlugin for NextExternalResolvePlugin {
         &self,
         fs_path: Vc<FileSystemPath>,
         _context: Vc<FileSystemPath>,
+        _reference_type: Value<ReferenceType>,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let raw_fs_path = &*fs_path.await?;
@@ -179,6 +182,7 @@ impl ResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
         &self,
         fs_path: Vc<FileSystemPath>,
         _context: Vc<FileSystemPath>,
+        _reference_type: Value<ReferenceType>,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let stem = fs_path.file_stem().await?;
@@ -240,6 +244,7 @@ impl ResolvePlugin for ModuleFeatureReportResolvePlugin {
         &self,
         _fs_path: Vc<FileSystemPath>,
         _context: Vc<FileSystemPath>,
+        _reference_type: Value<ReferenceType>,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         if let Request::Module {
@@ -294,6 +299,7 @@ impl ResolvePlugin for NextSharedRuntimeResolvePlugin {
         &self,
         fs_path: Vc<FileSystemPath>,
         _context: Vc<FileSystemPath>,
+        _reference_type: Value<ReferenceType>,
         _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let raw_fs_path = &*fs_path.await?;
