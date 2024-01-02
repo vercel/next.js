@@ -209,7 +209,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>{children}</body>
-      <GoogleAnalytics gaId="GA-XYZ" />
+      <GoogleAnalytics gaId="G-XYZ" />
     </html>
   )
 }
@@ -222,7 +222,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>{children}</body>
-      <GoogleAnalytics gaId="GA-XYZ" />
+      <GoogleAnalytics gaId="G-XYZ" />
     </html>
   )
 }
@@ -242,7 +242,7 @@ export default function MyApp({ Component, pageProps }) {
   return (
     <>
       <Component {...pageProps} />
-      <GoogleAnalytics gaId="GA-XYZ" />
+      <GoogleAnalytics gaId="G-XYZ" />
     </>
   )
 }
@@ -258,7 +258,7 @@ To load Google Analytics for a single route, include the component in your page 
 import { GoogleAnalytics } from '@next/third-parties/google'
 
 export default function Page() {
-  return <GoogleAnalytics gaId="GA-XYZ" />
+  return <GoogleAnalytics gaId="G-XYZ" />
 }
 ```
 
@@ -270,7 +270,7 @@ export default function Page() {
 import { GoogleAnalytics } from '@next/third-parties/google'
 
 export default function Page() {
-  return <GoogleAnalytics gaId="GA-XYZ" />
+  return <GoogleAnalytics gaId="G-XYZ" />
 }
 ```
 
