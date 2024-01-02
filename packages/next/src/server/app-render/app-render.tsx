@@ -15,6 +15,7 @@ import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../future/route-modules/app-page/module'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { Revalidate } from '../lib/revalidate'
 
 import React from 'react'
 
@@ -22,7 +23,11 @@ import {
   createServerComponentRenderer,
   type ServerComponentRendererOptions,
 } from './create-server-components-renderer'
-import RenderResult, { type RenderResultMetadata } from '../render-result'
+import RenderResult, {
+  type AppPageRenderResultMetadata,
+  type RenderResultOptions,
+  type RenderResultResponse,
+} from '../render-result'
 import {
   renderToInitialFizzStream,
   continueFizzStream,
@@ -61,7 +66,7 @@ import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-r
 import { validateURL } from './validate-url'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { isBailoutCSRError } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn, error } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
@@ -106,7 +111,7 @@ export type AppRenderContext = AppRenderBaseContext & {
   appUsingSizeAdjustment: boolean
   providedFlightRouterState?: FlightRouterState
   requestId: string
-  defaultRevalidate: StaticGenerationStore['revalidate']
+  defaultRevalidate: Revalidate
   pagePath: string
   clientReferenceManifest: ClientReferenceManifest
   assetPrefix: string
@@ -303,6 +308,34 @@ async function generateFlight(
   return new FlightRenderResult(flightReadableStream)
 }
 
+/**
+ * Creates a resolver that eagerly generates a flight payload that is then
+ * resolved when the resolver is called.
+ */
+function createFlightDataResolver(ctx: AppRenderContext) {
+  // Generate the flight data and as soon as it can, convert it into a string.
+  const promise = generateFlight(ctx)
+    .then(async (result) => ({
+      flightData: await result.toUnchunkedString(true),
+    }))
+    // Otherwise if it errored, return the error.
+    .catch((err) => ({ err }))
+
+  return async () => {
+    // Resolve the promise to get the flight data or error.
+    const result = await promise
+
+    // If the flight data failed to render due to an error, re-throw the error
+    // here.
+    if ('err' in result) {
+      throw result.err
+    }
+
+    // Otherwise, return the flight data.
+    return result.flightData
+  }
+}
+
 type ServerComponentsRendererOptions = {
   ctx: AppRenderContext
   preinitScripts: () => void
@@ -430,7 +463,7 @@ async function renderToHTMLOrFlightImpl(
     globalThis.__next_chunk_load__ = ComponentMod.__next_app__.loadChunk
   }
 
-  const extraRenderResultMeta: RenderResultMetadata = {}
+  const metadata: AppPageRenderResultMetadata = {}
 
   const appUsingSizeAdjustment = !!nextFontManifest?.appUsingSizeAdjust
 
@@ -469,7 +502,7 @@ async function renderToHTMLOrFlightImpl(
   const allCapturedErrors: Error[] = []
   const isNextExport = !!renderOpts.nextExport
   const { staticGenerationStore, requestStore } = baseCtx
-  const isStaticGeneration = staticGenerationStore.isStaticGeneration
+  const { isStaticGeneration } = staticGenerationStore
   // when static generation fails during PPR, we log the errors separately. We intentionally
   // silence the error logger in this case to avoid double logging.
   const silenceStaticGenerationErrors =
@@ -537,7 +570,7 @@ async function renderToHTMLOrFlightImpl(
   const { urlPathname } = staticGenerationStore
 
   staticGenerationStore.fetchMetrics = []
-  extraRenderResultMeta.fetchMetrics = staticGenerationStore.fetchMetrics
+  metadata.fetchMetrics = staticGenerationStore.fetchMetrics
 
   // don't modify original query object
   query = { ...query }
@@ -615,14 +648,19 @@ async function renderToHTMLOrFlightImpl(
 
   const hasPostponed = typeof renderOpts.postponed === 'string'
 
-  let stringifiedFlightPayloadPromise = isStaticGeneration
-    ? generateFlight(ctx)
-        .then((renderResult) => renderResult.toUnchunkedString(true))
-        .catch(() => null)
-    : Promise.resolve(null)
+  // Create the resolver that can get the flight payload when it's ready or
+  // throw the error if it occurred. If we are not generating static HTML, we
+  // don't need to generate the flight payload because it's a dynamic request
+  // which means we're either getting the flight payload only or just the
+  // regular HTML.
+  const flightDataResolver = isStaticGeneration
+    ? createFlightDataResolver(ctx)
+    : null
 
   // Get the nonce from the incoming request if it has one.
-  const csp = req.headers['content-security-policy']
+  const csp =
+    req.headers['content-security-policy'] ||
+    req.headers['content-security-policy-report-only']
   let nonce: string | undefined
   if (csp && typeof csp === 'string') {
     nonce = getScriptNonceFromHeader(csp)
@@ -754,8 +792,8 @@ async function renderToHTMLOrFlightImpl(
             // result.
             if (isStaticGeneration) {
               headers.forEach((value, key) => {
-                extraRenderResultMeta.headers ??= {}
-                extraRenderResultMeta.headers[key] = value
+                metadata.headers ??= {}
+                metadata.headers[key] = value
               })
 
               // Resolve the promise to continue the stream.
@@ -779,7 +817,7 @@ async function renderToHTMLOrFlightImpl(
         // If the stream was postponed, we need to add the result to the
         // metadata so that it can be resumed later.
         if (postponed) {
-          extraRenderResultMeta.postponed = JSON.stringify(postponed)
+          metadata.postponed = JSON.stringify(postponed)
 
           // We don't need to "continue" this stream now as it's continued when
           // we resume the stream.
@@ -789,8 +827,7 @@ async function renderToHTMLOrFlightImpl(
         const options: ContinueStreamOptions = {
           inlinedDataStream:
             serverComponentsRenderOpts.inlinedDataTransformStream.readable,
-          generateStaticHTML:
-            staticGenerationStore.isStaticGeneration || generateStaticHTML,
+          isStaticGeneration: isStaticGeneration || generateStaticHTML,
           getServerInsertedHTML: () => getServerInsertedHTML(allCapturedErrors),
           serverInsertedHTMLToHead: !renderOpts.postponed,
           // If this render generated a postponed state or this is a resume
@@ -826,7 +863,8 @@ async function renderToHTMLOrFlightImpl(
           throw err
         }
 
-        if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
+        const isBailoutCSR = isBailoutCSRError(err)
+        if (isBailoutCSR) {
           warn(
             `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
             pagePath
@@ -857,7 +895,7 @@ async function renderToHTMLOrFlightImpl(
         }
 
         const is404 = res.statusCode === 404
-        if (!is404 && !hasRedirectError) {
+        if (!is404 && !hasRedirectError && !isBailoutCSR) {
           res.statusCode = 500
         }
 
@@ -926,7 +964,7 @@ async function renderToHTMLOrFlightImpl(
             // so we create a not found page with AppRouter
             const initialSeedData: CacheNodeSeedData = [
               initialTree[0],
-              null,
+              {},
               <html id="__next_error__">
                 <head></head>
                 <body></body>
@@ -968,7 +1006,7 @@ async function renderToHTMLOrFlightImpl(
             inlinedDataStream:
               serverErrorComponentsRenderOpts.inlinedDataTransformStream
                 .readable,
-            generateStaticHTML: staticGenerationStore.isStaticGeneration,
+            isStaticGeneration,
             getServerInsertedHTML: () => getServerInsertedHTML([]),
             serverInsertedHTMLToHead: true,
             validateRootLayout,
@@ -1012,11 +1050,11 @@ async function renderToHTMLOrFlightImpl(
           tree: notFoundLoaderTree,
           formState,
         }),
-        { ...extraRenderResultMeta }
+        { metadata }
       )
     } else if (actionRequestResult.type === 'done') {
       if (actionRequestResult.result) {
-        actionRequestResult.result.extendMetadata(extraRenderResultMeta)
+        actionRequestResult.result.assignMetadata(metadata)
         return actionRequestResult.result
       } else if (actionRequestResult.formState) {
         formState = actionRequestResult.formState
@@ -1024,114 +1062,130 @@ async function renderToHTMLOrFlightImpl(
     }
   }
 
-  const renderResult = new RenderResult(
-    await renderToStream({
-      asNotFound: isNotFoundPath,
-      tree: loaderTree,
-      formState,
-    }),
-    {
-      ...extraRenderResultMeta,
-      // Wait for and collect the flight payload data if we don't have it
-      // already.
-      pageData: await stringifiedFlightPayloadPromise,
-      // If we have pending revalidates, wait until they are all resolved.
-      waitUntil: staticGenerationStore.pendingRevalidates
-        ? Promise.all(staticGenerationStore.pendingRevalidates)
-        : undefined,
-    }
-  )
-
-  addImplicitTags(staticGenerationStore)
-  extraRenderResultMeta.fetchTags = staticGenerationStore.tags?.join(',')
-  renderResult.extendMetadata({
-    fetchTags: extraRenderResultMeta.fetchTags,
-  })
-
-  if (staticGenerationStore.isStaticGeneration) {
-    // Collect the entire render result to a string (by streaming it to a
-    // string).
-    const htmlResult = await renderResult.toUnchunkedString(true)
-
-    // Timeout after 1.5 seconds for the headers to write. If it takes
-    // longer than this it's more likely that the stream has stalled and
-    // there is a React bug. The headers will then be updated in the render
-    // result below when the metadata is re-added to the new render result.
-    const onTimeout = new DetachedPromise<never>()
-    const timeout = setTimeout(() => {
-      onTimeout.reject(
-        new Error(
-          'Timeout waiting for headers to be emitted, this is a bug in Next.js'
-        )
-      )
-    }, 1500)
-
-    // Race against the timeout and the headers being written.
-    await Promise.race([onHeadersFinished.promise, onTimeout.promise])
-
-    // It got here, which means it did not reject, so clear the timeout to avoid
-    // it from rejecting again (which is a no-op anyways).
-    clearTimeout(timeout)
-
-    if (
-      // if PPR is enabled
-      renderOpts.experimental.ppr &&
-      // and a call to `maybePostpone` happened
-      staticGenerationStore.postponeWasTriggered &&
-      // but there's no postpone state
-      !extraRenderResultMeta.postponed
-    ) {
-      // a call to postpone was made but was caught and not detected by Next.js. We should fail the build immediately
-      // as we won't be able to generate the static part
-      warn('')
-      error(
-        `Prerendering ${urlPathname} needs to partially bail out because something dynamic was used. ` +
-          `React throws a special object to indicate where we need to bail out but it was caught ` +
-          `by a try/catch or a Promise was not awaited. These special objects should not be caught ` +
-          `by your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
-      )
-
-      if (capturedErrors.length > 0) {
-        warn(
-          'The following error was thrown during build, and may help identify the source of the issue:'
-        )
-
-        error(capturedErrors[0])
-      }
-
-      throw new MissingPostponeDataError(
-        `An unexpected error occurred while prerendering ${urlPathname}. Please check the logs above for more details.`
-      )
-    }
-
-    // if we encountered any unexpected errors during build
-    // we fail the prerendering phase and the build
-    if (capturedErrors.length > 0) {
-      throw capturedErrors[0]
-    }
-
-    if (staticGenerationStore.forceStatic === false) {
-      staticGenerationStore.revalidate = 0
-    }
-
-    // TODO-APP: derive this from same pass to prevent additional
-    // render during static generation
-    extraRenderResultMeta.pageData = await stringifiedFlightPayloadPromise
-    extraRenderResultMeta.revalidate =
-      staticGenerationStore.revalidate ?? ctx.defaultRevalidate
-
-    // provide bailout info for debugging
-    if (extraRenderResultMeta.revalidate === 0) {
-      extraRenderResultMeta.staticBailoutInfo = {
-        description: staticGenerationStore.dynamicUsageDescription,
-        stack: staticGenerationStore.dynamicUsageStack,
-      }
-    }
-
-    return new RenderResult(htmlResult, { ...extraRenderResultMeta })
+  const options: RenderResultOptions = {
+    metadata,
   }
 
-  return renderResult
+  let response: RenderResultResponse = await renderToStream({
+    asNotFound: isNotFoundPath,
+    tree: loaderTree,
+    formState,
+  })
+
+  // If we have pending revalidates, wait until they are all resolved.
+  if (staticGenerationStore.pendingRevalidates) {
+    options.waitUntil = Promise.all(
+      Object.values(staticGenerationStore.pendingRevalidates)
+    )
+  }
+
+  addImplicitTags(staticGenerationStore)
+
+  if (staticGenerationStore.tags) {
+    metadata.fetchTags = staticGenerationStore.tags.join(',')
+  }
+
+  // Create the new render result for the response.
+  const result = new RenderResult(response, options)
+
+  // If we aren't performing static generation, we can return the result now.
+  if (!isStaticGeneration) {
+    return result
+  }
+
+  // If this is static generation, we should read this in now rather than
+  // sending it back to be sent to the client.
+  response = await result.toUnchunkedString(true)
+
+  // Timeout after 1.5 seconds for the headers to write. If it takes
+  // longer than this it's more likely that the stream has stalled and
+  // there is a React bug. The headers will then be updated in the render
+  // result below when the metadata is re-added to the new render result.
+  const onTimeout = new DetachedPromise<never>()
+  const timeout = setTimeout(() => {
+    onTimeout.reject(
+      new Error(
+        'Timeout waiting for headers to be emitted, this is a bug in Next.js'
+      )
+    )
+  }, 1500)
+
+  // Race against the timeout and the headers being written.
+  await Promise.race([onHeadersFinished.promise, onTimeout.promise])
+
+  // It got here, which means it did not reject, so clear the timeout to avoid
+  // it from rejecting again (which is a no-op anyways).
+  clearTimeout(timeout)
+
+  if (
+    // if PPR is enabled
+    renderOpts.experimental.ppr &&
+    // and a call to `postpone` happened
+    staticGenerationStore.postponeWasTriggered &&
+    // but there's no postpone state
+    !metadata.postponed
+  ) {
+    // a call to postpone was made but was caught and not detected by Next.js. We should fail the build immediately
+    // as we won't be able to generate the static part
+    warn('')
+    error(
+      `Prerendering ${urlPathname} needs to partially bail out because something dynamic was used. ` +
+        `React throws a special object to indicate where we need to bail out but it was caught ` +
+        `by a try/catch or a Promise was not awaited. These special objects should not be caught ` +
+        `by your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
+    )
+
+    if (capturedErrors.length > 0) {
+      warn(
+        'The following error was thrown during build, and may help identify the source of the issue:'
+      )
+
+      error(capturedErrors[0])
+    }
+
+    throw new MissingPostponeDataError(
+      `An unexpected error occurred while prerendering ${urlPathname}. Please check the logs above for more details.`
+    )
+  }
+
+  if (!flightDataResolver) {
+    throw new Error(
+      'Invariant: Flight data resolver is missing when generating static HTML'
+    )
+  }
+
+  // If we encountered any unexpected errors during build we fail the
+  // prerendering phase and the build.
+  if (capturedErrors.length > 0) {
+    throw capturedErrors[0]
+  }
+
+  // Wait for and collect the flight payload data if we don't have it
+  // already
+  const flightData = await flightDataResolver()
+  if (flightData) {
+    metadata.flightData = flightData
+  }
+
+  // If force static is specifically set to false, we should not revalidate
+  // the page.
+  if (staticGenerationStore.forceStatic === false) {
+    staticGenerationStore.revalidate = 0
+  }
+
+  // Copy the revalidation value onto the render result metadata.
+  metadata.revalidate =
+    staticGenerationStore.revalidate ?? ctx.defaultRevalidate
+
+  // provide bailout info for debugging
+  if (metadata.revalidate === 0) {
+    metadata.staticBailoutInfo = {
+      description: staticGenerationStore.dynamicUsageDescription,
+      stack: staticGenerationStore.dynamicUsageStack,
+    }
+  }
+
+  return new RenderResult(response, options)
 }
 
 export type AppPageRender = (
@@ -1140,7 +1194,7 @@ export type AppPageRender = (
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
-) => Promise<RenderResult>
+) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export const renderToHTMLOrFlight: AppPageRender = (
   req,

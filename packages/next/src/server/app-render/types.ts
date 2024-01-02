@@ -73,7 +73,7 @@ export type CacheNodeSeedData = [
   segment: Segment,
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
-  } | null,
+  },
   node: React.ReactNode | null
 ]
 
