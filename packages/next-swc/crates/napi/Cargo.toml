@@ -8,7 +8,16 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["rustls-tls"]
+# By default, we enable rustls-tls for reqwest via downstream transitive features.
+# This is for the convenience of running daily dev workflows, i.e running
+# `cargo xxx` without explicitly specifying features, not that we want to
+# promote this as default backend. Actual configuration is done when building next-swc,
+# and also turbopack standalone when we have it.
+default = ["custom_allocator", "rustls-tls"]
+custom_allocator = [
+  "turbopack-binding/__turbo_tasks_malloc",
+  "turbopack-binding/__turbo_tasks_malloc_custom_allocator",
+]
 # Instead of enabling all the plugin-related features by default, make it explicitly specified
 # when build (i.e napi --build --features plugin), same for the wasm as well.
 # this is due to some of transitive dependencies have features cannot be enabled at the same time
