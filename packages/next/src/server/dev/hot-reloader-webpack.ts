@@ -76,6 +76,7 @@ import {
   type NextJsHotReloaderInterface,
 } from './hot-reloader-types'
 import type { HMR_ACTION_TYPES } from './hot-reloader-types'
+import type { WebpackError } from 'webpack'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 
@@ -154,7 +155,7 @@ function findEntryModule(
 }
 
 function erroredPages(compilation: webpack.Compilation) {
-  const failedPages: { [page: string]: any[] } = {}
+  const failedPages: { [page: string]: WebpackError[] } = {}
   for (const error of compilation.errors) {
     if (!error.module) {
       continue
