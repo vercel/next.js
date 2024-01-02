@@ -12,7 +12,6 @@ import type {
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import { cyan } from '../lib/picocolors'
 import { posix, join, dirname, extname } from 'path'
 import { stringify } from 'querystring'
 import fs from 'fs'
@@ -37,7 +36,6 @@ import {
 } from '../shared/lib/constants'
 import type { CompilerNameValues } from '../shared/lib/constants'
 import type { __ApiPreviewProps } from '../server/api-utils'
-import { warn } from './output/log'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
