@@ -40,7 +40,7 @@ While building your application, we recommend using the following features to en
 - **[Streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming):** Use Loading UI and React Suspense to progressively send UI from the server to the client, and prevent the whole route from blocking while data is being fetched.
 - **[Parallel Data Fetching](/docs/app/building-your-application/data-fetching/patterns#parallel-and-sequential-data-fetching):** Reduce network waterfalls by fetching data in parallel, where appropriate. Also, consider [preloading data](/docs/app/building-your-application/data-fetching/patterns#preloading-data) where appropriate.
 - **[Data Caching](/docs/app/building-your-application/caching#data-cache):** Verify whether your data requests are being cached or not, and opt into caching, where appropriate. Ensure requests that don't use `fetch` are [cached](/docs/app/api-reference/functions/unstable_cache).
-- **[Static Assets](/docs/app/building-your-application/optimizing/static-assets):** Use the `public` directory to automatically cache your application's static assets, e.g. images.
+- **[Static Images](/docs/app/building-your-application/optimizing/static-assets):** Use the `public` directory to automatically cache your application's static assets, e.g. images.
 
 ### UI and accessibility
 
@@ -76,11 +76,6 @@ Before going to production, you can run `next build` to build your application l
 - **[Lighthouse](https://developers.google.com/web/tools/lighthouse):** Run lighthouse in incognito to gain a better understanding of how your users will experience your site, and to identify areas for improvement. This is a simulated test and should be paired with looking at field data (such as Core Web Vitals).
 - **[`useReportWebVitals` hook](/docs/app/api-reference/functions/use-report-web-vitals):** Use this hook to send [Core Web Vitals](https://web.dev/articles/vitals) data to analytics tools.
 
-### Regions and runtimes
-
-- **[Regions](https://vercel.com/docs/edge-network/regions):** Ensure your application and database are deployed in the same region to reduce [latency](https://developer.mozilla.org/en-US/docs/Web/Performance/Understanding_latency).
-- **[Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes):** If using the Edge Runtime, consider that multiple requests from the Edge to your database might take longer than rendering on the Node.js runtime which can be closer to your database. Consider pinning your Edge location to a [preferred region](/docs/app/api-reference/file-conventions/route-segment-config#preferredregion) to reduce latency.
-
 ### Analyzing bundles
 
 Use the [`@next/bundle-analyzer` plugin](/docs/app/building-your-application/optimizing/bundle-analyzer) to analyze the size of your JavaScript bundles and identify large modules and dependencies that might be impacting your application's performance.
@@ -98,11 +93,12 @@ Depending on where you deploy your application, you might have access to additio
 
 For Vercel deployments, we recommend the following:
 
-- **[Logging](https://vercel.com/integrations#logging), [Monitoring](https://vercel.com/integrations#monitoring), and [Observability](https://vercel.com/integrations#observability):** See Vercel's integrations page for a list of available tools and services to help you monitor your application's performance.
-- **[Speed Insights](https://vercel.com/analytics):** Vercel provides real-world performance insights based on visitor data, offering a practical view of how your website is performing in the field.
+- **[Analytics](https://vercel.com/analytics?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs):** A built-in analytics dashboard to help you understand your application's traffic, including the number of unique visitors, page views, and more.
+- **[Speed Insights](https://vercel.com/docs/speed-insights?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs):** Real-world performance insights based on visitor data, offering a practical view of how your website is performing in the field.
+- **[Logging](https://vercel.com/docs/observability/runtime-logs?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs):** Runtime and Activity logs to help you debug issues and monitor your application in production. Alternatively, see the [integrations page](https://vercel.com/integrations?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs) for a list of third-party tools and services.
 
 > **Good to know:**
 >
-> To get a comprehensive understanding of the best practices for production deployments on Vercel, including detailed strategies for improving website performance, refer to the [Vercel Production Checklist](https://vercel.com/docs/production-checklist).
+> To get a comprehensive understanding of the best practices for production deployments on Vercel, including detailed strategies for improving website performance, refer to the [Vercel Production Checklist](https://vercel.com/docs/production-checklist?utm_source=next-site&utm_campaign=nextjs-docs&utm_medium=docs).
 
-Following these recommendations will help you build a fast, reliable, and more secure application for your users.
+Following these recommendations will help you build a faster, more reliable, and secure application for your users.
