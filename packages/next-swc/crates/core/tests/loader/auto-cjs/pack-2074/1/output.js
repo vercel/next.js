@@ -1,4 +1,4 @@
-export default function(e) {
-    e.exports = {};
-}
+export default function(module) {
+    module.exports = {};
+};
 export var value = "mixed-syntax-esm";

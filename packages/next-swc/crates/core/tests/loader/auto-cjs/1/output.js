@@ -1,8 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", {
-    value: !0
+    value: true
 });
-var e, o = (e = require("esm")) && e.__esModule ? e : {
-    default: e
-};
-console.log(o.default.foo), module.exports = o.default;
+var _esm = /*#__PURE__*/ _interop_require_default(require("esm"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+console.log(_esm.default.foo);
+module.exports = _esm.default;
