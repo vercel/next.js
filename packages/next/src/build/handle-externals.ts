@@ -11,6 +11,7 @@ import {
 } from './webpack-config'
 import { isWebpackAppLayer, isWebpackServerLayer } from './worker'
 import type { NextConfigComplete } from '../server/config-shared'
+import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
 const pathSeparators = '[/\\\\]'
@@ -234,12 +235,15 @@ export function makeExternalHandler({
       if (isExternal) {
         // it's important we return the path that starts with `next/dist/` here instead of the absolute path
         // otherwise NFT will get tripped up
-        return `commonjs ${localRes.replace(/.*?next[/\\]dist/, 'next/dist')}`
+        return `commonjs ${normalizePathSep(
+          localRes.replace(/.*?next[/\\]dist/, 'next/dist')
+        )}`
       }
     }
 
     // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
     // TODO-APP: bundle route.js with different layer that externals common node_module deps.
+    // Make sure @vercel/og is loaded as ESM for Node.js runtime
     if (
       isWebpackServerLayer(layer) &&
       request === 'next/dist/compiled/@vercel/og/index.node.js'
@@ -287,7 +291,7 @@ export function makeExternalHandler({
     if (layer === WEBPACK_LAYERS.serverSideRendering) {
       const isRelative = request.startsWith('.')
       const fullRequest = isRelative
-        ? path.join(context, request).replace(/\\/g, '/')
+        ? normalizePathSep(path.join(context, request))
         : request
       return resolveNextExternal(fullRequest)
     }

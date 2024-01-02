@@ -32,6 +32,7 @@ import {
   listenForDynamicRequest,
   updateCacheNodeOnNavigation,
 } from '../ppr-navigations'
+import { createPrefetchCacheKey } from './create-prefetch-cache-key'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -126,7 +127,8 @@ function navigateReducer_noPPR(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  let prefetchValues = state.prefetchCache.get(createHrefFromUrl(url, false))
+  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
+  let prefetchValues = state.prefetchCache.get(prefetchCacheKey)
 
   // If we don't have a prefetch value, we need to create one
   if (!prefetchValues) {
@@ -152,7 +154,7 @@ function navigateReducer_noPPR(
       lastUsedTime: null,
     }
 
-    state.prefetchCache.set(createHrefFromUrl(url, false), newPrefetchValue)
+    state.prefetchCache.set(prefetchCacheKey, newPrefetchValue)
     prefetchValues = newPrefetchValue
   }
 
@@ -320,7 +322,8 @@ function navigateReducer_PPR(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  let prefetchValues = state.prefetchCache.get(createHrefFromUrl(url, false))
+  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
+  let prefetchValues = state.prefetchCache.get(prefetchCacheKey)
 
   // If we don't have a prefetch value, we need to create one
   if (!prefetchValues) {
@@ -346,7 +349,7 @@ function navigateReducer_PPR(
       lastUsedTime: null,
     }
 
-    state.prefetchCache.set(createHrefFromUrl(url, false), newPrefetchValue)
+    state.prefetchCache.set(prefetchCacheKey, newPrefetchValue)
     prefetchValues = newPrefetchValue
   }
 
@@ -413,22 +416,32 @@ function navigateReducer_PPR(
           }
 
           if (
-            prefetchEntryCacheStatus !== PrefetchCacheEntryStatus.stale &&
             // This is just a paranoid check. When PPR is enabled, the server
             // will always send back a static response that's rendered from
             // the root. If for some reason it doesn't, we fall back to the
             // non-PPR implementation.
+            // TODO: We should get rid of the else branch and do all navigations
+            // via updateCacheNodeOnNavigation. The current structure is just
+            // an incremental step.
             flightDataPath.length === 3
           ) {
             const prefetchedTree: FlightRouterState = flightDataPath[0]
             const seedData = flightDataPath[1]
             const head = flightDataPath[2]
+
+            // Check whether the prefetched data is stale. If so, we'll
+            // ignore it and wait for the dynamic data to stream in before
+            // showing new segments.
+            const isPrefetchStale =
+              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.stale
+
             const task = updateCacheNodeOnNavigation(
               currentCache,
               currentTree,
               prefetchedTree,
               seedData,
-              head
+              head,
+              isPrefetchStale
             )
             if (task !== null && task.node !== null) {
               // We've created a new Cache Node tree that contains a prefetched

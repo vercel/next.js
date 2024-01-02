@@ -100,6 +100,7 @@ import {
   getPageStaticInfo,
 } from './analysis/get-page-static-info'
 import { createPagesMapping, getPageFilePath, sortByPageExts } from './entries'
+import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -145,7 +146,7 @@ import {
   NEXT_DID_POSTPONE_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
-import { NextBuildContext } from './build-context'
+import { NextBuildContext, type MappedPages } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
@@ -378,7 +379,7 @@ export default async function build(
     NextBuildContext.reactProductionProfiling = reactProductionProfiling
     NextBuildContext.noMangling = noMangling
 
-    const buildResult = await nextBuildSpan.traceAsyncFn(async () => {
+    await nextBuildSpan.traceAsyncFn(async () => {
       // attempt to load global env values so they are available in next.config.js
       const { loadedEnvFiles } = nextBuildSpan
         .traceChild('load-dotenv')
@@ -581,6 +582,10 @@ export default async function build(
       const hasInstrumentationHook = rootPaths.some((p) =>
         p.includes(INSTRUMENTATION_HOOK_FILENAME)
       )
+      const hasMiddlewareFile = rootPaths.some((p) =>
+        p.includes(MIDDLEWARE_FILENAME)
+      )
+
       NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
 
       const previewProps: __ApiPreviewProps = {
@@ -596,14 +601,14 @@ export default async function build(
           createPagesMapping({
             isDev: false,
             pageExtensions: config.pageExtensions,
-            pagesType: 'pages',
+            pagesType: PAGE_TYPES.PAGES,
             pagePaths: pagesPaths,
             pagesDir,
           })
         )
       NextBuildContext.mappedPages = mappedPages
 
-      let mappedAppPages: { [page: string]: string } | undefined
+      let mappedAppPages: MappedPages | undefined
       let denormalizedAppPages: string[] | undefined
 
       if (appDir) {
@@ -626,7 +631,7 @@ export default async function build(
             createPagesMapping({
               pagePaths: appPaths,
               isDev: false,
-              pagesType: 'app',
+              pagesType: PAGE_TYPES.APP,
               pageExtensions: config.pageExtensions,
               pagesDir: pagesDir,
             })
@@ -668,16 +673,13 @@ export default async function build(
         NextBuildContext.mappedAppPages = mappedAppPages
       }
 
-      let mappedRootPaths: { [page: string]: string } = {}
-      if (rootPaths.length > 0) {
-        mappedRootPaths = createPagesMapping({
-          isDev: false,
-          pageExtensions: config.pageExtensions,
-          pagePaths: rootPaths,
-          pagesType: 'root',
-          pagesDir: pagesDir,
-        })
-      }
+      const mappedRootPaths = createPagesMapping({
+        isDev: false,
+        pageExtensions: config.pageExtensions,
+        pagePaths: rootPaths,
+        pagesType: PAGE_TYPES.ROOT,
+        pagesDir: pagesDir,
+      })
       NextBuildContext.mappedRootPaths = mappedRootPaths
 
       const pagesPageKeys = Object.keys(mappedPages)
@@ -1582,7 +1584,9 @@ export default async function build(
                   ? await getPageStaticInfo({
                       pageFilePath,
                       nextConfig: config,
-                      pageType,
+                      // TODO: fix type mismatch
+                      pageType:
+                        pageType === 'app' ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
                     })
                   : undefined
 
@@ -2822,7 +2826,7 @@ export default async function build(
           rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
             .length,
           redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
-          middlewareCount: Object.keys(rootPaths).length > 0 ? 1 : 0,
+          middlewareCount: hasMiddlewareFile ? 1 : 0,
           totalAppPagesCount,
           staticAppPagesCount,
           serverAppPagesCount,
@@ -3049,58 +3053,56 @@ export default async function build(
               staticPages
             )
 
-            if (config.output === 'standalone') {
-              for (const file of [
-                ...requiredServerFiles.files,
-                path.join(config.distDir, SERVER_FILES_MANIFEST),
-                ...loadedEnvFiles.reduce<string[]>((acc, envFile) => {
-                  if (['.env', '.env.production'].includes(envFile.path)) {
-                    acc.push(envFile.path)
-                  }
-                  return acc
-                }, []),
-              ]) {
-                const filePath = path.join(dir, file)
-                const outputPath = path.join(
-                  distDir,
-                  'standalone',
-                  path.relative(outputFileTracingRoot, filePath)
-                )
-                await fs.mkdir(path.dirname(outputPath), {
-                  recursive: true,
-                })
-                await fs.copyFile(filePath, outputPath)
-              }
-              await recursiveCopy(
-                path.join(distDir, SERVER_DIRECTORY, 'pages'),
-                path.join(
-                  distDir,
-                  'standalone',
-                  path.relative(outputFileTracingRoot, distDir),
-                  SERVER_DIRECTORY,
-                  'pages'
-                ),
-                { overwrite: true }
-              )
-              if (appDir) {
-                const originalServerApp = path.join(
-                  distDir,
-                  SERVER_DIRECTORY,
-                  'app'
-                )
-                if (existsSync(originalServerApp)) {
-                  await recursiveCopy(
-                    originalServerApp,
-                    path.join(
-                      distDir,
-                      'standalone',
-                      path.relative(outputFileTracingRoot, distDir),
-                      SERVER_DIRECTORY,
-                      'app'
-                    ),
-                    { overwrite: true }
-                  )
+            for (const file of [
+              ...requiredServerFiles.files,
+              path.join(config.distDir, SERVER_FILES_MANIFEST),
+              ...loadedEnvFiles.reduce<string[]>((acc, envFile) => {
+                if (['.env', '.env.production'].includes(envFile.path)) {
+                  acc.push(envFile.path)
                 }
+                return acc
+              }, []),
+            ]) {
+              const filePath = path.join(dir, file)
+              const outputPath = path.join(
+                distDir,
+                'standalone',
+                path.relative(outputFileTracingRoot, filePath)
+              )
+              await fs.mkdir(path.dirname(outputPath), {
+                recursive: true,
+              })
+              await fs.copyFile(filePath, outputPath)
+            }
+            await recursiveCopy(
+              path.join(distDir, SERVER_DIRECTORY, 'pages'),
+              path.join(
+                distDir,
+                'standalone',
+                path.relative(outputFileTracingRoot, distDir),
+                SERVER_DIRECTORY,
+                'pages'
+              ),
+              { overwrite: true }
+            )
+            if (appDir) {
+              const originalServerApp = path.join(
+                distDir,
+                SERVER_DIRECTORY,
+                'app'
+              )
+              if (existsSync(originalServerApp)) {
+                await recursiveCopy(
+                  originalServerApp,
+                  path.join(
+                    distDir,
+                    'standalone',
+                    path.relative(outputFileTracingRoot, distDir),
+                    SERVER_DIRECTORY,
+                    'app'
+                  ),
+                  { overwrite: true }
+                )
               }
             }
           })
@@ -3132,8 +3134,6 @@ export default async function build(
         .traceChild('telemetry-flush')
         .traceAsyncFn(() => telemetry.flush())
     })
-
-    return buildResult
   } finally {
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur
