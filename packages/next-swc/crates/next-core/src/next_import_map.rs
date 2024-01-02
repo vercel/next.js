@@ -93,44 +93,39 @@ pub async fn get_next_client_import_map(
                 ],
             );
 
-            let chunking_context = execution_context.chunking_context();
-            let alias_react = *chunking_context.environment().alias_react().await?;
-
             let ppr = *next_config.enable_ppr().await?;
             let taint = *next_config.enable_taint().await?;
             let react_channel = if ppr || taint { "-experimental" } else { "" };
 
-            if alias_react {
-                import_map.insert_exact_alias(
-                    "react",
-                    request_to_import_mapping(
-                        project_path,
-                        &format!("next/dist/compiled/react{react_channel}"),
-                    ),
-                );
-                import_map.insert_wildcard_alias(
-                    "react/",
-                    request_to_import_mapping(
-                        project_path,
-                        &format!("next/dist/compiled/react{react_channel}/*"),
-                    ),
-                );
+            import_map.insert_exact_alias(
+                "react",
+                request_to_import_mapping(
+                    project_path,
+                    &format!("next/dist/compiled/react{react_channel}"),
+                ),
+            );
+            import_map.insert_wildcard_alias(
+                "react/",
+                request_to_import_mapping(
+                    project_path,
+                    &format!("next/dist/compiled/react{react_channel}/*"),
+                ),
+            );
 
-                import_map.insert_exact_alias(
-                    "react-dom",
-                    request_to_import_mapping(
-                        project_path,
-                        &format!("next/dist/compiled/react-dom{react_channel}"),
-                    ),
-                );
-                import_map.insert_wildcard_alias(
-                    "react-dom/",
-                    request_to_import_mapping(
-                        project_path,
-                        &format!("next/dist/compiled/react-dom{react_channel}/*"),
-                    ),
-                );
-            }
+            import_map.insert_exact_alias(
+                "react-dom",
+                request_to_import_mapping(
+                    project_path,
+                    &format!("next/dist/compiled/react-dom{react_channel}"),
+                ),
+            );
+            import_map.insert_wildcard_alias(
+                "react-dom/",
+                request_to_import_mapping(
+                    project_path,
+                    &format!("next/dist/compiled/react-dom{react_channel}/*"),
+                ),
+            );
         }
         ClientContextType::App { app_dir } => {
             let react_flavor =
