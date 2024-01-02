@@ -16,19 +16,33 @@ const regeneratorRuntimePath = require.resolve(
   'next/dist/compiled/regenerator-runtime'
 )
 
+function isTypeScriptFile(filename: string) {
+  return filename.endsWith('.ts') || filename.endsWith('.tsx')
+}
+
+function isCommonJSFile(filename: string) {
+  return filename.endsWith('.cjs')
+}
+
+// Ensure Next.js internals and .cjs files are output as CJS modules,
+// By default all modules are output as ESM or will treated as CJS if next-swc/auto-cjs plugin detects file is CJS.
+function useCommonJs(filename: string) {
+  return isCommonJSFile(filename) || nextDistPath.test(filename)
+}
+
 export function getParserOptions({ filename, jsConfig, ...rest }: any) {
   const isTSFile = filename.endsWith('.ts')
-  const isTypeScript = isTSFile || filename.endsWith('.tsx')
+  const hasTsSyntax = isTypeScriptFile(filename)
   const enableDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators
   )
   return {
     ...rest,
-    syntax: isTypeScript ? 'typescript' : 'ecmascript',
+    syntax: hasTsSyntax ? 'typescript' : 'ecmascript',
     dynamicImport: true,
     decorators: enableDecorators,
     // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
-    [isTypeScript ? 'tsx' : 'jsx']: !isTSFile,
+    [hasTsSyntax ? 'tsx' : 'jsx']: !isTSFile,
     importAssertions: true,
   }
 }
@@ -289,18 +303,17 @@ export function getJestSWCOptions({
     serverComponents: false,
   })
 
-  const isNextDist = nextDistPath.test(filename)
-
+  const useCjsModules = useCommonJs(filename)
   return {
     ...baseOptions,
+    module: {
+      type: useCjsModules ? 'commonjs' : 'es6',
+    },
     env: {
       targets: {
         // Targets the current version of Node.js
         node: process.versions.node,
       },
-    },
-    module: {
-      type: esm && !isNextDist ? 'es6' : 'commonjs',
     },
     disableNextSsg: true,
     disablePageConfig: true,
@@ -433,8 +446,7 @@ export function getLoaderSWCOptions({
   } else {
     options = {
       ...baseOptions,
-      // Ensure Next.js internals are output as commonjs modules
-      ...(isNextDist
+      ...(useCommonJs(filename)
         ? {
             module: {
               type: 'commonjs',
