@@ -34,7 +34,9 @@ export const Quotes = () => {
         <select
           className={styles.select}
           value={numberOfQuotes}
-          onChange={(e) => setNumberOfQuotes(Number(e.target.value))}
+          onChange={(e) => {
+            setNumberOfQuotes(Number(e.target.value))
+          }}
         >
           {options.map((option) => (
             <option key={option} value={option}>
