@@ -41,6 +41,7 @@ import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-r
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { PAGE_TYPES } from '../../lib/page-types'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -100,7 +101,7 @@ function convertDynamicParamTypeToSyntax(
 
 export function getEntryKey(
   compilerType: CompilerNameValues,
-  pageBundleType: 'app' | 'pages' | 'root',
+  pageBundleType: PAGE_TYPES,
   page: string
 ) {
   // TODO: handle the /children slot better
@@ -109,15 +110,15 @@ export function getEntryKey(
   return `${compilerType}@${pageBundleType}@${pageKey}`
 }
 
-function getPageBundleType(pageBundlePath: string) {
+function getPageBundleType(pageBundlePath: string): PAGE_TYPES {
   // Handle special case for /_error
-  if (pageBundlePath === '/_error') return 'pages'
-  if (isMiddlewareFilename(pageBundlePath)) return 'root'
+  if (pageBundlePath === '/_error') return PAGE_TYPES.PAGES
+  if (isMiddlewareFilename(pageBundlePath)) return PAGE_TYPES.ROOT
   return pageBundlePath.startsWith('pages/')
-    ? 'pages'
+    ? PAGE_TYPES.PAGES
     : pageBundlePath.startsWith('app/')
-    ? 'app'
-    : 'root'
+    ? PAGE_TYPES.APP
+    : PAGE_TYPES.ROOT
 }
 
 function getEntrypointsFromTree(
@@ -532,14 +533,16 @@ export function onDemandEntryHandler({
 
       if (page) {
         const pageBundleType = entrypoint.name?.startsWith('app/')
-          ? 'app'
-          : 'pages'
+          ? PAGE_TYPES.APP
+          : PAGE_TYPES.PAGES
         pagePaths.push(getEntryKey(type, pageBundleType, page))
       } else if (
         isMiddlewareFilename(entrypoint.name) ||
         isInstrumentationHookFilename(entrypoint.name)
       ) {
-        pagePaths.push(getEntryKey(type, 'root', `/${entrypoint.name}`))
+        pagePaths.push(
+          getEntryKey(type, PAGE_TYPES.ROOT, `/${entrypoint.name}`)
+        )
       }
     }
     return pagePaths
@@ -604,7 +607,7 @@ export function onDemandEntryHandler({
         COMPILER_NAMES.server,
         COMPILER_NAMES.edgeServer,
       ]) {
-        const entryKey = getEntryKey(compilerType, 'app', `/${page}`)
+        const entryKey = getEntryKey(compilerType, PAGE_TYPES.APP, `/${page}`)
         const entryInfo = curEntries[entryKey]
 
         // If there's no entry, it may have been invalidated and needs to be re-built.
@@ -639,7 +642,7 @@ export function onDemandEntryHandler({
       COMPILER_NAMES.server,
       COMPILER_NAMES.edgeServer,
     ]) {
-      const entryKey = getEntryKey(compilerType, 'pages', page)
+      const entryKey = getEntryKey(compilerType, PAGE_TYPES.PAGES, page)
       const entryInfo = curEntries[entryKey]
 
       // If there's no entry, it may have been invalidated and needs to be re-built.

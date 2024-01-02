@@ -100,6 +100,7 @@ import {
   getPageStaticInfo,
 } from './analysis/get-page-static-info'
 import { createPagesMapping, getPageFilePath, sortByPageExts } from './entries'
+import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -600,7 +601,7 @@ export default async function build(
           createPagesMapping({
             isDev: false,
             pageExtensions: config.pageExtensions,
-            pagesType: 'pages',
+            pagesType: PAGE_TYPES.PAGES,
             pagePaths: pagesPaths,
             pagesDir,
           })
@@ -630,7 +631,7 @@ export default async function build(
             createPagesMapping({
               pagePaths: appPaths,
               isDev: false,
-              pagesType: 'app',
+              pagesType: PAGE_TYPES.APP,
               pageExtensions: config.pageExtensions,
               pagesDir: pagesDir,
             })
@@ -672,18 +673,13 @@ export default async function build(
         NextBuildContext.mappedAppPages = mappedAppPages
       }
 
-      let mappedRootPaths: MappedPages = {}
-
-      if (rootPaths.length > 0) {
-        mappedRootPaths = createPagesMapping({
-          isDev: false,
-          pageExtensions: config.pageExtensions,
-          pagePaths: rootPaths,
-          pagesType: 'root',
-          pagesDir: pagesDir,
-        })
-      }
-
+      const mappedRootPaths = createPagesMapping({
+        isDev: false,
+        pageExtensions: config.pageExtensions,
+        pagePaths: rootPaths,
+        pagesType: PAGE_TYPES.ROOT,
+        pagesDir: pagesDir,
+      })
       NextBuildContext.mappedRootPaths = mappedRootPaths
 
       const pagesPageKeys = Object.keys(mappedPages)
@@ -1585,7 +1581,9 @@ export default async function build(
                   ? await getPageStaticInfo({
                       pageFilePath,
                       nextConfig: config,
-                      pageType,
+                      // TODO: fix type mismatch
+                      pageType:
+                        pageType === 'app' ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
                     })
                   : undefined
 
