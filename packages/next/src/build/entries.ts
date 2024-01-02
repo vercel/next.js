@@ -12,7 +12,6 @@ import type {
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import { cyan } from '../lib/picocolors'
 import { posix, join, dirname, extname } from 'path'
 import { stringify } from 'querystring'
 import fs from 'fs'
@@ -37,7 +36,6 @@ import {
 } from '../shared/lib/constants'
 import type { CompilerNameValues } from '../shared/lib/constants'
 import type { __ApiPreviewProps } from '../server/api-utils'
-import { warn } from './output/log'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
@@ -227,7 +225,6 @@ export function createPagesMapping({
   pagesDir: string | undefined
 }): { [page: string]: string } {
   const isAppRoute = pagesType === 'app'
-  const previousPages: { [key: string]: string } = {}
   const pages = pagePaths.reduce<{ [key: string]: string }>(
     (result, pagePath) => {
       // Do not process .d.ts files inside the `pages` folder
@@ -239,18 +236,6 @@ export function createPagesMapping({
       if (isAppRoute) {
         pageKey = pageKey.replace(/%5F/g, '_')
         pageKey = pageKey.replace(/^\/not-found$/g, '/_not-found')
-      }
-
-      if (pageKey in result) {
-        warn(
-          `Duplicate page detected. ${cyan(
-            join('pages', previousPages[pageKey])
-          )} and ${cyan(join('pages', pagePath))} both resolve to ${cyan(
-            pageKey
-          )}.`
-        )
-      } else {
-        previousPages[pageKey] = pagePath
       }
 
       const normalizedPath = normalizePathSep(
