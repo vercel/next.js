@@ -61,6 +61,7 @@ import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import type { PageExtensions } from './page-extensions-type'
 import type { MappedPages } from './build-context'
+import { PAGE_TYPES } from '../lib/page-types'
 
 export function sortByPageExts(pageExtensions: PageExtensions) {
   return (a: string, b: string) => {
@@ -106,7 +107,7 @@ export async function getStaticInfoIncludingLayouts({
     pageFilePath,
     isDev,
     page,
-    pageType: isInsideAppDir ? 'app' : 'pages',
+    pageType: isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
   })
 
   const staticInfo: PageStaticInfo = isInsideAppDir
@@ -139,7 +140,7 @@ export async function getStaticInfoIncludingLayouts({
         pageFilePath: layoutFile,
         isDev,
         page,
-        pageType: isInsideAppDir ? 'app' : 'pages',
+        pageType: isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
       })
 
       // Only runtime is relevant here.
@@ -226,13 +227,9 @@ export function createPagesMapping({
   isDev: boolean
   pageExtensions: PageExtensions
   pagePaths: string[]
-  pagesType: 'pages' | 'root' | 'app'
+  pagesType: PAGE_TYPES
   pagesDir: string | undefined
 }): MappedPages {
-  if (pagePaths.length === 0) {
-    return {}
-  }
-
   const isAppRoute = pagesType === 'app'
   const pages = pagePaths.reduce<{ [key: string]: string }>(
     (result, pagePath) => {
@@ -266,7 +263,7 @@ export function createPagesMapping({
     {}
   )
 
-  if (pagesType === 'app') {
+  if (pagesType === PAGE_TYPES.APP) {
     const hasAppPages = Object.keys(pages).some((page) =>
       page.endsWith('/page')
     )
@@ -278,7 +275,7 @@ export function createPagesMapping({
       }),
       ...pages,
     }
-  } else if (pagesType === 'root') {
+  } else if (pagesType === PAGE_TYPES.ROOT) {
     return pages
   }
 
@@ -328,7 +325,7 @@ export function getEdgeServerEntry(opts: {
   page: string
   pages: MappedPages
   middleware?: Partial<MiddlewareConfig>
-  pagesType: 'app' | 'pages' | 'root'
+  pagesType: PAGE_TYPES
   appDirLoader?: string
   hasInstrumentationHook?: boolean
   preferredRegion: string | string[] | undefined
@@ -460,9 +457,12 @@ export function runDependingOnPageType<T>(params: {
   onServer: () => T
   page: string
   pageRuntime: ServerRuntime
-  pageType?: 'app' | 'pages' | 'root'
+  pageType?: PAGE_TYPES
 }): void {
-  if (params.pageType === 'root' && isInstrumentationHookFile(params.page)) {
+  if (
+    params.pageType === PAGE_TYPES.ROOT &&
+    isInstrumentationHookFile(params.page)
+  ) {
     params.onServer()
     params.onEdgeServer()
     return
@@ -554,17 +554,14 @@ export async function createEntrypoints(
   }
 
   const getEntryHandler =
-    (
-      mappings: MappedPages,
-      pagesType: 'app' | 'pages' | 'root'
-    ): ((page: string) => void) =>
+    (mappings: MappedPages, pagesType: PAGE_TYPES): ((page: string) => void) =>
     async (page) => {
       const bundleFile = normalizePagePath(page)
       const clientBundlePath = posix.join(pagesType, bundleFile)
       const serverBundlePath =
-        pagesType === 'pages'
+        pagesType === PAGE_TYPES.PAGES
           ? posix.join('pages', bundleFile)
-          : pagesType === 'app'
+          : pagesType === PAGE_TYPES.APP
           ? posix.join('app', bundleFile)
           : bundleFile.slice(1)
       const absolutePagePath = mappings[page]
@@ -633,7 +630,10 @@ export async function createEntrypoints(
               preferredRegion: staticInfo.preferredRegion,
               middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
             })
-          } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
+          } else if (
+            isInstrumentationHookFile(page) &&
+            pagesType === PAGE_TYPES.ROOT
+          ) {
             server[serverBundlePath.replace('src/', '')] = {
               import: absolutePagePath,
               // the '../' is needed to make sure the file is not chunked
@@ -691,7 +691,7 @@ export async function createEntrypoints(
             }).import
           }
           const normalizedServerBundlePath =
-            isInstrumentationHookFile(page) && pagesType === 'root'
+            isInstrumentationHookFile(page) && pagesType === PAGE_TYPES.ROOT
               ? serverBundlePath.replace('src/', '')
               : serverBundlePath
           edgeServer[normalizedServerBundlePath] = getEdgeServerEntry({
@@ -715,18 +715,20 @@ export async function createEntrypoints(
   const promises: Promise<void[]>[] = []
 
   if (appPaths) {
-    const entryHandler = getEntryHandler(appPaths, 'app')
+    const entryHandler = getEntryHandler(appPaths, PAGE_TYPES.APP)
     promises.push(Promise.all(Object.keys(appPaths).map(entryHandler)))
   }
   if (rootPaths) {
     promises.push(
       Promise.all(
-        Object.keys(rootPaths).map(getEntryHandler(rootPaths, 'root'))
+        Object.keys(rootPaths).map(getEntryHandler(rootPaths, PAGE_TYPES.ROOT))
       )
     )
   }
   promises.push(
-    Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
+    Promise.all(
+      Object.keys(pages).map(getEntryHandler(pages, PAGE_TYPES.PAGES))
+    )
   )
 
   await Promise.all(promises)
