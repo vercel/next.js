@@ -1,5 +1,5 @@
 import { getPageStaticInfo } from 'next/dist/build/analysis/get-page-static-info'
-import { PAGE_TYPES } from 'packages/next/dist/lib/page-types'
+import { PAGE_TYPES } from 'next/dist/lib/page-types'
 import { join } from 'path'
 
 const fixtureDir = join(__dirname, 'fixtures')
