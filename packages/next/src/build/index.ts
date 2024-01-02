@@ -2059,10 +2059,8 @@ export default async function build(
         formatManifest(requiredServerFiles)
       )
 
-      const middlewareManifest: MiddlewareManifest = JSON.parse(
-        await readFileUtf8(
-          path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
-        )
+      const middlewareManifest: MiddlewareManifest = await readManifest(
+        path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
       )
 
       const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
