@@ -25,15 +25,15 @@ function createFlightTransformer(
     // Bootstrap the flight information.
     start(controller) {
       controller.enqueue(
-        `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+        `${startScriptTag}(self.__rsc_payload=self.__rsc_payload||[]).push(${htmlEscapeJsonString(
           JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-        )});self.__next_f.push(${htmlEscapeJsonString(
+        )});self.__rsc_payload.push(${htmlEscapeJsonString(
           JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
         )})</script>`
       )
     },
     transform(chunk, controller) {
-      const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
+      const scripts = `${startScriptTag}self.__rsc_payload.push(${htmlEscapeJsonString(
         JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
       )})</script>`
 
