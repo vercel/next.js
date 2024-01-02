@@ -8,12 +8,12 @@ import React, {
   useCallback,
   startTransition,
   useInsertionEffect,
+  useDeferredValue,
 } from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
-  CacheStates,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   CacheNode,
@@ -35,7 +35,7 @@ import {
   PrefetchKind,
 } from './router-reducer/router-reducer-types'
 import type {
-  PushRef,
+  AppRouterState,
   ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
@@ -49,6 +49,7 @@ import {
 import {
   useReducerWithReduxDevtools,
   useUnwrapState,
+  type ReduxDevtoolsSyncFn,
 } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
 import { createInitialRouterState } from './router-reducer/create-initial-router-state'
@@ -110,17 +111,14 @@ function isExternalURL(url: URL) {
 }
 
 function HistoryUpdater({
-  tree,
-  pushRef,
-  canonicalUrl,
+  appRouterState,
   sync,
 }: {
-  tree: FlightRouterState
-  pushRef: PushRef
-  canonicalUrl: string
-  sync: () => void
+  appRouterState: AppRouterState
+  sync: ReduxDevtoolsSyncFn
 }) {
   useInsertionEffect(() => {
+    const { tree, pushRef, canonicalUrl } = appRouterState
     const historyState = {
       ...(process.env.__NEXT_WINDOW_HISTORY_SUPPORT &&
       pushRef.preserveCustomHistoryState
@@ -140,25 +138,24 @@ function HistoryUpdater({
     ) {
       // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
       pushRef.pendingPush = false
-      if (originalPushState) {
-        originalPushState(historyState, '', canonicalUrl)
-      }
+      window.history.pushState(historyState, '', canonicalUrl)
     } else {
-      if (originalReplaceState) {
-        originalReplaceState(historyState, '', canonicalUrl)
-      }
+      window.history.replaceState(historyState, '', canonicalUrl)
     }
-    sync()
-  }, [tree, pushRef, canonicalUrl, sync])
+
+    sync(appRouterState)
+  }, [appRouterState, sync])
   return null
 }
 
-export const createEmptyCacheNode = () => ({
-  status: CacheStates.LAZY_INITIALIZED,
-  data: null,
-  subTreeData: null,
-  parallelRoutes: new Map(),
-})
+export function createEmptyCacheNode(): CacheNode {
+  return {
+    lazyData: null,
+    rsc: null,
+    prefetchRsc: null,
+    parallelRoutes: new Map(),
+  }
+}
 
 function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
   const serverActionDispatcher: ServerActionDispatcher = useCallback(
@@ -167,8 +164,6 @@ function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
         dispatch({
           ...actionPayload,
           type: ACTION_SERVER_ACTION,
-          mutable: {},
-          cache: createEmptyCacheNode(),
         })
       })
     },
@@ -195,8 +190,6 @@ function useChangeByServerResponse(
           flightData,
           previousTree,
           overrideCanonicalUrl,
-          cache: createEmptyCacheNode(),
-          mutable: {},
         })
       })
     },
@@ -206,7 +199,7 @@ function useChangeByServerResponse(
 
 function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
-    (href, navigateType, forceOptimisticNavigation, shouldScroll) => {
+    (href, navigateType, shouldScroll) => {
       const url = new URL(addBasePath(href), location.href)
 
       return dispatch({
@@ -214,27 +207,16 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         url,
         isExternalUrl: isExternalURL(url),
         locationSearch: location.search,
-        forceOptimisticNavigation,
         shouldScroll: shouldScroll ?? true,
         navigateType,
-        cache: createEmptyCacheNode(),
-        mutable: {},
       })
     },
     [dispatch]
   )
 }
 
-const originalPushState =
-  typeof window !== 'undefined'
-    ? window.history.pushState.bind(window.history)
-    : null
-const originalReplaceState =
-  typeof window !== 'undefined'
-    ? window.history.replaceState.bind(window.history)
-    : null
-
 function copyNextJsInternalHistoryState(data: any) {
+  if (data == null) data = {}
   const currentState = window.history.state
   const __NA = currentState?.__NA
   if (__NA) {
@@ -245,6 +227,33 @@ function copyNextJsInternalHistoryState(data: any) {
   if (__PRIVATE_NEXTJS_INTERNALS_TREE) {
     data.__PRIVATE_NEXTJS_INTERNALS_TREE = __PRIVATE_NEXTJS_INTERNALS_TREE
   }
+
+  return data
+}
+
+function Head({
+  headCacheNode,
+}: {
+  headCacheNode: CacheNode | null
+}): React.ReactNode {
+  // If this segment has a `prefetchHead`, it's the statically prefetched data.
+  // We should use that on initial render instead of `head`. Then we'll switch
+  // to `head` when the dynamic response streams in.
+  const head = headCacheNode !== null ? headCacheNode.head : null
+  const prefetchHead =
+    headCacheNode !== null ? headCacheNode.prefetchHead : null
+
+  // If no prefetch data is available, then we go straight to rendering `head`.
+  const resolvedPrefetchRsc = prefetchHead !== null ? prefetchHead : head
+
+  // We use `useDeferredValue` to handle switching between the prefetched and
+  // final values. The second argument is returned on initial render, then it
+  // re-renders with the first argument.
+  //
+  // @ts-expect-error The second argument to `useDeferredValue` is only
+  // available in the experimental builds. When its disabled, it will always
+  // return `head`.
+  return useDeferredValue(head, resolvedPrefetchRsc)
 }
 
 /**
@@ -255,14 +264,14 @@ function Router({
   initialHead,
   initialTree,
   initialCanonicalUrl,
-  children,
+  initialSeedData,
   assetPrefix,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>
       createInitialRouterState({
         buildId,
-        children,
+        initialSeedData,
         initialCanonicalUrl,
         initialTree,
         initialParallelRoutes,
@@ -270,7 +279,7 @@ function Router({
         location: !isServer ? window.location : null,
         initialHead,
       }),
-    [buildId, children, initialCanonicalUrl, initialTree, initialHead]
+    [buildId, initialSeedData, initialCanonicalUrl, initialTree, initialHead]
   )
   const [reducerState, dispatch, sync] =
     useReducerWithReduxDevtools(initialState)
@@ -317,7 +326,7 @@ function Router({
         ) {
           return
         }
-        const url = new URL(addBasePath(href), location.href)
+        const url = new URL(addBasePath(href), window.location.href)
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return
@@ -332,30 +341,18 @@ function Router({
       },
       replace: (href, options = {}) => {
         startTransition(() => {
-          navigate(
-            href,
-            'replace',
-            Boolean(options.forceOptimisticNavigation),
-            options.scroll ?? true
-          )
+          navigate(href, 'replace', options.scroll ?? true)
         })
       },
       push: (href, options = {}) => {
         startTransition(() => {
-          navigate(
-            href,
-            'push',
-            Boolean(options.forceOptimisticNavigation),
-            options.scroll ?? true
-          )
+          navigate(href, 'push', options.scroll ?? true)
         })
       },
       refresh: () => {
         startTransition(() => {
           dispatch({
             type: ACTION_REFRESH,
-            cache: createEmptyCacheNode(),
-            mutable: {},
             origin: window.location.origin,
           })
         })
@@ -370,8 +367,6 @@ function Router({
           startTransition(() => {
             dispatch({
               type: ACTION_FAST_REFRESH,
-              cache: createEmptyCacheNode(),
-              mutable: {},
               origin: window.location.origin,
             })
           })
@@ -417,8 +412,9 @@ function Router({
       if (
         !event.persisted ||
         !window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
-      )
+      ) {
         return
+      }
 
       dispatch({
         type: ACTION_RESTORE,
@@ -464,56 +460,68 @@ function Router({
   }
 
   useEffect(() => {
+    const originalPushState = window.history.pushState.bind(window.history)
+    const originalReplaceState = window.history.replaceState.bind(
+      window.history
+    )
     if (process.env.__NEXT_WINDOW_HISTORY_SUPPORT) {
       // Ensure the canonical URL in the Next.js Router is updated when the URL is changed so that `usePathname` and `useSearchParams` hold the pushed values.
       const applyUrlFromHistoryPushReplace = (
         url: string | URL | null | undefined
       ) => {
+        const href = window.location.href
         startTransition(() => {
           dispatch({
             type: ACTION_RESTORE,
-            url: new URL(url ?? window.location.href),
+            url: new URL(url ?? href, href),
             tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
           })
         })
       }
 
-      if (originalPushState) {
-        /**
-         * Patch pushState to ensure external changes to the history are reflected in the Next.js Router.
-         * Ensures Next.js internal history state is copied to the new history entry.
-         * Ensures usePathname and useSearchParams hold the newly provided url.
-         */
-        window.history.pushState = function pushState(
-          data: any,
-          _unused: string,
-          url?: string | URL | null
-        ): void {
-          copyNextJsInternalHistoryState(data)
-
-          applyUrlFromHistoryPushReplace(url)
-
+      /**
+       * Patch pushState to ensure external changes to the history are reflected in the Next.js Router.
+       * Ensures Next.js internal history state is copied to the new history entry.
+       * Ensures usePathname and useSearchParams hold the newly provided url.
+       */
+      window.history.pushState = function pushState(
+        data: any,
+        _unused: string,
+        url?: string | URL | null
+      ): void {
+        // Avoid a loop when Next.js internals trigger pushState/replaceState
+        if (data?.__NA || data?._N) {
           return originalPushState(data, _unused, url)
         }
-      }
-      if (originalReplaceState) {
-        /**
-         * Patch replaceState to ensure external changes to the history are reflected in the Next.js Router.
-         * Ensures Next.js internal history state is copied to the new history entry.
-         * Ensures usePathname and useSearchParams hold the newly provided url.
-         */
-        window.history.replaceState = function replaceState(
-          data: any,
-          _unused: string,
-          url?: string | URL | null
-        ): void {
-          copyNextJsInternalHistoryState(data)
+        data = copyNextJsInternalHistoryState(data)
 
-          if (url) {
-            applyUrlFromHistoryPushReplace(url)
-          }
+        if (url) {
+          applyUrlFromHistoryPushReplace(url)
+        }
+
+        return originalPushState(data, _unused, url)
+      }
+
+      /**
+       * Patch replaceState to ensure external changes to the history are reflected in the Next.js Router.
+       * Ensures Next.js internal history state is copied to the new history entry.
+       * Ensures usePathname and useSearchParams hold the newly provided url.
+       */
+      window.history.replaceState = function replaceState(
+        data: any,
+        _unused: string,
+        url?: string | URL | null
+      ): void {
+        // Avoid a loop when Next.js internals trigger pushState/replaceState
+        if (data?.__NA || data?._N) {
           return originalReplaceState(data, _unused, url)
         }
+        data = copyNextJsInternalHistoryState(data)
+
+        if (url) {
+          applyUrlFromHistoryPushReplace(url)
+        }
+        return originalReplaceState(data, _unused, url)
       }
     }
 
@@ -549,10 +557,8 @@ function Router({
     // Register popstate event to call onPopstate.
     window.addEventListener('popstate', onPopState)
     return () => {
-      if (originalPushState) {
+      if (process.env.__NEXT_WINDOW_HISTORY_SUPPORT) {
         window.history.pushState = originalPushState
-      }
-      if (originalReplaceState) {
         window.history.replaceState = originalReplaceState
       }
       window.removeEventListener('popstate', onPopState)
@@ -562,14 +568,28 @@ function Router({
   const { cache, tree, nextUrl, focusAndScrollRef } =
     useUnwrapState(reducerState)
 
-  const head = useMemo(() => {
+  const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
+
+  let head
+  if (matchingHead !== null) {
+    // The head is wrapped in an extra component so we can use
+    // `useDeferredValue` to swap between the prefetched and final versions of
+    // the head. (This is what LayoutRouter does for segment data, too.)
+    //
+    // The `key` is used to remount the component whenever the head moves to
+    // a different segment.
+    const [headCacheNode, headKey] = matchingHead
+    head = <Head key={headKey} headCacheNode={headCacheNode} />
+  } else {
+    head = null
+  }
 
   let content = (
     <RedirectBoundary>
       {head}
-      {cache.subTreeData}
+      {cache.rsc}
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
   )
@@ -589,9 +609,7 @@ function Router({
   return (
     <>
       <HistoryUpdater
-        tree={tree}
-        pushRef={pushRef}
-        canonicalUrl={canonicalUrl}
+        appRouterState={useUnwrapState(reducerState)}
         sync={sync}
       />
       <PathnameContext.Provider value={pathname}>
