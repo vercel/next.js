@@ -38,8 +38,8 @@ turbopack-binding = { workspace = true, features = [
   "__swc_transform_modularize_imports",
   "__swc_transform_relay",
 ] }
-react_remove_properties = "0.18.0"
-remove_console = "0.19.0"
+react_remove_properties = "0.19.0"
+remove_console = "0.20.0"
 
 [dev-dependencies]
 turbopack-binding = { workspace = true, features = [
