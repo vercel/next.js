@@ -337,7 +337,7 @@ async function generateClientSsgManifest(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
-  await fs.writeFile(
+  await writeFileUtf8(
     path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
     clientSsgManifestContent
   )
@@ -367,6 +367,42 @@ function getCacheDir(distDir: string): string {
     }
   }
   return cacheDir
+}
+
+function getNumberOfWorkers(config: NextConfigComplete) {
+  if (
+    config.experimental.cpus &&
+    config.experimental.cpus !== defaultConfig.experimental!.cpus
+  ) {
+    return config.experimental.cpus
+  }
+
+  if (config.experimental.memoryBasedWorkersCount) {
+    return Math.max(
+      Math.min(config.experimental.cpus || 1, Math.floor(os.freemem() / 1e9)),
+      // enforce a minimum of 4 workers
+      4
+    )
+  }
+
+  if (config.experimental.cpus) {
+    return config.experimental.cpus
+  }
+
+  // Fall back to 4 workers if a count is not specified
+  return 4
+}
+
+async function writeFileUtf8(filePath: string, content: string) {
+  await fs.writeFile(filePath, content, 'utf-8')
+}
+
+function readFileUtf8(filePath: string) {
+  return fs.readFile(filePath, 'utf8')
+}
+
+async function readManifest<T extends object>(filePath: string): Promise<T> {
+  return JSON.parse(await readFileUtf8(filePath))
 }
 
 export default async function build(
@@ -427,7 +463,7 @@ export default async function build(
       let buildId: string = ''
 
       if (isGenerateMode) {
-        buildId = await fs.readFile(path.join(distDir, 'BUILD_ID'), 'utf8')
+        buildId = await readFileUtf8(path.join(distDir, 'BUILD_ID'))
       } else {
         buildId = await nextBuildSpan
           .traceChild('generate-buildid')
@@ -913,7 +949,7 @@ export default async function build(
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
       // Files outside of the distDir can be "type": "module"
-      await fs.writeFile(
+      await writeFileUtf8(
         path.join(distDir, 'package.json'),
         '{"type": "commonjs"}'
       )
@@ -922,11 +958,7 @@ export default async function build(
       await nextBuildSpan
         .traceChild('write-routes-manifest')
         .traceAsyncFn(() =>
-          fs.writeFile(
-            routesManifestPath,
-            formatManifest(routesManifest),
-            'utf8'
-          )
+          writeFileUtf8(routesManifestPath, formatManifest(routesManifest))
         )
 
       // We need to write a partial prerender manifest to make preview mode settings available in edge middleware
@@ -934,12 +966,11 @@ export default async function build(
         preview: previewProps,
       }
 
-      await fs.writeFile(
+      await writeFileUtf8(
         path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
         `self.__PRERENDER_MANIFEST=${JSON.stringify(
           JSON.stringify(partialManifest)
-        )}`,
-        'utf8'
+        )}`
       )
 
       const outputFileTracingRoot =
@@ -1206,16 +1237,10 @@ export default async function build(
       const appDynamicParamPaths = new Set<string>()
       const appDefaultConfigs = new Map<string, AppConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
-      const pagesManifest = JSON.parse(
-        await fs.readFile(pagesManifestPath, 'utf8')
-      ) as PagesManifest
-      const buildManifest = JSON.parse(
-        await fs.readFile(buildManifestPath, 'utf8')
-      ) as BuildManifest
+      const pagesManifest = await readManifest<PagesManifest>(pagesManifestPath)
+      const buildManifest = await readManifest<BuildManifest>(buildManifestPath)
       const appBuildManifest = appDir
-        ? (JSON.parse(
-            await fs.readFile(appBuildManifestPath, 'utf8')
-          ) as AppBuildManifest)
+        ? await readManifest<AppBuildManifest>(appBuildManifestPath)
         : undefined
 
       const timeout = config.staticPageGenerationTimeout || 0
@@ -1226,36 +1251,23 @@ export default async function build(
 
       if (appDir) {
         appPathsManifest = JSON.parse(
-          await fs.readFile(
-            path.join(distDir, SERVER_DIRECTORY, APP_PATHS_MANIFEST),
-            'utf8'
+          await readFileUtf8(
+            path.join(distDir, SERVER_DIRECTORY, APP_PATHS_MANIFEST)
           )
         )
 
         Object.keys(appPathsManifest).forEach((entry) => {
           appPathRoutes[entry] = normalizeAppPath(entry)
         })
-        await fs.writeFile(
+        await writeFileUtf8(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
-          formatManifest(appPathRoutes),
-          'utf-8'
+          formatManifest(appPathRoutes)
         )
       }
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      const numWorkers = config.experimental.memoryBasedWorkersCount
-        ? Math.max(
-            config.experimental.cpus !== defaultConfig.experimental!.cpus
-              ? (config.experimental.cpus as number)
-              : Math.min(
-                  config.experimental.cpus || 1,
-                  Math.floor(os.freemem() / 1e9)
-                ),
-            // enforce a minimum of 4 workers
-            4
-          )
-        : config.experimental.cpus || 4
+      const numberOfWorkers = getNumberOfWorkers(config)
 
       function createStaticWorker(
         incrementalCacheIpcPort?: number,
@@ -1295,7 +1307,7 @@ export default async function build(
               infoPrinted = true
             }
           },
-          numWorkers,
+          numWorkers: numberOfWorkers,
           forkOptions: {
             env: {
               ...process.env,
@@ -1938,10 +1950,9 @@ export default async function build(
           functions: functionsConfigManifest,
         }
 
-        await fs.writeFile(
+        await writeFileUtf8(
           path.join(distDir, SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
-          formatManifest(manifest),
-          'utf8'
+          formatManifest(manifest)
         )
       }
 
@@ -1972,11 +1983,7 @@ export default async function build(
           return buildDataRoute(page, buildId)
         })
 
-        await fs.writeFile(
-          routesManifestPath,
-          formatManifest(routesManifest),
-          'utf8'
-        )
+        await writeFileUtf8(routesManifestPath, formatManifest(routesManifest))
       }
 
       // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
@@ -2047,16 +2054,14 @@ export default async function build(
         })
       )
 
-      await fs.writeFile(
+      await writeFileUtf8(
         path.join(distDir, SERVER_FILES_MANIFEST),
-        formatManifest(requiredServerFiles),
-        'utf8'
+        formatManifest(requiredServerFiles)
       )
 
       const middlewareManifest: MiddlewareManifest = JSON.parse(
-        await fs.readFile(
-          path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-          'utf8'
+        await readFileUtf8(
+          path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
         )
       )
 
@@ -2786,11 +2791,7 @@ export default async function build(
 
           // remove temporary export folder
           await fs.rm(exportOptions.outdir, { recursive: true, force: true })
-          await fs.writeFile(
-            pagesManifestPath,
-            formatManifest(pagesManifest),
-            'utf8'
-          )
+          await writeFileUtf8(pagesManifestPath, formatManifest(pagesManifest))
         })
       }
 
@@ -2886,17 +2887,15 @@ export default async function build(
         NextBuildContext.allowedRevalidateHeaderKeys =
           config.experimental.allowedRevalidateHeaderKeys
 
-        await fs.writeFile(
+        await writeFileUtf8(
           path.join(distDir, PRERENDER_MANIFEST),
-          formatManifest(prerenderManifest),
-          'utf8'
+          formatManifest(prerenderManifest)
         )
-        await fs.writeFile(
+        await writeFileUtf8(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
           `self.__PRERENDER_MANIFEST=${JSON.stringify(
             JSON.stringify(prerenderManifest)
-          )}`,
-          'utf8'
+          )}`
         )
         await generateClientSsgManifest(prerenderManifest, {
           distDir,
@@ -2911,17 +2910,15 @@ export default async function build(
           preview: previewProps,
           notFoundRoutes: [],
         }
-        await fs.writeFile(
+        await writeFileUtf8(
           path.join(distDir, PRERENDER_MANIFEST),
-          formatManifest(prerenderManifest),
-          'utf8'
+          formatManifest(prerenderManifest)
         )
-        await fs.writeFile(
+        await writeFileUtf8(
           path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
           `self.__PRERENDER_MANIFEST=${JSON.stringify(
             JSON.stringify(prerenderManifest)
-          )}`,
-          'utf8'
+          )}`
         )
       }
 
@@ -2938,23 +2935,21 @@ export default async function build(
         })
       )
 
-      await fs.writeFile(
+      await writeFileUtf8(
         path.join(distDir, IMAGES_MANIFEST),
         formatManifest({
           version: 1,
           images,
-        }),
-        'utf8'
+        })
       )
-      await fs.writeFile(
+      await writeFileUtf8(
         path.join(distDir, EXPORT_MARKER),
         formatManifest({
           version: 1,
           hasExportPathMap: typeof config.exportPathMap === 'function',
           exportTrailingSlash: config.trailingSlash === true,
           isNextImageImported: isNextImageImported === true,
-        }),
-        'utf8'
+        })
       )
       await fs.unlink(path.join(distDir, EXPORT_DETAIL)).catch((err) => {
         if (err.code === 'ENOENT') {
