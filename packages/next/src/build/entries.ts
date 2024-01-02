@@ -223,7 +223,6 @@ export function createPagesMapping({
   pagesDir: string | undefined
 }): { [page: string]: string } {
   const isAppRoute = pagesType === 'app'
-  const previousPages: { [key: string]: string } = {}
   const pages = pagePaths.reduce<{ [key: string]: string }>(
     (result, pagePath) => {
       // Do not process .d.ts files inside the `pages` folder
@@ -235,18 +234,6 @@ export function createPagesMapping({
       if (isAppRoute) {
         pageKey = pageKey.replace(/%5F/g, '_')
         pageKey = pageKey.replace(/^\/not-found$/g, '/_not-found')
-      }
-
-      if (pageKey in result) {
-        warn(
-          `Duplicate page detected. ${cyan(
-            join('pages', previousPages[pageKey])
-          )} and ${cyan(join('pages', pagePath))} both resolve to ${cyan(
-            pageKey
-          )}.`
-        )
-      } else {
-        previousPages[pageKey] = pagePath
       }
 
       const normalizedPath = normalizePathSep(
