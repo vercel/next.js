@@ -1,5 +1,5 @@
 export default (module) => {
-    module.exports = {};
-};
+  module.exports = {}
+}
 
-export const value = "mixed-syntax-esm"
+export const value = 'mixed-syntax-esm'
