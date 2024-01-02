@@ -22,14 +22,14 @@ describe('app dir - with output export - dynamic missing gsp dev', () => {
       })
     })
   })
-})
 
-it('should error when generateStaticParams returns an empty array', async () => {
-  await runTests({
-    isDev: true,
-    dynamicPage: 'undefined',
-    generateStaticParamsOpt: 'set empty',
-    expectedErrMsg:
-      'Page "/another/[slug]/page"\'s "generateStaticParams()" returned an empty array, which is not allowed with "output: export" config.',
+  it('should error when generateStaticParams returns an empty array', async () => {
+    await runTests({
+      isDev: true,
+      dynamicPage: 'undefined',
+      generateStaticParamsOpt: 'set empty',
+      expectedErrMsg:
+        'Page "/another/[slug]/page"\'s "generateStaticParams()" returned an empty array, which is not allowed with "output: export" config.',
+    })
   })
 })
