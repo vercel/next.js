@@ -1449,8 +1449,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         : compilation.errors
     }
 
-    if (this.clientError || this.serverError) {
-      return [this.clientError || this.serverError]
+    if (this.clientError) {
+      return [this.clientError]
+    } else if (this.serverError) {
+      return [this.serverError]
     } else if (this.clientStats?.hasErrors()) {
       return getErrors(this.clientStats)
     } else if (this.serverStats?.hasErrors()) {
