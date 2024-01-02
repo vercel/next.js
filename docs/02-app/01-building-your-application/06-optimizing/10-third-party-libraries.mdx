@@ -35,7 +35,8 @@ page. By default, it fetches the original inline script after hydration occurs o
 
 <AppOnly>
 
-To load Google Tag Manager for all routes, include the component directly in your root layout:
+To load Google Tag Manager for all routes, include the component directly in your root layout and
+pass in your GTM container ID:
 
 ```tsx filename="app/layout.tsx" switcher
 import { GoogleTagManager } from '@next/third-parties/google'
@@ -71,7 +72,8 @@ export default function RootLayout({ children }) {
 
 <PagesOnly>
 
-To load Google Tag Manager for all routes, include the component directly in your custom `_app`:
+To load Google Tag Manager for all routes, include the component directly in your custom `_app` and
+pass in your GTM container ID:
 
 ```jsx filename="pages/_app.js"
 import { GoogleTagManager } from '@next/third-parties/google'
@@ -173,7 +175,7 @@ docs](https://developers.google.com/tag-platform/tag-manager/datalayer).
 
 | Name            | Type     | Description                                                                     |
 | --------------- | -------- | ------------------------------------------------------------------------------- |
-| `gtmId`         | Required | Your GTM container id.                                                          |
+| `gtmId`         | Required | Your GTM container ID. Usually starts with `GTM-`.                              |
 | `dataLayer`     | Optional | Data layer array to instantiate the container with. Defaults to an empty array. |
 | `dataLayerName` | Optional | Name of the data layer. Defaults to `dataLayer`.                                |
 | `auth`          | Optional | Value of authentication parameter (`gtm_auth`) for environment snippets.        |
@@ -193,7 +195,8 @@ The `GoogleAnalytics` component can be used to include [Google Analytics
 
 <AppOnly>
 
-To load Google Analytics for all routes, include the component directly in your root layout:
+To load Google Analytics for all routes, include the component directly in your root layout and pass
+in your measurement ID:
 
 ```tsx filename="app/layout.tsx" switcher
 import { GoogleAnalytics } from '@next/third-parties/google'
@@ -229,7 +232,8 @@ export default function RootLayout({ children }) {
 
 <PagesOnly>
 
-To load Google Analytics for all routes, include the component directly in your custom `_app`:
+To load Google Analytics for all routes, include the component directly in your custom `_app` and
+pass in your measurement ID:
 
 ```jsx filename="pages/_app.js"
 import { GoogleAnalytics } from '@next/third-parties/google'
@@ -328,10 +332,10 @@ more about event parameters.
 
 Options to pass to the `<GoogleAnalytics>` component.
 
-| Name            | Type     | Description                                      |
-| --------------- | -------- | ------------------------------------------------ |
-| `gaId`          | Required | Your Google tag id.                              |
-| `dataLayerName` | Optional | Name of the data layer. Defaults to `dataLayer`. |
+| Name            | Type     | Description                                                                                            |
+| --------------- | -------- | ------------------------------------------------------------------------------------------------------ |
+| `gaId`          | Required | Your [measurement ID](https://support.google.com/analytics/answer/12270356). Usually starts with `G-`. |
+| `dataLayerName` | Optional | Name of the data layer. Defaults to `dataLayer`.                                                       |
 
 ### Google Maps Embed
 
