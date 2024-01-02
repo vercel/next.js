@@ -19,7 +19,9 @@ export const Counter = () => {
   const dispatch = useAppDispatch()
   const count = useAppSelector(selectCount)
   const status = useAppSelector(selectStatus)
-  const [incrementAmount, setIncrementAmount] = useState(2)
+  const [incrementAmount, setIncrementAmount] = useState('2')
+
+  const incrementValue = Number(incrementAmount) || 0
 
   return (
     <div>
@@ -45,24 +47,29 @@ export const Counter = () => {
           className={styles.textbox}
           aria-label="Set increment amount"
           value={incrementAmount}
-          onChange={(e) => setIncrementAmount(Number(e.target.value ?? 0))}
+          type="number"
+          onChange={(e) => {
+            setIncrementAmount(e.target.value)
+          }}
         />
         <button
           className={styles.button}
-          onClick={() => dispatch(incrementByAmount(incrementAmount))}
+          onClick={() => dispatch(incrementByAmount(incrementValue))}
         >
           Add Amount
         </button>
         <button
           className={styles.asyncButton}
           disabled={status !== 'idle'}
-          onClick={() => dispatch(incrementAsync(incrementAmount))}
+          onClick={() => dispatch(incrementAsync(incrementValue))}
         >
           Add Async
         </button>
         <button
           className={styles.button}
-          onClick={() => dispatch(incrementIfOdd(incrementAmount))}
+          onClick={() => {
+            dispatch(incrementIfOdd(incrementValue))
+          }}
         >
           Add If Odd
         </button>
