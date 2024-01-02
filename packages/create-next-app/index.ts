@@ -25,7 +25,7 @@ process.on('SIGTERM', handleSigTerm)
 const onPromptState = (state: {
   value: InitialReturnValue
   aborted: boolean
-  exited: false
+  exited: boolean
 }) => {
   if (state.aborted) {
     // If we don't re-enable the terminal cursor before exiting
