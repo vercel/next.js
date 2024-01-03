@@ -1,6 +1,8 @@
 module.exports = {
   experimental: {
     clientRouterFilterRedirects: true,
+    parallelServerAndEdgeCompiles: true,
+    parallelServerBuildTraces: true,
     webpackBuildWorker: true,
   },
   // output: 'standalone',

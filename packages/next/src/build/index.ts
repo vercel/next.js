@@ -1098,6 +1098,12 @@ export default async function build(
         config.experimental.webpackBuildWorker ||
         (config.experimental.webpackBuildWorker === undefined &&
           !config.webpack)
+      const runServerAndEdgeInParallel =
+        config.experimental.parallelServerAndEdgeCompiles
+      const collectServerBuildTracesInParallel =
+        config.experimental.parallelServerBuildTraces ||
+        (config.experimental.parallelServerBuildTraces === undefined &&
+          isCompileMode)
 
       nextBuildSpan.setAttribute(
         'has-custom-webpack-config',
@@ -1113,43 +1119,65 @@ export default async function build(
           'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
         )
       }
+      if (
+        !useBuildWorker &&
+        (runServerAndEdgeInParallel || collectServerBuildTracesInParallel)
+      ) {
+        throw new Error(
+          'The "parallelServerBuildTraces" and "parallelServerAndEdgeCompiles" options may only be used when build workers can be used. Read more: https://nextjs.org/docs/messages/parallel-build-without-worker'
+        )
+      }
 
       if (!isGenerateMode) {
-        if (isCompileMode && useBuildWorker) {
+        if (runServerAndEdgeInParallel || collectServerBuildTracesInParallel) {
           let durationInSeconds = 0
 
-          await webpackBuild(useBuildWorker, ['server']).then((res) => {
+          const serverBuildPromise = webpackBuild(useBuildWorker, [
+            'server',
+          ]).then((res) => {
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
-            const buildTraceWorker = new Worker(
-              require.resolve('./collect-build-traces'),
-              {
-                numWorkers: 1,
-                exposedMethods: ['collectBuildTraces'],
-              }
-            ) as Worker & typeof import('./collect-build-traces')
 
-            buildTracesPromise = buildTraceWorker
-              .collectBuildTraces({
-                dir,
-                config,
-                distDir,
-                // Serialize Map as this is sent to the worker.
-                pageInfos: serializePageInfos(new Map()),
-                staticPages: [],
-                hasSsrAmpPages: false,
-                buildTraceContext,
-                outputFileTracingRoot,
-              })
-              .catch((err) => {
-                console.error(err)
-                process.exit(1)
-              })
+            if (collectServerBuildTracesInParallel) {
+              const buildTraceWorker = new Worker(
+                require.resolve('./collect-build-traces'),
+                {
+                  numWorkers: 1,
+                  exposedMethods: ['collectBuildTraces'],
+                }
+              ) as Worker & typeof import('./collect-build-traces')
+
+              buildTracesPromise = buildTraceWorker
+                .collectBuildTraces({
+                  dir,
+                  config,
+                  distDir,
+                  // Serialize Map as this is sent to the worker.
+                  pageInfos: serializePageInfos(new Map()),
+                  staticPages: [],
+                  hasSsrAmpPages: false,
+                  buildTraceContext,
+                  outputFileTracingRoot,
+                })
+                .catch((err) => {
+                  console.error(err)
+                  process.exit(1)
+                })
+            }
           })
+          if (!runServerAndEdgeInParallel) {
+            await serverBuildPromise
+          }
 
-          await webpackBuild(useBuildWorker, ['edge-server']).then((res) => {
+          const edgeBuildPromise = webpackBuild(useBuildWorker, [
+            'edge-server',
+          ]).then((res) => {
             durationInSeconds += res.duration
           })
+          if (runServerAndEdgeInParallel) {
+            await serverBuildPromise
+          }
+          await edgeBuildPromise
 
           await webpackBuild(useBuildWorker, ['client']).then((res) => {
             durationInSeconds += res.duration
