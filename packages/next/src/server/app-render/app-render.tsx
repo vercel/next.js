@@ -19,10 +19,7 @@ import type { Revalidate } from '../lib/revalidate'
 
 import React from 'react'
 
-import {
-  createReactServerRenderer,
-  createReactServerEntrypoint,
-} from './create-server-components-renderer'
+import { createReactServerRenderer } from './create-server-components-renderer'
 import RenderResult, {
   type AppPageRenderResultMetadata,
   type RenderResultOptions,
@@ -81,6 +78,7 @@ import { createStaticRenderer } from './static/static-renderer'
 import { MissingPostponeDataError } from './is-missing-postpone-error'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { DYNAMIC_ERROR_CODE } from '../../client/components/hooks-server-context'
+import { useFlightResponse } from './use-flight-response'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -342,6 +340,7 @@ type ReactServerAppProps = {
   preinitScripts: () => void
   asNotFound: boolean
 }
+// This is the root component that runs in the RSC context
 async function ReactServerApp({
   tree,
   ctx,
@@ -422,6 +421,7 @@ type ReactServerErrorProps = {
   preinitScripts: () => void
   errorType: 'not-found' | 'redirect' | undefined
 }
+// This is the root component that runs in the RSC context
 async function ReactServerError({
   tree,
   ctx,
@@ -487,6 +487,32 @@ async function ReactServerError({
       initialSeedData={initialSeedData}
     />
   )
+}
+
+// This component must run in an SSR context. It will render the RSC root component
+function ReactServerEntrypoint({
+  renderReactServer,
+  inlinedDataTransformStream,
+  clientReferenceManifest,
+  formState,
+  nonce,
+}: {
+  renderReactServer: () => ReadableStream<Uint8Array>
+  inlinedDataTransformStream: TransformStream<Uint8Array, Uint8Array>
+  clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
+  formState: null | any
+  nonce?: string
+}) {
+  const writable = inlinedDataTransformStream.writable
+  const reactServerRequestStream = renderReactServer()
+  const reactServerResponse = useFlightResponse(
+    writable,
+    reactServerRequestStream,
+    clientReferenceManifest,
+    formState,
+    nonce
+  )
+  return React.use(reactServerResponse)
 }
 
 async function renderToHTMLOrFlightImpl(
@@ -600,6 +626,15 @@ async function renderToHTMLOrFlightImpl(
     silenceLogger: silenceStaticGenerationErrors,
   })
 
+  /**
+   * This postpone handler will be used to help us discriminate between a set of cases
+   * 1. SSR or RSC postpone that was caught and not rethrown
+   * 2. SSR postpone handled by React
+   * 3. RSC postpone handled by React
+   *
+   * The previous technique for tracking postpones could not tell between cases 1 and 3
+   * however we only want to warn on the first case
+   */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let serverComponentsDidPostpone = false
   const serverComponentsPostponeHandler = (_reason: unknown) => {
@@ -832,15 +867,6 @@ async function renderToHTMLOrFlightImpl(
         Uint8Array,
         Uint8Array
       >()
-      const ReactServerEntrypoint = createReactServerEntrypoint(
-        serverComponentsRenderer,
-        {
-          inlinedDataTransformStream: renderInlinedDataTransformStream,
-          clientReferenceManifest,
-          formState,
-          nonce,
-        }
-      )
 
       const children = (
         <HeadManagerContext.Provider
@@ -850,7 +876,13 @@ async function renderToHTMLOrFlightImpl(
           }}
         >
           <ServerInsertedHTMLProvider>
-            <ReactServerEntrypoint />
+            <ReactServerEntrypoint
+              renderReactServer={serverComponentsRenderer}
+              inlinedDataTransformStream={renderInlinedDataTransformStream}
+              clientReferenceManifest={clientReferenceManifest}
+              formState={formState}
+              nonce={nonce}
+            />
           </ServerInsertedHTMLProvider>
         </HeadManagerContext.Provider>
       )
@@ -1019,20 +1051,18 @@ async function renderToHTMLOrFlightImpl(
           renderInlinedDataTransformStream
         )
 
-        const ErrorPageEntrypoint = createReactServerEntrypoint(
-          errorServerComponentsRenderer,
-          {
-            inlinedDataTransformStream: errorInlinedDataTransformStream,
-            clientReferenceManifest,
-            formState,
-            nonce,
-          }
-        )
-
         try {
           const fizzStream = await renderToInitialFizzStream({
             ReactDOMServer: require('react-dom/server.edge'),
-            element: <ErrorPageEntrypoint />,
+            element: (
+              <ReactServerEntrypoint
+                renderReactServer={errorServerComponentsRenderer}
+                inlinedDataTransformStream={errorInlinedDataTransformStream}
+                clientReferenceManifest={clientReferenceManifest}
+                formState={formState}
+                nonce={nonce}
+              />
+            ),
             streamOptions: {
               nonce,
               // Include hydration scripts in the HTML
