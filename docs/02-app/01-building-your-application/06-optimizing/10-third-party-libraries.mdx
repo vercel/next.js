@@ -35,7 +35,8 @@ page. By default, it fetches the original inline script after hydration occurs o
 
 <AppOnly>
 
-To load Google Tag Manager for all routes, include the component directly in your root layout:
+To load Google Tag Manager for all routes, include the component directly in your root layout and
+pass in your GTM container ID:
 
 ```tsx filename="app/layout.tsx" switcher
 import { GoogleTagManager } from '@next/third-parties/google'
@@ -71,7 +72,8 @@ export default function RootLayout({ children }) {
 
 <PagesOnly>
 
-To load Google Tag Manager for all routes, include the component directly in your custom `_app`:
+To load Google Tag Manager for all routes, include the component directly in your custom `_app` and
+pass in your GTM container ID:
 
 ```jsx filename="pages/_app.js"
 import { GoogleTagManager } from '@next/third-parties/google'
@@ -173,7 +175,7 @@ docs](https://developers.google.com/tag-platform/tag-manager/datalayer).
 
 | Name            | Type     | Description                                                                     |
 | --------------- | -------- | ------------------------------------------------------------------------------- |
-| `gtmId`         | Required | Your GTM container id.                                                          |
+| `gtmId`         | Required | Your GTM container ID. Usually starts with `GTM-`.                              |
 | `dataLayer`     | Optional | Data layer array to instantiate the container with. Defaults to an empty array. |
 | `dataLayerName` | Optional | Name of the data layer. Defaults to `dataLayer`.                                |
 | `auth`          | Optional | Value of authentication parameter (`gtm_auth`) for environment snippets.        |
@@ -193,7 +195,8 @@ The `GoogleAnalytics` component can be used to include [Google Analytics
 
 <AppOnly>
 
-To load Google Analytics for all routes, include the component directly in your root layout:
+To load Google Analytics for all routes, include the component directly in your root layout and pass
+in your measurement ID:
 
 ```tsx filename="app/layout.tsx" switcher
 import { GoogleAnalytics } from '@next/third-parties/google'
@@ -206,7 +209,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>{children}</body>
-      <GoogleAnalytics gaId="GA-XYZ" />
+      <GoogleAnalytics gaId="G-XYZ" />
     </html>
   )
 }
@@ -219,7 +222,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>{children}</body>
-      <GoogleAnalytics gaId="GA-XYZ" />
+      <GoogleAnalytics gaId="G-XYZ" />
     </html>
   )
 }
@@ -229,7 +232,8 @@ export default function RootLayout({ children }) {
 
 <PagesOnly>
 
-To load Google Analytics for all routes, include the component directly in your custom `_app`:
+To load Google Analytics for all routes, include the component directly in your custom `_app` and
+pass in your measurement ID:
 
 ```jsx filename="pages/_app.js"
 import { GoogleAnalytics } from '@next/third-parties/google'
@@ -238,7 +242,7 @@ export default function MyApp({ Component, pageProps }) {
   return (
     <>
       <Component {...pageProps} />
-      <GoogleAnalytics gaId="GA-XYZ" />
+      <GoogleAnalytics gaId="G-XYZ" />
     </>
   )
 }
@@ -254,7 +258,7 @@ To load Google Analytics for a single route, include the component in your page 
 import { GoogleAnalytics } from '@next/third-parties/google'
 
 export default function Page() {
-  return <GoogleAnalytics gaId="GA-XYZ" />
+  return <GoogleAnalytics gaId="G-XYZ" />
 }
 ```
 
@@ -266,7 +270,7 @@ export default function Page() {
 import { GoogleAnalytics } from '@next/third-parties/google'
 
 export default function Page() {
-  return <GoogleAnalytics gaId="GA-XYZ" />
+  return <GoogleAnalytics gaId="G-XYZ" />
 }
 ```
 
@@ -324,14 +328,29 @@ Refer to the Google Analytics [developer
 documentation](https://developers.google.com/analytics/devguides/collection/ga4/event-parameters) to learn
 more about event parameters.
 
+#### Tracking Pageviews
+
+Google Analytics automatically tracks pageviews when the browser history state changes. This means
+that client-side navigations between Next.js routes will send pageview data without any configuration.
+
+To ensure that client-side navigations are being measured correctly, verify that the [_“Enhanced
+Measurement”_](https://support.google.com/analytics/answer/9216061#enable_disable) property is
+enabled in your Admin panel and the _“Page changes based on browser history events”_ checkbox is
+selected.
+
+> **Note**: If you decide to manually send pageview events, make sure to disable the default
+> pageview measurement to avoid having duplicate data. Refer to the Google Analytics [developer
+> documentation](https://developers.google.com/analytics/devguides/collection/ga4/views?client_type=gtag#manual_pageviews)
+> to learn more.
+
 #### Options
 
 Options to pass to the `<GoogleAnalytics>` component.
 
-| Name            | Type     | Description                                      |
-| --------------- | -------- | ------------------------------------------------ |
-| `gaId`          | Required | Your Google tag id.                              |
-| `dataLayerName` | Optional | Name of the data layer. Defaults to `dataLayer`. |
+| Name            | Type     | Description                                                                                            |
+| --------------- | -------- | ------------------------------------------------------------------------------------------------------ |
+| `gaId`          | Required | Your [measurement ID](https://support.google.com/analytics/answer/12270356). Usually starts with `G-`. |
+| `dataLayerName` | Optional | Name of the data layer. Defaults to `dataLayer`.                                                       |
 
 ### Google Maps Embed
 

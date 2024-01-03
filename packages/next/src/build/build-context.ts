@@ -1,5 +1,4 @@
 import type { LoadedEnvFiles } from '@next/env'
-import type { Ora } from 'next/dist/compiled/ora'
 import type { Rewrite, Redirect } from '../lib/load-custom-routes'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import type { NextConfigComplete } from '../server/config-shared'
@@ -79,7 +78,6 @@ export const NextBuildContext: Partial<{
   // misc fields
   telemetry: Telemetry
   telemetryState: TelemetryPluginState
-  buildSpinner: Ora
   nextBuildSpan: Span
 
   // cli fields

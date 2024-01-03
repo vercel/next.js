@@ -38,6 +38,7 @@ import { handleMutable } from '../handle-mutable'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
 import { extractPathFromFlightRouterState } from '../compute-changed-path'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -224,7 +225,7 @@ export function serverActionReducer(
         )
 
         if (newTree === null) {
-          throw new Error('SEGMENT MISMATCH')
+          return handleSegmentMismatch(state, action, treePatch)
         }
 
         if (isNavigatingToNewRootLayout(currentTree, newTree)) {
