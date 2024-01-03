@@ -353,6 +353,22 @@ function pageToRoute(page: string) {
   }
 }
 
+function getCacheDir(distDir: string): string {
+  const cacheDir = path.join(distDir, 'cache')
+  if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
+    const hasCache = existsSync(cacheDir)
+
+    if (!hasCache) {
+      // Intentionally not piping to stderr which is what `Log.warn` does in case people fail in CI when
+      // stderr is detected.
+      console.log(
+        `${Log.prefixes.warn} No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache`
+      )
+    }
+  }
+  return cacheDir
+}
+
 export default async function build(
   dir: string,
   reactProductionProfiling = false,
@@ -428,18 +444,7 @@ export default async function build(
       NextBuildContext.originalRewrites = config._originalRewrites
       NextBuildContext.originalRedirects = config._originalRedirects
 
-      const cacheDir = path.join(distDir, 'cache')
-      if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
-        const hasCache = existsSync(cacheDir)
-
-        if (!hasCache) {
-          // Intentionally not piping to stderr in case people fail in CI when
-          // stderr is detected.
-          console.log(
-            `${Log.prefixes.warn} No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache`
-          )
-        }
-      }
+      const cacheDir = getCacheDir(distDir)
 
       const telemetry = new Telemetry({ distDir })
 
