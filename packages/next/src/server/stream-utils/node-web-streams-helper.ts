@@ -10,25 +10,6 @@ export type ReactReadableStream = ReadableStream<Uint8Array> & {
   allReady?: Promise<void> | undefined
 }
 
-export function cloneTransformStream(source: TransformStream) {
-  const sourceReader = source.readable.getReader()
-  const clone = new TransformStream({
-    async start(controller) {
-      while (true) {
-        const { done, value } = await sourceReader.read()
-        if (done) {
-          break
-        }
-        controller.enqueue(value)
-      }
-    },
-    // skip all piped chunks
-    transform() {},
-  })
-
-  return clone
-}
-
 export function chainStreams<T>(
   ...streams: ReadableStream<T>[]
 ): ReadableStream<T> {
@@ -515,44 +496,86 @@ export async function continueFizzStream(
   ])
 }
 
-type ContinuePostponedStreamOptions = Pick<
-  ContinueStreamOptions,
-  | 'inlinedDataStream'
-  | 'isStaticGeneration'
-  | 'getServerInsertedHTML'
-  | 'serverInsertedHTMLToHead'
->
+type ContinueDynamicDataPrerenderOptions = {
+  getServerInsertedHTML: () => Promise<string>
+}
 
-export async function continuePostponedFizzStream(
-  renderStream: ReactReadableStream,
-  {
-    inlinedDataStream,
-    isStaticGeneration,
-    getServerInsertedHTML,
-    serverInsertedHTMLToHead,
-  }: ContinuePostponedStreamOptions
+export async function continueDynamicDataPrerender(
+  prerenderStream: ReadableStream<Uint8Array>,
+  { getServerInsertedHTML }: ContinueDynamicDataPrerenderOptions
+) {
+  return (
+    prerenderStream
+      // Buffer everything to avoid flushing too frequently
+      .pipeThrough(createBufferedTransformStream())
+      // Insert generated tags to head
+      .pipeThrough(createInsertedHTMLStream(getServerInsertedHTML))
+  )
+}
+
+type ContinueStaticPrerenderOptions = {
+  inlinedDataStream: ReadableStream<Uint8Array>
+  getServerInsertedHTML: () => Promise<string>
+}
+
+export async function continueStaticPrerender(
+  prerenderStream: ReadableStream<Uint8Array>,
+  { inlinedDataStream, getServerInsertedHTML }: ContinueStaticPrerenderOptions
 ) {
   const closeTag = '</body></html>'
 
-  // If we're generating static HTML and there's an `allReady` promise on the
-  // stream, we need to wait for it to resolve before continuing.
-  if (isStaticGeneration && 'allReady' in renderStream) {
-    await renderStream.allReady
-  }
+  return (
+    prerenderStream
+      // Buffer everything to avoid flushing too frequently
+      .pipeThrough(createBufferedTransformStream())
+      // Insert generated tags to head
+      .pipeThrough(createInsertedHTMLStream(getServerInsertedHTML))
+      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+      .pipeThrough(createMergedTransformStream(inlinedDataStream))
+      // Close tags should always be deferred to the end
+      .pipeThrough(createMoveSuffixStream(closeTag))
+  )
+}
 
-  return chainTransformers(renderStream, [
-    // Buffer everything to avoid flushing too frequently
-    createBufferedTransformStream(),
+type ContinueResumeOptions = {
+  inlinedDataStream: ReadableStream<Uint8Array>
+  getServerInsertedHTML: () => Promise<string>
+}
 
-    // Insert generated tags to head
-    getServerInsertedHTML && !serverInsertedHTMLToHead
-      ? createInsertedHTMLStream(getServerInsertedHTML)
-      : null,
+export async function continueResumeRender(
+  renderStream: ReadableStream<Uint8Array>,
+  { inlinedDataStream, getServerInsertedHTML }: ContinueResumeOptions
+) {
+  const closeTag = '</body></html>'
 
-    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-    inlinedDataStream ? createMergedTransformStream(inlinedDataStream) : null,
+  return (
+    renderStream
+      // Buffer everything to avoid flushing too frequently
+      .pipeThrough(createBufferedTransformStream())
+      // Insert generated tags to head
+      .pipeThrough(createInsertedHTMLStream(getServerInsertedHTML))
+      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+      .pipeThrough(createMergedTransformStream(inlinedDataStream))
+      // Close tags should always be deferred to the end
+      .pipeThrough(createMoveSuffixStream(closeTag))
+  )
+}
 
-    // Close tags should always be deferred to the end
-    createMoveSuffixStream(closeTag),
-  ])
+type ContinueDynamicDataResumeOptions = {
+  inlinedDataStream: ReadableStream<Uint8Array>
+}
+
+export async function continueDynamicDataResume(
+  renderStream: ReadableStream<Uint8Array>,
+  { inlinedDataStream }: ContinueDynamicDataResumeOptions
+) {
+  const closeTag = '</body></html>'
+
+  return (
+    renderStream
+      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+      .pipeThrough(createMergedTransformStream(inlinedDataStream))
+      // Close tags should always be deferred to the end
+      .pipeThrough(createMoveSuffixStream(closeTag))
+  )
 }

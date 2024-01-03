@@ -30,6 +30,13 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
+// Stores dynamic reasons used during a render
+export type PrerenderState = Set<string>
+
+export function createPrerenderState(): PrerenderState {
+  return new Set()
+}
+
 /**
  * This function communicates that the current scope should be treated as dynamic.
  *
@@ -57,8 +64,7 @@ export function markCurrentScopeAsDynamic(
     // We track that we had a dynamic scope that postponed.
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
-    store.prerenderState.hasDynamic = true
-    React.unstable_postpone(createPostponeReason(expression))
+    postponeWithTracking(store.prerenderState, expression)
   } else {
     store.revalidate = 0
 
@@ -104,8 +110,7 @@ export function trackDynamicDataAccessed(
     // We track that we had a dynamic scope that postponed.
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
-    store.prerenderState.hasDynamic = true
-    React.unstable_postpone(createPostponeReason(expression))
+    postponeWithTracking(store.prerenderState, expression)
   } else {
     store.revalidate = 0
 
@@ -131,15 +136,30 @@ export function trackDynamicFetch(
   expression: string
 ) {
   if (store.prerenderState && hasPostpone) {
-    store.prerenderState.hasDynamic = true
-    React.unstable_postpone(createPostponeReason(expression))
+    postponeWithTracking(store.prerenderState, expression)
   }
 }
 
-function createPostponeReason(expression: string) {
-  return (
-    `This page needs to bail out of prerendering at this point because it used ${expression}. ` +
+function postponeWithTracking(
+  prerenderState: PrerenderState,
+  expression: string
+) {
+  const reasonsSize = prerenderState.size
+  const reason =
+    `(${reasonsSize}) This page needs to bail out of prerendering at this point because it used ${expression}. ` +
     `React throws this special object to indicate where. It should not be caught by ` +
     `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
-  )
+  prerenderState.add(reason)
+  React.unstable_postpone(reason)
+}
+
+export function isDynamicReason(
+  prerenderState: PrerenderState,
+  reason: string
+) {
+  return prerenderState.has(reason)
+}
+
+export function staticOnly(prerenderState: PrerenderState) {
+  return prerenderState.size > 0
 }

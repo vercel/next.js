@@ -7,6 +7,7 @@ import type { Options as PrerenderOptions } from 'react-dom/static.edge'
 type RenderResult = {
   stream: ReadableStream<Uint8Array>
   postponed?: object | null
+  resumed?: boolean
 }
 
 export interface Renderer {
@@ -40,7 +41,7 @@ class StaticResumeRenderer implements Renderer {
   public async render(children: JSX.Element) {
     const stream = await this.resume(children, this.postponed, this.options)
 
-    return { stream }
+    return { stream, resumed: true }
   }
 }
 
@@ -56,6 +57,20 @@ export class ServerRenderer implements Renderer {
   }
 }
 
+export class VoidRenderer implements Renderer {
+  public async render(_children: JSX.Element): Promise<RenderResult> {
+    return {
+      stream: new ReadableStream({
+        start(controller) {
+          // Close the stream immediately
+          controller.close()
+        },
+      }),
+      resumed: false,
+    }
+  }
+}
+
 /**
  * This represents all the possible configuration options for each of the
  * available renderers. We pick the specific options we need for each renderer
@@ -66,12 +81,15 @@ export class ServerRenderer implements Renderer {
 type StreamOptions = Pick<
   ResumeOptions & RenderToReadableStreamOptions & PrerenderOptions,
   | 'onError'
+  | 'onPostpone'
   | 'onHeaders'
   | 'maxHeadersLength'
   | 'nonce'
   | 'bootstrapScripts'
   | 'formState'
 >
+
+export const DYNAMIC_DATA = 1 as const
 
 type Options = {
   /**
@@ -90,7 +108,7 @@ type Options = {
    * The postponed state for the render. This is only used when resuming a
    * prerender that has postponed.
    */
-  postponed: object | null
+  postponed: object | typeof DYNAMIC_DATA | null
 
   /**
    * The options for any of the renderers. This is a union of all the possible
@@ -107,6 +125,7 @@ export function createStaticRenderer({
   postponed,
   streamOptions: {
     onError,
+    onPostpone,
     onHeaders,
     maxHeadersLength,
     nonce,
@@ -118,13 +137,16 @@ export function createStaticRenderer({
     if (isStaticGeneration) {
       return new StaticRenderer({
         onError,
+        onPostpone,
         onHeaders,
         maxHeadersLength,
         bootstrapScripts,
       })
     }
 
-    if (postponed) {
+    if (postponed === DYNAMIC_DATA) {
+      return new VoidRenderer()
+    } else if (postponed) {
       return new StaticResumeRenderer(postponed, {
         onError,
         nonce,
