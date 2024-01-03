@@ -39,7 +39,7 @@ import {
 import { resolveIcons } from './resolvers/resolve-icons'
 import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
 
 type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>

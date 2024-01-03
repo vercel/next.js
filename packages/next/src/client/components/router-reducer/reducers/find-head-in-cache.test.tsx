@@ -28,6 +28,7 @@ describe('findHeadInCache', () => {
     const cache: CacheNode = {
       lazyData: null,
       rsc: null,
+      prefetchRsc: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -37,6 +38,7 @@ describe('findHeadInCache', () => {
               {
                 lazyData: null,
                 rsc: null,
+                prefetchRsc: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -54,6 +56,7 @@ describe('findHeadInCache', () => {
                                   {
                                     lazyData: null,
                                     rsc: null,
+                                    prefetchRsc: null,
                                     parallelRoutes: new Map(),
                                     head: (
                                       <>
@@ -66,6 +69,7 @@ describe('findHeadInCache', () => {
                             ],
                           ]),
                           rsc: null,
+                          prefetchRsc: null,
                         },
                       ],
                       // TODO-APP: this segment should be preserved when creating the new cache
@@ -74,6 +78,7 @@ describe('findHeadInCache', () => {
                       //   {
                       //     lazyData: null,
                       //     rsc: <>Page</>,
+                      //     prefetchRsc: null,
                       //     parallelRoutes: new Map(),
                       //   },
                       // ],
@@ -88,11 +93,14 @@ describe('findHeadInCache', () => {
     }
 
     const result = findHeadInCache(cache, routerTree[1])
+    expect(result).not.toBeNull()
 
-    expect(result).toMatchObject(
+    const [cacheNode, key] = result!
+    expect(cacheNode.head).toMatchObject(
       <>
         <title>About page!</title>
       </>
     )
+    expect(key).toBe('/linking/about/')
   })
 })

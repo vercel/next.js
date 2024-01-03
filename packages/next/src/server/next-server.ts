@@ -100,11 +100,18 @@ import { RouteModuleLoader } from './future/helpers/module-loader/route-module-l
 import { loadManifest } from './load-manifest'
 import { lazyRenderAppPage } from './future/route-modules/app-page/module.render'
 import { lazyRenderPagesPage } from './future/route-modules/pages/module.render'
+import { interopDefault } from '../lib/interop-default'
 
 export * from './base-server'
 
 declare const __non_webpack_require__: NodeRequire
 
+// For module that can be both CJS or ESM
+const dynamicImportEsmDefault = process.env.NEXT_MINIMAL
+  ? __non_webpack_require__
+  : async (mod: string) => (await import(mod)).default
+
+// For module that will be compiled to CJS, e.g. instrument
 const dynamicRequire = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
   : require
@@ -289,7 +296,7 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  protected getIncrementalCache({
+  protected async getIncrementalCache({
     requestHeaders,
     requestProtocol,
   }: {
@@ -301,12 +308,13 @@ export default class NextNodeServer extends BaseServer {
     const { incrementalCacheHandlerPath } = this.nextConfig.experimental
 
     if (incrementalCacheHandlerPath) {
-      CacheHandler = dynamicRequire(
-        isAbsolute(incrementalCacheHandlerPath)
-          ? incrementalCacheHandlerPath
-          : join(this.distDir, incrementalCacheHandlerPath)
+      CacheHandler = interopDefault(
+        await dynamicImportEsmDefault(
+          isAbsolute(incrementalCacheHandlerPath)
+            ? incrementalCacheHandlerPath
+            : join(this.distDir, incrementalCacheHandlerPath)
+        )
       )
-      CacheHandler = CacheHandler.default || CacheHandler
     }
 
     // incremental-cache is request specific

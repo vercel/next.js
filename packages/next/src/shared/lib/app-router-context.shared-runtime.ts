@@ -31,8 +31,16 @@ export type LazyCacheNode = {
    */
   rsc: null
 
-  // TODO: Add prefetchRsc field.
-  // prefetchRsc: null
+  /**
+   * A prefetched version of the segment data. See explanation in corresponding
+   * field of ReadyCacheNode (below).
+   *
+   * Since LazyCacheNode mostly only exists in the non-PPR implementation, this
+   * will usually be null, but it could have been cloned from a previous
+   * CacheNode that was created by the PPR implementation. Eventually we want
+   * to migrate everything away from LazyCacheNode entirely.
+   */
+  prefetchRsc: React.ReactNode
 
   /**
    * A pending response for the lazy data fetch. If this is not present
@@ -40,6 +48,11 @@ export type LazyCacheNode = {
    */
   lazyData: Promise<FetchServerResponseResult> | null
 
+  // TODO: We should make both of these non-optional. Most of the places that
+  // clone the Cache Nodes do not preserve this field. In practice this ends up
+  // working out because we only clone nodes when we're receiving a new head,
+  // anyway. But it's fragile. It also breaks monomorphization.
+  prefetchHead?: React.ReactNode
   head?: React.ReactNode
   /**
    * Child parallel routes.
@@ -61,13 +74,24 @@ export type ReadyCacheNode = {
    */
   rsc: React.ReactNode
 
-  // TODO: Add prefetchRsc field.
-  // prefetchRsc: React.ReactNode
+  /**
+   * Represents a static version of the segment that can be shown immediately,
+   * and may or may not contain dynamic holes. It's prefetched before a
+   * navigation occurs.
+   *
+   * During rendering, we will choose whether to render `rsc` or `prefetchRsc`
+   * with `useDeferredValue`. As with the `rsc` field, a value of `null` means
+   * no value was provided. In this case, the LayoutRouter will go straight to
+   * rendering the `rsc` value; if that one is also missing, it will suspend and
+   * trigger a lazy fetch.
+   */
+  prefetchRsc: React.ReactNode
 
   /**
    * There should never be a lazy data request in this case.
    */
   lazyData: null
+  prefetchHead?: React.ReactNode
   head?: React.ReactNode
   parallelRoutes: Map<string, ChildSegmentMap>
 }

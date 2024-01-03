@@ -1,6 +1,6 @@
 import { fetchServerResponse } from '../fetch-server-response'
 import { createHrefFromUrl } from '../create-href-from-url'
-import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToTreeSkipDefault } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import type {
   ReadonlyReducerState,
@@ -13,6 +13,7 @@ import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createEmptyCacheNode } from '../../app-router'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 // A version of refresh reducer that keeps the cache around instead of wiping all of it.
 function fastRefreshReducerImpl(
@@ -63,7 +64,7 @@ function fastRefreshReducerImpl(
 
         // Given the path can only have two items the items are only the router state and rsc for the root.
         const [treePatch] = flightDataPath
-        const newTree = applyRouterStatePatchToTree(
+        const newTree = applyRouterStatePatchToTreeSkipDefault(
           // TODO-APP: remove ''
           [''],
           currentTree,
@@ -71,7 +72,7 @@ function fastRefreshReducerImpl(
         )
 
         if (newTree === null) {
-          throw new Error('SEGMENT MISMATCH')
+          return handleSegmentMismatch(state, action, treePatch)
         }
 
         if (isNavigatingToNewRootLayout(currentTree, newTree)) {
