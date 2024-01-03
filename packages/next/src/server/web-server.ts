@@ -29,12 +29,13 @@ import {
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { IncrementalCache } from './lib/incremental-cache'
+import type { PAGE_TYPES } from '../lib/page-types'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
     pathname: string
-    pagesType: 'app' | 'pages' | 'root'
+    pagesType: PAGE_TYPES
     loadComponent: (page: string) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>

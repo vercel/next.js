@@ -89,7 +89,6 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
-import { NextBuildContext } from '../../../build/build-context'
 
 import {
   isMiddlewareFile,
@@ -133,6 +132,7 @@ import type { LoadableManifest } from '../../load-components'
 import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
 import { bold, green, red } from '../../../lib/picocolors'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
+import { PAGE_TYPES } from '../../../lib/page-types'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -1180,14 +1180,12 @@ async function startWatcher(opts: SetupOpts) {
             await loadMiddlewareManifest('instrumentation', 'instrumentation')
             await writeManifests()
 
-            NextBuildContext.hasInstrumentationHook = true
             serverFields.actualInstrumentationHookFile = '/instrumentation'
             await propagateServerField(
               'actualInstrumentationHookFile',
               serverFields.actualInstrumentationHookFile
             )
           } else {
-            NextBuildContext.hasInstrumentationHook = false
             serverFields.actualInstrumentationHookFile = undefined
             await propagateServerField(
               'actualInstrumentationHookFile',
@@ -1915,7 +1913,7 @@ async function startWatcher(opts: SetupOpts) {
           dir: dir,
           extensions: nextConfig.pageExtensions,
           keepIndex: false,
-          pagesType: 'root',
+          pagesType: PAGE_TYPES.ROOT,
         })
 
         if (isMiddlewareFile(rootFile)) {
@@ -1948,7 +1946,6 @@ async function startWatcher(opts: SetupOpts) {
           isInstrumentationHookFile(rootFile) &&
           nextConfig.experimental.instrumentationHook
         ) {
-          NextBuildContext.hasInstrumentationHook = true
           serverFields.actualInstrumentationHookFile = rootFile
           await propagateServerField(
             'actualInstrumentationHookFile',
@@ -1972,7 +1969,7 @@ async function startWatcher(opts: SetupOpts) {
           dir: isAppPath ? appDir! : pagesDir!,
           extensions: nextConfig.pageExtensions,
           keepIndex: isAppPath,
-          pagesType: isAppPath ? 'app' : 'pages',
+          pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
         })
 
         if (
