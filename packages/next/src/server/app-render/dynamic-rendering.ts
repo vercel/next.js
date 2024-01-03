@@ -30,6 +30,15 @@ import { getPathname } from '../../lib/url'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
+// Stores dynamic reasons used during a render
+export type PrerenderState = { hasDynamic: boolean }
+
+export function createPrerenderState(): PrerenderState {
+  return {
+    hasDynamic: false,
+  }
+}
+
 /**
  * This function communicates that the current scope should be treated as dynamic.
  *
@@ -58,8 +67,7 @@ export function markCurrentScopeAsDynamic(
     // We track that we had a dynamic scope that postponed.
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
-    store.prerenderState.hasDynamic = true
-    React.unstable_postpone(createPostponeReason(expression, pathname))
+    postponeWithTracking(store.prerenderState, expression, pathname)
   } else {
     store.revalidate = 0
 
@@ -106,8 +114,7 @@ export function trackDynamicDataAccessed(
     // We track that we had a dynamic scope that postponed.
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
-    store.prerenderState.hasDynamic = true
-    React.unstable_postpone(createPostponeReason(expression, pathname))
+    postponeWithTracking(store.prerenderState, expression, pathname)
   } else {
     store.revalidate = 0
 
@@ -145,18 +152,25 @@ export function trackDynamicFetch(
 ) {
   if (store.prerenderState) {
     assertPostpone()
-    store.prerenderState.hasDynamic = true
-    React.unstable_postpone(createPostponeReason(expression, store.urlPathname))
+    postponeWithTracking(store.prerenderState, expression, store.urlPathname)
   }
 }
 
-function createPostponeReason(expression: string, urlPathname: string) {
-  const pathname = getPathname(urlPathname) // remove queries such like `_rsc` for flight
-  return (
+function postponeWithTracking(
+  prerenderState: PrerenderState,
+  expression: string,
+  pathname: string
+) {
+  const reason =
     `Route ${pathname} needs to bail out of prerendering at this point because it used ${expression}. ` +
     `React throws this special object to indicate where. It should not be caught by ` +
     `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
-  )
+  prerenderState.hasDynamic = true
+  React.unstable_postpone(reason)
+}
+
+export function usedDynamicAPIs(prerenderState: PrerenderState): boolean {
+  return prerenderState.hasDynamic === true
 }
 
 function assertPostpone() {
