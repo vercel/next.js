@@ -103,6 +103,18 @@ body:
         - 'TypeScript (plugin, built-in types)'
     validations:
       required: true
+  - type: dropdown
+    attributes:
+      label: Which stage(s) are affected? (Select all that apply)
+      multiple: true
+      options:
+        - 'next dev (local)'
+        - 'next build (local)'
+        - 'next start (local)'
+        - 'Vercel (Deployed)'
+        - 'Other (Deployed)'
+    validations:
+      required: true
   - type: markdown
     attributes:
       value: |
