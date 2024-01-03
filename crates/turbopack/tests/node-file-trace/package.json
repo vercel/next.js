@@ -28,7 +28,7 @@
     "axios": "^0.21.2",
     "azure-storage": "^2.10.3",
     "bcrypt": "^5.1.0",
-    "better-sqlite3": "^7.5.3",
+    "better-sqlite3": "^9.2.2",
     "bindings": "^1.5.0",
     "browserify-middleware": "^8.1.1",
     "bull": "^3.10.0",

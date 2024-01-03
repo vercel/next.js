@@ -46,9 +46,12 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
 
         let analyze_result = original_module.analyze().await?.clone_value();
 
+        let module_type_result = *original_module.determine_module_type().await?;
+
         let content = EcmascriptModuleContent::new(
             parsed,
             self.module.ident(),
+            module_type_result.module_type,
             chunking_context,
             analyze_result.local_references,
             analyze_result.code_generation,
