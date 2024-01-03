@@ -72,6 +72,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
 import { RouteKind } from '../server/future/route-kind'
 import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
+import type { PageExtensions } from './page-extensions-type'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -375,7 +376,7 @@ export async function printTreeView(
     distPath: string
     buildId: string
     pagesDir?: string
-    pageExtensions: string[]
+    pageExtensions: PageExtensions
     buildManifest: BuildManifest
     appBuildManifest?: AppBuildManifest
     middlewareManifest: MiddlewareManifest
