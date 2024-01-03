@@ -16,7 +16,7 @@ export function handleSegmentMismatch(
 ) {
   if (process.env.NODE_ENV === 'development') {
     console.warn(
-      'Performing full reload because your application experienced an unrecoverable error. If this keeps occurring, please file a Next.js issue.\n\n' +
+      'Performing hard navigation because your application experienced an unrecoverable error. If this keeps occurring, please file a Next.js issue.\n\n' +
         'Reason: Segment mismatch\n' +
         `Last Action: ${action.type}\n\n` +
         `Current Tree: ${JSON.stringify(state.tree)}\n\n` +
