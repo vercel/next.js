@@ -328,6 +328,21 @@ Refer to the Google Analytics [developer
 documentation](https://developers.google.com/analytics/devguides/collection/ga4/event-parameters) to learn
 more about event parameters.
 
+#### Tracking Pageviews
+
+Google Analytics automatically tracks pageviews when the browser history state changes. This means
+that client-side navigations between Next.js routes will send pageview data without any configuration.
+
+To ensure that client-side navigations are being measured correctly, verify that the [_“Enhanced
+Measurement”_](https://support.google.com/analytics/answer/9216061#enable_disable) property is
+enabled in your Admin panel and the _“Page changes based on browser history events”_ checkbox is
+selected.
+
+> **Note**: If you decide to manually send pageview events, make sure to disable the default
+> pageview measurement to avoid having duplicate data. Refer to the Google Analytics [developer
+> documentation](https://developers.google.com/analytics/devguides/collection/ga4/views?client_type=gtag#manual_pageviews)
+> to learn more.
+
 #### Options
 
 Options to pass to the `<GoogleAnalytics>` component.
