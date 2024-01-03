@@ -1,8 +1,7 @@
 import React from 'react';
 import { EditableArea } from '@magnolia/react-editor';
 
-export default function List(props) {
-	const { items } = props;
+export default function List({ items, metadata }) {
 
 	return (
 		<>
@@ -10,7 +9,7 @@ export default function List(props) {
 			<ul className="List">
 				<EditableArea
 					content={items}
-					parentTemplateId={props.metadata['mgnl:template']}
+					parentTemplateId={metadata['mgnl:template']}
 				/>
 			</ul>
 		</>
