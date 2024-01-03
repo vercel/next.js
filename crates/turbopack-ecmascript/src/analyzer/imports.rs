@@ -123,7 +123,7 @@ pub(crate) struct ImportMapReference {
 
 impl ImportMap {
     pub fn is_esm(&self) -> bool {
-        self.has_exports || !self.imports.is_empty()
+        self.has_exports || !self.imports.is_empty() || !self.namespace_imports.is_empty()
     }
 
     pub fn get_import(&self, id: &Id) -> Option<JsValue> {

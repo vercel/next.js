@@ -49,7 +49,7 @@ use swc_core::{
 };
 use tracing::Instrument;
 use turbo_tasks::{TryJoinIterExt, Upcast, Value, ValueToString, Vc};
-use turbo_tasks_fs::{FileJsonContent, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{CompileTimeInfo, FreeVarReference},
     error::PrettyPrintError,
@@ -60,7 +60,6 @@ use turbopack_core::{
     resolve::{
         find_context_file,
         origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
-        package_json,
         parse::Request,
         pattern::Pattern,
         resolve, FindContextFileResult, ModulePart,
@@ -81,7 +80,7 @@ use self::{
         export::EsmExport, EsmAssetReference, EsmAsyncAssetReference, EsmExports, EsmModuleItem,
         ImportMetaBinding, ImportMetaRef, UrlAssetReference,
     },
-    node::{DirAssetReference, PackageJsonReference},
+    node::DirAssetReference,
     raw::FileSourceReference,
     typescript::{TsConfigReference, TsReferencePathAssetReference, TsReferenceTypeAssetReference},
 };
@@ -103,7 +102,7 @@ use super::{
         parse::{webpack_runtime, WebpackRuntime},
         WebpackChunkAssetReference, WebpackEntryAssetReference, WebpackRuntimeAssetReference,
     },
-    EcmascriptModuleAssetType,
+    EcmascriptModuleAssetType, ModuleTypeResult,
 };
 pub use crate::references::esm::export::{follow_reexports, FollowExportsResult};
 use crate::{
@@ -122,6 +121,7 @@ use crate::{
         async_module::{AsyncModule, OptionAsyncModule},
         cjs::{CjsRequireAssetReference, CjsRequireCacheAccess, CjsRequireResolveAssetReference},
         esm::{module_id::EsmModuleIdAssetReference, EsmBinding, UrlRewriteBehavior},
+        node::PackageJsonReference,
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
     },
@@ -324,22 +324,6 @@ impl Default for AnalyzeEcmascriptModuleResultBuilder {
     }
 }
 
-#[turbo_tasks::function]
-async fn specified_module_type(
-    package_json: Vc<FileSystemPath>,
-) -> Result<Vc<SpecifiedModuleType>> {
-    if let FileJsonContent::Content(content) = &*package_json.read_json().await? {
-        if let Some(r#type) = content.get("type") {
-            match r#type.as_str() {
-                Some("module") => return Ok(SpecifiedModuleType::EcmaScript.cell()),
-                Some("commonjs") => return Ok(SpecifiedModuleType::CommonJs.cell()),
-                _ => {}
-            }
-        }
-    }
-    Ok(SpecifiedModuleType::Automatic.cell())
-}
-
 struct AnalysisState<'a> {
     handler: &'a Handler,
     source: Vc<Box<dyn Source>>,
@@ -424,18 +408,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         parse(source, ty, transforms)
     };
 
-    let find_package_json = find_context_file(path.parent(), package_json()).await?;
-    let specified_type = match options.specified_module_type {
-        SpecifiedModuleType::Automatic => match *find_package_json {
-            FindContextFileResult::Found(package_json, _) => {
-                analysis.add_reference(PackageJsonReference::new(package_json));
-                *specified_module_type(package_json).await?
-            }
-            FindContextFileResult::NotFound(_) => SpecifiedModuleType::Automatic,
-        },
-        SpecifiedModuleType::EcmaScript => SpecifiedModuleType::EcmaScript,
-        SpecifiedModuleType::CommonJs => SpecifiedModuleType::CommonJs,
-    };
+    let ModuleTypeResult {
+        module_type: specified_type,
+        referenced_package_json,
+    } = *module.determine_module_type().await?;
+
+    if let Some(package_json) = referenced_package_json {
+        analysis.add_reference(PackageJsonReference::new(package_json));
+    }
 
     if analyze_types {
         match &*find_context_file(path.parent(), tsconfig()).await? {
@@ -679,12 +659,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         }
     }
 
-    let top_level_await_span =
-        set_handler_and_globals(&handler, globals, || has_top_level_await(program));
-    let has_top_level_await = top_level_await_span.is_some();
-
     let exports = if !esm_exports.is_empty() || !esm_star_exports.is_empty() {
-        if matches!(specified_type, SpecifiedModuleType::CommonJs) {
+        if specified_type == SpecifiedModuleType::CommonJs {
             SpecifiedModuleTypeIssue {
                 path: source.ident().path(),
                 specified_type,
@@ -693,35 +669,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             .emit();
         }
 
-        let async_module = AsyncModule {
-            placeable: Vc::upcast(module),
-            references: import_references.iter().copied().collect(),
-            has_top_level_await,
-            import_externals,
-        }
-        .cell();
-        analysis.set_async_module(async_module);
-
         let esm_exports = EsmExports {
             exports: esm_exports,
             star_exports: esm_star_exports,
         }
         .cell();
 
-        analysis.add_code_gen_with_availability_info(async_module);
-
         EcmascriptExports::EsmExports(esm_exports)
-    } else if matches!(specified_type, SpecifiedModuleType::EcmaScript) {
-        let async_module = AsyncModule {
-            placeable: Vc::upcast(module),
-            references: import_references.iter().copied().collect(),
-            has_top_level_await,
-            import_externals,
-        }
-        .cell();
-        analysis.set_async_module(async_module);
-        analysis.add_code_gen_with_availability_info(async_module);
-
+    } else if specified_type == SpecifiedModuleType::EcmaScript {
         match detect_dynamic_export(program) {
             DetectedDynamicExportType::CommonJs => {
                 SpecifiedModuleTypeIssue {
@@ -755,46 +710,46 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             DetectedDynamicExportType::CommonJs => EcmascriptExports::CommonJs,
             DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
             DetectedDynamicExportType::Value => EcmascriptExports::Value,
-            DetectedDynamicExportType::UsingModuleDeclarations => {
-                let async_module = AsyncModule {
-                    placeable: Vc::upcast(module),
-                    references: import_references.iter().copied().collect(),
-                    has_top_level_await,
-                    import_externals,
+            DetectedDynamicExportType::UsingModuleDeclarations => EcmascriptExports::EsmExports(
+                EsmExports {
+                    exports: Default::default(),
+                    star_exports: Default::default(),
                 }
-                .cell();
-                analysis.set_async_module(async_module);
-                analysis.add_code_gen_with_availability_info(async_module);
-
-                EcmascriptExports::EsmExports(
-                    EsmExports {
-                        exports: Default::default(),
-                        star_exports: Default::default(),
-                    }
-                    .cell(),
-                )
-            }
+                .cell(),
+            ),
             DetectedDynamicExportType::None => EcmascriptExports::None,
         }
     };
 
-    if let Some(span) = top_level_await_span {
-        if !matches!(exports, EcmascriptExports::EsmExports(_)) {
-            AnalyzeIssue {
-                code: None,
-                category: Vc::cell("analyze".to_string()),
-                message: StyledString::Text(
-                    "top level await is only supported in ESM modules.".to_string(),
-                )
-                .cell(),
-                source_ident: source.ident(),
-                severity: IssueSeverity::Error.into(),
-                source: Some(issue_source(source, span)),
-                title: Vc::cell("unexpected top level await".to_string()),
-            }
-            .cell()
-            .emit();
+    let top_level_await_span =
+        set_handler_and_globals(&handler, globals, || has_top_level_await(program));
+    let has_top_level_await = top_level_await_span.is_some();
+
+    if eval_context.is_esm() || specified_type == SpecifiedModuleType::EcmaScript {
+        let async_module = AsyncModule {
+            placeable: Vc::upcast(module),
+            references: import_references.iter().copied().collect(),
+            has_top_level_await,
+            import_externals,
         }
+        .cell();
+        analysis.set_async_module(async_module);
+        analysis.add_code_gen_with_availability_info(async_module);
+    } else if let Some(span) = top_level_await_span {
+        AnalyzeIssue {
+            code: None,
+            category: Vc::cell("analyze".to_string()),
+            message: StyledString::Text(
+                "top level await is only supported in ESM modules.".to_string(),
+            )
+            .cell(),
+            source_ident: source.ident(),
+            severity: IssueSeverity::Error.into(),
+            source: Some(issue_source(source, span)),
+            title: Vc::cell("unexpected top level await".to_string()),
+        }
+        .cell()
+        .emit();
     }
 
     analysis.set_exports(exports);

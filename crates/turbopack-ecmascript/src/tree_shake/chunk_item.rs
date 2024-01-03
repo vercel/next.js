@@ -49,9 +49,13 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         let parsed = part_of_module(split_data, module.part);
 
         let analyze = this.module.analyze().await?;
+
+        let module_type_result = *module.full_module.determine_module_type().await?;
+
         let content = EcmascriptModuleContent::new(
             parsed,
             module.full_module.ident(),
+            module_type_result.module_type,
             this.chunking_context,
             analyze.references,
             analyze.code_generation,
