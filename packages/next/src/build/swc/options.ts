@@ -26,7 +26,7 @@ function isCommonJSFile(filename: string) {
 
 // Ensure Next.js internals and .cjs files are output as CJS modules,
 // By default all modules are output as ESM or will treated as CJS if next-swc/auto-cjs plugin detects file is CJS.
-function useCommonJs(filename: string) {
+function shouldOutputCommonJs(filename: string) {
   return isCommonJSFile(filename) || nextDistPath.test(filename)
 }
 
@@ -303,7 +303,7 @@ export function getJestSWCOptions({
     serverComponents: false,
   })
 
-  const useCjsModules = useCommonJs(filename)
+  const useCjsModules = shouldOutputCommonJs(filename)
   return {
     ...baseOptions,
     env: {
@@ -421,7 +421,7 @@ export function getLoaderSWCOptions({
 
   const isNodeModules = nodeModulesPath.test(filename)
   const isAppBrowserLayer = bundleLayer === WEBPACK_LAYERS.appPagesBrowser
-  const moduleResolutionConfig = useCommonJs(filename)
+  const moduleResolutionConfig = shouldOutputCommonJs(filename)
     ? {
         module: {
           type: 'commonjs',
