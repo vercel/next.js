@@ -3053,6 +3053,16 @@ createNextDescribe(
         expect(next.cliOutput).toContain('cache-handler get')
         expect(next.cliOutput).toContain('cache-handler set')
       })
+
+      it('should load large data only once when using custom cache handler and force-cache mode', async () => {
+        const browser = await next.browser('/force-cache/large-data')
+        await browser.waitForElementByCss('#content')
+        await browser.refresh()
+        await browser.waitForElementByCss('#content')
+        await browser.refresh()
+        await browser.waitForElementByCss('#content')
+        expect(next.cliOutput.match('Load data').length).toBe(1)
+      })
     }
   }
 )
