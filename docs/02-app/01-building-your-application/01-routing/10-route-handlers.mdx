@@ -622,7 +622,8 @@ You can use Route Handlers to return non-UI content. Note that [`sitemap.xml`](/
 export const dynamic = 'force-dynamic' // defaults to auto
 
 export async function GET() {
-  return new Response(`<?xml version="1.0" encoding="UTF-8" ?>
+  return new Response(
+    `<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
 
 <channel>
@@ -632,11 +633,12 @@ export async function GET() {
 </channel>
 
 </rss>`,
-  {
-    headers: {
-      "Content-Type": "text/xml",
-    },
-  })
+    {
+      headers: {
+        'Content-Type': 'text/xml',
+      },
+    }
+  )
 }
 ```
 
