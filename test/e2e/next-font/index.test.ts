@@ -42,6 +42,17 @@ describe('next/font', () => {
     })
     afterAll(() => next.destroy())
 
+    if ((global as any).isNextDev) {
+      it('should use production cache control for fonts', async () => {
+        const $ = await next.render$('/')
+        const link = $('[rel="preload"][as="font"]').attr('href')
+        const res = await next.fetch(link)
+        expect(res.headers.get('cache-control')).toBe(
+          'public, max-age=31536000, immutable'
+        )
+      })
+    }
+
     describe('import values', () => {
       test('page with font', async () => {
         const html = await renderViaHTTP(next.url, '/with-fonts')
