@@ -396,7 +396,10 @@ export async function initialize(opts: {
           !res.getHeader('cache-control') &&
           matchedOutput.type === 'nextStaticFolder'
         ) {
-          if (opts.dev) {
+          const isNextFont =
+            parsedUrl.pathname &&
+            /\/media\/[^/]+\.(woff|woff2|eot|ttf|otf)$/.test(parsedUrl.pathname)
+          if (opts.dev && !isNextFont) {
             res.setHeader('Cache-Control', 'no-store, must-revalidate')
           } else {
             res.setHeader(
