@@ -220,7 +220,7 @@ async function exportPageImpl(
     // cache instance for this page.
     const incrementalCache =
       isAppDir && fetchCache
-        ? createIncrementalCache({
+        ? await createIncrementalCache({
             incrementalCacheHandlerPath,
             isrMemoryCacheSize,
             fetchCacheKeyPrefix,

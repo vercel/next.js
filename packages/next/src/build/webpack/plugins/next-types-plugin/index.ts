@@ -14,6 +14,7 @@ import { HTTP_METHODS } from '../../../../server/web/http'
 import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { getPageFromPath } from '../../../entries'
+import type { PageExtensions } from '../../../page-extensions-type'
 import { devPageFiles } from './shared'
 import { getProxiedPluginState } from '../../../build-context'
 
@@ -31,7 +32,7 @@ interface Options {
   appDir: string
   dev: boolean
   isEdgeServer: boolean
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   typedRoutes: boolean
   originalRewrites: Rewrites | undefined
   originalRedirects: Redirect[] | undefined

@@ -23,16 +23,21 @@ function Item({
   pending: boolean
   mutate: any
 }) {
+  const upvoteWithId = upvote.bind(null, feature)
+
   return (
     <form
-      action={async () => {
+      action={upvoteWithId}
+      onSubmit={async (event) => {
+        event.preventDefault()
         mutate({
           updatedFeature: {
             ...feature,
-            score: (Number(feature.score) + 1).toString(),
+            score: Number(feature.score) + 1,
           },
           pending: true,
         })
+
         await upvote(feature)
       }}
       className={clsx(
@@ -100,18 +105,27 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   })
 
+  let featureStub = {
+    id: uuidv4(),
+    title: '', // will used value from form
+    created_at: new Date().toISOString(),
+    score: '1',
+  }
+  let saveWithNewFeature = saveFeature.bind(null, featureStub)
+
   return (
     <>
       <div className="mx-8 w-full">
         <form
           className="relative my-8"
           ref={formRef}
-          action={async (formData) => {
-            const newFeature = {
-              id: uuidv4(),
-              title: `${formData.get('feature')}`,
-              created_at: new Date().toISOString(),
-              score: '1',
+          action={saveWithNewFeature}
+          onSubmit={async (event) => {
+            event.preventDefault()
+            let formData = new FormData(event.currentTarget)
+            let newFeature = {
+              ...featureStub,
+              title: formData.get('feature') as string,
             }
 
             mutate({
@@ -119,7 +133,7 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
               pending: true,
             })
             formRef.current?.reset()
-            await saveFeature(newFeature)
+            await saveFeature(newFeature, formData)
           }}
         >
           <input

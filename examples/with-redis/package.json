@@ -14,7 +14,7 @@
     "autoprefixer": "10.4.16",
     "clsx": "^2.0.0",
     "geist": "^1.2.0",
-    "next": "latest",
+    "next": "canary",
     "postcss": "^8.4.32",
     "react": "18.2.0",
     "react-dom": "18.2.0",
