@@ -304,16 +304,18 @@ export function getJestSWCOptions({
   })
 
   const useCjsModules = useCommonJs(filename)
+  console.log(`mod res`, esm && !isNextDist ? 'es6' : 'commonjs')
+  const isNextDist = nextDistPath.test(filename)
   return {
     ...baseOptions,
-    module: {
-      type: useCjsModules ? 'commonjs' : 'es6',
-    },
     env: {
       targets: {
         // Targets the current version of Node.js
         node: process.versions.node,
       },
+    },
+    module: {
+      type: esm && !isNextDist ? 'es6' : 'commonjs',
     },
     disableNextSsg: true,
     disablePageConfig: true,
@@ -419,14 +421,21 @@ export function getLoaderSWCOptions({
     }
   }
 
-  const isNextDist = nextDistPath.test(filename)
   const isNodeModules = nodeModulesPath.test(filename)
   const isAppBrowserLayer = bundleLayer === WEBPACK_LAYERS.appPagesBrowser
+  const moduleResolutionConfig = useCommonJs(filename)
+    ? {
+        module: {
+          type: 'commonjs',
+        },
+      }
+    : {}
 
   let options: any
   if (isServer) {
     options = {
       ...baseOptions,
+      ...moduleResolutionConfig,
       // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
       disableNextSsg: true,
       disablePageConfig: true,
@@ -446,13 +455,7 @@ export function getLoaderSWCOptions({
   } else {
     options = {
       ...baseOptions,
-      ...(useCommonJs(filename)
-        ? {
-            module: {
-              type: 'commonjs',
-            },
-          }
-        : {}),
+      ...moduleResolutionConfig,
       disableNextSsg: !isPageFile,
       isDevelopment: development,
       isServerCompiler: isServer,
