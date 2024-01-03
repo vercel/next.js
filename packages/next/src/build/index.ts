@@ -163,6 +163,7 @@ import { formatManifest } from './manifests/formatter/format-manifest'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
+import { interopDefault } from '../lib/interop-default'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -352,6 +353,22 @@ function pageToRoute(page: string) {
   }
 }
 
+function getCacheDir(distDir: string): string {
+  const cacheDir = path.join(distDir, 'cache')
+  if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
+    const hasCache = existsSync(cacheDir)
+
+    if (!hasCache) {
+      // Intentionally not piping to stderr which is what `Log.warn` does in case people fail in CI when
+      // stderr is detected.
+      console.log(
+        `${Log.prefixes.warn} No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache`
+      )
+    }
+  }
+  return cacheDir
+}
+
 export default async function build(
   dir: string,
   reactProductionProfiling = false,
@@ -427,18 +444,7 @@ export default async function build(
       NextBuildContext.originalRewrites = config._originalRewrites
       NextBuildContext.originalRedirects = config._originalRedirects
 
-      const cacheDir = path.join(distDir, 'cache')
-      if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
-        const hasCache = existsSync(cacheDir)
-
-        if (!hasCache) {
-          // Intentionally not piping to stderr in case people fail in CI when
-          // stderr is detected.
-          console.log(
-            `${Log.prefixes.warn} No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache`
-          )
-        }
-      }
+      const cacheDir = getCacheDir(distDir)
 
       const telemetry = new Telemetry({ distDir })
 
@@ -518,11 +524,6 @@ export default async function build(
         eventName: EVENT_BUILD_FEATURE_USAGE,
         payload: buildLintEvent,
       })
-      let buildSpinner: ReturnType<typeof createSpinner> = {
-        stopAndPersist() {
-          return this
-        },
-      } as any
 
       const { envInfo, expFeatureInfo } = await getStartServerInfo(dir)
       logStartInfo({
@@ -531,12 +532,6 @@ export default async function build(
         envInfo,
         expFeatureInfo,
       })
-
-      if (!isGenerateMode) {
-        buildSpinner = createSpinner('Creating an optimized production build')
-      }
-
-      NextBuildContext.buildSpinner = buildSpinner
 
       const validFileMatcher = createValidFileMatcher(
         config.pageExtensions,
@@ -1114,6 +1109,8 @@ export default async function build(
         )
       }
 
+      Log.info('Creating an optimized production build ...')
+
       if (!isGenerateMode) {
         if (isCompileMode && useBuildWorker) {
           let durationInSeconds = 0
@@ -1155,7 +1152,6 @@ export default async function build(
             durationInSeconds += res.duration
           })
 
-          buildSpinner?.stopAndPersist()
           Log.event('Compiled successfully')
 
           telemetry.record(
@@ -1333,10 +1329,13 @@ export default async function build(
       if (config.experimental.staticWorkerRequestDeduping) {
         let CacheHandler
         if (incrementalCacheHandlerPath) {
-          CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
-            ? incrementalCacheHandlerPath
-            : path.join(dir, incrementalCacheHandlerPath))
-          CacheHandler = CacheHandler.default || CacheHandler
+          CacheHandler = interopDefault(
+            await import(
+              path.isAbsolute(incrementalCacheHandlerPath)
+                ? incrementalCacheHandlerPath
+                : path.join(dir, incrementalCacheHandlerPath)
+            )
+          )
         }
 
         const cacheInitialization = await initializeIncrementalCache({

@@ -119,6 +119,19 @@ createNextDescribe(
       })
     })
 
+    describe('search parameters', () => {
+      it('should render the page with the search parameters', async () => {
+        const expected = `${Date.now()}:${Math.random()}`
+        const res = await next.fetch(
+          `/search?query=${encodeURIComponent(expected)}`
+        )
+        expect(res.status).toBe(200)
+
+        const html = await res.text()
+        expect(html).toContain(expected)
+      })
+    })
+
     describe.each([{ pathname: '/no-suspense' }])(
       'without suspense for $pathname',
       ({ pathname }) => {
