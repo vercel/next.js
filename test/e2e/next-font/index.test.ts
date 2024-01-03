@@ -46,6 +46,7 @@ describe('next/font', () => {
       it('should use production cache control for fonts', async () => {
         const $ = await next.render$('/')
         const link = $('[rel="preload"][as="font"]').attr('href')
+        expect(link).toBeDefined()
         const res = await next.fetch(link)
         expect(res.headers.get('cache-control')).toBe(
           'public, max-age=31536000, immutable'
