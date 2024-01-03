@@ -1,5 +1,7 @@
 'use client'
 
+import type Stripe from 'stripe'
+
 import React, { useState } from 'react'
 
 import CustomDonationInput from '@/components/CustomDonationInput'
@@ -8,12 +10,22 @@ import StripeTestCards from '@/components/StripeTestCards'
 import { formatAmountForDisplay } from '@/utils/stripe-helpers'
 import * as config from '@/config'
 import { createCheckoutSession } from '@/actions/stripe'
+import getStripe from '@/utils/get-stripejs'
+import {
+  EmbeddedCheckout,
+  EmbeddedCheckoutProvider,
+} from '@stripe/react-stripe-js'
 
-export default function CheckoutForm(): JSX.Element {
+interface CheckoutFormProps {
+  uiMode: Stripe.Checkout.SessionCreateParams.UiMode
+}
+
+export default function CheckoutForm(props: CheckoutFormProps): JSX.Element {
   const [loading] = useState<boolean>(false)
   const [input, setInput] = useState<{ customDonation: number }>({
     customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
   })
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
 
   const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (
     e
@@ -23,26 +35,57 @@ export default function CheckoutForm(): JSX.Element {
       [e.currentTarget.name]: e.currentTarget.value,
     })
 
+  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (
+    e
+  ): Promise<void> => {
+    e.preventDefault()
+
+    if (props.uiMode === 'hosted') {
+      const { url } = await createCheckoutSession(
+        new FormData(e.target as HTMLFormElement)
+      )
+
+      window.location.assign(url as string)
+    }
+
+    const { client_secret } = await createCheckoutSession(
+      new FormData(e.target as HTMLFormElement)
+    )
+
+    setClientSecret(client_secret)
+  }
+
   return (
-    <form action={createCheckoutSession}>
-      <CustomDonationInput
-        className="checkout-style"
-        name="customDonation"
-        min={config.MIN_AMOUNT}
-        max={config.MAX_AMOUNT}
-        step={config.AMOUNT_STEP}
-        currency={config.CURRENCY}
-        onChange={handleInputChange}
-        value={input.customDonation}
-      />
-      <StripeTestCards />
-      <button
-        className="checkout-style-background"
-        type="submit"
-        disabled={loading}
-      >
-        Donate {formatAmountForDisplay(input.customDonation, config.CURRENCY)}
-      </button>
-    </form>
+    <React.Fragment>
+      <form onSubmit={handleSubmit}>
+        <input type="hidden" name="uiMode" value={props.uiMode} />
+        <CustomDonationInput
+          className="checkout-style"
+          name="customDonation"
+          min={config.MIN_AMOUNT}
+          max={config.MAX_AMOUNT}
+          step={config.AMOUNT_STEP}
+          currency={config.CURRENCY}
+          onChange={handleInputChange}
+          value={input.customDonation}
+        />
+        <StripeTestCards />
+        <button
+          className="checkout-style-background"
+          type="submit"
+          disabled={loading}
+        >
+          Donate {formatAmountForDisplay(input.customDonation, config.CURRENCY)}
+        </button>
+      </form>
+      {clientSecret ? (
+        <EmbeddedCheckoutProvider
+          stripe={getStripe()}
+          options={{ clientSecret }}
+        >
+          <EmbeddedCheckout />
+        </EmbeddedCheckoutProvider>
+      ) : null}
+    </React.Fragment>
   )
 }

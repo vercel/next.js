@@ -3,15 +3,15 @@ import type { Metadata } from 'next'
 import CheckoutForm from '@/components/CheckoutForm'
 
 export const metadata: Metadata = {
-  title: 'Donate with hosted Checkout | Next.js + TypeScript Example',
+  title: 'Donate with embedded Checkout | Next.js + TypeScript Example',
 }
 
 export default function DonatePage(): JSX.Element {
   return (
     <div className="page-container">
-      <h1>Donate with hosted Checkout</h1>
+      <h1>Donate with embedded Checkout</h1>
       <p>Donate to our project 💖</p>
-      <CheckoutForm uiMode="hosted" />
+      <CheckoutForm uiMode="embedded" />
     </div>
   )
 }
