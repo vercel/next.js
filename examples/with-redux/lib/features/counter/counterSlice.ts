@@ -1,4 +1,4 @@
-import { createSliceWithThunks } from '@/lib/createSliceWithThunks'
+import { createAppSlice } from '@/lib/createAppSlice'
 import type { AppThunk } from '@/lib/store'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import { fetchCount } from './counterAPI'
@@ -14,7 +14,7 @@ const initialState: CounterSliceState = {
 }
 
 // If you are not using async thunks you can use the standalone `createSlice`.
-export const counterSlice = createSliceWithThunks({
+export const counterSlice = createAppSlice({
   name: 'counter',
   // `createSlice` will infer the state type from the `initialState` argument
   initialState,
