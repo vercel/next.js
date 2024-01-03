@@ -353,7 +353,7 @@ function Script(props: ScriptProps): JSX.Element | null {
             dangerouslySetInnerHTML={{
               __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
                 src,
-                { ...restProps, id }
+                { ...restProps, id },
               ])})`,
             }}
           />
