@@ -304,8 +304,6 @@ export function getJestSWCOptions({
   })
 
   const useCjsModules = useCommonJs(filename)
-  console.log(`mod res`, esm && !isNextDist ? 'es6' : 'commonjs')
-  const isNextDist = nextDistPath.test(filename)
   return {
     ...baseOptions,
     env: {
@@ -315,7 +313,7 @@ export function getJestSWCOptions({
       },
     },
     module: {
-      type: esm && !isNextDist ? 'es6' : 'commonjs',
+      type: esm && !useCjsModules ? 'es6' : 'commonjs',
     },
     disableNextSsg: true,
     disablePageConfig: true,
