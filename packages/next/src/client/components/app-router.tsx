@@ -8,6 +8,7 @@ import React, {
   useCallback,
   startTransition,
   useInsertionEffect,
+  useDeferredValue,
 } from 'react'
 import {
   AppRouterContext,
@@ -228,6 +229,31 @@ function copyNextJsInternalHistoryState(data: any) {
   }
 
   return data
+}
+
+function Head({
+  headCacheNode,
+}: {
+  headCacheNode: CacheNode | null
+}): React.ReactNode {
+  // If this segment has a `prefetchHead`, it's the statically prefetched data.
+  // We should use that on initial render instead of `head`. Then we'll switch
+  // to `head` when the dynamic response streams in.
+  const head = headCacheNode !== null ? headCacheNode.head : null
+  const prefetchHead =
+    headCacheNode !== null ? headCacheNode.prefetchHead : null
+
+  // If no prefetch data is available, then we go straight to rendering `head`.
+  const resolvedPrefetchRsc = prefetchHead !== null ? prefetchHead : head
+
+  // We use `useDeferredValue` to handle switching between the prefetched and
+  // final values. The second argument is returned on initial render, then it
+  // re-renders with the first argument.
+  //
+  // @ts-expect-error The second argument to `useDeferredValue` is only
+  // available in the experimental builds. When its disabled, it will always
+  // return `head`.
+  return useDeferredValue(head, resolvedPrefetchRsc)
 }
 
 /**
@@ -542,9 +568,23 @@ function Router({
   const { cache, tree, nextUrl, focusAndScrollRef } =
     useUnwrapState(reducerState)
 
-  const head = useMemo(() => {
+  const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
+
+  let head
+  if (matchingHead !== null) {
+    // The head is wrapped in an extra component so we can use
+    // `useDeferredValue` to swap between the prefetched and final versions of
+    // the head. (This is what LayoutRouter does for segment data, too.)
+    //
+    // The `key` is used to remount the component whenever the head moves to
+    // a different segment.
+    const [headCacheNode, headKey] = matchingHead
+    head = <Head key={headKey} headCacheNode={headCacheNode} />
+  } else {
+    head = null
+  }
 
   let content = (
     <RedirectBoundary>
