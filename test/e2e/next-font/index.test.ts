@@ -44,6 +44,8 @@ describe('next/font', () => {
 
     if ((global as any).isNextDev) {
       it('should use production cache control for fonts', async () => {
+        const html = await next.render('/')
+        console.log({ html })
         const $ = await next.render$('/')
         const link = $('[rel="preload"][as="font"]').attr('href')
         expect(link).toBeDefined()
