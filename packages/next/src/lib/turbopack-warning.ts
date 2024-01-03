@@ -88,6 +88,8 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.memoryBasedWorkersCount',
   'experimental.clientRouterFilterRedirects',
   'experimental.webpackBuildWorker',
+  'experimental.parallelServerAndEdgeCompiles',
+  'experimental.parallelServerBuildTraces',
   'experimental.appDocumentPreloading',
   'experimental.incrementalCacheHandlerPath',
   'experimental.amp',
