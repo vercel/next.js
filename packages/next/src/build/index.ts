@@ -1897,15 +1897,19 @@ export default async function build(
                             const isDynamic = isDynamicRoute(page)
                             const hasGenerateStaticParams =
                               !!workerResult.prerenderRoutes?.length
+                            const isEmptyGenerateStaticParams =
+                              workerResult.prerenderRoutes?.length === 0
 
-                            if (
-                              config.output === 'export' &&
-                              isDynamic &&
-                              !hasGenerateStaticParams
-                            ) {
-                              throw new Error(
-                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
-                              )
+                            if (config.output === 'export' && isDynamic) {
+                              if (isEmptyGenerateStaticParams) {
+                                throw new Error(
+                                  `Page "${page}"'s "generateStaticParams()" returned an empty array, which is not allowed with "output: export" config.`
+                                )
+                              } else if (!hasGenerateStaticParams) {
+                                throw new Error(
+                                  `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
+                                )
+                              }
                             }
 
                             if (
