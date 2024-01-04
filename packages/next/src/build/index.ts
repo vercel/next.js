@@ -1497,11 +1497,10 @@ export default async function build(
         ? await readManifest<AppBuildManifest>(appBuildManifestPath)
         : undefined
 
-      let appPathsManifest: Record<string, string> = {}
       const appPathRoutes: Record<string, string> = {}
 
       if (appDir) {
-        appPathsManifest = await readManifest(
+        const appPathsManifest = await readManifest(
           path.join(distDir, SERVER_DIRECTORY, APP_PATHS_MANIFEST)
         )
 
