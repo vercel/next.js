@@ -2,9 +2,7 @@ import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
   'use-search-params',
-  {
-    files: __dirname,
-  },
+  { files: __dirname },
   ({ next, isNextStart }) => {
     if (!isNextStart) {
       it('skip test for dev mode', () => {})
@@ -34,7 +32,7 @@ createNextDescribe(
         await next.build()
       } catch {}
       expect(next.cliOutput).toContain(
-        'Entire page / deopted into client-side rendering.'
+        '`useSearchParams()` at page "/" needs to be wrapped in a suspense boundary'
       )
     })
   }
