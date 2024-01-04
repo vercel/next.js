@@ -1563,11 +1563,14 @@ export default async function build(
       }
 
       const pagesStaticWorkers = createStaticWorker(
+        config,
+
         incrementalCacheIpcPort,
         incrementalCacheIpcValidationKey
       )
       const appStaticWorkers = appDir
         ? createStaticWorker(
+            config,
             incrementalCacheIpcPort,
             incrementalCacheIpcValidationKey
           )
