@@ -116,7 +116,7 @@ impl Visit for CjsFinder {
         n.visit_children_with(self);
     }
 
-    fn visit_mut_module_decl(&mut self, _: &mut ModuleDecl) {
+    fn visit_module_decl(&mut self, _: &ModuleDecl) {
         self.is_esm = true;
     }
 }
