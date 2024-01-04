@@ -6,20 +6,32 @@ import {
 } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 
+const frameworkInternalRegex = /[\\/]next[\\/]dist[\\/]/
+const reactNodeModulesRegex = /[\\/]node_modules[\\/]react(-dom)?[\\/]/
+
+export function isNextInternalStackFrame(frame: StackFrame): boolean {
+  return !!(
+    frame.file &&
+    (frameworkInternalRegex.test(frame.file) ||
+      reactNodeModulesRegex.test(frame.file))
+  )
+}
+
 export const CallStackFrame: React.FC<{
   frame: OriginalStackFrame
 }> = function CallStackFrame({ frame }) {
   // TODO: ability to expand resolved frames
   // TODO: render error or external indicator
 
-  const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame
+  const stackFrame: StackFrame =
+    frame.originalStackFrame ?? frame.sourceStackFrame
   const hasSource = Boolean(frame.originalCodeFrame)
   const open = useOpenInEditor(
     hasSource
       ? {
-          file: f.file,
-          lineNumber: f.lineNumber,
-          column: f.column,
+          file: stackFrame.file,
+          lineNumber: stackFrame.lineNumber,
+          column: stackFrame.column,
         }
       : undefined
   )
@@ -27,7 +39,7 @@ export const CallStackFrame: React.FC<{
   return (
     <div data-nextjs-call-stack-frame>
       <h3 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
-        {f.methodName}
+        {stackFrame.methodName}
       </h3>
       <div
         data-has-source={hasSource ? 'true' : undefined}
@@ -36,7 +48,7 @@ export const CallStackFrame: React.FC<{
         onClick={open}
         title={hasSource ? 'Click to open in your editor' : undefined}
       >
-        <span>{getFrameSource(f)}</span>
+        <span>{getFrameSource(stackFrame)}</span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"

@@ -18,6 +18,8 @@ export const reader: TestRequestReader<Request> = {
   },
 }
 
+const nextInternalRegex = /[\\/]next[\\/]dist[\\/]/
+
 function getTestStack(): string {
   let stack = (new Error().stack ?? '').split('\n')
   // Skip the first line and find first non-empty line.
@@ -27,12 +29,14 @@ function getTestStack(): string {
       break
     }
   }
-  // Filter out franmework lines.
-  stack = stack.filter((f) => !f.includes('/next/dist/'))
+  // Filter out nextjs framework lines.
+  stack = stack.filter((f) => !nextInternalRegex.test(f))
   // At most 5 lines.
   stack = stack.slice(0, 5)
   // Cleanup some internal info and trim.
-  stack = stack.map((s) => s.replace('webpack-internal:///(rsc)/', '').trim())
+  stack = stack.map((s) =>
+    s.replace(/webpack-internal:\/\/\/(\w+)\//, '').trim()
+  )
   return stack.join('    ')
 }
 
