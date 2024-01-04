@@ -4,7 +4,7 @@ import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
-import type { ExportAppOptions, ExportAppWorker } from '../export/types'
+import type { ExportAppOptions } from '../export/types'
 import type { Revalidate } from '../server/lib/revalidate'
 
 import '../lib/setup-exception-listeners'
@@ -616,8 +616,8 @@ async function writeFullyStaticExport(
   configOutDir: string,
   nextBuildSpan: Span
 ): Promise<void> {
-  const exportApp: typeof import('../export').default =
-    require('../export').default
+  const exportApp = require('../export')
+    .default as typeof import('../export').default
 
   const pagesWorker = createStaticWorker(
     config,
@@ -2284,7 +2284,8 @@ export default async function build(
             ssgPages,
             additionalSsgPaths
           )
-          const exportApp: ExportAppWorker = require('../export').default
+          const exportApp = require('../export')
+            .default as typeof import('../export').default
 
           const exportConfig: NextConfigComplete = {
             ...config,
