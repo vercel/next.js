@@ -239,30 +239,6 @@ export async function createComponentTree({
    * The React Component to render.
    */
   let Component = LayoutOrPage
-  const parallelKeys = Object.keys(parallelRoutes)
-  const hasSlotKey = parallelKeys.length > 1
-
-  if (hasSlotKey && rootLayoutAtThisLevel) {
-    Component = (componentProps: any) => {
-      const NotFoundComponent = NotFound
-      const RootLayoutComponent = LayoutOrPage
-      return (
-        <NotFoundBoundary
-          notFound={
-            <>
-              {layerAssets}
-              <RootLayoutComponent>
-                {notFoundStyles}
-                <NotFoundComponent />
-              </RootLayoutComponent>
-            </>
-          }
-        >
-          <RootLayoutComponent {...componentProps} />
-        </NotFoundBoundary>
-      )
-    }
-  }
 
   if (process.env.NODE_ENV === 'development') {
     const { isValidElementType } = require('next/dist/compiled/react-is')
