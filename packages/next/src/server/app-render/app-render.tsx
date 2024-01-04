@@ -872,7 +872,8 @@ async function renderToHTMLOrFlightImpl(
             error(
               `\`useSearchParams()\` at page "${pagePath}" needs to be wrapped in a suspense boundary. https://nextjs.org/docs/messages/todo`
             )
-            throw err
+            // Not rethrowing here because the presence of the .digest property would not stop the build
+            throw new Error(err.message)
           }
           warn(
             `Entire page "${pagePath}" deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`
