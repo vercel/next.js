@@ -357,7 +357,7 @@ export interface ExperimentalConfig {
    *
    * When set to `true`, Next.js will break the build instead to force the developer to add a suspense boundary.
    */
-  failSearchParamsWithoutSuspense: boolean
+  failSearchParamsWithoutSuspense?: boolean
 }
 
 export type ExportPathMap = {

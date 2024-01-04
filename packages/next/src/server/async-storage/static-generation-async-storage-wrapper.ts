@@ -19,11 +19,10 @@ export type StaticGenerationContext = {
     isDraftMode?: boolean
     isServerAction?: boolean
     waitUntil?: Promise<any>
-    experimental: Pick<
-      NextConfigComplete['experimental'],
-      'ppr' | 'failSearchParamsWithoutSuspense'
-    >
-
+    experimental: {
+      ppr: NextConfigComplete['experimental']['ppr']
+      failSearchParamsWithoutSuspense?: NextConfigComplete['experimental']['failSearchParamsWithoutSuspense']
+    }
     /**
      * A hack around accessing the store value outside the context of the
      * request.

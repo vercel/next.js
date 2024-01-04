@@ -142,10 +142,10 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
-  experimental: Pick<
-    NextConfigComplete['experimental'],
-    'ppr' | 'failSearchParamsWithoutSuspense'
-  >
+  experimental: {
+    ppr: NextConfigComplete['experimental']['ppr']
+    failSearchParamsWithoutSuspense?: NextConfigComplete['experimental']['failSearchParamsWithoutSuspense']
+  }
   postponed?: string
 }
 

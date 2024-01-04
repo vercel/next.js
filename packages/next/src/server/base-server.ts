@@ -1892,7 +1892,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // we can use this fact to only generate the flight data for the request
     // because we can't cache the HTML (as it's also dynamic).
     const isDynamicRSCRequest =
-      opts.experimental.ppr && isRSCRequest && !isPrefetchRSCRequest
+      !!opts.experimental.ppr && isRSCRequest && !isPrefetchRSCRequest
 
     // For pages we need to ensure the correct Vary header is set too, to avoid
     // caching issues when navigating between pages and app

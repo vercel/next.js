@@ -506,7 +506,7 @@ export async function exportAppImpl(
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.experimental.deploymentId,
     experimental: {
-      ppr: nextConfig.experimental.ppr,
+      ppr: !!nextConfig.experimental.ppr,
       failSearchParamsWithoutSuspense:
         nextConfig.experimental.failSearchParamsWithoutSuspense,
     },
