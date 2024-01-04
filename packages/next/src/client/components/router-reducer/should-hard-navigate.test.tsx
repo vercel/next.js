@@ -35,7 +35,7 @@ describe('shouldHardNavigate', () => {
               children: ['', {}],
             },
           ],
-          <h1>About Page!</h1>,
+          ['about', {}, <h1>About Page!</h1>],
           <>
             <title>About page!</title>
           </>,
@@ -94,7 +94,7 @@ describe('shouldHardNavigate', () => {
               children: ['', {}],
             },
           ],
-          null,
+          [['id', '123', 'd'], {}, null],
           null,
         ],
       ]
@@ -151,7 +151,7 @@ describe('shouldHardNavigate', () => {
               children: ['', {}],
             },
           ],
-          null,
+          [['id', '123', 'd'], {}, null],
           null,
         ],
       ]

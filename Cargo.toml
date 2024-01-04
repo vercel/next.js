@@ -14,6 +14,9 @@ members = [
   "packages/next-swc/crates/next-transform-strip-page-exports",
 ]
 
+[workspace.lints.clippy]
+too_many_arguments = "allow"
+
 # This is a workaround for wasm timeout issue
 [profile.dev.package."*"]
 debug-assertions = false
@@ -33,18 +36,18 @@ next-transform-dynamic = { path = "packages/next-swc/crates/next-transform-dynam
 next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-transform-strip-page-exports" }
 
 # SWC crates
-  swc_core = { version = "0.86.40", features = [
+swc_core = { version = "0.87.10", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "0.35.7" }
+testing = { version = "0.35.14" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-231108.1" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240102.1" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-231108.1" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240102.1" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-231108.1" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240102.1" }
 
 # General Deps
 
@@ -132,3 +135,4 @@ url = "2.2.2"
 urlencoding = "2.1.2"
 webbrowser = "0.8.7"
 dhat = { version = "0.3.2" }
+

@@ -29,7 +29,6 @@ DEALINGS IN THE SOFTWARE.
 #![recursion_limit = "2048"]
 //#![deny(clippy::all)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 #[macro_use]
 extern crate napi_derive;

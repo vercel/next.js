@@ -7,6 +7,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
+
 'use strict';
 
 var util = require('util');
@@ -213,9 +214,20 @@ function bind() {
 
   if (this.$$typeof === SERVER_REFERENCE_TAG) {
     const args = ArraySlice.call(arguments, 1);
-    newFn.$$typeof = SERVER_REFERENCE_TAG;
-    newFn.$$id = this.$$id;
-    newFn.$$bound = this.$$bound ? this.$$bound.concat(args) : args;
+    return Object.defineProperties(newFn, {
+      $$typeof: {
+        value: SERVER_REFERENCE_TAG
+      },
+      $$id: {
+        value: this.$$id
+      },
+      $$bound: {
+        value: this.$$bound ? this.$$bound.concat(args) : args
+      },
+      bind: {
+        value: bind
+      }
+    });
   }
 
   return newFn;
@@ -1471,11 +1483,13 @@ function serializeThenable(request, thenable) {
     newTask.model = value;
     pingTask(request, newTask);
   }, reason => {
-    newTask.status = ERRORED$1;
-    request.abortableTasks.delete(newTask); // TODO: We should ideally do this inside performWork so it's scheduled
+    {
+      newTask.status = ERRORED$1;
+      const digest = logRecoverableError(request, reason);
+      emitErrorChunk(request, newTask.id, digest);
+    }
 
-    const digest = logRecoverableError(request, reason);
-    emitErrorChunk(request, newTask.id, digest);
+    request.abortableTasks.delete(newTask);
 
     if (request.destination !== null) {
       flushCompletedChunks(request, request.destination);

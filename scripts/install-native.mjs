@@ -2,7 +2,7 @@ import os from 'os'
 import path from 'path'
 import execa from 'execa'
 import fs from 'fs'
-import { move } from 'fs-extra'
+import fsp from 'fs/promises'
 ;(async function () {
   if (process.env.NEXT_SKIP_NATIVE_POSTINSTALL) {
     console.log(
@@ -70,8 +70,12 @@ import { move } from 'fs-extra'
       pkgs.map(async (pkg) => {
         const from = path.join(tmpdir, 'node_modules/@next', pkg)
         const to = path.join(cwd, 'node_modules/@next', pkg)
-        // overwriting by removing the target first
-        return move(from, to, { overwrite: true })
+        // The directory from pnpm store is a symlink, which can not be overwritten,
+        // so we remove the existing directory before copying
+        await fsp.rm(to, { recursive: true, force: true })
+        // Renaming is flaky on Windows, and the tmpdir is going to be deleted anyway,
+        // so we use copy the directory instead
+        return fsp.cp(from, to, { force: true, recursive: true })
       })
     )
     fs.rmSync(tmpdir, { recursive: true, force: true })

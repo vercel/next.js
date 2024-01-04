@@ -4,29 +4,45 @@ import path from 'path'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { nodeFs } from '../../server/lib/node-fs-methods'
+import { interopDefault } from '../../lib/interop-default'
 
-export function createIncrementalCache(
-  incrementalCacheHandlerPath: string | undefined,
-  isrMemoryCacheSize: number | undefined,
-  fetchCacheKeyPrefix: string | undefined,
-  distDir: string,
-  dir: string,
-  enabledDirectories: NextEnabledDirectories,
+export async function createIncrementalCache({
+  incrementalCacheHandlerPath,
+  isrMemoryCacheSize,
+  fetchCacheKeyPrefix,
+  distDir,
+  dir,
+  enabledDirectories,
+  experimental,
+  flushToDisk,
+}: {
+  incrementalCacheHandlerPath?: string
+  isrMemoryCacheSize?: number
+  fetchCacheKeyPrefix?: string
+  distDir: string
+  dir: string
+  enabledDirectories: NextEnabledDirectories
   experimental: { ppr: boolean }
-) {
+  flushToDisk?: boolean
+}) {
   // Custom cache handler overrides.
   let CacheHandler: any
   if (incrementalCacheHandlerPath) {
-    CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
-      ? incrementalCacheHandlerPath
-      : path.join(dir, incrementalCacheHandlerPath))
-    CacheHandler = CacheHandler.default || CacheHandler
+    CacheHandler = interopDefault(
+      (
+        await import(
+          path.isAbsolute(incrementalCacheHandlerPath)
+            ? incrementalCacheHandlerPath
+            : path.join(dir, incrementalCacheHandlerPath)
+        )
+      ).default
+    )
   }
 
   const incrementalCache = new IncrementalCache({
     dev: false,
     requestHeaders: {},
-    flushToDisk: true,
+    flushToDisk,
     fetchCache: true,
     maxMemoryCacheSize: isrMemoryCacheSize,
     fetchCacheKeyPrefix,

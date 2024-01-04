@@ -45,6 +45,14 @@ createNextDescribe(
           'unstable_cache_tag1'
         )
       })
+
+      if (!process.env.CUSTOM_CACHE_HANDLER) {
+        it('should honor force-static with fetch cache: no-store correctly', async () => {
+          const res = await next.fetch('/force-static-fetch-no-store')
+          expect(res.status).toBe(200)
+          expect(res.headers.get('x-nextjs-cache').toLowerCase()).toBe('hit')
+        })
+      }
     }
 
     it('should correctly include headers instance in cache key', async () => {
@@ -915,6 +923,22 @@ createNextDescribe(
               "initialRevalidateSeconds": 3,
               "srcRoute": "/force-cache",
             },
+            "/force-static-fetch-no-store": {
+              "dataRoute": "/force-static-fetch-no-store.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/force-static-fetch-no-store",
+            },
             "/force-static/first": {
               "dataRoute": "/force-static/first.rsc",
               "experimentalBypassFor": [
@@ -994,6 +1018,22 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/hooks/use-search-params/force-static",
+            },
+            "/hooks/use-search-params/static-bailout": {
+              "dataRoute": "/hooks/use-search-params/static-bailout.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/hooks/use-search-params/static-bailout",
             },
             "/hooks/use-search-params/with-suspense": {
               "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
@@ -1685,35 +1725,38 @@ createNextDescribe(
       { path: '/stale-cache-serving-edge/app-page' },
       { path: '/stale-cache-serving-edge/route-handler' },
     ])('should stream properly for $path', async ({ path }) => {
-      // prime cache initially
-      await next.fetch(path)
+      // Prime the cache.
+      let res = await next.fetch(path)
+      expect(res.status).toBe(200)
+
+      // Consume the cache, the revalidations are completed on the end of the
+      // stream so we need to wait for that to complete.
+      await res.text()
 
       for (let i = 0; i < 6; i++) {
         await waitFor(1000)
-        const start = Date.now()
-        let streamStart = 0
-        const res = await next.fetch(path)
-        const chunks: any[] = []
 
-        await new Promise<void>((bodyResolve) => {
-          res.body.on('data', (chunk) => {
-            if (!streamStart) {
-              streamStart = Date.now()
+        const timings = {
+          start: Date.now(),
+          startedStreaming: 0,
+        }
+
+        res = await next.fetch(path)
+
+        // eslint-disable-next-line no-loop-func
+        await new Promise<void>((resolve) => {
+          res.body.on('data', () => {
+            if (!timings.startedStreaming) {
+              timings.startedStreaming = Date.now()
             }
-            chunks.push(chunk)
           })
 
           res.body.on('end', () => {
-            bodyResolve()
+            resolve()
           })
         })
-        require('console').log({
-          start,
-          duration: Date.now() - start,
-          streamStart,
-          startDuration: streamStart - start,
-        })
-        expect(streamStart - start).toBeLessThan(3000)
+
+        expect(timings.startedStreaming - timings.start).toBeLessThan(3000)
       }
     })
 
@@ -2832,9 +2875,9 @@ createNextDescribe(
     describe('useSearchParams', () => {
       describe('client', () => {
         it('should bailout to client rendering - with suspense boundary', async () => {
-          const browser = await next.browser(
+          const url =
             '/hooks/use-search-params/with-suspense?first=value&second=other&third'
-          )
+          const browser = await next.browser(url)
 
           expect(await browser.elementByCss('#params-first').text()).toBe(
             'value'
@@ -2846,6 +2889,11 @@ createNextDescribe(
           expect(await browser.elementByCss('#params-not-real').text()).toBe(
             'N/A'
           )
+
+          const $ = await next.render$(url)
+          // dynamic page doesn't have bail out
+          expect($('html#__next_error__').length).toBe(0)
+          expect($('meta[content=noindex]').length).toBe(0)
         })
 
         it.skip('should have empty search params on force-static', async () => {

@@ -7,6 +7,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
+
 'use strict';
 
 var React = require("next/dist/compiled/react");
@@ -71,8 +72,9 @@ const enableSuspenseCallback = false; // Experimental Scope support.
 const enableLazyContextPropagation = false; // FB-only usage. The new API has different semantics.
 
 const enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
-const enableHostSingletons = true;
 const alwaysThrottleRetries = true;
+const syncLaneExpirationMs = 250;
+const transitionLaneExpirationMs = 5000; // -----------------------------------------------------------------------------
 // Chopping Block
 //
 // Planned feature deprecations and breaking changes. Sorted roughly in order of
@@ -898,7 +900,7 @@ function computeExpirationTime(lane, currentTime) {
       // to fix the starvation. However, this scenario supports the idea that
       // expiration times are an important safeguard when starvation
       // does happen.
-      return currentTime + 250;
+      return currentTime + syncLaneExpirationMs;
 
     case DefaultHydrationLane:
     case DefaultLane:
@@ -918,7 +920,7 @@ function computeExpirationTime(lane, currentTime) {
     case TransitionLane13:
     case TransitionLane14:
     case TransitionLane15:
-      return currentTime + 5000;
+      return currentTime + transitionLaneExpirationMs;
 
     case RetryLane1:
     case RetryLane2:
@@ -1566,7 +1568,7 @@ function getInstanceFromNode(node) {
   if (inst) {
     const tag = inst.tag;
 
-    if (tag === HostComponent || tag === HostText || tag === SuspenseComponent || (tag === HostHoistable ) || (tag === HostSingleton ) || tag === HostRoot) {
+    if (tag === HostComponent || tag === HostText || tag === SuspenseComponent || (tag === HostHoistable ) || tag === HostSingleton || tag === HostRoot) {
       return inst;
     } else {
       return null;
@@ -1583,7 +1585,7 @@ function getInstanceFromNode(node) {
 function getNodeFromInstance(inst) {
   const tag = inst.tag;
 
-  if (tag === HostComponent || (tag === HostHoistable ) || (tag === HostSingleton ) || tag === HostText) {
+  if (tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton || tag === HostText) {
     // In Fiber this, is just the state node right now. We assume it will be
     // a host component or host text.
     return inst.stateNode;
@@ -3363,7 +3365,7 @@ function findCurrentHostFiberImpl(node) {
   // Next we'll drill down this component to find the first HostComponent/Text.
   const tag = node.tag;
 
-  if (tag === HostComponent || (tag === HostHoistable ) || (tag === HostSingleton ) || tag === HostText) {
+  if (tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton || tag === HostText) {
     return node;
   }
 
@@ -12486,9 +12488,12 @@ function getOffscreenDeferredCache() {
   };
 }
 
+/**
+ * Tag the fiber with an update effect. This turns a Placement into
+ * a PlacementAndUpdate.
+ */
+
 function markUpdate(workInProgress) {
-  // Tag the fiber with an update effect. This turns a Placement into
-  // a PlacementAndUpdate.
   workInProgress.flags |= Update;
 }
 
@@ -19290,7 +19295,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-canary-746890329-20231108';
+var ReactVersion = '18.3.0-canary-0cdfef19b-20231211';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -21935,7 +21940,7 @@ function extractEvents$3(dispatchQueue, domEventName, targetInst, nativeEvent, n
       const nearestMounted = getNearestMountedFiber(to);
       const tag = to.tag;
 
-      if (to !== nearestMounted || tag !== HostComponent && (tag !== HostSingleton) && tag !== HostText) {
+      if (to !== nearestMounted || tag !== HostComponent && tag !== HostSingleton && tag !== HostText) {
         to = null;
       }
     }
@@ -23091,7 +23096,7 @@ function dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativ
 
             const parentTag = parentNode.tag;
 
-            if (parentTag === HostComponent || parentTag === HostText || (parentTag === HostHoistable ) || (parentTag === HostSingleton )) {
+            if (parentTag === HostComponent || parentTag === HostText || (parentTag === HostHoistable ) || parentTag === HostSingleton) {
               node = ancestorInst = parentNode;
               continue mainLoop;
             }
@@ -23128,7 +23133,7 @@ function accumulateSinglePhaseListeners(targetFiber, reactName, nativeEventType,
           stateNode = _instance.stateNode,
           tag = _instance.tag; // Handle listeners that are on HostComponents (i.e. <div>)
 
-    if ((tag === HostComponent || (tag === HostHoistable ) || (tag === HostSingleton )) && stateNode !== null) {
+    if ((tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton) && stateNode !== null) {
       lastHostComponent = stateNode; // createEventHandle listeners
 
 
@@ -23170,7 +23175,7 @@ function accumulateTwoPhaseListeners(targetFiber, reactName) {
           stateNode = _instance2.stateNode,
           tag = _instance2.tag; // Handle listeners that are on HostComponents (i.e. <div>)
 
-    if ((tag === HostComponent || (tag === HostHoistable ) || (tag === HostSingleton )) && stateNode !== null) {
+    if ((tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton) && stateNode !== null) {
       const currentTarget = stateNode;
       const captureListener = getListener(instance, captureName);
 
@@ -23203,7 +23208,7 @@ function getParent(inst) {
     // events to their parent. We could also go through parentNode on the
     // host node but that wouldn't work for React Native and doesn't let us
     // do the portal feature.
-  } while (inst && inst.tag !== HostComponent && (inst.tag !== HostSingleton));
+  } while (inst && inst.tag !== HostComponent && inst.tag !== HostSingleton);
 
   if (inst) {
     return inst;
@@ -23278,7 +23283,7 @@ function accumulateEnterLeaveListenersForEvent(dispatchQueue, event, target, com
       break;
     }
 
-    if ((tag === HostComponent || (tag === HostHoistable ) || (tag === HostSingleton )) && stateNode !== null) {
+    if ((tag === HostComponent || (tag === HostHoistable ) || tag === HostSingleton) && stateNode !== null) {
       const currentTarget = stateNode;
 
       if (inCapturePhase) {
@@ -23384,7 +23389,7 @@ function setProp(domElement, tag, key, value, props, prevValue) {
           // https://github.com/facebook/react/issues/6731#issuecomment-254874553
 
 
-          const canSetTextContent = (tag !== 'body') && (tag !== 'textarea' || value !== '');
+          const canSetTextContent = tag !== 'body' && (tag !== 'textarea' || value !== '');
 
           if (canSetTextContent) {
             setTextContent(domElement, value);
@@ -25288,24 +25293,22 @@ function unhideTextInstance(textInstance, text) {
   textInstance.nodeValue = text;
 }
 function clearContainer(container) {
-  {
-    const nodeType = container.nodeType;
+  const nodeType = container.nodeType;
 
-    if (nodeType === DOCUMENT_NODE) {
-      clearContainerSparingly(container);
-    } else if (nodeType === ELEMENT_NODE) {
-      switch (container.nodeName) {
-        case 'HEAD':
-        case 'HTML':
-        case 'BODY':
-          clearContainerSparingly(container);
-          return;
+  if (nodeType === DOCUMENT_NODE) {
+    clearContainerSparingly(container);
+  } else if (nodeType === ELEMENT_NODE) {
+    switch (container.nodeName) {
+      case 'HEAD':
+      case 'HTML':
+      case 'BODY':
+        clearContainerSparingly(container);
+        return;
 
-        default:
-          {
-            container.textContent = '';
-          }
-      }
+      default:
+        {
+          container.textContent = '';
+        }
     }
   }
 }
@@ -25378,14 +25381,14 @@ function canHydrateInstance(instance, type, props, inRootOrSingleton) {
     const anyProps = props;
 
     if (element.nodeName.toLowerCase() !== type.toLowerCase()) {
-      if (!inRootOrSingleton || !enableHostSingletons) {
+      if (!inRootOrSingleton) {
         // Usually we error for mismatched tags.
         if (element.nodeName === 'INPUT' && element.type === 'hidden') ; else {
           return null;
         }
       } // In root or singleton parents we skip past mismatched instances.
 
-    } else if (!inRootOrSingleton || !enableHostSingletons) {
+    } else if (!inRootOrSingleton) {
       // Match
       if (type === 'input' && element.type === 'hidden') {
 
@@ -25504,7 +25507,7 @@ function canHydrateTextInstance(instance, text, inRootOrSingleton) {
   if (text === '') return null;
 
   while (instance.nodeType !== TEXT_NODE) {
-    if (instance.nodeType === ELEMENT_NODE && instance.nodeName === 'INPUT' && instance.type === 'hidden') ; else if (!inRootOrSingleton || !enableHostSingletons) {
+    if (instance.nodeType === ELEMENT_NODE && instance.nodeName === 'INPUT' && instance.type === 'hidden') ; else if (!inRootOrSingleton) {
       return null;
     }
 
@@ -25522,7 +25525,7 @@ function canHydrateTextInstance(instance, text, inRootOrSingleton) {
 }
 function canHydrateSuspenseInstance(instance, inRootOrSingleton) {
   while (instance.nodeType !== COMMENT_NODE) {
-    if (!inRootOrSingleton || !enableHostSingletons) {
+    if (!inRootOrSingleton) {
       return null;
     }
 
@@ -25564,7 +25567,7 @@ function registerSuspenseInstanceRetry(instance, callback) {
 }
 function canHydrateFormStateMarker(instance, inRootOrSingleton) {
   while (instance.nodeType !== COMMENT_NODE) {
-    if (!inRootOrSingleton || !enableHostSingletons) {
+    if (!inRootOrSingleton) {
       return null;
     }
 
@@ -25711,7 +25714,7 @@ function commitHydratedSuspenseInstance(suspenseInstance) {
   retryIfBlockedOn(suspenseInstance);
 }
 function shouldDeleteUnhydratedTailInstances(parentType) {
-  return (parentType !== 'form' && parentType !== 'button');
+  return parentType !== 'form' && parentType !== 'button';
 }
 function didNotMatchHydratedContainerTextInstance(parentContainer, textInstance, text, isConcurrentMode, shouldWarnDev) {
   checkForUnmatchedText(textInstance.nodeValue, text, isConcurrentMode);

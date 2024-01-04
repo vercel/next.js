@@ -13,30 +13,40 @@ type Repo = {
   stargazers_count: number
 }
 
-export const getServerSideProps = (async (context) => {
+export const getServerSideProps = (async () => {
+  // Fetch data from external API
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
-  const repo = await res.json()
+  const repo: Repo = await res.json()
+  // Pass data to the page via props
   return { props: { repo } }
-}) satisfies GetServerSideProps<{
-  repo: Repo
-}>
+}) satisfies GetServerSideProps<{ repo: Repo }>
 
 export default function Page({
   repo,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
-  return repo.stargazers_count
+  return (
+    <main>
+      <p>{repo.stargazers_count}</p>
+    </main>
+  )
 }
 ```
 
 ```jsx filename="pages/index.js" switcher
 export async function getServerSideProps() {
+  // Fetch data from external API
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
+  // Pass data to the page via props
   return { props: { repo } }
 }
 
 export default function Page({ repo }) {
-  return repo.stargazers_count
+  return (
+    <main>
+      <p>{repo.stargazers_count}</p>
+    </main>
+  )
 }
 ```
 

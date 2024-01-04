@@ -7,6 +7,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
+
 'use strict';
 
 var util = require('util');
@@ -316,7 +317,7 @@ function dispatchHint(code, model) {
         }
     }
   }
-} // Flow is having troulbe refining the HintModels so we help it a bit.
+} // Flow is having trouble refining the HintModels so we help it a bit.
 // This should be compiled out in the production build.
 
 function refineModel(code, model) {

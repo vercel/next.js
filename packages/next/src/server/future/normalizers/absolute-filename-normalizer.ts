@@ -1,3 +1,4 @@
+import type { PAGE_TYPES } from '../../../lib/page-types'
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
 import type { Normalizer } from './normalizer'
 
@@ -15,7 +16,7 @@ export class AbsoluteFilenameNormalizer implements Normalizer {
   constructor(
     private readonly dir: string,
     private readonly extensions: ReadonlyArray<string>,
-    private readonly pagesType: 'pages' | 'app' | 'root'
+    private readonly pagesType: PAGE_TYPES
   ) {}
 
   public normalize(filename: string): string {

@@ -1,3 +1,5 @@
+'use client'
+
 import { useStore } from '../lib/store'
 
 const useCounter = () => {
