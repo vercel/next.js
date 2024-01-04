@@ -938,12 +938,6 @@ importers:
       '@next/polyfill-nomodule':
         specifier: 14.0.5-canary.38
         version: link:../next-polyfill-nomodule
-<<<<<<< HEAD
-      '@next/react-dev-overlay':
-        specifier: 14.0.5-canary.38
-        version: link:../react-dev-overlay
-=======
->>>>>>> 6a70b4d5c3 (merge pages overlay into next and remove the package)
       '@next/react-refresh-utils':
         specifier: 14.0.5-canary.38
         version: link:../react-refresh-utils

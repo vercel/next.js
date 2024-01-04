@@ -46,7 +46,9 @@ export function BuildErrorsDialogBody({
       className={clsx('build-errors', className)}
     >
       <div className="title-pagination">
-        <h1 id="nextjs__container_errors_label">{message}</h1>
+        <h1 id="nextjs__container_errors_label" data-nextjs-dialog-header>
+          {message}
+        </h1>
 
         <LeftRightDialogHeader
           hidden={hidden}
