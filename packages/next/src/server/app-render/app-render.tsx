@@ -777,7 +777,7 @@ async function renderToHTMLOrFlightImpl(
       })
 
       const renderer = createStaticRenderer({
-        ppr: renderOpts.experimental.ppr,
+        ppr: !!renderOpts.experimental.ppr,
         isStaticGeneration,
         // If provided, the postpone state should be parsed as JSON so it can be
         // provided to React.
@@ -865,11 +865,18 @@ async function renderToHTMLOrFlightImpl(
 
         const isBailoutCSR = isBailoutToCSRError(err)
         if (isBailoutCSR) {
-          error(
-            `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
-            pagePath
+          console.log()
+
+          if (renderOpts.experimental.failSearchParamsWithoutSuspense) {
+            // TODO: Add docs page
+            error(
+              `\`useSearchParams()\` at page "${pagePath}" needs to be wrapped in a suspense boundary. https://nextjs.org/docs/messages/todo`
+            )
+            throw err
+          }
+          warn(
+            `Entire page "${pagePath}" deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`
           )
-          throw err
         }
 
         if (isNotFoundError(err)) {

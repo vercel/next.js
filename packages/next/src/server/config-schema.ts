@@ -369,6 +369,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         staticWorkerRequestDeduping: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),
+        failSearchParamsWithoutSuspense: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

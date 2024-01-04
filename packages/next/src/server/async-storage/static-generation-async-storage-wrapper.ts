@@ -2,6 +2,7 @@ import type { AsyncStorageWrapper } from './async-storage-wrapper'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
+import type { NextConfigComplete } from '../config-shared'
 
 export type StaticGenerationContext = {
   urlPathname: string
@@ -18,7 +19,10 @@ export type StaticGenerationContext = {
     isDraftMode?: boolean
     isServerAction?: boolean
     waitUntil?: Promise<any>
-    experimental: { ppr: boolean }
+    experimental: Pick<
+      NextConfigComplete['experimental'],
+      'ppr' | 'failSearchParamsWithoutSuspense'
+    >
 
     /**
      * A hack around accessing the store value outside the context of the
