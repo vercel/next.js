@@ -4,7 +4,7 @@ import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
-import type { ExportAppOptions, ExportAppWorker } from '../export/types'
+import type { ExportAppOptions } from '../export/types'
 import type { Revalidate } from '../server/lib/revalidate'
 
 import '../lib/setup-exception-listeners'
@@ -341,30 +341,6 @@ function getCacheDir(distDir: string): string {
   return cacheDir
 }
 
-function getNumberOfWorkers(config: NextConfigComplete) {
-  if (
-    config.experimental.cpus &&
-    config.experimental.cpus !== defaultConfig.experimental!.cpus
-  ) {
-    return config.experimental.cpus
-  }
-
-  if (config.experimental.memoryBasedWorkersCount) {
-    return Math.max(
-      Math.min(config.experimental.cpus || 1, Math.floor(os.freemem() / 1e9)),
-      // enforce a minimum of 4 workers
-      4
-    )
-  }
-
-  if (config.experimental.cpus) {
-    return config.experimental.cpus
-  }
-
-  // Fall back to 4 workers if a count is not specified
-  return 4
-}
-
 async function writeFileUtf8(filePath: string, content: string): Promise<void> {
   await fs.writeFile(filePath, content, 'utf-8')
 }
@@ -537,6 +513,147 @@ async function writeStandaloneDirectory(
         }
       }
     })
+}
+
+function getNumberOfWorkers(config: NextConfigComplete) {
+  if (
+    config.experimental.cpus &&
+    config.experimental.cpus !== defaultConfig.experimental!.cpus
+  ) {
+    return config.experimental.cpus
+  }
+
+  if (config.experimental.memoryBasedWorkersCount) {
+    return Math.max(
+      Math.min(config.experimental.cpus || 1, Math.floor(os.freemem() / 1e9)),
+      // enforce a minimum of 4 workers
+      4
+    )
+  }
+
+  if (config.experimental.cpus) {
+    return config.experimental.cpus
+  }
+
+  // Fall back to 4 workers if a count is not specified
+  return 4
+}
+
+const staticWorkerPath = require.resolve('./worker')
+function createStaticWorker(
+  config: NextConfigComplete,
+  incrementalCacheIpcPort?: number,
+  incrementalCacheIpcValidationKey?: string
+) {
+  let infoPrinted = false
+  const timeout = config.staticPageGenerationTimeout || 0
+
+  return new Worker(staticWorkerPath, {
+    timeout: timeout * 1000,
+    logger: Log,
+    onRestart: (method, [arg], attempts) => {
+      if (method === 'exportPage') {
+        const pagePath = arg.path
+        if (attempts >= 3) {
+          throw new Error(
+            `Static page generation for ${pagePath} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
+          )
+        }
+        Log.warn(
+          `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
+        )
+      } else {
+        const pagePath = arg.path
+        if (attempts >= 2) {
+          throw new Error(
+            `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
+          )
+        }
+        Log.warn(
+          `Restarted collecting page data for ${pagePath} because it took more than ${timeout} seconds`
+        )
+      }
+      if (!infoPrinted) {
+        Log.warn(
+          'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
+        )
+        infoPrinted = true
+      }
+    },
+    numWorkers: getNumberOfWorkers(config),
+    forkOptions: {
+      env: {
+        ...process.env,
+        __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort
+          ? incrementalCacheIpcPort + ''
+          : undefined,
+        __NEXT_INCREMENTAL_CACHE_IPC_KEY: incrementalCacheIpcValidationKey,
+      },
+    },
+    enableWorkerThreads: config.experimental.workerThreads,
+    exposedMethods: [
+      'hasCustomGetInitialProps',
+      'isPageStatic',
+      'getDefinedNamedExports',
+      'exportPage',
+    ],
+  }) as Worker &
+    Pick<
+      typeof import('./worker'),
+      | 'hasCustomGetInitialProps'
+      | 'isPageStatic'
+      | 'getDefinedNamedExports'
+      | 'exportPage'
+    >
+}
+
+async function writeFullyStaticExport(
+  config: NextConfigComplete,
+  incrementalCacheIpcPort: number | undefined,
+  incrementalCacheIpcValidationKey: string | undefined,
+  dir: string,
+  enabledDirectories: NextEnabledDirectories,
+  configOutDir: string,
+  nextBuildSpan: Span
+): Promise<void> {
+  const exportApp = require('../export')
+    .default as typeof import('../export').default
+
+  const pagesWorker = createStaticWorker(
+    config,
+    incrementalCacheIpcPort,
+    incrementalCacheIpcValidationKey
+  )
+  const appWorker = createStaticWorker(
+    config,
+    incrementalCacheIpcPort,
+    incrementalCacheIpcValidationKey
+  )
+
+  await exportApp(
+    dir,
+    {
+      buildExport: false,
+      nextConfig: config,
+      enabledDirectories,
+      silent: true,
+      threads: config.experimental.cpus,
+      outdir: path.join(dir, configOutDir),
+      // The worker already explicitly binds `this` to each of the
+      // exposed methods.
+      exportAppPageWorker: appWorker?.exportPage,
+      exportPageWorker: pagesWorker?.exportPage,
+      endWorker: async () => {
+        await pagesWorker.end()
+        await appWorker.end()
+      },
+    },
+    nextBuildSpan
+  )
+
+  // ensure the worker is not left hanging
+  pagesWorker.close()
+  appWorker.close()
 }
 
 export default async function build(
@@ -1380,9 +1497,6 @@ export default async function build(
         ? await readManifest<AppBuildManifest>(appBuildManifestPath)
         : undefined
 
-      const timeout = config.staticPageGenerationTimeout || 0
-      const staticWorkerPath = require.resolve('./worker')
-
       let appPathsManifest: Record<string, string> = {}
       const appPathRoutes: Record<string, string> = {}
 
@@ -1401,74 +1515,6 @@ export default async function build(
       }
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
-
-      const numberOfWorkers = getNumberOfWorkers(config)
-
-      function createStaticWorker(
-        incrementalCacheIpcPort?: number,
-        incrementalCacheIpcValidationKey?: string
-      ) {
-        let infoPrinted = false
-
-        return new Worker(staticWorkerPath, {
-          timeout: timeout * 1000,
-          logger: Log,
-          onRestart: (method, [arg], attempts) => {
-            if (method === 'exportPage') {
-              const pagePath = arg.path
-              if (attempts >= 3) {
-                throw new Error(
-                  `Static page generation for ${pagePath} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
-                )
-              }
-              Log.warn(
-                `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
-              )
-            } else {
-              const pagePath = arg.path
-              if (attempts >= 2) {
-                throw new Error(
-                  `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
-                )
-              }
-              Log.warn(
-                `Restarted collecting page data for ${pagePath} because it took more than ${timeout} seconds`
-              )
-            }
-            if (!infoPrinted) {
-              Log.warn(
-                'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
-              )
-              infoPrinted = true
-            }
-          },
-          numWorkers: numberOfWorkers,
-          forkOptions: {
-            env: {
-              ...process.env,
-              __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort
-                ? incrementalCacheIpcPort + ''
-                : undefined,
-              __NEXT_INCREMENTAL_CACHE_IPC_KEY:
-                incrementalCacheIpcValidationKey,
-            },
-          },
-          enableWorkerThreads: config.experimental.workerThreads,
-          exposedMethods: [
-            'hasCustomGetInitialProps',
-            'isPageStatic',
-            'getDefinedNamedExports',
-            'exportPage',
-          ],
-        }) as Worker &
-          Pick<
-            typeof import('./worker'),
-            | 'hasCustomGetInitialProps'
-            | 'isPageStatic'
-            | 'getDefinedNamedExports'
-            | 'exportPage'
-          >
-      }
 
       let incrementalCacheIpcPort
       let incrementalCacheIpcValidationKey
@@ -1517,11 +1563,14 @@ export default async function build(
       }
 
       const pagesStaticWorkers = createStaticWorker(
+        config,
+
         incrementalCacheIpcPort,
         incrementalCacheIpcValidationKey
       )
       const appStaticWorkers = appDir
         ? createStaticWorker(
+            config,
             incrementalCacheIpcPort,
             incrementalCacheIpcValidationKey
           )
@@ -2238,7 +2287,8 @@ export default async function build(
             ssgPages,
             additionalSsgPaths
           )
-          const exportApp: ExportAppWorker = require('../export').default
+          const exportApp = require('../export')
+            .default as typeof import('../export').default
 
           const exportConfig: NextConfigComplete = {
             ...config,
@@ -3085,48 +3135,24 @@ export default async function build(
           })
       }
 
-      if (config.output === 'export') {
-        if (buildTracesSpinner) {
-          buildTracesSpinner?.stop()
-          buildTracesSpinner = undefined
-        }
-
-        const exportApp: typeof import('../export').default =
-          require('../export').default
-
-        const pagesWorker = createStaticWorker(
-          incrementalCacheIpcPort,
-          incrementalCacheIpcValidationKey
-        )
-        const appWorker = createStaticWorker(
-          incrementalCacheIpcPort,
-          incrementalCacheIpcValidationKey
-        )
-
-        const options: ExportAppOptions = {
-          buildExport: false,
-          nextConfig: config,
-          enabledDirectories,
-          silent: true,
-          threads: config.experimental.cpus,
-          outdir: path.join(dir, configOutDir),
-          // The worker already explicitly binds `this` to each of the
-          // exposed methods.
-          exportAppPageWorker: appWorker?.exportPage,
-          exportPageWorker: pagesWorker?.exportPage,
-          endWorker: async () => {
-            await pagesWorker.end()
-            await appWorker.end()
-          },
-        }
-
-        await exportApp(dir, options, nextBuildSpan)
-
-        // ensure the worker is not left hanging
-        pagesWorker.close()
-        appWorker.close()
-      }
       await buildTracesPromise
+
+      if (buildTracesSpinner) {
+        buildTracesSpinner.stopAndPersist()
+        buildTracesSpinner = undefined
+      }
+
+      if (config.output === 'export') {
+        await writeFullyStaticExport(
+          config,
+          incrementalCacheIpcPort,
+          incrementalCacheIpcValidationKey,
+          dir,
+          enabledDirectories,
+          configOutDir,
+          nextBuildSpan
+        )
+      }
 
       if (config.output === 'standalone') {
         await writeStandaloneDirectory(
@@ -3142,11 +3168,6 @@ export default async function build(
           loadedEnvFiles,
           appDir
         )
-      }
-
-      if (buildTracesSpinner) {
-        buildTracesSpinner.stopAndPersist()
-        buildTracesSpinner = undefined
       }
 
       if (postBuildSpinner) postBuildSpinner.stopAndPersist()
