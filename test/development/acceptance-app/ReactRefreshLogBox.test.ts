@@ -222,7 +222,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
       next.normalizeSnapshot(`
         "./index.js
-        Error: 
+        Error:
           x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
            ,-[TEST_DIR/index.js:4:1]
          4 |       <p>lol</p>
@@ -805,9 +805,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
         .click()
 
-      // Expect more than the default amount of frames
-      // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
-      expect(await getCallStackCount()).toBeGreaterThan(9)
+      // Expect more than the default amount of frames:
+      // The default stackTraceLimit results in max 3 [data-nextjs-call-stack-frame] elements
+      // after filter out the framework traces.
+      expect(await getCallStackCount()).toBeGreaterThan(3)
 
       await cleanup()
     }

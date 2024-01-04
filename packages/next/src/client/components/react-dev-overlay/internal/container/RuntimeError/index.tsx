@@ -21,11 +21,11 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   }, [error.frames])
 
   const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
-    return userlandSourceStackFrames.findIndex(
-      (entry) =>
-        entry.expanded &&
-        Boolean(entry.originalCodeFrame) &&
-        Boolean(entry.originalStackFrame)
+    return (
+      userlandSourceStackFrames.findIndex(
+        (entry) =>
+          Boolean(entry.originalCodeFrame) && Boolean(entry.originalStackFrame)
+      ) ?? -1
     )
   }, [userlandSourceStackFrames])
   const firstFrame = React.useMemo<OriginalStackFrame | null>(() => {
@@ -46,7 +46,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   }, [])
 
   const leadingFrames = React.useMemo(
-    () => allLeadingFrames.filter((f) => f.expanded || all),
+    () => (all ? allLeadingFrames : []),
     [all, allLeadingFrames]
   )
   const allCallStackFrames = React.useMemo<OriginalStackFrame[]>(
@@ -54,7 +54,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     [userlandSourceStackFrames, firstFirstPartyFrameIndex]
   )
   const visibleCallStackFrames = React.useMemo<OriginalStackFrame[]>(
-    () => allCallStackFrames.filter((f) => f.expanded || all),
+    () => (all ? allCallStackFrames : []),
     [all, allCallStackFrames]
   )
 
