@@ -507,8 +507,8 @@ export async function exportAppImpl(
     deploymentId: nextConfig.experimental.deploymentId,
     experimental: {
       ppr: !!nextConfig.experimental.ppr,
-      failSearchParamsWithoutSuspense:
-        nextConfig.experimental.failSearchParamsWithoutSuspense,
+      missingSuspenseWithCSRBailout:
+        nextConfig.experimental.missingSuspenseWithCSRBailout,
     },
   }
 

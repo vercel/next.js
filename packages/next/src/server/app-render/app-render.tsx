@@ -63,7 +63,7 @@ import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-r
 import { validateURL } from './validate-url'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
-import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { warn, error } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
@@ -985,13 +985,11 @@ async function renderToHTMLOrFlightImpl(
         if (isBailoutCSR) {
           console.log()
 
-          if (renderOpts.experimental.failSearchParamsWithoutSuspense) {
-            // TODO: Add docs page
+          if (renderOpts.experimental.missingSuspenseWithCSRBailout) {
             error(
-              `\`useSearchParams()\` at page "${pagePath}" needs to be wrapped in a suspense boundary. https://nextjs.org/docs/messages/todo`
+              `${err.message} should be wrapped in a suspense boundary at page "${pagePath}". https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout`
             )
-            // Not rethrowing here because the presence of the .digest property would not stop the build
-            throw new Error(err.message)
+            throw err
           }
           warn(
             `Entire page "${pagePath}" deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`

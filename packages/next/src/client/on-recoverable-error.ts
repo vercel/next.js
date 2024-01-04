@@ -1,4 +1,4 @@
-import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/no-ssr-error'
+import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
 
 export default function onRecoverableError(err: unknown) {
   // Using default react onRecoverableError

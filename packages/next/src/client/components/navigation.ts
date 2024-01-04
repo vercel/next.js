@@ -92,7 +92,7 @@ export function useSearchParams(): ReadonlyURLSearchParams {
     const { bailoutToClientRendering } =
       require('./bailout-to-client-rendering') as typeof import('./bailout-to-client-rendering')
     // TODO-APP: handle dynamic = 'force-static' here and on the client
-    bailoutToClientRendering("useSearchParams can't be used without suspense")
+    bailoutToClientRendering('useSearchParams()')
   }
 
   return readonlySearchParams

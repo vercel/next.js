@@ -1,7 +1,7 @@
 'use client'
 
 import type React from 'react'
-import { BailoutToCSRError } from './no-ssr-error'
+import { BailoutToCSRError } from './bailout-to-csr'
 
 type Child = React.ReactElement<any, any>
 

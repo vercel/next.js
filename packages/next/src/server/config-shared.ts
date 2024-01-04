@@ -353,11 +353,14 @@ export interface ExperimentalConfig {
   useLightningcss?: boolean
 
   /**
-   * If no suspense boundaries are present, Next.js must avoid doing SSR and defer the **entire** page's rendering to the client.
+   * Certain methods calls like `useSearchParams()` can bail out of server-side rendering of **entire** pages to client-side rendering,
+   * if they are not wrapped in a suspense boundary.
    *
-   * When set to `true`, Next.js will break the build instead to force the developer to add a suspense boundary.
+   * When this flag is set to `true`, Next.js will break the build instead of warning, to force the developer to add a suspense boundary above the method call.
+   *
+   * @default false
    */
-  failSearchParamsWithoutSuspense?: boolean
+  missingSuspenseWithCSRBailout?: boolean
 }
 
 export type ExportPathMap = {
@@ -818,7 +821,7 @@ export const defaultConfig: NextConfig = {
         ? true
         : false,
     webpackBuildWorker: undefined,
-    failSearchParamsWithoutSuspense: false,
+    missingSuspenseWithCSRBailout: false,
   },
 }
 

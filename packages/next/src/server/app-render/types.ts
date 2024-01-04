@@ -144,7 +144,7 @@ export interface RenderOptsPartial {
   isPrefetch?: boolean
   experimental: {
     ppr: NextConfigComplete['experimental']['ppr']
-    failSearchParamsWithoutSuspense?: NextConfigComplete['experimental']['failSearchParamsWithoutSuspense']
+    missingSuspenseWithCSRBailout?: NextConfigComplete['experimental']['missingSuspenseWithCSRBailout']
   }
   postponed?: string
 }

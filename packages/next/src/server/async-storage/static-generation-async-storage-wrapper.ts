@@ -21,7 +21,7 @@ export type StaticGenerationContext = {
     waitUntil?: Promise<any>
     experimental: {
       ppr: NextConfigComplete['experimental']['ppr']
-      failSearchParamsWithoutSuspense?: NextConfigComplete['experimental']['failSearchParamsWithoutSuspense']
+      missingSuspenseWithCSRBailout?: NextConfigComplete['experimental']['missingSuspenseWithCSRBailout']
     }
     /**
      * A hack around accessing the store value outside the context of the
