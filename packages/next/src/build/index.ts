@@ -423,6 +423,21 @@ async function writeClientSsgManifest(
   )
 }
 
+interface FunctionsConfigManifest {
+  version: number
+  functions: Record<string, Record<string, string | number>>
+}
+
+async function writeFunctionsConfigManifest(
+  distDir: string,
+  manifest: FunctionsConfigManifest
+): Promise<void> {
+  await writeManifest(
+    path.join(distDir, SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
+    manifest
+  )
+}
+
 interface RequiredServerFilesManifest {
   version: number
   config: NextConfigComplete
@@ -1515,7 +1530,11 @@ export default async function build(
       const analysisBegin = process.hrtime()
       const staticCheckSpan = nextBuildSpan.traceChild('static-check')
 
-      const functionsConfigManifest = {} as Record<string, Record<string, any>>
+      const functionsConfigManifest: FunctionsConfigManifest = {
+        version: 1,
+        functions: {},
+      }
+
       const {
         customAppGetInitialProps,
         namedExports,
@@ -1718,7 +1737,8 @@ export default async function build(
                   : undefined
 
                 if (staticInfo?.extraConfig) {
-                  functionsConfigManifest[page] = staticInfo.extraConfig
+                  functionsConfigManifest.functions[page] =
+                    staticInfo.extraConfig
                 }
 
                 const pageRuntime = middlewareManifest.functions[
@@ -2061,20 +2081,7 @@ export default async function build(
         )
       }
 
-      if (Object.keys(functionsConfigManifest).length > 0) {
-        const manifest: {
-          version: number
-          functions: Record<string, Record<string, string | number>>
-        } = {
-          version: 1,
-          functions: functionsConfigManifest,
-        }
-
-        await writeManifest(
-          path.join(distDir, SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
-          manifest
-        )
-      }
+      await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
 
       if (!isGenerateMode && config.outputFileTracing && !buildTracesPromise) {
         buildTracesPromise = collectBuildTraces({
