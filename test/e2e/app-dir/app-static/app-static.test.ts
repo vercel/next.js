@@ -516,6 +516,8 @@ createNextDescribe(
             'ssr-forced/page.js',
             'articles/works.rsc',
             'force-cache/page.js',
+            'force-cache/large-data/page.js',
+            'force-cache/large-data/page_client-reference-manifest.js',
             'ssg-draft-mode.html',
             'articles/works.html',
             'no-store/static.rsc',
@@ -533,6 +535,7 @@ createNextDescribe(
             'force-static-fetch-no-store/page_client-reference-manifest.js',
             'force-static/first.rsc',
             'api/draft-mode/route.js',
+            'api/large-data/route.js',
             'blog/tim/first-post.rsc',
             'force-static/first.html',
             'force-static/second.rsc',
@@ -769,6 +772,26 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/",
+            },
+            "/api/large-data": {
+              "dataRoute": null,
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialHeaders": {
+                "content-type": "application/json",
+                "x-next-cache-tags": "_N_T_/layout,_N_T_/api/layout,_N_T_/api/large-data/layout,_N_T_/api/large-data/route,_N_T_/api/large-data",
+              },
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/api/large-data",
             },
             "/articles/works": {
               "dataRoute": "/articles/works.rsc",
@@ -3055,12 +3078,8 @@ createNextDescribe(
       })
 
       it('should load large data only once when using custom cache handler and force-cache mode', async () => {
-        const browser = await next.browser('/force-cache/large-data')
-        await browser.waitForElementByCss('#content')
-        await browser.refresh()
-        await browser.waitForElementByCss('#content')
-        await browser.refresh()
-        await browser.waitForElementByCss('#content')
+        await next.fetch('/force-cache/large-data')
+        await next.fetch('/force-cache/large-data')
         expect(next.cliOutput.match('Load data').length).toBe(1)
       })
     }
