@@ -351,6 +351,13 @@ export interface ExperimentalConfig {
    * Use lightningcss instead of swc_css
    */
   useLightningcss?: boolean
+
+  /**
+   * If no suspense boundaries are present, Next.js must avoid doing SSR and defer the **entire** page's rendering to the client.
+   *
+   * When set to `true`, Next.js will break the build instead to force the developer to add a suspense boundary.
+   */
+  failSearchParamsWithoutSuspense: boolean
 }
 
 export type ExportPathMap = {
@@ -811,6 +818,7 @@ export const defaultConfig: NextConfig = {
         ? true
         : false,
     webpackBuildWorker: undefined,
+    failSearchParamsWithoutSuspense: false,
   },
 }
 
