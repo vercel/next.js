@@ -1,5 +1,5 @@
-import { Suspense, lazy, Fragment } from 'react'
-import { NoSSR } from './dynamic-no-ssr'
+import { Suspense, lazy } from 'react'
+import { BailoutToCSR } from './dynamic-bailout-to-csr'
 import type { ComponentModule } from './types'
 
 // Normalize loader to return the module as form { default: Component } for `React.lazy`.
@@ -24,20 +24,21 @@ function Loadable(options: any) {
 
   const Lazy = lazy(loader)
   const Loading = opts.loading
-  const Wrap = opts.ssr ? Fragment : NoSSR
 
   function LoadableComponent(props: any) {
     const fallbackElement = Loading ? (
       <Loading isLoading={true} pastDelay={true} error={null} />
     ) : null
 
-    return (
-      <Suspense fallback={fallbackElement}>
-        <Wrap>
-          <Lazy {...props} />
-        </Wrap>
-      </Suspense>
+    const children = options.ssr ? (
+      <Lazy {...props} />
+    ) : (
+      <BailoutToCSR reason="next/dynamic">
+        <Lazy {...props} />
+      </BailoutToCSR>
     )
+
+    return <Suspense fallback={fallbackElement}>{children}</Suspense>
   }
 
   LoadableComponent.displayName = 'LoadableComponent'
