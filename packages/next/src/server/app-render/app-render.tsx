@@ -352,6 +352,7 @@ async function ReactServerApp({
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
   const injectedFontPreloadTags = new Set<string>()
+  const missingSlots = new Set<string>()
   const {
     getDynamicParamFromSegment,
     query,
@@ -387,6 +388,7 @@ async function ReactServerApp({
     rootLayoutIncluded: false,
     asNotFound: asNotFound,
     metadataOutlet: <MetadataOutlet />,
+    missingSlots,
   })
 
   return (
@@ -410,6 +412,9 @@ async function ReactServerApp({
           </>
         }
         globalErrorComponent={GlobalError}
+        // This is used to provide debug information (when in development mode)
+        // about which slots were not filled by page components while creating the component tree.
+        missingSlots={missingSlots}
       />
     </>
   )
@@ -485,6 +490,7 @@ async function ReactServerError({
       initialHead={head}
       globalErrorComponent={GlobalError}
       initialSeedData={initialSeedData}
+      missingSlots={new Set()}
     />
   )
 }

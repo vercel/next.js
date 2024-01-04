@@ -460,7 +460,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [Environment Variables documentation](https://nextjs.org/docs/api-reference/next.config.js/environment-variables)
    */
-  env?: Record<string, string>
+  env?: Record<string, string | undefined>
 
   /**
    * Destination directory (defaults to `.next`)
