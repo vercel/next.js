@@ -11,6 +11,7 @@ import {
 } from './webpack-config'
 import { isWebpackAppLayer, isWebpackServerLayer } from './worker'
 import type { NextConfigComplete } from '../server/config-shared'
+import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
 const pathSeparators = '[/\\\\]'
@@ -234,7 +235,9 @@ export function makeExternalHandler({
       if (isExternal) {
         // it's important we return the path that starts with `next/dist/` here instead of the absolute path
         // otherwise NFT will get tripped up
-        return `commonjs ${localRes.replace(/.*?next[/\\]dist/, 'next/dist')}`
+        return `commonjs ${normalizePathSep(
+          localRes.replace(/.*?next[/\\]dist/, 'next/dist')
+        )}`
       }
     }
 
@@ -288,7 +291,7 @@ export function makeExternalHandler({
     if (layer === WEBPACK_LAYERS.serverSideRendering) {
       const isRelative = request.startsWith('.')
       const fullRequest = isRelative
-        ? path.join(context, request).replace(/\\/g, '/')
+        ? normalizePathSep(path.join(context, request))
         : request
       return resolveNextExternal(fullRequest)
     }
