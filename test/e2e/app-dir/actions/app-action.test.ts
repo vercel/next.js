@@ -1114,5 +1114,77 @@ createNextDescribe(
         })
       })
     })
+
+    describe('caching disabled by default', () => {
+      it('should use no-store as default for server action', async () => {
+        const browser = await next.browser('/no-caching-in-actions')
+        await browser
+          .waitForElementByCss('#trigger-fetch')
+          .click()
+          .waitForElementByCss('#fetched-data')
+
+        const getNumber = async () =>
+          JSON.parse(await browser.elementByCss('#fetched-data').text())
+
+        const firstNumber = await getNumber()
+
+        await browser.waitForElementByCss('#trigger-fetch').click()
+
+        await check(async () => {
+          const newNumber = await getNumber()
+          // Expect that the number changes on each click
+          expect(newNumber).not.toBe(firstNumber)
+
+          return 'success'
+        }, 'success')
+      })
+
+      it('should not override force-cache in server action', async () => {
+        const browser = await next.browser('/no-caching-in-actions/force-cache')
+        await browser
+          .waitForElementByCss('#trigger-fetch')
+          .click()
+          .waitForElementByCss('#fetched-data')
+
+        const getNumber = async () =>
+          JSON.parse(await browser.elementByCss('#fetched-data').text())
+
+        const firstNumber = await getNumber()
+
+        await browser.waitForElementByCss('#trigger-fetch').click()
+
+        await check(async () => {
+          const newNumber = await getNumber()
+          // Expect that the number is the same on each click
+          expect(newNumber).toBe(firstNumber)
+
+          return 'success'
+        }, 'success')
+      })
+
+      // Implicit force-cache
+      it('should not override revalidate in server action', async () => {
+        const browser = await next.browser('/no-caching-in-actions/revalidate')
+        await browser
+          .waitForElementByCss('#trigger-fetch')
+          .click()
+          .waitForElementByCss('#fetched-data')
+
+        const getNumber = async () =>
+          JSON.parse(await browser.elementByCss('#fetched-data').text())
+
+        const firstNumber = await getNumber()
+
+        await browser.waitForElementByCss('#trigger-fetch').click()
+
+        await check(async () => {
+          const newNumber = await getNumber()
+          // Expect that the number is the same on each click
+          expect(newNumber).toBe(firstNumber)
+
+          return 'success'
+        }, 'success')
+      })
+    })
   }
 )
