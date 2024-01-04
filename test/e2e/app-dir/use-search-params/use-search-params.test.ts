@@ -8,11 +8,16 @@ createNextDescribe(
       it('skip test for dev mode', () => {})
       return
     }
+
+    it('should pass build if useSearchParams is used with suspense boundaries', async () => {
+      await next.stop()
+      await expect(next.build()).resolves.toEqual({ exitCode: 0 })
+    })
+
     it('should fail build if useSearchParams is used without suspense boundaries', async () => {
       await next.patchFile(
         'app/layout.js',
-        `
-        import React from 'react'
+        `import React from 'react'
 
         export default function Layout({ children }) {
           return (
@@ -23,17 +28,16 @@ createNextDescribe(
               </body>
             </html>
           )
-        }
-        
-      `
+        }`
       )
+
       await next.stop()
-      try {
-        await next.build()
-      } catch {}
-      expect(next.cliOutput).toContain(
-        '`useSearchParams()` at page "/" needs to be wrapped in a suspense boundary'
-      )
+      await expect(next.build()).resolves.toEqual({
+        exitCode: 1,
+        cliOutput: expect.stringContaining(
+          `\`useSearchParams()\` at page "/" needs to be wrapped in a suspense boundary.`
+        ),
+      })
     })
   }
 )
