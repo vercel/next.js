@@ -1505,7 +1505,7 @@ export default async function build(
         )
 
         for (const key in appPathsManifest) {
-          appPathRoutes[key] = normalizeAppPath(appPathsManifest[key])
+          appPathRoutes[key] = normalizeAppPath(key)
         }
 
         await writeManifest(
