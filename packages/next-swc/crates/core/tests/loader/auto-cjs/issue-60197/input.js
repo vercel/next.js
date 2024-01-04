@@ -1,13 +1,16 @@
-var module = {};
+var module = {}
 
-(function main(global, module) {
-  module.exports = function() {}
+;(function main(global, module) {
+  module.exports = function () {}
 
   module.exports.create = () => {}
-}((function () {
-  return this || {};
-})(), module, false));
+})(
+  (function () {
+    return this || {}
+  })(),
+  module,
+  false
+)
 
-
-export default module.exports;
-export var create = module.exports.create;
+export default module.exports
+export var create = module.exports.create
