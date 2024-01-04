@@ -387,7 +387,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
     requestProtocol: 'http' | 'https'
-  }): import('./lib/incremental-cache').IncrementalCache
+  }): Promise<import('./lib/incremental-cache').IncrementalCache>
 
   protected abstract getResponseCache(options: {
     dev: boolean
@@ -1263,7 +1263,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           protocol = parsedFullUrl.protocol as 'https:' | 'http:'
         } catch {}
 
-        const incrementalCache = this.getIncrementalCache({
+        const incrementalCache = await this.getIncrementalCache({
           requestHeaders: Object.assign({}, req.headers),
           requestProtocol: protocol.substring(0, protocol.length - 1) as
             | 'http'
@@ -2127,12 +2127,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // use existing incrementalCache instance if available
     const incrementalCache =
       (globalThis as any).__incrementalCache ||
-      this.getIncrementalCache({
+      (await this.getIncrementalCache({
         requestHeaders: Object.assign({}, req.headers),
         requestProtocol: protocol.substring(0, protocol.length - 1) as
           | 'http'
           | 'https',
-      })
+      }))
 
     const { routeModule } = components
 

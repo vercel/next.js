@@ -741,7 +741,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.0.5-canary.34
+        specifier: 14.0.5-canary.36
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -806,7 +806,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.0.5-canary.34
+        specifier: 14.0.5-canary.36
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.2
@@ -933,19 +933,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 14.0.5-canary.34
+        specifier: 14.0.5-canary.36
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.0.5-canary.34
+        specifier: 14.0.5-canary.36
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 14.0.5-canary.34
+        specifier: 14.0.5-canary.36
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 14.0.5-canary.34
+        specifier: 14.0.5-canary.36
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.0.5-canary.34
+        specifier: 14.0.5-canary.36
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1074,8 +1074,8 @@ importers:
         specifier: 0.34.0
         version: 0.34.0
       '@vercel/nft':
-        specifier: 0.24.4
-        version: 0.24.4
+        specifier: 0.26.2
+        version: 0.26.2
       '@vercel/turbopack-ecmascript-runtime':
         specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240102.1
         version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240102.1(react-refresh@0.12.0)(webpack@5.86.0)'
@@ -1599,7 +1599,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.0.5-canary.34
+        specifier: 14.0.5-canary.36
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -7172,14 +7172,15 @@ packages:
     hasBin: true
     dev: true
 
-  /@vercel/nft@0.24.4:
-    resolution: {integrity: sha512-KjYAZty7boH5fi5udp6p+lNu6nawgs++pHW+3koErMgbRkkHuToGX/FwjN5clV1FcaM3udfd4zW/sUapkMgpZw==}
+  /@vercel/nft@0.26.2:
+    resolution: {integrity: sha512-bxe2iShmKZi7476xYamyKvhhKwQ6JPEtQ2FSq1AjMUH2buMd8LQMkdoHinTqZYc+1sMTh3G0ARdjzNvV1FEisA==}
     engines: {node: '>=16'}
     hasBin: true
     dependencies:
       '@mapbox/node-pre-gyp': 1.0.5
       '@rollup/pluginutils': 4.2.1
       acorn: 8.10.0
+      acorn-import-attributes: 1.9.2(acorn@8.10.0)
       async-sema: 3.1.1
       bindings: 1.5.0
       estree-walker: 2.0.2
@@ -7372,6 +7373,14 @@ packages:
       acorn: ^8
     dependencies:
       acorn: 8.8.2
+
+  /acorn-import-attributes@1.9.2(acorn@8.10.0):
+    resolution: {integrity: sha512-O+nfJwNolEA771IYJaiLWK1UAwjNsQmZbTRqqwBYxCgVQTmpFEMvBw6LOIQV0Me339L5UMVYFyRohGnGlQDdIQ==}
+    peerDependencies:
+      acorn: ^8
+    dependencies:
+      acorn: 8.10.0
+    dev: true
 
   /acorn-jsx@5.3.2(acorn@7.4.1):
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -24670,7 +24679,7 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
   '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240102.1(react-refresh@0.12.0)(webpack@5.86.0)':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240102.1}
+    resolution: {registry: https://registry.npmjs.org/, tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240102.1}
     id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240102.1'
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0

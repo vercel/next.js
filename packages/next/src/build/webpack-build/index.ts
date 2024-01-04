@@ -34,8 +34,7 @@ async function webpackBuildWithWorker(
   compilerNamesArg: typeof ORDERED_COMPILER_NAMES | null
 ) {
   const compilerNames = compilerNamesArg || ORDERED_COMPILER_NAMES
-  const { buildSpinner, nextBuildSpan, ...prunedBuildContext } =
-    NextBuildContext
+  const { nextBuildSpan, ...prunedBuildContext } = NextBuildContext
 
   prunedBuildContext.pluginState = pluginState
 
@@ -127,7 +126,6 @@ async function webpackBuildWithWorker(
   }
 
   if (compilerNames.length === 3) {
-    buildSpinner?.stopAndPersist()
     Log.event('Compiled successfully')
   }
 
