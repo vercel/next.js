@@ -7,6 +7,7 @@ use napi::{
     JsFunction, Status,
 };
 use next_api::{
+    entrypoints::Entrypoints,
     project::{
         DefineEnv, Instrumentation, Middleware, PartialProjectOptions, Project, ProjectContainer,
         ProjectOptions,
@@ -426,6 +427,29 @@ struct NapiEntrypoints {
     pub pages_error_endpoint: External<ExternalEndpoint>,
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct EntrypointsWithIssues {
+    entrypoints: ReadRef<Entrypoints>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+}
+
+#[turbo_tasks::function]
+async fn get_entrypoints_with_issues(
+    container: Vc<ProjectContainer>,
+) -> Result<Vc<EntrypointsWithIssues>> {
+    let entrypoints_operation = container.entrypoints();
+    let entrypoints = entrypoints_operation.strongly_consistent().await?;
+    let issues = get_issues(entrypoints_operation).await?;
+    let diagnostics = get_diagnostics(entrypoints_operation).await?;
+    Ok(EntrypointsWithIssues {
+        entrypoints,
+        issues,
+        diagnostics,
+    }
+    .cell())
+}
+
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -438,13 +462,14 @@ pub fn project_entrypoints_subscribe(
         func,
         move || {
             async move {
-                let entrypoints_operation = container.entrypoints();
-                let entrypoints = entrypoints_operation.strongly_consistent().await?;
-
-                let issues = get_issues(entrypoints_operation).await?;
-                let diags = get_diagnostics(entrypoints_operation).await?;
-
-                Ok((entrypoints, issues, diags))
+                let EntrypointsWithIssues {
+                    entrypoints,
+                    issues,
+                    diagnostics,
+                } = &*get_entrypoints_with_issues(container)
+                    .strongly_consistent()
+                    .await?;
+                Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
         },
@@ -496,8 +521,8 @@ pub fn project_entrypoints_subscribe(
 #[turbo_tasks::value(serialization = "none")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
-    issues: Vec<ReadRef<PlainIssue>>,
-    diagnostics: Vec<ReadRef<PlainDiagnostic>>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
 }
 
 #[turbo_tasks::function]
@@ -604,6 +629,29 @@ struct HmrIdentifiers {
     pub identifiers: Vec<String>,
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct HmrIdentifiersWithIssues {
+    identifiers: ReadRef<Vec<String>>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+}
+
+#[turbo_tasks::function]
+async fn get_hmr_identifiers_with_issues(
+    container: Vc<ProjectContainer>,
+) -> Result<Vc<HmrIdentifiersWithIssues>> {
+    let hmr_identifiers_operation = container.hmr_identifiers();
+    let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
+    let issues = get_issues(hmr_identifiers_operation).await?;
+    let diagnostics = get_diagnostics(hmr_identifiers_operation).await?;
+    Ok(HmrIdentifiersWithIssues {
+        identifiers: hmr_identifiers,
+        issues,
+        diagnostics,
+    }
+    .cell())
+}
+
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_identifiers_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -615,20 +663,22 @@ pub fn project_hmr_identifiers_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
-            let hmr_identifiers_operation = container.hmr_identifiers();
-            let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
+            let HmrIdentifiersWithIssues {
+                identifiers,
+                issues,
+                diagnostics,
+            } = &*get_hmr_identifiers_with_issues(container)
+                .strongly_consistent()
+                .await?;
 
-            let issues = get_issues(hmr_identifiers_operation).await?;
-            let diags = get_diagnostics(hmr_identifiers_operation).await?;
-
-            Ok((hmr_identifiers, issues, diags))
+            Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
         },
         move |ctx| {
-            let (hmr_identifiers, issues, diags) = ctx.value;
+            let (identifiers, issues, diagnostics) = ctx.value;
 
             Ok(vec![TurbopackResult {
                 result: HmrIdentifiers {
-                    identifiers: hmr_identifiers
+                    identifiers: identifiers
                         .iter()
                         .map(|ident| ident.to_string())
                         .collect::<Vec<_>>(),
@@ -637,7 +687,10 @@ pub fn project_hmr_identifiers_subscribe(
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))
                     .collect(),
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+                diagnostics: diagnostics
+                    .iter()
+                    .map(|d| NapiDiagnostic::from(d))
+                    .collect(),
             }])
         },
     )

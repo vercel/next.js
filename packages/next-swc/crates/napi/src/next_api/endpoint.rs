@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
 use napi::{bindgen_prelude::External, JsFunction};
@@ -86,8 +86,8 @@ impl Deref for ExternalEndpoint {
 #[turbo_tasks::value(serialization = "none")]
 struct WrittenEndpointWithIssues {
     written: ReadRef<WrittenEndpoint>,
-    issues: Vec<ReadRef<PlainIssue>>,
-    diagnostics: Vec<ReadRef<PlainDiagnostic>>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
 }
 
 #[turbo_tasks::function]
@@ -153,7 +153,7 @@ pub fn endpoint_server_changed_subscribe(
                     let diags = get_diagnostics(changed).await?;
                     Ok((issues, diags))
                 } else {
-                    Ok((vec![], vec![]))
+                    Ok((Arc::new(vec![]), Arc::new(vec![])))
                 }
             }
             .instrument(tracing::info_span!("server changes subscription"))
