@@ -9,9 +9,9 @@ createNextDescribe(
       return
     }
 
-    const message = `\`useSearchParams()\` at page "/" needs to be wrapped in a suspense boundary.`
+    const message = `useSearchParams() should be wrapped in a suspense boundary at page "/".`
 
-    it('should pass build if useSearchParams is used with suspense boundaries', async () => {
+    it('should pass build if useSearchParams is wrapped in a suspense boundary', async () => {
       await next.stop()
       await expect(next.build()).resolves.toEqual({
         exitCode: 0,
@@ -19,29 +19,18 @@ createNextDescribe(
       })
     })
 
-    it('should fail build if useSearchParams is used without suspense boundaries', async () => {
-      await next.patchFile(
-        'app/layout.js',
-        `import React from 'react'
-
-        export default function Layout({ children }) {
-          return (
-            <html>
-              <head />
-              <body>
-              {children}
-              </body>
-            </html>
-          )
-        }`
-      )
-
+    it('should fail build if useSearchParams is not wrapped in a suspense boundary', async () => {
+      await next.renameFile('app/layout.js', 'app/layout-suspense.js')
+      await next.renameFile('app/layout-no-suspense.js', 'app/layout.js')
       await next.stop()
 
       await expect(next.build()).resolves.toEqual({
         exitCode: 1,
         cliOutput: expect.stringContaining(message),
       })
+
+      await next.renameFile('app/layout.js', 'app/layout-no-suspense.js')
+      await next.renameFile('app/layout-suspense.js', 'app/layout.js')
     })
   }
 )
