@@ -345,7 +345,7 @@ export class NextInstance {
   public async start(useDirArg: boolean = false): Promise<void> {}
   public async stop(): Promise<void> {
     this.isStopping = true
-    if (this.childProcess && !this.isStopping) {
+    if (this.childProcess) {
       const exitPromise = once(this.childProcess, 'exit')
       await new Promise<void>((resolve) => {
         treeKill(this.childProcess.pid, 'SIGKILL', (err) => {
