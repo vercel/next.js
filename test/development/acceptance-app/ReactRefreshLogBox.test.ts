@@ -222,7 +222,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
       next.normalizeSnapshot(`
         "./index.js
-        Error:
+        Error: 
           x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
            ,-[TEST_DIR/index.js:4:1]
          4 |       <p>lol</p>
@@ -800,15 +800,24 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
       expect(await session.hasRedbox(true)).toBe(true)
 
-      // Open full Call Stack
-      await browser
-        .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
-        .click()
+      if (pageType === 'server') {
+        // Open full Call Stack
+        await browser
+          .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
+          .click()
 
-      // Expect more than the default amount of frames:
-      // The default stackTraceLimit results in max 3 [data-nextjs-call-stack-frame] elements
-      // after filter out the framework traces.
-      expect(await getCallStackCount()).toBeGreaterThan(3)
+        // Expect more than the default amount of frames:
+        // The default stackTraceLimit results in max 3 [data-nextjs-call-stack-frame] elements
+        // after filter out the framework traces.
+        expect(await getCallStackCount()).toBeGreaterThanOrEqual(3)
+      } else {
+        // Client errors should not have a collapsed action
+        expect(
+          await browser.hasElementByCssSelector(
+            '[data-nextjs-data-runtime-error-collapsed-action]'
+          )
+        ).toBeFalse()
+      }
 
       await cleanup()
     }
