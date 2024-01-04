@@ -315,34 +315,6 @@ export function buildCustomRoute(
   }
 }
 
-async function generateClientSsgManifest(
-  prerenderManifest: PrerenderManifest,
-  {
-    buildId,
-    distDir,
-    locales,
-  }: { buildId: string; distDir: string; locales: string[] }
-) {
-  const ssgPages = new Set<string>(
-    [
-      ...Object.entries(prerenderManifest.routes)
-        // Filter out dynamic routes
-        .filter(([, { srcRoute }]) => srcRoute == null)
-        .map(([route]) => normalizeLocalePath(route, locales).pathname),
-      ...Object.keys(prerenderManifest.dynamicRoutes),
-    ].sort()
-  )
-
-  const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
-    ssgPages
-  )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
-
-  await writeFileUtf8(
-    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
-    clientSsgManifestContent
-  )
-}
-
 function pageToRoute(page: string) {
   const routeRegex = getNamedRouteRegex(page, true)
   return {
@@ -410,6 +382,45 @@ async function writeManifest<T extends object>(
 
 async function readManifest<T extends object>(filePath: string): Promise<T> {
   return JSON.parse(await readFileUtf8(filePath))
+}
+
+async function writePrerenderManifest(
+  distDir: string,
+  manifest: Readonly<PrerenderManifest>
+): Promise<void> {
+  await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
+  await writeFileUtf8(
+    path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+    `self.__PRERENDER_MANIFEST=${JSON.stringify(JSON.stringify(manifest))}`
+  )
+}
+
+async function writeClientSsgManifest(
+  prerenderManifest: PrerenderManifest,
+  {
+    buildId,
+    distDir,
+    locales,
+  }: { buildId: string; distDir: string; locales: string[] }
+) {
+  const ssgPages = new Set<string>(
+    [
+      ...Object.entries(prerenderManifest.routes)
+        // Filter out dynamic routes
+        .filter(([, { srcRoute }]) => srcRoute == null)
+        .map(([route]) => normalizeLocalePath(route, locales).pathname),
+      ...Object.keys(prerenderManifest.dynamicRoutes),
+    ].sort()
+  )
+
+  const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
+    ssgPages
+  )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
+
+  await writeFileUtf8(
+    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
+    clientSsgManifestContent
+  )
 }
 
 export default async function build(
@@ -2875,6 +2886,13 @@ export default async function build(
             prefetchDataRouteRegex: undefined,
           }
         })
+
+        NextBuildContext.previewModeId = previewProps.previewModeId
+        NextBuildContext.fetchCacheKeyPrefix =
+          config.experimental.fetchCacheKeyPrefix
+        NextBuildContext.allowedRevalidateHeaderKeys =
+          config.experimental.allowedRevalidateHeaderKeys
+
         const prerenderManifest: Readonly<PrerenderManifest> = {
           version: 4,
           routes: finalPrerenderRoutes,
@@ -2882,45 +2900,20 @@ export default async function build(
           notFoundRoutes: ssgNotFoundPaths,
           preview: previewProps,
         }
-        NextBuildContext.previewModeId = previewProps.previewModeId
-        NextBuildContext.fetchCacheKeyPrefix =
-          config.experimental.fetchCacheKeyPrefix
-        NextBuildContext.allowedRevalidateHeaderKeys =
-          config.experimental.allowedRevalidateHeaderKeys
-
-        await writeManifest(
-          path.join(distDir, PRERENDER_MANIFEST),
-          prerenderManifest
-        )
-        await writeFileUtf8(
-          path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(
-            JSON.stringify(prerenderManifest)
-          )}`
-        )
-        await generateClientSsgManifest(prerenderManifest, {
+        await writePrerenderManifest(distDir, prerenderManifest)
+        await writeClientSsgManifest(prerenderManifest, {
           distDir,
           buildId,
           locales: config.i18n?.locales || [],
         })
       } else {
-        const prerenderManifest: Readonly<PrerenderManifest> = {
+        await writePrerenderManifest(distDir, {
           version: 4,
           routes: {},
           dynamicRoutes: {},
           preview: previewProps,
           notFoundRoutes: [],
-        }
-        await writeManifest(
-          path.join(distDir, PRERENDER_MANIFEST),
-          prerenderManifest
-        )
-        await writeFileUtf8(
-          path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(
-            JSON.stringify(prerenderManifest)
-          )}`
-        )
+        })
       }
 
       const images = { ...config.images }
