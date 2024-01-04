@@ -1006,22 +1006,6 @@ createNextDescribe(
               "initialRevalidateSeconds": false,
               "srcRoute": "/hooks/use-search-params/force-static",
             },
-            "/hooks/use-search-params/static-bailout": {
-              "dataRoute": "/hooks/use-search-params/static-bailout.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/hooks/use-search-params/static-bailout",
-            },
             "/hooks/use-search-params/with-suspense": {
               "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
               "experimentalBypassFor": [
