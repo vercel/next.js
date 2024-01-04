@@ -64,7 +64,6 @@ export async function createComponentTree({
     staticGenerationStore,
     componentMod: {
       staticGenerationBailout,
-      NotFoundBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
       StaticGenerationSearchParamsBailoutProvider,
