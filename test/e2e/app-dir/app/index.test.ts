@@ -1751,6 +1751,26 @@ createNextDescribe(
             return 'yes'
           }, 'yes')
         })
+
+        it('should pass on extra props for beforeInteractive scripts with a src prop', async () => {
+          const browser = await next.browser('/script')
+
+          const foundProps = await browser.eval(
+            `document.querySelector('#script-with-src-noop-test').getAttribute('data-extra-prop')`
+          )
+
+          expect(foundProps).toBe('script-with-src')
+        })
+
+        it('should pass on extra props for beforeInteractive scripts without a src prop', async () => {
+          const browser = await next.browser('/script')
+
+          const foundProps = await browser.eval(
+            `document.querySelector('#script-without-src-noop-test-dangerouslySetInnerHTML').getAttribute('data-extra-prop')`
+          )
+
+          expect(foundProps).toBe('script-without-src')
+        })
       }
 
       it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
