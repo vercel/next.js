@@ -480,7 +480,7 @@ createNextDescribe(
     })
 
     if (isNextStart) {
-      it.only('should output HTML/RSC files for static paths', async () => {
+      it('should output HTML/RSC files for static paths', async () => {
         const files = (
           await glob('**/*', {
             cwd: join(next.testDir, '.next/server/app'),
