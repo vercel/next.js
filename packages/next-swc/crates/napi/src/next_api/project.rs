@@ -8,7 +8,7 @@ use napi::{
 };
 use next_api::{
     project::{
-        DefineEnv, Instrumentation, Middleware, PartialProjectOptions, ProjectContainer,
+        DefineEnv, Instrumentation, Middleware, PartialProjectOptions, Project, ProjectContainer,
         ProjectOptions,
     },
     route::{Endpoint, Route},
@@ -21,7 +21,7 @@ use tracing::Instrument;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
 };
-use turbo_tasks::{TransientInstance, TurboTasks, UpdateInfo, Vc};
+use turbo_tasks::{ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbopack_binding::{
     turbo::{
         tasks_fs::{FileContent, FileSystem},
@@ -29,9 +29,11 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
+            diagnostics::PlainDiagnostic,
             error::PrettyPrintError,
+            issue::PlainIssue,
             source_map::{GenerateSourceMap, Token},
-            version::{PartialUpdate, TotalUpdate, Update},
+            version::{PartialUpdate, TotalUpdate, Update, VersionState},
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
         trace_utils::{
@@ -491,6 +493,31 @@ pub fn project_entrypoints_subscribe(
     )
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct HmrUpdateWithIssues {
+    update: ReadRef<Update>,
+    issues: Vec<ReadRef<PlainIssue>>,
+    diagnostics: Vec<ReadRef<PlainDiagnostic>>,
+}
+
+#[turbo_tasks::function]
+async fn hmr_update(
+    project: Vc<Project>,
+    identifier: String,
+    state: Vc<VersionState>,
+) -> Result<Vc<HmrUpdateWithIssues>> {
+    let update_operation = project.hmr_update(identifier, state);
+    let update = update_operation.strongly_consistent().await?;
+    let issues = get_issues(update_operation).await?;
+    let diagnostics = get_diagnostics(update_operation).await?;
+    Ok(HmrUpdateWithIssues {
+        update,
+        issues,
+        diagnostics,
+    }
+    .cell())
+}
+
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -510,14 +537,17 @@ pub fn project_hmr_events(
                 let identifier = outer_identifier.clone();
                 let session = session.clone();
                 async move {
-                    let state = project
-                        .project()
-                        .hmr_version_state(identifier.clone(), session);
-                    let update_operation = project.project().hmr_update(identifier, state);
-                    let update = update_operation.strongly_consistent().await?;
-                    let issues = get_issues(update_operation).await?;
-                    let diags = get_diagnostics(update_operation).await?;
-                    match &*update {
+                    let project = project.project().resolve().await?;
+                    let state = project.hmr_version_state(identifier.clone(), session);
+                    let update = hmr_update(project, identifier, state)
+                        .strongly_consistent()
+                        .await?;
+                    let HmrUpdateWithIssues {
+                        update,
+                        issues,
+                        diagnostics,
+                    } = &*update;
+                    match &**update {
                         Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
                             state.set(to.clone()).await?;
@@ -526,7 +556,7 @@ pub fn project_hmr_events(
                             state.set(to.clone()).await?;
                         }
                     }
-                    Ok((update, issues, diags))
+                    Ok((update.clone(), issues.clone(), diagnostics.clone()))
                 }
                 .instrument(tracing::info_span!(
                     "HMR subscription",
