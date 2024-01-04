@@ -9,7 +9,7 @@ import type { Revalidate } from '../server/lib/revalidate'
 
 import '../lib/setup-exception-listeners'
 
-import { loadEnvConfig } from '@next/env'
+import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
 import { bold, yellow, green } from '../lib/picocolors'
 import crypto from 'crypto'
 import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
@@ -105,7 +105,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
-import { trace, flushAllTraces, setGlobal } from '../trace'
+import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
 import {
   detectConflictingPaths,
   computeFromManifest,
@@ -315,34 +315,6 @@ export function buildCustomRoute(
   }
 }
 
-async function generateClientSsgManifest(
-  prerenderManifest: PrerenderManifest,
-  {
-    buildId,
-    distDir,
-    locales,
-  }: { buildId: string; distDir: string; locales: string[] }
-) {
-  const ssgPages = new Set<string>(
-    [
-      ...Object.entries(prerenderManifest.routes)
-        // Filter out dynamic routes
-        .filter(([, { srcRoute }]) => srcRoute == null)
-        .map(([route]) => normalizeLocalePath(route, locales).pathname),
-      ...Object.keys(prerenderManifest.dynamicRoutes),
-    ].sort()
-  )
-
-  const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
-    ssgPages
-  )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
-
-  await writeFileUtf8(
-    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
-    clientSsgManifestContent
-  )
-}
-
 function pageToRoute(page: string) {
   const routeRegex = getNamedRouteRegex(page, true)
   return {
@@ -393,16 +365,178 @@ function getNumberOfWorkers(config: NextConfigComplete) {
   return 4
 }
 
-async function writeFileUtf8(filePath: string, content: string) {
+async function writeFileUtf8(filePath: string, content: string): Promise<void> {
   await fs.writeFile(filePath, content, 'utf-8')
 }
 
-function readFileUtf8(filePath: string) {
+function readFileUtf8(filePath: string): Promise<string> {
   return fs.readFile(filePath, 'utf8')
+}
+
+async function writeManifest<T extends object>(
+  filePath: string,
+  manifest: T
+): Promise<void> {
+  await writeFileUtf8(filePath, formatManifest(manifest))
 }
 
 async function readManifest<T extends object>(filePath: string): Promise<T> {
   return JSON.parse(await readFileUtf8(filePath))
+}
+
+async function writePrerenderManifest(
+  distDir: string,
+  manifest: Readonly<PrerenderManifest>
+): Promise<void> {
+  await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
+  await writeFileUtf8(
+    path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
+    `self.__PRERENDER_MANIFEST=${JSON.stringify(JSON.stringify(manifest))}`
+  )
+}
+
+async function writeClientSsgManifest(
+  prerenderManifest: PrerenderManifest,
+  {
+    buildId,
+    distDir,
+    locales,
+  }: { buildId: string; distDir: string; locales: string[] }
+) {
+  const ssgPages = new Set<string>(
+    [
+      ...Object.entries(prerenderManifest.routes)
+        // Filter out dynamic routes
+        .filter(([, { srcRoute }]) => srcRoute == null)
+        .map(([route]) => normalizeLocalePath(route, locales).pathname),
+      ...Object.keys(prerenderManifest.dynamicRoutes),
+    ].sort()
+  )
+
+  const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
+    ssgPages
+  )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
+
+  await writeFileUtf8(
+    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
+    clientSsgManifestContent
+  )
+}
+
+interface FunctionsConfigManifest {
+  version: number
+  functions: Record<string, Record<string, string | number>>
+}
+
+async function writeFunctionsConfigManifest(
+  distDir: string,
+  manifest: FunctionsConfigManifest
+): Promise<void> {
+  await writeManifest(
+    path.join(distDir, SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
+    manifest
+  )
+}
+
+interface RequiredServerFilesManifest {
+  version: number
+  config: NextConfigComplete
+  appDir: string
+  relativeAppDir: string
+  files: string[]
+  ignore: string[]
+}
+
+async function writeRequiredServerFilesManifest(
+  distDir: string,
+  requiredServerFiles: RequiredServerFilesManifest
+) {
+  await writeManifest(
+    path.join(distDir, SERVER_FILES_MANIFEST),
+    requiredServerFiles
+  )
+}
+
+const STANDALONE_DIRECTORY = 'standalone' as const
+async function writeStandaloneDirectory(
+  nextBuildSpan: Span,
+  distDir: string,
+  pageKeys: { pages: string[]; app: string[] | undefined },
+  denormalizedAppPages: string[] | undefined,
+  outputFileTracingRoot: string,
+  requiredServerFiles: RequiredServerFilesManifest,
+  middlewareManifest: MiddlewareManifest,
+  hasInstrumentationHook: boolean,
+  staticPages: Set<string>,
+  loadedEnvFiles: LoadedEnvFiles,
+  appDir: string | undefined
+) {
+  await nextBuildSpan
+    .traceChild('write-standalone-directory')
+    .traceAsyncFn(async () => {
+      await copyTracedFiles(
+        // requiredServerFiles.appDir Refers to the application directory, not App Router.
+        requiredServerFiles.appDir,
+        distDir,
+        pageKeys.pages,
+        denormalizedAppPages,
+        outputFileTracingRoot,
+        requiredServerFiles.config,
+        middlewareManifest,
+        hasInstrumentationHook,
+        staticPages
+      )
+
+      for (const file of [
+        ...requiredServerFiles.files,
+        path.join(requiredServerFiles.config.distDir, SERVER_FILES_MANIFEST),
+        ...loadedEnvFiles.reduce<string[]>((acc, envFile) => {
+          if (['.env', '.env.production'].includes(envFile.path)) {
+            acc.push(envFile.path)
+          }
+          return acc
+        }, []),
+      ]) {
+        // requiredServerFiles.appDir Refers to the application directory, not App Router.
+        const filePath = path.join(requiredServerFiles.appDir, file)
+        const outputPath = path.join(
+          distDir,
+          STANDALONE_DIRECTORY,
+          path.relative(outputFileTracingRoot, filePath)
+        )
+        await fs.mkdir(path.dirname(outputPath), {
+          recursive: true,
+        })
+        await fs.copyFile(filePath, outputPath)
+      }
+      await recursiveCopy(
+        path.join(distDir, SERVER_DIRECTORY, 'pages'),
+        path.join(
+          distDir,
+          STANDALONE_DIRECTORY,
+          path.relative(outputFileTracingRoot, distDir),
+          SERVER_DIRECTORY,
+          'pages'
+        ),
+        { overwrite: true }
+      )
+      if (appDir) {
+        const originalServerApp = path.join(distDir, SERVER_DIRECTORY, 'app')
+        if (existsSync(originalServerApp)) {
+          await recursiveCopy(
+            originalServerApp,
+            path.join(
+              distDir,
+              STANDALONE_DIRECTORY,
+              path.relative(outputFileTracingRoot, distDir),
+              SERVER_DIRECTORY,
+              'app'
+            ),
+            { overwrite: true }
+          )
+        }
+      }
+    })
 }
 
 export default async function build(
@@ -957,9 +1091,7 @@ export default async function build(
       // We need to write the manifest with rewrites before build
       await nextBuildSpan
         .traceChild('write-routes-manifest')
-        .traceAsyncFn(() =>
-          writeFileUtf8(routesManifestPath, formatManifest(routesManifest))
-        )
+        .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
 
       // We need to write a partial prerender manifest to make preview mode settings available in edge middleware
       const partialManifest: Partial<PrerenderManifest> = {
@@ -984,93 +1116,98 @@ export default async function build(
 
       const { incrementalCacheHandlerPath } = config.experimental
 
-      const requiredServerFiles = nextBuildSpan
+      const requiredServerFilesManifest = nextBuildSpan
         .traceChild('generate-required-server-files')
-        .traceFn(() => ({
-          version: 1,
-          config: {
-            ...config,
-            configFile: undefined,
-            ...(ciEnvironment.hasNextSupport
-              ? {
-                  compress: false,
-                }
-              : {}),
-            experimental: {
-              ...config.experimental,
-              trustHostHeader: ciEnvironment.hasNextSupport,
-              incrementalCacheHandlerPath: incrementalCacheHandlerPath
-                ? path.relative(distDir, incrementalCacheHandlerPath)
-                : undefined,
+        .traceFn(() => {
+          const serverFilesManifest: RequiredServerFilesManifest = {
+            version: 1,
+            config: {
+              ...config,
+              configFile: undefined,
+              ...(ciEnvironment.hasNextSupport
+                ? {
+                    compress: false,
+                  }
+                : {}),
+              experimental: {
+                ...config.experimental,
+                trustHostHeader: ciEnvironment.hasNextSupport,
+                incrementalCacheHandlerPath: incrementalCacheHandlerPath
+                  ? path.relative(distDir, incrementalCacheHandlerPath)
+                  : undefined,
 
-              isExperimentalCompile: isCompileMode,
+                // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
+                isExperimentalCompile: isCompileMode,
+              },
             },
-          },
-          appDir: dir,
-          relativeAppDir: path.relative(outputFileTracingRoot, dir),
-          files: [
-            ROUTES_MANIFEST,
-            path.relative(distDir, pagesManifestPath),
-            BUILD_MANIFEST,
-            PRERENDER_MANIFEST,
-            PRERENDER_MANIFEST.replace(/\.json$/, '.js'),
-            path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
-            path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
-            path.join(
-              SERVER_DIRECTORY,
-              MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
-            ),
-            ...(appDir
-              ? [
-                  ...(config.experimental.sri
-                    ? [
-                        path.join(
-                          SERVER_DIRECTORY,
-                          SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
-                        ),
-                        path.join(
-                          SERVER_DIRECTORY,
-                          SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
-                        ),
-                      ]
-                    : []),
-                  path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
-                  path.join(APP_PATH_ROUTES_MANIFEST),
-                  APP_BUILD_MANIFEST,
-                  path.join(
-                    SERVER_DIRECTORY,
-                    SERVER_REFERENCE_MANIFEST + '.js'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    SERVER_REFERENCE_MANIFEST + '.json'
-                  ),
-                ]
-              : []),
-            REACT_LOADABLE_MANIFEST,
-            config.optimizeFonts
-              ? path.join(SERVER_DIRECTORY, FONT_MANIFEST)
-              : null,
-            BUILD_ID_FILE,
-            path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
-            path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
-            ...(hasInstrumentationHook
-              ? [
-                  path.join(
-                    SERVER_DIRECTORY,
-                    `${INSTRUMENTATION_HOOK_FILENAME}.js`
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
-                  ),
-                ]
-              : []),
-          ]
-            .filter(nonNullable)
-            .map((file) => path.join(config.distDir, file)),
-          ignore: [] as string[],
-        }))
+            appDir: dir,
+            relativeAppDir: path.relative(outputFileTracingRoot, dir),
+            files: [
+              ROUTES_MANIFEST,
+              path.relative(distDir, pagesManifestPath),
+              BUILD_MANIFEST,
+              PRERENDER_MANIFEST,
+              PRERENDER_MANIFEST.replace(/\.json$/, '.js'),
+              path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+              path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+              path.join(
+                SERVER_DIRECTORY,
+                MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
+              ),
+              ...(appDir
+                ? [
+                    ...(config.experimental.sri
+                      ? [
+                          path.join(
+                            SERVER_DIRECTORY,
+                            SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
+                          ),
+                          path.join(
+                            SERVER_DIRECTORY,
+                            SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
+                          ),
+                        ]
+                      : []),
+                    path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
+                    path.join(APP_PATH_ROUTES_MANIFEST),
+                    APP_BUILD_MANIFEST,
+                    path.join(
+                      SERVER_DIRECTORY,
+                      SERVER_REFERENCE_MANIFEST + '.js'
+                    ),
+                    path.join(
+                      SERVER_DIRECTORY,
+                      SERVER_REFERENCE_MANIFEST + '.json'
+                    ),
+                  ]
+                : []),
+              REACT_LOADABLE_MANIFEST,
+              config.optimizeFonts
+                ? path.join(SERVER_DIRECTORY, FONT_MANIFEST)
+                : null,
+              BUILD_ID_FILE,
+              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
+              path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
+              ...(hasInstrumentationHook
+                ? [
+                    path.join(
+                      SERVER_DIRECTORY,
+                      `${INSTRUMENTATION_HOOK_FILENAME}.js`
+                    ),
+                    path.join(
+                      SERVER_DIRECTORY,
+                      `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
+                    ),
+                  ]
+                : []),
+            ]
+              .filter(nonNullable)
+              .map((file) => path.join(config.distDir, file)),
+            ignore: [] as string[],
+          }
+
+          return serverFilesManifest
+        })
 
       async function turbopackBuild() {
         const turboNextBuildStart = process.hrtime()
@@ -1250,18 +1387,16 @@ export default async function build(
       const appPathRoutes: Record<string, string> = {}
 
       if (appDir) {
-        appPathsManifest = JSON.parse(
-          await readFileUtf8(
-            path.join(distDir, SERVER_DIRECTORY, APP_PATHS_MANIFEST)
-          )
+        appPathsManifest = await readManifest(
+          path.join(distDir, SERVER_DIRECTORY, APP_PATHS_MANIFEST)
         )
 
         Object.keys(appPathsManifest).forEach((entry) => {
           appPathRoutes[entry] = normalizeAppPath(entry)
         })
-        await writeFileUtf8(
+        await writeManifest(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
-          formatManifest(appPathRoutes)
+          appPathRoutes
         )
       }
 
@@ -1395,7 +1530,11 @@ export default async function build(
       const analysisBegin = process.hrtime()
       const staticCheckSpan = nextBuildSpan.traceChild('static-check')
 
-      const functionsConfigManifest = {} as Record<string, Record<string, any>>
+      const functionsConfigManifest: FunctionsConfigManifest = {
+        version: 1,
+        functions: {},
+      }
+
       const {
         customAppGetInitialProps,
         namedExports,
@@ -1598,7 +1737,8 @@ export default async function build(
                   : undefined
 
                 if (staticInfo?.extraConfig) {
-                  functionsConfigManifest[page] = staticInfo.extraConfig
+                  functionsConfigManifest.functions[page] =
+                    staticInfo.extraConfig
                 }
 
                 const pageRuntime = middlewareManifest.functions[
@@ -1926,7 +2066,7 @@ export default async function build(
       }
 
       if (!hasSsrAmpPages) {
-        requiredServerFiles.ignore.push(
+        requiredServerFilesManifest.ignore.push(
           path.relative(
             dir,
             path.join(
@@ -1941,20 +2081,7 @@ export default async function build(
         )
       }
 
-      if (Object.keys(functionsConfigManifest).length > 0) {
-        const manifest: {
-          version: number
-          functions: Record<string, Record<string, string | number>>
-        } = {
-          version: 1,
-          functions: functionsConfigManifest,
-        }
-
-        await writeFileUtf8(
-          path.join(distDir, SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
-          formatManifest(manifest)
-        )
-      }
+      await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
 
       if (!isGenerateMode && config.outputFileTracing && !buildTracesPromise) {
         buildTracesPromise = collectBuildTraces({
@@ -1983,7 +2110,7 @@ export default async function build(
           return buildDataRoute(page, buildId)
         })
 
-        await writeFileUtf8(routesManifestPath, formatManifest(routesManifest))
+        await writeManifest(routesManifestPath, routesManifest)
       }
 
       // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
@@ -2024,7 +2151,7 @@ export default async function build(
           )
         })
 
-        requiredServerFiles.files.push(
+        requiredServerFilesManifest.files.push(
           ...cssFilePaths.map((filePath) =>
             path.join(config.distDir, 'static', filePath)
           )
@@ -2054,9 +2181,9 @@ export default async function build(
         })
       )
 
-      await writeFileUtf8(
-        path.join(distDir, SERVER_FILES_MANIFEST),
-        formatManifest(requiredServerFiles)
+      await writeRequiredServerFilesManifest(
+        distDir,
+        requiredServerFilesManifest
       )
 
       const middlewareManifest: MiddlewareManifest = await readManifest(
@@ -2789,7 +2916,7 @@ export default async function build(
 
           // remove temporary export folder
           await fs.rm(exportOptions.outdir, { recursive: true, force: true })
-          await writeFileUtf8(pagesManifestPath, formatManifest(pagesManifest))
+          await writeManifest(pagesManifestPath, pagesManifest)
         })
       }
 
@@ -2872,6 +2999,13 @@ export default async function build(
             prefetchDataRouteRegex: undefined,
           }
         })
+
+        NextBuildContext.previewModeId = previewProps.previewModeId
+        NextBuildContext.fetchCacheKeyPrefix =
+          config.experimental.fetchCacheKeyPrefix
+        NextBuildContext.allowedRevalidateHeaderKeys =
+          config.experimental.allowedRevalidateHeaderKeys
+
         const prerenderManifest: Readonly<PrerenderManifest> = {
           version: 4,
           routes: finalPrerenderRoutes,
@@ -2879,45 +3013,20 @@ export default async function build(
           notFoundRoutes: ssgNotFoundPaths,
           preview: previewProps,
         }
-        NextBuildContext.previewModeId = previewProps.previewModeId
-        NextBuildContext.fetchCacheKeyPrefix =
-          config.experimental.fetchCacheKeyPrefix
-        NextBuildContext.allowedRevalidateHeaderKeys =
-          config.experimental.allowedRevalidateHeaderKeys
-
-        await writeFileUtf8(
-          path.join(distDir, PRERENDER_MANIFEST),
-          formatManifest(prerenderManifest)
-        )
-        await writeFileUtf8(
-          path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(
-            JSON.stringify(prerenderManifest)
-          )}`
-        )
-        await generateClientSsgManifest(prerenderManifest, {
+        await writePrerenderManifest(distDir, prerenderManifest)
+        await writeClientSsgManifest(prerenderManifest, {
           distDir,
           buildId,
           locales: config.i18n?.locales || [],
         })
       } else {
-        const prerenderManifest: Readonly<PrerenderManifest> = {
+        await writePrerenderManifest(distDir, {
           version: 4,
           routes: {},
           dynamicRoutes: {},
           preview: previewProps,
           notFoundRoutes: [],
-        }
-        await writeFileUtf8(
-          path.join(distDir, PRERENDER_MANIFEST),
-          formatManifest(prerenderManifest)
-        )
-        await writeFileUtf8(
-          path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-          `self.__PRERENDER_MANIFEST=${JSON.stringify(
-            JSON.stringify(prerenderManifest)
-          )}`
-        )
+        })
       }
 
       const images = { ...config.images }
@@ -2933,22 +3042,16 @@ export default async function build(
         })
       )
 
-      await writeFileUtf8(
-        path.join(distDir, IMAGES_MANIFEST),
-        formatManifest({
-          version: 1,
-          images,
-        })
-      )
-      await writeFileUtf8(
-        path.join(distDir, EXPORT_MARKER),
-        formatManifest({
-          version: 1,
-          hasExportPathMap: typeof config.exportPathMap === 'function',
-          exportTrailingSlash: config.trailingSlash === true,
-          isNextImageImported: isNextImageImported === true,
-        })
-      )
+      await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
+        version: 1,
+        images,
+      })
+      await writeManifest(path.join(distDir, EXPORT_MARKER), {
+        version: 1,
+        hasExportPathMap: typeof config.exportPathMap === 'function',
+        exportTrailingSlash: config.trailingSlash === true,
+        isNextImageImported: isNextImageImported === true,
+      })
       await fs.unlink(path.join(distDir, EXPORT_DETAIL)).catch((err) => {
         if (err.code === 'ENOENT') {
           return Promise.resolve()
@@ -3026,74 +3129,19 @@ export default async function build(
       await buildTracesPromise
 
       if (config.output === 'standalone') {
-        await nextBuildSpan
-          .traceChild('copy-traced-files')
-          .traceAsyncFn(async () => {
-            await copyTracedFiles(
-              dir,
-              distDir,
-              pageKeys.pages,
-              denormalizedAppPages,
-              outputFileTracingRoot,
-              requiredServerFiles.config,
-              middlewareManifest,
-              hasInstrumentationHook,
-              staticPages
-            )
-
-            for (const file of [
-              ...requiredServerFiles.files,
-              path.join(config.distDir, SERVER_FILES_MANIFEST),
-              ...loadedEnvFiles.reduce<string[]>((acc, envFile) => {
-                if (['.env', '.env.production'].includes(envFile.path)) {
-                  acc.push(envFile.path)
-                }
-                return acc
-              }, []),
-            ]) {
-              const filePath = path.join(dir, file)
-              const outputPath = path.join(
-                distDir,
-                'standalone',
-                path.relative(outputFileTracingRoot, filePath)
-              )
-              await fs.mkdir(path.dirname(outputPath), {
-                recursive: true,
-              })
-              await fs.copyFile(filePath, outputPath)
-            }
-            await recursiveCopy(
-              path.join(distDir, SERVER_DIRECTORY, 'pages'),
-              path.join(
-                distDir,
-                'standalone',
-                path.relative(outputFileTracingRoot, distDir),
-                SERVER_DIRECTORY,
-                'pages'
-              ),
-              { overwrite: true }
-            )
-            if (appDir) {
-              const originalServerApp = path.join(
-                distDir,
-                SERVER_DIRECTORY,
-                'app'
-              )
-              if (existsSync(originalServerApp)) {
-                await recursiveCopy(
-                  originalServerApp,
-                  path.join(
-                    distDir,
-                    'standalone',
-                    path.relative(outputFileTracingRoot, distDir),
-                    SERVER_DIRECTORY,
-                    'app'
-                  ),
-                  { overwrite: true }
-                )
-              }
-            }
-          })
+        await writeStandaloneDirectory(
+          nextBuildSpan,
+          distDir,
+          pageKeys,
+          denormalizedAppPages,
+          outputFileTracingRoot,
+          requiredServerFilesManifest,
+          middlewareManifest,
+          hasInstrumentationHook,
+          staticPages,
+          loadedEnvFiles,
+          appDir
+        )
       }
 
       if (buildTracesSpinner) {
