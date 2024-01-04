@@ -5582,6 +5582,7 @@
       "next/font app preload page with fonts",
       "next/font app preload page with local fonts",
       "next/font app preload page without fonts",
+      "next/font app should use production cache control for fonts",
       "next/font app-old Fallback fontfaces google Fraunces",
       "next/font app-old Fallback fontfaces google Indie flower",
       "next/font app-old Fallback fontfaces local Fraunces",
@@ -5594,7 +5595,8 @@
       "next/font app-old preload google fonts with multiple weights/styles",
       "next/font app-old preload page with fonts",
       "next/font app-old preload page with local fonts",
-      "next/font app-old preload page without fonts"
+      "next/font app-old preload page without fonts",
+      "next/font app-old should use production cache control for fonts"
     ],
     "pending": [],
     "flakey": [],
