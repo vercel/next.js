@@ -1477,17 +1477,17 @@ export default async function build(
         ? await readManifest<AppBuildManifest>(appBuildManifestPath)
         : undefined
 
-      let appPathsManifest: Record<string, string> = {}
       const appPathRoutes: Record<string, string> = {}
 
       if (appDir) {
-        appPathsManifest = await readManifest(
+        const appPathsManifest = await readManifest<Record<string, string>>(
           path.join(distDir, SERVER_DIRECTORY, APP_PATHS_MANIFEST)
         )
 
-        Object.keys(appPathsManifest).forEach((entry) => {
-          appPathRoutes[entry] = normalizeAppPath(entry)
-        })
+        for (const key in appPathsManifest) {
+          appPathRoutes[key] = normalizeAppPath(key)
+        }
+
         await writeManifest(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
           appPathRoutes
@@ -1877,15 +1877,19 @@ export default async function build(
                             const isDynamic = isDynamicRoute(page)
                             const hasGenerateStaticParams =
                               !!workerResult.prerenderRoutes?.length
+                            const isEmptyGenerateStaticParams =
+                              workerResult.prerenderRoutes?.length === 0
 
-                            if (
-                              config.output === 'export' &&
-                              isDynamic &&
-                              !hasGenerateStaticParams
-                            ) {
-                              throw new Error(
-                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
-                              )
+                            if (config.output === 'export' && isDynamic) {
+                              if (isEmptyGenerateStaticParams) {
+                                throw new Error(
+                                  `Page "${page}"'s "generateStaticParams()" returned an empty array, which is not allowed with "output: export" config.`
+                                )
+                              } else if (!hasGenerateStaticParams) {
+                                throw new Error(
+                                  `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
+                                )
+                              }
                             }
 
                             if (
