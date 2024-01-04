@@ -1500,13 +1500,14 @@ export default async function build(
       const appPathRoutes: Record<string, string> = {}
 
       if (appDir) {
-        const appPathsManifest = await readManifest(
+        const appPathsManifest = await readManifest<Record<string, string>>(
           path.join(distDir, SERVER_DIRECTORY, APP_PATHS_MANIFEST)
         )
 
-        Object.keys(appPathsManifest).forEach((entry) => {
-          appPathRoutes[entry] = normalizeAppPath(entry)
-        })
+        for (const key in appPathsManifest) {
+          appPathRoutes[key] = normalizeAppPath(appPathsManifest[key])
+        }
+
         await writeManifest(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
           appPathRoutes
