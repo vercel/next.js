@@ -1155,7 +1155,7 @@ createNextDescribe(
 
         await check(async () => {
           const newNumber = await getNumber()
-          // Expect that the number changes on each click
+          // Expect that the number is the same on each click
           expect(newNumber).toBe(firstNumber)
 
           return 'success'
