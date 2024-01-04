@@ -1,5 +1,5 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-// import type { OriginalStackFrameResponse } from '../../middleware'
+import { isUserCode } from '../container/RuntimeError/CallStackFrame'
 
 export type OriginalStackFrame =
   | {
@@ -71,12 +71,7 @@ export function getOriginalStackFrame(
       error: false,
       reason: null,
       external: false,
-      expanded: !Boolean(
-        /* collapsed */
-        (source.file?.includes('node_modules') ||
-          body.originalStackFrame?.file?.includes('node_modules')) ??
-          true
-      ),
+      expanded: isUserCode(source) || isUserCode(body.originalStackFrame),
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
       originalCodeFrame: body.originalCodeFrame || null,

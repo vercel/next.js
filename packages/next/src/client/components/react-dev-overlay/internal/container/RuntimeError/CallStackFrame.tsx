@@ -7,13 +7,14 @@ import {
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 
 const frameworkInternalRegex = /[\\/]next[\\/]dist[\\/]/
-const reactNodeModulesRegex = /[\\/]node_modules[\\/]react(-dom)?[\\/]/
+const nodeModulesRegex = /node_modules[\\/]/
 
-export function isNextInternalStackFrame(frame: StackFrame): boolean {
+export function isUserCode(frame: StackFrame) {
+  // Is not either next.js internal or from node_modules
   return !!(
     frame.file &&
-    (frameworkInternalRegex.test(frame.file) ||
-      reactNodeModulesRegex.test(frame.file))
+    !frameworkInternalRegex.test(frame.file) &&
+    !nodeModulesRegex.test(frame.file)
   )
 }
 

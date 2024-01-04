@@ -4,7 +4,7 @@ import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
 import type { OriginalStackFrame } from '../../helpers/stack-frame'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
-import { CallStackFrame, isNextInternalStackFrame } from './CallStackFrame'
+import { CallStackFrame } from './CallStackFrame'
 import { GroupedStackFrames } from './GroupedStackFrames'
 import { ComponentStackFrameRow } from './ComponentStackFrameRow'
 
@@ -14,30 +14,28 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   error,
 }) {
   // Filter out the Next.js internal stack frames
-  const userlandSourceStackFrames = React.useMemo<OriginalStackFrame[]>(() => {
-    return error.frames.filter(
-      (entry) => !isNextInternalStackFrame(entry.sourceStackFrame)
-    )
-  }, [error.frames])
-
+  const errorFrames = error.frames
   const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
     return (
-      userlandSourceStackFrames.findIndex(
+      errorFrames.findIndex(
         (entry) =>
-          Boolean(entry.originalCodeFrame) && Boolean(entry.originalStackFrame)
+          entry.expanded &&
+          Boolean(entry.originalCodeFrame) &&
+          Boolean(entry.originalStackFrame)
       ) ?? -1
     )
-  }, [userlandSourceStackFrames])
+  }, [errorFrames])
+
   const firstFrame = React.useMemo<OriginalStackFrame | null>(() => {
-    return userlandSourceStackFrames[firstFirstPartyFrameIndex] ?? null
-  }, [userlandSourceStackFrames, firstFirstPartyFrameIndex])
+    return errorFrames[firstFirstPartyFrameIndex] ?? null
+  }, [errorFrames, firstFirstPartyFrameIndex])
 
   const allLeadingFrames = React.useMemo<OriginalStackFrame[]>(
     () =>
       firstFirstPartyFrameIndex < 0
         ? []
-        : userlandSourceStackFrames.slice(0, firstFirstPartyFrameIndex),
-    [userlandSourceStackFrames, firstFirstPartyFrameIndex]
+        : errorFrames.slice(0, firstFirstPartyFrameIndex),
+    [errorFrames, firstFirstPartyFrameIndex]
   )
 
   const [all, setAll] = React.useState(firstFrame == null)
@@ -46,15 +44,15 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   }, [])
 
   const leadingFrames = React.useMemo(
-    () => (all ? allLeadingFrames : []),
+    () => allLeadingFrames.filter((f) => f.expanded || all),
     [all, allLeadingFrames]
   )
   const allCallStackFrames = React.useMemo<OriginalStackFrame[]>(
-    () => userlandSourceStackFrames.slice(firstFirstPartyFrameIndex + 1),
-    [userlandSourceStackFrames, firstFirstPartyFrameIndex]
+    () => errorFrames.slice(firstFirstPartyFrameIndex + 1),
+    [errorFrames, firstFirstPartyFrameIndex]
   )
   const visibleCallStackFrames = React.useMemo<OriginalStackFrame[]>(
-    () => (all ? allCallStackFrames : []),
+    () => allCallStackFrames.filter((f) => f.expanded || all),
     [all, allCallStackFrames]
   )
 
