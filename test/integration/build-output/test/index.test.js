@@ -293,5 +293,17 @@ describe('Build Output', () => {
         expect(stdout).not.toContain('<buildId>')
       })
     })
+
+    describe('With Parallel Routes', () => {
+      it('should not have duplicate paths that resolve to the same route', async () => {
+        const appDir = join(fixturesDir, 'with-parallel-routes')
+
+        const { stdout } = await nextBuild(appDir, [], {
+          stdout: true,
+        })
+
+        expect(stdout.match(/○ \/root-page /g).length).toBe(1)
+      })
+    })
   })
 })

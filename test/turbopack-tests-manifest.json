@@ -224,7 +224,7 @@
   },
   "packages/next/src/client/components/router-reducer/fill-cache-with-new-subtree-data.test.tsx": {
     "passed": [
-      "fillCacheWithNewSubtreeData should apply subTreeData and head property"
+      "fillCacheWithNewSubtreeData should apply rsc and head property"
     ],
     "failed": [],
     "pending": [],
@@ -428,6 +428,21 @@
       "metadata: resolveUrl should ignore metadataBase when url is valid URL",
       "metadata: resolveUrl should return null when url is falsy",
       "metadata: resolveUrl should return url itself when metadataBase is null or url is valid URL"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/app-render/csrf-protection.test.ts": {
+    "passed": [
+      "isCsrfOriginAllowed should return false when allowedOrigins contains originDomain with non-matching pattern",
+      "isCsrfOriginAllowed should return false when allowedOrigins does not contain originDomain",
+      "isCsrfOriginAllowed should return false when allowedOrigins is empty",
+      "isCsrfOriginAllowed should return false when allowedOrigins is empty string",
+      "isCsrfOriginAllowed should return false when allowedOrigins is undefined",
+      "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain",
+      "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain with matching pattern"
     ],
     "failed": [],
     "pending": [],
@@ -1116,6 +1131,26 @@
     "failed": [
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning client-only",
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
+      "Error overlay - RSC build errors should error when Component from react is used in server component",
+      "Error overlay - RSC build errors should error when PureComponent from react is used in server component",
+      "Error overlay - RSC build errors should error when createContext from react is used in server component",
+      "Error overlay - RSC build errors should error when createFactory from react is used in server component",
+      "Error overlay - RSC build errors should error when findDOMNode from react-dom is used in server component",
+      "Error overlay - RSC build errors should error when flushSync from react-dom is used in server component",
+      "Error overlay - RSC build errors should error when unstable_batchedUpdates from react-dom is used in server component",
+      "Error overlay - RSC build errors should error when useDeferredValue from react is used in server component",
+      "Error overlay - RSC build errors should error when useEffect from react is used in server component",
+      "Error overlay - RSC build errors should error when useFormState from react-dom is used in server component",
+      "Error overlay - RSC build errors should error when useFormStatus from react-dom is used in server component",
+      "Error overlay - RSC build errors should error when useImperativeHandle from react is used in server component",
+      "Error overlay - RSC build errors should error when useInsertionEffect from react is used in server component",
+      "Error overlay - RSC build errors should error when useLayoutEffect from react is used in server component",
+      "Error overlay - RSC build errors should error when useOptimistic from react is used in server component",
+      "Error overlay - RSC build errors should error when useReducer from react is used in server component",
+      "Error overlay - RSC build errors should error when useRef from react is used in server component",
+      "Error overlay - RSC build errors should error when useState from react is used in server component",
+      "Error overlay - RSC build errors should error when useSyncExternalStore from react is used in server component",
+      "Error overlay - RSC build errors should error when useTransition from react is used in server component",
       "Error overlay - RSC build errors should throw an error when \"Component\" is imported in server components",
       "Error overlay - RSC build errors should throw an error when \"use client\" is on the top level but after other expressions",
       "Error overlay - RSC build errors should throw an error when error file is a server component",
@@ -2253,6 +2288,7 @@
       "app-dir action handling redirects redirects properly when server action handler redirects with a 308 status code",
       "app-dir action handling redirects redirects properly when server action handler uses `permanentRedirect`",
       "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
+      "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
       "app-dir action handling should 404 when POSTing an invalid server action",
       "app-dir action handling should bundle external libraries if they are on the action layer",
       "app-dir action handling should handle actions executed in quick succession",
@@ -2280,7 +2316,8 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle revalidateTag + redirect"
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
+      "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
     "flakey": [],
     "runtimeError": false
@@ -2447,6 +2484,7 @@
       "app dir - external dependency should handle external css modules",
       "app dir - external dependency should handle external css modules in pages",
       "app dir - external dependency should handle external next/font",
+      "app dir - external dependency should not prefer to resolve esm over cjs for bundling optout packages",
       "app dir - external dependency should resolve 3rd party package exports based on the react-server condition",
       "app dir - external dependency should resolve the subset react in server components based on the react-server condition",
       "app dir - external dependency should support exporting multiple star re-exports",
@@ -2456,7 +2494,8 @@
     ],
     "failed": [
       "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components",
-      "app dir - external dependency should have proper tree-shaking for known modules in CJS"
+      "app dir - external dependency should have proper tree-shaking for known modules in CJS",
+      "app dir - external dependency server actions should compile server actions from node_modules in client components"
     ],
     "pending": [],
     "flakey": [],
@@ -3281,7 +3320,7 @@
   "test/e2e/app-dir/hooks/hooks.test.ts": {
     "passed": [
       "app dir - hooks from pages should have the correct hooks",
-      "app dir - hooks useDraftMode should genenerate rand when draft mode enabled",
+      "app dir - hooks useDraftMode should generate rand when draft mode enabled",
       "app dir - hooks useDraftMode should use initial rand when draft mode be disabled",
       "app dir - hooks usePathname should have the canonical url pathname on rewrite",
       "app dir - hooks usePathname should have the correct pathname",
@@ -3383,22 +3422,28 @@
   },
   "test/e2e/app-dir/logging/fetch-logging.test.ts": {
     "passed": [
+      "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with default logging should not contain trailing word page for app router routes",
       "app-dir - logging with default logging should not log fetch requests at all",
-      "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
-      "app-dir - logging with verbose logging for edge runtime should not log fetch requests at all",
-      "app-dir - logging with verbose logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
-      "app-dir - logging with verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
-      "app-dir - logging with verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
-      "app-dir - logging with verbose logging should log requests with correct indentation",
-      "app-dir - logging with verbose logging should not contain trailing word page for app router routes",
-      "app-dir - logging with verbose logging should only log requests in dev mode"
-    ],
-    "failed": [
-      "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
+      "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when revalidate: 0 is used",
+      "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
+      "app-dir - logging with fetches default logging should log requests with correct indentation",
+      "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with fetches default logging should not contain trailing word page for app router routes",
+      "app-dir - logging with fetches default logging should only log requests in dev mode",
+      "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
+      "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
+      "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
+      "app-dir - logging with fetches verbose logging should log requests with correct indentation",
+      "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
+      "app-dir - logging with fetches verbose logging should only log requests in dev mode",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with verbose logging should not contain metadata internal segments for dynamic metadata routes"
+      "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
+      "app-dir - logging with verbose logging for edge runtime should not log fetch requests at all"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3604,7 +3649,8 @@
       "app dir - navigation relative hashes and queries should work with a hash-only `router.push(...)`",
       "app dir - navigation relative hashes and queries should work with a hash-only href",
       "app dir - navigation relative hashes and queries should work with a query-only href",
-      "app dir - navigation relative hashes and queries should work with both relative hashes and queries"
+      "app dir - navigation relative hashes and queries should work with both relative hashes and queries",
+      "app dir - navigation scroll restoration should restore original scroll position when navigating back"
     ],
     "failed": [
       "app dir - navigation query string useParams identity between renders should be stable in pages"
@@ -3792,8 +3838,7 @@
     ],
     "failed": [
       "parallel-routes-and-interception parallel routes Should match the catch-all routes of the more specific path, If there is more than one catch-all route",
-      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
-      "parallel-routes-and-interception parallel routes should throw an error when a route groups causes a conflict with a parallel segment"
+      "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found"
     ],
     "pending": [],
     "flakey": [],
@@ -3802,6 +3847,17 @@
   "test/e2e/app-dir/parallel-routes-not-found/parallel-routes-not-found.test.ts": {
     "passed": [
       "parallel-routes-and-interception should not render the @children slot when the @slot is not found"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-revalidation/parallel-routes-revalidation.test.ts": {
+    "passed": [
+      "parallel-routes-revalidation should handle a redirect action when called in a slot",
+      "parallel-routes-revalidation should handle router.refresh() when called in a slot",
+      "parallel-routes-revalidation should submit the action and revalidate the page data"
     ],
     "failed": [],
     "pending": [],
@@ -3835,21 +3891,88 @@
   },
   "test/e2e/app-dir/ppr-full/ppr-full.test.ts": {
     "passed": [
-      "ppr-full dynamic pages should resume should resume /",
-      "ppr-full dynamic pages should resume should resume /loading/a",
-      "ppr-full dynamic pages should resume should resume /loading/b",
-      "ppr-full dynamic pages should resume should resume /loading/c",
-      "ppr-full dynamic pages should resume should resume /nested/a",
-      "ppr-full dynamic pages should resume should resume /nested/b",
-      "ppr-full dynamic pages should resume should resume /nested/c",
-      "ppr-full dynamic pages should resume should resume /no-suspense",
-      "ppr-full dynamic pages should resume should resume /no-suspense/nested/a",
-      "ppr-full dynamic pages should resume should resume /no-suspense/nested/b",
-      "ppr-full dynamic pages should resume should resume /no-suspense/nested/c",
-      "ppr-full dynamic pages should resume should resume /on-demand/a",
-      "ppr-full dynamic pages should resume should resume /on-demand/b",
-      "ppr-full dynamic pages should resume should resume /on-demand/c"
+      "ppr-full HTML Response for / should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for / should cache the static part",
+      "ppr-full HTML Response for / should have correct headers",
+      "ppr-full HTML Response for / should resume with dynamic content",
+      "ppr-full HTML Response for /dynamic/force-dynamic should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /dynamic/force-dynamic should have correct headers",
+      "ppr-full HTML Response for /dynamic/force-dynamic should resume with dynamic content",
+      "ppr-full HTML Response for /dynamic/force-dynamic/nested/a should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /dynamic/force-dynamic/nested/a should have correct headers",
+      "ppr-full HTML Response for /dynamic/force-dynamic/nested/a should resume with dynamic content",
+      "ppr-full HTML Response for /dynamic/force-dynamic/nested/b should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /dynamic/force-dynamic/nested/b should have correct headers",
+      "ppr-full HTML Response for /dynamic/force-dynamic/nested/b should resume with dynamic content",
+      "ppr-full HTML Response for /dynamic/force-dynamic/nested/c should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /dynamic/force-dynamic/nested/c should have correct headers",
+      "ppr-full HTML Response for /dynamic/force-dynamic/nested/c should resume with dynamic content",
+      "ppr-full HTML Response for /dynamic/force-static should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /dynamic/force-static should have correct headers",
+      "ppr-full HTML Response for /dynamic/force-static should not contain dynamic content",
+      "ppr-full HTML Response for /loading/a should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /loading/a should cache the static part",
+      "ppr-full HTML Response for /loading/a should have correct headers",
+      "ppr-full HTML Response for /loading/a should resume with dynamic content",
+      "ppr-full HTML Response for /loading/b should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /loading/b should cache the static part",
+      "ppr-full HTML Response for /loading/b should have correct headers",
+      "ppr-full HTML Response for /loading/b should resume with dynamic content",
+      "ppr-full HTML Response for /loading/c should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /loading/c should cache the static part",
+      "ppr-full HTML Response for /loading/c should have correct headers",
+      "ppr-full HTML Response for /loading/c should resume with dynamic content",
+      "ppr-full HTML Response for /nested/a should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /nested/a should cache the static part",
+      "ppr-full HTML Response for /nested/a should have correct headers",
+      "ppr-full HTML Response for /nested/a should resume with dynamic content",
+      "ppr-full HTML Response for /nested/b should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /nested/b should cache the static part",
+      "ppr-full HTML Response for /nested/b should have correct headers",
+      "ppr-full HTML Response for /nested/b should resume with dynamic content",
+      "ppr-full HTML Response for /nested/c should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /nested/c should cache the static part",
+      "ppr-full HTML Response for /nested/c should have correct headers",
+      "ppr-full HTML Response for /nested/c should resume with dynamic content",
+      "ppr-full HTML Response for /no-suspense should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /no-suspense should cache the static part",
+      "ppr-full HTML Response for /no-suspense should have correct headers",
+      "ppr-full HTML Response for /no-suspense should resume with dynamic content",
+      "ppr-full HTML Response for /no-suspense/nested/a should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /no-suspense/nested/a should cache the static part",
+      "ppr-full HTML Response for /no-suspense/nested/a should have correct headers",
+      "ppr-full HTML Response for /no-suspense/nested/a should resume with dynamic content",
+      "ppr-full HTML Response for /no-suspense/nested/b should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /no-suspense/nested/b should cache the static part",
+      "ppr-full HTML Response for /no-suspense/nested/b should have correct headers",
+      "ppr-full HTML Response for /no-suspense/nested/b should resume with dynamic content",
+      "ppr-full HTML Response for /no-suspense/nested/c should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /no-suspense/nested/c should cache the static part",
+      "ppr-full HTML Response for /no-suspense/nested/c should have correct headers",
+      "ppr-full HTML Response for /no-suspense/nested/c should resume with dynamic content",
+      "ppr-full HTML Response for /on-demand/a should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /on-demand/a should cache the static part",
+      "ppr-full HTML Response for /on-demand/a should have correct headers",
+      "ppr-full HTML Response for /on-demand/a should resume with dynamic content",
+      "ppr-full HTML Response for /on-demand/b should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /on-demand/b should cache the static part",
+      "ppr-full HTML Response for /on-demand/b should have correct headers",
+      "ppr-full HTML Response for /on-demand/b should resume with dynamic content",
+      "ppr-full HTML Response for /on-demand/c should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /on-demand/c should cache the static part",
+      "ppr-full HTML Response for /on-demand/c should have correct headers",
+      "ppr-full HTML Response for /on-demand/c should resume with dynamic content",
+      "ppr-full HTML Response for /static should allow navigations to and from a pages/ page",
+      "ppr-full HTML Response for /static should have correct headers",
+      "ppr-full HTML Response for /static should not contain dynamic content"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/ppr-navigations.test.ts": {
+    "passed": ["ppr-navigations prefetching is disabled in dev"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -4132,6 +4255,7 @@
   },
   "test/e2e/app-dir/third-parties/basic.test.ts": {
     "passed": [
+      "@next/third-parties basic usage renders GA",
       "@next/third-parties basic usage renders GTM",
       "@next/third-parties basic usage renders GoogleMapsEmbed",
       "@next/third-parties basic usage renders YoutubeEmbed"
@@ -4194,8 +4318,8 @@
   },
   "test/e2e/app-dir/with-babel/with-babel.test.ts": {
     "passed": [],
-    "failed": ["with babel should support babel in app dir"],
-    "pending": [],
+    "failed": [],
+    "pending": ["with babel with babel should support babel in app dir"],
     "flakey": [],
     "runtimeError": false
   },
@@ -4531,6 +4655,16 @@
       "edge-render-getserversideprops should have correct query/params on rewrite",
       "edge-render-getserversideprops should respond to _next/data for [id] correctly",
       "edge-render-getserversideprops should respond to _next/data for index correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/edge-runtime-pages-api-route/edge-runtime-pages-api-route.test.ts": {
+    "passed": [
+      "Edge runtime pages-api route should work edge runtime",
+      "Edge runtime pages-api route should work with node runtime"
     ],
     "failed": [],
     "pending": [],
@@ -5448,6 +5582,7 @@
       "next/font app preload page with fonts",
       "next/font app preload page with local fonts",
       "next/font app preload page without fonts",
+      "next/font app should use production cache control for fonts",
       "next/font app-old Fallback fontfaces google Fraunces",
       "next/font app-old Fallback fontfaces google Indie flower",
       "next/font app-old Fallback fontfaces local Fraunces",
@@ -5460,7 +5595,8 @@
       "next/font app-old preload google fonts with multiple weights/styles",
       "next/font app-old preload page with fonts",
       "next/font app-old preload page with local fonts",
-      "next/font app-old preload page without fonts"
+      "next/font app-old preload page without fonts",
+      "next/font app-old should use production cache control for fonts"
     ],
     "pending": [],
     "flakey": [],
@@ -5838,11 +5974,8 @@
   },
   "test/e2e/swc-warnings/index.test.ts": {
     "passed": [],
-    "failed": [
-      "can force swc should not have warning",
-      "swc warnings by default should have warning"
-    ],
-    "pending": [],
+    "failed": ["can force swc should not have warning"],
+    "pending": ["swc warnings by default should have warning"],
     "flakey": [],
     "runtimeError": false
   },
@@ -5911,6 +6044,7 @@
   },
   "test/e2e/third-parties/index.test.ts": {
     "passed": [
+      "@next/third-parties basic usage renders GA",
       "@next/third-parties basic usage renders GTM",
       "@next/third-parties basic usage renders GoogleMapsEmbed",
       "@next/third-parties basic usage renders YoutubeEmbed"
@@ -7043,10 +7177,10 @@
   },
   "test/integration/config-resolve-alias/test/index.test.js": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "Invalid resolve alias should show relevant error when webpack resolve alias is wrong"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7387,16 +7521,16 @@
   },
   "test/integration/css/test/css-modules.test.js": {
     "passed": [
+      "Basic CSS Modules Ordering Development Mode should have correct color on index page (on hover)",
+      "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
+      "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering)",
+      "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads",
       "Ordering with Global CSS and Modules (dev) should not execute scripts in any order"
     ],
     "failed": [
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
-      "Basic CSS Modules Ordering Development Mode should have correct color on index page (on hover)",
-      "Basic CSS Modules Ordering Development Mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)",
-      "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering)",
-      "Ordering with Global CSS and Modules (dev) should have the correct color (css ordering) during hot reloads"
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)"
     ],
     "pending": [
       "Basic CSS Modules Ordering production mode should have correct color on index page (on hover)",
@@ -14501,14 +14635,13 @@
       "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
-      "server-side dev errors should show server-side error for gssp page correctly"
-    ],
-    "failed": [
+      "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -14967,10 +15100,10 @@
     "runtimeError": false
   },
   "test/integration/typescript-external-dir/project/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "TypeScript Features default behavior should render the page with external TS/TSX dependencies"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -15079,9 +15212,10 @@
   },
   "test/integration/undefined-webpack-config/test/index.test.js": {
     "passed": [],
-    "failed": ["undefined webpack config error should show in dev mode"],
+    "failed": [],
     "pending": [
-      "undefined webpack config error production mode should show in production mode"
+      "undefined webpack config error production mode should show in production mode",
+      "undefined webpack config error should show in dev mode"
     ],
     "flakey": [],
     "runtimeError": false

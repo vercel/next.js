@@ -301,6 +301,24 @@ export default function Page({ params }) {
 
 > **Good to know**: `fetch` requests are automatically [memoized](/docs/app/building-your-application/caching#request-memoization) for the same data across all `generate`-prefixed functions, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/caching#request-memoization) if `fetch` is unavailable.
 
+### Generate only a subset of params
+
+You can generate a subset of params for a route by returning an array of objects with only the dynamic segments you want to generate. Then, by using the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) segment config option, you can control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
+
+```jsx filename="app/blog/[slug]/page.js"
+// All posts besides the top 10 will be a 404
+export const dynamicParams = false
+
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+  const topPosts = posts.slice(0, 10)
+
+  return topPosts.map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
 ## Version History
 
 | Version   | Changes                            |
