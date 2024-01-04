@@ -6,12 +6,13 @@ use turbopack_binding::swc::core::ecma::{
 pub(crate) fn contains_cjs(m: &Module) -> bool {
     let mut v = CjsFinder::default();
     m.visit_with(&mut v);
-    v.found
+    v.found && !v.is_esm
 }
 
 #[derive(Copy, Clone, Default)]
 struct CjsFinder {
     found: bool,
+    is_esm: bool,
 }
 
 impl CjsFinder {
@@ -113,5 +114,9 @@ impl Visit for CjsFinder {
         }
 
         n.visit_children_with(self);
+    }
+
+    fn visit_mut_module_decl(&mut self, _: &mut ModuleDecl) {
+        self.is_esm = true;
     }
 }
