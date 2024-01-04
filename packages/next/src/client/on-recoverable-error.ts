@@ -1,4 +1,4 @@
-import { isBailoutCSRError } from '../shared/lib/lazy-dynamic/no-ssr-error'
+import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/no-ssr-error'
 
 export default function onRecoverableError(err: any) {
   // Using default react onRecoverableError
@@ -13,7 +13,7 @@ export default function onRecoverableError(err: any) {
         }
 
   // Skip certain custom errors which are not expected to be reported on client
-  if (isBailoutCSRError(err)) return
+  if (isBailoutToCSRError(err)) return
 
   defaultOnRecoverableError(err)
 }
