@@ -433,6 +433,29 @@ async function writeRequiredServerFilesManifest(
   )
 }
 
+async function writeImagesManifest(
+  distDir: string,
+  config: NextConfigComplete
+): Promise<void> {
+  const images = { ...config.images }
+  const { deviceSizes, imageSizes } = images
+  ;(images as any).sizes = [...deviceSizes, ...imageSizes]
+  images.remotePatterns = (config?.images?.remotePatterns || []).map(
+    (p: RemotePattern) => ({
+      // Should be the same as matchRemotePattern()
+      protocol: p.protocol,
+      hostname: makeRe(p.hostname).source,
+      port: p.port,
+      pathname: makeRe(p.pathname ?? '**').source,
+    })
+  )
+
+  await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
+    version: 1,
+    images,
+  })
+}
+
 const STANDALONE_DIRECTORY = 'standalone' as const
 async function writeStandaloneDirectory(
   nextBuildSpan: Span,
@@ -3079,23 +3102,7 @@ export default async function build(
         })
       }
 
-      const images = { ...config.images }
-      const { deviceSizes, imageSizes } = images
-      ;(images as any).sizes = [...deviceSizes, ...imageSizes]
-      images.remotePatterns = (config?.images?.remotePatterns || []).map(
-        (p: RemotePattern) => ({
-          // Should be the same as matchRemotePattern()
-          protocol: p.protocol,
-          hostname: makeRe(p.hostname).source,
-          port: p.port,
-          pathname: makeRe(p.pathname ?? '**').source,
-        })
-      )
-
-      await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
-        version: 1,
-        images,
-      })
+      await writeImagesManifest(distDir, config)
       await writeManifest(path.join(distDir, EXPORT_MARKER), {
         version: 1,
         hasExportPathMap: typeof config.exportPathMap === 'function',
