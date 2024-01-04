@@ -105,10 +105,8 @@ export async function exportPages(
         query,
         renderOpts
       )
-    } catch (err: any) {
-      if (!isBailoutToCSRError(err)) {
-        throw err
-      }
+    } catch (err) {
+      if (!isBailoutToCSRError(err)) throw err
     }
   }
 
@@ -163,10 +161,8 @@ export async function exportPages(
           { ...query, amp: '1' },
           renderOpts
         )
-      } catch (err: any) {
-        if (!isBailoutToCSRError(err)) {
-          throw err
-        }
+      } catch (err) {
+        if (!isBailoutToCSRError(err)) throw err
       }
 
       const ampHtml =
