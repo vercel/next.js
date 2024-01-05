@@ -3,8 +3,9 @@ import type { Update as TurbopackUpdate } from '../../../../../build/swc'
 export function extractModulesFromTurbopackMessage(
   data: TurbopackUpdate | TurbopackUpdate[]
 ) {
-  const updates = Array.isArray(data) ? data : [data]
   const updatedModules: Set<string> = new Set()
+
+  const updates = Array.isArray(data) ? data : [data]
   for (const update of updates) {
     if (
       update.type !== 'partial' ||
@@ -17,8 +18,10 @@ export function extractModulesFromTurbopackMessage(
       for (const name of Object.keys(mergedUpdate.entries)) {
         const res = /(.*)\s+\[.*/.exec(name)
         if (res === null) {
-          throw new Error('Expected module to match pattern')
+          console.error('[Turbopack HMR] Expected module to match pattern')
+          continue
         }
+
         updatedModules.add(res[1])
       }
     }
