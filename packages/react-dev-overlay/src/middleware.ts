@@ -320,8 +320,9 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
 
       if (
         !(
-          (frame.file?.startsWith('webpack-internal:///') ||
-            frame.file?.startsWith('file://')) &&
+          (frame.file?.startsWith('webpack-internal://') ||
+            frame.file?.startsWith('file://') ||
+            frame.file?.startsWith('webpack://')) &&
           Boolean(parseInt(frame.lineNumber?.toString() ?? '', 10))
         )
       ) {
@@ -331,11 +332,11 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       const moduleId: string = frame.file.replace(
-        /^(webpack-internal:\/\/\/|file:\/\/)/,
+        /webpack-internal:(\/)+|file:\/\//,
         ''
       )
       const modulePath = frame.file.replace(
-        /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
+        /webpack-internal:(\/)+|file:\/\/(\(.*\)\/)?/,
         ''
       )
 
