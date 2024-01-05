@@ -341,11 +341,11 @@ Next.js has an in-memory client-side cache that stores the React Server Componen
   height="1375"
 />
 
-As a user navigates between routes, Next.js caches visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#1-prefetching) the routes the user is likely to navigate to (based on `<Link>` components in their viewport).
+As a user navigates between routes, Next.js caches visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the routes the user is likely to navigate to (based on `<Link>` components in their viewport).
 
 This results in an improved navigation experience for the user:
 
-- Instant backward/forward navigation because visited routes are cached and fast navigation to new routes because of prefetching and [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#3-partial-rendering).
+- Instant backward/forward navigation because visited routes are cached and fast navigation to new routes because of prefetching and [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering).
 - No full-page reload between navigations, and React state and browser state are preserved.
 
 > **Difference between the Router Cache and Full Route Cache**:
