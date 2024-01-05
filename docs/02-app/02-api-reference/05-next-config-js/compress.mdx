@@ -5,12 +5,21 @@ description: Next.js provides gzip compression to compress rendered content and 
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-Next.js provides [**gzip**](https://tools.ietf.org/html/rfc6713#section-3) compression to compress rendered content and static files. In general you will want to enable compression on a HTTP proxy like [nginx](https://www.nginx.com/), to offload load from the `Node.js` process.
+By default, Next.js compress rendered content and static files when using `next start` or a custom server using `gzip` (default). If compression is already configured in your application via a custom server, Next.js will not add its own compressor.
 
-To disable **compression**, open `next.config.js` and disable the `compress` config:
+> **Good to know:**
+>
+> - When hosting your application on [Vercel](https://vercel.com/docs/edge-network/compression), compression uses `brotli` **and** `gzip`.
+> - You can check if compression is enabled and which algorithm is used by looking at the [`Accept-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding) (browser accepted options) and [`Content-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding) (currently used) headers in the response.
+
+## Disabling compression
+
+To disable **compression**, set the `compress` config option to `false`:
 
 ```js filename="next.config.js"
 module.exports = {
   compress: false,
 }
 ```
+
+We do not recommend disabling compression unless you have a specific reason to do so, as compression reduces bandwidth usage and improves the performance of your application.
