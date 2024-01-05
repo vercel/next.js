@@ -414,7 +414,7 @@ The following table provides an overview of how different Next.js APIs affect ca
 | [`const revalidate`](#segment-config-options)                           |                            | Revalidate or Opt out | Revalidate or Opt out |             |
 | [`const dynamic`](#segment-config-options)                              |                            | Cache or Opt out      | Cache or Opt out      |             |
 | [`cookies`](#cookies)                                                   | Revalidate (Server Action) | Opt out               |                       |             |
-| [`headers`, `useSearchParams`, `searchParams`](#dynamic-functions)      |                            | Opt out               |                       |             |
+| [`headers`, `searchParams`](#dynamic-functions)                         |                            | Opt out               |                       |             |
 | [`generateStaticParams`](#generatestaticparams)                         |                            | Cache                 |                       |             |
 | [`React.cache`](#react-cache-function)                                  |                            |                       |                       | Cache       |
 | [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)    |                            |                       |                       |             |
@@ -525,7 +525,7 @@ See the [`revalidatePath` API reference](/docs/app/api-reference/functions/reval
 
 ### Dynamic Functions
 
-`cookies`, `headers`, `useSearchParams`, and `searchParams` are all dynamic functions that depend on runtime incoming request information. Using them will opt a route out of the Full Route Cache, in other words, the route will be dynamically rendered.
+Dynamic functions like `cookies` and `headers`, and the `searchParams` prop in Layouts and Pages depend on runtime incoming request information. Using them will opt a route out of the Full Route Cache, in other words, the route will be dynamically rendered.
 
 #### `cookies`
 
