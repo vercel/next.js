@@ -900,7 +900,7 @@ async function renderToHTMLOrFlightImpl(
       })
 
       const renderer = createStaticRenderer({
-        ppr: !!renderOpts.experimental.ppr,
+        ppr: renderOpts.experimental.ppr,
         isStaticGeneration,
         // If provided, the postpone state should be parsed as JSON so it can be
         // provided to React.
