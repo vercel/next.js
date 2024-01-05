@@ -503,6 +503,7 @@ createNextDescribe(
             "_not-found.rsc",
             "_not-found_client-reference-manifest.js",
             "api/draft-mode/route.js",
+            "api/large-data/route.js",
             "api/revalidate-path-edge/route.js",
             "api/revalidate-path-node/route.js",
             "api/revalidate-tag-edge/route.js",
@@ -543,6 +544,8 @@ createNextDescribe(
             "flight/[slug]/[slug2]/page_client-reference-manifest.js",
             "force-cache.html",
             "force-cache.rsc",
+            "force-cache/large-data/page.js",
+            "force-cache/large-data/page_client-reference-manifest.js",
             "force-cache/page.js",
             "force-cache/page_client-reference-manifest.js",
             "force-dynamic-catch-all/[slug]/[[...id]]/page.js",
@@ -765,6 +768,26 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/",
+            },
+            "/api/large-data": {
+              "dataRoute": null,
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialHeaders": {
+                "content-type": "application/json",
+                "x-next-cache-tags": "_N_T_/layout,_N_T_/api/layout,_N_T_/api/large-data/layout,_N_T_/api/large-data/route,_N_T_/api/large-data",
+              },
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/api/large-data",
             },
             "/articles/works": {
               "dataRoute": "/articles/works.rsc",
@@ -3004,6 +3027,12 @@ createNextDescribe(
         expect(next.cliOutput).toContain('initialized custom cache-handler')
         expect(next.cliOutput).toContain('cache-handler get')
         expect(next.cliOutput).toContain('cache-handler set')
+      })
+
+      it('should load large data only once when using custom cache handler and force-cache mode', async () => {
+        await next.fetch('/force-cache/large-data')
+        await next.fetch('/force-cache/large-data')
+        expect(next.cliOutput.match('Load data').length).toBe(1)
       })
     }
   }

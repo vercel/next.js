@@ -1,4 +1,3 @@
-import type { RemotePattern } from '../shared/lib/image-config'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
@@ -12,7 +11,7 @@ import '../lib/setup-exception-listeners'
 import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
 import { bold, yellow, green } from '../lib/picocolors'
 import crypto from 'crypto'
-import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
+import { makeRe } from 'next/dist/compiled/micromatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import { Worker } from '../lib/worker'
@@ -431,6 +430,27 @@ async function writeRequiredServerFilesManifest(
     path.join(distDir, SERVER_FILES_MANIFEST),
     requiredServerFiles
   )
+}
+
+async function writeImagesManifest(
+  distDir: string,
+  config: NextConfigComplete
+): Promise<void> {
+  const images = { ...config.images }
+  const { deviceSizes, imageSizes } = images
+  ;(images as any).sizes = [...deviceSizes, ...imageSizes]
+  images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
+    // Should be the same as matchRemotePattern()
+    protocol: p.protocol,
+    hostname: makeRe(p.hostname).source,
+    port: p.port,
+    pathname: makeRe(p.pathname ?? '**').source,
+  }))
+
+  await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
+    version: 1,
+    images,
+  })
 }
 
 const STANDALONE_DIRECTORY = 'standalone' as const
@@ -993,26 +1013,6 @@ export default async function build(
       const pageKeys = {
         pages: pagesPageKeys,
         app: appPaths.length > 0 ? appPaths : undefined,
-      }
-
-      if (turboNextBuild) {
-        // TODO(WEB-397) This is a temporary workaround to allow for filtering a
-        // subset of pages when building with --experimental-turbo, until we
-        // have complete support for all pages.
-        if (process.env.NEXT_TURBO_FILTER_PAGES) {
-          const filterPages = process.env.NEXT_TURBO_FILTER_PAGES.split(',')
-          pageKeys.pages = pageKeys.pages.filter((page) => {
-            return filterPages.some((filterPage) => {
-              return isMatch(page, filterPage)
-            })
-          })
-
-          pageKeys.app = pageKeys.app?.filter((page) => {
-            return filterPages.some((filterPage) => {
-              return isMatch(page, filterPage)
-            })
-          })
-        }
       }
 
       const numConflictingAppPaths = conflictingAppPagePaths.length
@@ -3083,23 +3083,7 @@ export default async function build(
         })
       }
 
-      const images = { ...config.images }
-      const { deviceSizes, imageSizes } = images
-      ;(images as any).sizes = [...deviceSizes, ...imageSizes]
-      images.remotePatterns = (config?.images?.remotePatterns || []).map(
-        (p: RemotePattern) => ({
-          // Should be the same as matchRemotePattern()
-          protocol: p.protocol,
-          hostname: makeRe(p.hostname).source,
-          port: p.port,
-          pathname: makeRe(p.pathname ?? '**').source,
-        })
-      )
-
-      await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
-        version: 1,
-        images,
-      })
+      await writeImagesManifest(distDir, config)
       await writeManifest(path.join(distDir, EXPORT_MARKER), {
         version: 1,
         hasExportPathMap: typeof config.exportPathMap === 'function',
