@@ -35,6 +35,7 @@ import {
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
 import {
+  NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE,
   RSC_HEADER,
@@ -79,6 +80,7 @@ import { MissingPostponeDataError } from './is-missing-postpone-error'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { DYNAMIC_ERROR_CODE } from '../../client/components/hooks-server-context'
 import { useFlightResponse } from './use-flight-response'
+import { createStaticHeadersAdapter } from './static/create-static-headers-adapter'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -606,6 +608,14 @@ async function renderToHTMLOrFlightImpl(
   const silenceStaticGenerationErrors =
     renderOpts.experimental.ppr && isStaticGeneration
 
+  // If this is during static generation, we shouldn't write to the headers
+  // object directly, instead we should add to the render result. This ensures
+  // that the headers are correctly written to the metadata or the response
+  // depending on whether this is a static generation or not.
+  const headers = isStaticGeneration
+    ? createStaticHeadersAdapter(metadata)
+    : res
+
   const serverComponentsErrorHandler = createErrorHandler({
     _source: 'serverComponentsRenderer',
     dev,
@@ -909,22 +919,18 @@ async function renderToHTMLOrFlightImpl(
           : null,
         streamOptions: {
           onError: htmlRendererErrorHandler,
-          onHeaders: (headers: Headers) => {
+          onHeaders: (incoming: Headers) => {
             // If this is during static generation, we shouldn't write to the
             // headers object directly, instead we should add to the render
             // result.
-            if (isStaticGeneration) {
-              headers.forEach((value, key) => {
-                metadata.headers ??= {}
-                metadata.headers[key] = value
-              })
+            incoming.forEach((value, key) => {
+              headers.appendHeader(key, value)
+            })
 
-              // Resolve the promise to continue the stream.
+            // Resolve the promise to continue the stream if we're in static
+            // generation. Otherwise the promise is not awaited.
+            if (isStaticGeneration) {
               onHeadersFinished.resolve()
-            } else {
-              headers.forEach((value, key) => {
-                res.appendHeader(key, value)
-              })
             }
           },
           maxHeadersLength: 600,
@@ -936,6 +942,12 @@ async function renderToHTMLOrFlightImpl(
 
       try {
         let { stream, postponed } = await renderer.render(children)
+
+        // If PPR is enabled and this is a static render, we should add the
+        // postpone header to the response.
+        if (renderOpts.experimental.ppr && isStaticGeneration) {
+          headers.setHeader(NEXT_DID_POSTPONE_HEADER, postponed ? '1' : '0')
+        }
 
         // If the stream was postponed, we need to add the result to the
         // metadata so that it can be resumed later.
@@ -1003,12 +1015,12 @@ async function renderToHTMLOrFlightImpl(
           hasRedirectError = true
           res.statusCode = getRedirectStatusCodeFromError(err)
           if (err.mutableCookies) {
-            const headers = new Headers()
+            const cookieHeaders = new Headers()
 
             // If there were mutable cookies set, we need to set them on the
             // response.
-            if (appendMutableCookies(headers, err.mutableCookies)) {
-              res.setHeader('set-cookie', Array.from(headers.values()))
+            if (appendMutableCookies(cookieHeaders, err.mutableCookies)) {
+              res.setHeader('set-cookie', Array.from(cookieHeaders.values()))
             }
           }
           const redirectUrl = addPathPrefix(

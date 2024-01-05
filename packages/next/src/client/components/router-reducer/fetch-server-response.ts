@@ -111,7 +111,7 @@ export async function fetchServerResponse(
     const canonicalUrl = res.redirected ? responseUrl : undefined
 
     const contentType = res.headers.get('content-type') || ''
-    const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
+    const postponed = res.headers.get(NEXT_DID_POSTPONE_HEADER) === '1'
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
 
     if (process.env.NODE_ENV === 'production') {
