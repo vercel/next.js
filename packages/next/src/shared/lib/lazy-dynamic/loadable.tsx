@@ -6,31 +6,32 @@ import type { ComponentModule } from './types'
 // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
 // Client component reference proxy need to be converted to a module.
 function convertModule<P>(mod: React.ComponentType<P> | ComponentModule<P>) {
-  return { default: (mod as ComponentModule<P>)?.default || mod }
+  return { default: (mod as ComponentModule<P>)?.default ?? mod }
 }
 
-function Loadable(options: any) {
-  const opts = {
-    loader: null,
-    loading: null,
-    ssr: true,
-    ...options,
-  }
+const defaultOptions = {
+  loader: () => Promise.resolve(convertModule(() => null)),
+  loading: null,
+  ssr: true,
+}
 
-  const loader = () =>
-    opts.loader != null
-      ? opts.loader().then(convertModule)
-      : Promise.resolve(convertModule(() => null))
+interface LoadableOptions {
+  loader?: () => Promise<React.ComponentType<any> | ComponentModule<any>>
+  loading?: React.ComponentType<any> | null
+  ssr?: boolean
+}
 
-  const Lazy = lazy(loader)
+function Loadable(options: LoadableOptions) {
+  const opts = { ...defaultOptions, ...options }
+  const Lazy = lazy(() => opts.loader().then(convertModule))
   const Loading = opts.loading
 
-  function LoadableComponent(props: any) {
+  function LoadableComponent(props: React.ReactElement) {
     const fallbackElement = Loading ? (
       <Loading isLoading={true} pastDelay={true} error={null} />
     ) : null
 
-    const children = options.ssr ? (
+    const children = opts.ssr ? (
       <Lazy {...props} />
     ) : (
       <BailoutToCSR reason="next/dynamic">
