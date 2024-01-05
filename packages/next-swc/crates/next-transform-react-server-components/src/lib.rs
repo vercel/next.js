@@ -1,8 +1,11 @@
+#![feature(arbitrary_self_types)]
+
 use std::{collections::HashMap, path::PathBuf};
 
+use next_visitor_cjs_finder::contains_cjs;
 use regex::Regex;
 use serde::Deserialize;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
@@ -15,8 +18,6 @@ use turbopack_binding::swc::core::{
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
     },
 };
-
-use crate::auto_cjs::contains_cjs;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
@@ -55,6 +56,102 @@ struct ReactServerComponents<C: Comments> {
 struct ModuleImports {
     source: (JsWord, Span),
     specifiers: Vec<(JsWord, Span)>,
+}
+
+enum RSCErrorKind {
+    /// When `use client` and `use server` are in the same file.
+    /// It's not possible to have both directives in the same file.
+    RedundantDirectives(Span),
+    NextRscErrServerImport((String, Span)),
+    NextRscErrClientImport((String, Span)),
+    NextRscErrClientDirective(Span),
+    NextRscErrReactApi((String, Span)),
+    NextRscErrErrorFileServerComponent(Span),
+    NextRscErrClientMetadataExport((String, Span)),
+    NextRscErrConflictMetadataExport(Span),
+    NextRscErrInvalidApi((String, Span)),
+}
+
+impl<C: Comments> ReactServerComponents<C> {
+    /// Consolidated place to parse, generate error messages for the RSC parsing
+    /// errors.
+    fn report_error(&self, error_kind: RSCErrorKind) {
+        let (msg, span) = match error_kind {
+            RSCErrorKind::RedundantDirectives(span) => (
+                "It's not possible to have both `use client` and `use server` directives in the \
+                 same file."
+                    .to_string(),
+                span,
+            ),
+            RSCErrorKind::NextRscErrClientDirective(span) => (
+                "The \"use client\" directive must be placed before other expressions. Move it to \
+                 the top of the file to resolve this issue."
+                    .to_string(),
+                span,
+            ),
+            RSCErrorKind::NextRscErrServerImport((source, span)) => {
+                let msg = match source.as_str() {
+                    // If importing "react-dom/server", we should show a different error.
+                    "react-dom/server" => "You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials".to_string(),
+                    // If importing "next/router", we should tell them to use "next/navigation".
+                    "next/router" => r#"You have a Server Component that imports next/router. Use next/navigation instead.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/use-router"#.to_string(),
+                    _ => format!(r#"You're importing a component that imports {}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n"#, source)
+                };
+
+                (msg, span)
+            }
+            RSCErrorKind::NextRscErrClientImport((source, span)) => {
+                // [NOTE]: in turbopack currently only type of AppRsc runs this transform,
+                // so it won't hit pages_dir case
+                let is_app_dir = self
+                    .app_dir
+                    .as_ref()
+                    .map(|app_dir| {
+                        if let Some(app_dir) = app_dir.as_os_str().to_str() {
+                            self.filepath.starts_with(app_dir)
+                        } else {
+                            false
+                        }
+                    })
+                    .unwrap_or_default();
+
+                let msg = if !is_app_dir {
+                    format!("You're importing a component that needs {}. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components\n\n", source)
+                } else {
+                    format!("You're importing a component that needs {}. That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n", source)
+                };
+                (msg, span)
+            }
+            RSCErrorKind::NextRscErrReactApi((source, span)) => {
+                let msg = if source == "Component" {
+                    "You’re importing a class component. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n".to_string()
+                } else {
+                    format!("You're importing a component that needs {}. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n", source)
+                };
+
+                (msg,span)
+            },
+            RSCErrorKind::NextRscErrErrorFileServerComponent(span) => {
+                (
+                    format!("{} must be a Client Component. Add the \"use client\" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n", self.filepath),
+                    span
+                )
+            },
+            RSCErrorKind::NextRscErrClientMetadataExport((source, span)) => {
+                (format!("You are attempting to export \"{}\" from a component marked with \"use client\", which is disallowed. Either remove the export, or the \"use client\" directive. Read more: https://nextjs.org/docs/getting-started/react-essentials#the-use-client-directive\n\n", source), span)
+            },
+            RSCErrorKind::NextRscErrConflictMetadataExport(span) => (
+                "\"metadata\" and \"generateMetadata\" cannot be exported at the same time, please keep one of them. Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata\n\n".to_string(),
+                span
+            ),
+            //NEXT_RSC_ERR_INVALID_API
+            RSCErrorKind::NextRscErrInvalidApi((source, span)) => (
+                format!("\"{}\" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching\n\n", source), span
+            ),
+        };
+
+        HANDLER.with(|handler| handler.struct_span_err(span, msg.as_str()).emit())
+    }
 }
 
 impl<C: Comments> VisitMut for ReactServerComponents<C> {
@@ -106,19 +203,6 @@ impl<C: Comments> ReactServerComponents<C> {
         let mut is_client_entry = false;
         let mut is_action_file = false;
 
-        fn panic_both_directives(span: Span) {
-            // It's not possible to have both directives in the same file.
-            HANDLER.with(|handler| {
-                handler
-                    .struct_span_err(
-                        span,
-                        "It's not possible to have both `use client` and `use server` directives \
-                         in the same file.",
-                    )
-                    .emit()
-            })
-        }
-
         let _ = &module.body.retain(|item| {
             match item {
                 ModuleItem::Stmt(stmt) => {
@@ -136,17 +220,18 @@ impl<C: Comments> ReactServerComponents<C> {
                                             is_client_entry = true;
 
                                             if is_action_file {
-                                                panic_both_directives(expr_stmt.span)
+                                                self.report_error(
+                                                    RSCErrorKind::RedundantDirectives(
+                                                        expr_stmt.span,
+                                                    ),
+                                                );
                                             }
                                         } else {
-                                            HANDLER.with(|handler| {
-                                                handler
-                                                    .struct_span_err(
-                                                        expr_stmt.span,
-                                                        "NEXT_RSC_ERR_CLIENT_DIRECTIVE",
-                                                    )
-                                                    .emit()
-                                            })
+                                            self.report_error(
+                                                RSCErrorKind::NextRscErrClientDirective(
+                                                    expr_stmt.span,
+                                                ),
+                                            );
                                         }
 
                                         // Remove the directive.
@@ -155,7 +240,9 @@ impl<C: Comments> ReactServerComponents<C> {
                                         is_action_file = true;
 
                                         if is_client_entry {
-                                            panic_both_directives(expr_stmt.span)
+                                            self.report_error(RSCErrorKind::RedundantDirectives(
+                                                expr_stmt.span,
+                                            ));
                                         }
                                     }
                                 }
@@ -166,14 +253,11 @@ impl<C: Comments> ReactServerComponents<C> {
                                     finished_directives = true;
                                     if let Expr::Lit(Lit::Str(Str { value, .. })) = &**expr {
                                         if &**value == "use client" {
-                                            HANDLER.with(|handler| {
-                                                handler
-                                                    .struct_span_err(
-                                                        expr_stmt.span,
-                                                        "NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN",
-                                                    )
-                                                    .emit()
-                                            })
+                                            self.report_error(
+                                                RSCErrorKind::NextRscErrClientDirective(
+                                                    expr_stmt.span,
+                                                ),
+                                            );
                                         }
                                     }
                                 }
@@ -350,40 +434,28 @@ impl<C: Comments> ReactServerComponents<C> {
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_server_imports.contains(&source) {
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(
-                            import.source.1,
-                            format!("NEXT_RSC_ERR_SERVER_IMPORT: {}", source).as_str(),
-                        )
-                        .emit()
-                })
+                self.report_error(RSCErrorKind::NextRscErrServerImport((
+                    source.to_string(),
+                    import.source.1,
+                )));
             }
             if source == *"react" {
                 for specifier in &import.specifiers {
                     if self.invalid_server_react_apis.contains(&specifier.0) {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    specifier.1,
-                                    format!("NEXT_RSC_ERR_REACT_API: {}", &specifier.0).as_str(),
-                                )
-                                .emit()
-                        })
+                        self.report_error(RSCErrorKind::NextRscErrReactApi((
+                            specifier.0.to_string(),
+                            specifier.1,
+                        )));
                     }
                 }
             }
             if source == *"react-dom" {
                 for specifier in &import.specifiers {
                     if self.invalid_server_react_dom_apis.contains(&specifier.0) {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    specifier.1,
-                                    format!("NEXT_RSC_ERR_REACT_API: {}", &specifier.0).as_str(),
-                                )
-                                .emit()
-                        })
+                        self.report_error(RSCErrorKind::NextRscErrReactApi((
+                            specifier.0.to_string(),
+                            specifier.1,
+                        )));
                     }
                 }
             }
@@ -404,17 +476,13 @@ impl<C: Comments> ReactServerComponents<C> {
             if let Some(app_dir) = &self.app_dir {
                 if let Some(app_dir) = app_dir.to_str() {
                     if self.filepath.starts_with(app_dir) {
-                        HANDLER.with(|handler| {
-                            let span = if let Some(first_item) = module.body.first() {
-                                first_item.span()
-                            } else {
-                                module.span
-                            };
+                        let span = if let Some(first_item) = module.body.first() {
+                            first_item.span()
+                        } else {
+                            module.span
+                        };
 
-                            handler
-                                .struct_span_err(span, "NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT")
-                                .emit()
-                        })
+                        self.report_error(RSCErrorKind::NextRscErrErrorFileServerComponent(span));
                     }
                 }
             }
@@ -428,14 +496,10 @@ impl<C: Comments> ReactServerComponents<C> {
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_client_imports.contains(&source) {
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(
-                            import.source.1,
-                            format!("NEXT_RSC_ERR_CLIENT_IMPORT: {}", source).as_str(),
-                        )
-                        .emit()
-                })
+                self.report_error(RSCErrorKind::NextRscErrClientImport((
+                    source.to_string(),
+                    import.source.1,
+                )));
             }
         }
     }
@@ -518,41 +582,25 @@ impl<C: Comments> ReactServerComponents<C> {
             // Client entry can't export `generateMetadata` or `metadata`.
             if is_client_entry {
                 if has_gm_export || has_metadata_export {
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(
-                                span,
-                                format!(
-                                    "NEXT_RSC_ERR_CLIENT_METADATA_EXPORT: {}",
-                                    invalid_export_name
-                                )
-                                .as_str(),
-                            )
-                            .emit()
-                    })
+                    self.report_error(RSCErrorKind::NextRscErrClientMetadataExport((
+                        invalid_export_name.clone(),
+                        span,
+                    )));
                 }
             } else {
                 // Server entry can't export `generateMetadata` and `metadata` together.
                 if has_gm_export && has_metadata_export {
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(span, "NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT")
-                            .emit()
-                    })
+                    self.report_error(RSCErrorKind::NextRscErrConflictMetadataExport(span));
                 }
             }
             // Assert `getServerSideProps` and `getStaticProps` exports.
             if invalid_export_name == "getServerSideProps"
                 || invalid_export_name == "getStaticProps"
             {
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(
-                            span,
-                            format!("NEXT_RSC_ERR_INVALID_API: {}", invalid_export_name).as_str(),
-                        )
-                        .emit()
-                })
+                self.report_error(RSCErrorKind::NextRscErrInvalidApi((
+                    invalid_export_name.clone(),
+                    span,
+                )));
             }
         }
     }
