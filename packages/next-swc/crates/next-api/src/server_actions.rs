@@ -56,7 +56,7 @@ pub(crate) async fn create_server_actions_manifest(
 ) -> Result<(Vc<Box<dyn EvaluatableAsset>>, Vc<Box<dyn OutputAsset>>)> {
     let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
     let loader =
-        build_server_actions_loader(project_path, page_name, actions, asset_context).await?;
+        build_server_actions_loader(project_path, page_name.to_string(), actions, asset_context);
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
         .await?
         .context("loader module must be evaluatable")?;
@@ -76,9 +76,10 @@ pub(crate) async fn create_server_actions_manifest(
 /// The actions are reexported under a hashed name (comprised of the exporting
 /// file's name and the action name). This hash matches the id sent to the
 /// client and present inside the paired manifest.
+#[turbo_tasks::function]
 async fn build_server_actions_loader(
     project_path: Vc<FileSystemPath>,
-    page_name: &str,
+    page_name: String,
     actions: Vc<AllActions>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {

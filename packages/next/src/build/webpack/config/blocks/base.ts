@@ -15,7 +15,7 @@ export const base = curry(function base(
     : COMPILER_NAMES.client
 
   config.target = !ctx.targetWeb
-    ? 'node16.14' // Same version defined in packages/next/package.json#engines
+    ? 'node18.17' // Same version defined in packages/next/package.json#engines
     : ctx.isEdgeRuntime
     ? ['web', 'es6']
     : ['web', 'es5']

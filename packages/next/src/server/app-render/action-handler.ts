@@ -299,6 +299,9 @@ export async function handleAction({
     )
   }
 
+  // When running actions the default is no-store, you can still `cache: 'force-cache'`
+  staticGenerationStore.fetchCache = 'default-no-store'
+
   const originDomain =
     typeof req.headers['origin'] === 'string'
       ? new URL(req.headers['origin']).host
