@@ -53,16 +53,27 @@ export function normalizeCatchAllRoutes(
 }
 
 function hasMatchedSlots(path1: string, path2: string): boolean {
-  const slots1 = path1.split('/').filter((segment) => segment.startsWith('@'))
-  const slots2 = path2.split('/').filter((segment) => segment.startsWith('@'))
+  const slots1 = path1.split('/').filter(isMatchableSlot)
+  const slots2 = path2.split('/').filter(isMatchableSlot)
 
+  // if the catch-all route does not have the same number of slots as the app path, it can't match
   if (slots1.length !== slots2.length) return false
 
+  // compare the slots in both paths. For there to be a match, each slot must be the same
   for (let i = 0; i < slots1.length; i++) {
     if (slots1[i] !== slots2[i]) return false
   }
 
   return true
+}
+
+/**
+ * Returns true for slots that should be considered when checking for match compatability.
+ * Excludes children slots because these are similar to having a segment-level `page`
+ * which would cause a slot length mismatch when comparing it to a catch-all route.
+ */
+function isMatchableSlot(segment: string): boolean {
+  return segment.startsWith('@') && segment !== '@children'
 }
 
 const catchAllRouteRegex = /\[?\[\.\.\./
