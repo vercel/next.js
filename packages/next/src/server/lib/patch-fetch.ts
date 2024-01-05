@@ -176,6 +176,32 @@ interface PatchableModule {
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }
 
+function fetchErrorHandlingWrapper(
+  fetchFn: typeof fetch,
+  tracingError: Error
+): typeof fetch {
+  const modifiedTrace = tracingError.stack?.split('\n').slice(2).join('\n')
+  const overriddenFetch: typeof fetch = function (...args) {
+    return fetchFn(...args).catch((err) => {
+      // If it's failed with internal fetch call, and there's only node:internal traces
+      if (
+        (err instanceof Error && err.name === 'TypeError',
+        err.message === 'fetch failed')
+      ) {
+        const traces: string[] = err.stack?.split('\n')
+        // trace without the error message
+        const originStackTrace = traces.slice(1)
+        if (originStackTrace.every((line) => line.includes('node:internal'))) {
+          err.stack = traces[0] + '\n' + modifiedTrace
+          throw err
+        }
+      }
+      throw err
+    })
+  }
+  return overriddenFetch
+}
+
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 export function patchFetch({
@@ -191,10 +217,14 @@ export function patchFetch({
   const { DynamicServerError } = serverHooks
   const originFetch: typeof fetch = (globalThis as any)._nextOriginalFetch
 
-  globalThis.fetch = async (
+  async function patchedFetch(
     input: RequestInfo | URL,
     init: RequestInit | undefined
-  ) => {
+  ) {
+    const tracedOriginalFetch = (...args: Parameters<typeof fetch>) =>
+      fetchErrorHandlingWrapper(originFetch, tracingError)(...args)
+    const tracingError = new Error('NEXT_FETCH_TRACING_ERROR')
+
     let url: URL | undefined
     try {
       url = new URL(input instanceof Request ? input.url : input)
@@ -246,7 +276,7 @@ export function patchFetch({
           isInternal ||
           staticGenerationStore.isDraftMode
         ) {
-          return originFetch(input, init)
+          return tracedOriginalFetch(input, init)
         }
 
         let revalidate: number | undefined | false = undefined
@@ -496,7 +526,7 @@ export function patchFetch({
             next: { ...init?.next, fetchType: 'origin', fetchIdx },
           }
 
-          return originFetch(input, clonedInit).then(async (res) => {
+          return tracedOriginalFetch(input, clonedInit).then(async (res) => {
             if (!isStale) {
               trackFetchMetric(staticGenerationStore, {
                 start: fetchStart,
@@ -682,6 +712,7 @@ export function patchFetch({
       }
     )
   }
+  globalThis.fetch = patchedFetch.bind(globalThis)
   ;(globalThis.fetch as any).__nextGetStaticStore = () => {
     return staticGenerationAsyncStorage
   }
