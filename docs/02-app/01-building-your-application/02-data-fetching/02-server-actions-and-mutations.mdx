@@ -474,8 +474,6 @@ export async function editUser(userId, prevState, formData) {
 }
 ```
 
-Then, you can pass your action to the `useFormState` hook and use the returned `state` to display an error message.
-
 ```tsx filename="app/ui/user-details.tsx" switcher
 'use client'
 
@@ -492,7 +490,7 @@ export function UserDetails({ userId }: { userId: string }) {
 
   return (
     <form action={formAction}>
-      <label htmlFor="username">username</label>
+      <label htmlFor="username">Username</label>
       <input type="text" id="username" name="username" required />
       {/* ... */}
       <p aria-live="polite" className="sr-only">
@@ -520,7 +518,7 @@ export function UserDetails({ userId }) {
 
   return (
     <form action={formAction}>
-      <label htmlFor="username">username</label>
+      <label htmlFor="username">Username</label>
       <input type="text" id="username" name="username" required />
       {/* ... */}
       <p aria-live="polite" className="sr-only">
